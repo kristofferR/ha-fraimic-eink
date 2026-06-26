@@ -14,6 +14,7 @@ CONF_HOST: Final = "host"
 CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_WIDTH: Final = "width"
 CONF_HEIGHT: Final = "height"
+CONF_FRAME_MODEL: Final = "frame_model"
 
 DEFAULT_HOST: Final = "fraimic.local"
 # The frame is battery-powered; polling /api/info every 5 minutes is a good
@@ -26,12 +27,24 @@ UPLOAD_TIMEOUT: Final = 90
 
 # Display / image format.
 #
-# Fraimic frames are E Ink Spectra 6 COLOUR panels (not grayscale). The default
-# resolution is the 13.3" frame (1600x1200 landscape); the resolution is stored
-# per config entry so smaller/larger frames can be configured.
+# Fraimic frames are E Ink Spectra 6 COLOUR panels (not grayscale). Resolution is
+# stored per config entry so the different models can be configured:
+#   - Standard Canvas (13.3"): 1200x1600 native (3:4). dsackr's working converter
+#     used 1600x1200 (same byte count, landscape layout); both frames auto-orient,
+#     so the exact layout is confirmed per frame via the real-frame test pattern.
+#   - Large Canvas (31.5"): 2560x1440 (16:9).
+# Known model presets, surfaced in the config flow for easy setup.
+FRAME_MODELS: Final = {
+    "standard": (1600, 1200),  # 13.3" — 960,000-byte buffer
+    "large": (2560, 1440),     # 31.5" — 1,843,200-byte buffer
+}
+MODEL_CUSTOM: Final = "custom"
+
 DEFAULT_WIDTH: Final = 1600
 DEFAULT_HEIGHT: Final = 1200
-MAX_BIN_SIZE: Final = 1024 * 1024  # frame rejects uploads over 1 MB
+# Generous client-side ceiling — the Large Canvas buffer alone is ~1.84 MB, well
+# over the small frame's documented 1 MB limit. The frame still validates size.
+MAX_BIN_SIZE: Final = 4 * 1024 * 1024
 
 # Spectra 6 palette — index order is the panel's nibble value; only 0-5 are valid.
 # The packed nibble IS this index; the RGB tuples are *calibrated approximations*

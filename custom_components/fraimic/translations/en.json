@@ -14,10 +14,11 @@
       },
       "resolution": {
         "title": "Frame resolution",
-        "description": "Confirm the display resolution for the frame at {host}. The 13.3\" frame is 1600x1200; set the correct pixel size for smaller frames.",
+        "description": "Pick your Fraimic model for the frame at {host}. Choose Custom to enter a resolution manually (Width/Height are only used when the model is Custom).",
         "data": {
-          "width": "Width (px)",
-          "height": "Height (px)"
+          "frame_model": "Frame model",
+          "width": "Width (px, Custom only)",
+          "height": "Height (px, Custom only)"
         }
       }
     },

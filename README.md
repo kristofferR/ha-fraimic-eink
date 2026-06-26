@@ -48,8 +48,10 @@ Make sure the frame is **awake** (tap it — it is unreachable in deep sleep), t
 
 1. Enter the host (`fraimic.local`, or the frame's IP if mDNS doesn't resolve — common with
    Docker/VLAN setups). With multiple frames, use IP addresses to tell them apart.
-2. Confirm the **resolution**. It is auto-filled when the frame reports it; otherwise the
-   default is **1600×1200** (the 13.3" frame). Set the correct pixel size for a smaller frame.
+2. **Resolution is auto-detected** when the frame reports its size or model. If it can't be
+   determined, you pick the model — **Standard Canvas** (13.3", 1600×1200) or **Large Canvas**
+   (31.5", 2560×1440) — or choose *Custom* and enter the pixels. Add each frame separately; they
+   can be different models.
 
 Change the polling interval later via the integration's **Configure** button (default 300 s,
 since the frame is battery-powered).

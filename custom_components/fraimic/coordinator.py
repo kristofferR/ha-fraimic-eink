@@ -89,6 +89,9 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
     return {
         "firmware_version": pick("firmware_version", ("device", "firmware_version")),
         "device_id": pick("device_id", ("device", "device_id"), ("device", "id")),
+        "model": pick(
+            "display_type", "model", "device_type", "variant", ("device", "model")
+        ),
         "wifi": {
             "connected": pick(("wifi", "connected"), "wifi_connected"),
             "ssid": pick(("wifi", "ssid"), "wifi_ssid", "ssid"),

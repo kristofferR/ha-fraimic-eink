@@ -14,6 +14,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .api import FraimicClient, FraimicError, normalize_host
 from .const import (
+    CONF_FRAME_MODEL,
     CONF_HEIGHT,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
@@ -22,7 +23,9 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_WIDTH,
     DOMAIN,
+    FRAME_MODELS,
     MIN_SCAN_INTERVAL,
+    MODEL_CUSTOM,
 )
 from .coordinator import normalize_info
 
@@ -62,7 +65,7 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
                 await self._async_set_unique_id(host, info)
                 self._host = host
                 self._info = info
-                return await self.async_step_resolution()
+                return await self._async_resolution_or_create()
 
         return self.async_show_form(
             step_id="user",
@@ -85,35 +88,60 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
         self._host = host
         self._info = info
         self.context["title_placeholders"] = {"name": _title(host)}
+        return await self._async_resolution_or_create()
+
+    async def _async_resolution_or_create(self) -> ConfigFlowResult:
+        """Auto-create the entry if the frame's resolution can be detected,
+        otherwise fall back to asking the user."""
+        detected = _detect_resolution(self._info)
+        if detected is not None:
+            width, height = detected
+            return self.async_create_entry(
+                title=_title(self._host or ""),
+                data={CONF_HOST: self._host, CONF_WIDTH: width, CONF_HEIGHT: height},
+            )
         return await self.async_step_resolution()
 
     async def async_step_resolution(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm the frame's display resolution (auto-filled when reported)."""
+        """Confirm the frame's display resolution.
+
+        A model preset (Standard 13.3" / Large 31.5") fills in the resolution;
+        "Custom" uses the width/height fields. Auto-filled when the frame reports
+        its own dimensions.
+        """
         assert self._host is not None
         if user_input is not None:
+            model = user_input[CONF_FRAME_MODEL]
+            if model in FRAME_MODELS:
+                width, height = FRAME_MODELS[model]
+            else:
+                width, height = user_input[CONF_WIDTH], user_input[CONF_HEIGHT]
             return self.async_create_entry(
                 title=_title(self._host),
-                data={
-                    CONF_HOST: self._host,
-                    CONF_WIDTH: user_input[CONF_WIDTH],
-                    CONF_HEIGHT: user_input[CONF_HEIGHT],
-                },
+                data={CONF_HOST: self._host, CONF_WIDTH: width, CONF_HEIGHT: height},
             )
 
         display = self._info.get("display") or {}
         width = display.get("width") or DEFAULT_WIDTH
         height = display.get("height") or DEFAULT_HEIGHT
+        default_model = next(
+            (m for m, dims in FRAME_MODELS.items() if dims == (width, height)),
+            MODEL_CUSTOM,
+        )
         return self.async_show_form(
             step_id="resolution",
             data_schema=vol.Schema(
                 {
+                    vol.Required(CONF_FRAME_MODEL, default=default_model): vol.In(
+                        [*FRAME_MODELS, MODEL_CUSTOM]
+                    ),
                     vol.Required(CONF_WIDTH, default=width): vol.All(
-                        vol.Coerce(int), vol.Range(min=1, max=4096)
+                        vol.Coerce(int), vol.Range(min=1, max=8192)
                     ),
                     vol.Required(CONF_HEIGHT, default=height): vol.All(
-                        vol.Coerce(int), vol.Range(min=1, max=4096)
+                        vol.Coerce(int), vol.Range(min=1, max=8192)
                     ),
                 }
             ),
@@ -157,6 +185,35 @@ class FraimicOptionsFlow(OptionsFlow):
                 }
             ),
         )
+
+
+def _detect_resolution(info: dict[str, Any]) -> tuple[int, int] | None:
+    """Work out the frame's pixel resolution from ``/api/info``, if possible.
+
+    Tries, in order: explicit display dimensions, then model/firmware hints
+    matched against the two known Fraimic models (Standard 13.3" -> 1600x1200,
+    Large 31.5" -> 2560x1440). Returns ``None`` if it can't tell, so the config
+    flow asks the user.
+    """
+    display = info.get("display") or {}
+    width, height = display.get("width"), display.get("height")
+    if width and height:
+        try:
+            return int(width), int(height)
+        except (TypeError, ValueError):
+            pass
+
+    hints = " ".join(
+        str(info.get(key) or "")
+        for key in ("model", "firmware_version")
+    ).lower()
+    if any(tag in hints for tag in ("2560", "1440", "31.5", "31_5", '31"', "large")):
+        return FRAME_MODELS["large"]
+    if any(
+        tag in hints for tag in ("1600", "1200", "13.3", "13_3", '13"', "standard")
+    ):
+        return FRAME_MODELS["standard"]
+    return None
 
 
 def _title(host: str) -> str:
