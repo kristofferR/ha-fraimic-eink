@@ -31,9 +31,11 @@ from .const import (
     ATTR_SHARPEN,
     ATTR_URL,
     CONF_HEIGHT,
+    CONF_ROTATION,
     CONF_WIDTH,
     DEFAULT_CONTRAST,
     DEFAULT_HEIGHT,
+    DEFAULT_ROTATION,
     DEFAULT_SATURATION,
     DEFAULT_SHARPEN,
     DEFAULT_WIDTH,
@@ -193,6 +195,9 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
 
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
+    base_rotation = entry.options.get(CONF_ROTATION, DEFAULT_ROTATION)
+    rotate = (base_rotation + call.data[ATTR_ROTATE]) % 360
 
     requested_mode = _resolve_mode(call.data)
     try:
@@ -202,7 +207,7 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
             width,
             height,
             call.data[ATTR_FIT],
-            call.data[ATTR_ROTATE],
+            rotate,
             requested_mode,
             call.data[ATTR_SATURATION],
             call.data[ATTR_CONTRAST],

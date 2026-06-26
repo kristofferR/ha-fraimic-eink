@@ -53,8 +53,15 @@ Make sure the frame is **awake** (tap it — it is unreachable in deep sleep), t
    (31.5", 2560×1440) — or choose *Custom* and enter the pixels. Add each frame separately; they
    can be different models.
 
-Change the polling interval later via the integration's **Configure** button (default 300 s,
-since the frame is battery-powered).
+**Multiple frames:** add each one separately — they appear as independent devices with their
+own resolution, entities, and options. Use IP addresses (not `fraimic.local`) to tell them apart
+when you have more than one. The `fraimic.upload_image` service takes a **Frame** picker
+(`config_entry_id`) to target a specific one.
+
+Via the integration's **Configure** button (per frame) you can set the **polling interval**
+(default 300 s, since the frame is battery-powered) and a **base rotation** (0/90/180/270) to
+match how that frame is physically mounted — it's applied to every upload, on top of any per-call
+`rotate`.
 
 ## Entities
 

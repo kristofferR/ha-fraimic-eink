@@ -16,16 +16,19 @@ from .api import FraimicClient, FraimicError, normalize_host
 from .const import (
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
+    CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
     DEFAULT_HEIGHT,
     DEFAULT_HOST,
+    DEFAULT_ROTATION,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_WIDTH,
     DOMAIN,
     FRAME_MODELS,
     MIN_SCAN_INTERVAL,
     MODEL_CUSTOM,
+    ROTATION_OPTIONS,
 )
 from .coordinator import normalize_info
 
@@ -164,7 +167,7 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class FraimicOptionsFlow(OptionsFlow):
-    """Handle the Fraimic options (poll interval)."""
+    """Handle the Fraimic options (poll interval, base rotation)."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -172,16 +175,19 @@ class FraimicOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        current = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-        )
+        options = self.config_entry.options
+        scan_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+        rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
+                    vol.Required(CONF_SCAN_INTERVAL, default=scan_interval): vol.All(
                         vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)
-                    )
+                    ),
+                    vol.Required(CONF_ROTATION, default=rotation): vol.In(
+                        ROTATION_OPTIONS
+                    ),
                 }
             ),
         )

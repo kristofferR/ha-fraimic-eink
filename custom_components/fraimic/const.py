@@ -15,6 +15,12 @@ CONF_SCAN_INTERVAL: Final = "scan_interval"
 CONF_WIDTH: Final = "width"
 CONF_HEIGHT: Final = "height"
 CONF_FRAME_MODEL: Final = "frame_model"
+CONF_ROTATION: Final = "rotation"
+
+# Per-frame base rotation (degrees clockwise) applied to every upload, on top of
+# any per-call rotate. Lets you correct how the frame is physically mounted.
+DEFAULT_ROTATION: Final = 0
+ROTATION_OPTIONS: Final = (0, 90, 180, 270)
 
 DEFAULT_HOST: Final = "fraimic.local"
 # The frame is battery-powered; polling /api/info every 5 minutes is a good

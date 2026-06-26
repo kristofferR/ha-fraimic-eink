@@ -35,10 +35,12 @@
       "init": {
         "title": "Fraimic options",
         "data": {
-          "scan_interval": "Polling interval (seconds)"
+          "scan_interval": "Polling interval (seconds)",
+          "rotation": "Rotation (degrees)"
         },
         "data_description": {
-          "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended."
+          "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
+          "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape)."
         }
       }
     }
