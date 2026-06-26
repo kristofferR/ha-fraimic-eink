@@ -7,6 +7,8 @@ and uploads it.
 
 from __future__ import annotations
 
+import logging
+
 import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
@@ -18,22 +20,34 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import FraimicError
 from .const import (
     ATTR_CONFIG_ENTRY,
+    ATTR_CONTRAST,
     ATTR_DITHER,
     ATTR_FIT,
     ATTR_IMAGE_ENTITY,
+    ATTR_MODE,
     ATTR_PATH,
     ATTR_ROTATE,
+    ATTR_SATURATION,
+    ATTR_SHARPEN,
     ATTR_URL,
     CONF_HEIGHT,
     CONF_WIDTH,
+    DEFAULT_CONTRAST,
     DEFAULT_HEIGHT,
+    DEFAULT_SATURATION,
+    DEFAULT_SHARPEN,
     DEFAULT_WIDTH,
+    DITHER_MODES,
     DOMAIN,
     FIT_COVER,
     FIT_MODES,
+    MODE_AUTO,
+    MODE_NONE,
     SERVICE_UPLOAD_IMAGE,
 )
 from .image_convert import convert_image
+
+_LOGGER = logging.getLogger(__name__)
 
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # 25 MB safety cap for URL/file sources
 
@@ -58,11 +72,31 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
             vol.Optional(ATTR_ROTATE, default=0): vol.All(
                 vol.Coerce(int), vol.In((0, 90, 180, 270))
             ),
-            vol.Optional(ATTR_DITHER, default=True): cv.boolean,
+            vol.Optional(ATTR_MODE): vol.In(DITHER_MODES),
+            vol.Optional(ATTR_SATURATION, default=DEFAULT_SATURATION): vol.All(
+                vol.Coerce(float), vol.Range(min=0.0, max=3.0)
+            ),
+            vol.Optional(ATTR_CONTRAST, default=DEFAULT_CONTRAST): vol.All(
+                vol.Coerce(float), vol.Range(min=0.0, max=3.0)
+            ),
+            vol.Optional(ATTR_SHARPEN, default=DEFAULT_SHARPEN): vol.All(
+                vol.Coerce(float), vol.Range(min=0.0, max=100.0)
+            ),
+            # Deprecated boolean kept for backward compatibility; superseded by `mode`.
+            vol.Optional(ATTR_DITHER): cv.boolean,
         }
     ),
     _require_one_source,
 )
+
+
+def _resolve_mode(data: dict) -> str:
+    """Pick the dither mode, honouring the legacy ``dither`` boolean."""
+    if data.get(ATTR_MODE):
+        return data[ATTR_MODE]
+    if ATTR_DITHER in data:
+        return MODE_AUTO if data[ATTR_DITHER] else MODE_NONE
+    return MODE_AUTO
 
 
 def async_setup_services(hass: HomeAssistant) -> None:
@@ -160,18 +194,25 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
 
+    requested_mode = _resolve_mode(call.data)
     try:
-        bin_data, preview_png = await hass.async_add_executor_job(
+        bin_data, preview_png, used_mode = await hass.async_add_executor_job(
             _convert,
             raw,
             width,
             height,
             call.data[ATTR_FIT],
             call.data[ATTR_ROTATE],
-            call.data[ATTR_DITHER],
+            requested_mode,
+            call.data[ATTR_SATURATION],
+            call.data[ATTR_CONTRAST],
+            call.data[ATTR_SHARPEN],
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
         raise HomeAssistantError(f"Could not convert the image: {err}") from err
+
+    if requested_mode == MODE_AUTO:
+        _LOGGER.info("Fraimic auto-selected dither mode '%s' for this image", used_mode)
 
     try:
         await runtime.client.upload_image(bin_data)
@@ -179,15 +220,31 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
         raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
 
     if preview_png and runtime.preview_image is not None:
-        runtime.preview_image.set_preview(preview_png)
+        runtime.preview_image.set_preview(preview_png, used_mode)
 
     # Pull a fresh snapshot so last-refresh / status updates promptly.
     await runtime.coordinator.async_request_refresh()
 
 
 def _convert(
-    raw: bytes, width: int, height: int, fit: str, rotate: int, dither: bool
+    raw: bytes,
+    width: int,
+    height: int,
+    fit: str,
+    rotate: int,
+    mode: str,
+    saturation: float,
+    contrast: float,
+    sharpen: float,
 ) -> tuple[bytes, bytes | None]:
     return convert_image(
-        raw, width=width, height=height, fit=fit, rotate=rotate, dither=dither
+        raw,
+        width=width,
+        height=height,
+        fit=fit,
+        rotate=rotate,
+        mode=mode,
+        saturation=saturation,
+        contrast=contrast,
+        sharpen=sharpen,
     )

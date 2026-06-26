@@ -33,16 +33,62 @@ DEFAULT_WIDTH: Final = 1600
 DEFAULT_HEIGHT: Final = 1200
 MAX_BIN_SIZE: Final = 1024 * 1024  # frame rejects uploads over 1 MB
 
-# Spectra 6 palette. Nibble value -> (approx) display colour. Only 0-5 are valid.
-SPECTRA6: Final = (
+# Spectra 6 palette — index order is the panel's nibble value; only 0-5 are valid.
+# The packed nibble IS this index; the RGB tuples are *calibrated approximations*
+# of what each colour actually looks like on the panel (used for quantization
+# matching and previews). Spectra 6 colours are far more muted than monitor
+# primaries, so matching against pure primaries (255,0,0 etc.) renders badly.
+# Calibrated values corroborated by Toon-noT's converter and the Pimoroni Inky
+# community (red #a02020, yellow #f0e050, green #608050, blue #5080b8).
+SPECTRA6_RGB: Final = (
     (0, 0, 0),        # 0 Black
     (255, 255, 255),  # 1 White
-    (0, 255, 0),      # 2 Green
-    (0, 0, 255),      # 3 Blue
-    (255, 0, 0),      # 4 Red
-    (255, 255, 0),    # 5 Yellow
+    (96, 128, 80),    # 2 Green  #608050
+    (80, 128, 184),   # 3 Blue   #5080b8
+    (160, 32, 32),    # 4 Red    #a02020
+    (240, 224, 80),   # 5 Yellow #f0e050
 )
-SPECTRA6_LEVELS: Final = len(SPECTRA6)
+SPECTRA6_LEVELS: Final = len(SPECTRA6_RGB)
+
+# Dither / processing modes.
+MODE_AUTO: Final = "auto"  # the integration's best general default
+MODE_NONE: Final = "none"  # nearest colour, no dithering
+MODE_BAYER: Final = "bayer"  # ordered dithering (fast, good for graphics)
+MODE_FLOYD_STEINBERG: Final = "floyd_steinberg"
+MODE_ATKINSON: Final = "atkinson"
+DITHER_MODES: Final = (
+    MODE_AUTO,
+    MODE_NONE,
+    MODE_BAYER,
+    MODE_FLOYD_STEINBERG,
+    MODE_ATKINSON,
+)
+# What MODE_AUTO resolves to — the empirically-best general result for photos.
+DEFAULT_MODE_RESOLVED: Final = MODE_FLOYD_STEINBERG
+
+# Default pre-processing parameters (tuned for the small Spectra 6 gamut). 1.0 is
+# a no-op for the enhance factors; sharpen is a 0-100 strength.
+DEFAULT_SATURATION: Final = 1.25
+DEFAULT_CONTRAST: Final = 1.1
+DEFAULT_SHARPEN: Final = 80.0
+# Clip this fraction off each end of the histogram for black/white-point autolevels.
+AUTOCONTRAST_CUTOFF: Final = 0.5
+
+# Neutral preservation: the calibrated palette's muted colours sit close to mid
+# grey, so without this, near-neutral pixels speckle with red/yellow. We add a
+# distance penalty to *chromatic* palette entries proportional to how achromatic
+# the source pixel is (OKLab chroma below NEUTRAL_CHROMA_T), so greys dither
+# between black/white while saturated regions keep their colour.
+NEUTRAL_WEIGHT: Final = 4.0
+NEUTRAL_CHROMA_T: Final = 0.06
+
+# Auto mode classification: pick Bayer (ordered) only for clearly flat graphics,
+# else Floyd-Steinberg. A graphic has lots of exactly-equal neighbouring pixels
+# AND a few colours covering most of the image; photos (even low-colour/foggy
+# ones) stay well under both thresholds. Biased toward FS — picking Bayer for a
+# photo is the worse mistake. Calibrated on a sample of photos vs a UI mock.
+AUTO_FLAT_THRESHOLD: Final = 0.6
+AUTO_DOMINANCE_THRESHOLD: Final = 0.7
 
 # Service
 SERVICE_UPLOAD_IMAGE: Final = "upload_image"
@@ -54,6 +100,10 @@ ATTR_IMAGE_ENTITY: Final = "image_entity_id"
 ATTR_FIT: Final = "fit"
 ATTR_ROTATE: Final = "rotate"
 ATTR_DITHER: Final = "dither"
+ATTR_MODE: Final = "mode"
+ATTR_SATURATION: Final = "saturation"
+ATTR_CONTRAST: Final = "contrast"
+ATTR_SHARPEN: Final = "sharpen"
 
 FIT_COVER: Final = "cover"
 FIT_CONTAIN: Final = "contain"

@@ -75,10 +75,16 @@ The killer feature. Call the `fraimic.upload_image` service with **one** image s
 action: fraimic.upload_image
 data:
   url: https://example.com/poster.jpg
-  fit: cover      # cover (crop) | contain (pad) | stretch
-  rotate: 0       # 0 | 90 | 180 | 270
-  dither: true    # Floyd-Steinberg to the 6-colour palette — recommended for photos
+  fit: cover            # cover (crop) | contain (pad) | stretch
+  rotate: 0             # 0 | 90 | 180 | 270
+  mode: auto            # auto | floyd_steinberg | atkinson | bayer | none
+  saturation: 1.25      # boost for the small Spectra gamut (1.0 = none)
+  contrast: 1.1         # 1.0 = none
+  sharpen: 80           # unsharp-mask strength 0-100
 ```
+
+All processing options are optional with sensible defaults — the simple call is just
+`data: { url: ... }`.
 
 Other sources:
 
@@ -123,18 +129,47 @@ uncompressed: every pixel is a 4-bit index into a 6-colour palette, packed two p
 (high nibble = left pixel, low nibble = right pixel), scanned left-to-right, top-to-bottom. For
 the 13.3" frame that's `1600 × 1200 / 2 = 960,000` bytes.
 
-| Index | Colour |
-|:-----:|--------|
-| 0x0 | Black |
-| 0x1 | White |
-| 0x2 | Green |
-| 0x3 | Blue |
-| 0x4 | Red |
-| 0x5 | Yellow |
+| Index | Colour | Calibrated RGB |
+|:-----:|--------|:--------------:|
+| 0x0 | Black  | #000000 |
+| 0x1 | White  | #ffffff |
+| 0x2 | Green  | #608050 |
+| 0x3 | Blue   | #5080b8 |
+| 0x4 | Red    | #a02020 |
+| 0x5 | Yellow | #f0e050 |
 
-The integration applies EXIF orientation + your `rotate`, fits to the frame resolution
-(`cover`/`contain`/`stretch`), dithers to the 6-colour palette (Floyd-Steinberg), clamps every
-nibble to a valid `0–5` index, packs the buffer, and `POST`s it as multipart to `/upload`.
+Getting good results from a tiny-gamut, low-contrast 6-colour panel is as much about
+pre-processing as the dither, so the integration runs a full pipeline (all in an executor):
+
+1. **Orient + fit** — EXIF transpose, your `rotate`, then resize (`cover`/`contain`/`stretch`).
+2. **Tone** — autocontrast (black/white point) + a contrast boost.
+3. **Saturation** — a boost, because the Spectra gamut is small (the single biggest perceptual
+   win after the palette fix).
+4. **Sharpen** — a mild unsharp mask (dithering softens detail).
+5. **Match against a *calibrated* palette** (the muted RGB above, **not** pure primaries — pure
+   primaries are what a Spectra 6 panel can't make, and matching against them looks harsh) in
+   **OKLab**, with **neutral preservation** so near-grey pixels dither between black/white instead
+   of speckling with red/yellow.
+6. **Dither** with the selected `mode`:
+   - **`auto`** (default) — looks at the image and chooses for you: **Floyd-Steinberg** for photos,
+     **Bayer** for flat graphics/UI (lots of solid colour). The mode it picked is shown on the
+     `Current artwork` image entity as the `dither_mode` attribute (and logged).
+   - `floyd_steinberg` — best general error diffusion for photos.
+   - `atkinson` — localised, preserves highlights; nice for portraits.
+   - `bayer` — fast ordered dithering, best for flat graphics/dashboards/UI.
+   - `none` — nearest colour, no dithering.
+   Error-diffusion modes use serpentine scanning in linear light.
+7. **Pack** nibbles (clamped to 0–5) and `POST` as multipart to `/upload`.
+
+**Which mode?** Just leave it on `auto` — it picks per image. Override only if you want a specific
+look (e.g. force `bayer` for a poster-style image, or `atkinson` for a portrait).
+
+The calibrated palette comes from community reverse engineering of real Spectra 6 panels
+(Toon-noT's converter, the Pimoroni Inky community).
+
+**Speed:** `none`/`bayer` are vectorised (well under a second at 1600×1200); the error-diffusion
+modes are inherently sequential and take a few seconds (longer on a Pi Zero) — still far less than
+the panel's own 20–30 s refresh, and they run in the background.
 
 ## Accuracy note
 

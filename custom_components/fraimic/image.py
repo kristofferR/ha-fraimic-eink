@@ -40,6 +40,7 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
         ImageEntity.__init__(self, hass)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_preview"
         self._image: bytes | None = None
+        self._attr_extra_state_attributes = {}
 
     @property
     def available(self) -> bool:
@@ -47,9 +48,12 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
         # sleeps so you can still see what was last shown.
         return self._image is not None
 
-    def set_preview(self, png_bytes: bytes) -> None:
-        """Store a new PNG preview and notify Home Assistant."""
+    def set_preview(self, png_bytes: bytes, mode: str | None = None) -> None:
+        """Store a new PNG preview (and the dither mode used) and notify HA."""
         self._image = png_bytes
+        if mode is not None:
+            # Surfaces what `auto` actually chose, so it's visible in the UI.
+            self._attr_extra_state_attributes = {"dither_mode": mode}
         self._attr_image_last_updated = dt_util.utcnow()
         self.async_write_ha_state()
 

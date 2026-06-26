@@ -109,9 +109,21 @@
           "name": "Rotate",
           "description": "Clockwise rotation applied before fitting."
         },
-        "dither": {
-          "name": "Dither",
-          "description": "Apply Floyd-Steinberg dithering to the 6-colour Spectra palette."
+        "mode": {
+          "name": "Dither mode",
+          "description": "How to map to the 6 Spectra colours: auto/error-diffusion for photos, bayer for graphics, none for nearest-colour."
+        },
+        "saturation": {
+          "name": "Saturation",
+          "description": "Saturation boost before dithering (default 1.4; 1.0 = no change)."
+        },
+        "contrast": {
+          "name": "Contrast",
+          "description": "Contrast boost before dithering (default 1.15; 1.0 = no change)."
+        },
+        "sharpen": {
+          "name": "Sharpen",
+          "description": "Unsharp-mask strength 0-100 (default 80; 0 disables)."
         }
       }
     }

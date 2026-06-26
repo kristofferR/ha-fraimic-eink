@@ -69,12 +69,61 @@ upload_image:
               value: "180"
             - label: "270°"
               value: "270"
-    dither:
-      name: Dither
+    mode:
+      name: Dither mode
       description: >-
-        Apply Floyd-Steinberg dithering to the 6-colour Spectra palette.
-        Recommended for photos.
+        How to map the image to the 6 Spectra colours. "Auto" (best general
+        result) and the error-diffusion modes suit photos; "Bayer" is fast and
+        best for flat graphics/UI; "None" is nearest-colour only.
       required: false
-      default: true
+      default: auto
       selector:
-        boolean:
+        select:
+          options:
+            - label: Auto (recommended)
+              value: auto
+            - label: Floyd-Steinberg (photos)
+              value: floyd_steinberg
+            - label: Atkinson (portraits)
+              value: atkinson
+            - label: Bayer / ordered (graphics, fast)
+              value: bayer
+            - label: None (nearest colour)
+              value: none
+    saturation:
+      name: Saturation
+      description: >-
+        Saturation boost before dithering. The Spectra gamut is small, so a
+        boost (default 1.4) usually looks best. 1.0 = no change.
+      required: false
+      default: 1.4
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+          mode: slider
+    contrast:
+      name: Contrast
+      description: Contrast boost before dithering (default 1.15). 1.0 = no change.
+      required: false
+      default: 1.15
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+          mode: slider
+    sharpen:
+      name: Sharpen
+      description: >-
+        Unsharp-mask strength (0-100, default 80). E-ink + dithering softens
+        detail, so mild sharpening helps. 0 disables.
+      required: false
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 5
+          mode: slider

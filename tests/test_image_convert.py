@@ -1,4 +1,4 @@
-"""Tests for the Fraimic image -> Spectra 6 .bin conversion.
+"""Tests for the Fraimic Spectra 6 image-processing pipeline.
 
 These exercise the pure conversion logic (no Home Assistant required), so they
 can run standalone:
@@ -39,9 +39,12 @@ def _load():
 const, ic = _load()
 
 LARGE = (1600, 1200)
+ALL_MODES = ["none", "bayer", "floyd_steinberg", "atkinson", "auto"]
+# No pre-processing, so a solid colour stays exactly that colour.
+RAW = {"saturation": 1.0, "contrast": 1.0, "sharpen": 0}
 
 
-def _solid_rgb(width: int, height: int, color: tuple[int, int, int]) -> bytes:
+def _solid(width: int, height: int, color: tuple[int, int, int]) -> bytes:
     from PIL import Image
 
     buf = io.BytesIO()
@@ -49,56 +52,103 @@ def _solid_rgb(width: int, height: int, color: tuple[int, int, int]) -> bytes:
     return buf.getvalue()
 
 
-@pytest.mark.parametrize("fit", ["cover", "contain", "stretch"])
-@pytest.mark.parametrize("rotate", [0, 90, 180, 270])
-def test_output_is_exact_size(fit: str, rotate: int) -> None:
+def _gradient(width: int, height: int) -> bytes:
+    import numpy as np
+    from PIL import Image
+
+    base = np.indices((height, width)).sum(axis=0)
+    rgb = np.dstack([base % 256, (base * 2) % 256, (base * 3) % 256]).astype("uint8")
+    buf = io.BytesIO()
+    Image.fromarray(rgb, "RGB").save(buf, format="PNG")
+    return buf.getvalue()
+
+
+@pytest.mark.parametrize("mode", ALL_MODES)
+def test_output_is_exact_size(mode: str) -> None:
     w, h = LARGE
-    data = ic.image_to_bin(_solid_rgb(800, 600, (10, 200, 30)), width=w, height=h, fit=fit, rotate=rotate)
+    data = ic.image_to_bin(_gradient(w, h), width=w, height=h, mode=mode, **RAW)
     assert len(data) == w * h // 2 == 960000
 
 
+@pytest.mark.parametrize("mode", ALL_MODES)
+def test_no_nibble_exceeds_five(mode: str) -> None:
+    """Every nibble must be a valid Spectra index 0-5 (the cycled-palette gotcha)."""
+    w, h = LARGE
+    data = ic.image_to_bin(_gradient(w, h), width=w, height=h, mode=mode, **RAW)
+    assert max({b >> 4 for b in data} | {b & 0x0F for b in data}) <= 5
+
+
 def test_small_frame_size_scales() -> None:
-    data = ic.image_to_bin(_solid_rgb(400, 300, (0, 0, 0)), width=800, height=480)
+    data = ic.image_to_bin(_solid(400, 300, (10, 10, 10)), width=800, height=480, **RAW)
     assert len(data) == 800 * 480 // 2
 
 
 @pytest.mark.parametrize(
-    "color,nibble",
-    [
-        ((0, 0, 0), 0x0),       # black
-        ((255, 255, 255), 0x1), # white
-        ((0, 255, 0), 0x2),     # green
-        ((0, 0, 255), 0x3),     # blue
-        ((255, 0, 0), 0x4),     # red
-        ((255, 255, 0), 0x5),   # yellow
-    ],
+    "index,rgb",
+    list(enumerate(const.SPECTRA6_RGB)),
 )
-def test_pure_colors_map_to_correct_palette_index(color, nibble) -> None:
+def test_calibrated_colors_map_to_their_own_index(index, rgb) -> None:
+    """A solid patch of a calibrated palette colour must quantise to that index."""
     w, h = LARGE
-    data = ic.image_to_bin(_solid_rgb(w, h, color), width=w, height=h, dither=False)
-    expected = (nibble << 4) | nibble
-    assert set(data) == {expected}, f"{color} -> {hex(data[0])}, expected {hex(expected)}"
+    data = ic.image_to_bin(_solid(w, h, tuple(rgb)), width=w, height=h, mode="none", **RAW)
+    expected = (index << 4) | index
+    assert set(data) == {expected}, f"{rgb} -> {hex(data[0])}, expected {hex(expected)}"
 
 
-def test_all_nibbles_are_valid_palette_indices() -> None:
-    """Even on a noisy/dithered image, no nibble may exceed 5 (the gotcha)."""
-    from PIL import Image
+def test_auto_resolves_to_a_real_mode() -> None:
+    assert const.DEFAULT_MODE_RESOLVED in (
+        const.MODE_FLOYD_STEINBERG,
+        const.MODE_ATKINSON,
+    )
+
+
+def test_preview_is_png_and_default_pipeline_runs() -> None:
+    w, h = LARGE
+    # Defaults (saturation/contrast/sharpen on) must not crash and must preview.
+    _bin, preview, mode = ic.convert_image(_solid(800, 600, (200, 40, 40)), width=w, height=h)
+    assert preview is not None and preview[:8] == b"\x89PNG\r\n\x1a\n"
+    assert mode in (const.MODE_FLOYD_STEINBERG, const.MODE_ATKINSON, const.MODE_BAYER)
+
+
+def _flat_graphic(width: int, height: int) -> bytes:
+    """A few large blocks of solid colour — i.e. a 'graphic', not a photo."""
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+    draw.rectangle([0, 0, width // 2, height // 2], fill=(200, 30, 30))
+    draw.rectangle([width // 2, 0, width, height // 2], fill=(30, 30, 200))
+    draw.rectangle([0, height // 2, width // 2, height], fill=(30, 160, 30))
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def test_auto_picks_bayer_for_flat_graphics() -> None:
+    w, h = LARGE
+    _bin, _preview, mode = ic.convert_image(_flat_graphic(w, h), width=w, height=h, mode="auto")
+    assert mode == const.MODE_BAYER
+
+
+def _continuous_tone(width: int, height: int) -> bytes:
+    """Continuous-tone proxy: a full-range 2D gradient + fine noise, so it has
+    spread-out colours and few exactly-equal neighbours (like a photo)."""
     import numpy as np
+    from PIL import Image
 
-    w, h = LARGE
-    # Deterministic gradient noise (computed in int, then cast to uint8).
-    base = np.indices((h, w)).sum(axis=0)
-    rgb = np.dstack([base % 256, (base * 2) % 256, (base * 3) % 256]).astype("uint8")
+    ys, xs = np.indices((height, width))
+    rng = np.random.default_rng(1)
+    noise = rng.integers(-4, 5, size=(height, width, 3))
+    r = xs * 255 // (width - 1)
+    g = ys * 255 // (height - 1)
+    b = (xs + ys) * 255 // (width + height - 2)
+    rgb = np.clip(np.dstack([r, g, b]) + noise, 0, 255).astype("uint8")
     buf = io.BytesIO()
     Image.fromarray(rgb, "RGB").save(buf, format="PNG")
-    data = ic.image_to_bin(buf.getvalue(), width=w, height=h, dither=True)
-    hi = {b >> 4 for b in data}
-    lo = {b & 0x0F for b in data}
-    assert max(hi | lo) <= 5
+    return buf.getvalue()
 
 
-def test_preview_is_png() -> None:
+def test_auto_picks_error_diffusion_for_photos() -> None:
     w, h = LARGE
-    _bin, preview = ic.convert_image(_solid_rgb(800, 600, (200, 0, 0)), width=w, height=h)
-    assert preview is not None
-    assert preview[:8] == b"\x89PNG\r\n\x1a\n"
+    _bin, _preview, mode = ic.convert_image(_continuous_tone(w, h), width=w, height=h, mode="auto")
+    assert mode in (const.MODE_FLOYD_STEINBERG, const.MODE_ATKINSON)
