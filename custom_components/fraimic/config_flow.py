@@ -19,11 +19,9 @@ from .const import (
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
-    DEFAULT_HEIGHT,
     DEFAULT_HOST,
     DEFAULT_ROTATION,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_WIDTH,
     DOMAIN,
     FRAME_MODELS,
     MIN_SCAN_INTERVAL,
@@ -108,46 +106,46 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_resolution(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Confirm the frame's display resolution.
+        """Ask which Fraimic model this frame is (no silent size default).
 
-        A model preset (Standard 13.3" / Large 31.5") fills in the resolution;
-        "Custom" uses the width/height fields. Auto-filled when the frame reports
-        its own dimensions.
+        Reached only when the resolution can't be auto-detected. The user must
+        pick Standard / Large, or Custom and supply width + height.
         """
         assert self._host is not None
+        errors: dict[str, str] = {}
         if user_input is not None:
             model = user_input[CONF_FRAME_MODEL]
             if model in FRAME_MODELS:
                 width, height = FRAME_MODELS[model]
-            else:
-                width, height = user_input[CONF_WIDTH], user_input[CONF_HEIGHT]
-            return self.async_create_entry(
-                title=_title(self._host),
-                data={CONF_HOST: self._host, CONF_WIDTH: width, CONF_HEIGHT: height},
-            )
+                return self.async_create_entry(
+                    title=_title(self._host),
+                    data={CONF_HOST: self._host, CONF_WIDTH: width, CONF_HEIGHT: height},
+                )
+            width = user_input.get(CONF_WIDTH)
+            height = user_input.get(CONF_HEIGHT)
+            if width and height:
+                return self.async_create_entry(
+                    title=_title(self._host),
+                    data={CONF_HOST: self._host, CONF_WIDTH: width, CONF_HEIGHT: height},
+                )
+            errors["base"] = "custom_resolution_required"
 
-        display = self._info.get("display") or {}
-        width = display.get("width") or DEFAULT_WIDTH
-        height = display.get("height") or DEFAULT_HEIGHT
-        default_model = next(
-            (m for m, dims in FRAME_MODELS.items() if dims == (width, height)),
-            MODEL_CUSTOM,
-        )
         return self.async_show_form(
             step_id="resolution",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_FRAME_MODEL, default=default_model): vol.In(
-                        [*FRAME_MODELS, MODEL_CUSTOM]
-                    ),
-                    vol.Required(CONF_WIDTH, default=width): vol.All(
+                    # No default — force an explicit choice so a frame is never
+                    # silently given the wrong size.
+                    vol.Required(CONF_FRAME_MODEL): vol.In([*FRAME_MODELS, MODEL_CUSTOM]),
+                    vol.Optional(CONF_WIDTH): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=8192)
                     ),
-                    vol.Required(CONF_HEIGHT, default=height): vol.All(
+                    vol.Optional(CONF_HEIGHT): vol.All(
                         vol.Coerce(int), vol.Range(min=1, max=8192)
                     ),
                 }
             ),
+            errors=errors,
             description_placeholders={"host": self._host},
         )
 

@@ -198,6 +198,9 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
     base_rotation = entry.options.get(CONF_ROTATION, DEFAULT_ROTATION)
     rotate = (base_rotation + call.data[ATTR_ROTATE]) % 360
+    # The buffer is native-orientation; the preview is rotated back by the mount
+    # rotation so the dashboard shows what you actually see on the wall.
+    preview_rotate = (-base_rotation) % 360
 
     requested_mode = _resolve_mode(call.data)
     try:
@@ -212,6 +215,7 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
             call.data[ATTR_SATURATION],
             call.data[ATTR_CONTRAST],
             call.data[ATTR_SHARPEN],
+            preview_rotate,
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
         raise HomeAssistantError(f"Could not convert the image: {err}") from err
@@ -241,13 +245,15 @@ def _convert(
     saturation: float,
     contrast: float,
     sharpen: float,
-) -> tuple[bytes, bytes | None]:
+    preview_rotate: int,
+) -> tuple[bytes, bytes | None, str]:
     return convert_image(
         raw,
         width=width,
         height=height,
         fit=fit,
         rotate=rotate,
+        preview_rotate=preview_rotate,
         mode=mode,
         saturation=saturation,
         contrast=contrast,

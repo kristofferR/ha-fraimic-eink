@@ -316,14 +316,21 @@ def _pack_nibbles(indices) -> bytes:
     return packed.astype(np.uint8).tobytes()
 
 
-def _indices_to_png(indices, width: int, height: int) -> bytes:
-    """Render palette indices to a downscaled colour PNG using the calibrated RGB."""
+def _indices_to_png(indices, width: int, height: int, preview_rotate: int = 0) -> bytes:
+    """Render palette indices to a downscaled colour PNG using the calibrated RGB.
+
+    ``preview_rotate`` (clockwise degrees) rotates the preview so it matches how
+    the frame is physically mounted — the raw buffer is native-orientation, but a
+    turned frame is viewed rotated, so the dashboard preview should be too.
+    """
     import numpy as np
     from PIL import Image
 
     palette = np.array(SPECTRA6_RGB, dtype=np.uint8)
     rgb = palette[np.asarray(indices, dtype=np.uint8) % SPECTRA6_LEVELS]
     image = Image.fromarray(rgb.reshape(height, width, 3), mode="RGB")
+    if preview_rotate % 360:
+        image = image.rotate(-(preview_rotate % 360), expand=True)
     image.thumbnail((width // 2, height // 2), Image.Resampling.LANCZOS)
     buf = io.BytesIO()
     image.save(buf, format="PNG")
@@ -342,6 +349,7 @@ def convert_image(
     contrast: float = DEFAULT_CONTRAST,
     sharpen: float = DEFAULT_SHARPEN,
     preview: bool = True,
+    preview_rotate: int = 0,
 ) -> tuple[bytes, bytes | None, str]:
     """Convert encoded image bytes into a Fraimic Spectra 6 ``.bin`` (+ PNG preview).
 
@@ -354,6 +362,8 @@ def convert_image(
         saturation/contrast: enhancement factors (1.0 = no change).
         sharpen: unsharp-mask strength 0-100 (0 disables).
         preview: also return a downscaled colour PNG of the rendered result.
+        preview_rotate: rotate only the preview (clockwise) to match how the frame
+            is mounted — the ``.bin`` buffer stays native-orientation.
 
     Returns:
         ``(bin_bytes, preview_png_or_none, resolved_mode)`` where ``bin_bytes`` is
@@ -378,7 +388,9 @@ def convert_image(
     if len(packed) != expected:  # pragma: no cover - guarded by fixed size
         raise ValueError(f"Converted image is {len(packed)} bytes, expected {expected}")
 
-    preview_png = _indices_to_png(indices, width, height) if preview else None
+    preview_png = (
+        _indices_to_png(indices, width, height, preview_rotate) if preview else None
+    )
     return packed, preview_png, resolved
 
 

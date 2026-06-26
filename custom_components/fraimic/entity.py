@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_HEIGHT, CONF_WIDTH, DOMAIN, MANUFACTURER, MODEL
+from .const import CONF_HEIGHT, CONF_WIDTH, DOMAIN, MANUFACTURER, MODEL, MODEL_NAMES
 from .coordinator import FraimicDataUpdateCoordinator
 
 
@@ -23,7 +23,8 @@ class FraimicEntity(CoordinatorEntity[FraimicDataUpdateCoordinator]):
         height = entry.data.get(CONF_HEIGHT)
         model = MODEL
         if width and height:
-            model = f"{MODEL} ({width}x{height})"
+            friendly = MODEL_NAMES.get((width, height))
+            model = f"{friendly} {width}x{height}" if friendly else f"{MODEL} ({width}x{height})"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},
             manufacturer=MANUFACTURER,

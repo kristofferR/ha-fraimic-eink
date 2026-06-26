@@ -13,8 +13,8 @@
         }
       },
       "resolution": {
-        "title": "Frame resolution",
-        "description": "Pick your Fraimic model for the frame at {host}. Choose Custom to enter a resolution manually (Width/Height are only used when the model is Custom).",
+        "title": "Which Fraimic model?",
+        "description": "Couldn't auto-detect the size of the frame at {host}, so pick the model: Standard Canvas = 13.3\" (1600x1200), Large Canvas = 31.5\" (2560x1440). Choose Custom only if you know the exact pixel size, and fill in Width + Height.",
         "data": {
           "frame_model": "Frame model",
           "width": "Width (px, Custom only)",
@@ -23,7 +23,8 @@
       }
     },
     "error": {
-      "cannot_connect": "Could not reach the frame. Is it awake and on the same network?"
+      "cannot_connect": "Could not reach the frame. Is it awake and on the same network?",
+      "custom_resolution_required": "Custom selected — enter both Width and Height."
     },
     "abort": {
       "already_configured": "This frame is already set up.",

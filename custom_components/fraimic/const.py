@@ -46,6 +46,13 @@ FRAME_MODELS: Final = {
 }
 MODEL_CUSTOM: Final = "custom"
 
+# Friendly model name by resolution (both Standard orientations map to Standard).
+MODEL_NAMES: Final = {
+    (1600, 1200): 'Standard Canvas (13.3")',
+    (1200, 1600): 'Standard Canvas (13.3")',
+    (2560, 1440): 'Large Canvas (31.5")',
+}
+
 DEFAULT_WIDTH: Final = 1600
 DEFAULT_HEIGHT: Final = 1200
 # Generous client-side ceiling — the Large Canvas buffer alone is ~1.84 MB, well

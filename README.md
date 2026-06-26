@@ -76,6 +76,56 @@ Diagnostic / noisy entities (SSID, IP, voltage, uptime, …) are disabled by def
 them on the device page if you want them. Sensors whose field the frame doesn't report simply
 stay unavailable.
 
+## Dashboard
+
+Each frame is its own device, so the auto-generated device page already gives you everything.
+For a nicer view, this card shows the **Current artwork** preview (it renders at the frame's real
+aspect ratio and **mounted orientation** — portrait or landscape — automatically, because the
+preview is rotated to match the frame's base rotation), plus battery and one-tap controls:
+
+```yaml
+type: vertical-stack
+cards:
+  - type: picture-entity
+    entity: image.fraimic_e_ink_canvas_current_artwork
+    show_state: false
+    show_name: false
+  - type: glance
+    entities:
+      - entity: sensor.fraimic_e_ink_canvas_battery
+      - entity: binary_sensor.fraimic_e_ink_canvas_charging
+      - entity: sensor.fraimic_e_ink_canvas_wi_fi_signal
+  - type: horizontal-stack
+    cards:
+      - type: button
+        name: Refresh
+        icon: mdi:monitor-shimmer
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target: { entity_id: button.fraimic_e_ink_canvas_refresh_display }
+      - type: button
+        name: Sleep
+        icon: mdi:sleep
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target: { entity_id: button.fraimic_e_ink_canvas_sleep }
+      - type: button
+        name: Restart
+        icon: mdi:restart
+        tap_action:
+          action: perform-action
+          perform_action: button.press
+          target: { entity_id: button.fraimic_e_ink_canvas_restart }
+```
+
+**Multiple frames:** entity IDs are suffixed per device (e.g.
+`image.fraimic_e_ink_canvas_2_current_artwork`) — duplicate the stack per frame using each
+frame's IDs (check *Settings → Devices* for the exact names). The Large frame's preview comes out
+landscape (16:9) and the Standard's portrait (3:4) — or whatever orientation you set, so each card
+matches the real frame.
+
 ## Uploading artwork
 
 The killer feature. Call the `fraimic.upload_image` service with **one** image source:
