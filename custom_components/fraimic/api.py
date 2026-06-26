@@ -7,11 +7,14 @@ official "Fraimic REST API Guide" (firmware v0.2.16) for the full contract.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 import aiohttp
 
 from .const import DEFAULT_TIMEOUT, MAX_BIN_SIZE, UPLOAD_TIMEOUT
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class FraimicError(Exception):
@@ -56,7 +59,12 @@ class FraimicClient:
     def __init__(self, host: str, session: aiohttp.ClientSession) -> None:
         self._host = normalize_host(host)
         self._session = session
-        self._base = f"http://{self._host}"
+        # Bracket bare IPv6 literals (2+ colons, not already bracketed) so the URL
+        # is valid; a normal "host" or "host:port" is left untouched.
+        url_host = self._host
+        if url_host.count(":") >= 2 and not url_host.startswith("["):
+            url_host = f"[{url_host}]"
+        self._base = f"http://{url_host}"
 
     @property
     def host(self) -> str:
@@ -144,8 +152,9 @@ class FraimicClient:
                 )
 
         if refresh:
-            # A refresh failure is non-fatal; the image is already buffered.
+            # A refresh failure is non-fatal (the image is already buffered), but
+            # surface it so a silently-not-updating frame is diagnosable.
             try:
                 await self.refresh()
-            except FraimicError:
-                pass
+            except FraimicError as err:
+                _LOGGER.warning("Image uploaded but display refresh failed: %s", err)
