@@ -1,0 +1,119 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Connect to your Fraimic frame",
+        "description": "Enter your frame's address. Make sure the frame is awake (tap it) — it is unreachable in deep sleep.",
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "mDNS name (fraimic.local) or IP address of the frame."
+        }
+      },
+      "resolution": {
+        "title": "Frame resolution",
+        "description": "Confirm the display resolution for the frame at {host}. The 13.3\" frame is 1600x1200; set the correct pixel size for smaller frames.",
+        "data": {
+          "width": "Width (px)",
+          "height": "Height (px)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the frame. Is it awake and on the same network?"
+    },
+    "abort": {
+      "already_configured": "This frame is already set up.",
+      "cannot_connect": "Could not reach the discovered frame."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Fraimic options",
+        "data": {
+          "scan_interval": "Polling interval (seconds)"
+        },
+        "data_description": {
+          "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_percent": { "name": "Battery" },
+      "battery_voltage": { "name": "Battery voltage" },
+      "battery_source": {
+        "name": "Battery source",
+        "state": {
+          "fuel_gauge": "Fuel gauge",
+          "adc": "ADC estimate"
+        }
+      },
+      "wifi_rssi": { "name": "Wi-Fi signal" },
+      "wifi_ssid": { "name": "Wi-Fi SSID" },
+      "wifi_channel": { "name": "Wi-Fi channel" },
+      "ip_address": { "name": "IP address" },
+      "firmware_version": { "name": "Firmware" },
+      "uptime": { "name": "Uptime" },
+      "last_refresh": { "name": "Last refresh" },
+      "next_refresh": { "name": "Next refresh" }
+    },
+    "binary_sensor": {
+      "charging": { "name": "Charging" },
+      "cable_connected": { "name": "Cable connected" },
+      "wifi_connected": { "name": "Wi-Fi connected" },
+      "registered": { "name": "Registered" },
+      "time_synced": { "name": "Time synced" },
+      "voice_recording": { "name": "Voice recording" },
+      "keep_awake": { "name": "Keep awake" }
+    },
+    "button": {
+      "refresh": { "name": "Refresh display" },
+      "sleep": { "name": "Sleep" },
+      "restart": { "name": "Restart" }
+    },
+    "image": {
+      "preview": { "name": "Current artwork" }
+    }
+  },
+  "services": {
+    "upload_image": {
+      "name": "Upload image",
+      "description": "Convert an ordinary image to the Fraimic .bin format and display it on the frame.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which Fraimic frame to upload to. Only required with multiple frames."
+        },
+        "path": {
+          "name": "File path",
+          "description": "Local path to an image file (must be in an allowlisted directory)."
+        },
+        "url": {
+          "name": "Image URL",
+          "description": "HTTP(S) URL of an image to download and display."
+        },
+        "image_entity_id": {
+          "name": "Camera / image entity",
+          "description": "A camera or image entity whose current frame should be displayed."
+        },
+        "fit": {
+          "name": "Fit mode",
+          "description": "How to fit the source image onto the 1200x1600 portrait display."
+        },
+        "rotate": {
+          "name": "Rotate",
+          "description": "Clockwise rotation applied before fitting."
+        },
+        "dither": {
+          "name": "Dither",
+          "description": "Apply Floyd-Steinberg dithering to the 6-colour Spectra palette."
+        }
+      }
+    }
+  }
+}
