@@ -241,9 +241,6 @@ by community reverse engineering
 - Uploads go to **`POST /upload`** (multipart). The documented `POST /api/image` returns 501
   **and hangs the frame for 45+ seconds** — this integration never uses it.
 
-(The 1200×1600 resolution in the guide is fine — the frames auto-orient, so the same buffer is
-just laid out landscape or portrait.)
-
 This integration follows the reverse-engineered behaviour and tolerates both the flat and
 nested `/api/info` JSON shapes seen in the wild.
 
