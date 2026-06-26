@@ -35,6 +35,7 @@ from .const import (
     FIT_CONTAIN,
     FIT_CONTAIN_BLACK,
     FIT_STRETCH,
+    MAX_SOURCE_PIXELS,
     MODE_ATKINSON,
     MODE_AUTO,
     MODE_BAYER,
@@ -185,24 +186,32 @@ def _gamut_soft_clamp(oklab, palette):
     return out
 
 
-def _neutral_penalty(oklab_flat, palette):
-    """Per-pixel, per-palette distance penalty that keeps near-neutral source
-    pixels off the chromatic palette entries (returns an (N,6) array)."""
+def _palette_distances(flat, palette):
+    """Squared OKLab distance to each palette colour + the neutral penalty.
+
+    Returns an (N, P) float32 array. Computed one palette colour at a time to
+    avoid the huge (N, P, 3) broadcast temporary (~530 MB on the 2560x1440 frame).
+    """
     import numpy as np
 
-    pal_chroma2 = palette[:, 1] ** 2 + palette[:, 2] ** 2  # (6,)
-    px_chroma = np.sqrt(oklab_flat[:, 1] ** 2 + oklab_flat[:, 2] ** 2)  # (N,)
-    factor = np.clip(1.0 - px_chroma / NEUTRAL_CHROMA_T, 0.0, None)  # (N,)
-    return NEUTRAL_WEIGHT * pal_chroma2[None, :] * factor[:, None]
+    n = flat.shape[0]
+    pal_chroma2 = palette[:, 1] ** 2 + palette[:, 2] ** 2  # (P,)
+    px_chroma = np.sqrt(flat[:, 1] ** 2 + flat[:, 2] ** 2)
+    factor = (NEUTRAL_WEIGHT * np.clip(1.0 - px_chroma / NEUTRAL_CHROMA_T, 0.0, None)).astype(
+        np.float32
+    )  # (N,)
+
+    dist = np.empty((n, palette.shape[0]), dtype=np.float32)
+    for i in range(palette.shape[0]):
+        diff = flat - palette[i]  # (N, 3)
+        dist[:, i] = np.einsum("ij,ij->i", diff, diff).astype(np.float32)
+        dist[:, i] += factor * float(pal_chroma2[i])
+    return dist
 
 
 def _nearest(oklab_flat, palette):
     """Vectorised nearest-palette index for a flat (N,3) OKLab array."""
-    import numpy as np
-
-    diff = oklab_flat[:, None, :] - palette[None, :, :]
-    dist = (diff * diff).sum(axis=2) + _neutral_penalty(oklab_flat, palette)
-    return dist.argmin(axis=1).astype(np.uint8)
+    return _palette_distances(oklab_flat, palette).argmin(axis=1).astype("uint8")
 
 
 def _bayer_indices(oklab, palette, width: int, height: int):
@@ -211,8 +220,7 @@ def _bayer_indices(oklab, palette, width: int, height: int):
     import numpy as np
 
     flat = oklab.reshape(-1, 3)
-    diff = flat[:, None, :] - palette[None, :, :]
-    dist = (diff * diff).sum(axis=2) + _neutral_penalty(flat, palette)
+    dist = _palette_distances(flat, palette)
     i1 = dist.argmin(axis=1)
     d2 = dist.copy()
     d2[np.arange(d2.shape[0]), i1] = np.inf
@@ -428,6 +436,12 @@ def convert_image(
         raise ValueError("Fraimic buffers require an even number of pixels")
     expected = pixels // 2
     with Image.open(io.BytesIO(raw)) as src:
+        # Reject decompression bombs before the full decode (size is read from
+        # the header by open(), without decoding the pixels).
+        if src.width * src.height > MAX_SOURCE_PIXELS:
+            raise ValueError(
+                f"Source image is too large ({src.width}x{src.height})"
+            )
         image = ImageOps.exif_transpose(src)
         # Flatten any transparency onto white (not the default black) so PNG/logo
         # transparent areas don't turn into black blocks on the frame.

@@ -24,7 +24,8 @@
     },
     "error": {
       "cannot_connect": "Could not reach the frame. Is it awake and on the same network?",
-      "custom_resolution_required": "Custom selected — enter both Width and Height."
+      "custom_resolution_required": "Custom selected — enter both Width and Height.",
+      "odd_resolution": "Width x Height must be an even number of pixels."
     },
     "abort": {
       "already_configured": "This frame is already set up.",

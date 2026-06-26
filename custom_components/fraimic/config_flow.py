@@ -137,12 +137,16 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             width = user_input.get(CONF_WIDTH)
             height = user_input.get(CONF_HEIGHT)
-            if width and height:
+            if not width or not height:
+                errors["base"] = "custom_resolution_required"
+            elif (width * height) % 2:
+                # The packed buffer is 2 pixels/byte, so the count must be even.
+                errors["base"] = "odd_resolution"
+            else:
                 return self.async_create_entry(
                     title=_title(self._host),
                     data={CONF_HOST: self._host, CONF_WIDTH: width, CONF_HEIGHT: height},
                 )
-            errors["base"] = "custom_resolution_required"
 
         return self.async_show_form(
             step_id="resolution",

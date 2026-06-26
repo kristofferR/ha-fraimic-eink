@@ -61,6 +61,8 @@ MAX_BIN_SIZE: Final = 4 * 1024 * 1024
 # Source images are always scaled to the frame resolution, so this is just an
 # out-of-memory guard, not a resolution limit — generous enough for any photo.
 MAX_SOURCE_BYTES: Final = 64 * 1024 * 1024
+# Reject absurd source dimensions (decompression bombs) before fully decoding.
+MAX_SOURCE_PIXELS: Final = 100_000_000  # 100 MP — far above any real photo
 
 # Spectra 6 palette — index order is the panel's nibble value; only 0-5 are valid.
 # The packed nibble IS this index; the RGB tuples are *calibrated approximations*
