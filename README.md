@@ -232,15 +232,17 @@ the panel's own 20–30 s refresh, and they run in the background.
 
 ## Accuracy note
 
-Fraimic's official REST API guide describes the frame as "4-bit **grayscale**, 1200×1600,
-upload via `POST /api/image` (octet-stream body)". On real hardware that is wrong on three
-counts, confirmed by community reverse engineering
+Fraimic's official REST API guide describes the frame as "4-bit **grayscale**, upload via
+`POST /api/image` (octet-stream body)". On real hardware that is wrong on two counts, confirmed
+by community reverse engineering
 ([dsackr/fraimic-controller](https://github.com/dsackr/fraimic-controller)):
 
 - The panel is **Spectra 6 colour**, not grayscale.
-- The 13.3" frame is **1600×1200** (landscape), not 1200×1600.
 - Uploads go to **`POST /upload`** (multipart). The documented `POST /api/image` returns 501
   **and hangs the frame for 45+ seconds** — this integration never uses it.
+
+(The 1200×1600 resolution in the guide is fine — the frames auto-orient, so the same buffer is
+just laid out landscape or portrait.)
 
 This integration follows the reverse-engineered behaviour and tolerates both the flat and
 nested `/api/info` JSON shapes seen in the wild.
