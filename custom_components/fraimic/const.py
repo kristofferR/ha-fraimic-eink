@@ -92,10 +92,13 @@ DITHER_MODES: Final = (
 # What MODE_AUTO resolves to — the empirically-best general result for photos.
 DEFAULT_MODE_RESOLVED: Final = MODE_FLOYD_STEINBERG
 
-# Default pre-processing parameters (tuned for the small Spectra 6 gamut). 1.0 is
-# a no-op for the enhance factors; sharpen is a 0-100 strength.
-DEFAULT_SATURATION: Final = 1.25
-DEFAULT_CONTRAST: Final = 1.1
+# Default pre-processing parameters. Aligned with what real Spectra 6 owners use
+# (e.g. Toon-nooT's converter defaults to contrast 1.5 / saturation 1.1): push
+# contrast hard and saturation modestly, because the panel has no backlight and a
+# small gamut. Images intentionally look over-contrasty/saturated on a monitor.
+# 1.0 is a no-op for the enhance factors; sharpen is a 0-100 strength.
+DEFAULT_SATURATION: Final = 1.15
+DEFAULT_CONTRAST: Final = 1.4
 DEFAULT_SHARPEN: Final = 80.0
 # Clip this fraction off each end of the histogram for black/white-point autolevels.
 AUTOCONTRAST_CUTOFF: Final = 0.5

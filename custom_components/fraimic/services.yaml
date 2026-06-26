@@ -93,10 +93,10 @@ upload_image:
     saturation:
       name: Saturation
       description: >-
-        Saturation boost before dithering. The Spectra gamut is small, so a
-        boost (default 1.4) usually looks best. 1.0 = no change.
+        Saturation boost before dithering. Real Spectra 6 owners keep this
+        modest (default 1.15) and push contrast instead. 1.0 = no change.
       required: false
-      default: 1.4
+      default: 1.15
       selector:
         number:
           min: 0
@@ -105,9 +105,12 @@ upload_image:
           mode: slider
     contrast:
       name: Contrast
-      description: Contrast boost before dithering (default 1.15). 1.0 = no change.
+      description: >-
+        Contrast boost before dithering. The panel has no backlight, so a strong
+        boost (default 1.4) looks best — images look over-contrasty on a monitor
+        but right on the frame. 1.0 = no change.
       required: false
-      default: 1.15
+      default: 1.4
       selector:
         number:
           min: 0

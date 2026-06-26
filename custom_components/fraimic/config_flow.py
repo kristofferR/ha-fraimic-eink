@@ -14,17 +14,29 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .api import FraimicClient, FraimicError, normalize_host
 from .const import (
+    ATTR_CONTRAST,
+    ATTR_FIT,
+    ATTR_MODE,
+    ATTR_SATURATION,
+    ATTR_SHARPEN,
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
+    DEFAULT_CONTRAST,
     DEFAULT_HOST,
     DEFAULT_ROTATION,
+    DEFAULT_SATURATION,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_SHARPEN,
+    DITHER_MODES,
     DOMAIN,
+    FIT_COVER,
+    FIT_MODES,
     FRAME_MODELS,
     MIN_SCAN_INTERVAL,
+    MODE_AUTO,
     MODEL_CUSTOM,
     ROTATION_OPTIONS,
 )
@@ -173,19 +185,35 @@ class FraimicOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        options = self.config_entry.options
-        scan_interval = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-        rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
+        o = self.config_entry.options
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_SCAN_INTERVAL, default=scan_interval): vol.All(
-                        vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)
-                    ),
-                    vol.Required(CONF_ROTATION, default=rotation): vol.In(
-                        ROTATION_OPTIONS
-                    ),
+                    vol.Required(
+                        CONF_SCAN_INTERVAL,
+                        default=o.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
+                    vol.Required(
+                        CONF_ROTATION, default=o.get(CONF_ROTATION, DEFAULT_ROTATION)
+                    ): vol.In(ROTATION_OPTIONS),
+                    # Per-frame image-processing defaults (overridable per upload).
+                    vol.Required(
+                        ATTR_MODE, default=o.get(ATTR_MODE, MODE_AUTO)
+                    ): vol.In(DITHER_MODES),
+                    vol.Required(
+                        ATTR_FIT, default=o.get(ATTR_FIT, FIT_COVER)
+                    ): vol.In(FIT_MODES),
+                    vol.Required(
+                        ATTR_SATURATION,
+                        default=o.get(ATTR_SATURATION, DEFAULT_SATURATION),
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=3.0)),
+                    vol.Required(
+                        ATTR_CONTRAST, default=o.get(ATTR_CONTRAST, DEFAULT_CONTRAST)
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=3.0)),
+                    vol.Required(
+                        ATTR_SHARPEN, default=o.get(ATTR_SHARPEN, DEFAULT_SHARPEN)
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=100.0)),
                 }
             ),
         )

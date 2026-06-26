@@ -35,13 +35,24 @@
     "step": {
       "init": {
         "title": "Fraimic options",
+        "description": "These image settings are this frame's defaults — every upload uses them unless the upload_image service call overrides a value.",
         "data": {
           "scan_interval": "Polling interval (seconds)",
-          "rotation": "Rotation (degrees)"
+          "rotation": "Rotation (degrees)",
+          "mode": "Dither mode",
+          "fit": "Fit mode",
+          "saturation": "Saturation",
+          "contrast": "Contrast",
+          "sharpen": "Sharpen"
         },
         "data_description": {
           "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
-          "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape)."
+          "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape).",
+          "mode": "auto/error-diffusion for photos, bayer for graphics, none for nearest-colour.",
+          "fit": "cover (crop), contain (pad), or stretch.",
+          "saturation": "Saturation boost (default 1.15). 1.0 = no change.",
+          "contrast": "Contrast boost (default 1.4 — pushed hard for the backlight-less panel). 1.0 = no change.",
+          "sharpen": "Unsharp-mask strength 0-100 (default 80)."
         }
       }
     }
@@ -119,11 +130,11 @@
         },
         "saturation": {
           "name": "Saturation",
-          "description": "Saturation boost before dithering (default 1.4; 1.0 = no change)."
+          "description": "Saturation boost before dithering (default 1.15, kept modest; 1.0 = no change)."
         },
         "contrast": {
           "name": "Contrast",
-          "description": "Contrast boost before dithering (default 1.15; 1.0 = no change)."
+          "description": "Contrast boost before dithering (default 1.4, pushed hard for the backlight-less panel; 1.0 = no change)."
         },
         "sharpen": {
           "name": "Sharpen",

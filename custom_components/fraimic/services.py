@@ -70,18 +70,21 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
             vol.Exclusive(ATTR_PATH, "source"): cv.string,
             vol.Exclusive(ATTR_URL, "source"): cv.url,
             vol.Exclusive(ATTR_IMAGE_ENTITY, "source"): cv.entity_id,
-            vol.Optional(ATTR_FIT, default=FIT_COVER): vol.In(FIT_MODES),
-            vol.Optional(ATTR_ROTATE, default=0): vol.All(
+            # All processing params are optional with NO schema default — when a
+            # call omits one, the frame's per-entry option (then the global
+            # default) is used. This is what makes them configurable per frame.
+            vol.Optional(ATTR_FIT): vol.In(FIT_MODES),
+            vol.Optional(ATTR_ROTATE): vol.All(
                 vol.Coerce(int), vol.In((0, 90, 180, 270))
             ),
             vol.Optional(ATTR_MODE): vol.In(DITHER_MODES),
-            vol.Optional(ATTR_SATURATION, default=DEFAULT_SATURATION): vol.All(
+            vol.Optional(ATTR_SATURATION): vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=3.0)
             ),
-            vol.Optional(ATTR_CONTRAST, default=DEFAULT_CONTRAST): vol.All(
+            vol.Optional(ATTR_CONTRAST): vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=3.0)
             ),
-            vol.Optional(ATTR_SHARPEN, default=DEFAULT_SHARPEN): vol.All(
+            vol.Optional(ATTR_SHARPEN): vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=100.0)
             ),
             # Deprecated boolean kept for backward compatibility; superseded by `mode`.
@@ -92,13 +95,13 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
 )
 
 
-def _resolve_mode(data: dict) -> str:
-    """Pick the dither mode, honouring the legacy ``dither`` boolean."""
+def _resolve_mode(data: dict, options: dict) -> str:
+    """Pick the dither mode: call > legacy ``dither`` bool > frame option > auto."""
     if data.get(ATTR_MODE):
         return data[ATTR_MODE]
     if ATTR_DITHER in data:
         return MODE_AUTO if data[ATTR_DITHER] else MODE_NONE
-    return MODE_AUTO
+    return options.get(ATTR_MODE, MODE_AUTO)
 
 
 def async_setup_services(hass: HomeAssistant) -> None:
@@ -195,26 +198,32 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
 
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    options = entry.options
+    # Each processing param: per-call value > per-frame option > global default.
+    fit = call.data.get(ATTR_FIT, options.get(ATTR_FIT, FIT_COVER))
+    saturation = call.data.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
+    contrast = call.data.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))
+    sharpen = call.data.get(ATTR_SHARPEN, options.get(ATTR_SHARPEN, DEFAULT_SHARPEN))
     # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
-    base_rotation = entry.options.get(CONF_ROTATION, DEFAULT_ROTATION)
-    rotate = (base_rotation + call.data[ATTR_ROTATE]) % 360
+    base_rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
+    rotate = (base_rotation + call.data.get(ATTR_ROTATE, 0)) % 360
     # The buffer is native-orientation; the preview is rotated back by the mount
     # rotation so the dashboard shows what you actually see on the wall.
     preview_rotate = (-base_rotation) % 360
 
-    requested_mode = _resolve_mode(call.data)
+    requested_mode = _resolve_mode(call.data, options)
     try:
         bin_data, preview_png, used_mode = await hass.async_add_executor_job(
             _convert,
             raw,
             width,
             height,
-            call.data[ATTR_FIT],
+            fit,
             rotate,
             requested_mode,
-            call.data[ATTR_SATURATION],
-            call.data[ATTR_CONTRAST],
-            call.data[ATTR_SHARPEN],
+            saturation,
+            contrast,
+            sharpen,
             preview_rotate,
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors

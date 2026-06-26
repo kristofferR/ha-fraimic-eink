@@ -58,10 +58,11 @@ own resolution, entities, and options. Use IP addresses (not `fraimic.local`) to
 when you have more than one. The `fraimic.upload_image` service takes a **Frame** picker
 (`config_entry_id`) to target a specific one.
 
-Via the integration's **Configure** button (per frame) you can set the **polling interval**
-(default 300 s, since the frame is battery-powered) and a **base rotation** (0/90/180/270) to
-match how that frame is physically mounted — it's applied to every upload, on top of any per-call
-`rotate`.
+Every image setting is **configurable per frame** via the integration's **Configure** button —
+not just YAML/service-call. Each frame stores its own defaults for **dither mode, fit, saturation,
+contrast, sharpen**, plus **polling interval** (default 300 s) and **base rotation** (0/90/180/270,
+to match how that frame is mounted). The `upload_image` service overrides a value only when you
+pass it explicitly; otherwise the frame's configured default is used.
 
 ## Entities
 
@@ -137,8 +138,8 @@ data:
   fit: cover            # cover (crop) | contain (pad) | stretch
   rotate: 0             # 0 | 90 | 180 | 270
   mode: auto            # auto | floyd_steinberg | atkinson | bayer | none
-  saturation: 1.25      # boost for the small Spectra gamut (1.0 = none)
-  contrast: 1.1         # 1.0 = none
+  saturation: 1.15      # kept modest (real Spectra 6 owners push contrast, not saturation)
+  contrast: 1.4         # pushed hard — the panel has no backlight
   sharpen: 80           # unsharp-mask strength 0-100
 ```
 
