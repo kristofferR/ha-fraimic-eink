@@ -224,7 +224,8 @@ pre-processing as the dither, so the integration runs a full pipeline (all in an
 look (e.g. force `bayer` for a poster-style image, or `atkinson` for a portrait).
 
 The calibrated palette comes from community reverse engineering of real Spectra 6 panels
-(Toon-noT's converter, the Pimoroni Inky community).
+([Toon-nooT's converter](https://github.com/Toon-nooT/PhotoPainter-E-Ink-Spectra-6-image-converter),
+the [Pimoroni Inky community](https://forums.pimoroni.com/t/what-rgb-colors-are-you-using-for-the-colors-on-the-impression-spectra-6/27942)).
 
 **Speed:** `none`/`bayer` are vectorised (well under a second at 1600×1200); the error-diffusion
 modes are inherently sequential and take a few seconds (longer on a Pi Zero) — still far less than

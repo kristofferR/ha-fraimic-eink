@@ -64,7 +64,7 @@ MAX_BIN_SIZE: Final = 4 * 1024 * 1024
 # of what each colour actually looks like on the panel (used for quantization
 # matching and previews). Spectra 6 colours are far more muted than monitor
 # primaries, so matching against pure primaries (255,0,0 etc.) renders badly.
-# Calibrated values corroborated by Toon-noT's converter and the Pimoroni Inky
+# Calibrated values corroborated by Toon-nooT's converter and the Pimoroni Inky
 # community (red #a02020, yellow #f0e050, green #608050, blue #5080b8).
 SPECTRA6_RGB: Final = (
     (0, 0, 0),        # 0 Black
