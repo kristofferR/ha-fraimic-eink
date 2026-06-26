@@ -180,15 +180,22 @@ async def _async_get_source_bytes(hass: HomeAssistant, call: ServiceCall) -> byt
         from homeassistant.components.camera import async_get_image
 
         image = await async_get_image(hass, entity_id)
-        return image.content
+        return _checked(image.content)
     if domain == "image":
         from homeassistant.components.image import async_get_image
 
         image = await async_get_image(hass, entity_id)
-        return image.content
+        return _checked(image.content)
     raise ServiceValidationError(
         f"{entity_id} must be a camera or image entity"
     )
+
+
+def _checked(data: bytes) -> bytes:
+    """Apply the same source-size cap used for file/URL sources."""
+    if len(data) > MAX_DOWNLOAD_BYTES:
+        raise ServiceValidationError("Source image is too large")
+    return data
 
 
 async def _async_handle_upload_image(call: ServiceCall) -> None:
