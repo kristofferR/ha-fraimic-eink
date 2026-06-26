@@ -1,0 +1,137 @@
+upload_image:
+  name: Upload image
+  description: >-
+    Convert an ordinary image (file, URL, or camera/image entity) to the
+    Fraimic .bin format and display it on the frame. Provide exactly one image
+    source.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: >-
+        Which Fraimic frame to upload to. Only required if you have more than
+        one frame configured.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    path:
+      name: File path
+      description: >-
+        Local path to an image file (must be inside an allowlisted directory,
+        e.g. /config/www/...).
+      required: false
+      example: /config/www/art/sunset.jpg
+      selector:
+        text:
+    url:
+      name: Image URL
+      description: HTTP(S) URL of an image to download and display.
+      required: false
+      example: https://example.com/art.png
+      selector:
+        text:
+    image_entity_id:
+      name: Camera / image entity
+      description: A camera or image entity whose current frame should be displayed.
+      required: false
+      selector:
+        entity:
+          domain:
+            - camera
+            - image
+    fit:
+      name: Fit mode
+      description: >-
+        How to scale the source image to the frame's resolution (any source size
+        is accepted and scaled). Fill crops, Fit keeps the whole image (white
+        bars), Stretch ignores aspect ratio.
+      required: false
+      default: cover
+      selector:
+        select:
+          options:
+            - label: Fill — crop to fill (default)
+              value: cover
+            - label: Fit — keep aspect, white bars
+              value: contain
+            - label: Fit — keep aspect, black bars
+              value: contain_black
+            - label: Stretch — ignore aspect ratio
+              value: stretch
+    rotate:
+      name: Rotate
+      description: Clockwise rotation applied before fitting.
+      required: false
+      default: 0
+      selector:
+        select:
+          options:
+            - label: "0°"
+              value: "0"
+            - label: "90°"
+              value: "90"
+            - label: "180°"
+              value: "180"
+            - label: "270°"
+              value: "270"
+    mode:
+      name: Dither mode
+      description: >-
+        How to map the image to the 6 Spectra colours. "Auto" (best general
+        result) and the error-diffusion modes suit photos; "Bayer" is fast and
+        best for flat graphics/UI; "None" is nearest-colour only.
+      required: false
+      default: auto
+      selector:
+        select:
+          options:
+            - label: Auto (recommended)
+              value: auto
+            - label: Floyd-Steinberg (photos)
+              value: floyd_steinberg
+            - label: Atkinson (portraits)
+              value: atkinson
+            - label: Bayer / ordered (graphics, fast)
+              value: bayer
+            - label: None (nearest colour)
+              value: none
+    saturation:
+      name: Saturation
+      description: >-
+        Saturation boost before dithering. Real Spectra 6 owners keep this
+        modest (default 1.15) and push contrast instead. 1.0 = no change.
+      required: false
+      default: 1.15
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+          mode: slider
+    contrast:
+      name: Contrast
+      description: >-
+        Contrast boost before dithering. The panel has no backlight, so a strong
+        boost (default 1.4) looks best — images look over-contrasty on a monitor
+        but right on the frame. 1.0 = no change.
+      required: false
+      default: 1.4
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+          mode: slider
+    sharpen:
+      name: Sharpen
+      description: >-
+        Unsharp-mask strength (0-100, default 80). E-ink + dithering softens
+        detail, so mild sharpening helps. 0 disables.
+      required: false
+      default: 80
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 5
+          mode: slider

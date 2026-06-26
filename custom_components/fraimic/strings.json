@@ -1,0 +1,146 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Connect to your Fraimic frame",
+        "description": "Enter your frame's address. Make sure the frame is awake (tap it) — it is unreachable in deep sleep.",
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "mDNS name (fraimic.local) or IP address of the frame."
+        }
+      },
+      "resolution": {
+        "title": "Which Fraimic model?",
+        "description": "Couldn't auto-detect the size of the frame at {host}, so pick the model: Standard Canvas = 13.3\" (1600x1200), Large Canvas = 31.5\" (2560x1440). Choose Custom only if you know the exact pixel size, and fill in Width + Height.",
+        "data": {
+          "frame_model": "Frame model",
+          "width": "Width (px, Custom only)",
+          "height": "Height (px, Custom only)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the frame. Is it awake and on the same network?",
+      "custom_resolution_required": "Custom selected — enter both Width and Height."
+    },
+    "abort": {
+      "already_configured": "This frame is already set up.",
+      "cannot_connect": "Could not reach the discovered frame."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Fraimic options",
+        "description": "These image settings are this frame's defaults — every upload uses them unless the upload_image service call overrides a value.",
+        "data": {
+          "scan_interval": "Polling interval (seconds)",
+          "rotation": "Rotation (degrees)",
+          "mode": "Dither mode",
+          "fit": "Fit mode",
+          "saturation": "Saturation",
+          "contrast": "Contrast",
+          "sharpen": "Sharpen"
+        },
+        "data_description": {
+          "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
+          "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape).",
+          "mode": "auto/error-diffusion for photos, bayer for graphics, none for nearest-colour.",
+          "fit": "Fill (crop), Fit (keep aspect — white or black bars), or Stretch.",
+          "saturation": "Saturation boost (default 1.15). 1.0 = no change.",
+          "contrast": "Contrast boost (default 1.4 — pushed hard for the backlight-less panel). 1.0 = no change.",
+          "sharpen": "Unsharp-mask strength 0-100 (default 80)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "battery_percent": { "name": "Battery" },
+      "battery_voltage": { "name": "Battery voltage" },
+      "battery_source": {
+        "name": "Battery source",
+        "state": {
+          "fuel_gauge": "Fuel gauge",
+          "adc": "ADC estimate"
+        }
+      },
+      "wifi_rssi": { "name": "Wi-Fi signal" },
+      "wifi_ssid": { "name": "Wi-Fi SSID" },
+      "wifi_channel": { "name": "Wi-Fi channel" },
+      "ip_address": { "name": "IP address" },
+      "firmware_version": { "name": "Firmware" },
+      "uptime": { "name": "Uptime" },
+      "last_refresh": { "name": "Last refresh" },
+      "next_refresh": { "name": "Next refresh" }
+    },
+    "binary_sensor": {
+      "charging": { "name": "Charging" },
+      "cable_connected": { "name": "Cable connected" },
+      "wifi_connected": { "name": "Wi-Fi connected" },
+      "registered": { "name": "Registered" },
+      "time_synced": { "name": "Time synced" },
+      "voice_recording": { "name": "Voice recording" },
+      "keep_awake": { "name": "Keep awake" }
+    },
+    "button": {
+      "refresh": { "name": "Refresh display" },
+      "sleep": { "name": "Sleep" },
+      "restart": { "name": "Restart" }
+    },
+    "image": {
+      "preview": { "name": "Current artwork" }
+    }
+  },
+  "services": {
+    "upload_image": {
+      "name": "Upload image",
+      "description": "Convert an ordinary image to the Fraimic .bin format and display it on the frame.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which Fraimic frame to upload to. Only required with multiple frames."
+        },
+        "path": {
+          "name": "File path",
+          "description": "Local path to an image file (must be in an allowlisted directory)."
+        },
+        "url": {
+          "name": "Image URL",
+          "description": "HTTP(S) URL of an image to download and display."
+        },
+        "image_entity_id": {
+          "name": "Camera / image entity",
+          "description": "A camera or image entity whose current frame should be displayed."
+        },
+        "fit": {
+          "name": "Fit mode",
+          "description": "How to scale the source to the frame: Fill (crop), Fit (keep aspect — white or black bars), or Stretch. Any source size is accepted and scaled."
+        },
+        "rotate": {
+          "name": "Rotate",
+          "description": "Clockwise rotation applied before fitting."
+        },
+        "mode": {
+          "name": "Dither mode",
+          "description": "How to map to the 6 Spectra colours: auto/error-diffusion for photos, bayer for graphics, none for nearest-colour."
+        },
+        "saturation": {
+          "name": "Saturation",
+          "description": "Saturation boost before dithering (default 1.15, kept modest; 1.0 = no change)."
+        },
+        "contrast": {
+          "name": "Contrast",
+          "description": "Contrast boost before dithering (default 1.4, pushed hard for the backlight-less panel; 1.0 = no change)."
+        },
+        "sharpen": {
+          "name": "Sharpen",
+          "description": "Unsharp-mask strength 0-100 (default 80; 0 disables)."
+        }
+      }
+    }
+  }
+}

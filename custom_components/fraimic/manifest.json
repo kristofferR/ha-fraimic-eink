@@ -1,0 +1,16 @@
+{
+  "domain": "fraimic",
+  "name": "Fraimic E-Ink Canvas",
+  "codeowners": ["@kristofferR"],
+  "config_flow": true,
+  "dependencies": ["media_source"],
+  "documentation": "https://github.com/kristofferR/ha-fraimic-eink",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/kristofferR/ha-fraimic-eink/issues",
+  "requirements": ["numpy"],
+  "version": "1.0.0",
+  "zeroconf": [
+    { "type": "_http._tcp.local.", "name": "fraimic*" }
+  ]
+}
