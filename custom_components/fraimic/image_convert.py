@@ -32,6 +32,7 @@ from .const import (
     DEFAULT_SHARPEN,
     DEFAULT_WIDTH,
     FIT_CONTAIN,
+    FIT_CONTAIN_BLACK,
     FIT_STRETCH,
     MODE_ATKINSON,
     MODE_AUTO,
@@ -131,8 +132,10 @@ def _fit_image(image, width: int, height: int, fit: str):
     size = (width, height)
     if fit == FIT_STRETCH:
         return image.resize(size, Image.Resampling.LANCZOS)
-    if fit == FIT_CONTAIN:
-        return ImageOps.pad(image, size, method=Image.Resampling.LANCZOS, color=(0, 0, 0))
+    if fit in (FIT_CONTAIN, FIT_CONTAIN_BLACK):
+        # Letterbox so nothing is cropped: white bars (photo-mat look) or black.
+        color = (0, 0, 0) if fit == FIT_CONTAIN_BLACK else (255, 255, 255)
+        return ImageOps.pad(image, size, method=Image.Resampling.LANCZOS, color=color)
     return ImageOps.fit(image, size, method=Image.Resampling.LANCZOS, centering=(0.5, 0.5))
 
 
@@ -372,15 +375,19 @@ def convert_image(
     """
     from PIL import Image, ImageOps
 
-    expected = width * height // 2
+    pixels = width * height
+    if pixels % 2:
+        raise ValueError("Fraimic buffers require an even number of pixels")
+    expected = pixels // 2
     with Image.open(io.BytesIO(raw)) as src:
         image = ImageOps.exif_transpose(src).convert("RGB")
         if rotate % 360:
             image = image.rotate(-(rotate % 360), expand=True)
-        image = _fit_image(image, width, height, fit)
-        # Classify on the fitted image *before* preprocessing (sharpening would
-        # otherwise add edges and skew the photo-vs-graphic decision).
+        # Classify BEFORE fitting/preprocessing: `contain` padding adds flat
+        # borders and sharpening adds edges, both of which would skew the
+        # photo-vs-graphic decision toward graphics.
         resolved = _auto_mode(image) if mode == MODE_AUTO else mode
+        image = _fit_image(image, width, height, fit)
         image = _preprocess(image, saturation, contrast, sharpen)
         indices = _render_indices(image, width, height, resolved)
 

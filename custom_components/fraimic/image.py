@@ -23,10 +23,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the Fraimic preview image entity."""
     coordinator = entry.runtime_data.coordinator
-    entity = FraimicPreviewImage(hass, coordinator)
-    # Expose the entity to the upload service so it can refresh the preview.
-    entry.runtime_data.preview_image = entity
-    async_add_entities([entity])
+    async_add_entities([FraimicPreviewImage(hass, coordinator)])
 
 
 class FraimicPreviewImage(FraimicEntity, ImageEntity):
@@ -41,6 +38,22 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_preview"
         self._image: bytes | None = None
         self._attr_extra_state_attributes = {}
+
+    async def async_added_to_hass(self) -> None:
+        """Expose this entity to the upload path only once it's actually added.
+
+        Registering it earlier would let the upload service call set_preview() on
+        an entity that HA never added (e.g. if the user disabled it), which would
+        raise on async_write_ha_state.
+        """
+        await super().async_added_to_hass()
+        self.coordinator.config_entry.runtime_data.preview_image = self
+
+    async def async_will_remove_from_hass(self) -> None:
+        runtime = self.coordinator.config_entry.runtime_data
+        if runtime.preview_image is self:
+            runtime.preview_image = None
+        await super().async_will_remove_from_hass()
 
     @property
     def available(self) -> bool:

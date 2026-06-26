@@ -41,17 +41,22 @@ upload_image:
             - image
     fit:
       name: Fit mode
-      description: How to fit the source image onto the 1200x1600 portrait display.
+      description: >-
+        How to scale the source image to the frame's resolution (any source size
+        is accepted and scaled). Fill crops, Fit keeps the whole image (white
+        bars), Stretch ignores aspect ratio.
       required: false
       default: cover
       selector:
         select:
           options:
-            - label: Cover (crop to fill)
+            - label: Fill — crop to fill (default)
               value: cover
-            - label: Contain (pad with white)
+            - label: Fit — keep aspect, white bars
               value: contain
-            - label: Stretch
+            - label: Fit — keep aspect, black bars
+              value: contain_black
+            - label: Stretch — ignore aspect ratio
               value: stretch
     rotate:
       name: Rotate

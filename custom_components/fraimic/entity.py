@@ -25,8 +25,10 @@ class FraimicEntity(CoordinatorEntity[FraimicDataUpdateCoordinator]):
         if width and height:
             friendly = MODEL_NAMES.get((width, height))
             model = f"{friendly} {width}x{height}" if friendly else f"{MODEL} ({width}x{height})"
+        # Use the stable unique id (device_id or host) so the device survives a
+        # delete/re-add; entry_id changes and would re-register a new device.
         self._attr_device_info = DeviceInfo(
-            identifiers={(DOMAIN, entry.entry_id)},
+            identifiers={(DOMAIN, entry.unique_id or entry.entry_id)},
             manufacturer=MANUFACTURER,
             model=model,
             name=entry.title,

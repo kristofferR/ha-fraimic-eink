@@ -24,11 +24,10 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
 from .services import async_render_and_upload
-
-MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024
 
 
 async def async_setup_entry(

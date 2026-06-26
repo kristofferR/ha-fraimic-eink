@@ -83,6 +83,11 @@ def test_small_frame_size_scales() -> None:
     assert len(data) == 800 * 480 // 2
 
 
+def test_odd_pixel_count_rejected() -> None:
+    with pytest.raises(ValueError):
+        ic.image_to_bin(_solid(100, 100, (0, 0, 0)), width=801, height=481, **RAW)
+
+
 @pytest.mark.parametrize(
     "index,rgb",
     list(enumerate(const.SPECTRA6_RGB)),

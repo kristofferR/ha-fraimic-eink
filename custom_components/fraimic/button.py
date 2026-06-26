@@ -83,3 +83,6 @@ class FraimicButton(FraimicEntity, ButtonEntity):
             raise HomeAssistantError(
                 f"Could not reach the frame to {self.entity_description.key}: {err}"
             ) from err
+        # Reflect the new state (e.g. uptime reset, sleeping) without waiting for
+        # the next poll.
+        await self.coordinator.async_request_refresh()

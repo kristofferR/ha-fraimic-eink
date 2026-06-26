@@ -43,15 +43,15 @@ from .const import (
     DOMAIN,
     FIT_COVER,
     FIT_MODES,
+    MAX_BIN_SIZE,
     MODE_AUTO,
     MODE_NONE,
     SERVICE_UPLOAD_IMAGE,
 )
+from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .image_convert import convert_image
 
 _LOGGER = logging.getLogger(__name__)
-
-MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024  # 25 MB safety cap for URL/file sources
 
 def _require_one_source(data: dict) -> dict:
     """Ensure exactly one image source was provided."""
@@ -152,7 +152,10 @@ async def _async_get_source_bytes(hass: HomeAssistant, call: ServiceCall) -> byt
             with open(path, "rb") as file:
                 return file.read(MAX_DOWNLOAD_BYTES + 1)
 
-        data = await hass.async_add_executor_job(_read)
+        try:
+            data = await hass.async_add_executor_job(_read)
+        except OSError as err:
+            raise ServiceValidationError(f"Could not read {path}: {err}") from err
         if len(data) > MAX_DOWNLOAD_BYTES:
             raise ServiceValidationError("Source file is too large")
         return data
@@ -209,6 +212,12 @@ async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | Non
 
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    # Guard before the (memory-heavy) conversion so an absurd custom resolution
+    # can't OOM Home Assistant; the frame would reject it post-conversion anyway.
+    if width * height // 2 > MAX_BIN_SIZE:
+        raise HomeAssistantError(
+            f"Frame resolution {width}x{height} is too large to render"
+        )
     fit = overrides.get(ATTR_FIT, options.get(ATTR_FIT, FIT_COVER))
     saturation = overrides.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
     contrast = overrides.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))

@@ -18,9 +18,10 @@ async def async_get_config_entry_diagnostics(
     """Return diagnostics for a config entry."""
     coordinator = entry.runtime_data.coordinator
     return {
+        # entry.title embeds the host/IP, so it's omitted from shared diagnostics.
         "entry": {
-            "title": entry.title,
             "options": dict(entry.options),
+            "resolution": [entry.data.get("width"), entry.data.get("height")],
         },
         "data": async_redact_data(coordinator.data or {}, TO_REDACT),
     }

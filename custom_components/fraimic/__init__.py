@@ -30,7 +30,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
 
     coordinator = FraimicDataUpdateCoordinator(hass, entry, client, scan_interval)
-    await coordinator.async_config_entry_first_refresh()
+    # Do NOT use async_config_entry_first_refresh here: it raises
+    # ConfigEntryNotReady on a failed first poll, which would abort setup whenever
+    # the (battery-powered) frame is in deep sleep on restart — the entities would
+    # then never be created. Instead refresh non-fatally and set up regardless, so
+    # entities exist and show unavailable until the frame next wakes.
+    await coordinator.async_refresh()
 
     entry.runtime_data = FraimicRuntimeData(coordinator, client)
 
