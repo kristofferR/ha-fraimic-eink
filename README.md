@@ -72,6 +72,7 @@ pass it explicitly; otherwise the frame's configured default is used.
 | Binary sensor | Charging, Cable connected, Wi-Fi connected, Registered, Time synced, Voice recording, Keep awake |
 | Button | Refresh display, Sleep, Restart |
 | Image | Current artwork (colour preview of the last upload) |
+| Media player | Display images via the media browser / `play_media` |
 
 Diagnostic / noisy entities (SSID, IP, voltage, uptime, …) are disabled by default — enable
 them on the device page if you want them. Sensors whose field the frame doesn't report simply
@@ -129,7 +130,30 @@ matches the real frame.
 
 ## Uploading artwork
 
-The killer feature. Call the `fraimic.upload_image` service with **one** image source:
+### The easy way — media player + media browser
+
+Each frame is also a **`media_player`**, so the simplest way to display an image is the native HA
+media browser: open the frame's media-player card, **Browse media**, pick any image from your
+media sources (e.g. *Local Media* in `/config/media`), and it's sent to the frame — converted with
+that frame's configured settings. No paths, no service YAML.
+
+It also works with the standard service, which is handy for automations:
+
+```yaml
+action: media_player.play_media
+target:
+  entity_id: media_player.fraimic_e_ink_canvas
+data:
+  media_content_type: image
+  media_content_id: media-source://media_source/local/art/sunset.jpg
+```
+
+The media player also shows the current artwork as its cover image.
+
+### Full control — the upload service
+
+For per-call overrides (fit, rotate, dither mode, saturation…), call the `fraimic.upload_image`
+service with **one** image source:
 
 ```yaml
 action: fraimic.upload_image

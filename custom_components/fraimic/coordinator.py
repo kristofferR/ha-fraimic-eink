@@ -27,6 +27,8 @@ class FraimicRuntimeData:
         # Set by the image platform once its preview entity is created, so the
         # upload service can refresh the on-dashboard preview.
         self.preview_image: Any = None
+        # Last preview PNG, also exposed as the media_player's artwork.
+        self.last_preview: bytes | None = None
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):

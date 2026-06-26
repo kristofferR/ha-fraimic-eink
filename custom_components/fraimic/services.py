@@ -192,26 +192,35 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     """Handle the ``fraimic.upload_image`` service call."""
     hass = call.hass
     entry = _resolve_entry(hass, call)
-    runtime = entry.runtime_data
-
     raw = await _async_get_source_bytes(hass, call)
+    await async_render_and_upload(hass, entry, raw, dict(call.data))
+
+
+async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | None = None) -> None:
+    """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
+
+    Each processing param resolves as: explicit ``overrides`` value > per-frame
+    option > global default. Shared by the ``upload_image`` service and the
+    media_player ``play_media`` path.
+    """
+    overrides = overrides or {}
+    runtime = entry.runtime_data
+    options = entry.options
 
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
-    options = entry.options
-    # Each processing param: per-call value > per-frame option > global default.
-    fit = call.data.get(ATTR_FIT, options.get(ATTR_FIT, FIT_COVER))
-    saturation = call.data.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
-    contrast = call.data.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))
-    sharpen = call.data.get(ATTR_SHARPEN, options.get(ATTR_SHARPEN, DEFAULT_SHARPEN))
+    fit = overrides.get(ATTR_FIT, options.get(ATTR_FIT, FIT_COVER))
+    saturation = overrides.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
+    contrast = overrides.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))
+    sharpen = overrides.get(ATTR_SHARPEN, options.get(ATTR_SHARPEN, DEFAULT_SHARPEN))
     # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
     base_rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
-    rotate = (base_rotation + call.data.get(ATTR_ROTATE, 0)) % 360
+    rotate = (base_rotation + overrides.get(ATTR_ROTATE, 0)) % 360
     # The buffer is native-orientation; the preview is rotated back by the mount
     # rotation so the dashboard shows what you actually see on the wall.
     preview_rotate = (-base_rotation) % 360
 
-    requested_mode = _resolve_mode(call.data, options)
+    requested_mode = _resolve_mode(overrides, options)
     try:
         bin_data, preview_png, used_mode = await hass.async_add_executor_job(
             _convert,
@@ -237,8 +246,10 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     except FraimicError as err:
         raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
 
-    if preview_png and runtime.preview_image is not None:
-        runtime.preview_image.set_preview(preview_png, used_mode)
+    if preview_png:
+        runtime.last_preview = preview_png
+        if runtime.preview_image is not None:
+            runtime.preview_image.set_preview(preview_png, used_mode)
 
     # Pull a fresh snapshot so last-refresh / status updates promptly.
     await runtime.coordinator.async_request_refresh()
