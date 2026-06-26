@@ -37,6 +37,7 @@ from .const import (
     FIT_COVER,
     FIT_MODES,
     FRAME_MODELS,
+    MAX_BIN_SIZE,
     MIN_SCAN_INTERVAL,
     MODE_AUTO,
     MODEL_CUSTOM,
@@ -142,6 +143,9 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
             elif (width * height) % 2:
                 # The packed buffer is 2 pixels/byte, so the count must be even.
                 errors["base"] = "odd_resolution"
+            elif width * height // 2 > MAX_BIN_SIZE:
+                # Buffer would be too big to render/upload — reject up front.
+                errors["base"] = "resolution_too_large"
             else:
                 return self.async_create_entry(
                     title=_title(self._host),
