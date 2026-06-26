@@ -310,6 +310,11 @@ def _auto_mode(image) -> str:
     thumb.thumbnail((256, 256))
     arr = np.asarray(thumb, dtype=np.int16)
 
+    # A 1x1 (or degenerate) source has no neighbours to compare — just use the
+    # default error-diffusion mode rather than dividing by zero.
+    if arr.shape[0] < 2 or arr.shape[1] < 2:
+        return MODE_FLOYD_STEINBERG
+
     # Fraction of adjacent pixels that are *exactly* equal — high for graphics,
     # low for photos (sensor/compression noise breaks exact equality).
     dx = np.abs(arr[:, 1:, :] - arr[:, :-1, :]).max(axis=2)

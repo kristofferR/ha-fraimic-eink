@@ -64,9 +64,9 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
     def set_preview(self, png_bytes: bytes, mode: str | None = None) -> None:
         """Store a new PNG preview (and the dither mode used) and notify HA."""
         self._image = png_bytes
-        if mode is not None:
-            # Surfaces what `auto` actually chose, so it's visible in the UI.
-            self._attr_extra_state_attributes = {"dither_mode": mode}
+        # Surfaces what `auto` actually chose; cleared if the new preview has none
+        # so a stale mode from a previous upload isn't shown.
+        self._attr_extra_state_attributes = {"dither_mode": mode} if mode else {}
         self._attr_image_last_updated = dt_util.utcnow()
         self.async_write_ha_state()
 

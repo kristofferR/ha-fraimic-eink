@@ -88,6 +88,12 @@ def test_odd_pixel_count_rejected() -> None:
         ic.image_to_bin(_solid(100, 100, (0, 0, 0)), width=801, height=481, **RAW)
 
 
+def test_auto_mode_handles_1x1_source() -> None:
+    w, h = 800, 480
+    _bin, _preview, mode = ic.convert_image(_solid(1, 1, (120, 80, 40)), width=w, height=h, mode="auto")
+    assert mode in (const.MODE_FLOYD_STEINBERG, const.MODE_ATKINSON, const.MODE_BAYER)
+
+
 @pytest.mark.parametrize(
     "index,rgb",
     list(enumerate(const.SPECTRA6_RGB)),
