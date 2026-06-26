@@ -29,6 +29,7 @@ from .const import (
     ATTR_ROTATE,
     ATTR_SATURATION,
     ATTR_SHARPEN,
+    ATTR_TONE,
     ATTR_URL,
     CONF_HEIGHT,
     CONF_ROTATION,
@@ -38,6 +39,7 @@ from .const import (
     DEFAULT_ROTATION,
     DEFAULT_SATURATION,
     DEFAULT_SHARPEN,
+    DEFAULT_TONE,
     DEFAULT_WIDTH,
     DITHER_MODES,
     DOMAIN,
@@ -85,6 +87,9 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=3.0)
             ),
             vol.Optional(ATTR_SHARPEN): vol.All(
+                vol.Coerce(float), vol.Range(min=0.0, max=100.0)
+            ),
+            vol.Optional(ATTR_TONE): vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=100.0)
             ),
             # Deprecated boolean kept for backward compatibility; superseded by `mode`.
@@ -229,6 +234,7 @@ async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | Non
     saturation = overrides.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
     contrast = overrides.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))
     sharpen = overrides.get(ATTR_SHARPEN, options.get(ATTR_SHARPEN, DEFAULT_SHARPEN))
+    tone = overrides.get(ATTR_TONE, options.get(ATTR_TONE, DEFAULT_TONE))
     # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
     base_rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
     rotate = (base_rotation + overrides.get(ATTR_ROTATE, 0)) % 360
@@ -249,6 +255,7 @@ async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | Non
             saturation,
             contrast,
             sharpen,
+            tone,
             preview_rotate,
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
@@ -281,6 +288,7 @@ def _convert(
     saturation: float,
     contrast: float,
     sharpen: float,
+    tone: float,
     preview_rotate: int,
 ) -> tuple[bytes, bytes | None, str]:
     return convert_image(
@@ -294,4 +302,5 @@ def _convert(
         saturation=saturation,
         contrast=contrast,
         sharpen=sharpen,
+        tone=tone,
     )

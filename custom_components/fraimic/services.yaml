@@ -135,3 +135,17 @@ upload_image:
           max: 100
           step: 5
           mode: slider
+    tone:
+      name: Tone curve
+      description: >-
+        Filmic S-curve strength (0-100, default 25): boosts midtone contrast while
+        rolling off shadows/highlights so detail survives the panel's limited
+        dynamic range instead of clipping. 0 disables.
+      required: false
+      default: 25
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 5
+          mode: slider

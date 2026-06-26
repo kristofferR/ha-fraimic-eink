@@ -19,6 +19,7 @@ from .const import (
     ATTR_MODE,
     ATTR_SATURATION,
     ATTR_SHARPEN,
+    ATTR_TONE,
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
     CONF_ROTATION,
@@ -30,6 +31,7 @@ from .const import (
     DEFAULT_SATURATION,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SHARPEN,
+    DEFAULT_TONE,
     DITHER_MODES,
     DOMAIN,
     FIT_COVER,
@@ -213,6 +215,9 @@ class FraimicOptionsFlow(OptionsFlow):
                     ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=3.0)),
                     vol.Required(
                         ATTR_SHARPEN, default=o.get(ATTR_SHARPEN, DEFAULT_SHARPEN)
+                    ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=100.0)),
+                    vol.Required(
+                        ATTR_TONE, default=o.get(ATTR_TONE, DEFAULT_TONE)
                     ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=100.0)),
                 }
             ),

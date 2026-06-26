@@ -103,6 +103,10 @@ DEFAULT_MODE_RESOLVED: Final = MODE_FLOYD_STEINBERG
 DEFAULT_SATURATION: Final = 1.15
 DEFAULT_CONTRAST: Final = 1.4
 DEFAULT_SHARPEN: Final = 80.0
+# Filmic tone-curve (S-curve) strength 0-100: lifts midtone contrast while rolling
+# off shadows/highlights so detail survives the panel's limited dynamic range
+# (rather than clipping). 0 disables.
+DEFAULT_TONE: Final = 25.0
 # Clip this fraction off each end of the histogram for black/white-point autolevels.
 AUTOCONTRAST_CUTOFF: Final = 0.5
 
@@ -136,6 +140,7 @@ ATTR_MODE: Final = "mode"
 ATTR_SATURATION: Final = "saturation"
 ATTR_CONTRAST: Final = "contrast"
 ATTR_SHARPEN: Final = "sharpen"
+ATTR_TONE: Final = "tone"
 
 FIT_COVER: Final = "cover"
 FIT_CONTAIN: Final = "contain"  # keep aspect, white bars

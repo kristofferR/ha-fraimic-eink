@@ -30,6 +30,7 @@ from .const import (
     DEFAULT_MODE_RESOLVED,
     DEFAULT_SATURATION,
     DEFAULT_SHARPEN,
+    DEFAULT_TONE,
     DEFAULT_WIDTH,
     FIT_CONTAIN,
     FIT_CONTAIN_BLACK,
@@ -108,12 +109,39 @@ def _palette_oklab():
     return _linear_to_oklab(_srgb_to_linear(rgb))
 
 
-def _preprocess(image, saturation: float, contrast: float, sharpen: float):
+def _tone_curve_lut(strength: float) -> list[int] | None:
+    """A filmic S-curve LUT (per channel, x3) for ``strength`` 0-100, or None.
+
+    The sigmoid lifts midtone contrast while smoothly rolling off shadows and
+    highlights, so extremes compress instead of clipping — fitting more of the
+    image into the panel's limited dynamic range.
+    """
+    import math
+
+    k = strength / 100.0 * 8.0  # map 0-100 -> sigmoid steepness 0-8
+    if k < 0.05:
+        return None
+    s0 = 1.0 / (1.0 + math.exp(k * 0.5))
+    s1 = 1.0 / (1.0 + math.exp(-k * 0.5))
+    span = s1 - s0
+    lut = []
+    for i in range(256):
+        s = 1.0 / (1.0 + math.exp(-k * (i / 255.0 - 0.5)))
+        lut.append(max(0, min(255, round((s - s0) / span * 255.0))))
+    return lut * 3  # apply identically to R, G, B
+
+
+def _preprocess(
+    image, saturation: float, contrast: float, sharpen: float, tone: float
+):
     """Apply tone / contrast / saturation / sharpening to an RGB Pillow image."""
     from PIL import ImageEnhance, ImageFilter, ImageOps
 
-    # Tone: stretch to a full black/white point, clipping a tiny tail each end.
+    # Stretch to a full black/white point, clipping a tiny tail each end.
     image = ImageOps.autocontrast(image, cutoff=AUTOCONTRAST_CUTOFF)
+    # Filmic tone curve: midtone contrast with shadow/highlight rolloff.
+    if (lut := _tone_curve_lut(tone)) is not None:
+        image = image.point(lut)
     if abs(contrast - 1.0) > 1e-3:
         image = ImageEnhance.Contrast(image).enhance(contrast)
     if abs(saturation - 1.0) > 1e-3:
@@ -365,6 +393,7 @@ def convert_image(
     saturation: float = DEFAULT_SATURATION,
     contrast: float = DEFAULT_CONTRAST,
     sharpen: float = DEFAULT_SHARPEN,
+    tone: float = DEFAULT_TONE,
     preview: bool = True,
     preview_rotate: int = 0,
 ) -> tuple[bytes, bytes | None, str]:
@@ -412,7 +441,7 @@ def convert_image(
         # photo-vs-graphic decision toward graphics.
         resolved = _auto_mode(image) if mode == MODE_AUTO else mode
         image = _fit_image(image, width, height, fit)
-        image = _preprocess(image, saturation, contrast, sharpen)
+        image = _preprocess(image, saturation, contrast, sharpen, tone)
         indices = _render_indices(image, width, height, resolved)
 
     packed = _pack_nibbles(indices)
@@ -436,6 +465,7 @@ def image_to_bin(
     saturation: float = DEFAULT_SATURATION,
     contrast: float = DEFAULT_CONTRAST,
     sharpen: float = DEFAULT_SHARPEN,
+    tone: float = DEFAULT_TONE,
 ) -> bytes:
     """Convenience wrapper returning only the ``.bin`` buffer."""
     return convert_image(  # noqa: returns (bin, preview, mode); we want bin only
@@ -448,5 +478,6 @@ def image_to_bin(
         saturation=saturation,
         contrast=contrast,
         sharpen=sharpen,
+        tone=tone,
         preview=False,
     )[0]
