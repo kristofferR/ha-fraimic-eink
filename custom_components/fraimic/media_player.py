@@ -8,6 +8,8 @@ through the frame's configured conversion settings, same as the service.
 
 from __future__ import annotations
 
+import hashlib
+
 import aiohttp
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
@@ -95,6 +97,14 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         await async_render_and_upload(self.hass, self.coordinator.config_entry, raw)
         self._attr_media_title = media_id.rsplit("/", 1)[-1]
         self.async_write_ha_state()
+
+    @property
+    def media_image_hash(self) -> str | None:
+        """Hash of the current artwork so HA refetches it when it changes."""
+        preview = self.coordinator.config_entry.runtime_data.last_preview
+        if preview is None:
+            return None
+        return hashlib.sha1(preview).hexdigest()[:16]
 
     async def async_get_media_image(self) -> tuple[bytes | None, str | None]:
         """Return the current artwork preview as the player's media image."""

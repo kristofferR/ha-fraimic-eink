@@ -205,16 +205,29 @@ def _bayer_indices(oklab, palette, width: int, height: int):
 
 
 def _error_diffuse(oklab, palette, kernel, width: int, height: int):
-    """Serpentine error diffusion in OKLab space (sequential per pixel)."""
+    """Serpentine error diffusion in OKLab space (sequential per pixel).
+
+    Only materialises the few rows the kernel touches (current + up to 2 ahead)
+    as Python lists at a time, instead of list-converting the whole frame, so a
+    large frame (2560x1440) doesn't balloon memory.
+    """
     import numpy as np
 
-    work = oklab.astype(np.float64).tolist()  # nested lists -> fast pure-Python loop
     pal = palette.tolist()
     pal_chroma2 = [p[1] * p[1] + p[2] * p[2] for p in pal]
     out = bytearray(width * height)
 
+    rows: dict[int, list] = {}
+
+    def get_row(yy: int) -> list:
+        row = rows.get(yy)
+        if row is None:
+            row = oklab[yy].tolist()
+            rows[yy] = row
+        return row
+
     for y in range(height):
-        row = work[y]
+        row = get_row(y)
         left_to_right = (y % 2) == 0
         xs = range(width) if left_to_right else range(width - 1, -1, -1)
         for x in xs:
@@ -247,10 +260,11 @@ def _error_diffuse(oklab, palette, kernel, width: int, height: int):
                 sx = x + dx if left_to_right else x - dx
                 ny = y + dy
                 if 0 <= sx < width and ny < height:
-                    tgt = work[ny][sx]
+                    tgt = (row if ny == y else get_row(ny))[sx]
                     tgt[0] += el * w
                     tgt[1] += ea * w
                     tgt[2] += eb * w
+        rows.pop(y, None)  # done with this row; release it
 
     return np.frombuffer(bytes(out), dtype=np.uint8)
 
@@ -380,7 +394,17 @@ def convert_image(
         raise ValueError("Fraimic buffers require an even number of pixels")
     expected = pixels // 2
     with Image.open(io.BytesIO(raw)) as src:
-        image = ImageOps.exif_transpose(src).convert("RGB")
+        image = ImageOps.exif_transpose(src)
+        # Flatten any transparency onto white (not the default black) so PNG/logo
+        # transparent areas don't turn into black blocks on the frame.
+        if image.mode in ("RGBA", "LA", "PA") or (
+            image.mode == "P" and "transparency" in image.info
+        ):
+            rgba = image.convert("RGBA")
+            background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+            image = Image.alpha_composite(background, rgba).convert("RGB")
+        else:
+            image = image.convert("RGB")
         if rotate % 360:
             image = image.rotate(-(rotate % 360), expand=True)
         # Classify BEFORE fitting/preprocessing: `contain` padding adds flat
