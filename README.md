@@ -165,6 +165,7 @@ data:
   saturation: 1.15      # kept modest (real Spectra 6 owners push contrast, not saturation)
   contrast: 1.4         # pushed hard — the panel has no backlight
   sharpen: 80           # unsharp-mask strength 0-100
+  tone: 25              # filmic S-curve: midtone contrast + shadow/highlight rolloff
 ```
 
 All processing options are optional with sensible defaults — the simple call is just
