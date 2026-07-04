@@ -226,6 +226,10 @@ as a designed e-ink dashboard, TRMNL-style: widgets composed into layout slots, 
 vector graphics on the server (no headless browser, works on any HA install) using only the
 panel's six real colours, so the result is pixel-perfect with zero dithering noise.
 
+![Sample dashboard screen](docs/sample-screen.png)
+
+The screen above is exactly what this call produces:
+
 ```yaml
 action: fraimic.render_screen
 data:
