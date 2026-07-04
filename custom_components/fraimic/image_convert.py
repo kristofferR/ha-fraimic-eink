@@ -508,6 +508,7 @@ def convert_image(
     tone: float = DEFAULT_TONE,
     preview: bool = True,
     preview_rotate: int = 0,
+    preprocess: bool = True,
 ) -> tuple[bytes, bytes | None, str]:
     """Convert encoded image bytes into a Fraimic Spectra 6 ``.bin`` (+ PNG preview).
 
@@ -522,6 +523,10 @@ def convert_image(
         preview: also return a downscaled colour PNG of the rendered result.
         preview_rotate: rotate only the preview (clockwise) to match how the frame
             is mounted — the ``.bin`` buffer stays native-orientation.
+        preprocess: run the photo-enhancement stage (autocontrast, tone curve,
+            contrast/saturation/sharpen). Disable for sources that already are
+            final panel content — rendered dashboard screens use exact palette
+            colours, which autocontrast would otherwise shift off-palette.
 
     Returns:
         ``(bin_bytes, preview_png_or_none, resolved_mode)`` where ``bin_bytes`` is
@@ -569,7 +574,8 @@ def convert_image(
         # photo-vs-graphic decision toward graphics.
         resolved = _auto_mode(image) if mode == MODE_AUTO else mode
         image = _fit_image(image, width, height, fit)
-        image = _preprocess(image, saturation, contrast, sharpen, tone)
+        if preprocess:
+            image = _preprocess(image, saturation, contrast, sharpen, tone)
         indices = _render_indices(image, width, height, resolved)
 
     packed = _pack_nibbles(indices, width, height)
@@ -594,6 +600,7 @@ def image_to_bin(
     contrast: float = DEFAULT_CONTRAST,
     sharpen: float = DEFAULT_SHARPEN,
     tone: float = DEFAULT_TONE,
+    preprocess: bool = True,
 ) -> bytes:
     """Convenience wrapper returning only the ``.bin`` buffer."""
     return convert_image(  # noqa: returns (bin, preview, mode); we want bin only
@@ -608,4 +615,5 @@ def image_to_bin(
         sharpen=sharpen,
         tone=tone,
         preview=False,
+        preprocess=preprocess,
     )[0]

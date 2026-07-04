@@ -47,5 +47,5 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v5
-      - name: Run conversion tests
-        run: uv run --with pillow --with numpy --with pytest pytest tests/ -q
+      - name: Run conversion + render tests
+        run: uv run --with pillow --with numpy --with voluptuous --with resvg-py --with pytest pytest tests/ -q
