@@ -93,7 +93,12 @@ def test_render_is_deterministic() -> None:
 
 
 def test_palette_purity_and_bin_roundtrip() -> None:
-    """Most pixels are exact palette colours; the .bin conversion is stable."""
+    """Every pixel is an exact palette colour; the .bin conversion is stable.
+
+    100% purity is guaranteed by construction: antialiased edges are snapped
+    back to the screen's used colours after rasterising (without that, grey
+    glyph edges quantise to the panel's muted green — seen on hardware).
+    """
     import numpy as np
     from PIL import Image
 
@@ -106,7 +111,7 @@ def test_palette_purity_and_bin_roundtrip() -> None:
     for color in palette:
         exact |= (arr == color).all(axis=1)
     purity = float(exact.mean())
-    assert purity >= 0.95, f"only {purity:.1%} of pixels are exact palette colours"
+    assert purity == 1.0, f"only {purity:.2%} of pixels are exact palette colours"
 
     # The full path a screen takes to the frame: quantise with mode "none" and
     # NO preprocessing. Deterministic + valid nibbles + exact size.

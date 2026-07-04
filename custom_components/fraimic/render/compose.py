@@ -11,7 +11,7 @@ import logging
 from .context import RenderContext
 from .layout import divider_lines, slot_rects
 from .schema import ScreenConfig
-from .svg import SvgDoc, measure, rasterize, truncate
+from .svg import SvgDoc, measure, rasterize, snap_to_colors, truncate
 from .theme import Theme
 from .widgets import WIDGET_REGISTRY
 from .widgets.base import render_error
@@ -19,8 +19,8 @@ from .widgets.base import render_error
 _LOGGER = logging.getLogger(__name__)
 
 
-def build_svg(screen: ScreenConfig, ctx: RenderContext, width: int, height: int) -> str:
-    """Build the complete screen SVG at the *viewed* resolution."""
+def build_doc(screen: ScreenConfig, ctx: RenderContext, width: int, height: int) -> SvgDoc:
+    """Build the complete screen SVG document at the *viewed* resolution."""
     theme = Theme.for_screen(
         width,
         height,
@@ -57,7 +57,12 @@ def build_svg(screen: ScreenConfig, ctx: RenderContext, width: int, height: int)
             )
             render_error(doc, rect, f"{widget.type} failed to render", theme)
 
-    return doc.to_string()
+    return doc
+
+
+def build_svg(screen: ScreenConfig, ctx: RenderContext, width: int, height: int) -> str:
+    """The composed screen as an SVG string."""
+    return build_doc(screen, ctx, width, height).to_string()
 
 
 def _header(doc: SvgDoc, screen: ScreenConfig, ctx: RenderContext, theme: Theme) -> None:
@@ -82,5 +87,11 @@ def _header(doc: SvgDoc, screen: ScreenConfig, ctx: RenderContext, theme: Theme)
 def render_screen_png(
     screen: ScreenConfig, ctx: RenderContext, width: int, height: int
 ) -> bytes:
-    """Rasterise the composed screen to PNG bytes (executor-only)."""
-    return rasterize(build_svg(screen, ctx, width, height), width, height)
+    """Rasterise the composed screen to 100% palette-pure PNG bytes.
+
+    Executor-only (CPU-bound). Antialiased edge pixels are snapped back to
+    the set of colours the screen actually uses — otherwise they quantise
+    unpredictably on the panel (grey glyph edges land on muted green).
+    """
+    doc = build_doc(screen, ctx, width, height)
+    return snap_to_colors(rasterize(doc.to_string(), width, height), doc.colors)

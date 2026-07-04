@@ -98,22 +98,32 @@ def fit_size(text: str, max_w: float, base: int, minimum: int, weight: int = 400
 
 
 class SvgDoc:
-    """Accumulates SVG elements and serialises the document."""
+    """Accumulates SVG elements and serialises the document.
+
+    Every fill/stroke colour is recorded in ``colors`` so the rasterised
+    output can be snapped back to exactly the palette colours the screen
+    uses (see ``snap_to_colors``) — resvg's antialiased edge pixels would
+    otherwise quantise unpredictably (mid-grey edges land on the panel's
+    *muted* green/blue instead of black/white).
+    """
 
     def __init__(self, width: int, height: int, background: str) -> None:
         self.width = width
         self.height = height
+        self.colors: set[str] = {background}
         self._parts: list[str] = [
             f'<rect width="{width}" height="{height}" fill="{background}"/>'
         ]
 
     def rect(self, x: int, y: int, w: int, h: int, fill: str, rx: int = 0) -> None:
+        self.colors.add(fill)
         rx_attr = f' rx="{rx}"' if rx else ""
         self._parts.append(
             f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}"{rx_attr}/>'
         )
 
     def line(self, x1: int, y1: int, x2: int, y2: int, stroke: str, width: int) -> None:
+        self.colors.add(stroke)
         self._parts.append(
             f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
             f'stroke="{stroke}" stroke-width="{width}"/>'
@@ -123,14 +133,18 @@ class SvgDoc:
         self, cx: int, cy: int, r: int, *, fill: str = "none",
         stroke: str | None = None, stroke_width: int = 0,
     ) -> None:
-        stroke_attr = (
-            f' stroke="{stroke}" stroke-width="{stroke_width}"' if stroke else ""
-        )
+        if fill != "none":
+            self.colors.add(fill)
+        stroke_attr = ""
+        if stroke:
+            self.colors.add(stroke)
+            stroke_attr = f' stroke="{stroke}" stroke-width="{stroke_width}"'
         self._parts.append(
             f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}"{stroke_attr}/>'
         )
 
     def path(self, d: str, fill: str, transform: str | None = None) -> None:
+        self.colors.add(fill)
         transform_attr = f" transform={quoteattr(transform)}" if transform else ""
         self._parts.append(f'<path d={quoteattr(d)} fill="{fill}"{transform_attr}/>')
 
@@ -147,6 +161,7 @@ class SvgDoc:
         letter_spacing: float = 0.0,
     ) -> None:
         """Add a text element (``y`` is the baseline)."""
+        self.colors.add(fill)
         spacing_attr = (
             f' letter-spacing="{letter_spacing:g}"' if letter_spacing else ""
         )
@@ -201,3 +216,42 @@ def rasterize(svg: str, width: int, height: int) -> bytes:
             sans_serif_family=FONT_FAMILY,
         )
     )
+
+
+def snap_to_colors(png: bytes, hex_colors: set[str]) -> bytes:
+    """Snap every pixel of ``png`` to the nearest colour in ``hex_colors``.
+
+    Screens are drawn exclusively in exact palette colours, so the only
+    off-palette pixels are resvg's antialiased edges — blends of two used
+    colours. Snapping each to the nearest *used* colour collapses text/line
+    edges onto their parent colours (verified on hardware: without this,
+    black-on-white glyph edges quantise to the panel's muted green — ~12k
+    speckle pixels on a plain screen). The result is 100% palette-pure and
+    deterministic, which also makes the upload-skip content hash stable.
+    """
+    import io
+
+    import numpy as np
+    from PIL import Image
+
+    colors = np.array(
+        [tuple(int(c[i : i + 2], 16) for i in (1, 3, 5)) for c in sorted(hex_colors)],
+        dtype=np.int32,
+    )
+    with Image.open(io.BytesIO(png)) as img:
+        arr = np.asarray(img.convert("RGB"), dtype=np.int32)
+    shape = arr.shape
+    flat = arr.reshape(-1, 3)
+    # One colour at a time to avoid a huge (N, C, 3) broadcast temporary.
+    best_dist = np.full(flat.shape[0], np.iinfo(np.int32).max, dtype=np.int32)
+    best_index = np.zeros(flat.shape[0], dtype=np.uint8)
+    for index, color in enumerate(colors):
+        diff = flat - color
+        dist = np.einsum("ij,ij->i", diff, diff)
+        closer = dist < best_dist
+        best_dist[closer] = dist[closer]
+        best_index[closer] = index
+    snapped = colors[best_index].astype(np.uint8).reshape(shape)
+    out = io.BytesIO()
+    Image.fromarray(snapped, "RGB").save(out, format="PNG")
+    return out.getvalue()
