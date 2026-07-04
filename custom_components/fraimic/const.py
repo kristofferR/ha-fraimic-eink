@@ -64,21 +64,29 @@ MAX_SOURCE_BYTES: Final = 64 * 1024 * 1024
 # Reject absurd source dimensions (decompression bombs) before fully decoding.
 MAX_SOURCE_PIXELS: Final = 100_000_000  # 100 MP — far above any real photo
 
-# Spectra 6 palette — index order is the panel's nibble value; only 0-5 are valid.
-# The packed nibble IS this index; the RGB tuples are *calibrated approximations*
-# of what each colour actually looks like on the panel (used for quantization
-# matching and previews). Spectra 6 colours are far more muted than monitor
-# primaries, so matching against pure primaries (255,0,0 etc.) renders badly.
-# Calibrated values corroborated by Toon-nooT's converter and the Pimoroni Inky
-# community (red #a02020, yellow #f0e050, green #608050, blue #5080b8).
+# Spectra 6 palette. The RGB tuples are *calibrated approximations* of what each
+# colour actually looks like on the panel (used for quantization matching and
+# previews). Spectra 6 colours are far more muted than monitor primaries, so
+# matching against pure primaries (255,0,0 etc.) renders badly. Calibrated
+# values corroborated by Toon-nooT's converter and the Pimoroni Inky community
+# (red #a02020, yellow #f0e050, green #608050, blue #5080b8).
+#
+# NOTE: tuple position here is the *internal* palette position used throughout
+# the dither pipeline and previews — NOT the nibble sent to the frame. Real
+# frames (verified on firmware 0.2.21 hardware) use the E Ink standard Spectra 6
+# codes, which skip 0x4: 0x0 black, 0x1 white, 0x2 yellow, 0x3 red, 0x5 blue,
+# 0x6 green. SPECTRA6_PANEL_INDEX maps position -> panel nibble at pack time.
 SPECTRA6_RGB: Final = (
-    (0, 0, 0),        # 0 Black
-    (255, 255, 255),  # 1 White
-    (96, 128, 80),    # 2 Green  #608050
-    (80, 128, 184),   # 3 Blue   #5080b8
-    (160, 32, 32),    # 4 Red    #a02020
-    (240, 224, 80),   # 5 Yellow #f0e050
+    (0, 0, 0),        # Black
+    (255, 255, 255),  # White
+    (240, 224, 80),   # Yellow #f0e050
+    (160, 32, 32),    # Red    #a02020
+    (80, 128, 184),   # Blue   #5080b8
+    (96, 128, 80),    # Green  #608050
 )
+# Panel nibble for each SPECTRA6_RGB position (E Ink standard; 0x4 is unused —
+# the panel renders it as white).
+SPECTRA6_PANEL_INDEX: Final = (0x0, 0x1, 0x2, 0x3, 0x5, 0x6)
 SPECTRA6_LEVELS: Final = len(SPECTRA6_RGB)
 
 # Dither / processing modes.

@@ -187,7 +187,8 @@ data:
 
 If more than one frame is configured, add `config_entry_id:` (a **Frame** picker is shown in the
 UI service editor). The integration produces the exact buffer the targeted frame's resolution
-requires and uploads it over the safe `/upload` path, then triggers a refresh.
+requires and uploads it over the safe `/upload` path — the frame renders it by itself
+(~20–30 s, verified on real hardware; no extra refresh call needed).
 
 ### Example automation — rotate art each morning
 
@@ -210,18 +211,20 @@ no template sensor needed.
 ## How image conversion works
 
 Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw, header-less,
-uncompressed: every pixel is a 4-bit index into a 6-colour palette, packed two pixels per byte
-(high nibble = left pixel, low nibble = right pixel), scanned left-to-right, top-to-bottom. For
-the 13.3" frame that's `1600 × 1200 / 2 = 960,000` bytes.
+uncompressed 4bpp — `1600 × 1200 / 2 = 960,000` bytes for the 13.3" frame — but the layout is
+**not** a row-major scan (see [Accuracy note](#accuracy-note)): the buffer holds the bottom half
+of the panel first, then the top half, each half column-major with columns scanned bottom-up and
+two vertically-adjacent pixels per byte. Pixel values are the E Ink standard Spectra 6 codes
+(`0x4` is unused — the panel renders it as white):
 
-| Index | Colour | Calibrated RGB |
-|:-----:|--------|:--------------:|
+| Nibble | Colour | Calibrated RGB |
+|:------:|--------|:--------------:|
 | 0x0 | Black  | #000000 |
 | 0x1 | White  | #ffffff |
-| 0x2 | Green  | #608050 |
-| 0x3 | Blue   | #5080b8 |
-| 0x4 | Red    | #a02020 |
-| 0x5 | Yellow | #f0e050 |
+| 0x2 | Yellow | #f0e050 |
+| 0x3 | Red    | #a02020 |
+| 0x5 | Blue   | #5080b8 |
+| 0x6 | Green  | #608050 |
 
 Getting good results from a tiny-gamut, low-contrast 6-colour panel is as much about
 pre-processing as the dither, so the integration runs a full pipeline (all in an executor):
@@ -244,7 +247,10 @@ pre-processing as the dither, so the integration runs a full pipeline (all in an
    - `bayer` — fast ordered dithering, best for flat graphics/dashboards/UI.
    - `none` — nearest colour, no dithering.
    Error-diffusion modes use serpentine scanning in linear light.
-7. **Pack** nibbles (clamped to 0–5) and `POST` as multipart to `/upload`.
+7. **Pack** into the frame's native half-panel/column layout and `POST` as multipart to
+   `/upload`. Error-diffusion targets are clamped to the panel's reachable gamut, so
+   out-of-gamut colours degrade gracefully instead of smearing accumulated error across the
+   image (yellow blobs trailing saturated patches — seen on real hardware before the clamp).
 
 **Which mode?** Just leave it on `auto` — it picks per image. Override only if you want a specific
 look (e.g. force `bayer` for a poster-style image, or `atkinson` for a portrait).
@@ -260,16 +266,35 @@ the panel's own 20–30 s refresh, and they run in the background.
 ## Accuracy note
 
 Fraimic's official REST API guide describes the frame as "4-bit **grayscale**, upload via
-`POST /api/image` (octet-stream body)". On real hardware that is wrong on two counts, confirmed
-by community reverse engineering
-([dsackr/fraimic-controller](https://github.com/dsackr/fraimic-controller)):
+`POST /api/image` (octet-stream body)". On real hardware that is wrong on two counts:
 
 - The panel is **Spectra 6 colour**, not grayscale.
 - Uploads go to **`POST /upload`** (multipart). The documented `POST /api/image` returns 501
   **and hangs the frame for 45+ seconds** — this integration never uses it.
 
-This integration follows the reverse-engineered behaviour and tolerates both the flat and
-nested `/api/info` JSON shapes seen in the wild.
+The `.bin` buffer layout was **reverse-engineered on a real 13.3" frame (firmware 0.2.21)**
+with physical test patterns, and it differs from every community write-up we found — including
+[dsackr/fraimic-controller](https://github.com/dsackr/fraimic-controller)'s row-major, 0–5
+sequential-palette description, which renders scrambled on 0.2.21:
+
+- The buffer holds the **bottom half of the panel first**, then the top half.
+- Each half is **column-major**: panel columns left→right, each column scanned **bottom-up**,
+  two vertically-adjacent pixels per byte (high nibble first).
+- Pixel values are the **E Ink standard Spectra 6 codes** (`0x2` yellow, `0x3` red, `0x5` blue,
+  `0x6` green, `0x4` unused) — matching E Ink's EL133UF1 reference driver, not the sequential
+  0–5 palette used by community converters.
+
+Other verified-on-hardware behaviour this integration accounts for:
+
+- A successful `/upload` **renders by itself** (~20–30 s). No follow-up `/api/refresh` is
+  needed; firing one mid-render just gets the connection reset by the busy ESP32.
+- `display.last_refresh` in `/api/info` only tracks the *scheduled* refresh cycle — it does
+  **not** update on uploads (and reads as a bogus 1970 date until the first scheduled cycle).
+- On firmware 0.2.21, `/api/info` reports no display size or model field, so resolution
+  auto-detect has nothing to work with — the config flow asks you to pick the model instead.
+
+This integration follows the verified behaviour and tolerates both the flat and nested
+`/api/info` JSON shapes seen in the wild.
 
 ## Troubleshooting
 
@@ -278,10 +303,16 @@ nested `/api/info` JSON shapes seen in the wild.
 - **`fraimic.local` won't resolve:** use the IP address (find it at `http://fraimic.local/info`
   or in your router's DHCP table).
 - **Colours look wrong:** make sure the frame's configured resolution matches the panel, and
-  keep `dither: true` for photos. Only Black/White/Green/Blue/Red/Yellow can be shown.
+  keep `dither: true` for photos. Only Black/White/Yellow/Red/Blue/Green can be shown — there is
+  no cyan or magenta ink, so those hues are approximated with dithered mixes.
+- **Uploads suddenly failing (connection reset ~10 s in) while sensors still work:** the frame's
+  upload handler is wedged — this happens after an aborted or timed-out upload. Press the
+  integration's **Restart** button (or `POST /api/restart`); uploads work again after the reboot.
 
 ## Credits
 
-- Frame behaviour, the Spectra 6 format, and the `/upload` endpoint were reverse-engineered by
+- The `/upload` endpoint and the `POST /api/image` hang were first documented by
   [**dsackr/fraimic-controller**](https://github.com/dsackr/fraimic-controller) — thank you.
+  The actual buffer layout and palette codes on firmware 0.2.21 were reverse-engineered for
+  this integration on real hardware (see [Accuracy note](#accuracy-note)).
 - Not affiliated with Fraimic. Unofficial, community-built. MIT licensed.

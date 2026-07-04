@@ -1,11 +1,13 @@
 """Convert ordinary images into the Fraimic Spectra 6 ``.bin`` display format.
 
 Fraimic frames use an **E Ink Spectra 6** colour panel. The buffer is a raw,
-header-less, uncompressed image where every pixel is a 4-bit palette index into
-the 6-colour Spectra palette, packed two pixels per byte (high nibble = left/even
-pixel, low nibble = right/odd pixel), scanned left-to-right then top-to-bottom.
-Total size is ``width * height / 2`` bytes (1600x1200 = 960,000 bytes for the
-13.3" frame).
+header-less, uncompressed 4bpp image, ``width * height / 2`` bytes total
+(1600x1200 = 960,000 bytes for the 13.3" frame) — but the scan order is NOT
+row-major. Verified on real hardware (firmware 0.2.21): the buffer holds the
+*bottom* half of the panel first, then the top half, each half column-major
+with columns scanned bottom-up and two vertically-adjacent pixels per byte.
+Pixel values are the E Ink standard Spectra 6 codes (0x4 unused) — see
+``_pack_nibbles`` and ``SPECTRA6_PANEL_INDEX``.
 
 Getting good output from a tiny-gamut, low-contrast 6-colour panel is as much
 about *pre-processing* as it is about the dither, so this module runs a full
@@ -44,6 +46,7 @@ from .const import (
     NEUTRAL_CHROMA_T,
     NEUTRAL_WEIGHT,
     SPECTRA6_LEVELS,
+    SPECTRA6_PANEL_INDEX,
     SPECTRA6_RGB,
 )
 
@@ -246,11 +249,23 @@ def _error_diffuse(oklab, palette, kernel, width: int, height: int):
     Only materialises the few rows the kernel touches (current + up to 2 ahead)
     as Python lists at a time, instead of list-converting the whole frame, so a
     large frame (2560x1440) doesn't balloon memory.
+
+    The error-adjusted target is clamped to just beyond the palette's reach
+    before matching, and the *clamped* value drives the diffused error. FS
+    kernels conserve error, so on out-of-gamut regions (a colour the panel
+    simply cannot mix) the residual otherwise accumulates without bound and
+    smears across whatever comes next — verified on real hardware as yellow
+    blobs trailing saturated patches and text tinted by a colour field above
+    it. Clamping discards the unrepresentable excess instead of propagating it.
     """
     import numpy as np
 
     pal = palette.tolist()
     pal_chroma2 = [p[1] * p[1] + p[2] * p[2] for p in pal]
+    # Clamp bounds: L slightly past black/white; chroma to the same ceiling the
+    # pre-dither gamut soft-clamp compresses to (palette reach + dither margin).
+    chroma_cap = max(c2 for c2 in pal_chroma2) ** 0.5 * 1.3
+    chroma_cap2 = chroma_cap * chroma_cap
     out = bytearray(width * height)
 
     rows: dict[int, list] = {}
@@ -268,6 +283,20 @@ def _error_diffuse(oklab, palette, kernel, width: int, height: int):
         xs = range(width) if left_to_right else range(width - 1, -1, -1)
         for x in xs:
             px = row[x]
+            # Clamp the error-adjusted target to the panel's reachable gamut
+            # (see docstring) — the clamped value also drives the error below.
+            l = px[0]
+            if l < -0.05:
+                l = -0.05
+            elif l > 1.05:
+                l = 1.05
+            a_, b_ = px[1], px[2]
+            c2 = a_ * a_ + b_ * b_
+            if c2 > chroma_cap2:
+                scale = chroma_cap / c2**0.5
+                a_ *= scale
+                b_ *= scale
+            px = (l, a_, b_)
             # Neutral preservation: penalise chromatic palette entries when this
             # pixel is near-grey, so neutrals dither between black/white only.
             px_chroma = (px[1] * px[1] + px[2] * px[2]) ** 0.5
@@ -365,13 +394,31 @@ def _render_indices(image, width: int, height: int, mode: str):
     return _error_diffuse(oklab, palette, _FLOYD_STEINBERG_KERNEL, width, height)
 
 
-def _pack_nibbles(indices) -> bytes:
-    """Pack a per-pixel index buffer (values 0-5) into two-pixels-per-byte."""
+def _pack_nibbles(indices, width: int, height: int) -> bytes:
+    """Pack per-pixel palette positions into the frame's native buffer layout.
+
+    Reverse-engineered on real hardware (firmware 0.2.21) with test patterns:
+    the buffer is NOT a row-major scan of the panel. It is two 4bpp halves —
+    the *bottom* half of the panel first, then the top half — and each half is
+    column-major: panel columns left-to-right, each column scanned *bottom-up*,
+    two vertically-adjacent pixels per byte (high nibble first). Palette
+    positions are translated to the E Ink standard Spectra 6 nibbles
+    (0,1,2,3,5,6 — 0x4 is unused) via SPECTRA6_PANEL_INDEX.
+    """
     import numpy as np
 
-    arr = (np.asarray(indices, dtype=np.uint8) % SPECTRA6_LEVELS).reshape(-1, 2)
-    packed = (arr[:, 0] << 4) | (arr[:, 1] & 0x0F)
-    return packed.astype(np.uint8).tobytes()
+    panel_nibble = np.array(SPECTRA6_PANEL_INDEX, dtype=np.uint8)
+    arr = panel_nibble[np.asarray(indices, dtype=np.uint8) % SPECTRA6_LEVELS]
+    arr = arr.reshape(height, width)
+
+    half_h = height // 2
+    parts = []
+    for half in (arr[half_h:, :], arr[:half_h, :]):  # bottom half first
+        # Column-major, bottom-up within each column.
+        cols = np.flipud(half).T  # (width, half_h): per-column, bottom pixel first
+        pairs = cols.reshape(-1, 2)
+        parts.append(((pairs[:, 0] << 4) | (pairs[:, 1] & 0x0F)).astype(np.uint8))
+    return np.concatenate(parts).tobytes()
 
 
 def _indices_to_png(indices, width: int, height: int, preview_rotate: int = 0) -> bytes:
@@ -432,8 +479,10 @@ def convert_image(
     from PIL import Image, ImageOps
 
     pixels = width * height
-    if pixels % 2:
-        raise ValueError("Fraimic buffers require an even number of pixels")
+    # The native layout packs two vertically-adjacent pixels per byte within
+    # each half-panel, so each half's height must itself be even.
+    if height % 4:
+        raise ValueError("Fraimic buffers require a height divisible by 4")
     expected = pixels // 2
     with Image.open(io.BytesIO(raw)) as src:
         # Reject decompression bombs before the full decode (size is read from
@@ -463,7 +512,7 @@ def convert_image(
         image = _preprocess(image, saturation, contrast, sharpen, tone)
         indices = _render_indices(image, width, height, resolved)
 
-    packed = _pack_nibbles(indices)
+    packed = _pack_nibbles(indices, width, height)
     if len(packed) != expected:  # pragma: no cover - guarded by fixed size
         raise ValueError(f"Converted image is {len(packed)} bytes, expected {expected}")
 

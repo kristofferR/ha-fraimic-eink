@@ -124,13 +124,17 @@ class FraimicClient:
         """Trigger a full E-Ink refresh cycle (``POST /api/refresh``)."""
         return await self._json("POST", "/api/refresh")
 
-    async def upload_image(self, data: bytes, *, refresh: bool = True) -> None:
+    async def upload_image(self, data: bytes, *, refresh: bool = False) -> None:
         """Upload a raw Spectra 6 ``.bin`` image and render it.
 
-        Uses ``POST /upload`` with a ``multipart/form-data`` ``image`` field,
-        then triggers ``/api/refresh``. This is the path the frame's own portal
-        uses. Do NOT use ``POST /api/image`` with an octet-stream body — on real
-        frames it returns 501 and hangs the device for 45+ seconds.
+        Uses ``POST /upload`` with a ``multipart/form-data`` ``image`` field —
+        the path the frame's own portal uses. Verified on real hardware
+        (firmware 0.2.21): a successful ``/upload`` renders the image by itself
+        (~20-30 s), so no follow-up ``/api/refresh`` is needed — firing one
+        mid-render just gets the connection reset by the busy ESP32. ``refresh``
+        stays available for firmwares that need the explicit kick. Do NOT use
+        ``POST /api/image`` with an octet-stream body — on real frames it
+        returns 501 and hangs the device for 45+ seconds.
         """
         if len(data) > MAX_BIN_SIZE:
             raise FraimicError(

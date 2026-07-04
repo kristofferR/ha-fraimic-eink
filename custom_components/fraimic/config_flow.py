@@ -140,8 +140,9 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
             height = user_input.get(CONF_HEIGHT)
             if not width or not height:
                 errors["base"] = "custom_resolution_required"
-            elif (width * height) % 2:
-                # The packed buffer is 2 pixels/byte, so the count must be even.
+            elif height % 4:
+                # The native layout packs two vertically-adjacent pixels per
+                # byte within each half-panel, so height must divide by 4.
                 errors["base"] = "odd_resolution"
             elif width * height // 2 > MAX_BIN_SIZE:
                 # Buffer would be too big to render/upload — reject up front.
