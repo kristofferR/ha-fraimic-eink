@@ -124,7 +124,9 @@ class FraimicClient:
         """Trigger a full E-Ink refresh cycle (``POST /api/refresh``)."""
         return await self._json("POST", "/api/refresh")
 
-    async def upload_image(self, data: bytes, *, refresh: bool = False) -> None:
+    async def upload_image(
+        self, data: bytes, *, refresh: bool = False, recover: bool = True
+    ) -> None:
         """Upload a raw Spectra 6 ``.bin`` image and render it.
 
         Uses ``POST /upload`` with a ``multipart/form-data`` ``image`` field —
@@ -135,6 +137,12 @@ class FraimicClient:
         stays available for firmwares that need the explicit kick. Do NOT use
         ``POST /api/image`` with an octet-stream body — on real frames it
         returns 501 and hangs the device for 45+ seconds.
+
+        ``recover`` handles a firmware bug seen repeatedly on real hardware:
+        after an aborted/interrupted upload the frame's upload handler wedges —
+        ``/upload`` connections get reset while the rest of the API still
+        answers. A device restart clears it, so on a connection-level upload
+        failure we restart the frame, wait for it to come back, and retry once.
         """
         if len(data) > MAX_BIN_SIZE:
             raise FraimicError(
@@ -142,6 +150,33 @@ class FraimicClient:
                 f"{MAX_BIN_SIZE} bytes"
             )
 
+        try:
+            await self._do_upload(data)
+        except FraimicConnectionError:
+            if not recover:
+                raise
+            # The wedge only affects /upload; if the whole frame is down (deep
+            # sleep), the restart below fails the same way and we re-raise.
+            _LOGGER.warning(
+                "Upload to %s failed at the connection level — the frame's "
+                "upload handler may be wedged; restarting the frame and "
+                "retrying once",
+                self._host,
+            )
+            await self.restart()
+            await self._wait_reachable()
+            await self._do_upload(data)
+
+        if refresh:
+            # A refresh failure is non-fatal (the image is already buffered), but
+            # surface it so a silently-not-updating frame is diagnosable.
+            try:
+                await self.refresh()
+            except FraimicError as err:
+                _LOGGER.warning("Image uploaded but display refresh failed: %s", err)
+
+    async def _do_upload(self, data: bytes) -> None:
+        """One ``POST /upload`` attempt."""
         form = aiohttp.FormData()
         form.add_field(
             "image", data, filename="image.bin", content_type="application/octet-stream"
@@ -155,10 +190,15 @@ class FraimicClient:
                     status=resp.status,
                 )
 
-        if refresh:
-            # A refresh failure is non-fatal (the image is already buffered), but
-            # surface it so a silently-not-updating frame is diagnosable.
+    async def _wait_reachable(self, *, attempts: int = 12, delay: float = 5.0) -> None:
+        """Poll the lightweight battery endpoint until the frame answers."""
+        for _ in range(attempts):
+            await asyncio.sleep(delay)
             try:
-                await self.refresh()
-            except FraimicError as err:
-                _LOGGER.warning("Image uploaded but display refresh failed: %s", err)
+                await self.get_battery()
+            except FraimicError:
+                continue
+            return
+        raise FraimicConnectionError(
+            f"Fraimic at {self._host} did not come back after a restart"
+        )

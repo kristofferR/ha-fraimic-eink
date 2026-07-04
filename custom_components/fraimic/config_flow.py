@@ -20,11 +20,13 @@ from .const import (
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
+    CONF_CAMERA_INTERVAL,
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
+    DEFAULT_CAMERA_INTERVAL,
     DEFAULT_CONTRAST,
     DEFAULT_HOST,
     DEFAULT_ROTATION,
@@ -38,6 +40,7 @@ from .const import (
     FIT_MODES,
     FRAME_MODELS,
     MAX_BIN_SIZE,
+    MIN_CAMERA_INTERVAL,
     MIN_SCAN_INTERVAL,
     MODE_AUTO,
     MODEL_CUSTOM,
@@ -208,6 +211,16 @@ class FraimicOptionsFlow(OptionsFlow):
                     vol.Required(
                         CONF_ROTATION, default=o.get(CONF_ROTATION, DEFAULT_ROTATION)
                     ): vol.In(ROTATION_OPTIONS),
+                    # How often a "playing" camera re-snapshots onto the frame.
+                    # 0 disables the loop (snapshot once). Each update is a full
+                    # E-Ink refresh, so a slow floor keeps battery/panel sane.
+                    vol.Required(
+                        CONF_CAMERA_INTERVAL,
+                        default=o.get(CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL),
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Any(vol.In((0,)), vol.Range(min=MIN_CAMERA_INTERVAL)),
+                    ),
                     # Per-frame image-processing defaults (overridable per upload).
                     vol.Required(
                         ATTR_MODE, default=o.get(ATTR_MODE, MODE_AUTO)

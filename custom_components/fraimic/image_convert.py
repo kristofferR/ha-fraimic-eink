@@ -91,6 +91,8 @@ def _sniff_format(raw: bytes) -> str:
         return "a Matroska/WebM video, not an image"
     if head[:4] == b"%PDF":
         return "a PDF, not an image"
+    if head[:7] == b"#EXTM3U":
+        return "an HLS stream playlist — use a camera snapshot instead"
     if head[:5].lower() in (b"<html", b"<!doc") or b"<html" in raw[:512].lower():
         return "an HTML page — the URL likely needs auth or is wrong"
     if head[:2] == b"ID" or head[:4] == b"OggS" or head[:4] == b"fLaC":

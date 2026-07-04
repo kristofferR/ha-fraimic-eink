@@ -27,6 +27,13 @@ DEFAULT_HOST: Final = "fraimic.local"
 # balance. Users can change this in the options flow.
 DEFAULT_SCAN_INTERVAL: Final = 300
 MIN_SCAN_INTERVAL: Final = 30
+
+# How often a camera "playing" on the frame re-snapshots (seconds). Every
+# update is a full ~30 s E-Ink refresh cycle and costs battery, so this is
+# deliberately slow. 0 = snapshot once, no auto-refresh.
+CONF_CAMERA_INTERVAL: Final = "camera_refresh_interval"
+DEFAULT_CAMERA_INTERVAL: Final = 300
+MIN_CAMERA_INTERVAL: Final = 60
 DEFAULT_TIMEOUT: Final = 10
 # The ESP32 web server is slow on large uploads; give it generous time.
 UPLOAD_TIMEOUT: Final = 90

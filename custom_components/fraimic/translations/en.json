@@ -41,6 +41,7 @@
         "data": {
           "scan_interval": "Polling interval (seconds)",
           "rotation": "Rotation (degrees)",
+          "camera_refresh_interval": "Camera refresh interval (seconds)",
           "mode": "Dither mode",
           "fit": "Fit mode",
           "saturation": "Saturation",
@@ -51,6 +52,7 @@
         "data_description": {
           "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
           "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape).",
+          "camera_refresh_interval": "How often a camera ‘playing’ on this frame takes a fresh snapshot. Each update is a full ~30 s E-Ink refresh and costs battery — minimum 60. 0 = show once, no auto-refresh.",
           "mode": "auto/error-diffusion for photos, bayer for graphics, none for nearest-colour.",
           "fit": "Fill (crop), Fit (keep aspect — white or black bars), or Stretch.",
           "saturation": "Saturation boost (default 1.15). 1.0 = no change.",

@@ -78,6 +78,17 @@ Diagnostic / noisy entities (SSID, IP, voltage, uptime, …) are disabled by def
 them on the device page if you want them. Sensors whose field the frame doesn't report simply
 stay unavailable.
 
+**Sources & formats:** anything Pillow reads (JPEG, PNG, WebP, GIF, BMP, TIFF, …) plus
+**HEIC/HEIF** (iPhone photos) and **AVIF**. Non-image media (videos, streams) is rejected with
+an error that says what it actually was.
+
+**Cameras:** playing a camera on the frame (media browser or
+`play_media` with `media-source://camera/camera.x` / plain `camera.x`) takes a **still
+snapshot** — a live stream is meaningless on a ~30 s E-Ink panel. By default it keeps
+re-snapshotting every 5 minutes while the player is *Playing* (a slow live view); tune or
+disable this with the **Camera refresh interval** option per frame (min 60 s, `0` = show once).
+Press **Stop** on the media player to end the loop — the last image stays on the frame.
+
 ## Dashboard
 
 Each frame is its own device, so the auto-generated device page already gives you everything.
