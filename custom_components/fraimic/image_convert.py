@@ -50,6 +50,56 @@ from .const import (
     SPECTRA6_RGB,
 )
 
+# Lazily register extra Pillow decoders (HEIC/HEIF/AVIF via pillow-heif) once.
+# iPhone photos and modern photo-library media sources (immich, Synology
+# Photos, ...) commonly serve HEIC/AVIF, which stock Pillow can't open.
+_extra_decoders_loaded = False
+
+
+def _ensure_extra_decoders() -> None:
+    global _extra_decoders_loaded  # noqa: PLW0603 - simple one-shot latch
+    if _extra_decoders_loaded:
+        return
+    _extra_decoders_loaded = True
+    try:
+        from pillow_heif import register_heif_opener
+
+        register_heif_opener()
+    except Exception:  # noqa: BLE001 - optional; degrade to Pillow's own formats
+        pass
+    try:
+        # pillow-heif < 1.0 shipped AVIF support; 1.0+ removed it in favour of
+        # Pillow's native AVIF (11.2+). Register it only where it still exists.
+        from pillow_heif import register_avif_opener
+
+        register_avif_opener()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _sniff_format(raw: bytes) -> str:
+    """Best-effort human-readable guess of what unidentifiable bytes are."""
+    head = raw[:64]
+    if len(head) >= 12 and head[4:8] == b"ftyp":
+        brand = head[8:12].decode("ascii", "replace")
+        if brand.startswith(("heic", "heix", "hevc", "heim", "heis", "mif1", "msf1")):
+            return "a HEIC/HEIF image (install pillow-heif)"
+        if brand.startswith(("avif", "avis")):
+            return "an AVIF image (install pillow-heif)"
+        return f"an ISO media file '{brand}' — probably a video, not an image"
+    if head[:4] == b"\x1aE\xdf\xa3":
+        return "a Matroska/WebM video, not an image"
+    if head[:4] == b"%PDF":
+        return "a PDF, not an image"
+    if head[:5].lower() in (b"<html", b"<!doc") or b"<html" in raw[:512].lower():
+        return "an HTML page — the URL likely needs auth or is wrong"
+    if head[:2] == b"ID" or head[:4] == b"OggS" or head[:4] == b"fLaC":
+        return "an audio file, not an image"
+    if head[:4] == b"<svg" or b"<svg" in raw[:512]:
+        return "an SVG (vector) — not supported, rasterise it first"
+    return "an unrecognised format"
+
+
 # 8x8 Bayer threshold matrix (values 0..63), used for ordered dithering.
 _BAYER8 = (
     (0, 32, 8, 40, 2, 34, 10, 42),
@@ -476,7 +526,9 @@ def convert_image(
         exactly ``width * height / 2`` bytes and ``resolved_mode`` is the concrete
         mode used (``auto`` is resolved to the mode actually chosen).
     """
-    from PIL import Image, ImageOps
+    from PIL import Image, ImageOps, UnidentifiedImageError
+
+    _ensure_extra_decoders()
 
     pixels = width * height
     # The native layout packs two vertically-adjacent pixels per byte within
@@ -484,7 +536,13 @@ def convert_image(
     if height % 4:
         raise ValueError("Fraimic buffers require a height divisible by 4")
     expected = pixels // 2
-    with Image.open(io.BytesIO(raw)) as src:
+    try:
+        src_img = Image.open(io.BytesIO(raw))
+    except UnidentifiedImageError as err:
+        raise ValueError(
+            f"Source is not a supported image — looks like {_sniff_format(raw)}"
+        ) from err
+    with src_img as src:
         # Reject decompression bombs before the full decode (size is read from
         # the header by open(), without decoding the pixels).
         if src.width * src.height > MAX_SOURCE_PIXELS:
