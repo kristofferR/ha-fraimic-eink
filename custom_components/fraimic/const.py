@@ -32,7 +32,7 @@ MIN_SCAN_INTERVAL: Final = 30
 # update is a full ~30 s E-Ink refresh cycle and costs battery, so this is
 # deliberately slow. 0 = snapshot once, no auto-refresh.
 CONF_CAMERA_INTERVAL: Final = "camera_refresh_interval"
-DEFAULT_CAMERA_INTERVAL: Final = 300
+DEFAULT_CAMERA_INTERVAL: Final = 1800
 MIN_CAMERA_INTERVAL: Final = 60
 DEFAULT_TIMEOUT: Final = 10
 # The ESP32 web server is slow on large uploads; give it generous time.
