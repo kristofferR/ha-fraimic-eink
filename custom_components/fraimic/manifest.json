@@ -1,6 +1,7 @@
 {
   "domain": "fraimic",
   "name": "Fraimic E-Ink Canvas",
+  "after_dependencies": ["recorder"],
   "codeowners": ["@kristofferR"],
   "config_flow": true,
   "dependencies": ["media_source"],
