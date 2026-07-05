@@ -231,6 +231,37 @@ def test_render_errors_become_home_assistant_errors(
         asyncio.run(display.async_render_screen(_Hass(), _entry(), _screen()))
 
 
+def test_picture_source_redacts_url_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    display, _ = _load_display(monkeypatch)
+    calls: list[dict[str, object]] = []
+
+    async def get_source_bytes(_hass: object, **kwargs: object) -> bytes:
+        calls.append(kwargs)
+        return b"picture-png"
+
+    source = types.ModuleType("fraimic.source")
+    source.async_get_source_bytes = get_source_bytes
+    monkeypatch.setitem(sys.modules, "fraimic.source", source)
+
+    screen = types.SimpleNamespace(
+        source={
+            "url": "http://example.test/screenshot.png?token=secret",
+            "fit": "contain",
+        }
+    )
+    raw, overrides = asyncio.run(display._async_picture_source(_Hass(), screen))
+
+    assert raw == b"picture-png"
+    assert overrides == {"fit": "contain"}
+    assert calls == [
+        {
+            "url": "http://example.test/screenshot.png?token=secret",
+            "entity_id": None,
+            "redact_url": True,
+        }
+    ]
+
+
 def test_set_screen_preview_requires_preview_data(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

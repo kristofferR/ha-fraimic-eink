@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 from typing import Any
@@ -27,6 +28,7 @@ from .widgets import WIDGET_REGISTRY
 _LOGGER = logging.getLogger(__name__)
 
 UNKNOWN_DISPLAY = "—"
+_BARE_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 WidgetFetcher = Callable[
     [HomeAssistant, dict[str, Any], RenderContext],
     Awaitable[dict[str, Any] | None],
@@ -308,7 +310,7 @@ async def _async_fetch_calendar(
             start_raw = str(event.get("start", ""))
             # All-day events carry a bare date — parse_datetime would happily
             # read it as midnight and the row would show a bogus "00:00".
-            all_day = "T" not in start_raw
+            all_day = _BARE_DATE_RE.fullmatch(start_raw) is not None
             if all_day:
                 parsed = dt_util.parse_date(start_raw)
                 if parsed is None:

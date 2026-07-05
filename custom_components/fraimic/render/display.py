@@ -80,7 +80,10 @@ async def _async_picture_source(hass: HomeAssistant, screen: ScreenConfig) -> tu
 
     source = screen.source or {}
     raw = await async_get_source_bytes(
-        hass, url=source.get("url"), entity_id=source.get("entity")
+        hass,
+        url=source.get("url"),
+        entity_id=source.get("entity"),
+        redact_url=True,
     )
     overrides: dict = {}
     if fit := source.get("fit"):
