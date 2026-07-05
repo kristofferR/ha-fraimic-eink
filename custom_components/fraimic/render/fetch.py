@@ -405,6 +405,19 @@ async def _async_fetch_chart(
             stride = len(points) // 300 + 1
             points = points[::stride]
         current = hass.states.get(entity_id)
+        current_value = None
+        if current is not None:
+            try:
+                current_value = float(current.state)
+            except (ValueError, TypeError):
+                current_value = None
+        if current_value is not None:
+            if not points:
+                points = [(0.0, current_value), (1.0, current_value)]
+            elif points[-1][0] >= 1.0:
+                points[-1] = (1.0, current_value)
+            else:
+                points.append((1.0, current_value))
         name = (
             current.attributes.get("friendly_name") if current else None
         ) or entity_id
@@ -453,7 +466,10 @@ async def _async_fetch_image(
     from ..source import async_get_source_bytes
 
     raw = await async_get_source_bytes(
-        hass, url=options.get("url"), entity_id=options.get("entity")
+        hass,
+        url=options.get("url"),
+        entity_id=options.get("entity"),
+        redact_url=True,
     )
     return {"bytes": raw}
 

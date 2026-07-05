@@ -92,18 +92,17 @@ def render_screen(
     Executor-only (CPU-bound). Antialiased edge pixels are snapped back to
     the set of colours the screen actually uses — otherwise they quantise
     unpredictably on the panel (grey glyph edges land on muted green).
-    Embedded photo regions are excluded from the snap and switch the
-    conversion to Floyd-Steinberg, which dithers the photo while leaving the
-    exact-palette vector flats untouched (zero quantisation error there).
+    Embedded photo regions are pre-dithered by their widget renderer and
+    excluded from the snap, so the final screen remains palette-pure and can
+    use ``mode="none"`` without diffusion leaking into vector regions.
     """
-    from ..const import MODE_FLOYD_STEINBERG, MODE_NONE
+    from ..const import MODE_NONE
 
     doc = build_doc(screen, ctx, width, height)
     png = snap_to_colors(
         rasterize(doc.to_string(), width, height), doc.colors, doc.raster_rects
     )
-    mode = MODE_FLOYD_STEINBERG if doc.raster_rects else MODE_NONE
-    return png, mode
+    return png, MODE_NONE
 
 
 def render_screen_png(

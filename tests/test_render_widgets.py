@@ -18,7 +18,7 @@ NOW = datetime(2026, 7, 3, 14, 5)
 W, H = 800, 480
 
 
-def _screen(data: dict):
+def _screen(data: dict[str, object]) -> object:
     return schema.screen_from_dict(schema.SCREEN_SCHEMA(data))
 
 
@@ -37,7 +37,7 @@ def _render(widget: dict, data) -> bytes:
     return compose.render_screen_png(screen, ctx, W, H)
 
 
-def _png_size(png: bytes):
+def _png_size(png: bytes) -> tuple[int, int]:
     from PIL import Image
 
     with Image.open(io.BytesIO(png)) as img:
@@ -123,8 +123,8 @@ def test_widget_error_payload_renders_placeholder(widget) -> None:
     assert _png_size(png) == (W, H)
 
 
-def test_image_widget_keeps_photo_pixels_and_switches_mode() -> None:
-    """Embedded photo region survives the snap; mode flips to error diffusion."""
+def test_image_widget_pre_quantizes_photo_and_keeps_mode_none() -> None:
+    """Embedded photos are dithered in-place; the full screen stays palette-pure."""
     import numpy as np
     from PIL import Image
 
@@ -138,20 +138,17 @@ def test_image_widget_keeps_photo_pixels_and_switches_mode() -> None:
         }
     )
     ctx = context.RenderContext(now=NOW)
-    # An off-palette solid photo: must NOT be snapped to palette colours.
+    # An off-palette solid photo should be quantized inside its own slot.
     ctx.widget_data = {1: {"bytes": _tiny_png(color=(200, 120, 40))}}
     png, mode = compose.render_screen(screen, ctx, W, H)
-    assert mode == const.MODE_FLOYD_STEINBERG
+    assert mode == const.MODE_NONE
 
     arr = np.asarray(Image.open(io.BytesIO(png)).convert("RGB"))
-    # The photo fills the right slot; sample its centre.
-    assert tuple(arr[H // 2, int(W * 0.75)]) == (200, 120, 40)
-    # The left (vector) half is still palette-pure.
-    left = arr[:, : W // 3].reshape(-1, 3)
+    flat = arr.reshape(-1, 3)
     palette = np.array(const.SPECTRA6_RGB, dtype=np.uint8)
-    exact = np.zeros(left.shape[0], dtype=bool)
+    exact = np.zeros(flat.shape[0], dtype=bool)
     for color in palette:
-        exact |= (left == color).all(axis=1)
+        exact |= (flat == color).all(axis=1)
     assert exact.mean() == 1.0
 
 

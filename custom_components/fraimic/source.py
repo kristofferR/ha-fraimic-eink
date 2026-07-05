@@ -27,6 +27,7 @@ async def async_get_source_bytes(
     path: str | None = None,
     url: str | None = None,
     entity_id: str | None = None,
+    redact_url: bool = False,
 ) -> bytes:
     """Fetch raw image bytes from exactly one of the three source kinds."""
     if path is not None:
@@ -46,14 +47,17 @@ async def async_get_source_bytes(
         return checked_size(data)
 
     if url is not None:
+        url_label = "image URL" if redact_url else url
         session = async_get_clientsession(hass)
         try:
             resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
         except Exception as err:  # noqa: BLE001 - surfaced to the user
-            raise HomeAssistantError(f"Could not download {url}: {err}") from err
+            raise HomeAssistantError(f"Could not download {url_label}: {err}") from err
         async with resp:
             if resp.status != 200:
-                raise HomeAssistantError(f"Downloading {url} returned HTTP {resp.status}")
+                raise HomeAssistantError(
+                    f"Downloading {url_label} returned HTTP {resp.status}"
+                )
             data = await resp.content.read(MAX_SOURCE_BYTES + 1)
             if len(data) > MAX_SOURCE_BYTES:
                 raise ServiceValidationError("Downloaded image is too large")
