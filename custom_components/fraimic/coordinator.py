@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
@@ -34,6 +35,10 @@ class FraimicRuntimeData:
         self.last_preview: bytes | None = None
         # Playlist scheduler (set during entry setup; None until then).
         self.scheduler: Any = None
+        # Serialize uploads; the frame can only process one long refresh.
+        self.upload_lock = asyncio.Lock()
+        # Set by the media player so enabling playlists can stop camera loops.
+        self.stop_camera_loop: Any = None
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):

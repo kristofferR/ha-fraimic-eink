@@ -79,7 +79,20 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             self._camera_unsub = None
         self._camera_entity = None
 
+    def _stop_camera_loop_and_write(self) -> None:
+        self._stop_camera_loop()
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.coordinator.config_entry.runtime_data.stop_camera_loop = (
+            self._stop_camera_loop_and_write
+        )
+
     async def async_will_remove_from_hass(self) -> None:
+        runtime = self.coordinator.config_entry.runtime_data
+        if runtime.stop_camera_loop == self._stop_camera_loop_and_write:
+            runtime.stop_camera_loop = None
         self._stop_camera_loop()
         await super().async_will_remove_from_hass()
 
@@ -140,7 +153,6 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             "camera."
         ):
             camera_entity = media_id.rsplit("/", 1)[-1]
-            await self._async_show_camera(camera_entity)
             interval = self.coordinator.config_entry.options.get(
                 CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
             )
@@ -150,6 +162,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 scheduler = self.coordinator.config_entry.runtime_data.scheduler
                 if scheduler is not None and scheduler.enabled:
                     await scheduler.async_set_enabled(False)
+            await self._async_show_camera(camera_entity)
+            if interval > 0:
                 self._camera_entity = camera_entity
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)

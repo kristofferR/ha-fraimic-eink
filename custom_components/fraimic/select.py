@@ -9,6 +9,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
+from .render.schema import ScreenConfig
+
+
+def _option(screen: ScreenConfig) -> str:
+    return f"{screen.name} ({screen.screen_id})"
 
 
 async def async_setup_entry(
@@ -47,16 +52,16 @@ class FraimicScreenSelect(FraimicEntity, SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        return [screen.name for screen in self._scheduler.screens]
+        return [_option(screen) for screen in self._scheduler.screens]
 
     @property
     def current_option(self) -> str | None:
         current = self._scheduler.current_screen
-        return current.name if current else None
+        return _option(current) if current else None
 
     async def async_select_option(self, option: str) -> None:
         for screen in self._scheduler.screens:
-            if screen.name == option:
+            if _option(screen) == option:
                 await self._scheduler.async_select(screen)
                 return
-        raise HomeAssistantError(f"No stored screen named {option!r}")
+        raise HomeAssistantError(f"No stored screen option {option!r}")

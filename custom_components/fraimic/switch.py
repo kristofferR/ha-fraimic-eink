@@ -53,6 +53,9 @@ class FraimicPlaylistSwitch(FraimicEntity, SwitchEntity):
         return self._scheduler.enabled
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop
+        if stopper is not None:
+            stopper()
         await self._scheduler.async_set_enabled(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:

@@ -17,15 +17,19 @@ def window_matches(windows: tuple[TimeWindow, ...], now: datetime) -> bool:
     if not windows:
         return True
     current = now.time()
-    weekday = now.weekday()
     for window in windows:
-        if window.days and weekday not in window.days:
-            continue
         if window.after <= window.before:
-            if window.after <= current <= window.before:
-                return True
+            if not window.after <= current <= window.before:
+                continue
+            start_weekday = now.weekday()
         # Overnight window (e.g. 22:00 -> 06:00): either side of midnight.
-        elif current >= window.after or current <= window.before:
+        elif current >= window.after:
+            start_weekday = now.weekday()
+        elif current <= window.before:
+            start_weekday = (now.weekday() - 1) % 7
+        else:
+            continue
+        if not window.days or start_weekday in window.days:
             return True
     return False
 

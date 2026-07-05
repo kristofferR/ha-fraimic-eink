@@ -36,6 +36,7 @@ from .render.display import async_show_screen
 from .render.playlist import eligible, next_screen
 from .render.schema import ScreenConfig
 from .screens import screens_from_entry
+from .services import FrameUploadError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -55,7 +56,8 @@ class FraimicScheduler:
         self.displayed_hash: str | None = None
         self._last_rotation: datetime | None = None
         self._hold_until: datetime | None = None
-        self._pending = False
+        self._pending: ScreenConfig | None = None
+        self._pending_requires_enabled = True
         self._busy = False
         self._store: Store[dict[str, Any]] = Store(
             hass, STORE_VERSION, f"{DOMAIN}_playlist_{entry.entry_id}"
@@ -106,6 +108,10 @@ class FraimicScheduler:
             listener()
 
     @property
+    def busy(self) -> bool:
+        return self._busy
+
+    @property
     def current_screen(self) -> ScreenConfig | None:
         for screen in self.screens:
             if screen.screen_id == self.current_id:
@@ -133,14 +139,14 @@ class FraimicScheduler:
     async def async_select(self, screen: ScreenConfig) -> None:
         """Show a specific screen now and pin rotation to it."""
         self._hold_until = None
-        await self._async_show(screen)
+        await self._async_show(screen, manual=True)
 
     async def _async_step(self, step: int) -> None:
         candidate = next_screen(self.screens, self.current_id, dt_util.now(), step=step)
         if candidate is None:
             raise HomeAssistantError("No screen is eligible to show right now")
         self._hold_until = None
-        await self._async_show(candidate)
+        await self._async_show(candidate, manual=True)
 
     # -- external-upload interplay ------------------------------------------
 
@@ -152,10 +158,15 @@ class FraimicScheduler:
         image gets its screen time) and forget the displayed hash so the next
         playlist upload can never be skipped as "unchanged".
         """
+        self._pending = None
         self.displayed_hash = None
         screen = self.current_screen
         interval = screen.interval if screen else 1800
         self._hold_until = dt_util.utcnow() + timedelta(seconds=interval)
+        self.entry.async_create_task(
+            self.hass, self._async_save(), "fraimic_playlist_external_save"
+        )
+        self._notify()
 
     # -- the loop ------------------------------------------------------------
 
@@ -167,6 +178,8 @@ class FraimicScheduler:
             return
         now = dt_util.now()
         if not force:
+            if self._pending is not None:
+                return
             if self._hold_until and dt_util.utcnow() < self._hold_until:
                 return
             current = self.current_screen
@@ -184,7 +197,11 @@ class FraimicScheduler:
             return  # nothing in window right now; leave the frame as-is
         await self._async_show(candidate)
 
-    async def _async_show(self, screen: ScreenConfig) -> None:
+    async def _async_show(self, screen: ScreenConfig, *, manual: bool = False) -> None:
+        if self._busy:
+            if manual:
+                raise HomeAssistantError("A playlist upload is already in progress")
+            return
         self._busy = True
         try:
             result = await async_show_screen(
@@ -194,17 +211,23 @@ class FraimicScheduler:
                 skip_if_hash=self.displayed_hash,
                 hold_playlist=False,
             )
-        except HomeAssistantError as err:
-            # Almost always: the frame is asleep/unreachable. Stay quiet, mark
-            # pending; the coordinator listener pushes as soon as it wakes.
-            self._pending = True
+        except FrameUploadError as err:
+            self._pending = screen
+            self._pending_requires_enabled = not manual
             _LOGGER.debug(
                 "Playlist could not show %r (frame asleep?): %s", screen.name, err
             )
             return
+        except HomeAssistantError as err:
+            self.current_id = screen.screen_id
+            self._last_rotation = dt_util.utcnow()
+            await self._async_save()
+            self._notify()
+            _LOGGER.warning("Playlist skipped %r: %s", screen.name, err)
+            return
         finally:
             self._busy = False
-        self._pending = False
+        self._pending = None
         self.current_id = screen.screen_id
         self.displayed_hash = result.get("content_hash")
         self._last_rotation = dt_util.utcnow()
@@ -219,13 +242,17 @@ class FraimicScheduler:
     def _coordinator_updated(self) -> None:
         """Frame answered a poll — if a push failed while it slept, retry now."""
         if (
-            self._pending
-            and self.enabled
+            self._pending is not None
+            and (self.enabled or not self._pending_requires_enabled)
             and self.entry.runtime_data.coordinator.last_update_success
         ):
-            self._pending = False
+            screen = self._pending
+            manual = not self._pending_requires_enabled
+            self._pending = None
             self.entry.async_create_task(
-                self.hass, self._async_rotate(force=True), "fraimic_playlist_wake_push"
+                self.hass,
+                self._async_show(screen, manual=manual),
+                "fraimic_playlist_wake_push",
             )
 
     async def _async_save(self) -> None:

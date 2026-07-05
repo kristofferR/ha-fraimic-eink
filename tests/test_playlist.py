@@ -13,6 +13,8 @@ schema = load("render.schema")
 MON_NOON = datetime(2026, 7, 6, 12, 0)
 MON_NIGHT = datetime(2026, 7, 6, 23, 30)
 TUE_EARLY = datetime(2026, 7, 7, 3, 0)
+FRI_NIGHT = datetime(2026, 7, 10, 23, 30)
+SAT_EARLY = datetime(2026, 7, 11, 3, 0)
 SAT_NOON = datetime(2026, 7, 11, 12, 0)
 
 
@@ -57,6 +59,15 @@ def test_day_filter() -> None:
     weekdays = _window(days=(0, 1, 2, 3, 4))
     assert playlist.window_matches((weekdays,), MON_NOON)
     assert not playlist.window_matches((weekdays,), SAT_NOON)
+
+
+def test_overnight_day_filter_uses_window_start_day() -> None:
+    weekdays_overnight = _window("22:00", "06:00", days=(0, 1, 2, 3, 4))
+    assert playlist.window_matches((weekdays_overnight,), FRI_NIGHT)
+    assert playlist.window_matches((weekdays_overnight,), SAT_EARLY)
+    assert not playlist.window_matches(
+        (weekdays_overnight,), MON_NOON.replace(hour=3)
+    )
 
 
 def test_any_of_multiple_windows_matches() -> None:

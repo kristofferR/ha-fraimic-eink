@@ -66,10 +66,10 @@ def build_svg(screen: ScreenConfig, ctx: RenderContext, width: int, height: int)
 
 
 def _header(doc: SvgDoc, screen: ScreenConfig, ctx: RenderContext, theme: Theme) -> None:
-    """Slim title bar: screen name left, date + time right, rule below."""
+    """Slim title bar: screen name left, date right, rule below."""
     x0, x1 = theme.padding, theme.width - theme.padding
     baseline = theme.padding + round(theme.header_h * 0.42)
-    stamp = ctx.now.strftime("%a %-d %b · %H:%M")
+    stamp = ctx.now.strftime("%a %-d %b")
     stamp_w = measure(stamp, theme.small, 500)
     doc.text(
         x0,
@@ -79,7 +79,9 @@ def _header(doc: SvgDoc, screen: ScreenConfig, ctx: RenderContext, theme: Theme)
         fill=theme.ink,
         weight=600,
     )
-    doc.text(x1, baseline, stamp, size=theme.small, fill=theme.ink, weight=500, anchor="end")
+    doc.text(
+        x1, baseline, stamp, size=theme.small, fill=theme.ink, weight=500, anchor="end"
+    )
     rule_y = theme.padding + round(theme.header_h * 0.68)
     doc.line(x0, rule_y, x1, rule_y, theme.ink, theme.rule)
 

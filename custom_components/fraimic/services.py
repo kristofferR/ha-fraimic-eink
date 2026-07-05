@@ -66,6 +66,11 @@ from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
 
+
+class FrameUploadError(HomeAssistantError):
+    """Raised when conversion succeeded but the frame upload failed."""
+
+
 def _require_one_source(data: dict) -> dict:
     """Ensure exactly one image source was provided."""
     sources = [k for k in (ATTR_PATH, ATTR_URL, ATTR_IMAGE_ENTITY) if data.get(k)]
@@ -305,33 +310,37 @@ async def async_render_and_upload(
     interval; the scheduler's own uploads pass False.
     """
     runtime = entry.runtime_data
-    bin_data, preview_png, used_mode = await async_convert_for_entry(
-        hass, entry, raw, overrides, preprocess=preprocess
-    )
-    content_hash = hashlib.sha256(bin_data).hexdigest()
-    if skip_if_hash is not None and content_hash == skip_if_hash:
-        return {"mode": used_mode, "content_hash": content_hash, "uploaded": False}
+    scheduler = runtime.scheduler
+    if hold_playlist and scheduler is not None:
+        if scheduler.busy:
+            raise HomeAssistantError("A playlist upload is already in progress")
+        scheduler.notify_external_upload()
 
-    try:
-        await runtime.client.upload_image(bin_data)
-    except FraimicError as err:
-        raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+    async with runtime.upload_lock:
+        bin_data, preview_png, used_mode = await async_convert_for_entry(
+            hass, entry, raw, overrides, preprocess=preprocess
+        )
+        content_hash = hashlib.sha256(bin_data).hexdigest()
+        if skip_if_hash is not None and content_hash == skip_if_hash:
+            return {"mode": used_mode, "content_hash": content_hash, "uploaded": False}
 
-    if hold_playlist and runtime.scheduler is not None:
-        runtime.scheduler.notify_external_upload()
+        try:
+            await runtime.client.upload_image(bin_data)
+        except FraimicError as err:
+            raise FrameUploadError(f"Could not upload to the frame: {err}") from err
 
-    if preview_png:
-        runtime.last_preview = preview_png
-        if runtime.preview_image is not None:
-            runtime.preview_image.set_preview(preview_png, used_mode)
+        if preview_png:
+            runtime.last_preview = preview_png
+            if runtime.preview_image is not None:
+                runtime.preview_image.set_preview(preview_png, used_mode)
 
-    # Pull a fresh snapshot so last-refresh / status updates promptly.
-    await runtime.coordinator.async_request_refresh()
-    return {
-        "mode": used_mode,
-        "content_hash": content_hash,
-        "uploaded": True,
-    }
+        # Pull a fresh snapshot so last-refresh / status updates promptly.
+        await runtime.coordinator.async_request_refresh()
+        return {
+            "mode": used_mode,
+            "content_hash": content_hash,
+            "uploaded": True,
+        }
 
 
 def _convert(
