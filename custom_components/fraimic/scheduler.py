@@ -273,10 +273,9 @@ class FraimicScheduler:
             and not self.external_upload_active
         ):
             screen = self._pending
-            manual = not self._pending_requires_enabled
             self.entry.async_create_task(
                 self.hass,
-                self._async_retry_pending(screen, manual=manual),
+                self._async_retry_pending(screen, manual=False),
                 "fraimic_playlist_wake_push",
             )
 
