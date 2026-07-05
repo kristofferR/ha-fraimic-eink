@@ -440,7 +440,9 @@ Other verified-on-hardware behaviour this integration accounts for:
   auto-detect has nothing to work with — the config flow asks you to pick the model instead.
 
 This integration follows the verified behaviour and tolerates both the flat and nested
-`/api/info` JSON shapes seen in the wild.
+`/api/info` JSON shapes seen in the wild. The frame's full local HTTP surface (portal pages,
+Developer Mode, logs, cloud endpoints, and the `auto_update` / voice-recording quirks) is
+documented in [`docs/device-http-api.md`](docs/device-http-api.md).
 
 ## Troubleshooting
 
