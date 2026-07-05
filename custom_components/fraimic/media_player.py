@@ -33,6 +33,7 @@ from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
+from .providers.engine import read_capped
 from .services import (
     async_render_and_upload,
     begin_external_upload,
@@ -252,9 +253,11 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                     raise HomeAssistantError(
                         f"Downloading image returned HTTP {resp.status}"
                     )
-                raw = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
-            if len(raw) > MAX_DOWNLOAD_BYTES:
-                raise HomeAssistantError("Image is too large")
+                try:
+                    # NOT content.read(n): that truncates chunked responses.
+                    raw = await read_capped(resp.content, MAX_DOWNLOAD_BYTES)
+                except ValueError as err:
+                    raise HomeAssistantError("Image is too large") from err
 
             result = await async_render_and_upload(
                 self.hass, entry, raw, hold_playlist=False

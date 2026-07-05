@@ -12,6 +12,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import MAX_SOURCE_BYTES
+from .providers.engine import read_capped
 
 
 def checked_size(data: bytes) -> bytes:
@@ -58,8 +59,12 @@ async def async_get_source_bytes(
                 raise HomeAssistantError(
                     f"Downloading {url_label} returned HTTP {resp.status}"
                 )
-            data = await resp.content.read(MAX_SOURCE_BYTES + 1)
-            return checked_size(data)
+            try:
+                # NOT content.read(n): that returns only the buffered part of
+                # chunked responses (no Content-Length) — a truncated image.
+                return await read_capped(resp.content)
+            except ValueError as err:
+                raise ServiceValidationError("Downloaded image is too large") from err
 
     if entity_id is None:
         raise ServiceValidationError("No image source provided")

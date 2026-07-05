@@ -39,6 +39,9 @@ class FraimicRuntimeData:
         self.upload_lock = asyncio.Lock()
         # Set by the media player so enabling playlists can stop camera loops.
         self.stop_camera_loop: Any = None
+        # Attribution info for online artwork currently on the frame
+        # (asdict of providers.base.ArtCandidate), or None.
+        self.last_art: dict[str, Any] | None = None
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):

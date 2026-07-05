@@ -29,11 +29,18 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator = types.ModuleType("fraimic.coordinator")
     screens = types.ModuleType("fraimic.screens")
     services = types.ModuleType("fraimic.services")
+    # scheduler imports ArtFetchError from providers.ha, which pulls aiohttp —
+    # stub it like the other HA-touching neighbours.
+    providers = types.ModuleType("fraimic.providers")
+    providers_ha = types.ModuleType("fraimic.providers.ha")
 
     class HomeAssistant:
         pass
 
     class HomeAssistantError(Exception):
+        pass
+
+    class ArtFetchError(HomeAssistantError):
         pass
 
     class Store:
@@ -74,6 +81,8 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator.FraimicConfigEntry = SimpleNamespace
     screens.screens_from_entry = lambda _entry: []
     services.FrameUploadError = FrameUploadError
+    providers.ha = providers_ha
+    providers_ha.ArtFetchError = ArtFetchError
     homeassistant.core = core
     homeassistant.exceptions = exceptions
     homeassistant.helpers = helpers
@@ -97,6 +106,8 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
         "fraimic.coordinator": coordinator,
         "fraimic.screens": screens,
         "fraimic.services": services,
+        "fraimic.providers": providers,
+        "fraimic.providers.ha": providers_ha,
     }.items():
         monkeypatch.setitem(sys.modules, name, module)
 

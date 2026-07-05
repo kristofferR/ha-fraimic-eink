@@ -1,0 +1,57 @@
+{
+  "pagination": {
+    "total": 119
+  },
+  "data": [
+    {
+      "id": 28560,
+      "title": "The Bedroom",
+      "image_id": "6644829f-f292-c5c4-a73c-0356a6fdbf0d",
+      "artist_display": "Vincent van Gogh (Dutch, 1853–1890)",
+      "thumbnail": {
+        "width": 12614,
+        "height": 9875
+      }
+    },
+    {
+      "id": 20684,
+      "title": "Paris Street; Rainy Day",
+      "image_id": "f8fd76e9-c396-5678-36ed-6a348c904d27",
+      "artist_display": "Gustave Caillebotte (French, 1848–1894)",
+      "thumbnail": {
+        "width": 9987,
+        "height": 7755
+      }
+    },
+    {
+      "id": 27992,
+      "title": "A Sunday on La Grande Jatte — 1884",
+      "image_id": "2d484387-2509-5e8e-2c43-22f9981972eb",
+      "artist_display": "Georges Seurat (French, 1859–1891)",
+      "thumbnail": {
+        "width": 9310,
+        "height": 6237
+      }
+    },
+    {
+      "id": 87479,
+      "title": "The Assumption of the Virgin",
+      "image_id": "47fd1564-93f5-f30b-7786-013421133b4a",
+      "artist_display": "El Greco (Doménikos Theotokópoulos; Greek, active in Spain, 1541–1614)",
+      "thumbnail": {
+        "width": 3990,
+        "height": 7631
+      }
+    },
+    {
+      "id": 64818,
+      "title": "Stacks of Wheat (End of Summer)",
+      "image_id": "a38e2828-ec6f-ece1-a30f-70243449197b",
+      "artist_display": "Claude Monet (French, 1840–1926)",
+      "thumbnail": {
+        "width": 6884,
+        "height": 4068
+      }
+    }
+  ]
+}

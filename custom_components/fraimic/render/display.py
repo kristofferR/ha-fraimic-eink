@@ -45,7 +45,7 @@ _NEUTRAL_OVERRIDES = {
 }
 
 
-def _viewed_size(entry) -> tuple[int, int]:
+def viewed_size(entry) -> tuple[int, int]:
     """Panel resolution swapped to the orientation the viewer actually sees."""
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
@@ -59,7 +59,7 @@ async def async_render_screen(
 ) -> tuple[bytes, str]:
     """Fetch widget data and render the screen; returns (png, dither_mode)."""
     ctx = await async_build_context(hass, screen)
-    width, height = _viewed_size(entry)
+    width, height = viewed_size(entry)
     try:
         return await hass.async_add_executor_job(
             render_screen, screen, ctx, width, height
@@ -70,27 +70,48 @@ async def async_render_screen(
         ) from err
 
 
-async def _async_picture_source(hass: HomeAssistant, screen: ScreenConfig) -> tuple[bytes, dict]:
-    """Raw bytes + conversion overrides for a ``kind: picture`` screen.
+async def _async_picture_source(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> tuple[bytes, dict, dict | None]:
+    """Raw bytes + conversion overrides (+ art attribution) for a picture screen.
 
     Pictures go through the normal photo pipeline (dither + preprocessing) —
-    this is the screenshot-URL / camera path, not the vector renderer.
+    this is the screenshot-URL / camera / online-provider path, not the vector
+    renderer.
     """
     from ..source import async_get_source_bytes
 
     source = screen.source or {}
-    raw = await async_get_source_bytes(
-        hass,
-        url=source.get("url"),
-        entity_id=source.get("entity"),
-        redact_url=True,
-    )
+    art_info: dict | None = None
+    if provider_key := source.get("provider"):
+        from dataclasses import asdict
+
+        from ..providers.caption import composite_with_caption
+        from ..providers.ha import async_fetch_art
+
+        art = await async_fetch_art(
+            hass, entry, provider_key, query=source.get("query")
+        )
+        raw = art.data
+        art_info = asdict(art.candidate)
+        if source.get("caption") and art.candidate.attribution:
+            width, height = viewed_size(entry)
+            raw = await hass.async_add_executor_job(
+                composite_with_caption, raw, art.candidate.attribution, width, height
+            )
+    else:
+        raw = await async_get_source_bytes(
+            hass,
+            url=source.get("url"),
+            entity_id=source.get("entity"),
+            redact_url=True,
+        )
     overrides: dict = {}
     if fit := source.get("fit"):
         overrides[ATTR_FIT] = fit
     if mode := source.get("mode"):
         overrides[ATTR_MODE] = mode
-    return raw, overrides
+    return raw, overrides, art_info
 
 
 async def async_show_screen(
@@ -122,15 +143,16 @@ async def async_show_screen(
     )
     uploaded = False
     try:
+        art_info: dict | None = None
         if screen.kind == KIND_PICTURE:
-            png, overrides = await _async_picture_source(hass, screen)
+            png, overrides, art_info = await _async_picture_source(hass, entry, screen)
             preprocess = True
         else:
             png, mode = await async_render_screen(hass, entry, screen)
             overrides = dict(_NEUTRAL_OVERRIDES)
             overrides[ATTR_MODE] = mode
             preprocess = False
-        width, height = _viewed_size(entry)
+        width, height = viewed_size(entry)
         runtime = entry.runtime_data
 
         if preview_only:
@@ -144,6 +166,7 @@ async def async_show_screen(
                 "mode": used_mode,
                 "width": width,
                 "height": height,
+                "art": art_info,
             }
 
         result = await async_render_and_upload(
@@ -158,7 +181,11 @@ async def async_show_screen(
         uploaded = result.get("uploaded", True)
         preview_png = result.pop("preview_png", None)
         _set_screen_preview(runtime, preview_png, result["mode"])
-        return {"width": width, "height": height, **result}
+        if uploaded:
+            # Attribution for whatever is now on the glass (None for
+            # non-provider content, so stale credits never outlive their image).
+            runtime.last_art = art_info
+        return {"width": width, "height": height, "art": art_info, **result}
     finally:
         finish_external_upload(scheduler, uploaded=uploaded)
 
