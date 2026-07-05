@@ -160,9 +160,19 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 # Two competing periodic pushers make no sense — starting a
                 # camera loop switches the screen playlist off explicitly.
                 scheduler = self.coordinator.config_entry.runtime_data.scheduler
+                disabled_scheduler = False
                 if scheduler is not None and scheduler.enabled:
                     await scheduler.async_set_enabled(False)
-            await self._async_show_camera(camera_entity)
+                    disabled_scheduler = True
+            else:
+                scheduler = None
+                disabled_scheduler = False
+            try:
+                await self._async_show_camera(camera_entity)
+            except Exception:
+                if disabled_scheduler and scheduler is not None:
+                    await scheduler.async_set_enabled(True)
+                raise
             if interval > 0:
                 self._camera_entity = camera_entity
                 self._camera_unsub = async_track_time_interval(

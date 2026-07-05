@@ -63,6 +63,9 @@ class FraimicScreenSelect(FraimicEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         for screen in self._scheduler.screens:
             if _option(screen) == option:
+                stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop
+                if stopper is not None:
+                    stopper()
                 await self._scheduler.async_select(screen)
                 return
         raise HomeAssistantError(f"No stored screen option {option!r}")

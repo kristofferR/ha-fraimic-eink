@@ -21,7 +21,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .api import FraimicError
+from .api import FraimicConnectionError, FraimicError
 from .const import (
     ATTR_CONFIG_ENTRY,
     ATTR_CONTRAST,
@@ -58,6 +58,7 @@ from .const import (
     SERVICE_RENDER_SCREEN,
     SERVICE_UPLOAD_IMAGE,
 )
+from .coordinator import FraimicConfigEntry
 from .image_convert import convert_image
 from .render.display import async_show_screen
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
@@ -166,7 +167,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
 
-def _resolve_entry(hass: HomeAssistant, call: ServiceCall):
+def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> FraimicConfigEntry:
     """Return the loaded Fraimic config entry targeted by the call."""
     entry_id = call.data.get(ATTR_CONFIG_ENTRY)
     loaded = [
@@ -323,11 +324,11 @@ async def async_render_and_upload(
                 hass, entry, raw, overrides, preprocess=preprocess
             )
             content_hash = hashlib.sha256(bin_data).hexdigest()
-            if preview_png:
-                runtime.last_preview = preview_png
-                if runtime.preview_image is not None:
-                    runtime.preview_image.set_preview(preview_png, used_mode)
             if skip_if_hash is not None and content_hash == skip_if_hash:
+                if preview_png:
+                    runtime.last_preview = preview_png
+                    if runtime.preview_image is not None:
+                        runtime.preview_image.set_preview(preview_png, used_mode)
                 return {
                     "mode": used_mode,
                     "content_hash": content_hash,
@@ -337,12 +338,18 @@ async def async_render_and_upload(
 
             try:
                 await runtime.client.upload_image(bin_data)
-            except FraimicError as err:
+            except FraimicConnectionError as err:
                 raise FrameUploadError(f"Could not upload to the frame: {err}") from err
+            except FraimicError as err:
+                raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
 
             if external_started:
                 scheduler.finish_external_upload(uploaded=True)
                 external_started = False
+            if preview_png:
+                runtime.last_preview = preview_png
+                if runtime.preview_image is not None:
+                    runtime.preview_image.set_preview(preview_png, used_mode)
 
             # Pull a fresh snapshot so last-refresh / status updates promptly.
             await runtime.coordinator.async_request_refresh()
