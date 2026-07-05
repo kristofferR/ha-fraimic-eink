@@ -99,7 +99,7 @@ def _entry(rotation: int = 0) -> types.SimpleNamespace:
 
 
 def _screen() -> types.SimpleNamespace:
-    return types.SimpleNamespace(name="Dashboard")
+    return types.SimpleNamespace(name="Dashboard", kind="dashboard")
 
 
 def _install_services(monkeypatch: pytest.MonkeyPatch, **attrs: object) -> None:
@@ -113,16 +113,18 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
     display, _ = _load_display(monkeypatch)
     calls: list[tuple[str, bytes, dict, bool]] = []
 
-    async def build_context(hass: object, screen: object) -> object:
+    async def build_context(_hass: object, _screen: object) -> object:
         return object()
 
-    def render_screen_png(screen: object, ctx: object, width: int, height: int) -> bytes:
+    def render_screen(
+        _screen: object, _ctx: object, width: int, height: int
+    ) -> tuple[bytes, str]:
         assert (width, height) == (480, 800)
-        return b"screen-png"
+        return b"screen-png", "none"
 
     async def convert_for_entry(
-        hass: object,
-        entry: object,
+        _hass: object,
+        _entry: object,
         png: bytes,
         overrides: dict,
         *,
@@ -131,11 +133,11 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
         calls.append(("convert", png, overrides, preprocess))
         return b"bin-data", b"preview-png", "none"
 
-    async def render_and_upload(*args: object, **kwargs: object) -> dict:
+    async def render_and_upload(*_args: object, **_kwargs: object) -> dict:
         raise AssertionError("preview-only must not upload")
 
     monkeypatch.setattr(display, "async_build_context", build_context)
-    monkeypatch.setattr(display, "render_screen_png", render_screen_png)
+    monkeypatch.setattr(display, "render_screen", render_screen)
     _install_services(
         monkeypatch,
         async_convert_for_entry=convert_for_entry,
@@ -160,17 +162,21 @@ def test_upload_path_uploads_and_updates_screen_preview(
     display, _ = _load_display(monkeypatch)
     calls: list[tuple[str, bytes, dict, bool]] = []
 
-    async def build_context(hass: object, screen: object) -> object:
+    async def build_context(_hass: object, _screen: object) -> object:
         return object()
 
-    def render_screen_png(screen: object, ctx: object, width: int, height: int) -> bytes:
-        return b"screen-png"
+    def render_screen(
+        _screen: object, _ctx: object, _width: int, _height: int
+    ) -> tuple[bytes, str]:
+        return b"screen-png", "none"
 
-    async def convert_for_entry(*args: object, **kwargs: object) -> tuple[bytes, bytes, str]:
+    async def convert_for_entry(
+        *_args: object, **_kwargs: object
+    ) -> tuple[bytes, bytes, str]:
         raise AssertionError("upload path must use async_render_and_upload")
 
     async def render_and_upload(
-        hass: object,
+        _hass: object,
         entry: object,
         png: bytes,
         overrides: dict,
@@ -182,7 +188,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
         return {"content_hash": "abc123", "mode": "none"}
 
     monkeypatch.setattr(display, "async_build_context", build_context)
-    monkeypatch.setattr(display, "render_screen_png", render_screen_png)
+    monkeypatch.setattr(display, "render_screen", render_screen)
     _install_services(
         monkeypatch,
         async_convert_for_entry=convert_for_entry,
@@ -210,14 +216,16 @@ def test_render_errors_become_home_assistant_errors(
 ) -> None:
     display, error = _load_display(monkeypatch)
 
-    async def build_context(hass: object, screen: object) -> object:
+    async def build_context(_hass: object, _screen: object) -> object:
         return object()
 
-    def render_screen_png(screen: object, ctx: object, width: int, height: int) -> bytes:
+    def render_screen(
+        _screen: object, _ctx: object, _width: int, _height: int
+    ) -> tuple[bytes, str]:
         raise ValueError("bad svg")
 
     monkeypatch.setattr(display, "async_build_context", build_context)
-    monkeypatch.setattr(display, "render_screen_png", render_screen_png)
+    monkeypatch.setattr(display, "render_screen", render_screen)
 
     with pytest.raises(error, match="Failed to render screen 'Dashboard': bad svg"):
         asyncio.run(display.async_render_screen(_Hass(), _entry(), _screen()))

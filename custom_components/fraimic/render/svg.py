@@ -299,7 +299,7 @@ def snap_to_colors(
     shape = arr.shape
     flat = arr.reshape(-1, 3)
 
-    def nearest(candidates: "np.ndarray") -> "np.ndarray":
+    def nearest(candidates: np.ndarray) -> np.ndarray:
         # One colour at a time to avoid a huge (N, C, 3) broadcast temporary.
         best_dist = np.full(flat.shape[0], np.iinfo(np.int32).max, dtype=np.int32)
         best = np.zeros((flat.shape[0], 3), dtype=np.int32)
