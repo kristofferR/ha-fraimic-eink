@@ -125,14 +125,14 @@ class FraimicScheduler:
 
     # -- controls ----------------------------------------------------------
 
-    async def async_set_enabled(self, enabled: bool) -> None:
+    async def async_set_enabled(self, enabled: bool, *, rotate: bool = True) -> None:
         if enabled == self.enabled:
             return
         self.enabled = enabled
         self._hold_until = None
         await self._async_save()
         self._notify()
-        if enabled:
+        if enabled and rotate:
             await self._async_rotate(force=True)
 
     async def async_next(self) -> None:

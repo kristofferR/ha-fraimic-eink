@@ -171,7 +171,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 await self._async_show_camera(camera_entity)
             except Exception:
                 if disabled_scheduler and scheduler is not None:
-                    await scheduler.async_set_enabled(True)
+                    await scheduler.async_set_enabled(True, rotate=False)
                 raise
             if interval > 0:
                 self._camera_entity = camera_entity
