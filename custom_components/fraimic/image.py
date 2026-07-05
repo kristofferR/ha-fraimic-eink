@@ -16,7 +16,7 @@ from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
 
 
-def _register_preview_slot(entity: "FraimicPreviewImage") -> None:
+def _register_preview_slot(entity: FraimicPreviewImage) -> None:
     setattr(
         entity.coordinator.config_entry.runtime_data,
         entity._runtime_preview_slot,
@@ -24,7 +24,7 @@ def _register_preview_slot(entity: "FraimicPreviewImage") -> None:
     )
 
 
-def _clear_preview_slot(entity: "FraimicPreviewImage") -> None:
+def _clear_preview_slot(entity: FraimicPreviewImage) -> None:
     runtime = entity.coordinator.config_entry.runtime_data
     if getattr(runtime, entity._runtime_preview_slot) is entity:
         setattr(runtime, entity._runtime_preview_slot, None)

@@ -178,7 +178,7 @@ async def _async_trend_delta(
 
 
 async def _async_fetch_entities(
-    hass: HomeAssistant, options: dict[str, Any], ctx: RenderContext
+    hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
 ) -> dict[str, Any]:
     return _fetch_entities(hass, options)
 
@@ -213,7 +213,7 @@ def _fetch_entities(hass: HomeAssistant, options: dict[str, Any]) -> dict[str, A
 
 
 async def _async_fetch_template(
-    hass: HomeAssistant, options: dict[str, Any], ctx: RenderContext
+    hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
 ) -> dict[str, Any]:
     try:
         text = Template(options["template"], hass).async_render(parse_result=False)
