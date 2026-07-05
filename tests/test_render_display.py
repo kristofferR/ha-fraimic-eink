@@ -168,7 +168,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     display, _ = _load_display(monkeypatch)
-    calls: list[tuple[str, bytes, dict, bool]] = []
+    calls: list[tuple[str, bytes, dict, bool, bool]] = []
 
     async def build_context(_hass: object, _screen: object) -> object:
         return object()
@@ -190,10 +190,13 @@ def test_upload_path_uploads_and_updates_screen_preview(
         overrides: dict,
         *,
         preprocess: bool,
+        skip_if_hash: str | None,
+        hold_playlist: bool,
     ) -> dict:
-        calls.append(("upload", png, overrides, preprocess))
+        assert skip_if_hash is None
+        calls.append(("upload", png, overrides, preprocess, hold_playlist))
         entry.runtime_data.last_preview = b"uploaded-preview"
-        return {"content_hash": "abc123", "mode": "none"}
+        return {"uploaded": True, "content_hash": "abc123", "mode": "none"}
 
     monkeypatch.setattr(display, "async_build_context", build_context)
     monkeypatch.setattr(display, "render_screen", render_screen)
@@ -215,7 +218,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
         "content_hash": "abc123",
         "mode": "none",
     }
-    assert calls == [("upload", b"screen-png", display._NEUTRAL_OVERRIDES, False)]
+    assert calls == [("upload", b"screen-png", display._NEUTRAL_OVERRIDES, False, True)]
     assert entry.runtime_data.screen_preview_image.calls == [
         (b"uploaded-preview", "none")
     ]
