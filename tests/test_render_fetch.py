@@ -31,10 +31,12 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
         pass
 
     class Template:
-        def __init__(self, value: str, hass: object) -> None:
+        def __init__(self, value: str, _hass: object) -> None:
             self._value = value
 
         def async_render(self, *, parse_result: bool = False) -> str:
+            if parse_result:
+                return self._value
             return self._value
 
     def parse_date(value: str):
@@ -85,9 +87,13 @@ class _Services:
         blocking: bool,
         return_response: bool,
     ) -> dict[str, object]:
+        assert target == {"entity_id": ["calendar.family"]}
+        assert blocking is True
+        assert return_response is True
         return {
             "calendar.family": {
                 "events": [
+                    {"summary": "Already running", "start": "2026-07-03 09:30:00"},
                     {"summary": "All day", "start": "2026-07-04"},
                     {"summary": "Timed", "start": "2026-07-04 09:30:00"},
                 ]
@@ -116,6 +122,7 @@ def test_calendar_fetch_only_treats_bare_dates_as_all_day(
 
     assert result == {
         "events": [
+            {"day": "Today", "time": "09:30", "title": "Already running"},
             {"day": "Tomorrow", "time": "", "title": "All day"},
             {"day": "Tomorrow", "time": "09:30", "title": "Timed"},
         ]

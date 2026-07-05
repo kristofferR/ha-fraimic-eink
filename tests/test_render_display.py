@@ -31,19 +31,25 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     class HomeAssistantError(Exception):
         pass
 
+    class ServiceValidationError(HomeAssistantError):
+        pass
+
     class TemplateError(Exception):
         pass
 
     class Template:
-        def __init__(self, value: str, hass: object) -> None:
+        def __init__(self, value: str, _hass: object) -> None:
             self._value = value
 
         def async_render(self, *, parse_result: bool = False) -> str:
+            if parse_result:
+                return self._value
             return self._value
 
     core.HomeAssistant = HomeAssistant
     core.State = State
     exceptions.HomeAssistantError = HomeAssistantError
+    exceptions.ServiceValidationError = ServiceValidationError
     exceptions.TemplateError = TemplateError
     template.Template = Template
     template.TemplateError = TemplateError
@@ -65,7 +71,9 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     return HomeAssistantError
 
 
-def _load_display(monkeypatch: pytest.MonkeyPatch) -> tuple[types.ModuleType, type[Exception]]:
+def _load_display(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[types.ModuleType, type[Exception]]:
     error = _install_ha_stubs(monkeypatch)
     for name in ("fraimic.render.display", "fraimic.render.fetch"):
         sys.modules.pop(name, None)
@@ -208,7 +216,9 @@ def test_upload_path_uploads_and_updates_screen_preview(
         "mode": "none",
     }
     assert calls == [("upload", b"screen-png", display._NEUTRAL_OVERRIDES, False)]
-    assert entry.runtime_data.screen_preview_image.calls == [(b"uploaded-preview", "none")]
+    assert entry.runtime_data.screen_preview_image.calls == [
+        (b"uploaded-preview", "none")
+    ]
 
 
 def test_render_errors_become_home_assistant_errors(
@@ -232,34 +242,41 @@ def test_render_errors_become_home_assistant_errors(
 
 
 def test_picture_source_redacts_url_failures(monkeypatch: pytest.MonkeyPatch) -> None:
-    display, _ = _load_display(monkeypatch)
-    calls: list[dict[str, object]] = []
+    display, error = _load_display(monkeypatch)
 
-    async def get_source_bytes(_hass: object, **kwargs: object) -> bytes:
-        calls.append(kwargs)
-        return b"picture-png"
+    aiohttp = types.ModuleType("aiohttp")
+    aiohttp_client = types.ModuleType("homeassistant.helpers.aiohttp_client")
 
-    source = types.ModuleType("fraimic.source")
-    source.async_get_source_bytes = get_source_bytes
-    monkeypatch.setitem(sys.modules, "fraimic.source", source)
+    class ClientTimeout:
+        def __init__(self, *, total: int) -> None:
+            self.total = total
+
+    class Session:
+        async def get(self, _url: str, *, timeout: ClientTimeout) -> object:
+            assert timeout.total == 30
+            raise OSError("network down")
+
+    def async_get_clientsession(_hass: object) -> Session:
+        return Session()
+
+    aiohttp.ClientTimeout = ClientTimeout
+    aiohttp_client.async_get_clientsession = async_get_clientsession
+    monkeypatch.setitem(sys.modules, "aiohttp", aiohttp)
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.helpers.aiohttp_client", aiohttp_client
+    )
+    sys.modules.pop("fraimic.source", None)
 
     screen = types.SimpleNamespace(
-        source={
-            "url": "http://example.test/screenshot.png?token=secret",
-            "fit": "contain",
-        }
+        source={"url": "https://example.test/screenshot.png?token=secret"}
     )
-    raw, overrides = asyncio.run(display._async_picture_source(_Hass(), screen))
 
-    assert raw == b"picture-png"
-    assert overrides == {"fit": "contain"}
-    assert calls == [
-        {
-            "url": "http://example.test/screenshot.png?token=secret",
-            "entity_id": None,
-            "redact_url": True,
-        }
-    ]
+    with pytest.raises(error) as err:
+        asyncio.run(display._async_picture_source(_Hass(), screen))
+
+    message = str(err.value)
+    assert "Could not download image URL: network down" in message
+    assert "token=secret" not in message
 
 
 def test_set_screen_preview_requires_preview_data(
