@@ -263,6 +263,8 @@ per slot. Empty slots stay blank.
 
 ### Widgets
 
+![Widget showcase](docs/sample-widgets.png)
+
 | Type | What it shows | Key options |
 |------|---------------|-------------|
 | `clock` | Big HH:MM | `format` (strftime, no seconds) |
@@ -270,6 +272,29 @@ per slot. Empty slots stay blank.
 | `stat` | One big value + label + icon + optional trend arrow | `entity` (required), `name`, `icon`, `unit`, `precision`, `trend`, `trend_hours`, `color` |
 | `entities` | Rows of name → state (with icons) | `entities` (list of ids or `{entity, name, icon}`), `max_rows` |
 | `template` | Free-form Jinja-templated text | `template` (required), `align` (`left`/`center`), `size` (`s`/`m`/`l`) |
+| `weather_current` | Condition icon + temperature + condition text | `entity` (weather, required), `name` |
+| `weather_forecast` | Hourly/daily forecast strip (icon, high/low) | `entity` (required), `mode` (`hourly`/`daily`), `count` (1–8) |
+| `calendar` | Agenda grouped by day (Today/Tomorrow/…) with accent bars | `entities` (calendar ids, required), `days` (1–14), `max_events` |
+| `todo` | Checklist with checkboxes (strikethrough when done) | `entity` (todo, required), `max_items`, `show_completed` |
+| `chart` | History line/area/bar chart from recorder data | `entities` (≤3, required), `hours` (1–168), `style`, `min`, `max`, `name` |
+| `gauge` | 270° arc gauge with big value | `entity` (required), `min`, `max`, `unit`, `color`, `thresholds` (`[{from, color}]`) |
+| `progress` | Labelled progress bar | `entity` (required), `min`, `max`, `name`, `color` |
+| `image` | A photo / camera frame inside a slot (dithered) | `url` or `entity` (camera/image), `fit` (`cover`/`contain`) |
+
+### Picture screens — full-bleed image / screenshot URL
+
+`kind: picture` skips the widget renderer entirely and shows one image full-screen through the
+normal photo pipeline (dithered + enhanced). Point it at any URL that returns an image — e.g. the
+[puppet add-on](https://github.com/balloob/home-assistant-addons/tree/main/puppet), which
+screenshots real Lovelace dashboards — or a camera/image entity:
+
+```yaml
+action: fraimic.render_screen
+data:
+  screen:
+    kind: picture
+    url: http://homeassistant.local:10000/lovelace/eink?viewport=1600x1200&kiosk
+```
 
 Screen-level options: `name` (shown in the header), `background` / `accent` / per-stat `color`
 (one of `black`, `white`, `yellow`, `red`, `blue`, `green` — the panel's real palette),

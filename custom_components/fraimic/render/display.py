@@ -30,9 +30,9 @@ from ..const import (
     FIT_COVER,
     MODE_NONE,
 )
-from .compose import render_screen_png
+from .compose import render_screen
 from .fetch import async_build_context
-from .schema import ScreenConfig
+from .schema import KIND_PICTURE, ScreenConfig
 
 # The screen PNG already is final panel content: no photo enhancement.
 _NEUTRAL_OVERRIDES = {
@@ -54,18 +54,40 @@ def _viewed_size(entry) -> tuple[int, int]:
     return width, height
 
 
-async def async_render_screen(hass: HomeAssistant, entry, screen: ScreenConfig) -> bytes:
-    """Fetch widget data and render the screen to PNG bytes."""
+async def async_render_screen(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> tuple[bytes, str]:
+    """Fetch widget data and render the screen; returns (png, dither_mode)."""
     ctx = await async_build_context(hass, screen)
     width, height = _viewed_size(entry)
     try:
         return await hass.async_add_executor_job(
-            render_screen_png, screen, ctx, width, height
+            render_screen, screen, ctx, width, height
         )
     except Exception as err:
         raise HomeAssistantError(
             f"Failed to render screen {screen.name!r}: {err}"
         ) from err
+
+
+async def _async_picture_source(hass: HomeAssistant, screen: ScreenConfig) -> tuple[bytes, dict]:
+    """Raw bytes + conversion overrides for a ``kind: picture`` screen.
+
+    Pictures go through the normal photo pipeline (dither + preprocessing) —
+    this is the screenshot-URL / camera path, not the vector renderer.
+    """
+    from ..source import async_get_source_bytes
+
+    source = screen.source or {}
+    raw = await async_get_source_bytes(
+        hass, url=source.get("url"), entity_id=source.get("entity")
+    )
+    overrides: dict = {}
+    if fit := source.get("fit"):
+        overrides[ATTR_FIT] = fit
+    if mode := source.get("mode"):
+        overrides[ATTR_MODE] = mode
+    return raw, overrides
 
 
 async def async_show_screen(
@@ -80,25 +102,32 @@ async def async_show_screen(
     # Local import: services.py imports this module at load time.
     from ..services import async_convert_for_entry, async_render_and_upload
 
-    png = await async_render_screen(hass, entry, screen)
+    if screen.kind == KIND_PICTURE:
+        png, overrides = await _async_picture_source(hass, screen)
+        preprocess = True
+    else:
+        png, mode = await async_render_screen(hass, entry, screen)
+        overrides = dict(_NEUTRAL_OVERRIDES)
+        overrides[ATTR_MODE] = mode
+        preprocess = False
     width, height = _viewed_size(entry)
     runtime = entry.runtime_data
 
     if preview_only:
-        bin_data, preview_png, mode = await async_convert_for_entry(
-            hass, entry, png, dict(_NEUTRAL_OVERRIDES), preprocess=False
+        bin_data, preview_png, used_mode = await async_convert_for_entry(
+            hass, entry, png, overrides, preprocess=preprocess
         )
-        _set_screen_preview(runtime, preview_png, mode)
+        _set_screen_preview(runtime, preview_png, used_mode)
         return {
             "uploaded": False,
             "content_hash": hashlib.sha256(bin_data).hexdigest(),
-            "mode": mode,
+            "mode": used_mode,
             "width": width,
             "height": height,
         }
 
     result = await async_render_and_upload(
-        hass, entry, png, dict(_NEUTRAL_OVERRIDES), preprocess=False
+        hass, entry, png, overrides, preprocess=preprocess
     )
     _set_screen_preview(runtime, runtime.last_preview, result["mode"])
     return {"uploaded": True, "width": width, "height": height, **result}

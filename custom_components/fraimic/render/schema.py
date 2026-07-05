@@ -26,8 +26,10 @@ from ..const import DEFAULT_SCREEN_INTERVAL, MIN_SCREEN_INTERVAL, PALETTE_NAMES
 from .layout import LAYOUT_SLOTS
 
 KIND_DASHBOARD = "dashboard"
+KIND_PICTURE = "picture"
 
 _COLOR = vol.In(sorted(PALETTE_NAMES))
+_HTTP_URL = vol.Match(re.compile(r"^https?://"), msg="expected an http(s) URL")
 _ENTITY_ID = vol.Match(
     re.compile(r"^[a-z0-9_]+\.[a-z0-9_]+$"), msg="expected an entity id"
 )
@@ -111,6 +113,88 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
             vol.Optional("size", default="m"): vol.In(("s", "m", "l")),
         }
     ),
+    "weather_current": vol.Schema(
+        {
+            vol.Required("entity"): _ENTITY_ID,
+            vol.Optional("name"): str,
+        }
+    ),
+    "weather_forecast": vol.Schema(
+        {
+            vol.Required("entity"): _ENTITY_ID,
+            vol.Optional("mode", default="daily"): vol.In(("hourly", "daily")),
+            vol.Optional("count", default=5): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=8)
+            ),
+        }
+    ),
+    "calendar": vol.Schema(
+        {
+            vol.Required("entities"): vol.All(
+                [_ENTITY_ID], vol.Length(min=1, max=5)
+            ),
+            vol.Optional("days", default=7): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=14)
+            ),
+            vol.Optional("max_events"): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=20)
+            ),
+        }
+    ),
+    "todo": vol.Schema(
+        {
+            vol.Required("entity"): _ENTITY_ID,
+            vol.Optional("max_items"): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=20)
+            ),
+            vol.Optional("show_completed", default=False): bool,
+        }
+    ),
+    "chart": vol.Schema(
+        {
+            vol.Required("entities"): vol.All(
+                [_ENTITY_ID], vol.Length(min=1, max=3)
+            ),
+            vol.Optional("hours", default=24): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=168)
+            ),
+            vol.Optional("style", default="line"): vol.In(("line", "area", "bar")),
+            vol.Optional("min"): vol.Coerce(float),
+            vol.Optional("max"): vol.Coerce(float),
+            vol.Optional("name"): str,
+        }
+    ),
+    "gauge": vol.Schema(
+        {
+            vol.Required("entity"): _ENTITY_ID,
+            vol.Optional("min", default=0.0): vol.Coerce(float),
+            vol.Optional("max", default=100.0): vol.Coerce(float),
+            vol.Optional("name"): str,
+            vol.Optional("unit"): str,
+            vol.Optional("color"): _COLOR,
+            vol.Optional("thresholds"): [
+                vol.Schema(
+                    {vol.Required("from"): vol.Coerce(float), vol.Required("color"): _COLOR}
+                )
+            ],
+        }
+    ),
+    "progress": vol.Schema(
+        {
+            vol.Required("entity"): _ENTITY_ID,
+            vol.Optional("min", default=0.0): vol.Coerce(float),
+            vol.Optional("max", default=100.0): vol.Coerce(float),
+            vol.Optional("name"): str,
+            vol.Optional("color"): _COLOR,
+        }
+    ),
+    "image": vol.Schema(
+        {
+            vol.Optional("url"): _HTTP_URL,
+            vol.Optional("entity"): _ENTITY_ID,
+            vol.Optional("fit", default="cover"): vol.In(("cover", "contain")),
+        }
+    ),
 }
 
 WINDOW_SCHEMA = vol.Schema(
@@ -122,7 +206,20 @@ WINDOW_SCHEMA = vol.Schema(
 )
 
 def _validate_screen(data: dict) -> dict:
-    """Cross-field validation: widget slots must fit the layout, one per slot."""
+    """Cross-field validation: kind-dependent requirements, slots fit layout."""
+    if data["kind"] == KIND_PICTURE:
+        sources = [key for key in ("url", "entity") if data.get(key)]
+        if len(sources) != 1:
+            raise vol.Invalid("a picture screen needs exactly one of: url, entity")
+        if data.get("widgets") or data.get("layout"):
+            raise vol.Invalid("picture screens take no layout/widgets — just a source")
+        return data
+    if data.get("url") or data.get("entity"):
+        raise vol.Invalid("url/entity are only valid on kind: picture screens")
+    if not data.get("layout"):
+        raise vol.Invalid("required key not provided: layout")
+    if not data.get("widgets"):
+        raise vol.Invalid("required key not provided: widgets")
     layout_slots = LAYOUT_SLOTS[data["layout"]]
     seen: set[str] = set()
     widgets = []
@@ -159,8 +256,19 @@ SCREEN_SCHEMA = vol.All(
     vol.Schema(
         {
             vol.Optional("name", default="Dashboard"): str,
-            vol.Required("layout"): vol.In(sorted(LAYOUT_SLOTS)),
-            vol.Required("widgets"): vol.All(list, vol.Length(min=1, max=4)),
+            vol.Optional("kind", default=KIND_DASHBOARD): vol.In(
+                (KIND_DASHBOARD, KIND_PICTURE)
+            ),
+            vol.Optional("layout"): vol.In(sorted(LAYOUT_SLOTS)),
+            vol.Optional("widgets", default=[]): vol.All(list, vol.Length(max=4)),
+            # Picture-screen source (kind: picture only) — shown full-bleed via
+            # the normal photo pipeline (dithered, preprocessed).
+            vol.Optional("url"): _HTTP_URL,
+            vol.Optional("entity"): _ENTITY_ID,
+            vol.Optional("fit"): vol.In(("cover", "contain", "contain_black", "stretch")),
+            vol.Optional("mode"): vol.In(
+                ("auto", "none", "bayer", "floyd_steinberg", "atkinson")
+            ),
             vol.Optional("background", default="white"): _COLOR,
             vol.Optional("accent", default="red"): _COLOR,
             vol.Optional("padding", default=32): vol.All(
@@ -200,6 +308,8 @@ class ScreenConfig:
     name: str
     layout: str
     widgets: tuple[WidgetConfig, ...]
+    kind: str = KIND_DASHBOARD
+    source: dict | None = None  # picture screens: url/entity/fit/mode
     background: str = "white"
     accent: str = "red"
     padding: int = 32
@@ -216,10 +326,17 @@ def _parse_time(value: str) -> time:
 
 def screen_from_dict(data: dict, screen_id: str = "adhoc") -> ScreenConfig:
     """Build a ScreenConfig from an (already SCREEN_SCHEMA-validated) dict."""
+    source = None
+    if data["kind"] == KIND_PICTURE:
+        source = {
+            key: data[key] for key in ("url", "entity", "fit", "mode") if key in data
+        }
     return ScreenConfig(
         screen_id=screen_id,
         name=data["name"],
-        layout=data["layout"],
+        kind=data["kind"],
+        source=source,
+        layout=data.get("layout", "full"),
         widgets=tuple(
             WidgetConfig(w["type"], w["slot"], w["options"]) for w in data["widgets"]
         ),

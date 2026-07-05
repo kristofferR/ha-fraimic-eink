@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Awaitable, Callable
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.core import HomeAssistant, State
@@ -222,9 +222,257 @@ async def _async_fetch_template(
     return {"text": str(text)}
 
 
+async def _async_fetch_weather_current(
+    hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
+) -> dict[str, Any]:
+    return _fetch_weather_current(hass, options)
+
+
+def _fetch_weather_current(
+    hass: HomeAssistant, options: dict[str, Any]
+) -> dict[str, Any]:
+    entity_id = options["entity"]
+    state = hass.states.get(entity_id)
+    if state is None:
+        return {"error": f"Entity {entity_id} not found"}
+    if state.state in ("unknown", "unavailable"):
+        return {"error": f"{entity_id} is {state.state}"}
+    return {
+        "condition": state.state,
+        "temperature": state.attributes.get("temperature"),
+        "unit": state.attributes.get("temperature_unit"),
+        "name": state.attributes.get("friendly_name") or entity_id,
+    }
+
+
+async def _async_fetch_weather_forecast(
+    hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
+) -> dict[str, Any]:
+    entity_id = options["entity"]
+    mode = options["mode"]
+    response = await hass.services.async_call(
+        "weather",
+        "get_forecasts",
+        {"type": mode},
+        target={"entity_id": entity_id},
+        blocking=True,
+        return_response=True,
+    )
+    forecast = (response or {}).get(entity_id, {}).get("forecast") or []
+    items = []
+    for entry in forecast[: options["count"]]:
+        when = dt_util.parse_datetime(str(entry.get("datetime", "")))
+        if when is None:
+            label = ""
+        else:
+            local = dt_util.as_local(when)
+            label = local.strftime("%H") if mode == "hourly" else local.strftime("%a")
+        items.append(
+            {
+                "label": label,
+                "condition": entry.get("condition"),
+                "temp": entry.get("temperature"),
+                "templow": entry.get("templow"),
+            }
+        )
+    if not items:
+        return {"error": f"No {mode} forecast from {entity_id}"}
+    return {"items": items}
+
+
+def _day_label(when: datetime, now: datetime) -> str:
+    day = when.date()
+    if day == now.date():
+        return "Today"
+    if (day - now.date()).days == 1:
+        return "Tomorrow"
+    return when.strftime("%A %-d %B")
+
+
+async def _async_fetch_calendar(
+    hass: HomeAssistant, options: dict[str, Any], ctx: RenderContext
+) -> dict[str, Any]:
+    end = ctx.now + timedelta(days=options["days"])
+    response = await hass.services.async_call(
+        "calendar",
+        "get_events",
+        {"start_date_time": ctx.now.isoformat(), "end_date_time": end.isoformat()},
+        target={"entity_id": options["entities"]},
+        blocking=True,
+        return_response=True,
+    )
+    events = []
+    for calendar in (response or {}).values():
+        for event in calendar.get("events", []):
+            start_raw = str(event.get("start", ""))
+            start_dt = dt_util.parse_datetime(start_raw)
+            if start_dt is not None:
+                local = dt_util.as_local(start_dt)
+                events.append(
+                    (
+                        local.isoformat(),
+                        {
+                            "day": _day_label(local, ctx.now),
+                            "time": local.strftime("%H:%M"),
+                            "title": event.get("summary", ""),
+                        },
+                    )
+                )
+            else:
+                # All-day events carry a bare date.
+                parsed = dt_util.parse_date(start_raw)
+                if parsed is None:
+                    continue
+                events.append(
+                    (
+                        f"{parsed.isoformat()}T00:00:00",
+                        {
+                            "day": _day_label(
+                                dt_util.start_of_local_day(
+                                    dt_util.as_local(ctx.now).replace(
+                                        year=parsed.year, month=parsed.month, day=parsed.day
+                                    )
+                                ),
+                                ctx.now,
+                            ),
+                            "time": "",
+                            "title": event.get("summary", ""),
+                        },
+                    )
+                )
+    events.sort(key=lambda pair: pair[0])
+    limit = options.get("max_events") or 20
+    return {"events": [event for _, event in events[:limit]]}
+
+
+async def _async_fetch_todo(
+    hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
+) -> dict[str, Any]:
+    entity_id = options["entity"]
+    statuses = ["needs_action"]
+    if options["show_completed"]:
+        statuses.append("completed")
+    response = await hass.services.async_call(
+        "todo",
+        "get_items",
+        {"status": statuses},
+        target={"entity_id": entity_id},
+        blocking=True,
+        return_response=True,
+    )
+    raw_items = (response or {}).get(entity_id, {}).get("items") or []
+    return {
+        "items": [
+            {"summary": item.get("summary", ""), "done": item.get("status") == "completed"}
+            for item in raw_items
+        ]
+    }
+
+
+async def _async_fetch_chart(
+    hass: HomeAssistant, options: dict[str, Any], ctx: RenderContext
+) -> dict[str, Any]:
+    if "recorder" not in hass.config.components:
+        return {"error": "Recorder is not available for history charts"}
+    from homeassistant.components.recorder import get_instance, history
+
+    hours = options["hours"]
+    end = dt_util.as_utc(ctx.now)
+    start = end - timedelta(hours=hours)
+    entity_ids = options["entities"]
+    try:
+        states = await get_instance(hass).async_add_executor_job(
+            lambda: history.get_significant_states(
+                hass,
+                start,
+                end,
+                entity_ids,
+                significant_changes_only=False,
+                no_attributes=True,
+            )
+        )
+    except Exception as err:  # noqa: BLE001 - surfaced as a widget error
+        return {"error": f"History lookup failed: {err}"}
+
+    span = (end - start).total_seconds()
+    series = []
+    for entity_id in entity_ids:
+        points: list[tuple[float, float]] = []
+        for state in states.get(entity_id, []):
+            try:
+                value = float(state.state)
+            except (ValueError, TypeError):
+                continue
+            frac = (state.last_updated - start).total_seconds() / span
+            points.append((min(max(frac, 0.0), 1.0), value))
+        if len(points) > 300:
+            stride = len(points) // 300 + 1
+            points = points[::stride]
+        current = hass.states.get(entity_id)
+        name = (
+            current.attributes.get("friendly_name") if current else None
+        ) or entity_id
+        series.append({"name": name, "points": points})
+
+    time_fmt = "%H:%M" if hours <= 48 else "%-d %b"
+    return {
+        "series": series,
+        "start_label": dt_util.as_local(start).strftime(time_fmt),
+        "end_label": dt_util.as_local(end).strftime(time_fmt),
+    }
+
+
+async def _async_fetch_numeric(
+    hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
+) -> dict[str, Any]:
+    return _fetch_numeric(hass, options)
+
+
+def _fetch_numeric(hass: HomeAssistant, options: dict[str, Any]) -> dict[str, Any]:
+    """Shared fetch for gauge/progress: one numeric state.
+
+    ``display`` excludes the unit — the renderers place the unit themselves
+    (below the gauge value, appended by the progress bar).
+    """
+    entity_id = options["entity"]
+    state = hass.states.get(entity_id)
+    if state is None:
+        return {"error": f"Entity {entity_id} not found"}
+    payload: dict[str, Any] = {
+        "display": _display_value(state),
+        "name": state.attributes.get("friendly_name") or entity_id,
+        "unit": state.attributes.get("unit_of_measurement"),
+        "value": None,
+    }
+    try:
+        payload["value"] = float(state.state)
+    except ValueError:
+        pass
+    return payload
+
+
+async def _async_fetch_image(
+    hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
+) -> dict[str, Any]:
+    from ..source import async_get_source_bytes
+
+    raw = await async_get_source_bytes(
+        hass, url=options.get("url"), entity_id=options.get("entity")
+    )
+    return {"bytes": raw}
+
+
 _NO_FETCH_WIDGETS = frozenset({"clock", "date"})
 _WIDGET_FETCHERS: dict[str, WidgetFetcher] = {
     "stat": _async_fetch_stat,
     "entities": _async_fetch_entities,
     "template": _async_fetch_template,
+    "weather_current": _async_fetch_weather_current,
+    "weather_forecast": _async_fetch_weather_forecast,
+    "calendar": _async_fetch_calendar,
+    "todo": _async_fetch_todo,
+    "chart": _async_fetch_chart,
+    "gauge": _async_fetch_numeric,
+    "progress": _async_fetch_numeric,
+    "image": _async_fetch_image,
 }
