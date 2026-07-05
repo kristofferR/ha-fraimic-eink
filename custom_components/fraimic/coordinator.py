@@ -32,6 +32,8 @@ class FraimicRuntimeData:
         self.screen_preview_image: Any = None
         # Last preview PNG, also exposed as the media_player's artwork.
         self.last_preview: bytes | None = None
+        # Playlist scheduler (set during entry setup; None until then).
+        self.scheduler: Any = None
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):

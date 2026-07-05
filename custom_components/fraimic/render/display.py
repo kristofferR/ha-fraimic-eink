@@ -94,13 +94,20 @@ async def _async_picture_source(hass: HomeAssistant, screen: ScreenConfig) -> tu
 
 
 async def async_show_screen(
-    hass: HomeAssistant, entry, screen: ScreenConfig, *, preview_only: bool = False
+    hass: HomeAssistant,
+    entry,
+    screen: ScreenConfig,
+    *,
+    preview_only: bool = False,
+    skip_if_hash: str | None = None,
+    hold_playlist: bool = True,
 ) -> dict:
     """Render ``screen`` and upload it — or only refresh the screen preview.
 
     ``preview_only`` runs the identical render + quantisation but skips the
     upload: a zero-battery iterate loop against the screen-preview image
-    entity.
+    entity. ``skip_if_hash``/``hold_playlist`` are the playlist scheduler's
+    knobs (skip unchanged content; don't hold yourself).
     """
     # Local import: services.py imports this module at load time.
     from ..services import async_convert_for_entry, async_render_and_upload
@@ -130,10 +137,17 @@ async def async_show_screen(
         }
 
     result = await async_render_and_upload(
-        hass, entry, png, overrides, preprocess=preprocess
+        hass,
+        entry,
+        png,
+        overrides,
+        preprocess=preprocess,
+        skip_if_hash=skip_if_hash,
+        hold_playlist=hold_playlist,
     )
-    _set_screen_preview(runtime, runtime.last_preview, result["mode"])
-    return {"uploaded": True, "width": width, "height": height, **result}
+    if result["uploaded"]:
+        _set_screen_preview(runtime, runtime.last_preview, result["mode"])
+    return {"width": width, "height": height, **result}
 
 
 def _set_screen_preview(runtime, preview_png: bytes | None, mode: str) -> None:

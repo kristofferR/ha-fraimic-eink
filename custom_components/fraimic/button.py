@@ -56,7 +56,16 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fraimic buttons from a config entry."""
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(FraimicButton(coordinator, desc) for desc in BUTTONS)
+    entities: list[ButtonEntity] = [
+        FraimicButton(coordinator, desc) for desc in BUTTONS
+    ]
+    scheduler = entry.runtime_data.scheduler
+    if scheduler is not None and scheduler.screens:
+        entities += [
+            FraimicPlaylistStepButton(coordinator, "next_screen", 1),
+            FraimicPlaylistStepButton(coordinator, "previous_screen", -1),
+        ]
+    async_add_entities(entities)
 
 
 class FraimicButton(FraimicEntity, ButtonEntity):
@@ -86,3 +95,27 @@ class FraimicButton(FraimicEntity, ButtonEntity):
         # Reflect the new state (e.g. uptime reset, sleeping) without waiting for
         # the next poll.
         await self.coordinator.async_request_refresh()
+
+
+class FraimicPlaylistStepButton(FraimicEntity, ButtonEntity):
+    """Show the next / previous stored screen immediately."""
+
+    def __init__(self, coordinator, key: str, step: int) -> None:
+        super().__init__(coordinator)
+        self._attr_translation_key = key
+        self._attr_icon = "mdi:skip-next" if step > 0 else "mdi:skip-previous"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{key}"
+        self._step = step
+
+    @property
+    def available(self) -> bool:
+        # Stepping renders locally and uploads; let the press surface a clear
+        # error if the frame is asleep instead of greying the button out.
+        return self.coordinator.config_entry.runtime_data.scheduler is not None
+
+    async def async_press(self) -> None:
+        scheduler = self.coordinator.config_entry.runtime_data.scheduler
+        if self._step > 0:
+            await scheduler.async_next()
+        else:
+            await scheduler.async_previous()

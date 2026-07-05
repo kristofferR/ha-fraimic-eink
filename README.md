@@ -330,9 +330,29 @@ the panel would show, including the 6-colour quantisation — so you can iterate
 Developer Tools with zero uploads, then drop the flag when it's right.
 
 Called from an automation (time pattern, state trigger, …), `render_screen` keeps the frame's
-dashboard current — the same trigger patterns as the artwork examples above. A built-in playlist
-scheduler (rotating multiple screens with per-screen intervals and time windows, skipping
-uploads when nothing changed) is planned next.
+dashboard current — the same trigger patterns as the artwork examples above.
+
+### The playlist — rotate screens automatically
+
+When a frame has stored screens, it grows four playlist entities: a **Playlist** switch, a
+**Screen** select, and **Next/Previous screen** buttons. Turn the switch on and the frame
+rotates through its screens by itself:
+
+- Each screen shows for its own **rotation interval** (min 5 minutes) and only inside its
+  optional **time-of-day window / weekdays** (TRMNL-style scheduling: calendar+weather in the
+  morning, photos in the evening…).
+- Before every upload the freshly rendered panel content is **hashed and compared with what's
+  already on the glass — unchanged screens are skipped entirely.** Data still refreshes every
+  cycle; the ~30 s refresh flash and its battery cost only happen when something actually
+  changed. (The clock widget renders minutes, so a clock-bearing screen changes every cycle by
+  design.)
+- **Sleep-aware:** while the frame is unreachable (deep sleep) cycles are skipped quietly, and
+  the moment it answers a poll again the current screen is re-rendered fresh and pushed.
+- **Manual uploads play nice:** `upload_image`, `render_screen`, or the media browser hold the
+  playlist for one interval (your image gets its screen time), then rotation resumes. Starting
+  a camera loop on the media player turns the playlist off explicitly.
+- Selecting a screen in the **Screen** select (or pressing Next/Previous) shows it immediately
+  and rotation continues from there. Playlist state survives restarts.
 
 ## How image conversion works
 

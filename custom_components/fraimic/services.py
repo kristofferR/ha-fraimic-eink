@@ -289,21 +289,36 @@ async def async_render_and_upload(
     overrides: dict | None = None,
     *,
     preprocess: bool = True,
+    skip_if_hash: str | None = None,
+    hold_playlist: bool = True,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
     Shared by the ``upload_image`` service, the media_player ``play_media``
-    path, and screen rendering. Returns ``{"mode", "content_hash"}``.
+    path, and screen rendering. Returns
+    ``{"mode", "content_hash", "uploaded"}``.
+
+    ``skip_if_hash``: when the freshly packed ``.bin``'s SHA-256 equals this,
+    the frame is not touched (``uploaded: False``) — content is identical and
+    an upload would only burn a ~30 s e-ink refresh and battery.
+    ``hold_playlist``: manual uploads pause the playlist scheduler for one
+    interval; the scheduler's own uploads pass False.
     """
     runtime = entry.runtime_data
     bin_data, preview_png, used_mode = await async_convert_for_entry(
         hass, entry, raw, overrides, preprocess=preprocess
     )
+    content_hash = hashlib.sha256(bin_data).hexdigest()
+    if skip_if_hash is not None and content_hash == skip_if_hash:
+        return {"mode": used_mode, "content_hash": content_hash, "uploaded": False}
 
     try:
         await runtime.client.upload_image(bin_data)
     except FraimicError as err:
         raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+
+    if hold_playlist and runtime.scheduler is not None:
+        runtime.scheduler.notify_external_upload()
 
     if preview_png:
         runtime.last_preview = preview_png
@@ -314,7 +329,8 @@ async def async_render_and_upload(
     await runtime.coordinator.async_request_refresh()
     return {
         "mode": used_mode,
-        "content_hash": hashlib.sha256(bin_data).hexdigest(),
+        "content_hash": content_hash,
+        "uploaded": True,
     }
 
 

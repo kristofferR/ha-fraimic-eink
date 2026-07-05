@@ -145,6 +145,11 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
             )
             if interval > 0:
+                # Two competing periodic pushers make no sense — starting a
+                # camera loop switches the screen playlist off explicitly.
+                scheduler = self.coordinator.config_entry.runtime_data.scheduler
+                if scheduler is not None and scheduler.enabled:
+                    await scheduler.async_set_enabled(False)
                 self._camera_entity = camera_entity
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)
