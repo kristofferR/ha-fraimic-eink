@@ -64,6 +64,13 @@ def _time_str(value: str) -> str:
     return value
 
 
+def _exactly_one_image_source(data: dict) -> dict:
+    sources = [key for key in ("url", "entity") if data.get(key)]
+    if len(sources) != 1:
+        raise vol.Invalid("image widget needs exactly one of: url, entity")
+    return data
+
+
 # Per-widget-type option schemas (the widget dict minus ``type`` and ``slot``).
 WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
     "clock": vol.Schema(
@@ -188,12 +195,15 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
             vol.Optional("color"): _COLOR,
         }
     ),
-    "image": vol.Schema(
-        {
-            vol.Optional("url"): _HTTP_URL,
-            vol.Optional("entity"): _ENTITY_ID,
-            vol.Optional("fit", default="cover"): vol.In(("cover", "contain")),
-        }
+    "image": vol.All(
+        vol.Schema(
+            {
+                vol.Optional("url"): _HTTP_URL,
+                vol.Optional("entity"): _ENTITY_ID,
+                vol.Optional("fit", default="cover"): vol.In(("cover", "contain")),
+            }
+        ),
+        _exactly_one_image_source,
     ),
 }
 

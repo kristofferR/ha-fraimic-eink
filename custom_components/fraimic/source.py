@@ -59,9 +59,7 @@ async def async_get_source_bytes(
                     f"Downloading {url_label} returned HTTP {resp.status}"
                 )
             data = await resp.content.read(MAX_SOURCE_BYTES + 1)
-            if len(data) > MAX_SOURCE_BYTES:
-                raise ServiceValidationError("Downloaded image is too large")
-            return data
+            return checked_size(data)
 
     if entity_id is None:
         raise ServiceValidationError("No image source provided")

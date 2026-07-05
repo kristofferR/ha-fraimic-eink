@@ -9,6 +9,7 @@ failing the screen.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
@@ -453,10 +454,8 @@ def _fetch_numeric(hass: HomeAssistant, options: dict[str, Any]) -> dict[str, An
         "unit": state.attributes.get("unit_of_measurement"),
         "value": None,
     }
-    try:
+    with contextlib.suppress(ValueError):
         payload["value"] = float(state.state)
-    except ValueError:
-        pass
     return payload
 
 

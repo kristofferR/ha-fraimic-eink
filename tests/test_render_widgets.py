@@ -199,10 +199,27 @@ def test_dashboard_kind_rejects_picture_source_fields() -> None:
 
 
 def test_image_widget_source_validation() -> None:
-    # Both sources set is fine schema-wise per-widget? No — image widget takes
-    # url OR entity; fetch uses whichever is set, url first. Schema allows
-    # both keys individually; neither is required at schema level (fetch
-    # errors surface as a placeholder). Reject non-http URLs though.
+    with pytest.raises(vol.Invalid, match="exactly one"):
+        schema.SCREEN_SCHEMA(
+            {
+                "layout": "full",
+                "widgets": [{"type": "image", "slot": "main"}],
+            }
+        )
+    with pytest.raises(vol.Invalid, match="exactly one"):
+        schema.SCREEN_SCHEMA(
+            {
+                "layout": "full",
+                "widgets": [
+                    {
+                        "type": "image",
+                        "slot": "main",
+                        "url": "http://example.com/x.png",
+                        "entity": "image.front",
+                    }
+                ],
+            }
+        )
     with pytest.raises(vol.Invalid):
         schema.SCREEN_SCHEMA(
             {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Callable
 from typing import Any
 
 from ..context import RenderContext
@@ -18,14 +19,95 @@ def _series_colors(theme: Theme) -> list[str]:
     return [theme.ink, PALETTE_HEX["red"], PALETTE_HEX["blue"]]
 
 
+def _draw_chart_series(
+    doc: SvgDoc,
+    plot: Rect,
+    series: list[dict],
+    colors: list[str],
+    style: str,
+    stroke_w: int,
+    to_xy: Callable[[float, float], tuple[float, float]],
+) -> None:
+    for index, entry in enumerate(series):
+        color = colors[index % len(colors)]
+        points = [to_xy(frac, value) for frac, value in entry["points"]]
+        if style == "bar" and points:
+            bar_w = max(2, int(plot.w / max(len(points), 1) * 0.7))
+            for x, y in points:
+                doc.rect(
+                    int(x - bar_w / 2),
+                    int(y),
+                    bar_w,
+                    max(1, plot.bottom - int(y)),
+                    color,
+                )
+        elif style == "area" and len(points) >= 2:
+            d = f"M{points[0][0]:.1f} {plot.bottom}" + "".join(
+                f"L{x:.1f} {y:.1f}" for x, y in points
+            ) + f"L{points[-1][0]:.1f} {plot.bottom}Z"
+            doc.path(d, color)
+        elif len(points) >= 2:
+            doc.polyline(points, color, stroke_w)
+        elif points:
+            x, y = points[0]
+            doc.circle(int(x), int(y), stroke_w, fill=color)
+
+
+def _draw_chart_legend(
+    doc: SvgDoc,
+    rect: Rect,
+    label_h: int,
+    series: list[dict],
+    colors: list[str],
+    theme: Theme,
+) -> None:
+    if len(series) <= 1:
+        return
+    x = rect.x
+    square = round(theme.small * 0.7)
+    for index, entry in enumerate(series):
+        color = colors[index % len(colors)]
+        doc.rect(x, rect.y + label_h - square - 2, square, square, color)
+        name = truncate(
+            str(entry.get("name", "")),
+            rect.w / len(series) - square * 3,
+            theme.small,
+        )
+        doc.text(
+            x + square + round(square * 0.6),
+            rect.y + label_h - 2,
+            name,
+            size=theme.small,
+            fill=theme.ink,
+        )
+        x += (
+            square
+            + round(square * 0.6)
+            + round(measure(name, theme.small))
+            + theme.small
+        )
+
+
 def render_chart(
-    doc: SvgDoc, rect: Rect, options: dict, data: Any, ctx: RenderContext, theme: Theme
+    doc: SvgDoc,
+    rect: Rect,
+    options: dict,
+    data: object,
+    _ctx: RenderContext,
+    theme: Theme,
 ) -> None:
     if (err := fetch_error(data)) is not None:
         render_error(doc, rect, err, theme)
         return
 
-    series = [s for s in data.get("series", []) if s.get("points")]
+    if not isinstance(data, dict):
+        render_error(doc, rect, "No history data", theme)
+        return
+    series = [
+        entry
+        for entry in data.get("series", [])
+        if isinstance(entry, dict) and entry.get("points")
+    ]
     if not series:
         render_error(doc, rect, "No history data", theme)
         return
@@ -67,26 +149,9 @@ def render_chart(
 
     colors = _series_colors(theme)
     stroke_w = max(3, round(3 * theme.scale))
-    for index, entry in enumerate(series):
-        color = colors[index % len(colors)]
-        points = [to_xy(frac, value) for frac, value in entry["points"]]
-        style = options.get("style", "line")
-        if style == "bar" and points:
-            bar_w = max(2, int(plot.w / max(len(points), 1) * 0.7))
-            for x, y in points:
-                doc.rect(
-                    int(x - bar_w / 2), int(y), bar_w, max(1, plot.bottom - int(y)), color
-                )
-        elif style == "area" and len(points) >= 2:
-            d = f"M{points[0][0]:.1f} {plot.bottom}" + "".join(
-                f"L{x:.1f} {y:.1f}" for x, y in points
-            ) + f"L{points[-1][0]:.1f} {plot.bottom}Z"
-            doc.path(d, color)
-        elif len(points) >= 2:
-            doc.polyline(points, color, stroke_w)
-        elif points:
-            x, y = points[0]
-            doc.circle(int(x), int(y), stroke_w, fill=color)
+    _draw_chart_series(
+        doc, plot, series, colors, options.get("style", "line"), stroke_w, to_xy
+    )
 
     # Scale labels top-left / bottom-left inside the plot; time range along
     # the bottom axis.
@@ -103,28 +168,19 @@ def render_chart(
         size=theme.small, fill=theme.ink, weight=600,
     )
     baseline = rect.bottom - round(theme.small * 0.3)
-    doc.text(rect.x, baseline, str(data.get("start_label", "")), size=theme.small, fill=theme.ink)
+    doc.text(
+        rect.x,
+        baseline,
+        str(data.get("start_label", "")),
+        size=theme.small,
+        fill=theme.ink,
+    )
     doc.text(
         rect.right, baseline, str(data.get("end_label", "")),
         size=theme.small, fill=theme.ink, anchor="end",
     )
 
-    # Legend only when there is more than one series.
-    if len(series) > 1:
-        x = rect.x
-        square = round(theme.small * 0.7)
-        for index, entry in enumerate(series):
-            color = colors[index % len(colors)]
-            doc.rect(x, rect.y + label_h - square - 2, square, square, color)
-            name = truncate(str(entry.get("name", "")), rect.w / len(series) - square * 3, theme.small)
-            doc.text(
-                x + square + round(square * 0.6),
-                rect.y + label_h - 2,
-                name,
-                size=theme.small,
-                fill=theme.ink,
-            )
-            x += square + round(square * 0.6) + round(measure(name, theme.small)) + theme.small
+    _draw_chart_legend(doc, rect, label_h, series, colors, theme)
 
 
 def _polar(cx: float, cy: float, r: float, angle_deg: float) -> tuple[float, float]:
