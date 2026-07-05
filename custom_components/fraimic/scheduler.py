@@ -240,6 +240,7 @@ class FraimicScheduler:
             )
             return
         except HomeAssistantError as err:
+            self._pending = None
             if manual:
                 raise
             self.current_id = screen.screen_id
@@ -268,10 +269,10 @@ class FraimicScheduler:
             self._pending is not None
             and (self.enabled or not self._pending_requires_enabled)
             and self.entry.runtime_data.coordinator.last_update_success
+            and not self._busy
         ):
             screen = self._pending
             manual = not self._pending_requires_enabled
-            self._pending = None
             self.entry.async_create_task(
                 self.hass,
                 self._async_show(screen, manual=manual),
