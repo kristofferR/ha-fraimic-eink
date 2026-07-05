@@ -233,8 +233,9 @@ class FraimicScheduler:
                 hold_playlist=False,
             )
         except FrameUploadError as err:
+            if self._pending is not screen or manual:
+                self._pending_requires_enabled = not manual
             self._pending = screen
-            self._pending_requires_enabled = not manual
             _LOGGER.debug(
                 "Playlist could not show %r (frame asleep?): %s", screen.name, err
             )
