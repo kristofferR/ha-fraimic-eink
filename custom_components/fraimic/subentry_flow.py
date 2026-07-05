@@ -246,6 +246,14 @@ def _hhmm(value: str) -> str:
     return value[:5]
 
 
+def _schema_errors(err: vol.Invalid) -> dict[str, str]:
+    """Map shared screen-schema failures back onto the current HA form."""
+    field = str(err.path[-1]) if err.path else "base"
+    if field in {"url", "format"}:
+        return {field: "invalid_screen"}
+    return {"base": "invalid_screen"}
+
+
 class ScreenSubentryFlowHandler(ConfigSubentryFlow):
     """Create / reconfigure one dashboard screen."""
 
@@ -383,9 +391,10 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
         )
 
     async def _advance_slot(self) -> SubentryFlowResult:
-        self._slot_index += 1
-        self._current_type = None
-        if self._slot_index < len(self._slots):
+        next_index = self._slot_index + 1
+        if next_index < len(self._slots):
+            self._slot_index = next_index
+            self._current_type = None
             return await self.async_step_widget()
         if not self._widgets:
             # Every slot left empty — go back to the first slot with an error.
@@ -401,7 +410,9 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
                     "position": f"1/{len(self._slots)}",
                 },
             )
-        return self._finish({"layout": self._basics["layout"], "widgets": self._widgets})
+        return self._finish(
+            {"layout": self._basics["layout"], "widgets": self._widgets}
+        )
 
     def _finish(self, body: dict[str, Any]) -> SubentryFlowResult:
         """Assemble, validate, and store the flat screen dict."""
@@ -426,8 +437,11 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
             data["windows"] = [window]
 
         # Same validation as the service payload; by construction this passes,
-        # and if it ever doesn't we want the loud error during the flow.
-        SCREEN_SCHEMA(dict(data))
+        # but free-form URL/format fields can still fail the shared schema.
+        try:
+            SCREEN_SCHEMA(dict(data))
+        except vol.Invalid as err:
+            return self._show_schema_error(body, err)
 
         if self._existing:
             return self.async_update_and_abort(
@@ -437,6 +451,60 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
                 data=data,
             )
         return self.async_create_entry(title=data["name"], data=data)
+
+    def _show_schema_error(
+        self, body: dict[str, Any], err: vol.Invalid
+    ) -> SubentryFlowResult:
+        errors = _schema_errors(err)
+        if body.get("kind") == PICTURE:
+            return self.async_show_form(
+                step_id="picture",
+                data_schema=self.add_suggested_values_to_schema(
+                    _PICTURE_SCHEMA,
+                    {
+                        key: body[key]
+                        for key in ("url", "entity", "fit", "mode")
+                        if key in body
+                    },
+                ),
+                errors=errors,
+            )
+        if self._current_type is not None and self._slot_index < len(self._slots):
+            slot = self._slots[self._slot_index]
+            existing_widget = self._existing_widget(slot)
+            current_widget = next(
+                (
+                    widget
+                    for widget in reversed(self._widgets)
+                    if widget.get("slot") == slot
+                    and widget.get("type") == self._current_type
+                ),
+                None,
+            )
+            source_widget = current_widget or existing_widget
+            suggested = (
+                {k: v for k, v in source_widget.items() if k not in ("type", "slot")}
+                if source_widget and source_widget["type"] == self._current_type
+                else None
+            )
+            return self.async_show_form(
+                step_id="widget_options",
+                data_schema=self.add_suggested_values_to_schema(
+                    WIDGET_FORMS[self._current_type], suggested
+                ),
+                errors=errors,
+                description_placeholders={
+                    "widget": self._current_type.replace("_", " "),
+                    "slot": slot.replace("_", " "),
+                },
+            )
+        return self.async_show_form(
+            step_id="user" if not self._existing else "reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                _BASICS_SCHEMA, self._basics
+            ),
+            errors=errors,
+        )
 
     def _existing_widget(self, slot: str) -> dict[str, Any] | None:
         for widget in self._existing.get("widgets", []):

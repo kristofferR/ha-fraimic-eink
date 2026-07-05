@@ -61,7 +61,7 @@ from .const import (
 from .image_convert import convert_image
 from .render.display import async_show_screen
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
-from .screens import screen_by_key
+from .screens import AmbiguousScreenNameError, screen_by_key
 from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
@@ -203,7 +203,10 @@ async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:
     hass = call.hass
     entry = _resolve_entry(hass, call)
     if (key := call.data.get(ATTR_SCREEN_ID)) is not None:
-        screen = screen_by_key(entry, key)
+        try:
+            screen = screen_by_key(entry, key)
+        except AmbiguousScreenNameError as err:
+            raise ServiceValidationError(str(err)) from err
         if screen is None:
             raise ServiceValidationError(
                 f"No stored screen with id or name {key!r} on this frame"

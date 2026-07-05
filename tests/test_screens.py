@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import pytest
+
 from conftest import load
 
 screens = load("screens")
@@ -47,6 +49,18 @@ def test_screen_by_key_matches_id_then_name_case_insensitive() -> None:
     assert screens.screen_by_key(entry, "gangen").screen_id == "abc123"
     assert screens.screen_by_key(entry, "GANGEN").screen_id == "abc123"
     assert screens.screen_by_key(entry, "missing") is None
+
+
+def test_screen_by_key_rejects_ambiguous_names() -> None:
+    entry = _entry(
+        _subentry("id1", "Hallway", dict(VALID)),
+        _subentry("id2", "hallway", dict(VALID)),
+    )
+
+    with pytest.raises(screens.AmbiguousScreenNameError) as err:
+        screens.screen_by_key(entry, "Hallway")
+
+    assert "id1, id2" in str(err.value)
 
 
 def test_entry_without_subentries_attribute() -> None:

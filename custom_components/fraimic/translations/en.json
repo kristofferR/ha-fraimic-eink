@@ -129,6 +129,7 @@
         }
       },
       "error": {
+        "invalid_screen": "One of the screen options is invalid. Check URLs and format fields.",
         "picture_source": "Give exactly one source: an image URL or a camera/image entity.",
         "no_widgets": "Every slot was left empty — pick at least one widget.",
         "too_many_series": "A chart supports at most 3 entities."

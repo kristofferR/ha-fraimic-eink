@@ -22,6 +22,17 @@ _LOGGER = logging.getLogger(__name__)
 SUBENTRY_TYPE_SCREEN = "screen"
 
 
+class AmbiguousScreenNameError(ValueError):
+    """Raised when a name lookup matches more than one stored screen."""
+
+    def __init__(self, name: str, screen_ids: list[str]) -> None:
+        joined = ", ".join(screen_ids)
+        super().__init__(
+            f"Stored screen name {name!r} is ambiguous; use a screen id instead "
+            f"({joined})"
+        )
+
+
 def screens_from_entry(entry) -> list[ScreenConfig]:
     """All valid screen subentries of a config entry, in creation order."""
     screens: list[ScreenConfig] = []
@@ -51,7 +62,9 @@ def screen_by_key(entry, key: str) -> ScreenConfig | None:
         if screen.screen_id == key:
             return screen
     lowered = key.casefold()
-    for screen in screens:
-        if screen.name.casefold() == lowered:
-            return screen
+    matches = [screen for screen in screens if screen.name.casefold() == lowered]
+    if len(matches) > 1:
+        raise AmbiguousScreenNameError(key, [screen.screen_id for screen in matches])
+    if matches:
+        return matches[0]
     return None
