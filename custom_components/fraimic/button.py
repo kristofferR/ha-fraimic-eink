@@ -59,6 +59,7 @@ async def async_setup_entry(
     entities: list[ButtonEntity] = [
         FraimicButton(coordinator, desc) for desc in BUTTONS
     ]
+    entities.append(FraimicNewArtworkButton(coordinator))
     scheduler = entry.runtime_data.scheduler
     if scheduler is not None and scheduler.screens:
         entities += [
@@ -95,6 +96,36 @@ class FraimicButton(FraimicEntity, ButtonEntity):
         # Reflect the new state (e.g. uptime reset, sleeping) without waiting for
         # the next poll.
         await self.coordinator.async_request_refresh()
+
+
+class FraimicNewArtworkButton(FraimicEntity, ButtonEntity):
+    """Fetch and display a fresh online artwork (default provider option)."""
+
+    _attr_translation_key = "new_artwork"
+    _attr_icon = "mdi:palette"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_new_artwork"
+
+    async def async_press(self) -> None:
+        from .const import CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE
+        from .render.display import async_show_screen
+        from .render.schema import SCREEN_SCHEMA, screen_from_dict
+
+        entry = self.coordinator.config_entry
+        provider = entry.options.get(CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE)
+        screen = screen_from_dict(
+            SCREEN_SCHEMA(
+                {
+                    "name": "Online image",
+                    "kind": "picture",
+                    "provider": provider,
+                    "caption": True,
+                }
+            )
+        )
+        await async_show_screen(self.hass, entry, screen)
 
 
 class FraimicPlaylistStepButton(FraimicEntity, ButtonEntity):

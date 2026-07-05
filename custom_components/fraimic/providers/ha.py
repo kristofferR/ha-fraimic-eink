@@ -93,11 +93,78 @@ async def async_fetch_art(
     try:
         if item_id is not None:
             candidate = await provider.async_by_id(session, cache, item_id, request)
-            return await async_download_candidate(provider, session, candidate)
-        return await async_pick_and_download(
-            provider, session, cache, request, dims_of=dims_of
+            image = await async_download_candidate(provider, session, candidate)
+        else:
+            image = await async_pick_and_download(
+                provider, session, cache, request, dims_of=dims_of
+            )
+    except _BaseArtFetchError as err:
+        raise ArtFetchError(f"{provider.name}: {err}") from err
+    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
+    # Provider compliance hook (e.g. Unsplash's mandated download ping).
+    await provider.async_on_display(session, image.candidate)
+    return image
+
+
+def _request_for(hass: HomeAssistant, entry, provider) -> FetchRequest:
+    from ..render.display import viewed_size
+
+    width, height = viewed_size(entry)
+    return FetchRequest(
+        target_width=width,
+        target_height=height,
+        api_key=entry.options.get(provider.key_option) if provider.key_option else None,
+    )
+
+
+async def async_browse_candidates(
+    hass: HomeAssistant, entry, provider_key: str, count: int = 20
+) -> list:
+    """Fresh candidates for the media browser; stashed for later play-by-id."""
+    provider = get_provider(provider_key)
+    if provider is None:
+        raise ArtFetchError(f"Unknown image provider: {provider_key}")
+    session = async_get_clientsession(hass)
+    cache = _cache(hass)
+    try:
+        candidates = await provider.async_candidates(
+            session, cache, _request_for(hass, entry, provider), count
         )
     except _BaseArtFetchError as err:
         raise ArtFetchError(f"{provider.name}: {err}") from err
     except (aiohttp.ClientError, asyncio.TimeoutError) as err:
         raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
+    # Daily providers have no by-id lookup; the browse stash covers the gap
+    # between browsing and clicking.
+    stash = {candidate.item_id: candidate for candidate in candidates}
+    cache.set(f"browse_{provider_key}", stash)
+    return candidates
+
+
+BROWSE_STASH_TTL = 3600.0
+
+
+async def async_art_by_media_id(
+    hass: HomeAssistant, entry, provider_key: str, item_id: str
+) -> ArtImage:
+    """Download the item a user clicked in the media browser."""
+    provider = get_provider(provider_key)
+    if provider is None:
+        raise ArtFetchError(f"Unknown image provider: {provider_key}")
+    session = async_get_clientsession(hass)
+    cache = _cache(hass)
+    stash = cache.get(f"browse_{provider_key}", BROWSE_STASH_TTL) or {}
+    candidate = stash.get(item_id)
+    try:
+        if candidate is None:
+            candidate = await provider.async_by_id(
+                session, cache, item_id, _request_for(hass, entry, provider)
+            )
+        image = await async_download_candidate(provider, session, candidate)
+    except _BaseArtFetchError as err:
+        raise ArtFetchError(f"{provider.name}: {err}") from err
+    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
+    await provider.async_on_display(session, image.candidate)
+    return image

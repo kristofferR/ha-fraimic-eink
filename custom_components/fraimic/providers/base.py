@@ -52,6 +52,7 @@ class ArtCandidate:
     attribution: str = ""  # ready-to-render one-liner
     width: int | None = None  # dims when the API reports them
     height: int | None = None
+    extra: dict | None = None  # provider-private (e.g. Unsplash download ping URL)
 
 
 @dataclass(frozen=True)

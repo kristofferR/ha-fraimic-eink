@@ -185,6 +185,9 @@ async def async_show_screen(
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = art_info
+            # Entities read this lazily — poke coordinator listeners so their
+            # attributes update now instead of at the next poll.
+            runtime.coordinator.async_update_listeners()
         return {"width": width, "height": height, "art": art_info, **result}
     finally:
         finish_external_upload(scheduler, uploaded=uploaded)

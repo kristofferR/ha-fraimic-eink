@@ -172,6 +172,8 @@ PROVIDER_KEYS: Final = (
     "bing",
     "apod",
     "picsum",
+    "unsplash",  # requires a free API key (frame options)
+    "pexels",  # requires a free API key (frame options)
 )
 PROVIDER_SHUFFLE: Final = "shuffle"  # random pick across available providers
 MEDIA_SCHEME: Final = "fraimic-online"

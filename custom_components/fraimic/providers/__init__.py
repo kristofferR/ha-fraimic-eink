@@ -12,7 +12,9 @@ from .base import ArtProvider
 from .bing import BingProvider
 from .cleveland import ClevelandProvider
 from .met import MetProvider
+from .pexels import PexelsProvider
 from .picsum import PicsumProvider
+from .unsplash import UnsplashProvider
 from .wikimedia import WikimediaProvider
 
 PROVIDERS: dict[str, ArtProvider] = {
@@ -25,6 +27,8 @@ PROVIDERS: dict[str, ArtProvider] = {
         BingProvider(),
         ApodProvider(),
         PicsumProvider(),
+        UnsplashProvider(),
+        PexelsProvider(),
     )
 }
 

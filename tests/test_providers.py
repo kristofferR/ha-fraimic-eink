@@ -371,3 +371,38 @@ def test_shuffle_and_availability() -> None:
     entry = SimpleNamespace(options={})
     keys = providers_pkg.available_provider_keys(entry)
     assert set(providers_pkg.MUSEUM_KEYS) <= set(keys)
+    # Keyed providers hidden without keys, shown with them.
+    assert "unsplash" not in keys
+    assert "pexels" not in keys
+    keyed = SimpleNamespace(
+        options={"unsplash_access_key": "abc", "pexels_api_key": "def"}
+    )
+    keyed_keys = providers_pkg.available_provider_keys(keyed)
+    assert "unsplash" in keyed_keys
+    assert "pexels" in keyed_keys
+
+
+def test_parse_unsplash_photo() -> None:
+    unsplash = load("providers.unsplash")
+
+    item = _fixture("unsplash_random.json")[0]
+    candidate = unsplash.parse_unsplash_photo(item, 3200)
+    assert candidate is not None
+    assert candidate.image_url.startswith("https://images.unsplash.com/")
+    assert "w=3200" in candidate.image_url and "fm=jpg" in candidate.image_url
+    assert candidate.attribution == "Photo by Jeff Sheldon on Unsplash"
+    assert candidate.extra["download_location"].endswith("download?ixid=abc123")
+    assert candidate.title == "A man drinking a coffee."
+
+
+def test_parse_pexels_photo() -> None:
+    pexels = load("providers.pexels")
+
+    photos = _fixture("pexels_search.json")["photos"]
+    candidate = pexels.parse_pexels_photo(photos[0])
+    assert candidate is not None
+    assert candidate.image_url.startswith("https://images.pexels.com/")
+    assert candidate.attribution == "Photo by Joey Farina on Pexels"
+    assert candidate.width == 3024
+    # Item without src urls is rejected.
+    assert pexels.parse_pexels_photo(photos[1]) is None

@@ -157,7 +157,11 @@
           "saturation": "Saturation",
           "contrast": "Contrast",
           "sharpen": "Sharpen",
-          "tone": "Tone curve"
+          "tone": "Tone curve",
+          "default_provider": "Default online-art source",
+          "nasa_api_key": "NASA API key (optional)",
+          "unsplash_access_key": "Unsplash access key (optional)",
+          "pexels_api_key": "Pexels API key (optional)"
         },
         "data_description": {
           "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
@@ -168,7 +172,11 @@
           "saturation": "Saturation boost (default 1.15). 1.0 = no change.",
           "contrast": "Contrast boost (default 1.4 — pushed hard for the backlight-less panel). 1.0 = no change.",
           "sharpen": "Unsharp-mask strength 0-100 (default 80).",
-          "tone": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff."
+          "tone": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff.",
+          "default_provider": "Used by the New artwork button. 'shuffle' picks a random museum.",
+          "nasa_api_key": "Free key from api.nasa.gov raises the APOD rate limit (DEMO_KEY works without one).",
+          "unsplash_access_key": "Enables the Unsplash photo provider. Free at unsplash.com/developers.",
+          "pexels_api_key": "Enables the Pexels photo provider. Free at pexels.com/api."
         }
       }
     }
@@ -207,7 +215,8 @@
       "sleep": { "name": "Sleep" },
       "restart": { "name": "Restart" },
       "next_screen": { "name": "Next screen" },
-      "previous_screen": { "name": "Previous screen" }
+      "previous_screen": { "name": "Previous screen" },
+      "new_artwork": { "name": "New artwork" }
     },
     "image": {
       "preview": { "name": "Current artwork" },
