@@ -305,41 +305,37 @@ async def _async_fetch_calendar(
     for calendar in (response or {}).values():
         for event in calendar.get("events", []):
             start_raw = str(event.get("start", ""))
-            start_dt = dt_util.parse_datetime(start_raw)
-            if start_dt is not None:
-                local = dt_util.as_local(start_dt)
-                events.append(
-                    (
-                        local.isoformat(),
-                        {
-                            "day": _day_label(local, ctx.now),
-                            "time": local.strftime("%H:%M"),
-                            "title": event.get("summary", ""),
-                        },
-                    )
-                )
-            else:
-                # All-day events carry a bare date.
+            # All-day events carry a bare date — parse_datetime would happily
+            # read it as midnight and the row would show a bogus "00:00".
+            all_day = "T" not in start_raw
+            if all_day:
                 parsed = dt_util.parse_date(start_raw)
                 if parsed is None:
                     continue
-                events.append(
-                    (
-                        f"{parsed.isoformat()}T00:00:00",
-                        {
-                            "day": _day_label(
-                                dt_util.start_of_local_day(
-                                    dt_util.as_local(ctx.now).replace(
-                                        year=parsed.year, month=parsed.month, day=parsed.day
-                                    )
-                                ),
-                                ctx.now,
-                            ),
-                            "time": "",
-                            "title": event.get("summary", ""),
-                        },
-                    )
+                local = dt_util.as_local(ctx.now).replace(
+                    year=parsed.year, month=parsed.month, day=parsed.day,
+                    hour=0, minute=0, second=0, microsecond=0,
                 )
+                time_label = ""
+            else:
+                start_dt = dt_util.parse_datetime(start_raw)
+                if start_dt is None:
+                    continue
+                local = dt_util.as_local(start_dt)
+                time_label = local.strftime("%H:%M")
+            # An event already underway (multi-day, or started earlier today)
+            # belongs under "Today", not its historic start date.
+            label_at = dt_util.as_local(ctx.now) if local < ctx.now else local
+            events.append(
+                (
+                    local.isoformat(),
+                    {
+                        "day": _day_label(label_at, ctx.now),
+                        "time": time_label,
+                        "title": event.get("summary", ""),
+                    },
+                )
+            )
     events.sort(key=lambda pair: pair[0])
     limit = options.get("max_events") or 20
     return {"events": [event for _, event in events[:limit]]}
