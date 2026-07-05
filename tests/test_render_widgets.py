@@ -13,6 +13,8 @@ const = load("const")
 schema = load("render.schema")
 compose = load("render.compose")
 context = load("render.context")
+layout = load("render.layout")
+charts = load("render.widgets.charts")
 
 NOW = datetime(2026, 7, 3, 14, 5)
 W, H = 800, 480
@@ -150,6 +152,33 @@ def test_image_widget_pre_quantizes_photo_and_keeps_mode_none() -> None:
     for color in palette:
         exact |= (flat == color).all(axis=1)
     assert exact.mean() == 1.0
+
+
+def test_bar_chart_endpoint_bars_stay_inside_plot() -> None:
+    class Doc:
+        def __init__(self) -> None:
+            self.rects: list[tuple[int, int, int, int, str]] = []
+
+        def rect(self, x: int, y: int, w: int, h: int, fill: str) -> None:
+            self.rects.append((x, y, w, h, fill))
+
+    plot = layout.Rect(10, 20, 100, 50)
+    doc = Doc()
+
+    charts._draw_chart_series(
+        doc,
+        plot,
+        [{"points": [(0.0, 1.0), (1.0, 1.0)]}],
+        ["#000000"],
+        "bar",
+        3,
+        lambda frac, _value: (plot.x + frac * plot.w, 40.0),
+    )
+
+    assert doc.rects == [
+        (10, 40, 35, 30, "#000000"),
+        (75, 40, 35, 30, "#000000"),
+    ]
 
 
 def test_screen_without_image_keeps_mode_none() -> None:

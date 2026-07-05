@@ -32,10 +32,14 @@ def _draw_chart_series(
         color = colors[index % len(colors)]
         points = [to_xy(frac, value) for frac, value in entry["points"]]
         if style == "bar" and points:
-            bar_w = max(2, int(plot.w / max(len(points), 1) * 0.7))
+            bar_w = min(plot.w, max(2, int(plot.w / max(len(points), 1) * 0.7)))
             for x, y in points:
+                left = min(
+                    max(int(round(x - bar_w / 2)), plot.x),
+                    plot.right - bar_w,
+                )
                 doc.rect(
-                    int(x - bar_w / 2),
+                    left,
                     int(y),
                     bar_w,
                     max(1, plot.bottom - int(y)),
