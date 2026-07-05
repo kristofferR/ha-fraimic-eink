@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 
 from ..const import (
     ATTR_CONTRAST,
@@ -57,9 +58,14 @@ async def async_render_screen(hass: HomeAssistant, entry, screen: ScreenConfig) 
     """Fetch widget data and render the screen to PNG bytes."""
     ctx = await async_build_context(hass, screen)
     width, height = _viewed_size(entry)
-    return await hass.async_add_executor_job(
-        render_screen_png, screen, ctx, width, height
-    )
+    try:
+        return await hass.async_add_executor_job(
+            render_screen_png, screen, ctx, width, height
+        )
+    except Exception as err:
+        raise HomeAssistantError(
+            f"Failed to render screen {screen.name!r}: {err}"
+        ) from err
 
 
 async def async_show_screen(

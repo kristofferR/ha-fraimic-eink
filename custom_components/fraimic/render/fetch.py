@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 from typing import Any
 
@@ -20,10 +21,15 @@ from homeassistant.util import dt as dt_util
 
 from .context import RenderContext
 from .schema import ScreenConfig, WidgetConfig
+from .widgets import WIDGET_REGISTRY
 
 _LOGGER = logging.getLogger(__name__)
 
 UNKNOWN_DISPLAY = "—"
+WidgetFetcher = Callable[
+    [HomeAssistant, dict[str, Any], RenderContext],
+    Awaitable[dict[str, Any] | None],
+]
 
 # Sensible default MDI icons by domain / device class when the entity has none.
 _DOMAIN_ICONS = {
@@ -80,15 +86,14 @@ async def async_build_context(
 
 async def _async_fetch_widget(
     hass: HomeAssistant, widget: WidgetConfig, ctx: RenderContext
-) -> Any:
-    if widget.type == "stat":
-        return await _async_fetch_stat(hass, widget.options, ctx)
-    if widget.type == "entities":
-        return _fetch_entities(hass, widget.options)
-    if widget.type == "template":
-        return await _async_fetch_template(hass, widget.options)
-    # clock / date need only ctx.now
-    return None
+) -> dict[str, Any] | None:
+    if widget.type in _NO_FETCH_WIDGETS:
+        return None
+    if widget.type not in WIDGET_REGISTRY:
+        return {"error": f"Unknown widget type {widget.type!r}"}
+    if fetcher := _WIDGET_FETCHERS.get(widget.type):
+        return await fetcher(hass, widget.options, ctx)
+    return {"error": f"No data fetcher registered for widget type {widget.type!r}"}
 
 
 def _default_icon(state: State) -> str | None:
@@ -116,8 +121,8 @@ def _display_value(state: State | None, precision: int | None = None) -> str:
 
 
 async def _async_fetch_stat(
-    hass: HomeAssistant, options: dict, ctx: RenderContext
-) -> dict:
+    hass: HomeAssistant, options: dict[str, Any], ctx: RenderContext
+) -> dict[str, Any]:
     entity_id = options["entity"]
     state = hass.states.get(entity_id)
     if state is None:
@@ -172,7 +177,13 @@ async def _async_trend_delta(
     return None
 
 
-def _fetch_entities(hass: HomeAssistant, options: dict) -> dict:
+async def _async_fetch_entities(
+    hass: HomeAssistant, options: dict[str, Any], ctx: RenderContext
+) -> dict[str, Any]:
+    return _fetch_entities(hass, options)
+
+
+def _fetch_entities(hass: HomeAssistant, options: dict[str, Any]) -> dict[str, Any]:
     rows = []
     for item in options["entities"]:
         if isinstance(item, str):
@@ -201,9 +212,19 @@ def _fetch_entities(hass: HomeAssistant, options: dict) -> dict:
     return {"rows": rows}
 
 
-async def _async_fetch_template(hass: HomeAssistant, options: dict) -> dict:
+async def _async_fetch_template(
+    hass: HomeAssistant, options: dict[str, Any], ctx: RenderContext
+) -> dict[str, Any]:
     try:
         text = Template(options["template"], hass).async_render(parse_result=False)
     except TemplateError as err:
         return {"error": f"Template error: {err}"}
     return {"text": str(text)}
+
+
+_NO_FETCH_WIDGETS = frozenset({"clock", "date"})
+_WIDGET_FETCHERS: dict[str, WidgetFetcher] = {
+    "stat": _async_fetch_stat,
+    "entities": _async_fetch_entities,
+    "template": _async_fetch_template,
+}

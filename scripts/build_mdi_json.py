@@ -52,12 +52,12 @@ def main() -> None:
             ):
                 continue
             svg = tar.extractfile(member).read()  # type: ignore[union-attr]
-            match = _PATH_RE.search(svg)
-            if match is None:
+            matches = _PATH_RE.findall(svg)
+            if not matches:
                 print(f"  skipping {member.name}: no <path d=...>")
                 continue
             name = Path(member.name).stem
-            icons[name] = match.group(1).decode()
+            icons[name] = " ".join(match.decode() for match in matches)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / "mdi-paths.json"

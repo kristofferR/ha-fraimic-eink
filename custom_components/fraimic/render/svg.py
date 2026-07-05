@@ -11,9 +11,12 @@ rendered result closely.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING
 from xml.sax.saxutils import escape as _escape
 from xml.sax.saxutils import quoteattr
+
+if TYPE_CHECKING:
+    from PIL import ImageFont
 
 FONT_DIR = Path(__file__).parent / "fonts" / "Inter"
 FONT_FAMILY = "Inter"
@@ -25,10 +28,10 @@ FONT_FILES = {
 }
 ELLIPSIS = "…"
 
-_font_cache: dict[tuple[int, int], Any] = {}
+_font_cache: dict[tuple[int, int], ImageFont.FreeTypeFont] = {}
 
 
-def _pil_font(size: int, weight: int):
+def _pil_font(size: int, weight: int) -> ImageFont.FreeTypeFont:
     """A cached PIL font matching the bundled TTF resvg will use."""
     from PIL import ImageFont
 
@@ -115,15 +118,19 @@ class SvgDoc:
             f'<rect width="{width}" height="{height}" fill="{background}"/>'
         ]
 
+    def _track_color(self, color: str) -> None:
+        if color.startswith("#") and len(color) == 7:
+            self.colors.add(color)
+
     def rect(self, x: int, y: int, w: int, h: int, fill: str, rx: int = 0) -> None:
-        self.colors.add(fill)
+        self._track_color(fill)
         rx_attr = f' rx="{rx}"' if rx else ""
         self._parts.append(
             f'<rect x="{x}" y="{y}" width="{w}" height="{h}" fill="{fill}"{rx_attr}/>'
         )
 
     def line(self, x1: int, y1: int, x2: int, y2: int, stroke: str, width: int) -> None:
-        self.colors.add(stroke)
+        self._track_color(stroke)
         self._parts.append(
             f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
             f'stroke="{stroke}" stroke-width="{width}"/>'
@@ -133,18 +140,17 @@ class SvgDoc:
         self, cx: int, cy: int, r: int, *, fill: str = "none",
         stroke: str | None = None, stroke_width: int = 0,
     ) -> None:
-        if fill != "none":
-            self.colors.add(fill)
+        self._track_color(fill)
         stroke_attr = ""
         if stroke:
-            self.colors.add(stroke)
+            self._track_color(stroke)
             stroke_attr = f' stroke="{stroke}" stroke-width="{stroke_width}"'
         self._parts.append(
             f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="{fill}"{stroke_attr}/>'
         )
 
     def path(self, d: str, fill: str, transform: str | None = None) -> None:
-        self.colors.add(fill)
+        self._track_color(fill)
         transform_attr = f" transform={quoteattr(transform)}" if transform else ""
         self._parts.append(f'<path d={quoteattr(d)} fill="{fill}"{transform_attr}/>')
 
@@ -161,7 +167,7 @@ class SvgDoc:
         letter_spacing: float = 0.0,
     ) -> None:
         """Add a text element (``y`` is the baseline)."""
-        self.colors.add(fill)
+        self._track_color(fill)
         spacing_attr = (
             f' letter-spacing="{letter_spacing:g}"' if letter_spacing else ""
         )

@@ -21,11 +21,11 @@ NOW = datetime(2026, 7, 3, 14, 5)
 W, H = 800, 480  # small panel size keeps the suite fast; height % 4 == 0
 
 
-def _screen(data: dict):
+def _screen(data: dict[str, object]) -> object:
     return schema.screen_from_dict(schema.SCREEN_SCHEMA(data))
 
 
-def _quadrant_screen():
+def _quadrant_screen() -> tuple[object, object]:
     screen = _screen(
         {
             "name": "Test screen",
@@ -115,12 +115,28 @@ def test_palette_purity_and_bin_roundtrip() -> None:
 
     # The full path a screen takes to the frame: quantise with mode "none" and
     # NO preprocessing. Deterministic + valid nibbles + exact size.
-    bin1 = ic.image_to_bin(png, width=W, height=H, mode="none", **{
-        "saturation": 1.0, "contrast": 1.0, "sharpen": 0, "tone": 0,
-    }, preprocess=False)
-    bin2 = ic.image_to_bin(png, width=W, height=H, mode="none", **{
-        "saturation": 1.0, "contrast": 1.0, "sharpen": 0, "tone": 0,
-    }, preprocess=False)
+    bin1 = ic.image_to_bin(
+        png,
+        width=W,
+        height=H,
+        mode="none",
+        saturation=1.0,
+        contrast=1.0,
+        sharpen=0,
+        tone=0,
+        preprocess=False,
+    )
+    bin2 = ic.image_to_bin(
+        png,
+        width=W,
+        height=H,
+        mode="none",
+        saturation=1.0,
+        contrast=1.0,
+        sharpen=0,
+        tone=0,
+        preprocess=False,
+    )
     assert bin1 == bin2
     assert len(bin1) == W * H // 2
     nibbles = {b >> 4 for b in bin1} | {b & 0x0F for b in bin1}

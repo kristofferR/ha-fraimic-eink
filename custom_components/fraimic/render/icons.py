@@ -13,23 +13,22 @@ never raise.
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from pathlib import Path
 
 _MDI_FILE = Path(__file__).parent / "mdi" / "mdi-paths.json"
 
-_paths: dict[str, str] | None = None
+
+@lru_cache(maxsize=1)
+def _load_paths() -> dict[str, str]:
+    try:
+        return json.loads(_MDI_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
 
 
 def icon_path(name: str | None) -> str | None:
     """Return the 24x24 SVG path data for an ``mdi:`` icon name, or None."""
-    global _paths  # noqa: PLW0603 - simple one-shot cache
     if not name:
         return None
-    paths = _paths
-    if paths is None:
-        try:
-            paths = json.loads(_MDI_FILE.read_text(encoding="utf-8"))
-        except (OSError, ValueError):
-            paths = {}
-        _paths = paths
-    return paths.get(name.removeprefix("mdi:"))
+    return _load_paths().get(name.removeprefix("mdi:"))
