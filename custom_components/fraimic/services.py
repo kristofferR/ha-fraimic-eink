@@ -34,6 +34,7 @@ from .const import (
     ATTR_ROTATE,
     ATTR_SATURATION,
     ATTR_SCREEN,
+    ATTR_SCREEN_ID,
     ATTR_SHARPEN,
     ATTR_TONE,
     ATTR_URL,
@@ -60,6 +61,7 @@ from .const import (
 from .image_convert import convert_image
 from .render.display import async_show_screen
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
+from .screens import screen_by_key
 from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
@@ -109,12 +111,25 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
 )
 
 
-RENDER_SCREEN_SCHEMA = vol.Schema(
-    {
-        vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
-        vol.Required(ATTR_SCREEN): vol.All(dict, SCREEN_SCHEMA),
-        vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
-    }
+def _require_screen_or_id(data: dict) -> dict:
+    if (ATTR_SCREEN in data) == (ATTR_SCREEN_ID in data):
+        raise vol.Invalid(
+            f"Provide exactly one of {ATTR_SCREEN} (inline definition) or "
+            f"{ATTR_SCREEN_ID} (a stored screen's id or name)"
+        )
+    return data
+
+
+RENDER_SCREEN_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+            vol.Exclusive(ATTR_SCREEN, "screen"): vol.All(dict, SCREEN_SCHEMA),
+            vol.Exclusive(ATTR_SCREEN_ID, "screen"): cv.string,
+            vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
+        }
+    ),
+    _require_screen_or_id,
 )
 
 
@@ -187,7 +202,14 @@ async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:
     """Handle the ``fraimic.render_screen`` service call."""
     hass = call.hass
     entry = _resolve_entry(hass, call)
-    screen = screen_from_dict(call.data[ATTR_SCREEN])
+    if (key := call.data.get(ATTR_SCREEN_ID)) is not None:
+        screen = screen_by_key(entry, key)
+        if screen is None:
+            raise ServiceValidationError(
+                f"No stored screen with id or name {key!r} on this frame"
+            )
+    else:
+        screen = screen_from_dict(call.data[ATTR_SCREEN])
     result = await async_show_screen(
         hass, entry, screen, preview_only=call.data[ATTR_PREVIEW_ONLY]
     )

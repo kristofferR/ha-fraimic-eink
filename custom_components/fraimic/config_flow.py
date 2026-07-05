@@ -6,7 +6,13 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryFlow,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -188,6 +194,17 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(config_entry) -> FraimicOptionsFlow:
         """Return the options flow handler."""
         return FraimicOptionsFlow()
+
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """Dashboard screens are managed as subentries of a frame."""
+        from .screens import SUBENTRY_TYPE_SCREEN
+        from .subentry_flow import ScreenSubentryFlowHandler
+
+        return {SUBENTRY_TYPE_SCREEN: ScreenSubentryFlowHandler}
 
 
 class FraimicOptionsFlow(OptionsFlow):

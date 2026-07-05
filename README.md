@@ -302,6 +302,26 @@ Screen-level options: `name` (shown in the header), `background` / `accent` / pe
 [Material Design Icon](https://pictogrammers.com/library/mdi/) (`mdi:...`), same names as
 everywhere in HA.
 
+### Managing screens in the UI
+
+Screens can also be created **without any YAML**: on the frame's device page (Settings →
+Devices & Services → Fraimic), choose **Add dashboard screen**. A short wizard asks for the
+basics (name, layout, colours, rotation interval, optional time-of-day window) and then walks
+through each slot with a widget picker and that widget's options — entity pickers, icon picker,
+template editor, the lot. Screens are stored on the frame's config entry and can be edited or
+deleted there later.
+
+Show a stored screen by its name (or id) instead of an inline definition:
+
+```yaml
+action: fraimic.render_screen
+data:
+  screen_id: Gangen
+```
+
+(Gauge `thresholds` are the one option not exposed in the wizard — use the inline YAML form for
+those.)
+
 ### Designing without burning refreshes
 
 Every upload is a full ~30 s e-ink refresh and costs battery. Add `preview_only: true` to the

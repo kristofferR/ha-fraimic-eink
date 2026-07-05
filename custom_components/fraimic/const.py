@@ -165,6 +165,7 @@ SERVICE_UPLOAD_IMAGE: Final = "upload_image"
 SERVICE_RENDER_SCREEN: Final = "render_screen"
 
 ATTR_SCREEN: Final = "screen"
+ATTR_SCREEN_ID: Final = "screen_id"
 ATTR_PREVIEW_ONLY: Final = "preview_only"
 
 ATTR_CONFIG_ENTRY: Final = "config_entry_id"
