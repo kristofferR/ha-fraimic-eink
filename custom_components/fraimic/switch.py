@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
+from .scheduler import FraimicScheduler
 
 
 async def async_setup_entry(
@@ -35,7 +36,7 @@ class FraimicPlaylistSwitch(FraimicEntity, SwitchEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_playlist"
 
     @property
-    def _scheduler(self):
+    def _scheduler(self) -> FraimicScheduler | None:
         return self.coordinator.config_entry.runtime_data.scheduler
 
     async def async_added_to_hass(self) -> None:

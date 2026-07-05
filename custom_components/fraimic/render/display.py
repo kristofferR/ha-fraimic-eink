@@ -145,8 +145,8 @@ async def async_show_screen(
         skip_if_hash=skip_if_hash,
         hold_playlist=hold_playlist,
     )
-    if result["uploaded"]:
-        _set_screen_preview(runtime, runtime.last_preview, result["mode"])
+    preview_png = result.pop("preview_png", None)
+    _set_screen_preview(runtime, preview_png, result["mode"])
     return {"width": width, "height": height, **result}
 
 

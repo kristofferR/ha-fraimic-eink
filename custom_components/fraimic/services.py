@@ -311,36 +311,51 @@ async def async_render_and_upload(
     """
     runtime = entry.runtime_data
     scheduler = runtime.scheduler
+    external_started = False
     if hold_playlist and scheduler is not None:
         if scheduler.busy:
             raise HomeAssistantError("A playlist upload is already in progress")
-        scheduler.notify_external_upload()
+        scheduler.begin_external_upload()
+        external_started = True
+    try:
+        async with runtime.upload_lock:
+            bin_data, preview_png, used_mode = await async_convert_for_entry(
+                hass, entry, raw, overrides, preprocess=preprocess
+            )
+            content_hash = hashlib.sha256(bin_data).hexdigest()
+            if preview_png:
+                runtime.last_preview = preview_png
+                if runtime.preview_image is not None:
+                    runtime.preview_image.set_preview(preview_png, used_mode)
+            if skip_if_hash is not None and content_hash == skip_if_hash:
+                return {
+                    "mode": used_mode,
+                    "content_hash": content_hash,
+                    "uploaded": False,
+                    "preview_png": preview_png,
+                }
 
-    async with runtime.upload_lock:
-        bin_data, preview_png, used_mode = await async_convert_for_entry(
-            hass, entry, raw, overrides, preprocess=preprocess
-        )
-        content_hash = hashlib.sha256(bin_data).hexdigest()
-        if skip_if_hash is not None and content_hash == skip_if_hash:
-            return {"mode": used_mode, "content_hash": content_hash, "uploaded": False}
+            try:
+                await runtime.client.upload_image(bin_data)
+            except FraimicError as err:
+                raise FrameUploadError(f"Could not upload to the frame: {err}") from err
 
-        try:
-            await runtime.client.upload_image(bin_data)
-        except FraimicError as err:
-            raise FrameUploadError(f"Could not upload to the frame: {err}") from err
+            if external_started:
+                scheduler.finish_external_upload(uploaded=True)
+                external_started = False
 
-        if preview_png:
-            runtime.last_preview = preview_png
-            if runtime.preview_image is not None:
-                runtime.preview_image.set_preview(preview_png, used_mode)
+            # Pull a fresh snapshot so last-refresh / status updates promptly.
+            await runtime.coordinator.async_request_refresh()
+    finally:
+        if external_started:
+            scheduler.finish_external_upload(uploaded=False)
 
-        # Pull a fresh snapshot so last-refresh / status updates promptly.
-        await runtime.coordinator.async_request_refresh()
-        return {
-            "mode": used_mode,
-            "content_hash": content_hash,
-            "uploaded": True,
-        }
+    return {
+        "mode": used_mode,
+        "content_hash": content_hash,
+        "uploaded": True,
+        "preview_png": preview_png,
+    }
 
 
 def _convert(

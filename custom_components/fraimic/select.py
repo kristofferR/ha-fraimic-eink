@@ -10,6 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
 from .render.schema import ScreenConfig
+from .scheduler import FraimicScheduler
 
 
 def _option(screen: ScreenConfig) -> str:
@@ -39,7 +40,7 @@ class FraimicScreenSelect(FraimicEntity, SelectEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_screen"
 
     @property
-    def _scheduler(self):
+    def _scheduler(self) -> FraimicScheduler | None:
         return self.coordinator.config_entry.runtime_data.scheduler
 
     async def async_added_to_hass(self) -> None:

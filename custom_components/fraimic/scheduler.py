@@ -58,6 +58,7 @@ class FraimicScheduler:
         self._hold_until: datetime | None = None
         self._pending: ScreenConfig | None = None
         self._pending_requires_enabled = True
+        self._external_upload_active = False
         self._busy = False
         self._store: Store[dict[str, Any]] = Store(
             hass, STORE_VERSION, f"{DOMAIN}_playlist_{entry.entry_id}"
@@ -112,6 +113,10 @@ class FraimicScheduler:
         return self._busy
 
     @property
+    def external_upload_active(self) -> bool:
+        return self._external_upload_active
+
+    @property
     def current_screen(self) -> ScreenConfig | None:
         for screen in self.screens:
             if screen.screen_id == self.current_id:
@@ -151,6 +156,17 @@ class FraimicScheduler:
     # -- external-upload interplay ------------------------------------------
 
     @callback
+    def begin_external_upload(self) -> None:
+        """A manual upload is starting; keep playlist work out of the way."""
+        self._external_upload_active = True
+
+    @callback
+    def finish_external_upload(self, *, uploaded: bool) -> None:
+        self._external_upload_active = False
+        if uploaded:
+            self.notify_external_upload()
+
+    @callback
     def notify_external_upload(self) -> None:
         """A manual upload put unknown content on the glass.
 
@@ -174,7 +190,12 @@ class FraimicScheduler:
         await self._async_rotate(force=False)
 
     async def _async_rotate(self, *, force: bool) -> None:
-        if not self.enabled or self._busy or not self.screens:
+        if (
+            not self.enabled
+            or self._busy
+            or self._external_upload_active
+            or not self.screens
+        ):
             return
         now = dt_util.now()
         if not force:
@@ -219,6 +240,8 @@ class FraimicScheduler:
             )
             return
         except HomeAssistantError as err:
+            if manual:
+                raise
             self.current_id = screen.screen_id
             self._last_rotation = dt_util.utcnow()
             await self._async_save()

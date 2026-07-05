@@ -196,7 +196,12 @@ def test_upload_path_uploads_and_updates_screen_preview(
         assert skip_if_hash is None
         calls.append(("upload", png, overrides, preprocess, hold_playlist))
         entry.runtime_data.last_preview = b"uploaded-preview"
-        return {"uploaded": True, "content_hash": "abc123", "mode": "none"}
+        return {
+            "uploaded": True,
+            "content_hash": "abc123",
+            "mode": "none",
+            "preview_png": b"uploaded-preview",
+        }
 
     monkeypatch.setattr(display, "async_build_context", build_context)
     monkeypatch.setattr(display, "render_screen", render_screen)
