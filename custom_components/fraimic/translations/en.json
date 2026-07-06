@@ -49,7 +49,7 @@
             "layout": "Layout",
             "background": "Background colour",
             "accent": "Accent colour",
-            "show_header": "Show header bar (name, date, time)",
+            "show_header": "Show header bar (name and date)",
             "interval": "Rotation interval (seconds)",
             "window_after": "Only show after",
             "window_before": "Only show before",
@@ -70,7 +70,7 @@
             "layout": "Layout",
             "background": "Background colour",
             "accent": "Accent colour",
-            "show_header": "Show header bar (name, date, time)",
+            "show_header": "Show header bar (name and date)",
             "interval": "Rotation interval (seconds)",
             "window_after": "Only show after",
             "window_before": "Only show before",
@@ -201,11 +201,19 @@
     "button": {
       "refresh": { "name": "Refresh display" },
       "sleep": { "name": "Sleep" },
-      "restart": { "name": "Restart" }
+      "restart": { "name": "Restart" },
+      "next_screen": { "name": "Next screen" },
+      "previous_screen": { "name": "Previous screen" }
     },
     "image": {
       "preview": { "name": "Current artwork" },
       "screen_preview": { "name": "Screen preview" }
+    },
+    "switch": {
+      "playlist": { "name": "Playlist" }
+    },
+    "select": {
+      "screen": { "name": "Screen" }
     }
   },
   "services": {

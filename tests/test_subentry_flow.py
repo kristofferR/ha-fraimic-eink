@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import types
+from types import SimpleNamespace
 
 from conftest import load
 
@@ -110,3 +111,42 @@ def test_finish_returns_widget_form_for_invalid_format(monkeypatch) -> None:
     assert result["type"] == "form"
     assert result["step_id"] == "widget_options"
     assert result["errors"] == {"base": "invalid_screen"}
+
+
+def test_finish_schedules_reload_after_create(monkeypatch) -> None:
+    flow = _load_flow(monkeypatch)
+    reloads: list[str] = []
+    handler = flow.ScreenSubentryFlowHandler()
+    handler.handler = ("entry-1", "screen")
+    handler.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_schedule_reload=reloads.append)
+    )
+    handler._basics = {"name": "Dashboard", "layout": "full"}
+
+    result = handler._finish(
+        {"layout": "full", "widgets": [{"type": "clock", "slot": "main"}]}
+    )
+
+    assert result["type"] == "create_entry"
+    assert reloads == ["entry-1"]
+
+
+def test_finish_schedules_reload_after_reconfigure(monkeypatch) -> None:
+    flow = _load_flow(monkeypatch)
+    reloads: list[str] = []
+    handler = flow.ScreenSubentryFlowHandler()
+    handler.handler = ("entry-1", "screen")
+    handler.hass = SimpleNamespace(
+        config_entries=SimpleNamespace(async_schedule_reload=reloads.append)
+    )
+    handler._existing = {"name": "Old"}
+    handler._basics = {"name": "Dashboard", "layout": "full"}
+    handler._get_entry = lambda: SimpleNamespace(entry_id="entry-1")
+    handler._get_reconfigure_subentry = lambda: SimpleNamespace(subentry_id="screen-1")
+
+    result = handler._finish(
+        {"layout": "full", "widgets": [{"type": "clock", "slot": "main"}]}
+    )
+
+    assert result["type"] == "abort"
+    assert reloads == ["entry-1"]

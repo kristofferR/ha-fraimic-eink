@@ -94,46 +94,73 @@ async def _async_picture_source(hass: HomeAssistant, screen: ScreenConfig) -> tu
 
 
 async def async_show_screen(
-    hass: HomeAssistant, entry, screen: ScreenConfig, *, preview_only: bool = False
+    hass: HomeAssistant,
+    entry,
+    screen: ScreenConfig,
+    *,
+    preview_only: bool = False,
+    skip_if_hash: str | None = None,
+    hold_playlist: bool = True,
 ) -> dict:
     """Render ``screen`` and upload it — or only refresh the screen preview.
 
     ``preview_only`` runs the identical render + quantisation but skips the
     upload: a zero-battery iterate loop against the screen-preview image
-    entity.
+    entity. ``skip_if_hash``/``hold_playlist`` are the playlist scheduler's
+    knobs (skip unchanged content; don't hold yourself).
     """
     # Local import: services.py imports this module at load time.
-    from ..services import async_convert_for_entry, async_render_and_upload
-
-    if screen.kind == KIND_PICTURE:
-        png, overrides = await _async_picture_source(hass, screen)
-        preprocess = True
-    else:
-        png, mode = await async_render_screen(hass, entry, screen)
-        overrides = dict(_NEUTRAL_OVERRIDES)
-        overrides[ATTR_MODE] = mode
-        preprocess = False
-    width, height = _viewed_size(entry)
-    runtime = entry.runtime_data
-
-    if preview_only:
-        bin_data, preview_png, used_mode = await async_convert_for_entry(
-            hass, entry, png, overrides, preprocess=preprocess
-        )
-        _set_screen_preview(runtime, preview_png, used_mode)
-        return {
-            "uploaded": False,
-            "content_hash": hashlib.sha256(bin_data).hexdigest(),
-            "mode": used_mode,
-            "width": width,
-            "height": height,
-        }
-
-    result = await async_render_and_upload(
-        hass, entry, png, overrides, preprocess=preprocess
+    from ..services import (
+        async_convert_for_entry,
+        async_render_and_upload,
+        begin_external_upload,
+        finish_external_upload,
     )
-    _set_screen_preview(runtime, runtime.last_preview, result["mode"])
-    return {"uploaded": True, "width": width, "height": height, **result}
+
+    scheduler = (
+        begin_external_upload(entry) if hold_playlist and not preview_only else None
+    )
+    uploaded = False
+    try:
+        if screen.kind == KIND_PICTURE:
+            png, overrides = await _async_picture_source(hass, screen)
+            preprocess = True
+        else:
+            png, mode = await async_render_screen(hass, entry, screen)
+            overrides = dict(_NEUTRAL_OVERRIDES)
+            overrides[ATTR_MODE] = mode
+            preprocess = False
+        width, height = _viewed_size(entry)
+        runtime = entry.runtime_data
+
+        if preview_only:
+            bin_data, preview_png, used_mode = await async_convert_for_entry(
+                hass, entry, png, overrides, preprocess=preprocess
+            )
+            _set_screen_preview(runtime, preview_png, used_mode)
+            return {
+                "uploaded": False,
+                "content_hash": hashlib.sha256(bin_data).hexdigest(),
+                "mode": used_mode,
+                "width": width,
+                "height": height,
+            }
+
+        result = await async_render_and_upload(
+            hass,
+            entry,
+            png,
+            overrides,
+            preprocess=preprocess,
+            skip_if_hash=skip_if_hash,
+            hold_playlist=scheduler is None and hold_playlist,
+        )
+        uploaded = result.get("uploaded", True)
+        preview_png = result.pop("preview_png", None)
+        _set_screen_preview(runtime, preview_png, result["mode"])
+        return {"width": width, "height": height, **result}
+    finally:
+        finish_external_upload(scheduler, uploaded=uploaded)
 
 
 def _set_screen_preview(runtime, preview_png: bytes | None, mode: str) -> None:

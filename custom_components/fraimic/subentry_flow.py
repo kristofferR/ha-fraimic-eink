@@ -444,13 +444,20 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
             return self._show_schema_error(body, err)
 
         if self._existing:
-            return self.async_update_and_abort(
+            result = self.async_update_and_abort(
                 self._get_entry(),
                 self._get_reconfigure_subentry(),
                 title=data["name"],
                 data=data,
             )
-        return self.async_create_entry(title=data["name"], data=data)
+            self._schedule_entry_reload()
+            return result
+        result = self.async_create_entry(title=data["name"], data=data)
+        self._schedule_entry_reload()
+        return result
+
+    def _schedule_entry_reload(self) -> None:
+        self.hass.config_entries.async_schedule_reload(self.handler[0])
 
     def _show_schema_error(
         self, body: dict[str, Any], err: vol.Invalid

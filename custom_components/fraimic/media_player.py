@@ -33,7 +33,11 @@ from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
-from .services import async_render_and_upload
+from .services import (
+    async_render_and_upload,
+    begin_external_upload,
+    finish_external_upload,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,6 +68,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_media_player"
         self._camera_entity: str | None = None
         self._camera_unsub = None
+        self._camera_generation = 0
 
     @property
     def state(self) -> MediaPlayerState:
@@ -74,12 +79,26 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         return MediaPlayerState.IDLE
 
     def _stop_camera_loop(self) -> None:
+        self._camera_generation += 1
         if self._camera_unsub is not None:
             self._camera_unsub()
             self._camera_unsub = None
         self._camera_entity = None
 
+    def _stop_camera_loop_and_write(self) -> None:
+        self._stop_camera_loop()
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.coordinator.config_entry.runtime_data.stop_camera_loop = (
+            self._stop_camera_loop_and_write
+        )
+
     async def async_will_remove_from_hass(self) -> None:
+        runtime = self.coordinator.config_entry.runtime_data
+        if runtime.stop_camera_loop == self._stop_camera_loop_and_write:
+            runtime.stop_camera_loop = None
         self._stop_camera_loop()
         await super().async_will_remove_from_hass()
 
@@ -88,14 +107,36 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._stop_camera_loop()
         self.async_write_ha_state()
 
-    async def _async_show_camera(self, camera_entity: str) -> None:
+    async def _async_show_camera(
+        self,
+        camera_entity: str,
+        *,
+        camera_generation: int | None = None,
+        hold_playlist: bool = True,
+    ) -> None:
         """Snapshot ``camera_entity`` and display it on the frame."""
         from homeassistant.components.camera import async_get_image
 
-        image = await async_get_image(self.hass, camera_entity)
-        await async_render_and_upload(
-            self.hass, self.coordinator.config_entry, image.content
-        )
+        entry = self.coordinator.config_entry
+        scheduler = begin_external_upload(entry)
+        uploaded = False
+        try:
+            image = await async_get_image(self.hass, camera_entity)
+            result = await async_render_and_upload(
+                self.hass, entry, image.content, hold_playlist=False
+            )
+            uploaded = result.get("uploaded", True)
+        finally:
+            stale_camera_upload = (
+                uploaded
+                and camera_generation is not None
+                and camera_generation != self._camera_generation
+            )
+            finish_external_upload(
+                scheduler,
+                uploaded=uploaded,
+                hold=hold_playlist and not stale_camera_upload,
+            )
 
     async def _async_camera_tick(self, _now) -> None:
         """Periodic camera re-snapshot; failures are logged, the loop lives on
@@ -103,7 +144,11 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         if self._camera_entity is None:
             return
         try:
-            await self._async_show_camera(self._camera_entity)
+            await self._async_show_camera(
+                self._camera_entity,
+                camera_generation=self._camera_generation,
+                hold_playlist=False,
+            )
         except HomeAssistantError as err:
             _LOGGER.warning(
                 "Periodic camera refresh of %s failed (will retry next cycle): %s",
@@ -140,11 +185,44 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             "camera."
         ):
             camera_entity = media_id.rsplit("/", 1)[-1]
-            await self._async_show_camera(camera_entity)
             interval = self.coordinator.config_entry.options.get(
                 CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
             )
+            camera_generation = None
             if interval > 0:
+                # Two competing periodic pushers make no sense — starting a
+                # camera loop switches the screen playlist off explicitly.
+                self._camera_generation += 1
+                camera_generation = self._camera_generation
+                scheduler = self.coordinator.config_entry.runtime_data.scheduler
+                disabled_scheduler = (
+                    scheduler is not None and scheduler.stored_enabled
+                )
+                if scheduler is not None and scheduler.enabled:
+                    await scheduler.async_set_enabled(
+                        False, clear_hold=False, persist=False
+                    )
+            else:
+                scheduler = None
+                disabled_scheduler = False
+            try:
+                await self._async_show_camera(
+                    camera_entity,
+                    camera_generation=camera_generation,
+                    hold_playlist=interval == 0,
+                )
+            except Exception:
+                if disabled_scheduler and scheduler is not None:
+                    await scheduler.async_set_enabled(
+                        True,
+                        rotate=False,
+                        clear_hold=False,
+                        persist=False,
+                    )
+                raise
+            if interval > 0:
+                if camera_generation != self._camera_generation:
+                    return
                 self._camera_entity = camera_entity
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)
@@ -153,26 +231,37 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             self.async_write_ha_state()
             return
 
-        if media_source.is_media_source_id(media_id):
-            sourced = await media_source.async_resolve_media(
-                self.hass, media_id, self.entity_id
-            )
-            media_id = sourced.url
-
-        url = async_process_play_media_url(self.hass, media_id)
-        session = async_get_clientsession(self.hass)
+        entry = self.coordinator.config_entry
+        scheduler = begin_external_upload(entry)
+        uploaded = False
         try:
-            resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
-        except Exception as err:  # noqa: BLE001 - surfaced to the user
-            raise HomeAssistantError(f"Could not download {url}: {err}") from err
-        async with resp:
-            if resp.status != 200:
-                raise HomeAssistantError(f"Downloading image returned HTTP {resp.status}")
-            raw = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
-        if len(raw) > MAX_DOWNLOAD_BYTES:
-            raise HomeAssistantError("Image is too large")
+            if media_source.is_media_source_id(media_id):
+                sourced = await media_source.async_resolve_media(
+                    self.hass, media_id, self.entity_id
+                )
+                media_id = sourced.url
 
-        await async_render_and_upload(self.hass, self.coordinator.config_entry, raw)
+            url = async_process_play_media_url(self.hass, media_id)
+            session = async_get_clientsession(self.hass)
+            try:
+                resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
+            except Exception as err:  # noqa: BLE001 - surfaced to the user
+                raise HomeAssistantError(f"Could not download {url}: {err}") from err
+            async with resp:
+                if resp.status != 200:
+                    raise HomeAssistantError(
+                        f"Downloading image returned HTTP {resp.status}"
+                    )
+                raw = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
+            if len(raw) > MAX_DOWNLOAD_BYTES:
+                raise HomeAssistantError("Image is too large")
+
+            result = await async_render_and_upload(
+                self.hass, entry, raw, hold_playlist=False
+            )
+            uploaded = result.get("uploaded", True)
+        finally:
+            finish_external_upload(scheduler, uploaded=uploaded)
         self._attr_media_title = media_id.rsplit("/", 1)[-1]
         self.async_write_ha_state()
 

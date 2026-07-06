@@ -21,7 +21,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .api import FraimicError
+from .api import FraimicConnectionError, FraimicError
 from .const import (
     ATTR_CONFIG_ENTRY,
     ATTR_CONTRAST,
@@ -58,6 +58,7 @@ from .const import (
     SERVICE_RENDER_SCREEN,
     SERVICE_UPLOAD_IMAGE,
 )
+from .coordinator import FraimicConfigEntry
 from .image_convert import convert_image
 from .render.display import async_show_screen
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
@@ -65,6 +66,28 @@ from .screens import AmbiguousScreenNameError, screen_by_key
 from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class FrameUploadError(HomeAssistantError):
+    """Raised when conversion succeeded but the frame upload failed."""
+
+
+def begin_external_upload(entry):
+    """Block playlist work while a manual upload is being prepared."""
+    scheduler = getattr(entry.runtime_data, "scheduler", None)
+    if scheduler is None:
+        return None
+    if scheduler.busy:
+        raise HomeAssistantError("A playlist upload is already in progress")
+    scheduler.begin_external_upload()
+    return scheduler
+
+
+def finish_external_upload(scheduler, *, uploaded: bool, hold: bool = True) -> None:
+    """Release a manual-upload guard and optionally hold the playlist."""
+    if scheduler is not None:
+        scheduler.finish_external_upload(uploaded=uploaded, hold=hold)
+
 
 def _require_one_source(data: dict) -> dict:
     """Ensure exactly one image source was provided."""
@@ -161,7 +184,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
 
 
-def _resolve_entry(hass: HomeAssistant, call: ServiceCall):
+def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> FraimicConfigEntry:
     """Return the loaded Fraimic config entry targeted by the call."""
     entry_id = call.data.get(ATTR_CONFIG_ENTRY)
     loaded = [
@@ -189,13 +212,21 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     """Handle the ``fraimic.upload_image`` service call."""
     hass = call.hass
     entry = _resolve_entry(hass, call)
-    raw = await async_get_source_bytes(
-        hass,
-        path=call.data.get(ATTR_PATH),
-        url=call.data.get(ATTR_URL),
-        entity_id=call.data.get(ATTR_IMAGE_ENTITY),
-    )
-    await async_render_and_upload(hass, entry, raw, dict(call.data))
+    scheduler = begin_external_upload(entry)
+    uploaded = False
+    try:
+        raw = await async_get_source_bytes(
+            hass,
+            path=call.data.get(ATTR_PATH),
+            url=call.data.get(ATTR_URL),
+            entity_id=call.data.get(ATTR_IMAGE_ENTITY),
+        )
+        result = await async_render_and_upload(
+            hass, entry, raw, dict(call.data), hold_playlist=False
+        )
+        uploaded = result.get("uploaded", True)
+    finally:
+        finish_external_upload(scheduler, uploaded=uploaded)
 
 
 async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:
@@ -289,32 +320,65 @@ async def async_render_and_upload(
     overrides: dict | None = None,
     *,
     preprocess: bool = True,
+    skip_if_hash: str | None = None,
+    hold_playlist: bool = True,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
     Shared by the ``upload_image`` service, the media_player ``play_media``
-    path, and screen rendering. Returns ``{"mode", "content_hash"}``.
+    path, and screen rendering. Returns
+    ``{"mode", "content_hash", "uploaded"}``.
+
+    ``skip_if_hash``: when the freshly packed ``.bin``'s SHA-256 equals this,
+    the frame is not touched (``uploaded: False``) — content is identical and
+    an upload would only burn a ~30 s e-ink refresh and battery.
+    ``hold_playlist``: manual uploads pause the playlist scheduler for one
+    interval; the scheduler's own uploads pass False.
     """
     runtime = entry.runtime_data
-    bin_data, preview_png, used_mode = await async_convert_for_entry(
-        hass, entry, raw, overrides, preprocess=preprocess
-    )
-
+    scheduler = begin_external_upload(entry) if hold_playlist else None
+    uploaded = False
     try:
-        await runtime.client.upload_image(bin_data)
-    except FraimicError as err:
-        raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+        async with runtime.upload_lock:
+            bin_data, preview_png, used_mode = await async_convert_for_entry(
+                hass, entry, raw, overrides, preprocess=preprocess
+            )
+            content_hash = hashlib.sha256(bin_data).hexdigest()
+            if skip_if_hash is not None and content_hash == skip_if_hash:
+                if preview_png:
+                    runtime.last_preview = preview_png
+                    if runtime.preview_image is not None:
+                        runtime.preview_image.set_preview(preview_png, used_mode)
+                return {
+                    "mode": used_mode,
+                    "content_hash": content_hash,
+                    "uploaded": False,
+                    "preview_png": preview_png,
+                }
 
-    if preview_png:
-        runtime.last_preview = preview_png
-        if runtime.preview_image is not None:
-            runtime.preview_image.set_preview(preview_png, used_mode)
+            try:
+                await runtime.client.upload_image(bin_data)
+            except FraimicConnectionError as err:
+                raise FrameUploadError(f"Could not upload to the frame: {err}") from err
+            except FraimicError as err:
+                raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
 
-    # Pull a fresh snapshot so last-refresh / status updates promptly.
-    await runtime.coordinator.async_request_refresh()
+            uploaded = True
+            if preview_png:
+                runtime.last_preview = preview_png
+                if runtime.preview_image is not None:
+                    runtime.preview_image.set_preview(preview_png, used_mode)
+
+            # Pull a fresh snapshot so last-refresh / status updates promptly.
+            await runtime.coordinator.async_request_refresh()
+    finally:
+        finish_external_upload(scheduler, uploaded=uploaded)
+
     return {
         "mode": used_mode,
-        "content_hash": hashlib.sha256(bin_data).hexdigest(),
+        "content_hash": content_hash,
+        "uploaded": True,
+        "preview_png": preview_png,
     }
 
 
