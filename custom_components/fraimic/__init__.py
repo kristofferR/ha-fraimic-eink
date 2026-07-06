@@ -7,6 +7,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FraimicClient
+from .art_packs import DATA_PACKS, ArtPackManager
 from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
 from .coordinator import (
     FraimicConfigEntry,
@@ -42,6 +43,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
         scenes = SceneManager(hass, domain_data[DATA_LIBRARY])
         await scenes.async_setup()
         domain_data[DATA_SCENES] = scenes
+    if DATA_PACKS not in domain_data:
+        packs = ArtPackManager(hass, domain_data[DATA_LIBRARY], domain_data[DATA_SCENES])
+        await packs.async_setup()
+        domain_data[DATA_PACKS] = packs
     async_register_views(hass)
 
     client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
@@ -73,6 +78,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
         # Last frame gone: stop the library's background worker. The HTTP views
         # stay registered (aiohttp routes can't be removed) and answer 503.
         domain_data = hass.data.get(DOMAIN, {})
+        domain_data.pop(DATA_PACKS, None)
         domain_data.pop(DATA_SCENES, None)
         library = domain_data.pop(DATA_LIBRARY, None)
         if library is not None:
