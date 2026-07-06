@@ -1,12 +1,19 @@
 """Curated art packs: one-click installs of public-domain artwork.
 
-The catalog ships with the integration (``packs/catalog.json``); installing a
-pack downloads its images from Wikimedia Commons into the library under an
-album named after the pack, then creates/updates a scene assigning an
-orientation-matched image to every loaded frame.
+Two catalog sources, merged in ``status()``:
 
-Downloads are throttled and sent with a descriptive User-Agent — Commons
-rate-limits bursty anonymous clients hard (HTTP 429).
+- Bundled (``packs/catalog.json``): ships with the integration, always
+  available, fails loudly on packaging bugs.
+- Remote: dsackr's `frame-addons` community catalog (40+ packs, pre-sized
+  images hosted on GitHub raw), fetched live with a TTL so new packs appear
+  without an integration update. Failures fall back to whatever was cached —
+  the tab degrades to bundled-only, never breaks.
+
+Installing a pack downloads its images into the library under a pack-named
+album, then creates/updates a scene assigning an orientation-matched image to
+every loaded frame. Downloads are throttled per host and sent with a
+descriptive User-Agent — Wikimedia Commons rate-limits bursty anonymous
+clients hard (HTTP 429); GitHub raw needs only a light touch.
 """
 
 from __future__ import annotations
@@ -36,7 +43,7 @@ from .const import (
 )
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary
-from .pack_model import match_images_to_frames, validate_catalog
+from .pack_model import map_remote_catalog, match_images_to_frames, validate_catalog
 from .scene_model import SCENE_SOURCE_PACK
 from .scenes import SceneManager
 
@@ -47,9 +54,18 @@ STORAGE_KEY = f"{DOMAIN}.packs"
 STORAGE_VERSION = 1
 
 DOWNLOAD_TIMEOUT = 120
-# Seconds between Commons downloads; bursts get the whole install 429'd.
-DOWNLOAD_DELAY = 2.0
+# Seconds between downloads from Wikimedia Commons (bursts get the whole
+# install 429'd) vs. everything else (GitHub raw just needs a light touch).
+DOWNLOAD_DELAY_COMMONS = 2.0
+DOWNLOAD_DELAY_DEFAULT = 0.4
 USER_AGENT = "ha-fraimic-eink/1.0 (https://github.com/kristofferR/ha-fraimic-eink)"
+
+# Community catalog: dsackr/frame-addons (per-image public-domain attribution
+# in its index; ``widget``-type packs are scripts for another integration and
+# are skipped by the mapper).
+REMOTE_PACK_RAW_BASE = "https://raw.githubusercontent.com/dsackr/frame-addons/main"
+REMOTE_PACK_INDEX_URL = f"{REMOTE_PACK_RAW_BASE}/scene_packs/index.json"
+REMOTE_PACK_TTL = 6 * 3600
 
 
 @callback
@@ -68,6 +84,8 @@ class ArtPackManager:
         self.library = library
         self.scenes = scenes
         self.packs: list[dict[str, Any]] = []
+        self.remote_packs: list[dict[str, Any]] = []
+        self._remote_fetched_at: float = 0.0
         # pack_id -> {"installed_at": ts, "images": {url: image_id}}
         self.installed: dict[str, dict[str, Any]] = {}
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
@@ -82,11 +100,39 @@ class ArtPackManager:
         data = await self._store.async_load()
         self.installed = (data or {}).get("installed", {})
 
+    async def async_refresh_remote(self) -> None:
+        """Fetch the community catalog if the cached copy is stale.
+
+        Never raises: an unreachable index just leaves the previous (possibly
+        empty) remote list in place.
+        """
+        if self.remote_packs and time.time() - self._remote_fetched_at < REMOTE_PACK_TTL:
+            return
+        session = async_get_clientsession(self.hass)
+        try:
+            resp = await session.get(
+                REMOTE_PACK_INDEX_URL,
+                timeout=aiohttp.ClientTimeout(total=30),
+                headers={"User-Agent": USER_AGENT},
+            )
+            async with resp:
+                if resp.status != 200:
+                    raise HomeAssistantError(f"HTTP {resp.status}")
+                data = await resp.json(content_type=None)
+        except (HomeAssistantError, aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+            _LOGGER.warning("Could not fetch the community pack catalog: %s", err)
+            return
+        self.remote_packs = map_remote_catalog(data or {}, REMOTE_PACK_RAW_BASE)
+        self._remote_fetched_at = time.time()
+
     async def _async_save(self) -> None:
         await self._store.async_save({"installed": self.installed})
 
+    def _all_packs(self) -> list[dict[str, Any]]:
+        return [*self.packs, *self.remote_packs]
+
     def _get_pack(self, pack_id: str) -> dict[str, Any]:
-        for pack in self.packs:
+        for pack in self._all_packs():
             if pack["id"] == pack_id:
                 return pack
         raise HomeAssistantError(f"No art pack with id {pack_id}")
@@ -101,9 +147,9 @@ class ArtPackManager:
         }
 
     def status(self) -> list[dict[str, Any]]:
-        """Catalog + installed state for the panel's Add-ons tab."""
+        """Merged catalog + installed state for the panel's Art Packs tab."""
         result = []
-        for pack in self.packs:
+        for pack in self._all_packs():
             live = self._live_images(pack["id"])
             result.append(
                 {
@@ -143,7 +189,12 @@ class ArtPackManager:
                 else:
                     live[url] = library_image.image_id
                     downloaded += 1
-                await asyncio.sleep(DOWNLOAD_DELAY)
+                delay = (
+                    DOWNLOAD_DELAY_COMMONS
+                    if "wikimedia.org" in url
+                    else DOWNLOAD_DELAY_DEFAULT
+                )
+                await asyncio.sleep(delay)
 
             self.installed[pack_id] = {"installed_at": time.time(), "images": live}
             await self._async_save()

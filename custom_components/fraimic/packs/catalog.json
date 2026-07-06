@@ -2,117 +2,35 @@
   "version": 1,
   "packs": [
     {
-      "id": "van-gogh",
-      "name": "Van Gogh",
-      "category": "Art",
-      "description": "Five Van Gogh masterpieces. Post-impressionist colour that suits the Spectra 6 palette unusually well.",
-      "attribution": "Public domain, via Wikimedia Commons (Google Art Project scans)",
-      "images": [
-        {
-          "title": "The Starry Night",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Van%20Gogh%20-%20Starry%20Night%20-%20Google%20Art%20Project.jpg?width=2600",
-          "filename": "van_gogh_starry_night.jpg"
-        },
-        {
-          "title": "Wheatfield with Crows",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Wheatfield%20with%20crows%20-%20Google%20Art%20Project.jpg?width=2600",
-          "filename": "van_gogh_wheatfield_with_crows.jpg"
-        },
-        {
-          "title": "Almond Blossom",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Almond%20blossom%20-%20Google%20Art%20Project.jpg?width=2600",
-          "filename": "van_gogh_almond_blossom.jpg"
-        },
-        {
-          "title": "Self-Portrait (1889)",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Self-Portrait%20-%20Google%20Art%20Project%20(454045).jpg?width=2600",
-          "filename": "van_gogh_self_portrait.jpg"
-        },
-        {
-          "title": "Sunflowers",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Sunflowers%20-%20VGM%20F458.jpg?width=2600",
-          "filename": "van_gogh_sunflowers.jpg"
-        }
-      ]
-    },
-    {
-      "id": "monet",
-      "name": "Monet",
-      "category": "Art",
-      "description": "Five Monet impressionist works, from Impression, Sunrise to the water lilies.",
-      "attribution": "Public domain, via Wikimedia Commons",
-      "images": [
-        {
-          "title": "Woman with a Parasol",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Woman%20with%20a%20Parasol%20-%20Madame%20Monet%20and%20Her%20Son%20-%20Google%20Art%20Project.jpg?width=2600",
-          "filename": "monet_woman_with_a_parasol.jpg"
-        },
-        {
-          "title": "Springtime",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Springtime%20-%20Google%20Art%20Project.jpg?width=2600",
-          "filename": "monet_springtime.jpg"
-        },
-        {
-          "title": "Impression, Sunrise",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Monet%20-%20Impression%2C%20Sunrise.jpg?width=2600",
-          "filename": "monet_impression_sunrise.jpg"
-        },
-        {
-          "title": "Water Lilies and Japanese Bridge",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Water-Lilies-and-Japanese-Bridge-(1897-1899)-Monet.jpg?width=2600",
-          "filename": "monet_water_lilies_bridge.jpg"
-        },
-        {
-          "title": "Garden at Sainte-Adresse",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Jardin%20%C3%A0%20Sainte-Adresse.jpg?width=2600",
-          "filename": "monet_garden_sainte_adresse.jpg"
-        }
-      ]
-    },
-    {
-      "id": "japanese-woodblock",
-      "name": "Japanese Woodblock",
-      "category": "Art",
-      "description": "Hokusai's most famous prints. Flat colour fields and bold outlines — ideal e-ink material.",
-      "attribution": "Public domain, via Wikimedia Commons",
-      "images": [
-        {
-          "title": "The Great Wave off Kanagawa",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Great%20Wave%20off%20Kanagawa.jpg?width=2600",
-          "filename": "hokusai_great_wave.jpg"
-        },
-        {
-          "title": "Fine Wind, Clear Morning (Red Fuji)",
-          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Red%20Fuji%20southern%20wind%20clear%20morning.jpg?width=2600",
-          "filename": "hokusai_red_fuji.jpg"
-        }
-      ]
-    },
-    {
       "id": "winter",
       "name": "Winter & Mist",
       "category": "Seasonal & Holiday",
       "description": "Snow, ice, and fog: Bruegel, Avercamp, Monet's magpie, and Friedrich's wanderer.",
       "attribution": "Public domain, via Wikimedia Commons",
+      "cover_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pieter%20Bruegel%20the%20Elder%20-%20Hunters%20in%20the%20Snow%20(Winter)%20-%20Google%20Art%20Project.jpg?width=480",
       "images": [
         {
           "title": "Hunters in the Snow",
           "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pieter%20Bruegel%20the%20Elder%20-%20Hunters%20in%20the%20Snow%20(Winter)%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pieter%20Bruegel%20the%20Elder%20-%20Hunters%20in%20the%20Snow%20(Winter)%20-%20Google%20Art%20Project.jpg?width=480",
           "filename": "bruegel_hunters_in_the_snow.jpg"
         },
         {
           "title": "Winter Landscape with Ice Skaters",
           "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hendrick%20Avercamp%20-%20Winterlandschap%20met%20ijsvermaak.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hendrick%20Avercamp%20-%20Winterlandschap%20met%20ijsvermaak.jpg?width=480",
           "filename": "avercamp_winter_landscape.jpg"
         },
         {
           "title": "The Magpie",
           "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20The%20Magpie%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20The%20Magpie%20-%20Google%20Art%20Project.jpg?width=480",
           "filename": "monet_the_magpie.jpg"
         },
         {
           "title": "Wanderer above the Sea of Fog",
           "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Caspar%20David%20Friedrich%20-%20Wanderer%20above%20the%20sea%20of%20fog.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Caspar%20David%20Friedrich%20-%20Wanderer%20above%20the%20sea%20of%20fog.jpg?width=480",
           "filename": "friedrich_wanderer.jpg"
         }
       ]

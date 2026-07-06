@@ -41,6 +41,83 @@ def validate_catalog(data: dict[str, Any]) -> list[dict[str, Any]]:
     return packs
 
 
+# dsackr/frame-addons category ids → display names (unknown ids title-case).
+_REMOTE_CATEGORIES = {
+    "famous_artists": "Famous Artists",
+    "seasons": "Seasonal & Holiday",
+    "history": "History",
+    "nature": "Nature",
+    "architecture": "Architecture",
+    "productivity": "Productivity",
+    "speed": "Speed",
+}
+
+# Prefix for remote pack ids so they can never collide with bundled ones.
+REMOTE_PACK_PREFIX = "fa-"
+
+
+def _remote_category(pack: dict[str, Any]) -> str:
+    raw = pack.get("categories") or [pack.get("category") or "Art"]
+    first = str(raw[0])
+    return _REMOTE_CATEGORIES.get(first, first.replace("_", " ").title())
+
+
+def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, Any]]:
+    """Map a frame-addons ``index.json`` into our internal pack shape.
+
+    Unlike the bundled catalog (a packaging bug should fail loudly), remote
+    content is third-party: anything malformed — and ``widget``-type packs,
+    which are scripts for a different integration — is skipped, never fatal.
+    """
+    packs: list[dict[str, Any]] = []
+    raw_base = raw_base.rstrip("/")
+    for pack in data.get("packs") or []:
+        if not isinstance(pack, dict) or pack.get("type") == "widget":
+            continue
+        pack_id = pack.get("id")
+        name = pack.get("name")
+        if not pack_id or not isinstance(pack_id, str) or not isinstance(name, str):
+            continue
+        images = []
+        for image in pack.get("images") or []:
+            if not isinstance(image, dict):
+                continue
+            path = image.get("path")
+            filename = image.get("filename")
+            if not path or not filename or not isinstance(path, str):
+                continue
+            url = f"{raw_base}/{path.lstrip('/')}"
+            images.append(
+                {
+                    "title": str(image.get("title") or filename),
+                    "url": url,
+                    # Prefix so remote filenames can't collide across packs.
+                    "filename": f"{pack_id}_{filename}",
+                    # GitHub-raw images are hot-linkable; galleries use them directly.
+                    "preview_url": url,
+                    "source_url": image.get("commons_url"),
+                }
+            )
+        if not images:
+            continue
+        cover = pack.get("cover")
+        packs.append(
+            {
+                "id": f"{REMOTE_PACK_PREFIX}{pack_id}",
+                "name": name,
+                "category": _remote_category(pack),
+                "description": str(pack.get("description") or ""),
+                "attribution": str(pack.get("license") or "See per-image sources")
+                + " — content from dsackr/frame-addons",
+                "cover_url": f"{raw_base}/{str(cover).lstrip('/')}"
+                if cover
+                else images[0]["url"],
+                "images": images,
+            }
+        )
+    return packs
+
+
 def _is_landscape(width: int | None, height: int | None) -> bool | None:
     if not width or not height:
         return None

@@ -400,7 +400,10 @@ class PacksView(_PackViewMixin):
     name = "api:fraimic:packs"
 
     async def get(self, request: web.Request) -> web.Response:
-        return self.json({"packs": self._packs(request).status()})
+        manager = self._packs(request)
+        # TTL-cached; a failed fetch degrades to bundled-only, never errors.
+        await manager.async_refresh_remote()
+        return self.json({"packs": manager.status()})
 
 
 class PackInstallView(_PackViewMixin):

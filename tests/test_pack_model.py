@@ -34,11 +34,57 @@ pm = _load()
 def test_bundled_catalog_is_valid():
     data = json.loads((PKG_DIR / "packs" / "catalog.json").read_text(encoding="utf-8"))
     packs = pm.validate_catalog(data)
-    assert len(packs) >= 3
+    assert len(packs) >= 1
     # Every filename must be unique across the catalog so installs into the
     # library never collide on originals' names.
     filenames = [image["filename"] for pack in packs for image in pack["images"]]
     assert len(filenames) == len(set(filenames))
+
+
+def test_map_remote_catalog():
+    data = {
+        "packs": [
+            {
+                "id": "monet",
+                "name": "Claude Monet",
+                "description": "Impressionism.",
+                "category": "famous_artists",
+                "categories": ["famous_artists"],
+                "license": "Public domain",
+                "cover": "scene_packs/monet/01.jpg",
+                "images": [
+                    {
+                        "filename": "01.jpg",
+                        "path": "scene_packs/monet/01.jpg",
+                        "title": "Impression, Sunrise",
+                        "commons_url": "https://commons.wikimedia.org/wiki/File:x.jpg",
+                    }
+                ],
+            },
+            # Widget packs are scripts for a different integration: skipped.
+            {"id": "agenda", "name": "Agenda", "type": "widget", "images": []},
+            # Malformed entries are skipped, not fatal.
+            {"name": "no id"},
+            {"id": "empty", "name": "Empty", "images": []},
+        ]
+    }
+    packs = pm.map_remote_catalog(data, "https://raw.example/main/")
+    assert len(packs) == 1
+    pack = packs[0]
+    assert pack["id"] == "fa-monet"
+    assert pack["category"] == "Famous Artists"
+    assert pack["cover_url"] == "https://raw.example/main/scene_packs/monet/01.jpg"
+    image = pack["images"][0]
+    assert image["url"] == "https://raw.example/main/scene_packs/monet/01.jpg"
+    assert image["preview_url"] == image["url"]
+    assert image["filename"] == "monet_01.jpg"
+    assert image["source_url"].startswith("https://commons.wikimedia.org/")
+    assert "frame-addons" in pack["attribution"]
+
+
+def test_map_remote_catalog_empty_or_garbage():
+    assert pm.map_remote_catalog({}, "https://x") == []
+    assert pm.map_remote_catalog({"packs": ["nope", 4]}, "https://x") == []
 
 
 @pytest.mark.parametrize(
