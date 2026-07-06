@@ -84,14 +84,29 @@ def _header(doc: SvgDoc, screen: ScreenConfig, ctx: RenderContext, theme: Theme)
     doc.line(x0, rule_y, x1, rule_y, theme.ink, theme.rule)
 
 
-def render_screen_png(
+def render_screen(
     screen: ScreenConfig, ctx: RenderContext, width: int, height: int
-) -> bytes:
-    """Rasterise the composed screen to 100% palette-pure PNG bytes.
+) -> tuple[bytes, str]:
+    """Rasterise the composed screen; return (png, dither_mode).
 
     Executor-only (CPU-bound). Antialiased edge pixels are snapped back to
     the set of colours the screen actually uses — otherwise they quantise
     unpredictably on the panel (grey glyph edges land on muted green).
+    Embedded photo regions are pre-dithered by their widget renderer and
+    excluded from the snap, so the final screen remains palette-pure and can
+    use ``mode="none"`` without diffusion leaking into vector regions.
     """
+    from ..const import MODE_NONE
+
     doc = build_doc(screen, ctx, width, height)
-    return snap_to_colors(rasterize(doc.to_string(), width, height), doc.colors)
+    png = snap_to_colors(
+        rasterize(doc.to_string(), width, height), doc.colors, doc.raster_rects
+    )
+    return png, MODE_NONE
+
+
+def render_screen_png(
+    screen: ScreenConfig, ctx: RenderContext, width: int, height: int
+) -> bytes:
+    """Convenience wrapper returning only the PNG bytes."""
+    return render_screen(screen, ctx, width, height)[0]

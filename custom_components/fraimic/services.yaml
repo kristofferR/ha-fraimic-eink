@@ -18,7 +18,9 @@ render_screen:
       description: >-
         The screen as YAML: a layout (full, half_horizontal, half_vertical or
         quadrant) and one widget per slot. Widget types: clock, date, stat,
-        entities, template.
+        entities, template, weather_current, weather_forecast, calendar, todo,
+        chart, gauge, progress, image. Or "kind: picture" with a url/entity
+        for a full-bleed image (e.g. a dashboard-screenshot add-on URL).
       required: true
       example: >-
         layout: quadrant

@@ -31,19 +31,25 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     class HomeAssistantError(Exception):
         pass
 
+    class ServiceValidationError(HomeAssistantError):
+        pass
+
     class TemplateError(Exception):
         pass
 
     class Template:
-        def __init__(self, value: str, hass: object) -> None:
+        def __init__(self, value: str, _hass: object) -> None:
             self._value = value
 
         def async_render(self, *, parse_result: bool = False) -> str:
+            if parse_result:
+                return self._value
             return self._value
 
     core.HomeAssistant = HomeAssistant
     core.State = State
     exceptions.HomeAssistantError = HomeAssistantError
+    exceptions.ServiceValidationError = ServiceValidationError
     exceptions.TemplateError = TemplateError
     template.Template = Template
     template.TemplateError = TemplateError
@@ -65,7 +71,9 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     return HomeAssistantError
 
 
-def _load_display(monkeypatch: pytest.MonkeyPatch) -> tuple[types.ModuleType, type[Exception]]:
+def _load_display(
+    monkeypatch: pytest.MonkeyPatch,
+) -> tuple[types.ModuleType, type[Exception]]:
     error = _install_ha_stubs(monkeypatch)
     for name in ("fraimic.render.display", "fraimic.render.fetch"):
         sys.modules.pop(name, None)
@@ -99,7 +107,7 @@ def _entry(rotation: int = 0) -> types.SimpleNamespace:
 
 
 def _screen() -> types.SimpleNamespace:
-    return types.SimpleNamespace(name="Dashboard")
+    return types.SimpleNamespace(name="Dashboard", kind="dashboard")
 
 
 def _install_services(monkeypatch: pytest.MonkeyPatch, **attrs: object) -> None:
@@ -113,16 +121,18 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
     display, _ = _load_display(monkeypatch)
     calls: list[tuple[str, bytes, dict, bool]] = []
 
-    async def build_context(hass: object, screen: object) -> object:
+    async def build_context(_hass: object, _screen: object) -> object:
         return object()
 
-    def render_screen_png(screen: object, ctx: object, width: int, height: int) -> bytes:
+    def render_screen(
+        _screen: object, _ctx: object, width: int, height: int
+    ) -> tuple[bytes, str]:
         assert (width, height) == (480, 800)
-        return b"screen-png"
+        return b"screen-png", "none"
 
     async def convert_for_entry(
-        hass: object,
-        entry: object,
+        _hass: object,
+        _entry: object,
         png: bytes,
         overrides: dict,
         *,
@@ -131,11 +141,11 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
         calls.append(("convert", png, overrides, preprocess))
         return b"bin-data", b"preview-png", "none"
 
-    async def render_and_upload(*args: object, **kwargs: object) -> dict:
+    async def render_and_upload(*_args: object, **_kwargs: object) -> dict:
         raise AssertionError("preview-only must not upload")
 
     monkeypatch.setattr(display, "async_build_context", build_context)
-    monkeypatch.setattr(display, "render_screen_png", render_screen_png)
+    monkeypatch.setattr(display, "render_screen", render_screen)
     _install_services(
         monkeypatch,
         async_convert_for_entry=convert_for_entry,
@@ -160,17 +170,21 @@ def test_upload_path_uploads_and_updates_screen_preview(
     display, _ = _load_display(monkeypatch)
     calls: list[tuple[str, bytes, dict, bool]] = []
 
-    async def build_context(hass: object, screen: object) -> object:
+    async def build_context(_hass: object, _screen: object) -> object:
         return object()
 
-    def render_screen_png(screen: object, ctx: object, width: int, height: int) -> bytes:
-        return b"screen-png"
+    def render_screen(
+        _screen: object, _ctx: object, _width: int, _height: int
+    ) -> tuple[bytes, str]:
+        return b"screen-png", "none"
 
-    async def convert_for_entry(*args: object, **kwargs: object) -> tuple[bytes, bytes, str]:
+    async def convert_for_entry(
+        *_args: object, **_kwargs: object
+    ) -> tuple[bytes, bytes, str]:
         raise AssertionError("upload path must use async_render_and_upload")
 
     async def render_and_upload(
-        hass: object,
+        _hass: object,
         entry: object,
         png: bytes,
         overrides: dict,
@@ -182,7 +196,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
         return {"content_hash": "abc123", "mode": "none"}
 
     monkeypatch.setattr(display, "async_build_context", build_context)
-    monkeypatch.setattr(display, "render_screen_png", render_screen_png)
+    monkeypatch.setattr(display, "render_screen", render_screen)
     _install_services(
         monkeypatch,
         async_convert_for_entry=convert_for_entry,
@@ -202,7 +216,9 @@ def test_upload_path_uploads_and_updates_screen_preview(
         "mode": "none",
     }
     assert calls == [("upload", b"screen-png", display._NEUTRAL_OVERRIDES, False)]
-    assert entry.runtime_data.screen_preview_image.calls == [(b"uploaded-preview", "none")]
+    assert entry.runtime_data.screen_preview_image.calls == [
+        (b"uploaded-preview", "none")
+    ]
 
 
 def test_render_errors_become_home_assistant_errors(
@@ -210,17 +226,57 @@ def test_render_errors_become_home_assistant_errors(
 ) -> None:
     display, error = _load_display(monkeypatch)
 
-    async def build_context(hass: object, screen: object) -> object:
+    async def build_context(_hass: object, _screen: object) -> object:
         return object()
 
-    def render_screen_png(screen: object, ctx: object, width: int, height: int) -> bytes:
+    def render_screen(
+        _screen: object, _ctx: object, _width: int, _height: int
+    ) -> tuple[bytes, str]:
         raise ValueError("bad svg")
 
     monkeypatch.setattr(display, "async_build_context", build_context)
-    monkeypatch.setattr(display, "render_screen_png", render_screen_png)
+    monkeypatch.setattr(display, "render_screen", render_screen)
 
     with pytest.raises(error, match="Failed to render screen 'Dashboard': bad svg"):
         asyncio.run(display.async_render_screen(_Hass(), _entry(), _screen()))
+
+
+def test_picture_source_redacts_url_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    display, error = _load_display(monkeypatch)
+
+    aiohttp = types.ModuleType("aiohttp")
+    aiohttp_client = types.ModuleType("homeassistant.helpers.aiohttp_client")
+
+    class ClientTimeout:
+        def __init__(self, *, total: int) -> None:
+            self.total = total
+
+    class Session:
+        async def get(self, _url: str, *, timeout: ClientTimeout) -> object:
+            assert timeout.total == 30
+            raise OSError("network down")
+
+    def async_get_clientsession(_hass: object) -> Session:
+        return Session()
+
+    aiohttp.ClientTimeout = ClientTimeout
+    aiohttp_client.async_get_clientsession = async_get_clientsession
+    monkeypatch.setitem(sys.modules, "aiohttp", aiohttp)
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.helpers.aiohttp_client", aiohttp_client
+    )
+    sys.modules.pop("fraimic.source", None)
+
+    screen = types.SimpleNamespace(
+        source={"url": "https://example.test/screenshot.png?token=secret"}
+    )
+
+    with pytest.raises(error) as err:
+        asyncio.run(display._async_picture_source(_Hass(), screen))
+
+    message = str(err.value)
+    assert "Could not download image URL: network down" in message
+    assert "token=secret" not in message
 
 
 def test_set_screen_preview_requires_preview_data(

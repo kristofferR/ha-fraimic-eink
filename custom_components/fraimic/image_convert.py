@@ -494,6 +494,19 @@ def _indices_to_png(indices, width: int, height: int, preview_rotate: int = 0) -
     return buf.getvalue()
 
 
+def quantize_image_to_png(image, width: int, height: int, mode: str) -> bytes:
+    """Quantize an already-sized RGB PIL image to a full-size palette PNG."""
+    import numpy as np
+    from PIL import Image
+
+    indices = _render_indices(image, width, height, mode)
+    palette = np.array(SPECTRA6_RGB, dtype=np.uint8)
+    rgb = palette[np.asarray(indices, dtype=np.uint8) % SPECTRA6_LEVELS]
+    out = io.BytesIO()
+    Image.fromarray(rgb.reshape(height, width, 3), mode="RGB").save(out, format="PNG")
+    return out.getvalue()
+
+
 def convert_image(
     raw: bytes,
     *,

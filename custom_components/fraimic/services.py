@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import logging
 
-import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import (
@@ -21,7 +20,6 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FraimicError
 from .const import (
@@ -59,10 +57,10 @@ from .const import (
     SERVICE_RENDER_SCREEN,
     SERVICE_UPLOAD_IMAGE,
 )
-from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .image_convert import convert_image
 from .render.display import async_show_screen
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
+from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -172,69 +170,16 @@ def _resolve_entry(hass: HomeAssistant, call: ServiceCall):
     return loaded[0]
 
 
-async def _async_get_source_bytes(hass: HomeAssistant, call: ServiceCall) -> bytes:
-    """Fetch the raw source image bytes from path, url, or an entity."""
-    if (path := call.data.get(ATTR_PATH)) is not None:
-        if not hass.config.is_allowed_path(path):
-            raise ServiceValidationError(
-                f"Path {path} is not allowed; add its folder to allowlist_external_dirs"
-            )
-
-        def _read() -> bytes:
-            with open(path, "rb") as file:
-                return file.read(MAX_DOWNLOAD_BYTES + 1)
-
-        try:
-            data = await hass.async_add_executor_job(_read)
-        except OSError as err:
-            raise ServiceValidationError(f"Could not read {path}: {err}") from err
-        if len(data) > MAX_DOWNLOAD_BYTES:
-            raise ServiceValidationError("Source file is too large")
-        return data
-
-    if (url := call.data.get(ATTR_URL)) is not None:
-        session = async_get_clientsession(hass)
-        try:
-            resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
-        except Exception as err:  # noqa: BLE001 - surfaced to the user
-            raise HomeAssistantError(f"Could not download {url}: {err}") from err
-        async with resp:
-            if resp.status != 200:
-                raise HomeAssistantError(f"Downloading {url} returned HTTP {resp.status}")
-            data = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
-            if len(data) > MAX_DOWNLOAD_BYTES:
-                raise ServiceValidationError("Downloaded image is too large")
-            return data
-
-    entity_id = call.data[ATTR_IMAGE_ENTITY]
-    domain = entity_id.split(".", 1)[0]
-    if domain == "camera":
-        from homeassistant.components.camera import async_get_image
-
-        image = await async_get_image(hass, entity_id)
-        return _checked(image.content)
-    if domain == "image":
-        from homeassistant.components.image import async_get_image
-
-        image = await async_get_image(hass, entity_id)
-        return _checked(image.content)
-    raise ServiceValidationError(
-        f"{entity_id} must be a camera or image entity"
-    )
-
-
-def _checked(data: bytes) -> bytes:
-    """Apply the same source-size cap used for file/URL sources."""
-    if len(data) > MAX_DOWNLOAD_BYTES:
-        raise ServiceValidationError("Source image is too large")
-    return data
-
-
 async def _async_handle_upload_image(call: ServiceCall) -> None:
     """Handle the ``fraimic.upload_image`` service call."""
     hass = call.hass
     entry = _resolve_entry(hass, call)
-    raw = await _async_get_source_bytes(hass, call)
+    raw = await async_get_source_bytes(
+        hass,
+        path=call.data.get(ATTR_PATH),
+        url=call.data.get(ATTR_URL),
+        entity_id=call.data.get(ATTR_IMAGE_ENTITY),
+    )
     await async_render_and_upload(hass, entry, raw, dict(call.data))
 
 
