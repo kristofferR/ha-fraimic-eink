@@ -23,6 +23,7 @@ from .const import CONF_HEIGHT, CONF_ROTATION, CONF_WIDTH, DEFAULT_ROTATION, DOM
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary, get_library
 from .scenes import SceneManager, get_scene_manager
+from .screens_http import screens_views
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,6 +57,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         PacksView(),
         PackInstallView(),
         PackUninstallView(),
+        *screens_views(),
     ):
         hass.http.register_view(view)
 

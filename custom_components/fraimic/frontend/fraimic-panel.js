@@ -21,6 +21,9 @@ class FraimicPanel extends HTMLElement {
     this._packs = [];
     this._albumFilter = "";
     this._packCategory = "";
+    this._screens = [];
+    this._screensEntry = "";
+    this._descriptors = null;
     this._selectMode = false;
     this._selected = new Set();
     this._highlightEntry = null;
@@ -478,6 +481,48 @@ class FraimicPanel extends HTMLElement {
         .gallery .caption { margin-top: 8px; font-size: 14px; }
         .gallery .caption span { color: var(--secondary-text-color); font-size: 12px; }
         .gallery .navrow { display: flex; justify-content: center; gap: 16px; margin-top: 8px; align-items: center; }
+        /* Screen editor */
+        .dialog.wide { max-width: min(1280px, 96vw); width: 96vw; }
+        .editor-grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+        .editor-form { flex: 1 1 340px; min-width: 300px; max-width: 480px; }
+        .editor-preview { flex: 1 1 400px; min-width: 300px; position: sticky; top: 0; }
+        .editor-preview img {
+          width: 100%;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          background: #fff;
+          min-height: 120px;
+        }
+        .editor-preview .status { font-size: 12px; color: var(--secondary-text-color); margin-top: 6px; min-height: 16px; white-space: pre-wrap; }
+        .editor-preview .status.err { color: var(--error-color); }
+        .slotbox {
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          padding: 10px 12px;
+          margin: 10px 0;
+        }
+        .slotbox .slotname {
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: var(--secondary-text-color);
+          margin-bottom: 6px;
+        }
+        .fieldrow { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
+        .fieldrow label { min-width: 130px; font-size: 13px; }
+        .fieldrow input[type="text"], .fieldrow input[type="number"], .fieldrow select, .fieldrow textarea {
+          flex: 1;
+          min-width: 120px;
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          padding: 5px 8px;
+          font: inherit;
+          font-size: 13px;
+        }
+        .fieldrow textarea { min-height: 56px; resize: vertical; }
+        .fieldrow .help { flex-basis: 100%; font-size: 11px; color: var(--secondary-text-color); margin-left: 138px; }
       </style>
       <header><h1>Fraimic</h1></header>
       <nav id="tabs"></nav>
@@ -489,6 +534,7 @@ class FraimicPanel extends HTMLElement {
       ["library", "Library"],
       ["frames", "Frames"],
       ["scenes", "Scenes"],
+      ["screens", "Screens"],
       ["packs", "Art Packs"],
     ];
     const nav = this.shadowRoot.getElementById("tabs");
@@ -515,6 +561,7 @@ class FraimicPanel extends HTMLElement {
     if (this._tab === "library") this._renderLibrary(content);
     else if (this._tab === "frames") this._renderFrames(content);
     else if (this._tab === "scenes") this._renderScenes(content);
+    else if (this._tab === "screens") this._renderScreens(content);
     else this._renderPacks(content);
   }
 
@@ -1438,12 +1485,463 @@ class FraimicPanel extends HTMLElement {
     ]);
   }
 
+  /* ------------------------------------------------------------- screens */
+
+  async _loadScreens() {
+    if (!this._frames.length) {
+      this._screens = [];
+      return;
+    }
+    if (!this._screensEntry || !this._frames.some((f) => f.entry_id === this._screensEntry)) {
+      this._screensEntry = this._frames[0].entry_id;
+    }
+    if (!this._descriptors) {
+      this._descriptors = await this._api("screens/descriptors");
+    }
+    this._screens = (await this._api(`screens?entry_id=${this._screensEntry}`)).screens;
+  }
+
+  _renderScreens(root) {
+    if (!this._frames.length) {
+      root.appendChild(this._el("div", { class: "empty", text: "No frames are loaded." }));
+      return;
+    }
+    // Loaded lazily: screens are per-frame and need the descriptor metadata.
+    if (!this._descriptors || this._screensLoadedFor !== this._screensEntry) {
+      root.appendChild(this._el("div", { class: "empty", text: "Loading…" }));
+      this._loadScreens()
+        .then(() => {
+          this._screensLoadedFor = this._screensEntry;
+          if (this._tab === "screens") this._renderTab();
+        })
+        .catch((err) => this._toast(err.message, true));
+      return;
+    }
+
+    const toolbar = this._el("div", { class: "toolbar" });
+    if (this._frames.length > 1) {
+      const frameSelect = this._el("select", {
+        onchange: () => {
+          this._screensEntry = frameSelect.value;
+          this._screensLoadedFor = null;
+          this._renderTab();
+        },
+      });
+      for (const frame of this._frames) {
+        const option = this._el("option", { value: frame.entry_id, text: this._frameLabel(frame) });
+        if (frame.entry_id === this._screensEntry) option.selected = true;
+        frameSelect.appendChild(option);
+      }
+      toolbar.appendChild(frameSelect);
+    }
+    toolbar.appendChild(
+      this._el("button", {
+        class: "btn raised",
+        text: "New screen",
+        onclick: () => this._openScreenEditor(null),
+      })
+    );
+    root.appendChild(toolbar);
+
+    if (!this._screens.length) {
+      root.appendChild(
+        this._el("div", {
+          class: "empty",
+          text: "No stored screens on this frame yet. A screen renders Home Assistant data (clock, weather, agenda, charts…) as e-ink artwork.",
+        })
+      );
+      return;
+    }
+    const grid = this._el("div", { class: "grid" });
+    for (const screen of this._screens) {
+      const data = screen.data || {};
+      const body = this._el("div", { class: "body" }, [
+        this._el("div", { class: "title", text: screen.title }),
+        this._el("span", { class: "chip", text: data.kind === "picture" ? "picture" : data.layout || "layout" }),
+        this._el("span", {
+          class: "chip",
+          text: data.enabled === false ? "not in playlist" : `every ${Math.round((data.interval || 1800) / 60)} min`,
+        }),
+        this._el("div", {
+          class: "sub",
+          text:
+            data.kind === "picture"
+              ? data.url || data.entity || ""
+              : (data.widgets || []).map((w) => w.type).join(" · "),
+        }),
+      ]);
+      const actions = this._el("div", { class: "actions" }, [
+        this._el("button", {
+          class: "btn raised",
+          text: "Edit",
+          onclick: () => this._openScreenEditor(screen),
+        }),
+        this._el("button", {
+          class: "btn",
+          text: "Send now",
+          onclick: async (ev) => {
+            ev.target.disabled = true;
+            this._toast("Rendering and sending — the e-ink refresh takes ~30 s");
+            try {
+              await this._api("screens/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ entry_id: this._screensEntry, screen_id: screen.screen_id }),
+              });
+              this._toast("Screen sent ✓");
+            } catch (err) {
+              this._toast(err.message, true);
+            } finally {
+              ev.target.disabled = false;
+            }
+          },
+        }),
+        this._el("button", {
+          class: "btn danger",
+          text: "Delete",
+          onclick: async () => {
+            if (!confirm(`Delete screen "${screen.title}"?`)) return;
+            try {
+              await this._api(`screens/${screen.screen_id}?entry_id=${this._screensEntry}`, {
+                method: "DELETE",
+              });
+              this._screensLoadedFor = null;
+              this._renderTab();
+            } catch (err) {
+              this._toast(err.message, true);
+            }
+          },
+        }),
+      ]);
+      grid.appendChild(this._el("div", { class: "card" }, [body, actions]));
+    }
+    root.appendChild(grid);
+  }
+
+  /* The WYSIWYG editor: form on the left, a live server-rendered preview on
+   * the right. Every change re-renders the actual e-ink output (debounced)
+   * through the same pipeline that feeds the frame — what you see is exactly
+   * what gets uploaded. */
+  _openScreenEditor(stored) {
+    const descriptors = this._descriptors;
+    const layouts = descriptors.layouts;
+
+    // Editor state. `slots` maps slot name -> {type, values} (dashboard kind).
+    const def = stored
+      ? JSON.parse(JSON.stringify(stored.data))
+      : {
+          name: "New screen",
+          kind: "dashboard",
+          layout: "quadrant",
+          background: "white",
+          accent: "red",
+          padding: 32,
+          show_header: true,
+          interval: 1800,
+          enabled: true,
+        };
+    const slots = {};
+    for (const widget of def.widgets || []) {
+      const { type, slot, ...values } = widget;
+      slots[slot] = { type, values };
+    }
+    const picture = { url: def.url || "", entity: def.entity || "", fit: def.fit || "", mode: def.mode || "" };
+
+    // ---- collect(): form state -> screen dict (SCREEN_SCHEMA shape).
+    const collect = () => {
+      const screen = {
+        name: def.name,
+        kind: def.kind,
+        background: def.background,
+        accent: def.accent,
+        padding: Number(def.padding) || 0,
+        show_header: Boolean(def.show_header),
+        interval: Number(def.interval) || 1800,
+        enabled: Boolean(def.enabled),
+      };
+      if (def.windows) screen.windows = def.windows;
+      if (def.kind === "picture") {
+        if (picture.url) screen.url = picture.url;
+        if (picture.entity) screen.entity = picture.entity;
+        if (picture.fit) screen.fit = picture.fit;
+        if (picture.mode) screen.mode = picture.mode;
+        return screen;
+      }
+      screen.layout = def.layout;
+      screen.widgets = [];
+      for (const slot of layouts[def.layout]) {
+        const assigned = slots[slot];
+        if (!assigned || !assigned.type) continue;
+        const widget = { type: assigned.type, slot };
+        const fields = descriptors.widgets[assigned.type].fields;
+        for (const field of fields) {
+          const value = assigned.values[field.key];
+          if (value === undefined || value === "" || value === null) continue;
+          widget[field.key] = value;
+        }
+        screen.widgets.push(widget);
+      }
+      return screen;
+    };
+
+    // ---- live preview.
+    const previewImg = this._el("img", { alt: "preview" });
+    const status = this._el("div", { class: "status" });
+    let previewTimer = null;
+    let previewSeq = 0;
+    const renderPreview = async () => {
+      const seq = ++previewSeq;
+      status.className = "status";
+      status.textContent = "Rendering…";
+      try {
+        const resp = await this._hass.fetchWithAuth(`${API}/screens/preview`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ entry_id: this._screensEntry, screen: collect() }),
+        });
+        if (!resp.ok) {
+          let message;
+          try {
+            message = (await resp.json()).message;
+          } catch (_err) {
+            message = await resp.text().catch(() => resp.statusText);
+          }
+          throw new Error(message || resp.statusText);
+        }
+        const blob = await resp.blob();
+        if (seq !== previewSeq) return; // a newer render superseded this one
+        previewImg.src = URL.createObjectURL(blob);
+        status.textContent = "Live preview — exactly what the frame will show";
+      } catch (err) {
+        if (seq !== previewSeq) return;
+        status.className = "status err";
+        status.textContent = err.message;
+      }
+    };
+    const schedulePreview = () => {
+      clearTimeout(previewTimer);
+      previewTimer = setTimeout(renderPreview, 900);
+    };
+
+    // ---- form building blocks.
+    const entityListId = "fraimic-entity-list";
+    const datalist = this._el("datalist", { id: entityListId });
+    const interesting = /^(sensor|binary_sensor|weather|calendar|todo|camera|image|climate|light|switch|person|sun|media_player|cover|lock|number|counter|input_)/;
+    for (const entityId of Object.keys(this._hass.states)
+      .filter((id) => interesting.test(id))
+      .sort()
+      .slice(0, 3000)) {
+      datalist.appendChild(this._el("option", { value: entityId }));
+    }
+
+    const fieldInput = (field, values) => {
+      const current = values[field.key] ?? field.default ?? "";
+      let input;
+      if (field.type === "select") {
+        input = this._el("select");
+        input.appendChild(this._el("option", { value: "", text: "—" }));
+        for (const option of field.options) {
+          const el = this._el("option", { value: option, text: option });
+          if (String(current) === option) el.selected = true;
+          input.appendChild(el);
+        }
+        input.addEventListener("change", () => {
+          values[field.key] = input.value || undefined;
+          schedulePreview();
+        });
+      } else if (field.type === "bool") {
+        input = this._el("input", { type: "checkbox" });
+        input.checked = Boolean(current);
+        input.addEventListener("change", () => {
+          values[field.key] = input.checked;
+          schedulePreview();
+        });
+      } else if (field.type === "number") {
+        input = this._el("input", { type: "number", value: current === "" ? "" : String(current) });
+        if (field.min !== undefined) input.min = field.min;
+        if (field.max !== undefined) input.max = field.max;
+        input.addEventListener("input", () => {
+          values[field.key] = input.value === "" ? undefined : Number(input.value);
+          schedulePreview();
+        });
+      } else if (field.type === "textarea" || field.type === "entity_list") {
+        input = this._el("textarea");
+        input.value = Array.isArray(current) ? current.map((e) => (typeof e === "string" ? e : e.entity)).join("\n") : current;
+        if (field.type === "entity_list") input.placeholder = "one entity id per line";
+        input.addEventListener("input", () => {
+          if (field.type === "entity_list") {
+            const lines = input.value.split("\n").map((line) => line.trim()).filter(Boolean);
+            values[field.key] = lines.length ? lines : undefined;
+          } else {
+            values[field.key] = input.value || undefined;
+          }
+          schedulePreview();
+        });
+      } else {
+        input = this._el("input", { type: "text", value: String(current) });
+        if (field.type === "entity") input.setAttribute("list", entityListId);
+        input.addEventListener("input", () => {
+          values[field.key] = input.value || undefined;
+          schedulePreview();
+        });
+      }
+      const row = this._el("div", { class: "fieldrow" }, [
+        this._el("label", { text: field.label + (field.required ? " *" : "") }),
+        input,
+      ]);
+      if (field.help) row.appendChild(this._el("div", { class: "help", text: field.help }));
+      return row;
+    };
+
+    // ---- slot editors (dashboard kind).
+    const slotsContainer = this._el("div");
+    const renderSlots = () => {
+      slotsContainer.innerHTML = "";
+      for (const slot of layouts[def.layout]) {
+        const assigned = slots[slot] || (slots[slot] = { type: "", values: {} });
+        const box = this._el("div", { class: "slotbox" });
+        box.appendChild(this._el("div", { class: "slotname", text: slot.replace(/_/g, " ") }));
+        const typeSelect = this._el("select");
+        typeSelect.appendChild(this._el("option", { value: "", text: "— empty —" }));
+        for (const [type, meta] of Object.entries(descriptors.widgets)) {
+          const option = this._el("option", { value: type, text: meta.label });
+          if (assigned.type === type) option.selected = true;
+          typeSelect.appendChild(option);
+        }
+        const fieldsBox = this._el("div");
+        const renderFields = () => {
+          fieldsBox.innerHTML = "";
+          if (!assigned.type) return;
+          for (const field of descriptors.widgets[assigned.type].fields) {
+            fieldsBox.appendChild(fieldInput(field, assigned.values));
+          }
+        };
+        typeSelect.addEventListener("change", () => {
+          assigned.type = typeSelect.value;
+          assigned.values = {};
+          renderFields();
+          schedulePreview();
+        });
+        renderFields();
+        box.append(this._el("div", { class: "fieldrow" }, [this._el("label", { text: "Widget" }), typeSelect]), fieldsBox);
+        slotsContainer.appendChild(box);
+      }
+    };
+
+    // ---- top-level fields.
+    const nameInput = this._el("input", { type: "text", value: def.name });
+    nameInput.addEventListener("input", () => {
+      def.name = nameInput.value;
+      schedulePreview();
+    });
+
+    const kindSelect = this._el("select");
+    for (const [value, label] of [["dashboard", "Dashboard (widgets)"], ["picture", "Picture (URL / camera)"]]) {
+      const option = this._el("option", { value, text: label });
+      if (def.kind === value) option.selected = true;
+      kindSelect.appendChild(option);
+    }
+
+    const layoutSelect = this._el("select");
+    for (const layout of Object.keys(layouts)) {
+      const option = this._el("option", {
+        value: layout,
+        text: `${layout.replace(/_/g, " ")} (${layouts[layout].length} slot${layouts[layout].length > 1 ? "s" : ""})`,
+      });
+      if (def.layout === layout) option.selected = true;
+      layoutSelect.appendChild(option);
+    }
+    layoutSelect.addEventListener("change", () => {
+      def.layout = layoutSelect.value;
+      renderSlots();
+      schedulePreview();
+    });
+
+    const dashboardSection = this._el("div");
+    const pictureSection = this._el("div");
+    for (const field of descriptors.picture_fields) {
+      pictureSection.appendChild(fieldInput(field, picture));
+    }
+    const screenFieldsBox = this._el("div");
+    for (const field of descriptors.screen_fields) {
+      screenFieldsBox.appendChild(fieldInput(field, def));
+    }
+    const syncKind = () => {
+      dashboardSection.style.display = def.kind === "dashboard" ? "" : "none";
+      pictureSection.style.display = def.kind === "picture" ? "" : "none";
+    };
+    kindSelect.addEventListener("change", () => {
+      def.kind = kindSelect.value;
+      syncKind();
+      schedulePreview();
+    });
+
+    dashboardSection.append(
+      this._el("div", { class: "fieldrow" }, [this._el("label", { text: "Layout" }), layoutSelect]),
+      slotsContainer
+    );
+    renderSlots();
+    syncKind();
+
+    const form = this._el("div", { class: "editor-form" }, [
+      datalist,
+      this._el("div", { class: "fieldrow" }, [this._el("label", { text: "Name" }), nameInput]),
+      this._el("div", { class: "fieldrow" }, [this._el("label", { text: "Kind" }), kindSelect]),
+      dashboardSection,
+      pictureSection,
+      screenFieldsBox,
+    ]);
+    const preview = this._el("div", { class: "editor-preview" }, [
+      previewImg,
+      status,
+      this._el("button", { class: "btn", text: "Refresh preview", onclick: renderPreview }),
+    ]);
+
+    const save = async (andSend) => {
+      try {
+        const body = { entry_id: this._screensEntry, screen: collect() };
+        if (stored) body.screen_id = stored.screen_id;
+        const result = await this._api("screens/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (andSend) {
+          this._toast("Saved — sending to the frame (~30 s refresh)");
+          await this._api("screens/send", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ entry_id: this._screensEntry, screen_id: result.screen_id }),
+          });
+        }
+        this._closeDialog();
+        this._screensLoadedFor = null;
+        this._renderTab();
+        this._toast(andSend ? "Saved and sent ✓" : "Screen saved");
+      } catch (err) {
+        this._toast(err.message, true);
+      }
+    };
+
+    this._openDialog(
+      stored ? `Edit screen — ${stored.title}` : "New screen",
+      [this._el("div", { class: "editor-grid" }, [form, preview])],
+      [
+        this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
+        this._el("button", { class: "btn", text: "Save & send", onclick: () => save(true) }),
+        this._el("button", { class: "btn raised", text: "Save", onclick: () => save(false) }),
+      ],
+      true
+    );
+    renderPreview();
+  }
+
   /* -------------------------------------------------------------- dialog */
 
-  _openDialog(title, contentNodes, actionNodes) {
+  _openDialog(title, contentNodes, actionNodes, wide = false) {
     const modal = this.shadowRoot.getElementById("modal");
     modal.innerHTML = "";
-    const dialog = this._el("div", { class: "dialog" }, [
+    const dialog = this._el("div", { class: wide ? "dialog wide" : "dialog" }, [
       this._el("h2", { text: title }),
       ...contentNodes,
       this._el("div", { class: "dialog-actions" }, actionNodes),
