@@ -209,6 +209,24 @@ def _preprocess(
     return image
 
 
+def _apply_crop(image, crop: tuple[float, float, float, float]):
+    """Crop ``image`` to a normalized (x0, y0, x1, y1) box.
+
+    Coordinates are fractions of the EXIF-corrected source. Boxes are clamped
+    rather than rejected (a box saved against a since-replaced source should
+    degrade gracefully), but a degenerate box is an error — silently returning
+    the full image would make a saved crop appear to "not work".
+    """
+    x0, y0, x1, y1 = (min(1.0, max(0.0, float(v))) for v in crop)
+    left = round(x0 * image.width)
+    top = round(y0 * image.height)
+    right = round(x1 * image.width)
+    bottom = round(y1 * image.height)
+    if right - left < 8 or bottom - top < 8:
+        raise ValueError(f"Crop box {crop} is empty or too small")
+    return image.crop((left, top, right, bottom))
+
+
 def _fit_image(image, width: int, height: int, fit: str):
     """Resize an RGB ``image`` to ``width`` x ``height`` using ``fit``."""
     from PIL import Image, ImageOps
@@ -506,6 +524,7 @@ def convert_image(
     contrast: float = DEFAULT_CONTRAST,
     sharpen: float = DEFAULT_SHARPEN,
     tone: float = DEFAULT_TONE,
+    crop: tuple[float, float, float, float] | None = None,
     preview: bool = True,
     preview_rotate: int = 0,
 ) -> tuple[bytes, bytes | None, str]:
@@ -516,6 +535,9 @@ def convert_image(
         width/height: Frame resolution in pixels (e.g. 1600x1200 for the 13.3").
         fit: ``cover`` (crop to fill), ``contain`` (pad), or ``stretch``.
         rotate: Clockwise rotation in degrees (0/90/180/270) applied first.
+        crop: Optional normalized ``(x0, y0, x1, y1)`` box (0.0-1.0, relative to
+            the EXIF-corrected source) applied before rotation/fit — this is how
+            the library's saved manual crops are honoured.
         mode: ``auto`` | ``none`` | ``bayer`` | ``floyd_steinberg`` | ``atkinson``.
         saturation/contrast: enhancement factors (1.0 = no change).
         sharpen: unsharp-mask strength 0-100 (0 disables).
@@ -562,6 +584,8 @@ def convert_image(
             image = Image.alpha_composite(background, rgba).convert("RGB")
         else:
             image = image.convert("RGB")
+        if crop is not None:
+            image = _apply_crop(image, crop)
         if rotate % 360:
             image = image.rotate(-(rotate % 360), expand=True)
         # Classify BEFORE fitting/preprocessing: `contain` padding adds flat

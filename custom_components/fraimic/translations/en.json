@@ -65,8 +65,12 @@
   },
   "entity": {
     "sensor": {
-      "battery_percent": { "name": "Battery" },
-      "battery_voltage": { "name": "Battery voltage" },
+      "battery_percent": {
+        "name": "Battery"
+      },
+      "battery_voltage": {
+        "name": "Battery voltage"
+      },
       "battery_source": {
         "name": "Battery source",
         "state": {
@@ -74,31 +78,69 @@
           "adc": "ADC estimate"
         }
       },
-      "wifi_rssi": { "name": "Wi-Fi signal" },
-      "wifi_ssid": { "name": "Wi-Fi SSID" },
-      "wifi_channel": { "name": "Wi-Fi channel" },
-      "ip_address": { "name": "IP address" },
-      "firmware_version": { "name": "Firmware" },
-      "uptime": { "name": "Uptime" },
-      "last_refresh": { "name": "Last refresh" },
-      "next_refresh": { "name": "Next refresh" }
+      "wifi_rssi": {
+        "name": "Wi-Fi signal"
+      },
+      "wifi_ssid": {
+        "name": "Wi-Fi SSID"
+      },
+      "wifi_channel": {
+        "name": "Wi-Fi channel"
+      },
+      "ip_address": {
+        "name": "IP address"
+      },
+      "firmware_version": {
+        "name": "Firmware"
+      },
+      "uptime": {
+        "name": "Uptime"
+      },
+      "last_refresh": {
+        "name": "Last refresh"
+      },
+      "next_refresh": {
+        "name": "Next refresh"
+      }
     },
     "binary_sensor": {
-      "charging": { "name": "Charging" },
-      "cable_connected": { "name": "Cable connected" },
-      "wifi_connected": { "name": "Wi-Fi connected" },
-      "registered": { "name": "Registered" },
-      "time_synced": { "name": "Time synced" },
-      "voice_recording": { "name": "Voice recording" },
-      "keep_awake": { "name": "Keep awake" }
+      "charging": {
+        "name": "Charging"
+      },
+      "cable_connected": {
+        "name": "Cable connected"
+      },
+      "wifi_connected": {
+        "name": "Wi-Fi connected"
+      },
+      "registered": {
+        "name": "Registered"
+      },
+      "time_synced": {
+        "name": "Time synced"
+      },
+      "voice_recording": {
+        "name": "Voice recording"
+      },
+      "keep_awake": {
+        "name": "Keep awake"
+      }
     },
     "button": {
-      "refresh": { "name": "Refresh display" },
-      "sleep": { "name": "Sleep" },
-      "restart": { "name": "Restart" }
+      "refresh": {
+        "name": "Refresh display"
+      },
+      "sleep": {
+        "name": "Sleep"
+      },
+      "restart": {
+        "name": "Restart"
+      }
     },
     "image": {
-      "preview": { "name": "Current artwork" }
+      "preview": {
+        "name": "Current artwork"
+      }
     }
   },
   "services": {
@@ -121,6 +163,10 @@
         "image_entity_id": {
           "name": "Camera / image entity",
           "description": "A camera or image entity whose current frame should be displayed."
+        },
+        "library_image_id": {
+          "name": "Library image",
+          "description": "ID of an image in the Fraimic media library. Library sends reuse the cached conversion and honour any crop saved for this frame's resolution."
         },
         "fit": {
           "name": "Fit mode",
