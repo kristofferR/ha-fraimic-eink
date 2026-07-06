@@ -90,7 +90,7 @@ async def _async_picture_source(
         from ..providers.ha import async_fetch_art
 
         art = await async_fetch_art(
-            hass, entry, provider_key, query=source.get("query")
+            hass, entry, provider_key, query=source.get("query"), fit=source.get("fit")
         )
         raw = art.data
         art_info = asdict(art.candidate)

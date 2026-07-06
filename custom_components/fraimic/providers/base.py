@@ -36,6 +36,7 @@ class FetchRequest:
     target_height: int
     query: str | None = None  # photo providers only; museums ignore it
     api_key: str | None = None
+    fit: str = "cover"
 
 
 @dataclass(frozen=True)

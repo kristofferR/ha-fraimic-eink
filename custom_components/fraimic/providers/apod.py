@@ -16,7 +16,7 @@ from .engine import async_fetch_json
 APOD_URL = "https://api.nasa.gov/planetary/apod"
 API_TIMEOUT = 20.0
 DEMO_KEY = "DEMO_KEY"
-DEMO_KEY_MIN_INTERVAL = 30 * 60
+DEMO_KEY_CACHE_TTL = 30 * 60
 
 
 def parse_apod_items(payload: list | dict) -> list[ArtCandidate]:
@@ -58,16 +58,14 @@ class ApodProvider(ArtProvider):
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
         api_key = request.api_key or DEMO_KEY
-        min_interval = (
-            self.min_interval
-            if request.api_key
-            else max(self.min_interval, DEMO_KEY_MIN_INTERVAL)
-        )
+        cache_key = f"apod_demo_{max(count, 4)}"
+        if not request.api_key and (cached := cache.get(cache_key, DEMO_KEY_CACHE_TTL)):
+            return cached[:count]
         payload = await async_fetch_json(
             session,
             cache,
             key=self.key,
-            min_interval=min_interval,
+            min_interval=self.min_interval,
             url=APOD_URL,
             error_label="NASA APOD",
             params={"api_key": api_key, "count": max(count, 4)},
@@ -77,4 +75,6 @@ class ApodProvider(ArtProvider):
         candidates = parse_apod_items(payload)
         if not candidates:
             raise ArtFetchError("NASA APOD returned only non-image entries")
+        if not request.api_key:
+            cache.set(cache_key, candidates)
         return candidates[:count]

@@ -68,6 +68,7 @@ async def async_fetch_art(
     *,
     query: str | None = None,
     item_id: str | None = None,
+    fit: str | None = None,
 ) -> ArtImage:
     """Fetch one curated online image for ``entry``'s frame."""
     from ..render.display import viewed_size
@@ -87,6 +88,7 @@ async def async_fetch_art(
         target_height=height,
         query=query,
         api_key=entry.options.get(provider.key_option) if provider.key_option else None,
+        fit=fit or "cover",
     )
 
     async def dims_of(data: bytes) -> tuple[int, int]:

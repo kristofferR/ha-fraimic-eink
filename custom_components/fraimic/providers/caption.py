@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 
+from ..const import MAX_SOURCE_PIXELS
 from ..render.svg import SvgDoc, rasterize, snap_to_colors, truncate
 from ..render.theme import PALETTE_HEX
 
@@ -41,6 +42,8 @@ def composite_with_caption(photo: bytes, text: str, width: int, height: int) -> 
     strip_h = strip_height(height)
     strip = Image.open(io.BytesIO(caption_strip_png(text, width, strip_h)))
     with Image.open(io.BytesIO(photo)) as src:
+        if src.width * src.height > MAX_SOURCE_PIXELS:
+            raise ValueError(f"Source image is too large ({src.width}x{src.height})")
         image = ImageOps.exif_transpose(src).convert("RGB")
         photo_part = ImageOps.fit(
             image,

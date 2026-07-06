@@ -130,6 +130,12 @@ def test_acceptable(w, h, tw, th, ok) -> None:
     assert curation.acceptable(w, h, tw, th) is ok
 
 
+def test_contain_fit_relaxes_aspect_but_not_resolution() -> None:
+    assert curation.acceptable_for_fit(3840, 2160, 1200, 1600, "contain") is True
+    assert curation.acceptable_for_fit(3840, 2160, 1200, 1600, "cover") is False
+    assert curation.acceptable_for_fit(800, 450, 1200, 1600, "contain") is False
+
+
 def test_aspect_score_prefers_matching_aspect() -> None:
     perfect = curation.aspect_score(3200, 2400, 1600, 1200)
     skewed = curation.aspect_score(3200, 1200, 1600, 1200)
@@ -277,6 +283,25 @@ def test_engine_skips_bad_metadata_dims_without_downloading() -> None:
     assert all("pano" not in url for url in session.requests)
 
 
+def test_engine_accepts_wide_metadata_dims_for_contain_fit() -> None:
+    session = FakeSession()
+    session.add("https://x/wide.png", FakeResponse(body=_png(3840, 2160)))
+    provider = _Provider(
+        [_candidate("wide", "https://x/wide.png", width=3840, height=2160)]
+    )
+    request = base.FetchRequest(
+        target_width=1200, target_height=1600, fit="contain"
+    )
+
+    image = _run(
+        engine.async_pick_and_download(
+            provider, session, cache_mod.ProviderCache(), request, dims_of=_dims_from_png
+        )
+    )
+
+    assert image.candidate.item_id == "wide"
+
+
 def test_engine_falls_back_to_best_scored_download() -> None:
     # Both candidates decode too small; the better-scoring one must win.
     session = FakeSession()
@@ -367,7 +392,12 @@ def test_apod_uses_encoded_params_and_conservative_demo_key_throttle() -> None:
     assert len(candidates) == 1
     assert session.calls[0]["url"] == apod.APOD_URL
     assert session.calls[0]["params"] == {"api_key": apod.DEMO_KEY, "count": 4}
-    assert cache.throttles == [(provider.key, apod.DEMO_KEY_MIN_INTERVAL)]
+    assert cache.throttles == [(provider.key, 0)]
+
+    cached = _run(provider.async_candidates(session, cache, REQUEST, 1))
+
+    assert cached == candidates
+    assert len(session.calls) == 1
 
 
 def test_apod_personal_key_keeps_normal_provider_throttle() -> None:
@@ -432,6 +462,16 @@ def test_caption_strip_is_palette_pure_and_composite_sizes() -> None:
     composed = caption.composite_with_caption(_png(1000, 700), "Some credit", 800, 480)
     with Image.open(io.BytesIO(composed)) as img:
         assert img.size == (800, 480)
+
+
+def test_caption_composite_rejects_oversized_sources(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    caption = load("providers.caption")
+    monkeypatch.setattr(caption, "MAX_SOURCE_PIXELS", 1)
+
+    with pytest.raises(ValueError, match="too large"):
+        caption.composite_with_caption(_png(2, 2), "Some credit", 800, 480)
 
 
 def test_shuffle_and_availability() -> None:
