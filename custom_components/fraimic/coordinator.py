@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from datetime import timedelta
 from typing import Any
@@ -27,8 +28,20 @@ class FraimicRuntimeData:
         # Set by the image platform once its preview entity is created, so the
         # upload service can refresh the on-dashboard preview.
         self.preview_image: Any = None
+        # Ditto for the dashboard-screen preview entity (render_screen output,
+        # including preview-only renders that never reach the frame).
+        self.screen_preview_image: Any = None
         # Last preview PNG, also exposed as the media_player's artwork.
         self.last_preview: bytes | None = None
+        # Playlist scheduler (set during entry setup; None until then).
+        self.scheduler: Any = None
+        # Serialize uploads; the frame can only process one long refresh.
+        self.upload_lock = asyncio.Lock()
+        # Set by the media player so enabling playlists can stop camera loops.
+        self.stop_camera_loop: Any = None
+        # Attribution info for online artwork currently on the frame
+        # (asdict of providers.base.ArtCandidate), or None.
+        self.last_art: dict[str, Any] | None = None
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):

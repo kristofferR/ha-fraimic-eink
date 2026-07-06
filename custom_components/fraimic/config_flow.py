@@ -6,7 +6,13 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    ConfigSubentryFlow,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -21,10 +27,14 @@ from .const import (
     ATTR_SHARPEN,
     ATTR_TONE,
     CONF_CAMERA_INTERVAL,
+    CONF_DEFAULT_PROVIDER,
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
+    CONF_NASA_API_KEY,
+    CONF_PEXELS_KEY,
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
+    CONF_UNSPLASH_KEY,
     CONF_WIDTH,
     DEFAULT_CAMERA_INTERVAL,
     DEFAULT_CONTRAST,
@@ -44,6 +54,8 @@ from .const import (
     MIN_SCAN_INTERVAL,
     MODE_AUTO,
     MODEL_CUSTOM,
+    PROVIDER_KEYS,
+    PROVIDER_SHUFFLE,
     ROTATION_OPTIONS,
 )
 from .coordinator import normalize_info
@@ -189,6 +201,17 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
         """Return the options flow handler."""
         return FraimicOptionsFlow()
 
+    @classmethod
+    @callback
+    def async_get_supported_subentry_types(
+        cls, config_entry: ConfigEntry
+    ) -> dict[str, type[ConfigSubentryFlow]]:
+        """Dashboard screens are managed as subentries of a frame."""
+        from .screens import SUBENTRY_TYPE_SCREEN
+        from .subentry_flow import ScreenSubentryFlowHandler
+
+        return {SUBENTRY_TYPE_SCREEN: ScreenSubentryFlowHandler}
+
 
 class FraimicOptionsFlow(OptionsFlow):
     """Handle the Fraimic options (poll interval, base rotation)."""
@@ -241,6 +264,25 @@ class FraimicOptionsFlow(OptionsFlow):
                     vol.Required(
                         ATTR_TONE, default=o.get(ATTR_TONE, DEFAULT_TONE)
                     ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=100.0)),
+                    # Online artwork: default source for the "New artwork"
+                    # button, plus optional API keys for keyed providers
+                    # (leave a key empty to disable that provider).
+                    vol.Required(
+                        CONF_DEFAULT_PROVIDER,
+                        default=o.get(CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE),
+                    ): vol.In((PROVIDER_SHUFFLE, *PROVIDER_KEYS)),
+                    vol.Optional(
+                        CONF_NASA_API_KEY,
+                        description={"suggested_value": o.get(CONF_NASA_API_KEY)},
+                    ): str,
+                    vol.Optional(
+                        CONF_UNSPLASH_KEY,
+                        description={"suggested_value": o.get(CONF_UNSPLASH_KEY)},
+                    ): str,
+                    vol.Optional(
+                        CONF_PEXELS_KEY,
+                        description={"suggested_value": o.get(CONF_PEXELS_KEY)},
+                    ): str,
                 }
             ),
         )

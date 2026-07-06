@@ -1,9 +1,9 @@
 """Tests for the Fraimic Spectra 6 image-processing pipeline.
 
 These exercise the pure conversion logic (no Home Assistant required), so they
-can run standalone:
+can run standalone (deps cover the whole tests/ directory):
 
-    uv run --with pillow --with numpy --with pytest pytest
+    uv run --with pillow --with numpy --with voluptuous --with resvg-py --with pytest pytest
 """
 
 from __future__ import annotations
