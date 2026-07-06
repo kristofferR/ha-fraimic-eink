@@ -16,6 +16,7 @@ import aiohttp
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     BrowseMedia,
+    MediaClass,
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
@@ -29,11 +30,19 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
+from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL, MEDIA_SCHEME
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
-from .services import async_render_and_upload
+from .providers import PROVIDERS, available_provider_keys, build_media_id, parse_media_id
+from .providers.engine import read_capped
+from .services import (
+    async_render_and_upload,
+    begin_external_upload,
+    finish_external_upload,
+)
+
+ONLINE_ROOT = f"{MEDIA_SCHEME}://"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -64,6 +73,16 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_media_player"
         self._camera_entity: str | None = None
         self._camera_unsub = None
+        self._camera_generation = 0
+        self._local_media_title: str | None = None
+
+    @property
+    def media_title(self) -> str | None:
+        """Title of what's on the frame: online artwork wins over file names."""
+        art = self.coordinator.config_entry.runtime_data.last_art
+        if art and art.get("title"):
+            return art["title"]
+        return self._local_media_title
 
     @property
     def state(self) -> MediaPlayerState:
@@ -74,12 +93,26 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         return MediaPlayerState.IDLE
 
     def _stop_camera_loop(self) -> None:
+        self._camera_generation += 1
         if self._camera_unsub is not None:
             self._camera_unsub()
             self._camera_unsub = None
         self._camera_entity = None
 
+    def _stop_camera_loop_and_write(self) -> None:
+        self._stop_camera_loop()
+        self.async_write_ha_state()
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.coordinator.config_entry.runtime_data.stop_camera_loop = (
+            self._stop_camera_loop_and_write
+        )
+
     async def async_will_remove_from_hass(self) -> None:
+        runtime = self.coordinator.config_entry.runtime_data
+        if runtime.stop_camera_loop == self._stop_camera_loop_and_write:
+            runtime.stop_camera_loop = None
         self._stop_camera_loop()
         await super().async_will_remove_from_hass()
 
@@ -88,14 +121,36 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._stop_camera_loop()
         self.async_write_ha_state()
 
-    async def _async_show_camera(self, camera_entity: str) -> None:
+    async def _async_show_camera(
+        self,
+        camera_entity: str,
+        *,
+        camera_generation: int | None = None,
+        hold_playlist: bool = True,
+    ) -> None:
         """Snapshot ``camera_entity`` and display it on the frame."""
         from homeassistant.components.camera import async_get_image
 
-        image = await async_get_image(self.hass, camera_entity)
-        await async_render_and_upload(
-            self.hass, self.coordinator.config_entry, image.content
-        )
+        entry = self.coordinator.config_entry
+        scheduler = begin_external_upload(entry)
+        uploaded = False
+        try:
+            image = await async_get_image(self.hass, camera_entity)
+            result = await async_render_and_upload(
+                self.hass, entry, image.content, hold_playlist=False
+            )
+            uploaded = result.get("uploaded", True)
+        finally:
+            stale_camera_upload = (
+                uploaded
+                and camera_generation is not None
+                and camera_generation != self._camera_generation
+            )
+            finish_external_upload(
+                scheduler,
+                uploaded=uploaded,
+                hold=hold_playlist and not stale_camera_upload,
+            )
 
     async def _async_camera_tick(self, _now) -> None:
         """Periodic camera re-snapshot; failures are logged, the loop lives on
@@ -103,7 +158,11 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         if self._camera_entity is None:
             return
         try:
-            await self._async_show_camera(self._camera_entity)
+            await self._async_show_camera(
+                self._camera_entity,
+                camera_generation=self._camera_generation,
+                hold_playlist=False,
+            )
         except HomeAssistantError as err:
             _LOGGER.warning(
                 "Periodic camera refresh of %s failed (will retry next cycle): %s",
@@ -116,14 +175,88 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         media_content_type: MediaType | str | None = None,
         media_content_id: str | None = None,
     ) -> BrowseMedia:
-        """Browse media sources: images, plus cameras (snapshotted on play)."""
-        return await media_source.async_browse_media(
+        """Browse media sources + online artwork providers."""
+        if media_content_id and media_content_id.startswith(ONLINE_ROOT):
+            return await self._async_browse_online(media_content_id)
+        root = await media_source.async_browse_media(
             self.hass,
             media_content_id,
             content_filter=lambda item: (
                 item.media_content_type.startswith("image/")
                 or (item.media_content_id or "").startswith("media-source://camera/")
             ),
+        )
+        if not media_content_id:
+            # Inject the online-artwork directory at the top level.
+            online = BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id=ONLINE_ROOT,
+                media_content_type="",
+                title="Online artwork",
+                can_play=False,
+                can_expand=True,
+            )
+            root.children = [online, *(root.children or [])]
+        return root
+
+    async def _async_browse_online(self, media_id: str) -> BrowseMedia:
+        """The fraimic-online:// tree: providers, then 20 fresh picks each."""
+        from .providers.ha import async_browse_candidates
+
+        entry = self.coordinator.config_entry
+        if media_id == ONLINE_ROOT:
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.DIRECTORY,
+                    media_content_id=f"{ONLINE_ROOT}{key}",
+                    media_content_type="",
+                    title=PROVIDERS[key].name,
+                    can_play=False,
+                    can_expand=True,
+                )
+                for key in available_provider_keys(entry)
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id=ONLINE_ROOT,
+                media_content_type="",
+                title="Online artwork",
+                can_play=False,
+                can_expand=True,
+                children=children,
+                children_media_class=MediaClass.DIRECTORY,
+            )
+
+        provider_key = media_id.removeprefix(ONLINE_ROOT).split("/", 1)[0]
+        provider = PROVIDERS.get(provider_key)
+        if provider is None:
+            raise HomeAssistantError(f"Unknown online source: {provider_key}")
+        candidates = await async_browse_candidates(self.hass, entry, provider_key)
+        children = [
+            BrowseMedia(
+                media_class=MediaClass.IMAGE,
+                media_content_id=build_media_id(provider_key, candidate.item_id),
+                media_content_type="image/jpeg",
+                title=(
+                    f"{candidate.title} — {candidate.artist}"
+                    if candidate.artist
+                    else candidate.title
+                ),
+                can_play=True,
+                can_expand=False,
+                thumbnail=candidate.thumb_url,
+            )
+            for candidate in candidates
+        ]
+        return BrowseMedia(
+            media_class=MediaClass.DIRECTORY,
+            media_content_id=media_id,
+            media_content_type="",
+            title=provider.name,
+            can_play=False,
+            can_expand=True,
+            children=children,
+            children_media_class=MediaClass.IMAGE,
         )
 
     async def async_play_media(
@@ -133,6 +266,24 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         # Playing anything replaces whatever camera loop was running.
         self._stop_camera_loop()
 
+        if media_id.startswith(ONLINE_ROOT):
+            from dataclasses import asdict
+
+            from .providers.ha import async_art_by_media_id
+
+            parsed = parse_media_id(media_id)
+            if parsed is None:
+                raise HomeAssistantError(f"Invalid online media id: {media_id}")
+            entry = self.coordinator.config_entry
+            art = await async_art_by_media_id(self.hass, entry, *parsed)
+            await async_render_and_upload(self.hass, entry, art.data)
+            entry.runtime_data.last_art = asdict(art.candidate)
+            # Attribution attributes on the image entities read this lazily.
+            self.coordinator.async_update_listeners()
+            self._local_media_title = art.candidate.title
+            self.async_write_ha_state()
+            return
+
         # Camera media-source items resolve to *live stream* URLs (HLS/MJPEG),
         # which aren't decodable images — take a still snapshot instead, and
         # keep re-snapshotting on the frame's configured camera interval.
@@ -140,41 +291,93 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             "camera."
         ):
             camera_entity = media_id.rsplit("/", 1)[-1]
-            await self._async_show_camera(camera_entity)
             interval = self.coordinator.config_entry.options.get(
                 CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
             )
+            camera_generation = None
             if interval > 0:
+                # Two competing periodic pushers make no sense — starting a
+                # camera loop switches the screen playlist off explicitly.
+                self._camera_generation += 1
+                camera_generation = self._camera_generation
+                scheduler = self.coordinator.config_entry.runtime_data.scheduler
+                disabled_scheduler = (
+                    scheduler is not None and scheduler.stored_enabled
+                )
+                if scheduler is not None and scheduler.enabled:
+                    await scheduler.async_set_enabled(
+                        False, clear_hold=False, persist=False
+                    )
+            else:
+                scheduler = None
+                disabled_scheduler = False
+            try:
+                await self._async_show_camera(
+                    camera_entity,
+                    camera_generation=camera_generation,
+                    hold_playlist=interval == 0,
+                )
+            except Exception:
+                if disabled_scheduler and scheduler is not None:
+                    await scheduler.async_set_enabled(
+                        True,
+                        rotate=False,
+                        clear_hold=False,
+                        persist=False,
+                    )
+                raise
+            if interval > 0:
+                if camera_generation != self._camera_generation:
+                    return
                 self._camera_entity = camera_entity
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)
                 )
-            self._attr_media_title = camera_entity
+            self._local_media_title = camera_entity
             self.async_write_ha_state()
             return
 
-        if media_source.is_media_source_id(media_id):
-            sourced = await media_source.async_resolve_media(
-                self.hass, media_id, self.entity_id
-            )
-            media_id = sourced.url
-
-        url = async_process_play_media_url(self.hass, media_id)
-        session = async_get_clientsession(self.hass)
+        entry = self.coordinator.config_entry
+        scheduler = begin_external_upload(entry)
+        uploaded = False
         try:
-            resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
-        except Exception as err:  # noqa: BLE001 - surfaced to the user
-            raise HomeAssistantError(f"Could not download {url}: {err}") from err
-        async with resp:
-            if resp.status != 200:
-                raise HomeAssistantError(f"Downloading image returned HTTP {resp.status}")
-            raw = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
-        if len(raw) > MAX_DOWNLOAD_BYTES:
-            raise HomeAssistantError("Image is too large")
+            if media_source.is_media_source_id(media_id):
+                sourced = await media_source.async_resolve_media(
+                    self.hass, media_id, self.entity_id
+                )
+                media_id = sourced.url
 
-        await async_render_and_upload(self.hass, self.coordinator.config_entry, raw)
-        self._attr_media_title = media_id.rsplit("/", 1)[-1]
+            url = async_process_play_media_url(self.hass, media_id)
+            session = async_get_clientsession(self.hass)
+            try:
+                resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
+            except Exception as err:  # noqa: BLE001 - surfaced to the user
+                raise HomeAssistantError(f"Could not download {url}: {err}") from err
+            async with resp:
+                if resp.status != 200:
+                    raise HomeAssistantError(
+                        f"Downloading image returned HTTP {resp.status}"
+                    )
+                try:
+                    # NOT content.read(n): that truncates chunked responses.
+                    raw = await read_capped(resp.content, MAX_DOWNLOAD_BYTES)
+                except ValueError as err:
+                    raise HomeAssistantError("Image is too large") from err
+
+            result = await async_render_and_upload(
+                self.hass, entry, raw, hold_playlist=False
+            )
+            uploaded = result.get("uploaded", True)
+        finally:
+            finish_external_upload(scheduler, uploaded=uploaded)
+        self._local_media_title = media_id.rsplit("/", 1)[-1]
         self.async_write_ha_state()
+
+    @property
+    def media_artist(self) -> str | None:
+        """Artist of online artwork currently on the frame, if any."""
+        art = self.coordinator.config_entry.runtime_data.last_art
+        return art.get("artist") if art else None
 
     @property
     def media_image_hash(self) -> str | None:
