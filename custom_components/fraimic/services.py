@@ -7,17 +7,21 @@ and uploads it.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
-import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import FraimicError
+from .api import FraimicConnectionError, FraimicError
 from .const import (
     ATTR_CONFIG_ENTRY,
     ATTR_CONTRAST,
@@ -27,26 +31,68 @@ from .const import (
     ATTR_LIBRARY_IMAGE,
     ATTR_MODE,
     ATTR_PATH,
+    ATTR_PREVIEW_ONLY,
     ATTR_ROTATE,
     ATTR_SATURATION,
+    ATTR_SCREEN,
+    ATTR_SCREEN_ID,
+    ATTR_SCENE_NAME,
     ATTR_SHARPEN,
     ATTR_TONE,
-    ATTR_SCENE_NAME,
     ATTR_URL,
+    CONF_HEIGHT,
+    CONF_ROTATION,
+    CONF_WIDTH,
+    DEFAULT_CONTRAST,
+    DEFAULT_HEIGHT,
+    DEFAULT_ROTATION,
+    DEFAULT_SATURATION,
+    DEFAULT_SHARPEN,
+    DEFAULT_TONE,
+    DEFAULT_WIDTH,
     DITHER_MODES,
     DOMAIN,
+    FIT_COVER,
     FIT_MODES,
+    MAX_BIN_SIZE,
     MODE_AUTO,
+    MODE_NONE,
+    SERVICE_RENDER_SCREEN,
     SERVICE_SEND_SCENE,
     SERVICE_UPLOAD_IMAGE,
 )
-from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
-from .helpers import resolve_render_params
+from .coordinator import FraimicConfigEntry
 from .image_convert import convert_image
 from .library import get_library
+from .render.display import async_show_screen
 from .scenes import get_scene_manager
+from .render.schema import SCREEN_SCHEMA, screen_from_dict
+from .screens import AmbiguousScreenNameError, screen_by_key
+from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class FrameUploadError(HomeAssistantError):
+    """Raised when conversion succeeded but the frame upload failed."""
+
+
+def begin_external_upload(entry):
+    """Block playlist work while a manual upload is being prepared."""
+    scheduler = getattr(entry.runtime_data, "scheduler", None)
+    if scheduler is None:
+        return None
+    if scheduler.busy:
+        raise HomeAssistantError("A playlist upload is already in progress")
+    scheduler.begin_external_upload()
+    return scheduler
+
+
+def finish_external_upload(scheduler, *, uploaded: bool, hold: bool = True) -> None:
+    """Release a manual-upload guard and optionally hold the playlist."""
+    if scheduler is not None:
+        scheduler.finish_external_upload(uploaded=uploaded, hold=hold)
+
 
 def _require_one_source(data: dict) -> dict:
     """Ensure exactly one image source was provided."""
@@ -99,7 +145,35 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
 )
 
 
-SEND_SCENE_SCHEMA = vol.Schema({vol.Required(ATTR_SCENE_NAME): cv.string})
+def _require_screen_or_id(data: dict) -> dict:
+    if (ATTR_SCREEN in data) == (ATTR_SCREEN_ID in data):
+        raise vol.Invalid(
+            f"Provide exactly one of {ATTR_SCREEN} (inline definition) or "
+            f"{ATTR_SCREEN_ID} (a stored screen's id or name)"
+        )
+    return data
+
+
+RENDER_SCREEN_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+            vol.Exclusive(ATTR_SCREEN, "screen"): vol.All(dict, SCREEN_SCHEMA),
+            vol.Exclusive(ATTR_SCREEN_ID, "screen"): cv.string,
+            vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
+        }
+    ),
+    _require_screen_or_id,
+)
+
+
+def _resolve_mode(data: dict, options: dict) -> str:
+    """Pick the dither mode: call > legacy ``dither`` bool > frame option > auto."""
+    if data.get(ATTR_MODE):
+        return data[ATTR_MODE]
+    if ATTR_DITHER in data:
+        return MODE_AUTO if data[ATTR_DITHER] else MODE_NONE
+    return options.get(ATTR_MODE, MODE_AUTO)
 
 
 def async_setup_services(hass: HomeAssistant) -> None:
@@ -114,25 +188,20 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN,
+        SERVICE_RENDER_SCREEN,
+        _async_handle_render_screen,
+        schema=RENDER_SCREEN_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
         SERVICE_SEND_SCENE,
         _async_handle_send_scene,
         schema=SEND_SCENE_SCHEMA,
     )
 
 
-async def _async_handle_send_scene(call: ServiceCall) -> None:
-    """Handle ``fraimic.send_scene``: activate a scene by (case-insensitive) name."""
-    manager = get_scene_manager(call.hass)
-    if manager is None:
-        raise ServiceValidationError("No Fraimic frame is set up")
-    scene = manager.find_by_name(call.data[ATTR_SCENE_NAME])
-    results = await manager.async_send(scene.scene_id)
-    failed = {k: r["error"] for k, r in results.items() if not r["ok"]}
-    if failed:
-        _LOGGER.warning("Scene %s partially failed: %s", scene.name, failed)
-
-
-def _resolve_entry(hass: HomeAssistant, call: ServiceCall):
+def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> FraimicConfigEntry:
     """Return the loaded Fraimic config entry targeted by the call."""
     entry_id = call.data.get(ATTR_CONFIG_ENTRY)
     loaded = [
@@ -156,108 +225,228 @@ def _resolve_entry(hass: HomeAssistant, call: ServiceCall):
     return loaded[0]
 
 
-async def _async_get_source_bytes(hass: HomeAssistant, call: ServiceCall) -> bytes:
-    """Fetch the raw source image bytes from path, url, or an entity."""
-    if (path := call.data.get(ATTR_PATH)) is not None:
-        if not hass.config.is_allowed_path(path):
-            raise ServiceValidationError(
-                f"Path {path} is not allowed; add its folder to allowlist_external_dirs"
-            )
-
-        def _read() -> bytes:
-            with open(path, "rb") as file:
-                return file.read(MAX_DOWNLOAD_BYTES + 1)
-
-        try:
-            data = await hass.async_add_executor_job(_read)
-        except OSError as err:
-            raise ServiceValidationError(f"Could not read {path}: {err}") from err
-        if len(data) > MAX_DOWNLOAD_BYTES:
-            raise ServiceValidationError("Source file is too large")
-        return data
-
-    if (url := call.data.get(ATTR_URL)) is not None:
-        session = async_get_clientsession(hass)
-        try:
-            resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
-        except Exception as err:  # noqa: BLE001 - surfaced to the user
-            raise HomeAssistantError(f"Could not download {url}: {err}") from err
-        async with resp:
-            if resp.status != 200:
-                raise HomeAssistantError(f"Downloading {url} returned HTTP {resp.status}")
-            data = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
-            if len(data) > MAX_DOWNLOAD_BYTES:
-                raise ServiceValidationError("Downloaded image is too large")
-            return data
-
-    entity_id = call.data[ATTR_IMAGE_ENTITY]
-    domain = entity_id.split(".", 1)[0]
-    if domain == "camera":
-        from homeassistant.components.camera import async_get_image
-
-        image = await async_get_image(hass, entity_id)
-        return _checked(image.content)
-    if domain == "image":
-        from homeassistant.components.image import async_get_image
-
-        image = await async_get_image(hass, entity_id)
-        return _checked(image.content)
-    raise ServiceValidationError(
-        f"{entity_id} must be a camera or image entity"
-    )
-
-
-def _checked(data: bytes) -> bytes:
-    """Apply the same source-size cap used for file/URL sources."""
-    if len(data) > MAX_DOWNLOAD_BYTES:
-        raise ServiceValidationError("Source image is too large")
-    return data
-
-
 async def _async_handle_upload_image(call: ServiceCall) -> None:
     """Handle the ``fraimic.upload_image`` service call."""
     hass = call.hass
     entry = _resolve_entry(hass, call)
-    if image_id := call.data.get(ATTR_LIBRARY_IMAGE):
-        # Library sends go through the render cache (and honour saved crops).
-        library = get_library(hass)
-        if library is None:
-            raise ServiceValidationError("The Fraimic library is not set up")
-        await library.async_send_to_entry(image_id, entry, dict(call.data))
-        return
-    raw = await _async_get_source_bytes(hass, call)
-    await async_render_and_upload(hass, entry, raw, dict(call.data))
+    scheduler = begin_external_upload(entry)
+    uploaded = False
+    try:
+        if image_id := call.data.get(ATTR_LIBRARY_IMAGE):
+            # Library sends reuse the render cache and honour saved crops.
+            library = get_library(hass)
+            if library is None:
+                raise ServiceValidationError("The Fraimic library is not set up")
+            await library.async_send_to_entry(image_id, entry, dict(call.data))
+            uploaded = True
+            return
+        raw = await async_get_source_bytes(
+            hass,
+            path=call.data.get(ATTR_PATH),
+            url=call.data.get(ATTR_URL),
+            entity_id=call.data.get(ATTR_IMAGE_ENTITY),
+        )
+        result = await async_render_and_upload(
+            hass, entry, raw, dict(call.data), hold_playlist=False
+        )
+        uploaded = result.get("uploaded", True)
+    finally:
+        finish_external_upload(scheduler, uploaded=uploaded)
 
 
-async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | None = None) -> None:
-    """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
+async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:
+    """Handle the ``fraimic.render_screen`` service call."""
+    hass = call.hass
+    entry = _resolve_entry(hass, call)
+    if (key := call.data.get(ATTR_SCREEN_ID)) is not None:
+        try:
+            screen = screen_by_key(entry, key)
+        except AmbiguousScreenNameError as err:
+            raise ServiceValidationError(str(err)) from err
+        if screen is None:
+            raise ServiceValidationError(
+                f"No stored screen with id or name {key!r} on this frame"
+            )
+    else:
+        screen = screen_from_dict(call.data[ATTR_SCREEN])
+    result = await async_show_screen(
+        hass, entry, screen, preview_only=call.data[ATTR_PREVIEW_ONLY]
+    )
+    return result if call.return_response else None
+
+
+SEND_SCENE_SCHEMA = vol.Schema({vol.Required(ATTR_SCENE_NAME): cv.string})
+
+
+async def _async_handle_send_scene(call: ServiceCall) -> None:
+    """Handle ``fraimic.send_scene``: activate a scene by (case-insensitive) name."""
+    manager = get_scene_manager(call.hass)
+    if manager is None:
+        raise ServiceValidationError("No Fraimic frame is set up")
+    scene = manager.find_by_name(call.data[ATTR_SCENE_NAME])
+    results = await manager.async_send(scene.scene_id)
+    failed = {k: r["error"] for k, r in results.items() if not r["ok"]}
+    if failed:
+        _LOGGER.warning("Scene %s partially failed: %s", scene.name, failed)
+
+
+async def async_convert_for_entry(
+    hass,
+    entry,
+    raw: bytes,
+    overrides: dict | None = None,
+    *,
+    preprocess: bool = True,
+) -> tuple[bytes, bytes | None, str]:
+    """Convert ``raw`` image bytes for ``entry``'s frame, without uploading.
 
     Each processing param resolves as: explicit ``overrides`` value > per-frame
-    option > global default. Shared by the ``upload_image`` service and the
-    media_player ``play_media`` path.
+    option > global default. Returns ``(bin_data, preview_png, used_mode)``.
+    ``preprocess=False`` skips photo enhancement (autocontrast/tone/...) for
+    sources that are already final panel content — rendered dashboard screens.
     """
-    runtime = entry.runtime_data
-    params = resolve_render_params(entry, overrides)
-    requested_mode = params["mode"]
+    overrides = overrides or {}
+    options = entry.options
+
+    width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
+    height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    # Guard before the (memory-heavy) conversion so an absurd custom resolution
+    # can't OOM Home Assistant; the frame would reject it post-conversion anyway.
+    if width * height // 2 > MAX_BIN_SIZE:
+        raise HomeAssistantError(
+            f"Frame resolution {width}x{height} is too large to render"
+        )
+    fit = overrides.get(ATTR_FIT, options.get(ATTR_FIT, FIT_COVER))
+    saturation = overrides.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
+    contrast = overrides.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))
+    sharpen = overrides.get(ATTR_SHARPEN, options.get(ATTR_SHARPEN, DEFAULT_SHARPEN))
+    tone = overrides.get(ATTR_TONE, options.get(ATTR_TONE, DEFAULT_TONE))
+    # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
+    base_rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
+    rotate = (base_rotation + overrides.get(ATTR_ROTATE, 0)) % 360
+    # The buffer is native-orientation; the preview is rotated back by the mount
+    # rotation so the dashboard shows what you actually see on the wall.
+    preview_rotate = (-base_rotation) % 360
+
+    requested_mode = _resolve_mode(overrides, options)
     try:
         bin_data, preview_png, used_mode = await hass.async_add_executor_job(
-            lambda: convert_image(raw, **params)
+            _convert,
+            raw,
+            width,
+            height,
+            fit,
+            rotate,
+            requested_mode,
+            saturation,
+            contrast,
+            sharpen,
+            tone,
+            preview_rotate,
+            preprocess,
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
         raise HomeAssistantError(f"Could not convert the image: {err}") from err
 
     if requested_mode == MODE_AUTO:
         _LOGGER.info("Fraimic auto-selected dither mode '%s' for this image", used_mode)
+    return bin_data, preview_png, used_mode
 
+
+async def async_render_and_upload(
+    hass,
+    entry,
+    raw: bytes,
+    overrides: dict | None = None,
+    *,
+    preprocess: bool = True,
+    skip_if_hash: str | None = None,
+    hold_playlist: bool = True,
+) -> dict:
+    """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
+
+    Shared by the ``upload_image`` service, the media_player ``play_media``
+    path, and screen rendering. Returns
+    ``{"mode", "content_hash", "uploaded"}``.
+
+    ``skip_if_hash``: when the freshly packed ``.bin``'s SHA-256 equals this,
+    the frame is not touched (``uploaded: False``) — content is identical and
+    an upload would only burn a ~30 s e-ink refresh and battery.
+    ``hold_playlist``: manual uploads pause the playlist scheduler for one
+    interval; the scheduler's own uploads pass False.
+    """
+    runtime = entry.runtime_data
+    scheduler = begin_external_upload(entry) if hold_playlist else None
+    uploaded = False
     try:
-        await runtime.client.upload_image(bin_data)
-    except FraimicError as err:
-        raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+        async with runtime.upload_lock:
+            bin_data, preview_png, used_mode = await async_convert_for_entry(
+                hass, entry, raw, overrides, preprocess=preprocess
+            )
+            content_hash = hashlib.sha256(bin_data).hexdigest()
+            if skip_if_hash is not None and content_hash == skip_if_hash:
+                if preview_png:
+                    runtime.last_preview = preview_png
+                    if runtime.preview_image is not None:
+                        runtime.preview_image.set_preview(preview_png, used_mode)
+                return {
+                    "mode": used_mode,
+                    "content_hash": content_hash,
+                    "uploaded": False,
+                    "preview_png": preview_png,
+                }
 
-    if preview_png:
-        runtime.last_preview = preview_png
-        if runtime.preview_image is not None:
-            runtime.preview_image.set_preview(preview_png, used_mode)
+            try:
+                await runtime.client.upload_image(bin_data)
+            except FraimicConnectionError as err:
+                raise FrameUploadError(f"Could not upload to the frame: {err}") from err
+            except FraimicError as err:
+                raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
 
-    # Pull a fresh snapshot so last-refresh / status updates promptly.
-    await runtime.coordinator.async_request_refresh()
+            uploaded = True
+            if preview_png:
+                runtime.last_preview = preview_png
+                if runtime.preview_image is not None:
+                    runtime.preview_image.set_preview(preview_png, used_mode)
+
+            # Pull a fresh snapshot so last-refresh / status updates promptly.
+            await runtime.coordinator.async_request_refresh()
+    finally:
+        finish_external_upload(scheduler, uploaded=uploaded)
+
+    return {
+        "mode": used_mode,
+        "content_hash": content_hash,
+        "uploaded": True,
+        "preview_png": preview_png,
+    }
+
+
+def _convert(
+    raw: bytes,
+    width: int,
+    height: int,
+    fit: str,
+    rotate: int,
+    mode: str,
+    saturation: float,
+    contrast: float,
+    sharpen: float,
+    tone: float,
+    preview_rotate: int,
+    preprocess: bool = True,
+) -> tuple[bytes, bytes | None, str]:
+    return convert_image(
+        raw,
+        width=width,
+        height=height,
+        fit=fit,
+        rotate=rotate,
+        preview_rotate=preview_rotate,
+        mode=mode,
+        saturation=saturation,
+        contrast=contrast,
+        sharpen=sharpen,
+        tone=tone,
+        preprocess=preprocess,
+    )

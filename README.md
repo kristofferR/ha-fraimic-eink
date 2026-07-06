@@ -71,7 +71,7 @@ pass it explicitly; otherwise the frame's configured default is used.
 | Sensor | Battery %, Battery voltage, Battery source, Wi-Fi signal, Wi-Fi SSID, Wi-Fi channel, IP address, Firmware, Uptime, Last refresh, Next refresh |
 | Binary sensor | Charging, Cable connected, Wi-Fi connected, Registered, Time synced, Voice recording, Keep awake |
 | Button | Refresh display, Sleep, Restart |
-| Image | Current artwork (colour preview of the last upload) |
+| Image | Current artwork (colour preview of the last upload), Screen preview (last rendered [dashboard screen](#dashboard-screens)) |
 | Media player | Display images via the media browser / `play_media` |
 
 Diagnostic / noisy entities (SSID, IP, voltage, uptime, …) are disabled by default — enable
@@ -219,6 +219,141 @@ automation:
 **Low battery alert** — just a `numeric_state` trigger on `sensor.fraimic_e_ink_canvas_battery`;
 no template sensor needed.
 
+## Dashboard screens
+
+The frame can render **Home Assistant data natively** — sensors, entity lists, templated text —
+as a designed e-ink dashboard, TRMNL-style: widgets composed into layout slots, built as crisp
+vector graphics on the server (no headless browser, works on any HA install) using only the
+panel's six real colours, so the result is pixel-perfect with zero dithering noise.
+
+![Sample dashboard screen](docs/sample-screen.png)
+
+The screen above is exactly what this call produces:
+
+```yaml
+action: fraimic.render_screen
+data:
+  screen:
+    name: Home
+    layout: quadrant          # full | half_horizontal | half_vertical | quadrant
+    widgets:
+      - type: clock
+        slot: top_left
+      - type: stat
+        slot: top_right
+        entity: sensor.outdoor_temperature
+        icon: mdi:thermometer
+        trend: true           # ▲/▼ + change vs 1 h ago (needs recorder)
+      - type: entities
+        slot: bottom_left
+        entities:
+          - sensor.living_room_temperature
+          - sensor.living_room_humidity
+          - light.kitchen
+          - lock.front_door
+      - type: template
+        slot: bottom_right
+        template: >-
+          Energy today: {{ states('sensor.energy_today') }} kWh
+```
+
+Layouts define the slots: `full` (`main`), `half_horizontal` (`top`/`bottom`), `half_vertical`
+(`left`/`right`), `quadrant` (`top_left`/`top_right`/`bottom_left`/`bottom_right`) — one widget
+per slot. Empty slots stay blank.
+
+### Widgets
+
+![Widget showcase](docs/sample-widgets.png)
+
+| Type | What it shows | Key options |
+|------|---------------|-------------|
+| `clock` | Big HH:MM | `format` (strftime, no seconds) |
+| `date` | Weekday + date | `format` (default `%A, %-d %B`) |
+| `stat` | One big value + label + icon + optional trend arrow | `entity` (required), `name`, `icon`, `unit`, `precision`, `trend`, `trend_hours`, `color` |
+| `entities` | Rows of name → state (with icons) | `entities` (list of ids or `{entity, name, icon}`), `max_rows` |
+| `template` | Free-form Jinja-templated text | `template` (required), `align` (`left`/`center`), `size` (`s`/`m`/`l`) |
+| `weather_current` | Condition icon + temperature + condition text | `entity` (weather, required), `name` |
+| `weather_forecast` | Hourly/daily forecast strip (icon, high/low) | `entity` (required), `mode` (`hourly`/`daily`), `count` (1–8) |
+| `calendar` | Agenda grouped by day (Today/Tomorrow/…) with accent bars | `entities` (calendar ids, required), `days` (1–14), `max_events` |
+| `todo` | Checklist with checkboxes (strikethrough when done) | `entity` (todo, required), `max_items`, `show_completed` |
+| `chart` | History line/area/bar chart from recorder data | `entities` (≤3, required), `hours` (1–168), `style`, `min`, `max`, `name` |
+| `gauge` | 270° arc gauge with big value | `entity` (required), `min`, `max`, `unit`, `color`, `thresholds` (`[{from, color}]`) |
+| `progress` | Labelled progress bar | `entity` (required), `min`, `max`, `name`, `color` |
+| `image` | A photo / camera frame inside a slot (dithered) | `url` or `entity` (camera/image), `fit` (`cover`/`contain`) |
+
+### Picture screens — full-bleed image / screenshot URL
+
+`kind: picture` skips the widget renderer entirely and shows one image full-screen through the
+normal photo pipeline (dithered + enhanced). Point it at any URL that returns an image — e.g. the
+[puppet add-on](https://github.com/balloob/home-assistant-addons/tree/main/puppet), which
+screenshots real Lovelace dashboards — or a camera/image entity:
+
+```yaml
+action: fraimic.render_screen
+data:
+  screen:
+    kind: picture
+    url: http://homeassistant.local:10000/lovelace/eink?viewport=1600x1200&kiosk
+```
+
+Screen-level options: `name` (shown in the header), `background` / `accent` / per-stat `color`
+(one of `black`, `white`, `yellow`, `red`, `blue`, `green` — the panel's real palette),
+`padding`, and `show_header: false` to drop the title bar. Icons are any
+[Material Design Icon](https://pictogrammers.com/library/mdi/) (`mdi:...`), same names as
+everywhere in HA.
+
+### Managing screens in the UI
+
+Screens can also be created **without any YAML**: on the frame's device page (Settings →
+Devices & Services → Fraimic), choose **Add dashboard screen**. A short wizard asks for the
+basics (name, layout, colours, rotation interval, optional time-of-day window) and then walks
+through each slot with a widget picker and that widget's options — entity pickers, icon picker,
+template editor, the lot. Screens are stored on the frame's config entry and can be edited or
+deleted there later.
+
+Show a stored screen by its name (or id) instead of an inline definition:
+
+```yaml
+action: fraimic.render_screen
+data:
+  screen_id: Gangen
+```
+
+(Gauge `thresholds` are the one option not exposed in the wizard — use the inline YAML form for
+those.)
+
+### Designing without burning refreshes
+
+Every upload is a full ~30 s e-ink refresh and costs battery. Add `preview_only: true` to the
+service call and the screen renders **only to the `Screen preview` image entity** — exactly what
+the panel would show, including the 6-colour quantisation — so you can iterate on a design from
+Developer Tools with zero uploads, then drop the flag when it's right.
+
+Called from an automation (time pattern, state trigger, …), `render_screen` keeps the frame's
+dashboard current — the same trigger patterns as the artwork examples above.
+
+### The playlist — rotate screens automatically
+
+When a frame has stored screens, it grows four playlist entities: a **Playlist** switch, a
+**Screen** select, and **Next/Previous screen** buttons. Turn the switch on and the frame
+rotates through its screens by itself:
+
+- Each screen shows for its own **rotation interval** (min 5 minutes) and only inside its
+  optional **time-of-day window / weekdays** (TRMNL-style scheduling: calendar+weather in the
+  morning, photos in the evening…).
+- Before every upload the freshly rendered panel content is **hashed and compared with what's
+  already on the glass — unchanged screens are skipped entirely.** Data still refreshes every
+  cycle; the ~30 s refresh flash and its battery cost only happen when something actually
+  changed. (The clock widget renders minutes, so a clock-bearing screen changes every cycle by
+  design.)
+- **Sleep-aware:** while the frame is unreachable (deep sleep) cycles are skipped quietly, and
+  the moment it answers a poll again the current screen is re-rendered fresh and pushed.
+- **Manual uploads play nice:** `upload_image`, `render_screen`, or the media browser hold the
+  playlist for one interval (your image gets its screen time), then rotation resumes. Starting
+  a camera loop on the media player turns the playlist off explicitly.
+- Selecting a screen in the **Screen** select (or pressing Next/Previous) shows it immediately
+  and rotation continues from there. Playlist state survives restarts.
+
 ## How image conversion works
 
 Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw, header-less,
@@ -305,7 +440,9 @@ Other verified-on-hardware behaviour this integration accounts for:
   auto-detect has nothing to work with — the config flow asks you to pick the model instead.
 
 This integration follows the verified behaviour and tolerates both the flat and nested
-`/api/info` JSON shapes seen in the wild.
+`/api/info` JSON shapes seen in the wild. The frame's full local HTTP surface (portal pages,
+Developer Mode, logs, cloud endpoints, and the `auto_update` / voice-recording quirks) is
+documented in [`docs/device-http-api.md`](docs/device-http-api.md).
 
 ## Troubleshooting
 

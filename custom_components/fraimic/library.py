@@ -418,18 +418,24 @@ async def async_upload_rendered(
     """Upload an already-rendered buffer to one frame and update its preview.
 
     Shared by direct library sends and scene activation (which pre-renders all
-    frames first, then uploads concurrently).
+    frames first, then uploads concurrently). Serializes against the frame's
+    upload lock so a library/scene send can't interleave with a playlist or
+    manual upload on the same (easily wedged) ESP32.
     """
+    import contextlib
+
     runtime = entry.runtime_data
-    try:
-        await runtime.client.upload_image(bin_data)
-    except FraimicError as err:
-        raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
-    if preview_png:
-        runtime.last_preview = preview_png
-        if runtime.preview_image is not None:
-            runtime.preview_image.set_preview(preview_png, mode)
-    await runtime.coordinator.async_request_refresh()
+    lock = getattr(runtime, "upload_lock", None) or contextlib.nullcontext()
+    async with lock:
+        try:
+            await runtime.client.upload_image(bin_data)
+        except FraimicError as err:
+            raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+        if preview_png:
+            runtime.last_preview = preview_png
+            if runtime.preview_image is not None:
+                runtime.preview_image.set_preview(preview_png, mode)
+        await runtime.coordinator.async_request_refresh()
 
 
 def _probe_dimensions(data: bytes) -> tuple[int, int]:

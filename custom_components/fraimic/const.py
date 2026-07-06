@@ -151,10 +151,32 @@ LIBRARY_ALBUM_DEFAULT: Final = "Images"
 # Longest edge of the JPEG thumbnails served to the panel grid.
 LIBRARY_THUMB_SIZE: Final = 480
 
+# Named palette positions for dashboard screens (position in SPECTRA6_RGB).
+# Screens render with these exact calibrated RGB values so every flat region
+# quantises losslessly to its palette index (mode "none", no dithering noise).
+PALETTE_NAMES: Final = {
+    "black": 0,
+    "white": 1,
+    "yellow": 2,
+    "red": 3,
+    "blue": 4,
+    "green": 5,
+}
+
+# Dashboard screens: rotation interval bounds (each upload is a full ~30 s
+# E-Ink refresh and costs battery, so the floor is deliberately high).
+MIN_SCREEN_INTERVAL: Final = 300
+DEFAULT_SCREEN_INTERVAL: Final = 1800
+
 # Services
 SERVICE_UPLOAD_IMAGE: Final = "upload_image"
 SERVICE_SEND_SCENE: Final = "send_scene"
 ATTR_SCENE_NAME: Final = "name"
+SERVICE_RENDER_SCREEN: Final = "render_screen"
+
+ATTR_SCREEN: Final = "screen"
+ATTR_SCREEN_ID: Final = "screen_id"
+ATTR_PREVIEW_ONLY: Final = "preview_only"
 
 ATTR_CONFIG_ENTRY: Final = "config_entry_id"
 ATTR_PATH: Final = "path"

@@ -12,6 +12,72 @@ send_scene:
       selector:
         text:
 
+render_screen:
+  name: Render screen
+  description: >-
+    Render a dashboard screen (widgets in layout slots) from Home Assistant
+    data and display it on the frame — or preview it without uploading.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: >-
+        Which Fraimic frame to render to. Only required if you have more than
+        one frame configured.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    screen:
+      name: Screen definition
+      description: >-
+        The screen as YAML: a layout (full, half_horizontal, half_vertical or
+        quadrant) and one widget per slot. Widget types: clock, date, stat,
+        entities, template, weather_current, weather_forecast, calendar, todo,
+        chart, gauge, progress, image. Or "kind: picture" with a url/entity
+        for a full-bleed image (e.g. a dashboard-screenshot add-on URL).
+        Provide either this or "Stored screen", not both.
+      required: false
+      example: >-
+        layout: quadrant
+
+        widgets:
+          - type: clock
+            slot: top_left
+          - type: stat
+            slot: top_right
+            entity: sensor.outdoor_temperature
+            trend: true
+          - type: entities
+            slot: bottom_left
+            entities:
+              - sensor.indoor_temperature
+              - sensor.indoor_humidity
+          - type: template
+            slot: bottom_right
+            template: "{{ states('sensor.energy_today') }} kWh used today"
+      selector:
+        object:
+    screen_id:
+      name: Stored screen
+      description: >-
+        The id or name of a screen created in the integration's UI ("Add
+        dashboard screen" on the frame's device page). Alternative to an
+        inline screen definition — provide exactly one of the two.
+      required: false
+      example: Gangen
+      selector:
+        text:
+    preview_only:
+      name: Preview only
+      description: >-
+        Render only to the Screen preview image entity without uploading to
+        the frame — iterate on a design without spending ~30 s e-ink refreshes
+        and battery.
+      required: false
+      default: false
+      selector:
+        boolean:
+
 upload_image:
   name: Upload image
   description: >-
