@@ -1,6 +1,9 @@
 {
   "domain": "fraimic",
   "name": "Fraimic E-Ink Canvas",
+  "after_dependencies": [
+    "recorder"
+  ],
   "codeowners": [
     "@kristofferR"
   ],
@@ -16,9 +19,10 @@
   "issue_tracker": "https://github.com/kristofferR/ha-fraimic-eink/issues",
   "requirements": [
     "numpy",
-    "pillow-heif>=0.16.0"
+    "pillow-heif>=0.16.0",
+    "resvg-py>=0.3.2"
   ],
-  "version": "1.1.0",
+  "version": "1.2.0",
   "zeroconf": [
     {
       "type": "_http._tcp.local.",
