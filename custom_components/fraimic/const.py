@@ -168,15 +168,50 @@ PALETTE_NAMES: Final = {
 MIN_SCREEN_INTERVAL: Final = 300
 DEFAULT_SCREEN_INTERVAL: Final = 1800
 
+# Online image providers ("art frame" mode).
+# Keyless: three museums (CC0 masterpieces), Wikimedia picture of the day,
+# Bing image of the day (unofficial; personal use), NASA APOD (DEMO_KEY tier
+# suffices for daily use), Lorem Picsum (random demo photos).
+PROVIDER_KEYS: Final = (
+    "met",
+    "aic",
+    "cleveland",
+    "wikimedia",
+    "bing",
+    "apod",
+    "picsum",
+    "unsplash",  # requires a free API key (frame options)
+    "pexels",  # requires a free API key (frame options)
+)
+PROVIDER_SHUFFLE: Final = "shuffle"  # random pick across available providers
+MEDIA_SCHEME: Final = "fraimic-online"
+
+# Aggressive e-ink curation: anything with a short edge below this upscales
+# visibly soft on the ~150 PPI panel, and extreme aspect mismatches lose most
+# of the artwork to the cover-crop.
+MIN_ART_SHORT_EDGE: Final = 1000
+ART_ASPECT_MIN: Final = 0.5  # x the frame's viewed aspect ratio
+ART_ASPECT_MAX: Final = 2.0
+
+# Optional provider API keys (entry options).
+CONF_NASA_API_KEY: Final = "nasa_api_key"
+CONF_UNSPLASH_KEY: Final = "unsplash_access_key"
+CONF_PEXELS_KEY: Final = "pexels_api_key"
+CONF_DEFAULT_PROVIDER: Final = "default_provider"
+
 # Services
 SERVICE_UPLOAD_IMAGE: Final = "upload_image"
 SERVICE_SEND_SCENE: Final = "send_scene"
 ATTR_SCENE_NAME: Final = "name"
 SERVICE_RENDER_SCREEN: Final = "render_screen"
+SERVICE_SHOW_ONLINE_IMAGE: Final = "show_online_image"
 
 ATTR_SCREEN: Final = "screen"
 ATTR_SCREEN_ID: Final = "screen_id"
 ATTR_PREVIEW_ONLY: Final = "preview_only"
+ATTR_PROVIDER: Final = "provider"
+ATTR_QUERY: Final = "query"
+ATTR_CAPTION: Final = "caption"
 
 ATTR_CONFIG_ENTRY: Final = "config_entry_id"
 ATTR_PATH: Final = "path"

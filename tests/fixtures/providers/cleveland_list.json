@@ -1,0 +1,70 @@
+{
+  "info": {
+    "total": 63
+  },
+  "data": [
+    {
+      "id": 149112,
+      "title": "Church Street El",
+      "creators": [
+        {
+          "description": "Charles Sheeler (American, 1883–1965)"
+        }
+      ],
+      "images": {
+        "web": {
+          "url": "https://openaccess-cdn.clevelandart.org/1977.43/1977.43_web.jpg",
+          "width": "1069",
+          "height": "893"
+        },
+        "print": {
+          "url": "https://openaccess-cdn.clevelandart.org/1977.43/1977.43_print.jpg",
+          "width": "3400",
+          "height": "2841"
+        }
+      }
+    },
+    {
+      "id": 125249,
+      "title": "The Large Plane Trees (Road Menders at Saint-Rémy)",
+      "creators": [
+        {
+          "description": "Vincent van Gogh (Dutch, 1853–1890)"
+        }
+      ],
+      "images": {
+        "web": {
+          "url": "https://openaccess-cdn.clevelandart.org/1947.209/1947.209_web.jpg",
+          "width": "900",
+          "height": "718"
+        },
+        "print": {
+          "url": "https://openaccess-cdn.clevelandart.org/1947.209/1947.209_print.jpg",
+          "width": "3400",
+          "height": "2713"
+        }
+      }
+    },
+    {
+      "id": 135382,
+      "title": "The Red Kerchief",
+      "creators": [
+        {
+          "description": "Claude Monet (French, 1840–1926)"
+        }
+      ],
+      "images": {
+        "web": {
+          "url": "https://openaccess-cdn.clevelandart.org/1958.39/1958.39_web.jpg",
+          "width": "723",
+          "height": "900"
+        },
+        "print": {
+          "url": "https://openaccess-cdn.clevelandart.org/1958.39/1958.39_print.jpg",
+          "width": "2732",
+          "height": "3400"
+        }
+      }
+    }
+  ]
+}

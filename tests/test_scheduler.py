@@ -29,11 +29,18 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator = types.ModuleType("fraimic.coordinator")
     screens = types.ModuleType("fraimic.screens")
     services = types.ModuleType("fraimic.services")
+    # scheduler imports ArtFetchError from providers.ha, which pulls aiohttp —
+    # stub it like the other HA-touching neighbours.
+    providers = types.ModuleType("fraimic.providers")
+    providers_ha = types.ModuleType("fraimic.providers.ha")
 
     class HomeAssistant:
         pass
 
     class HomeAssistantError(Exception):
+        pass
+
+    class ArtFetchError(HomeAssistantError):
         pass
 
     class Store:
@@ -74,6 +81,8 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator.FraimicConfigEntry = SimpleNamespace
     screens.screens_from_entry = lambda _entry: []
     services.FrameUploadError = FrameUploadError
+    providers.ha = providers_ha
+    providers_ha.ArtFetchError = ArtFetchError
     homeassistant.core = core
     homeassistant.exceptions = exceptions
     homeassistant.helpers = helpers
@@ -97,6 +106,8 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
         "fraimic.coordinator": coordinator,
         "fraimic.screens": screens,
         "fraimic.services": services,
+        "fraimic.providers": providers,
+        "fraimic.providers.ha": providers_ha,
     }.items():
         monkeypatch.setitem(sys.modules, name, module)
 
@@ -251,6 +262,7 @@ def test_set_enabled_can_skip_persistence_for_camera_pause(
     scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
     saved: list[dict] = []
     scheduler.enabled = True
+    scheduler._stored_enabled = True
 
     class Store:
         async def async_save(self, data: dict) -> None:
@@ -260,10 +272,12 @@ def test_set_enabled_can_skip_persistence_for_camera_pause(
 
     asyncio.run(scheduler.async_set_enabled(False, persist=False))
     assert scheduler.enabled is False
+    assert scheduler.stored_enabled is True
     assert saved == []
 
     asyncio.run(scheduler.async_set_enabled(False))
     assert saved[-1]["enabled"] is False
+    assert scheduler.stored_enabled is False
 
 
 def test_enabling_playlist_respects_fresh_current_screen(
@@ -288,6 +302,33 @@ def test_enabling_playlist_respects_fresh_current_screen(
 
     assert scheduler.enabled is True
     assert scheduler.current_id == "screen-1"
+
+
+def test_enabling_playlist_retries_pending_wake_push(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    screen = SimpleNamespace(screen_id="screen-1", name="Pending", interval=1800)
+    uploads: list[str] = []
+
+    async def async_show_screen(
+        _hass: object, _entry: object, screen: object, **_kwargs: object
+    ) -> dict:
+        uploads.append(screen.screen_id)
+        return {"uploaded": True, "content_hash": "hash456"}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [screen]
+    scheduler.enabled = False
+    scheduler._pending = screen
+    scheduler._pending_requires_enabled = True
+
+    asyncio.run(scheduler.async_set_enabled(True))
+
+    assert uploads == ["screen-1"]
+    assert scheduler._pending is None
+    assert scheduler.displayed_hash == "hash456"
 
 
 def test_enabling_playlist_retakes_unknown_displayed_content(

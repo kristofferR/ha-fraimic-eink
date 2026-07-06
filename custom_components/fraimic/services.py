@@ -30,8 +30,11 @@ from .const import (
     ATTR_IMAGE_ENTITY,
     ATTR_LIBRARY_IMAGE,
     ATTR_MODE,
+    ATTR_CAPTION,
     ATTR_PATH,
     ATTR_PREVIEW_ONLY,
+    ATTR_PROVIDER,
+    ATTR_QUERY,
     ATTR_ROTATE,
     ATTR_SATURATION,
     ATTR_SCREEN,
@@ -57,8 +60,11 @@ from .const import (
     MAX_BIN_SIZE,
     MODE_AUTO,
     MODE_NONE,
+    PROVIDER_KEYS,
+    PROVIDER_SHUFFLE,
     SERVICE_RENDER_SCREEN,
     SERVICE_SEND_SCENE,
+    SERVICE_SHOW_ONLINE_IMAGE,
     SERVICE_UPLOAD_IMAGE,
 )
 from .coordinator import FraimicConfigEntry
@@ -166,6 +172,16 @@ RENDER_SCREEN_SCHEMA = vol.All(
     _require_screen_or_id,
 )
 
+SHOW_ONLINE_IMAGE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+        vol.Required(ATTR_PROVIDER): vol.In((*PROVIDER_KEYS, PROVIDER_SHUFFLE)),
+        vol.Optional(ATTR_QUERY): cv.string,
+        vol.Optional(ATTR_CAPTION, default=False): cv.boolean,
+        vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
+    }
+)
+
 
 def _resolve_mode(data: dict, options: dict) -> str:
     """Pick the dither mode: call > legacy ``dither`` bool > frame option > auto."""
@@ -198,6 +214,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_SEND_SCENE,
         _async_handle_send_scene,
         schema=SEND_SCENE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SHOW_ONLINE_IMAGE,
+        _async_handle_show_online_image,
+        schema=SHOW_ONLINE_IMAGE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
 
@@ -288,6 +311,40 @@ async def _async_handle_send_scene(call: ServiceCall) -> None:
     failed = {k: r["error"] for k, r in results.items() if not r["ok"]}
     if failed:
         _LOGGER.warning("Scene %s partially failed: %s", scene.name, failed)
+
+
+async def _async_handle_show_online_image(call: ServiceCall) -> ServiceResponse:
+    """Handle ``fraimic.show_online_image``: fetch + display one online image."""
+    hass = call.hass
+    entry = _resolve_entry(hass, call)
+    screen = screen_from_dict(
+        SCREEN_SCHEMA(
+            {
+                "name": "Online image",
+                "kind": "picture",
+                "provider": call.data[ATTR_PROVIDER],
+                **(
+                    {"query": call.data[ATTR_QUERY]}
+                    if call.data.get(ATTR_QUERY)
+                    else {}
+                ),
+                "caption": call.data[ATTR_CAPTION],
+            }
+        )
+    )
+    result = await async_show_screen(
+        hass, entry, screen, preview_only=call.data[ATTR_PREVIEW_ONLY]
+    )
+    if not call.return_response:
+        return None
+    art = result.pop("art", None) or {}
+    return {
+        **result,
+        "provider": art.get("provider"),
+        "title": art.get("title"),
+        "artist": art.get("artist"),
+        "attribution": art.get("attribution"),
+    }
 
 
 async def async_convert_for_entry(

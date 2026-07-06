@@ -54,7 +54,7 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
         ImageEntity.__init__(self, hass)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_preview"
         self._image: bytes | None = None
-        self._attr_extra_state_attributes = {}
+        self._mode: str | None = None
 
     async def async_added_to_hass(self) -> None:
         """Expose this entity to the upload path only once it's actually added.
@@ -79,11 +79,28 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
     def set_preview(self, png_bytes: bytes, mode: str | None = None) -> None:
         """Store a new PNG preview (and the dither mode used) and notify HA."""
         self._image = png_bytes
-        # Surfaces what `auto` actually chose; cleared if the new preview has none
-        # so a stale mode from a previous upload isn't shown.
-        self._attr_extra_state_attributes = {"dither_mode": mode} if mode else {}
+        self._mode = mode
         self._attr_image_last_updated = dt_util.utcnow()
         self.async_write_ha_state()
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Dither mode used, plus attribution when online artwork is showing.
+
+        Read live so the coordinator-refresh state write that follows every
+        upload picks up ``runtime.last_art`` (set just after the preview).
+        """
+        attrs: dict = {"dither_mode": self._mode} if self._mode else {}
+        art = self.coordinator.config_entry.runtime_data.last_art
+        if art:
+            attrs.update(
+                {
+                    key: art[key]
+                    for key in ("provider", "title", "artist", "license", "attribution")
+                    if art.get(key)
+                }
+            )
+        return attrs
 
     async def async_image(self) -> bytes | None:
         return self._image

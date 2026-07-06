@@ -37,7 +37,9 @@ from .const import (
     DITHER_MODES,
     FIT_MODES,
     MIN_SCREEN_INTERVAL,
+    PROVIDER_SHUFFLE,
 )
+from .providers import PROVIDERS, available_provider_keys
 from .render.layout import LAYOUT_SLOTS
 from .render.schema import DAYS, SCREEN_SCHEMA
 
@@ -217,16 +219,28 @@ _BASICS_SCHEMA = vol.Schema(
     }
 )
 
-_PICTURE_SCHEMA = vol.Schema(
-    {
-        vol.Optional("url"): TextSelector(),
-        vol.Optional("entity"): EntitySelector(
-            EntitySelectorConfig(domain=["camera", "image"])
+def _picture_schema(entry) -> vol.Schema:
+    """Picture-source form; keyed providers appear only when configured."""
+    provider_options = [
+        SelectOptionDict(value=PROVIDER_SHUFFLE, label="Surprise me — random museum art"),
+        *(
+            SelectOptionDict(value=key, label=PROVIDERS[key].name)
+            for key in available_provider_keys(entry)
         ),
-        vol.Optional("fit"): _simple_select(*FIT_MODES),
-        vol.Optional("mode"): _simple_select(*DITHER_MODES),
-    }
-)
+    ]
+    return vol.Schema(
+        {
+            vol.Optional("provider"): _select(provider_options),
+            vol.Optional("query"): TextSelector(),
+            vol.Optional("caption", default=False): BooleanSelector(),
+            vol.Optional("url"): TextSelector(),
+            vol.Optional("entity"): EntitySelector(
+                EntitySelectorConfig(domain=["camera", "image"])
+            ),
+            vol.Optional("fit"): _simple_select(*FIT_MODES),
+            vol.Optional("mode"): _simple_select(*DITHER_MODES),
+        }
+    )
 
 
 def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
@@ -314,15 +328,19 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             source = _clean(user_input)
-            if len([k for k in ("url", "entity") if source.get(k)]) != 1:
+            if len([k for k in ("url", "entity", "provider") if source.get(k)]) != 1:
                 errors["base"] = "picture_source"
+            elif (source.get("query") or source.get("caption")) and not source.get(
+                "provider"
+            ):
+                errors["base"] = "provider_only_fields"
             else:
                 return self._finish({"kind": "picture", **source})
 
         return self.async_show_form(
             step_id="picture",
             data_schema=self.add_suggested_values_to_schema(
-                _PICTURE_SCHEMA, self._existing
+                _picture_schema(self._get_entry()), self._existing
             ),
             errors=errors,
         )
@@ -467,10 +485,13 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
             return self.async_show_form(
                 step_id="picture",
                 data_schema=self.add_suggested_values_to_schema(
-                    _PICTURE_SCHEMA,
+                    _picture_schema(self._get_entry()),
                     {
                         key: body[key]
-                        for key in ("url", "entity", "fit", "mode")
+                        for key in (
+                            "provider", "query", "caption",
+                            "url", "entity", "fit", "mode",
+                        )
                         if key in body
                     },
                 ),

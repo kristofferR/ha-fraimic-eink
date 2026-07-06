@@ -80,8 +80,11 @@
         },
         "picture": {
           "title": "Picture source",
-          "description": "One full-bleed image shown via the photo pipeline (dithered). Give exactly one source — an image URL (e.g. a dashboard-screenshot add-on) or a camera/image entity.",
+          "description": "One full-bleed image shown via the photo pipeline (dithered). Give exactly one source: an online provider (fresh art each rotation), an image URL (e.g. a dashboard-screenshot add-on), or a camera/image entity.",
           "data": {
+            "provider": "Online source",
+            "query": "Search query (photo providers only)",
+            "caption": "Caption (attribution strip on the panel)",
             "url": "Image URL",
             "entity": "Camera / image entity",
             "fit": "Fit",
@@ -130,7 +133,8 @@
       },
       "error": {
         "invalid_screen": "One of the screen options is invalid. Check URLs and format fields.",
-        "picture_source": "Give exactly one source: an image URL or a camera/image entity.",
+        "picture_source": "Give exactly one source: an online provider, an image URL, or a camera/image entity.",
+        "provider_only_fields": "Search query and caption only apply to an online provider source.",
         "no_widgets": "Every slot was left empty — pick at least one widget.",
         "too_many_series": "A chart supports at most 3 entities."
       },
@@ -153,7 +157,11 @@
           "saturation": "Saturation",
           "contrast": "Contrast",
           "sharpen": "Sharpen",
-          "tone": "Tone curve"
+          "tone": "Tone curve",
+          "default_provider": "Default online-art source",
+          "nasa_api_key": "NASA API key (optional)",
+          "unsplash_access_key": "Unsplash access key (optional)",
+          "pexels_api_key": "Pexels API key (optional)"
         },
         "data_description": {
           "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
@@ -164,7 +172,11 @@
           "saturation": "Saturation boost (default 1.15). 1.0 = no change.",
           "contrast": "Contrast boost (default 1.4 — pushed hard for the backlight-less panel). 1.0 = no change.",
           "sharpen": "Unsharp-mask strength 0-100 (default 80).",
-          "tone": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff."
+          "tone": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff.",
+          "default_provider": "Used by the New artwork button. 'shuffle' picks a random museum.",
+          "nasa_api_key": "Free key from api.nasa.gov raises the APOD rate limit (DEMO_KEY works without one).",
+          "unsplash_access_key": "Enables the Unsplash photo provider. Free at unsplash.com/developers.",
+          "pexels_api_key": "Enables the Pexels photo provider. Free at pexels.com/api."
         }
       }
     }
@@ -237,7 +249,8 @@
       "sleep": { "name": "Sleep" },
       "restart": { "name": "Restart" },
       "next_screen": { "name": "Next screen" },
-      "previous_screen": { "name": "Previous screen" }
+      "previous_screen": { "name": "Previous screen" },
+      "new_artwork": { "name": "New artwork" }
     },
     "image": {
       "preview": { "name": "Current artwork" },
@@ -312,6 +325,32 @@
         "tone": {
           "name": "Tone curve",
           "description": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff. 0 disables."
+        }
+      }
+    },
+    "show_online_image": {
+      "name": "Show online image",
+      "description": "Fetch a fresh image from an online source (museum masterpieces, picture of the day, ...) and display it on the frame.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which Fraimic frame to display on. Only required with multiple frames."
+        },
+        "provider": {
+          "name": "Source",
+          "description": "Where to get the image: shuffle (random museum), met, aic, cleveland, wikimedia, bing, apod, or picsum."
+        },
+        "query": {
+          "name": "Search query",
+          "description": "Keyword for photo providers that support search. Museums ignore it."
+        },
+        "caption": {
+          "name": "Caption",
+          "description": "Render a small attribution strip (title — artist, source) under the image on the panel."
+        },
+        "preview_only": {
+          "name": "Preview only",
+          "description": "Fetch and render only to the Screen preview image entity, without uploading to the frame."
         }
       }
     },

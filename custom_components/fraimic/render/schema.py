@@ -22,7 +22,13 @@ from datetime import datetime, time
 
 import voluptuous as vol
 
-from ..const import DEFAULT_SCREEN_INTERVAL, MIN_SCREEN_INTERVAL, PALETTE_NAMES
+from ..const import (
+    DEFAULT_SCREEN_INTERVAL,
+    MIN_SCREEN_INTERVAL,
+    PALETTE_NAMES,
+    PROVIDER_KEYS,
+    PROVIDER_SHUFFLE,
+)
 from .layout import LAYOUT_SLOTS
 
 KIND_DASHBOARD = "dashboard"
@@ -218,14 +224,20 @@ WINDOW_SCHEMA = vol.Schema(
 def _validate_screen(data: dict) -> dict:
     """Cross-field validation: kind-dependent requirements, slots fit layout."""
     if data["kind"] == KIND_PICTURE:
-        sources = [key for key in ("url", "entity") if data.get(key)]
+        sources = [key for key in ("url", "entity", "provider") if data.get(key)]
         if len(sources) != 1:
-            raise vol.Invalid("a picture screen needs exactly one of: url, entity")
+            raise vol.Invalid(
+                "a picture screen needs exactly one of: url, entity, provider"
+            )
+        if (data.get("query") or data.get("caption")) and not data.get("provider"):
+            raise vol.Invalid("query/caption are only valid with a provider source")
         if data.get("widgets") or data.get("layout"):
             raise vol.Invalid("picture screens take no layout/widgets — just a source")
         return data
-    if data.get("url") or data.get("entity"):
-        raise vol.Invalid("url/entity are only valid on kind: picture screens")
+    if data.get("url") or data.get("entity") or data.get("provider"):
+        raise vol.Invalid(
+            "url/entity/provider are only valid on kind: picture screens"
+        )
     if not data.get("layout"):
         raise vol.Invalid("required key not provided: layout")
     if not data.get("widgets"):
@@ -272,9 +284,13 @@ SCREEN_SCHEMA = vol.All(
             vol.Optional("layout"): vol.In(sorted(LAYOUT_SLOTS)),
             vol.Optional("widgets", default=[]): vol.All(list, vol.Length(max=4)),
             # Picture-screen source (kind: picture only) — shown full-bleed via
-            # the normal photo pipeline (dithered, preprocessed).
+            # the normal photo pipeline (dithered, preprocessed). Exactly one
+            # of url / entity / provider.
             vol.Optional("url"): _HTTP_URL,
             vol.Optional("entity"): _ENTITY_ID,
+            vol.Optional("provider"): vol.In((*PROVIDER_KEYS, PROVIDER_SHUFFLE)),
+            vol.Optional("query"): str,  # photo providers only
+            vol.Optional("caption", default=False): bool,  # attribution strip
             vol.Optional("fit"): vol.In(("cover", "contain", "contain_black", "stretch")),
             vol.Optional("mode"): vol.In(
                 ("auto", "none", "bayer", "floyd_steinberg", "atkinson")
@@ -339,7 +355,9 @@ def screen_from_dict(data: dict, screen_id: str = "adhoc") -> ScreenConfig:
     source = None
     if data["kind"] == KIND_PICTURE:
         source = {
-            key: data[key] for key in ("url", "entity", "fit", "mode") if key in data
+            key: data[key]
+            for key in ("url", "entity", "provider", "query", "caption", "fit", "mode")
+            if key in data
         }
     return ScreenConfig(
         screen_id=screen_id,

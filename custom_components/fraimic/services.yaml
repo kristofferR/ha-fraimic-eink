@@ -12,6 +12,76 @@ send_scene:
       selector:
         text:
 
+show_online_image:
+  name: Show online image
+  description: >-
+    Fetch a fresh image from an online source (museum masterpieces, picture
+    of the day, ...) — curated for the e-ink panel — and display it on the
+    frame.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: >-
+        Which Fraimic frame to display on. Only required if you have more
+        than one frame configured.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    provider:
+      name: Source
+      description: >-
+        Where to get the image. "shuffle" picks a random museum. Museums
+        (met, aic, cleveland) serve public-domain masterpieces; wikimedia,
+        bing and apod are picture-of-the-day sources; picsum is random stock
+        photos.
+      required: true
+      default: shuffle
+      selector:
+        select:
+          options:
+            - label: Surprise me — random museum art
+              value: shuffle
+            - label: The Met
+              value: met
+            - label: Art Institute of Chicago
+              value: aic
+            - label: Cleveland Museum of Art
+              value: cleveland
+            - label: Wikimedia picture of the day
+              value: wikimedia
+            - label: Bing image of the day
+              value: bing
+            - label: NASA APOD
+              value: apod
+            - label: Lorem Picsum (random photos)
+              value: picsum
+    query:
+      name: Search query
+      description: Keyword for photo providers that support search. Museums ignore it.
+      required: false
+      example: northern lights
+      selector:
+        text:
+    caption:
+      name: Caption
+      description: >-
+        Render a small attribution strip (title — artist, source) under the
+        image on the panel.
+      required: false
+      default: false
+      selector:
+        boolean:
+    preview_only:
+      name: Preview only
+      description: >-
+        Fetch and render only to the Screen preview image entity, without
+        uploading to the frame.
+      required: false
+      default: false
+      selector:
+        boolean:
+
 render_screen:
   name: Render screen
   description: >-
