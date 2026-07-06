@@ -266,26 +266,27 @@ class FraimicScheduler:
     @callback
     def _coordinator_updated(self) -> None:
         """Frame answered a poll — if a push failed while it slept, retry now."""
-        if (
-            self._pending is not None
-            and (self.enabled or not self._pending_requires_enabled)
-            and self.entry.runtime_data.coordinator.last_update_success
-            and not self._busy
-            and not self.external_upload_active
-        ):
+        if self._can_retry_pending():
             screen = self._pending
+            assert screen is not None
             self.entry.async_create_task(
                 self.hass,
                 self._async_retry_pending(screen),
                 "fraimic_playlist_wake_push",
             )
 
+    def _can_retry_pending(self, screen: ScreenConfig | None = None) -> bool:
+        return (
+            self._pending is not None
+            and (screen is None or self._pending is screen)
+            and (self.enabled or not self._pending_requires_enabled)
+            and self.entry.runtime_data.coordinator.last_update_success
+            and not self._busy
+            and not self.external_upload_active
+        )
+
     async def _async_retry_pending(self, screen: ScreenConfig) -> None:
-        if (
-            self._pending is not screen
-            or not (self.enabled or not self._pending_requires_enabled)
-            or self.external_upload_active
-        ):
+        if not self._can_retry_pending(screen):
             return
         pending_requires_enabled = self._pending_requires_enabled
         await self._async_show(screen, manual=False)
