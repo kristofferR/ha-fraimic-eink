@@ -335,19 +335,8 @@ class FraimicLibrary:
         overrides: dict | None = None,
     ) -> None:
         """Render (cache-aware) and upload one library image to one frame."""
-        bin_data, preview_png, used_mode = await self.async_render_for_entry(
-            image_id, entry, overrides
-        )
-        runtime = entry.runtime_data
-        try:
-            await runtime.client.upload_image(bin_data)
-        except FraimicError as err:
-            raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
-        if preview_png:
-            runtime.last_preview = preview_png
-            if runtime.preview_image is not None:
-                runtime.preview_image.set_preview(preview_png, used_mode)
-        await runtime.coordinator.async_request_refresh()
+        rendered = await self.async_render_for_entry(image_id, entry, overrides)
+        await async_upload_rendered(entry, *rendered)
 
     # -------------------------------------------------------------- backfill
 
@@ -388,6 +377,26 @@ class FraimicLibrary:
                     )
                 except asyncio.CancelledError:
                     raise
+
+
+async def async_upload_rendered(
+    entry: ConfigEntry, bin_data: bytes, preview_png: bytes | None, mode: str
+) -> None:
+    """Upload an already-rendered buffer to one frame and update its preview.
+
+    Shared by direct library sends and scene activation (which pre-renders all
+    frames first, then uploads concurrently).
+    """
+    runtime = entry.runtime_data
+    try:
+        await runtime.client.upload_image(bin_data)
+    except FraimicError as err:
+        raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+    if preview_png:
+        runtime.last_preview = preview_png
+        if runtime.preview_image is not None:
+            runtime.preview_image.set_preview(preview_png, mode)
+    await runtime.coordinator.async_request_refresh()
 
 
 def _probe_dimensions(data: bytes) -> tuple[int, int]:

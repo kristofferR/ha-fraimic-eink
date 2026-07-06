@@ -151,8 +151,10 @@ LIBRARY_ALBUM_DEFAULT: Final = "Images"
 # Longest edge of the JPEG thumbnails served to the panel grid.
 LIBRARY_THUMB_SIZE: Final = 480
 
-# Service
+# Services
 SERVICE_UPLOAD_IMAGE: Final = "upload_image"
+SERVICE_SEND_SCENE: Final = "send_scene"
+ATTR_SCENE_NAME: Final = "name"
 
 ATTR_CONFIG_ENTRY: Final = "config_entry_id"
 ATTR_PATH: Final = "path"

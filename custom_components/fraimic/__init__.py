@@ -16,6 +16,7 @@ from .coordinator import (
 from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
+from .scenes import DATA_SCENES, SceneManager
 from .services import async_setup_services
 
 PLATFORMS: list[Platform] = [
@@ -23,6 +24,7 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.IMAGE,
     Platform.MEDIA_PLAYER,
+    Platform.SCENE,
     Platform.SENSOR,
 ]
 
@@ -36,6 +38,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
         library = FraimicLibrary(hass)
         await library.async_setup()
         domain_data[DATA_LIBRARY] = library
+    if DATA_SCENES not in domain_data:
+        scenes = SceneManager(hass, domain_data[DATA_LIBRARY])
+        await scenes.async_setup()
+        domain_data[DATA_SCENES] = scenes
     async_register_views(hass)
 
     client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
@@ -66,7 +72,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
     if unload_ok and not loaded_fraimic_entries(hass):
         # Last frame gone: stop the library's background worker. The HTTP views
         # stay registered (aiohttp routes can't be removed) and answer 503.
-        library = hass.data.get(DOMAIN, {}).pop(DATA_LIBRARY, None)
+        domain_data = hass.data.get(DOMAIN, {})
+        domain_data.pop(DATA_SCENES, None)
+        library = domain_data.pop(DATA_LIBRARY, None)
         if library is not None:
             await library.async_shutdown()
     return unload_ok

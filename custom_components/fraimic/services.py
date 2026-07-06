@@ -31,17 +31,20 @@ from .const import (
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
+    ATTR_SCENE_NAME,
     ATTR_URL,
     DITHER_MODES,
     DOMAIN,
     FIT_MODES,
     MODE_AUTO,
+    SERVICE_SEND_SCENE,
     SERVICE_UPLOAD_IMAGE,
 )
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .helpers import resolve_render_params
 from .image_convert import convert_image
 from .library import get_library
+from .scenes import get_scene_manager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -96,6 +99,9 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
 )
 
 
+SEND_SCENE_SCHEMA = vol.Schema({vol.Required(ATTR_SCENE_NAME): cv.string})
+
+
 def async_setup_services(hass: HomeAssistant) -> None:
     """Register integration services (idempotent)."""
     if hass.services.has_service(DOMAIN, SERVICE_UPLOAD_IMAGE):
@@ -106,6 +112,24 @@ def async_setup_services(hass: HomeAssistant) -> None:
         _async_handle_upload_image,
         schema=UPLOAD_IMAGE_SCHEMA,
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SEND_SCENE,
+        _async_handle_send_scene,
+        schema=SEND_SCENE_SCHEMA,
+    )
+
+
+async def _async_handle_send_scene(call: ServiceCall) -> None:
+    """Handle ``fraimic.send_scene``: activate a scene by (case-insensitive) name."""
+    manager = get_scene_manager(call.hass)
+    if manager is None:
+        raise ServiceValidationError("No Fraimic frame is set up")
+    scene = manager.find_by_name(call.data[ATTR_SCENE_NAME])
+    results = await manager.async_send(scene.scene_id)
+    failed = {k: r["error"] for k, r in results.items() if not r["ok"]}
+    if failed:
+        _LOGGER.warning("Scene %s partially failed: %s", scene.name, failed)
 
 
 def _resolve_entry(hass: HomeAssistant, call: ServiceCall):
