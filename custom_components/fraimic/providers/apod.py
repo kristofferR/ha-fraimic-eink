@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
+from .engine import async_fetch_json
 
 APOD_URL = "https://api.nasa.gov/planetary/apod"
 API_TIMEOUT = 20.0
@@ -62,17 +63,17 @@ class ApodProvider(ArtProvider):
             if request.api_key
             else max(self.min_interval, DEMO_KEY_MIN_INTERVAL)
         )
-        await cache.async_throttle(self.key, min_interval)
-        resp = await session.get(
-            APOD_URL,
+        payload = await async_fetch_json(
+            session,
+            cache,
+            key=self.key,
+            min_interval=min_interval,
+            url=APOD_URL,
+            error_label="NASA APOD",
             params={"api_key": api_key, "count": max(count, 4)},
             headers=api_headers(),
             timeout=API_TIMEOUT,
         )
-        async with resp:
-            if resp.status != 200:
-                raise ArtFetchError(f"NASA APOD returned HTTP {resp.status}")
-            payload = await resp.json()
         candidates = parse_apod_items(payload)
         if not candidates:
             raise ArtFetchError("NASA APOD returned only non-image entries")

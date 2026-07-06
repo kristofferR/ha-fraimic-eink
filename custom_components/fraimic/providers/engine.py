@@ -26,6 +26,38 @@ DOWNLOAD_TIMEOUT = 45.0
 DimsOf = Callable[[bytes], Awaitable[tuple[int, int]]]
 
 
+async def async_fetch_json(
+    session: Any,
+    cache: Any,
+    *,
+    key: str,
+    min_interval: float,
+    url: str,
+    error_label: str,
+    timeout: float,
+    method: str = "get",
+    headers: dict[str, str] | None = None,
+    json_kwargs: dict[str, Any] | None = None,
+    **request_kwargs: Any,
+) -> Any:
+    """Fetch and parse one throttled provider JSON endpoint."""
+    await cache.async_throttle(key, min_interval)
+    request = getattr(session, method)
+    resp = await request(
+        url,
+        headers=headers or {},
+        timeout=timeout,
+        **request_kwargs,
+    )
+    async with resp:
+        if resp.status != 200:
+            raise ArtFetchError(f"{error_label} returned HTTP {resp.status}")
+        try:
+            return await resp.json(**(json_kwargs or {}))
+        except Exception as err:  # noqa: BLE001 - JSON parser errors vary
+            raise ArtFetchError(f"{error_label} returned invalid JSON: {err}") from err
+
+
 async def read_capped(content: Any, limit: int = MAX_SOURCE_BYTES) -> bytes:
     """Read a response body fully, raising past ``limit`` bytes.
 
