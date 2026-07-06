@@ -109,12 +109,7 @@ def _load_scheduler(monkeypatch: pytest.MonkeyPatch) -> types.ModuleType:
     return load("scheduler")
 
 
-def test_wake_retry_keeps_manual_pending_state(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    scheduler_mod = _load_scheduler(monkeypatch)
-    created: list[tuple[object, str]] = []
-
+def _entry(created: list[tuple[object, str]] | None = None) -> object:
     class Entry:
         entry_id = "entry"
         runtime_data = SimpleNamespace(
@@ -124,10 +119,21 @@ def test_wake_retry_keeps_manual_pending_state(
         def async_create_task(
             self, _hass: object, coro: object, name: str
         ) -> None:
+            if created is None:
+                raise AssertionError("async_create_task was not expected")
             created.append((coro, name))
 
+    return Entry()
+
+
+def test_wake_retry_keeps_manual_pending_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    created: list[tuple[object, str]] = []
+
     screen = SimpleNamespace(screen_id="screen-1", name="Manual")
-    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), Entry())
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry(created))
     scheduler.enabled = False
     scheduler._pending = screen
     scheduler._pending_requires_enabled = False
@@ -138,3 +144,40 @@ def test_wake_retry_keeps_manual_pending_state(
     asyncio.run(created[0][0])
     assert scheduler._pending is screen
     assert scheduler._pending_requires_enabled is False
+
+
+def test_new_pending_screen_requires_enabled_after_upload_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    old_screen = SimpleNamespace(screen_id="screen-1", name="Old")
+    new_screen = SimpleNamespace(screen_id="screen-2", name="New")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler._pending = old_screen
+    scheduler._pending_requires_enabled = False
+
+    asyncio.run(scheduler._async_show(new_screen, manual=False))
+
+    assert scheduler._pending is new_screen
+    assert scheduler._pending_requires_enabled is True
+
+
+def test_successful_wake_retry_clears_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    screen = SimpleNamespace(screen_id="screen-1", name="Manual")
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {"uploaded": True, "content_hash": "hash123"}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler._pending = screen
+    scheduler._pending_requires_enabled = False
+
+    asyncio.run(scheduler._async_retry_pending(screen))
+
+    assert scheduler._pending is None
+    assert scheduler.current_id == "screen-1"
+    assert scheduler.displayed_hash == "hash123"
