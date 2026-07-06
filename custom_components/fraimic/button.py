@@ -56,7 +56,17 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fraimic buttons from a config entry."""
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(FraimicButton(coordinator, desc) for desc in BUTTONS)
+    entities: list[ButtonEntity] = [
+        FraimicButton(coordinator, desc) for desc in BUTTONS
+    ]
+    entities.append(FraimicNewArtworkButton(coordinator))
+    scheduler = entry.runtime_data.scheduler
+    if scheduler is not None and scheduler.screens:
+        entities += [
+            FraimicPlaylistStepButton(coordinator, "next_screen", 1),
+            FraimicPlaylistStepButton(coordinator, "previous_screen", -1),
+        ]
+    async_add_entities(entities)
 
 
 class FraimicButton(FraimicEntity, ButtonEntity):
@@ -86,3 +96,61 @@ class FraimicButton(FraimicEntity, ButtonEntity):
         # Reflect the new state (e.g. uptime reset, sleeping) without waiting for
         # the next poll.
         await self.coordinator.async_request_refresh()
+
+
+class FraimicNewArtworkButton(FraimicEntity, ButtonEntity):
+    """Fetch and display a fresh online artwork (default provider option)."""
+
+    _attr_translation_key = "new_artwork"
+    _attr_icon = "mdi:palette"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_new_artwork"
+
+    async def async_press(self) -> None:
+        from .const import CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE
+        from .render.display import async_show_screen
+        from .render.schema import SCREEN_SCHEMA, screen_from_dict
+
+        entry = self.coordinator.config_entry
+        provider = entry.options.get(CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE)
+        screen = screen_from_dict(
+            SCREEN_SCHEMA(
+                {
+                    "name": "Online image",
+                    "kind": "picture",
+                    "provider": provider,
+                    "caption": True,
+                }
+            )
+        )
+        await async_show_screen(self.hass, entry, screen)
+
+
+class FraimicPlaylistStepButton(FraimicEntity, ButtonEntity):
+    """Show the next / previous stored screen immediately."""
+
+    def __init__(self, coordinator, key: str, step: int) -> None:
+        super().__init__(coordinator)
+        self._attr_translation_key = key
+        self._attr_icon = "mdi:skip-next" if step > 0 else "mdi:skip-previous"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{key}"
+        self._step = step
+
+    @property
+    def available(self) -> bool:
+        # Stepping renders locally and uploads; let the press surface a clear
+        # error if the frame is asleep instead of greying the button out.
+        return self.coordinator.config_entry.runtime_data.scheduler is not None
+
+    async def async_press(self) -> None:
+        scheduler = self.coordinator.config_entry.runtime_data.scheduler
+        scheduler.raise_if_upload_active()
+        stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop
+        if stopper is not None:
+            stopper()
+        if self._step > 0:
+            await scheduler.async_next()
+        else:
+            await scheduler.async_previous()

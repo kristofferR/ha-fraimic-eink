@@ -18,6 +18,7 @@ from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
 from .scenes import DATA_SCENES, SceneManager
+from .scheduler import FraimicScheduler
 from .services import async_setup_services
 
 PLATFORMS: list[Platform] = [
@@ -26,7 +27,9 @@ PLATFORMS: list[Platform] = [
     Platform.IMAGE,
     Platform.MEDIA_PLAYER,
     Platform.SCENE,
+    Platform.SELECT,
     Platform.SENSOR,
+    Platform.SWITCH,
 ]
 
 
@@ -61,6 +64,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     await coordinator.async_refresh()
 
     entry.runtime_data = FraimicRuntimeData(coordinator, client)
+
+    # Playlist scheduler for stored screens; started before the platforms so
+    # the switch/select/button entities can see it. Subentry changes reload
+    # the entry, rebuilding it with the fresh screen list.
+    scheduler = FraimicScheduler(hass, entry)
+    entry.runtime_data.scheduler = scheduler
+    await scheduler.async_start()
+    entry.async_on_unload(scheduler.async_stop)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))

@@ -33,6 +33,116 @@
       "cannot_connect": "Could not reach the discovered frame."
     }
   },
+  "config_subentries": {
+    "screen": {
+      "initiate_flow": {
+        "user": "Add dashboard screen",
+        "reconfigure": "Edit dashboard screen"
+      },
+      "entry_type": "Dashboard screen",
+      "step": {
+        "user": {
+          "title": "New dashboard screen",
+          "description": "A screen renders Home Assistant data natively on the frame. Pick a layout; the next steps choose one widget per slot. Display it with the render_screen service (screen_id), e.g. from a time-pattern automation.",
+          "data": {
+            "name": "Name",
+            "layout": "Layout",
+            "background": "Background colour",
+            "accent": "Accent colour",
+            "show_header": "Show header bar (name and date)",
+            "interval": "Rotation interval (seconds)",
+            "window_after": "Only show after",
+            "window_before": "Only show before",
+            "window_days": "Only show on days",
+            "enabled": "Enabled"
+          },
+          "data_description": {
+            "interval": "How long this screen stays up once the playlist scheduler rotates screens. Also a sensible refresh interval for automations today.",
+            "window_after": "Optional time-of-day window (with 'Only show before') for the playlist scheduler.",
+            "window_days": "Leave empty for every day."
+          }
+        },
+        "reconfigure": {
+          "title": "Edit dashboard screen",
+          "description": "Change the screen basics; the following steps re-pick each slot's widget (pre-filled with the current choice).",
+          "data": {
+            "name": "Name",
+            "layout": "Layout",
+            "background": "Background colour",
+            "accent": "Accent colour",
+            "show_header": "Show header bar (name and date)",
+            "interval": "Rotation interval (seconds)",
+            "window_after": "Only show after",
+            "window_before": "Only show before",
+            "window_days": "Only show on days",
+            "enabled": "Enabled"
+          }
+        },
+        "picture": {
+          "title": "Picture source",
+          "description": "One full-bleed image shown via the photo pipeline (dithered). Give exactly one source: an online provider (fresh art each rotation), an image URL (e.g. a dashboard-screenshot add-on), or a camera/image entity.",
+          "data": {
+            "provider": "Online source",
+            "query": "Search query (photo providers only)",
+            "caption": "Caption (attribution strip on the panel)",
+            "url": "Image URL",
+            "entity": "Camera / image entity",
+            "fit": "Fit",
+            "mode": "Dither mode"
+          }
+        },
+        "widget": {
+          "title": "Slot {position}: {slot}",
+          "description": "Choose the widget for the {slot} slot.",
+          "data": {
+            "type": "Widget"
+          }
+        },
+        "widget_options": {
+          "title": "{widget} — {slot}",
+          "description": "Options for the {widget} widget.",
+          "data": {
+            "entity": "Entity",
+            "entities": "Entities",
+            "name": "Name",
+            "icon": "Icon",
+            "unit": "Unit",
+            "precision": "Decimals",
+            "trend": "Show trend arrow",
+            "trend_hours": "Trend window (hours)",
+            "color": "Colour",
+            "format": "Time format (strftime)",
+            "template": "Template",
+            "align": "Alignment",
+            "size": "Text size",
+            "max_rows": "Max rows",
+            "max_items": "Max items",
+            "show_completed": "Show completed items",
+            "mode": "Forecast type",
+            "count": "Columns",
+            "days": "Days ahead",
+            "max_events": "Max events",
+            "hours": "History window (hours)",
+            "style": "Chart style",
+            "min": "Minimum",
+            "max": "Maximum",
+            "url": "Image URL",
+            "fit": "Fit"
+          }
+        }
+      },
+      "error": {
+        "invalid_screen": "One of the screen options is invalid. Check URLs and format fields.",
+        "picture_source": "Give exactly one source: an online provider, an image URL, or a camera/image entity.",
+        "provider_only_fields": "Search query and caption only apply to an online provider source.",
+        "no_widgets": "Every slot was left empty — pick at least one widget.",
+        "too_many_series": "A chart supports at most 3 entities."
+      },
+      "abort": {
+        "reconfigure_successful": "Screen updated."
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
@@ -47,7 +157,11 @@
           "saturation": "Saturation",
           "contrast": "Contrast",
           "sharpen": "Sharpen",
-          "tone": "Tone curve"
+          "tone": "Tone curve",
+          "default_provider": "Default online-art source",
+          "nasa_api_key": "NASA API key (optional)",
+          "unsplash_access_key": "Unsplash access key (optional)",
+          "pexels_api_key": "Pexels API key (optional)"
         },
         "data_description": {
           "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
@@ -58,7 +172,11 @@
           "saturation": "Saturation boost (default 1.15). 1.0 = no change.",
           "contrast": "Contrast boost (default 1.4 — pushed hard for the backlight-less panel). 1.0 = no change.",
           "sharpen": "Unsharp-mask strength 0-100 (default 80).",
-          "tone": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff."
+          "tone": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff.",
+          "default_provider": "Used by the New artwork button. 'shuffle' picks a random museum.",
+          "nasa_api_key": "Free key from api.nasa.gov raises the APOD rate limit (DEMO_KEY works without one).",
+          "unsplash_access_key": "Enables the Unsplash photo provider. Free at unsplash.com/developers.",
+          "pexels_api_key": "Enables the Pexels photo provider. Free at pexels.com/api."
         }
       }
     }
@@ -127,20 +245,22 @@
       }
     },
     "button": {
-      "refresh": {
-        "name": "Refresh display"
-      },
-      "sleep": {
-        "name": "Sleep"
-      },
-      "restart": {
-        "name": "Restart"
-      }
+      "refresh": { "name": "Refresh display" },
+      "sleep": { "name": "Sleep" },
+      "restart": { "name": "Restart" },
+      "next_screen": { "name": "Next screen" },
+      "previous_screen": { "name": "Previous screen" },
+      "new_artwork": { "name": "New artwork" }
     },
     "image": {
-      "preview": {
-        "name": "Current artwork"
-      }
+      "preview": { "name": "Current artwork" },
+      "screen_preview": { "name": "Screen preview" }
+    },
+    "switch": {
+      "playlist": { "name": "Playlist" }
+    },
+    "select": {
+      "screen": { "name": "Screen" }
     }
   },
   "services": {
@@ -205,6 +325,54 @@
         "tone": {
           "name": "Tone curve",
           "description": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff. 0 disables."
+        }
+      }
+    },
+    "show_online_image": {
+      "name": "Show online image",
+      "description": "Fetch a fresh image from an online source (museum masterpieces, picture of the day, ...) and display it on the frame.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which Fraimic frame to display on. Only required with multiple frames."
+        },
+        "provider": {
+          "name": "Source",
+          "description": "Where to get the image: shuffle (random museum), met, aic, cleveland, wikimedia, bing, apod, or picsum."
+        },
+        "query": {
+          "name": "Search query",
+          "description": "Keyword for photo providers that support search. Museums ignore it."
+        },
+        "caption": {
+          "name": "Caption",
+          "description": "Render a small attribution strip (title — artist, source) under the image on the panel."
+        },
+        "preview_only": {
+          "name": "Preview only",
+          "description": "Fetch and render only to the Screen preview image entity, without uploading to the frame."
+        }
+      }
+    },
+    "render_screen": {
+      "name": "Render screen",
+      "description": "Render a dashboard screen (widgets in layout slots) from Home Assistant data and display it on the frame.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which Fraimic frame to render to. Only required with multiple frames."
+        },
+        "screen": {
+          "name": "Screen definition",
+          "description": "The screen as YAML: layout (full, half_horizontal, half_vertical, quadrant) and one widget per slot. See the integration docs for the widget reference. Alternative: screen_id."
+        },
+        "screen_id": {
+          "name": "Stored screen",
+          "description": "The id or name of a screen created in the integration's UI (Add dashboard screen). Alternative to an inline screen definition."
+        },
+        "preview_only": {
+          "name": "Preview only",
+          "description": "Render only to the Screen preview image entity without uploading — iterate on a design without spending ~30 s e-ink refreshes and battery."
         }
       }
     }
