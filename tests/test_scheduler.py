@@ -167,6 +167,7 @@ def test_successful_wake_retry_clears_pending(
 ) -> None:
     scheduler_mod = _load_scheduler(monkeypatch)
     screen = SimpleNamespace(screen_id="screen-1", name="Manual")
+    hold_until = datetime(2026, 7, 3, 12, 35)
 
     async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
         return {"uploaded": True, "content_hash": "hash123"}
@@ -175,12 +176,14 @@ def test_successful_wake_retry_clears_pending(
     scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
     scheduler._pending = screen
     scheduler._pending_requires_enabled = False
+    scheduler._hold_until = hold_until
 
     asyncio.run(scheduler._async_retry_pending(screen))
 
     assert scheduler._pending is None
     assert scheduler.current_id == "screen-1"
     assert scheduler.displayed_hash == "hash123"
+    assert scheduler._hold_until is None
 
 
 def test_wake_retry_rechecks_enabled_state(
@@ -255,3 +258,44 @@ def test_manual_screen_control_blocked_during_external_upload(
         asyncio.run(scheduler.async_select(screen))
 
     assert scheduler._hold_until == hold_until
+
+
+def test_failed_manual_screen_render_preserves_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    hold_until = datetime(2026, 7, 3, 12, 35)
+    screen = SimpleNamespace(screen_id="screen-1", name="Broken")
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise scheduler_mod.HomeAssistantError("render failed")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler._hold_until = hold_until
+
+    with pytest.raises(scheduler_mod.HomeAssistantError, match="render failed"):
+        asyncio.run(scheduler.async_select(screen))
+
+    assert scheduler._hold_until == hold_until
+
+
+def test_automatic_wake_retry_skips_closed_screen_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    screen = SimpleNamespace(screen_id="screen-1", name="Closed")
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise AssertionError("closed screen window should not upload")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    monkeypatch.setattr(scheduler_mod, "eligible", lambda *_args: False)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.enabled = True
+    scheduler._pending = screen
+    scheduler._pending_requires_enabled = True
+
+    asyncio.run(scheduler._async_retry_pending(screen))
+
+    assert scheduler._pending is None

@@ -221,13 +221,19 @@ class FraimicScheduler:
             return  # nothing in window right now; leave the frame as-is
         await self._async_show(candidate)
 
-    async def _async_show(self, screen: ScreenConfig, *, manual: bool = False) -> None:
+    async def _async_show(
+        self,
+        screen: ScreenConfig,
+        *,
+        manual: bool = False,
+        clear_hold_on_success: bool | None = None,
+    ) -> None:
         if self._busy or self.external_upload_active:
             if manual:
                 raise HomeAssistantError("An upload is already in progress")
             return
-        if manual:
-            self._hold_until = None
+        if clear_hold_on_success is None:
+            clear_hold_on_success = manual
         self._busy = True
         try:
             result = await async_show_screen(
@@ -261,6 +267,8 @@ class FraimicScheduler:
         self.current_id = screen.screen_id
         self.displayed_hash = result.get("content_hash")
         self._last_rotation = dt_util.utcnow()
+        if clear_hold_on_success:
+            self._hold_until = None
         if not result.get("uploaded", True):
             _LOGGER.debug(
                 "Playlist: %r content unchanged, upload skipped", screen.name
@@ -294,7 +302,15 @@ class FraimicScheduler:
         if not self._can_retry_pending(screen):
             return
         pending_requires_enabled = self._pending_requires_enabled
-        await self._async_show(screen, manual=False)
+        if pending_requires_enabled and not eligible(screen, dt_util.now()):
+            self._pending = None
+            await self._async_rotate(force=True)
+            return
+        await self._async_show(
+            screen,
+            manual=False,
+            clear_hold_on_success=not pending_requires_enabled,
+        )
         if self._pending is screen:
             self._pending_requires_enabled = pending_requires_enabled
 
