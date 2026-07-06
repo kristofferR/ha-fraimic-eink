@@ -281,12 +281,43 @@ def test_enabling_playlist_respects_fresh_current_screen(
     scheduler.screens = [current, other]
     scheduler.enabled = False
     scheduler.current_id = "screen-1"
+    scheduler.displayed_hash = "hash123"
     scheduler._last_rotation = datetime(2026, 7, 3, 12, 0)
 
     asyncio.run(scheduler.async_set_enabled(True))
 
     assert scheduler.enabled is True
     assert scheduler.current_id == "screen-1"
+
+
+def test_enabling_playlist_retakes_unknown_displayed_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="screen-1", name="Current", interval=1800)
+    uploads: list[str] = []
+
+    async def async_show_screen(
+        _hass: object, _entry: object, screen: object, **_kwargs: object
+    ) -> dict:
+        uploads.append(screen.screen_id)
+        return {"uploaded": True, "content_hash": "hash456"}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    monkeypatch.setattr(
+        scheduler_mod, "next_screen", lambda screens, *_args, **_kwargs: screens[0]
+    )
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current]
+    scheduler.enabled = False
+    scheduler.current_id = "screen-1"
+    scheduler.displayed_hash = None
+    scheduler._last_rotation = datetime(2026, 7, 3, 12, 0)
+
+    asyncio.run(scheduler.async_set_enabled(True))
+
+    assert uploads == ["screen-1"]
+    assert scheduler.displayed_hash == "hash456"
 
 
 def test_external_upload_can_invalidate_hash_without_hold(

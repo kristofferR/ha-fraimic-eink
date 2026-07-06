@@ -230,6 +230,7 @@ class FraimicScheduler:
             due = (
                 current is None
                 or not eligible(current, now)
+                or self.displayed_hash is None
                 or self._last_rotation is None
                 or (dt_util.utcnow() - self._last_rotation).total_seconds()
                 >= current.interval
