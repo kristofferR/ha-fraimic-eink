@@ -21,7 +21,8 @@ render_screen:
         entities, template, weather_current, weather_forecast, calendar, todo,
         chart, gauge, progress, image. Or "kind: picture" with a url/entity
         for a full-bleed image (e.g. a dashboard-screenshot add-on URL).
-      required: true
+        Provide either this or "Stored screen", not both.
+      required: false
       example: >-
         layout: quadrant
 
@@ -42,6 +43,16 @@ render_screen:
             template: "{{ states('sensor.energy_today') }} kWh used today"
       selector:
         object:
+    screen_id:
+      name: Stored screen
+      description: >-
+        The id or name of a screen created in the integration's UI ("Add
+        dashboard screen" on the frame's device page). Alternative to an
+        inline screen definition — provide exactly one of the two.
+      required: false
+      example: Gangen
+      selector:
+        text:
     preview_only:
       name: Preview only
       description: >-
