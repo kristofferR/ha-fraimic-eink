@@ -338,6 +338,39 @@ class FraimicLibrary:
         rendered = await self.async_render_for_entry(image_id, entry, overrides)
         await async_upload_rendered(entry, *rendered)
 
+    async def async_render_adhoc_preview(
+        self,
+        image_id: str,
+        entry: ConfigEntry,
+        box: list[float] | None,
+    ) -> bytes:
+        """Dithered preview PNG for an arbitrary (possibly unsaved) crop box.
+
+        Backs the crop editor's "Preview on e-ink" button: shows exactly what
+        the panel will render for the box being edited, without saving the
+        crop, uploading anything, or polluting the render cache. A box that
+        matches the saved crop goes through the normal cached path.
+        """
+        image = self.get(image_id)
+        params = resolve_render_params(entry)
+        crop = normalize_crop(box) if box is not None else None
+        if crop == image.crop_for(params["width"], params["height"]):
+            _, preview_png, _ = await self.async_render_for_entry(image_id, entry)
+            if preview_png is not None:
+                return preview_png
+        source = await self.hass.async_add_executor_job(
+            self.original_path(image).read_bytes
+        )
+        try:
+            _, preview_png, _ = await self.hass.async_add_executor_job(
+                lambda: convert_image(source, **params, crop=crop)
+            )
+        except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
+            raise HomeAssistantError(f"Could not render the preview: {err}") from err
+        if preview_png is None:  # pragma: no cover - preview=True is the default
+            raise HomeAssistantError("Renderer returned no preview")
+        return preview_png
+
     # -------------------------------------------------------------- backfill
 
     @callback

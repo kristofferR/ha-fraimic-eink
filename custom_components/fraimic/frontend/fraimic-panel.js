@@ -20,7 +20,28 @@ class FraimicPanel extends HTMLElement {
     this._scenes = [];
     this._packs = [];
     this._albumFilter = "";
+    this._packCategory = "";
+    this._selectMode = false;
+    this._selected = new Set();
+    this._highlightEntry = null;
     this._signedCache = new Map();
+    // Lazy thumbnails: sign only near-viewport images, a few at a time, so a
+    // large library doesn't fire hundreds of sign_path calls on tab open.
+    this._signQueue = [];
+    this._signActive = 0;
+    this._thumbObserver =
+      "IntersectionObserver" in window
+        ? new IntersectionObserver(
+            (observations) => {
+              for (const observation of observations) {
+                if (!observation.isIntersecting) continue;
+                this._thumbObserver.unobserve(observation.target);
+                this._enqueueSign(observation.target);
+              }
+            },
+            { rootMargin: "300px" }
+          )
+        : null;
     this._initialized = false;
   }
 
@@ -28,6 +49,13 @@ class FraimicPanel extends HTMLElement {
     this._hass = hass;
     if (!this._initialized) {
       this._initialized = true;
+      // Deep links: /fraimic?tab=frames&entry=<entry_id>.
+      const query = new URLSearchParams(window.location.search);
+      if (query.get("entry")) {
+        this._highlightEntry = query.get("entry");
+        this._tab = "frames";
+      }
+      if (query.get("tab")) this._tab = query.get("tab");
       this._renderShell();
       this._refreshAll();
     }
@@ -73,6 +101,41 @@ class FraimicPanel extends HTMLElement {
       .catch(() => {
         img.alt = "unavailable";
       });
+  }
+
+  /* Grid thumbnails: defer signing until the image nears the viewport, then
+   * run at most six sign+load jobs concurrently. */
+  _lazyImg(img, path) {
+    if (!this._thumbObserver) {
+      this._setImgSrc(img, path);
+      return;
+    }
+    img.dataset.signPath = path;
+    this._thumbObserver.observe(img);
+  }
+
+  _enqueueSign(img) {
+    this._signQueue.push(img);
+    this._drainSignQueue();
+  }
+
+  _drainSignQueue() {
+    while (this._signActive < 6 && this._signQueue.length) {
+      const img = this._signQueue.shift();
+      if (!img.isConnected) continue;
+      this._signActive += 1;
+      this._signedUrl(img.dataset.signPath)
+        .then((url) => {
+          img.src = url;
+        })
+        .catch(() => {
+          img.alt = "unavailable";
+        })
+        .finally(() => {
+          this._signActive -= 1;
+          this._drainSignQueue();
+        });
+    }
   }
 
   _toast(message, isError = false) {
@@ -346,6 +409,75 @@ class FraimicPanel extends HTMLElement {
         .handle.se { bottom: -8px; right: -8px; cursor: nwse-resize; }
         .mini { width: 44px; height: 33px; object-fit: cover; border-radius: 4px; vertical-align: middle; margin-right: 8px; background: var(--secondary-background-color); }
         a { color: var(--primary-color); }
+        .card.selectable { cursor: pointer; }
+        .card.selected { outline: 3px solid var(--primary-color); }
+        .checkmark {
+          position: absolute;
+          top: 8px;
+          left: 8px;
+          width: 22px;
+          height: 22px;
+          border-radius: 50%;
+          background: var(--primary-color);
+          color: var(--text-primary-color, #fff);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          z-index: 1;
+        }
+        .thumbwrap { position: relative; }
+        .card.highlight { outline: 3px solid var(--primary-color); }
+        .albumstrip {
+          display: flex;
+          gap: 12px;
+          overflow-x: auto;
+          padding-bottom: 12px;
+          margin-bottom: 12px;
+        }
+        .albumcard {
+          flex: 0 0 auto;
+          width: 120px;
+          cursor: pointer;
+          background: var(--card-background-color);
+          border-radius: 8px;
+          box-shadow: var(--ha-card-box-shadow, 0 1px 4px rgba(0,0,0,0.2));
+          overflow: hidden;
+        }
+        .albumcard img { width: 120px; height: 80px; object-fit: cover; display: block; background: var(--secondary-background-color); }
+        .albumcard .cap {
+          font-size: 12px;
+          padding: 6px 8px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .albumcard .cap span { color: var(--secondary-text-color); }
+        .chiprow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+        .chiprow .fchip {
+          border: 1px solid var(--divider-color);
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+          border-radius: 14px;
+          padding: 4px 12px;
+          font-size: 13px;
+          cursor: pointer;
+        }
+        .chiprow .fchip.active {
+          background: var(--primary-color);
+          border-color: var(--primary-color);
+          color: var(--text-primary-color, #fff);
+        }
+        .gallery { text-align: center; }
+        .gallery img {
+          max-width: min(760px, 80vw);
+          max-height: 60vh;
+          border-radius: 6px;
+          background: var(--secondary-background-color);
+        }
+        .gallery .caption { margin-top: 8px; font-size: 14px; }
+        .gallery .caption span { color: var(--secondary-text-color); font-size: 12px; }
+        .gallery .navrow { display: flex; justify-content: center; gap: 16px; margin-top: 8px; align-items: center; }
       </style>
       <header><h1>Fraimic</h1></header>
       <nav id="tabs"></nav>
@@ -425,7 +557,63 @@ class FraimicPanel extends HTMLElement {
     });
     toolbar.append(upload, fileInput, filter);
     if (this._albumFilter) toolbar.append(renameBtn, deleteBtn);
+
+    // Multi-select mode: checkbox overlays + bulk actions.
+    if (this._images.length) {
+      toolbar.appendChild(
+        this._el("button", {
+          class: "btn",
+          text: this._selectMode ? "Done selecting" : "Select",
+          onclick: () => {
+            this._selectMode = !this._selectMode;
+            this._selected.clear();
+            this._renderTab();
+          },
+        })
+      );
+    }
+    if (this._selectMode && this._selected.size) {
+      toolbar.append(
+        this._el("button", {
+          class: "btn danger",
+          text: `Delete (${this._selected.size})`,
+          onclick: () => this._bulkDelete(),
+        }),
+        this._el("button", {
+          class: "btn",
+          text: `Add to album (${this._selected.size})`,
+          onclick: () => this._bulkAddToAlbum(),
+        })
+      );
+    }
     root.appendChild(toolbar);
+
+    // Album strip with cover art (only on the unfiltered view).
+    if (!this._albumFilter && this._albums.length > 1) {
+      const strip = this._el("div", { class: "albumstrip" });
+      for (const album of this._albums) {
+        const inAlbum = this._images.filter((image) => image.albums.includes(album));
+        if (!inAlbum.length) continue;
+        const cover = this._el("img", { loading: "lazy" });
+        this._lazyImg(cover, `${API}/library/thumb/${inAlbum[0].image_id}`);
+        const cap = this._el("div", { class: "cap" });
+        cap.append(document.createTextNode(`${album} `), this._el("span", { text: `(${inAlbum.length})` }));
+        strip.appendChild(
+          this._el(
+            "div",
+            {
+              class: "albumcard",
+              onclick: () => {
+                this._albumFilter = album;
+                this._renderTab();
+              },
+            },
+            [cover, cap]
+          )
+        );
+      }
+      if (strip.childElementCount) root.appendChild(strip);
+    }
 
     const images = this._albumFilter
       ? this._images.filter((image) => image.albums.includes(this._albumFilter))
@@ -446,7 +634,7 @@ class FraimicPanel extends HTMLElement {
 
   _libraryCard(image) {
     const img = this._el("img", { loading: "lazy" });
-    this._setImgSrc(img, `${API}/library/thumb/${image.image_id}`);
+    this._lazyImg(img, `${API}/library/thumb/${image.image_id}`);
     const chips = this._el("div", {}, image.albums.map((album) =>
       this._el("span", { class: "chip", text: album })
     ));
@@ -458,33 +646,93 @@ class FraimicPanel extends HTMLElement {
       }),
       chips,
     ]);
-    const actions = this._el("div", { class: "actions" }, [
-      this._el("button", {
-        class: "btn",
-        text: "Send",
-        onclick: () => this._sendImage(image),
-      }),
-      this._el("button", {
-        class: "btn",
-        text: "Crop",
-        onclick: () => this._openCropEditor(image),
-      }),
-      this._el("button", {
-        class: "btn",
-        text: "Albums",
-        onclick: () => this._editAlbums(image),
-      }),
-      this._el("button", {
-        class: "btn danger",
-        text: "Delete",
-        onclick: () => this._deleteImage(image),
-      }),
-    ]);
-    return this._el("div", { class: "card" }, [
-      this._el("div", { class: "thumbwrap" }, [img]),
-      body,
-      actions,
-    ]);
+    const thumbwrap = this._el("div", { class: "thumbwrap" }, [img]);
+    const selected = this._selected.has(image.image_id);
+    if (this._selectMode && selected) {
+      thumbwrap.appendChild(this._el("div", { class: "checkmark", text: "✓" }));
+    }
+    const children = [thumbwrap, body];
+    if (!this._selectMode) {
+      children.push(
+        this._el("div", { class: "actions" }, [
+          this._el("button", {
+            class: "btn",
+            text: "Send",
+            onclick: () => this._sendImage(image),
+          }),
+          this._el("button", {
+            class: "btn",
+            text: "Crop",
+            onclick: () => this._openCropEditor(image),
+          }),
+          this._el("button", {
+            class: "btn",
+            text: "Albums",
+            onclick: () => this._editAlbums(image),
+          }),
+          this._el("button", {
+            class: "btn danger",
+            text: "Delete",
+            onclick: () => this._deleteImage(image),
+          }),
+        ])
+      );
+    }
+    const props = { class: "card" };
+    if (this._selectMode) {
+      props.class = `card selectable${selected ? " selected" : ""}`;
+      props.onclick = () => {
+        if (this._selected.has(image.image_id)) this._selected.delete(image.image_id);
+        else this._selected.add(image.image_id);
+        this._renderTab();
+      };
+    }
+    return this._el("div", props, children);
+  }
+
+  async _bulkDelete() {
+    const count = this._selected.size;
+    if (!confirm(`Remove ${count} image${count === 1 ? "" : "s"} from the library? This can't be undone.`)) {
+      return;
+    }
+    let failed = 0;
+    for (const imageId of this._selected) {
+      try {
+        await this._api(`library/image/${imageId}`, { method: "DELETE" });
+      } catch (_err) {
+        failed += 1;
+      }
+    }
+    this._selected.clear();
+    this._selectMode = false;
+    await Promise.all([this._loadLibrary(), this._loadScenes()]);
+    this._renderTab();
+    this._toast(failed ? `Deleted with ${failed} failure(s)` : `Deleted ${count} image${count === 1 ? "" : "s"}`, Boolean(failed));
+  }
+
+  async _bulkAddToAlbum() {
+    const album = prompt("Add selected images to album:", this._albumFilter || "");
+    if (!album || !album.trim()) return;
+    const name = album.trim();
+    let failed = 0;
+    for (const imageId of this._selected) {
+      const image = this._images.find((entry) => entry.image_id === imageId);
+      if (!image || image.albums.includes(name)) continue;
+      try {
+        await this._api(`library/image/${imageId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ albums: [...image.albums, name] }),
+        });
+      } catch (_err) {
+        failed += 1;
+      }
+    }
+    this._selected.clear();
+    this._selectMode = false;
+    await this._loadLibrary();
+    this._renderTab();
+    this._toast(failed ? `Tagged with ${failed} failure(s)` : `Added to "${name}"`, Boolean(failed));
   }
 
   async _uploadFiles(files) {
@@ -640,6 +888,12 @@ class FraimicPanel extends HTMLElement {
     const frameSelect = this._el("select", {
       onchange: () => {
         frame = this._frames[Number(frameSelect.value)];
+        if (previewing) {
+          img.src = sourceSrc;
+          box.style.display = "";
+          previewing = false;
+          previewBtn.textContent = "Preview on e-ink";
+        }
         placeBox(this._initialBox(image, frame));
       },
     });
@@ -721,6 +975,50 @@ class FraimicPanel extends HTMLElement {
     box.addEventListener("pointerup", onUp);
     box.addEventListener("pointercancel", onUp);
 
+    // "Preview on e-ink": server-renders the current box through the real
+    // dither pipeline (nothing saved/uploaded) and swaps it into the stage.
+    let previewing = false;
+    let sourceSrc = null;
+    const previewBtn = this._el("button", {
+      class: "btn",
+      text: "Preview on e-ink",
+      onclick: async () => {
+        if (previewing) {
+          img.src = sourceSrc;
+          box.style.display = "";
+          previewing = false;
+          previewBtn.textContent = "Preview on e-ink";
+          return;
+        }
+        previewBtn.disabled = true;
+        previewBtn.textContent = "Rendering…";
+        try {
+          const resp = await this._hass.fetchWithAuth(
+            `${API}/library/image/${image.image_id}/preview`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ entry_id: frame.entry_id, box: norm }),
+            }
+          );
+          if (!resp.ok) {
+            const body = await resp.json().catch(() => ({}));
+            throw new Error(body.message || resp.statusText);
+          }
+          const blob = await resp.blob();
+          sourceSrc = img.src;
+          img.src = URL.createObjectURL(blob);
+          box.style.display = "none";
+          previewing = true;
+          previewBtn.textContent = "Back to crop";
+        } catch (err) {
+          this._toast(err.message, true);
+        } finally {
+          previewBtn.disabled = false;
+        }
+      },
+    });
+
     const save = async () => {
       try {
         await this._api(`library/image/${image.image_id}/crop`, {
@@ -762,6 +1060,7 @@ class FraimicPanel extends HTMLElement {
         stage,
       ],
       [
+        previewBtn,
         this._el("button", { class: "btn", text: "Clear crop", onclick: clear }),
         this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
         this._el("button", { class: "btn raised", text: "Save", onclick: save }),
@@ -825,9 +1124,14 @@ class FraimicPanel extends HTMLElement {
           onclick: () => window.open(`http://${frame.host}/`, "_blank"),
         }),
       ]);
-      grid.appendChild(
-        this._el("div", { class: "card" }, [this._el("div", { class: "body" }, rows), actions])
+      const highlight = frame.entry_id === this._highlightEntry;
+      const card = this._el(
+        "div",
+        { class: highlight ? "card highlight" : "card" },
+        [this._el("div", { class: "body" }, rows), actions]
       );
+      grid.appendChild(card);
+      if (highlight) setTimeout(() => card.scrollIntoView({ block: "center" }), 50);
     }
     root.appendChild(grid);
   }
@@ -859,7 +1163,7 @@ class FraimicPanel extends HTMLElement {
         const image = this._images.find((i) => i.image_id === imageId);
         const row = this._el("div", { class: "sub" });
         const mini = this._el("img", { class: "mini", loading: "lazy" });
-        if (image) this._setImgSrc(mini, `${API}/library/thumb/${image.image_id}`);
+        if (image) this._lazyImg(mini, `${API}/library/thumb/${image.image_id}`);
         row.append(
           mini,
           document.createTextNode(
@@ -994,17 +1298,53 @@ class FraimicPanel extends HTMLElement {
       root.appendChild(this._el("div", { class: "empty", text: "No packs in the catalog." }));
       return;
     }
+    // Category filter chips.
+    const categories = [...new Set(this._packs.map((pack) => pack.category))].sort();
+    if (categories.length > 1) {
+      const chiprow = this._el("div", { class: "chiprow" });
+      const addChip = (label, value) => {
+        chiprow.appendChild(
+          this._el("button", {
+            class: `fchip${this._packCategory === value ? " active" : ""}`,
+            text: label,
+            onclick: () => {
+              this._packCategory = value;
+              this._renderTab();
+            },
+          })
+        );
+      };
+      addChip("All", "");
+      for (const category of categories) addChip(category, category);
+      root.appendChild(chiprow);
+    }
+    const packs = this._packCategory
+      ? this._packs.filter((pack) => pack.category === this._packCategory)
+      : this._packs;
+
     const grid = this._el("div", { class: "grid" });
-    for (const pack of this._packs) {
+    for (const pack of packs) {
+      const cover = this._el("img", { loading: "lazy", alt: pack.name });
+      // Pack art is hot-linkable (GitHub raw / Commons thumb): no signing.
+      cover.src = pack.cover_url || (pack.images[0] && pack.images[0].preview_url) || "";
+      const thumbwrap = this._el(
+        "div",
+        {
+          class: "thumbwrap",
+          style: "cursor: zoom-in",
+          onclick: () => this._openPackGallery(pack),
+        },
+        [cover]
+      );
       const body = this._el("div", { class: "body" }, [
         this._el("div", { class: "title", text: pack.name }),
         this._el("span", { class: "chip", text: pack.category }),
+        this._el("span", { class: "chip", text: `${pack.images.length} images` }),
         this._el("div", { class: "sub", text: pack.description || "" }),
         this._el("div", {
           class: "sub",
           text: `${pack.installed_count}/${pack.images.length} installed · ${pack.attribution}`,
         }),
-        this._el("div", { class: "sub", text: pack.images.map((image) => image.title).join(" · ") }),
       ]);
       const installBtn = this._el("button", {
         class: "btn raised",
@@ -1046,9 +1386,56 @@ class FraimicPanel extends HTMLElement {
           })
         );
       }
-      grid.appendChild(this._el("div", { class: "card" }, [body, actions]));
+      actions.appendChild(
+        this._el("button", {
+          class: "btn",
+          text: "Gallery",
+          onclick: () => this._openPackGallery(pack),
+        })
+      );
+      grid.appendChild(this._el("div", { class: "card" }, [thumbwrap, body, actions]));
     }
     root.appendChild(grid);
+  }
+
+  /* Pre-install browsing: a simple prev/next carousel over the pack's
+   * hot-linkable preview URLs, with per-image source attribution. */
+  _openPackGallery(pack) {
+    let index = 0;
+    const img = this._el("img", { alt: pack.name });
+    const caption = this._el("div", { class: "caption" });
+    const counter = this._el("span", { class: "sub" });
+
+    const show = () => {
+      const image = pack.images[index];
+      img.src = image.preview_url || image.url;
+      caption.innerHTML = "";
+      caption.appendChild(document.createTextNode(image.title + " "));
+      if (image.source_url) {
+        caption.appendChild(
+          this._el("a", { href: image.source_url, target: "_blank", text: "source" })
+        );
+      }
+      counter.textContent = `${index + 1} / ${pack.images.length}`;
+    };
+    show();
+
+    const nav = (delta) => {
+      index = (index + delta + pack.images.length) % pack.images.length;
+      show();
+    };
+    const gallery = this._el("div", { class: "gallery" }, [
+      img,
+      caption,
+      this._el("div", { class: "navrow" }, [
+        this._el("button", { class: "btn", text: "‹ Prev", onclick: () => nav(-1) }),
+        counter,
+        this._el("button", { class: "btn", text: "Next ›", onclick: () => nav(1) }),
+      ]),
+    ]);
+    this._openDialog(pack.name, [gallery], [
+      this._el("button", { class: "btn", text: "Close", onclick: () => this._closeDialog() }),
+    ]);
   }
 
   /* -------------------------------------------------------------- dialog */
