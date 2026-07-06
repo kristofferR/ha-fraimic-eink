@@ -83,10 +83,10 @@ def begin_external_upload(entry):
     return scheduler
 
 
-def finish_external_upload(scheduler, *, uploaded: bool) -> None:
+def finish_external_upload(scheduler, *, uploaded: bool, hold: bool = True) -> None:
     """Release a manual-upload guard and optionally hold the playlist."""
     if scheduler is not None:
-        scheduler.finish_external_upload(uploaded=uploaded)
+        scheduler.finish_external_upload(uploaded=uploaded, hold=hold)
 
 
 def _require_one_source(data: dict) -> dict:

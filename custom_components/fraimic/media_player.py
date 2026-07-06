@@ -68,6 +68,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_media_player"
         self._camera_entity: str | None = None
         self._camera_unsub = None
+        self._camera_generation = 0
 
     @property
     def state(self) -> MediaPlayerState:
@@ -78,6 +79,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         return MediaPlayerState.IDLE
 
     def _stop_camera_loop(self) -> None:
+        self._camera_generation += 1
         if self._camera_unsub is not None:
             self._camera_unsub()
             self._camera_unsub = None
@@ -105,7 +107,13 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._stop_camera_loop()
         self.async_write_ha_state()
 
-    async def _async_show_camera(self, camera_entity: str) -> None:
+    async def _async_show_camera(
+        self,
+        camera_entity: str,
+        *,
+        camera_generation: int | None = None,
+        hold_playlist: bool = True,
+    ) -> None:
         """Snapshot ``camera_entity`` and display it on the frame."""
         from homeassistant.components.camera import async_get_image
 
@@ -119,7 +127,13 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             )
             uploaded = result.get("uploaded", True)
         finally:
-            finish_external_upload(scheduler, uploaded=uploaded)
+            if (
+                uploaded
+                and camera_generation is not None
+                and camera_generation != self._camera_generation
+            ):
+                uploaded = False
+            finish_external_upload(scheduler, uploaded=uploaded, hold=hold_playlist)
 
     async def _async_camera_tick(self, _now) -> None:
         """Periodic camera re-snapshot; failures are logged, the loop lives on
@@ -127,7 +141,11 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         if self._camera_entity is None:
             return
         try:
-            await self._async_show_camera(self._camera_entity)
+            await self._async_show_camera(
+                self._camera_entity,
+                camera_generation=self._camera_generation,
+                hold_playlist=False,
+            )
         except HomeAssistantError as err:
             _LOGGER.warning(
                 "Periodic camera refresh of %s failed (will retry next cycle): %s",
@@ -167,26 +185,40 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             interval = self.coordinator.config_entry.options.get(
                 CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
             )
+            camera_generation = None
             if interval > 0:
                 # Two competing periodic pushers make no sense — starting a
                 # camera loop switches the screen playlist off explicitly.
+                self._camera_generation += 1
+                camera_generation = self._camera_generation
                 scheduler = self.coordinator.config_entry.runtime_data.scheduler
                 disabled_scheduler = False
                 if scheduler is not None and scheduler.enabled:
-                    await scheduler.async_set_enabled(False, clear_hold=False)
+                    await scheduler.async_set_enabled(
+                        False, clear_hold=False, persist=False
+                    )
                     disabled_scheduler = True
             else:
                 scheduler = None
                 disabled_scheduler = False
             try:
-                await self._async_show_camera(camera_entity)
+                await self._async_show_camera(
+                    camera_entity,
+                    camera_generation=camera_generation,
+                    hold_playlist=interval == 0,
+                )
             except Exception:
                 if disabled_scheduler and scheduler is not None:
                     await scheduler.async_set_enabled(
-                        True, rotate=False, clear_hold=False
+                        True,
+                        rotate=False,
+                        clear_hold=False,
+                        persist=False,
                     )
                 raise
             if interval > 0:
+                if camera_generation != self._camera_generation:
+                    return
                 self._camera_entity = camera_entity
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)

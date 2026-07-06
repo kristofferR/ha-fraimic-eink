@@ -113,7 +113,9 @@ def _screen() -> types.SimpleNamespace:
 def _install_services(monkeypatch: pytest.MonkeyPatch, **attrs: object) -> None:
     services = types.ModuleType("fraimic.services")
     services.begin_external_upload = lambda _entry: None
-    services.finish_external_upload = lambda _scheduler, *, uploaded: None
+    services.finish_external_upload = (
+        lambda _scheduler, *, uploaded, hold=True: None
+    )
     for name, value in attrs.items():
         setattr(services, name, value)
     monkeypatch.setitem(sys.modules, "fraimic.services", services)
@@ -279,7 +281,9 @@ def test_upload_path_holds_playlist_before_rendering(
         events.append("begin")
         return scheduler
 
-    def finish_external_upload(_scheduler: object, *, uploaded: bool) -> None:
+    def finish_external_upload(
+        _scheduler: object, *, uploaded: bool, hold: bool = True
+    ) -> None:
         assert _scheduler is scheduler
         events.append(("finish", uploaded))
 

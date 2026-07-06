@@ -52,6 +52,7 @@ class FraimicScheduler:
         self.entry = entry
         self.screens: list[ScreenConfig] = screens_from_entry(entry)
         self.enabled = False
+        self._stored_enabled = False
         self.current_id: str | None = None
         self.displayed_hash: str | None = None
         self._last_rotation: datetime | None = None
@@ -73,6 +74,7 @@ class FraimicScheduler:
         """Load persisted state and start ticking."""
         data = await self._store.async_load() or {}
         self.enabled = bool(data.get("enabled", False))
+        self._stored_enabled = self.enabled
         self.current_id = data.get("current_screen_id")
         self.displayed_hash = data.get("displayed_hash")
         if raw := data.get("hold_until"):
@@ -128,17 +130,30 @@ class FraimicScheduler:
     # -- controls ----------------------------------------------------------
 
     async def async_set_enabled(
-        self, enabled: bool, *, rotate: bool = True, clear_hold: bool = True
+        self,
+        enabled: bool,
+        *,
+        rotate: bool = True,
+        clear_hold: bool = True,
+        persist: bool = True,
     ) -> None:
-        if enabled == self.enabled:
+        changed = enabled != self.enabled
+        hold_changed = clear_hold and self._hold_until is not None
+        if persist:
+            self._stored_enabled = enabled
+        if not changed and not hold_changed:
+            if persist:
+                await self._async_save()
             return
         self.enabled = enabled
         if clear_hold:
             self._hold_until = None
-        await self._async_save()
-        self._notify()
-        if enabled and rotate:
-            await self._async_rotate(force=True)
+        if persist:
+            await self._async_save()
+        if changed or hold_changed:
+            self._notify()
+        if changed and enabled and rotate:
+            await self._async_rotate(force=False)
 
     async def async_next(self) -> None:
         await self._async_step(1)
@@ -164,13 +179,13 @@ class FraimicScheduler:
         self._external_upload_count += 1
 
     @callback
-    def finish_external_upload(self, *, uploaded: bool) -> None:
+    def finish_external_upload(self, *, uploaded: bool, hold: bool = True) -> None:
         self._external_upload_count = max(0, self._external_upload_count - 1)
         if uploaded:
-            self.notify_external_upload()
+            self.notify_external_upload(hold=hold)
 
     @callback
-    def notify_external_upload(self) -> None:
+    def notify_external_upload(self, *, hold: bool = True) -> None:
         """A manual upload put unknown content on the glass.
 
         Hold the playlist for the current screen's interval (so the manual
@@ -179,9 +194,10 @@ class FraimicScheduler:
         """
         self._pending = None
         self.displayed_hash = None
-        screen = self.current_screen
-        interval = screen.interval if screen else 1800
-        self._hold_until = dt_util.utcnow() + timedelta(seconds=interval)
+        if hold:
+            screen = self.current_screen
+            interval = screen.interval if screen else 1800
+            self._hold_until = dt_util.utcnow() + timedelta(seconds=interval)
         self.entry.async_create_task(
             self.hass, self._async_save(), "fraimic_playlist_external_save"
         )
@@ -317,7 +333,7 @@ class FraimicScheduler:
     async def _async_save(self) -> None:
         await self._store.async_save(
             {
-                "enabled": self.enabled,
+                "enabled": self._stored_enabled,
                 "current_screen_id": self.current_id,
                 "displayed_hash": self.displayed_hash,
                 "hold_until": (

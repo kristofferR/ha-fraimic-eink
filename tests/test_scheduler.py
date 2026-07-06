@@ -244,6 +244,79 @@ def test_set_enabled_can_preserve_manual_upload_hold(
     assert scheduler._hold_until == hold_until
 
 
+def test_set_enabled_can_skip_persistence_for_camera_pause(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    saved: list[dict] = []
+    scheduler.enabled = True
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.append(dict(data))
+
+    scheduler._store = Store()
+
+    asyncio.run(scheduler.async_set_enabled(False, persist=False))
+    assert scheduler.enabled is False
+    assert saved == []
+
+    asyncio.run(scheduler.async_set_enabled(False))
+    assert saved[-1]["enabled"] is False
+
+
+def test_enabling_playlist_respects_fresh_current_screen(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="screen-1", name="Current", interval=1800)
+    other = SimpleNamespace(screen_id="screen-2", name="Other", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise AssertionError("fresh current screen should not be overwritten")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, other]
+    scheduler.enabled = False
+    scheduler.current_id = "screen-1"
+    scheduler._last_rotation = datetime(2026, 7, 3, 12, 0)
+
+    asyncio.run(scheduler.async_set_enabled(True))
+
+    assert scheduler.enabled is True
+    assert scheduler.current_id == "screen-1"
+
+
+def test_external_upload_can_invalidate_hash_without_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    created: list[tuple[object, str]] = []
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry(created))
+    saved: list[dict] = []
+    scheduler.enabled = True
+    scheduler._stored_enabled = True
+    scheduler.displayed_hash = "hash123"
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.append(dict(data))
+
+    scheduler._store = Store()
+    asyncio.run(scheduler.async_set_enabled(False, persist=False))
+    scheduler.begin_external_upload()
+
+    scheduler.finish_external_upload(uploaded=True, hold=False)
+
+    assert scheduler.external_upload_active is False
+    assert scheduler.displayed_hash is None
+    assert scheduler._hold_until is None
+    asyncio.run(created[0][0])
+    assert saved[-1]["enabled"] is True
+
+
 def test_manual_screen_control_blocked_during_external_upload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
