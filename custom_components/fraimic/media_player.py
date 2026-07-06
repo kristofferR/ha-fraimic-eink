@@ -195,12 +195,13 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self._camera_generation += 1
                 camera_generation = self._camera_generation
                 scheduler = self.coordinator.config_entry.runtime_data.scheduler
-                disabled_scheduler = False
+                disabled_scheduler = (
+                    scheduler is not None and scheduler.stored_enabled
+                )
                 if scheduler is not None and scheduler.enabled:
                     await scheduler.async_set_enabled(
                         False, clear_hold=False, persist=False
                     )
-                    disabled_scheduler = True
             else:
                 scheduler = None
                 disabled_scheduler = False

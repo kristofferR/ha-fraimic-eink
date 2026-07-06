@@ -117,6 +117,10 @@ class FraimicScheduler:
         return self._busy
 
     @property
+    def stored_enabled(self) -> bool:
+        return self._stored_enabled
+
+    @property
     def external_upload_active(self) -> bool:
         return self._external_upload_count > 0
 
@@ -157,6 +161,10 @@ class FraimicScheduler:
         if changed or hold_changed:
             self._notify()
         if changed and enabled and rotate:
+            screen = self._pending
+            if screen is not None and self._can_retry_pending(screen):
+                await self._async_retry_pending(screen)
+                return
             await self._async_rotate(force=False)
 
     async def async_next(self) -> None:
