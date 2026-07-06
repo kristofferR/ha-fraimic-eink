@@ -281,7 +281,11 @@ class FraimicScheduler:
             )
 
     async def _async_retry_pending(self, screen: ScreenConfig) -> None:
-        if self._pending is not screen or self.external_upload_active:
+        if (
+            self._pending is not screen
+            or not (self.enabled or not self._pending_requires_enabled)
+            or self.external_upload_active
+        ):
             return
         pending_requires_enabled = self._pending_requires_enabled
         await self._async_show(screen, manual=False)

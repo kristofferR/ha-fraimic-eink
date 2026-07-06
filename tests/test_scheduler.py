@@ -181,3 +181,23 @@ def test_successful_wake_retry_clears_pending(
     assert scheduler._pending is None
     assert scheduler.current_id == "screen-1"
     assert scheduler.displayed_hash == "hash123"
+
+
+def test_wake_retry_rechecks_enabled_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    screen = SimpleNamespace(screen_id="screen-1", name="Automatic")
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise AssertionError("disabled playlist should not retry upload")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.enabled = False
+    scheduler._pending = screen
+    scheduler._pending_requires_enabled = True
+
+    asyncio.run(scheduler._async_retry_pending(screen))
+
+    assert scheduler._pending is screen
