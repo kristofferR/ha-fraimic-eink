@@ -117,7 +117,7 @@ def test_finish_schedules_reload_after_create(monkeypatch) -> None:
     flow = _load_flow(monkeypatch)
     reloads: list[str] = []
     handler = flow.ScreenSubentryFlowHandler()
-    handler._entry_id = "entry-1"
+    handler.handler = ("entry-1", "screen")
     handler.hass = SimpleNamespace(
         config_entries=SimpleNamespace(async_schedule_reload=reloads.append)
     )
@@ -135,7 +135,7 @@ def test_finish_schedules_reload_after_reconfigure(monkeypatch) -> None:
     flow = _load_flow(monkeypatch)
     reloads: list[str] = []
     handler = flow.ScreenSubentryFlowHandler()
-    handler._entry_id = "entry-1"
+    handler.handler = ("entry-1", "screen")
     handler.hass = SimpleNamespace(
         config_entries=SimpleNamespace(async_schedule_reload=reloads.append)
     )

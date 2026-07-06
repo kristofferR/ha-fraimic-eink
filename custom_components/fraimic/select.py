@@ -63,6 +63,7 @@ class FraimicScreenSelect(FraimicEntity, SelectEntity):
     async def async_select_option(self, option: str) -> None:
         for screen in self._scheduler.screens:
             if _option(screen) == option:
+                self._scheduler.raise_if_upload_active()
                 stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop
                 if stopper is not None:
                     stopper()

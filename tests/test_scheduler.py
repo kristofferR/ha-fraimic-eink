@@ -333,6 +333,17 @@ def test_manual_screen_control_blocked_during_external_upload(
     assert scheduler._hold_until == hold_until
 
 
+def test_upload_guard_raises_during_external_upload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.begin_external_upload()
+
+    with pytest.raises(scheduler_mod.HomeAssistantError, match="upload"):
+        scheduler.raise_if_upload_active()
+
+
 def test_failed_manual_screen_render_preserves_hold(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

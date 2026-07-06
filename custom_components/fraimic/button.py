@@ -114,10 +114,11 @@ class FraimicPlaylistStepButton(FraimicEntity, ButtonEntity):
         return self.coordinator.config_entry.runtime_data.scheduler is not None
 
     async def async_press(self) -> None:
+        scheduler = self.coordinator.config_entry.runtime_data.scheduler
+        scheduler.raise_if_upload_active()
         stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop
         if stopper is not None:
             stopper()
-        scheduler = self.coordinator.config_entry.runtime_data.scheduler
         if self._step > 0:
             await scheduler.async_next()
         else:

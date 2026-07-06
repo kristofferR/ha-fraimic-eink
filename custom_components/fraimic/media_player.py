@@ -127,13 +127,16 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             )
             uploaded = result.get("uploaded", True)
         finally:
-            if (
+            stale_camera_upload = (
                 uploaded
                 and camera_generation is not None
                 and camera_generation != self._camera_generation
-            ):
-                uploaded = False
-            finish_external_upload(scheduler, uploaded=uploaded, hold=hold_playlist)
+            )
+            finish_external_upload(
+                scheduler,
+                uploaded=uploaded,
+                hold=hold_playlist and not stale_camera_upload,
+            )
 
     async def _async_camera_tick(self, _now) -> None:
         """Periodic camera re-snapshot; failures are logged, the loop lives on

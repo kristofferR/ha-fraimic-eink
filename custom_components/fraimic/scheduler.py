@@ -127,6 +127,10 @@ class FraimicScheduler:
                 return screen
         return None
 
+    def raise_if_upload_active(self) -> None:
+        if self._busy or self.external_upload_active:
+            raise HomeAssistantError("An upload is already in progress")
+
     # -- controls ----------------------------------------------------------
 
     async def async_set_enabled(
@@ -246,7 +250,7 @@ class FraimicScheduler:
     ) -> None:
         if self._busy or self.external_upload_active:
             if manual:
-                raise HomeAssistantError("An upload is already in progress")
+                self.raise_if_upload_active()
             return
         if clear_hold_on_success is None:
             clear_hold_on_success = manual

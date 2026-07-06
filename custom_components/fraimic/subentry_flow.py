@@ -457,7 +457,7 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
         return result
 
     def _schedule_entry_reload(self) -> None:
-        self.hass.config_entries.async_schedule_reload(self._entry_id)
+        self.hass.config_entries.async_schedule_reload(self.handler[0])
 
     def _show_schema_error(
         self, body: dict[str, Any], err: vol.Invalid
