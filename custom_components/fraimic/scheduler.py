@@ -75,6 +75,8 @@ class FraimicScheduler:
         self.enabled = bool(data.get("enabled", False))
         self.current_id = data.get("current_screen_id")
         self.displayed_hash = data.get("displayed_hash")
+        if raw := data.get("hold_until"):
+            self._hold_until = dt_util.parse_datetime(raw)
         if raw := data.get("last_rotation"):
             self._last_rotation = dt_util.parse_datetime(raw)
         self._unsub_timer = async_track_time_interval(self.hass, self._async_tick, TICK)
@@ -125,11 +127,14 @@ class FraimicScheduler:
 
     # -- controls ----------------------------------------------------------
 
-    async def async_set_enabled(self, enabled: bool, *, rotate: bool = True) -> None:
+    async def async_set_enabled(
+        self, enabled: bool, *, rotate: bool = True, clear_hold: bool = True
+    ) -> None:
         if enabled == self.enabled:
             return
         self.enabled = enabled
-        self._hold_until = None
+        if clear_hold:
+            self._hold_until = None
         await self._async_save()
         self._notify()
         if enabled and rotate:
@@ -143,14 +148,12 @@ class FraimicScheduler:
 
     async def async_select(self, screen: ScreenConfig) -> None:
         """Show a specific screen now and pin rotation to it."""
-        self._hold_until = None
         await self._async_show(screen, manual=True)
 
     async def _async_step(self, step: int) -> None:
         candidate = next_screen(self.screens, self.current_id, dt_util.now(), step=step)
         if candidate is None:
             raise HomeAssistantError("No screen is eligible to show right now")
-        self._hold_until = None
         await self._async_show(candidate, manual=True)
 
     # -- external-upload interplay ------------------------------------------
@@ -219,10 +222,12 @@ class FraimicScheduler:
         await self._async_show(candidate)
 
     async def _async_show(self, screen: ScreenConfig, *, manual: bool = False) -> None:
-        if self._busy:
+        if self._busy or self.external_upload_active:
             if manual:
-                raise HomeAssistantError("A playlist upload is already in progress")
+                raise HomeAssistantError("An upload is already in progress")
             return
+        if manual:
+            self._hold_until = None
         self._busy = True
         try:
             result = await async_show_screen(
@@ -299,6 +304,9 @@ class FraimicScheduler:
                 "enabled": self.enabled,
                 "current_screen_id": self.current_id,
                 "displayed_hash": self.displayed_hash,
+                "hold_until": (
+                    self._hold_until.isoformat() if self._hold_until else None
+                ),
                 "last_rotation": (
                     self._last_rotation.isoformat() if self._last_rotation else None
                 ),

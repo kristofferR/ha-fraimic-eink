@@ -173,7 +173,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 scheduler = self.coordinator.config_entry.runtime_data.scheduler
                 disabled_scheduler = False
                 if scheduler is not None and scheduler.enabled:
-                    await scheduler.async_set_enabled(False)
+                    await scheduler.async_set_enabled(False, clear_hold=False)
                     disabled_scheduler = True
             else:
                 scheduler = None
@@ -182,7 +182,9 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 await self._async_show_camera(camera_entity)
             except Exception:
                 if disabled_scheduler and scheduler is not None:
-                    await scheduler.async_set_enabled(True, rotate=False)
+                    await scheduler.async_set_enabled(
+                        True, rotate=False, clear_hold=False
+                    )
                 raise
             if interval > 0:
                 self._camera_entity = camera_entity

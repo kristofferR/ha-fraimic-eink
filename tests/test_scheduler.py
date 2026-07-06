@@ -201,3 +201,57 @@ def test_wake_retry_rechecks_enabled_state(
     asyncio.run(scheduler._async_retry_pending(screen))
 
     assert scheduler._pending is screen
+
+
+def test_save_persists_manual_upload_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    hold_until = datetime(2026, 7, 3, 12, 35)
+    saved: dict = {}
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.update(data)
+
+    scheduler._store = Store()
+    scheduler._hold_until = hold_until
+
+    asyncio.run(scheduler._async_save())
+
+    assert saved["hold_until"] == hold_until.isoformat()
+
+
+def test_set_enabled_can_preserve_manual_upload_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    hold_until = datetime(2026, 7, 3, 12, 35)
+    scheduler.enabled = True
+    scheduler._hold_until = hold_until
+
+    asyncio.run(scheduler.async_set_enabled(False, clear_hold=False))
+    assert scheduler.enabled is False
+    assert scheduler._hold_until == hold_until
+
+    asyncio.run(scheduler.async_set_enabled(True, rotate=False, clear_hold=False))
+    assert scheduler.enabled is True
+    assert scheduler._hold_until == hold_until
+
+
+def test_manual_screen_control_blocked_during_external_upload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    hold_until = datetime(2026, 7, 3, 12, 35)
+    screen = SimpleNamespace(screen_id="screen-1", name="Manual")
+    scheduler._hold_until = hold_until
+    scheduler.begin_external_upload()
+
+    with pytest.raises(scheduler_mod.HomeAssistantError, match="upload"):
+        asyncio.run(scheduler.async_select(screen))
+
+    assert scheduler._hold_until == hold_until
