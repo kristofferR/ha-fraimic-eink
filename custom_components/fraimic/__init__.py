@@ -17,6 +17,7 @@ from .coordinator import (
 from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
+from .panel import async_register_panel, async_unregister_panel
 from .scenes import DATA_SCENES, SceneManager
 from .services import async_setup_services
 
@@ -48,6 +49,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
         await packs.async_setup()
         domain_data[DATA_PACKS] = packs
     async_register_views(hass)
+    await async_register_panel(hass)
 
     client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
     scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
@@ -83,6 +85,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
         library = domain_data.pop(DATA_LIBRARY, None)
         if library is not None:
             await library.async_shutdown()
+        async_unregister_panel(hass)
     return unload_ok
 
 
