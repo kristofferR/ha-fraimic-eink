@@ -33,7 +33,11 @@ from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
-from .services import async_render_and_upload
+from .services import (
+    async_render_and_upload,
+    begin_external_upload,
+    finish_external_upload,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -105,10 +109,17 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         """Snapshot ``camera_entity`` and display it on the frame."""
         from homeassistant.components.camera import async_get_image
 
-        image = await async_get_image(self.hass, camera_entity)
-        await async_render_and_upload(
-            self.hass, self.coordinator.config_entry, image.content
-        )
+        entry = self.coordinator.config_entry
+        scheduler = begin_external_upload(entry)
+        uploaded = False
+        try:
+            image = await async_get_image(self.hass, camera_entity)
+            result = await async_render_and_upload(
+                self.hass, entry, image.content, hold_playlist=False
+            )
+            uploaded = result.get("uploaded", True)
+        finally:
+            finish_external_upload(scheduler, uploaded=uploaded)
 
     async def _async_camera_tick(self, _now) -> None:
         """Periodic camera re-snapshot; failures are logged, the loop lives on
@@ -182,26 +193,37 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             self.async_write_ha_state()
             return
 
-        if media_source.is_media_source_id(media_id):
-            sourced = await media_source.async_resolve_media(
-                self.hass, media_id, self.entity_id
-            )
-            media_id = sourced.url
-
-        url = async_process_play_media_url(self.hass, media_id)
-        session = async_get_clientsession(self.hass)
+        entry = self.coordinator.config_entry
+        scheduler = begin_external_upload(entry)
+        uploaded = False
         try:
-            resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
-        except Exception as err:  # noqa: BLE001 - surfaced to the user
-            raise HomeAssistantError(f"Could not download {url}: {err}") from err
-        async with resp:
-            if resp.status != 200:
-                raise HomeAssistantError(f"Downloading image returned HTTP {resp.status}")
-            raw = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
-        if len(raw) > MAX_DOWNLOAD_BYTES:
-            raise HomeAssistantError("Image is too large")
+            if media_source.is_media_source_id(media_id):
+                sourced = await media_source.async_resolve_media(
+                    self.hass, media_id, self.entity_id
+                )
+                media_id = sourced.url
 
-        await async_render_and_upload(self.hass, self.coordinator.config_entry, raw)
+            url = async_process_play_media_url(self.hass, media_id)
+            session = async_get_clientsession(self.hass)
+            try:
+                resp = await session.get(url, timeout=aiohttp.ClientTimeout(total=30))
+            except Exception as err:  # noqa: BLE001 - surfaced to the user
+                raise HomeAssistantError(f"Could not download {url}: {err}") from err
+            async with resp:
+                if resp.status != 200:
+                    raise HomeAssistantError(
+                        f"Downloading image returned HTTP {resp.status}"
+                    )
+                raw = await resp.content.read(MAX_DOWNLOAD_BYTES + 1)
+            if len(raw) > MAX_DOWNLOAD_BYTES:
+                raise HomeAssistantError("Image is too large")
+
+            result = await async_render_and_upload(
+                self.hass, entry, raw, hold_playlist=False
+            )
+            uploaded = result.get("uploaded", True)
+        finally:
+            finish_external_upload(scheduler, uploaded=uploaded)
         self._attr_media_title = media_id.rsplit("/", 1)[-1]
         self.async_write_ha_state()
 

@@ -112,6 +112,8 @@ def _screen() -> types.SimpleNamespace:
 
 def _install_services(monkeypatch: pytest.MonkeyPatch, **attrs: object) -> None:
     services = types.ModuleType("fraimic.services")
+    services.begin_external_upload = lambda _entry: None
+    services.finish_external_upload = lambda _scheduler, *, uploaded: None
     for name, value in attrs.items():
         setattr(services, name, value)
     monkeypatch.setitem(sys.modules, "fraimic.services", services)
@@ -227,6 +229,74 @@ def test_upload_path_uploads_and_updates_screen_preview(
     assert entry.runtime_data.screen_preview_image.calls == [
         (b"uploaded-preview", "none")
     ]
+
+
+def test_upload_path_holds_playlist_before_rendering(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+    events: list[object] = []
+    scheduler = object()
+
+    async def build_context(_hass: object, _screen: object) -> object:
+        events.append("build")
+        return object()
+
+    def render_screen(
+        _screen: object, _ctx: object, _width: int, _height: int
+    ) -> tuple[bytes, str]:
+        events.append("render")
+        return b"screen-png", "none"
+
+    async def convert_for_entry(
+        *_args: object, **_kwargs: object
+    ) -> tuple[bytes, bytes, str]:
+        raise AssertionError("upload path must use async_render_and_upload")
+
+    async def render_and_upload(
+        _hass: object,
+        entry: object,
+        png: bytes,
+        overrides: dict,
+        *,
+        preprocess: bool,
+        skip_if_hash: str | None,
+        hold_playlist: bool,
+    ) -> dict:
+        events.append(("upload", hold_playlist))
+        assert png == b"screen-png"
+        assert skip_if_hash is None
+        assert not hold_playlist
+        entry.runtime_data.last_preview = b"uploaded-preview"
+        return {
+            "uploaded": True,
+            "content_hash": "abc123",
+            "mode": "none",
+            "preview_png": b"uploaded-preview",
+        }
+
+    def begin_external_upload(_entry: object) -> object:
+        events.append("begin")
+        return scheduler
+
+    def finish_external_upload(_scheduler: object, *, uploaded: bool) -> None:
+        assert _scheduler is scheduler
+        events.append(("finish", uploaded))
+
+    monkeypatch.setattr(display, "async_build_context", build_context)
+    monkeypatch.setattr(display, "render_screen", render_screen)
+    _install_services(
+        monkeypatch,
+        async_convert_for_entry=convert_for_entry,
+        async_render_and_upload=render_and_upload,
+        begin_external_upload=begin_external_upload,
+        finish_external_upload=finish_external_upload,
+    )
+
+    result = asyncio.run(display.async_show_screen(_Hass(), _entry(), _screen()))
+
+    assert result["uploaded"] is True
+    assert events == ["begin", "build", "render", ("upload", False), ("finish", True)]
 
 
 def test_render_errors_become_home_assistant_errors(

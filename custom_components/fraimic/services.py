@@ -72,6 +72,23 @@ class FrameUploadError(HomeAssistantError):
     """Raised when conversion succeeded but the frame upload failed."""
 
 
+def begin_external_upload(entry):
+    """Block playlist work while a manual upload is being prepared."""
+    scheduler = getattr(entry.runtime_data, "scheduler", None)
+    if scheduler is None:
+        return None
+    if scheduler.busy:
+        raise HomeAssistantError("A playlist upload is already in progress")
+    scheduler.begin_external_upload()
+    return scheduler
+
+
+def finish_external_upload(scheduler, *, uploaded: bool) -> None:
+    """Release a manual-upload guard and optionally hold the playlist."""
+    if scheduler is not None:
+        scheduler.finish_external_upload(uploaded=uploaded)
+
+
 def _require_one_source(data: dict) -> dict:
     """Ensure exactly one image source was provided."""
     sources = [k for k in (ATTR_PATH, ATTR_URL, ATTR_IMAGE_ENTITY) if data.get(k)]
@@ -195,13 +212,21 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     """Handle the ``fraimic.upload_image`` service call."""
     hass = call.hass
     entry = _resolve_entry(hass, call)
-    raw = await async_get_source_bytes(
-        hass,
-        path=call.data.get(ATTR_PATH),
-        url=call.data.get(ATTR_URL),
-        entity_id=call.data.get(ATTR_IMAGE_ENTITY),
-    )
-    await async_render_and_upload(hass, entry, raw, dict(call.data))
+    scheduler = begin_external_upload(entry)
+    uploaded = False
+    try:
+        raw = await async_get_source_bytes(
+            hass,
+            path=call.data.get(ATTR_PATH),
+            url=call.data.get(ATTR_URL),
+            entity_id=call.data.get(ATTR_IMAGE_ENTITY),
+        )
+        result = await async_render_and_upload(
+            hass, entry, raw, dict(call.data), hold_playlist=False
+        )
+        uploaded = result.get("uploaded", True)
+    finally:
+        finish_external_upload(scheduler, uploaded=uploaded)
 
 
 async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:
@@ -311,13 +336,8 @@ async def async_render_and_upload(
     interval; the scheduler's own uploads pass False.
     """
     runtime = entry.runtime_data
-    scheduler = runtime.scheduler
-    external_started = False
-    if hold_playlist and scheduler is not None:
-        if scheduler.busy:
-            raise HomeAssistantError("A playlist upload is already in progress")
-        scheduler.begin_external_upload()
-        external_started = True
+    scheduler = begin_external_upload(entry) if hold_playlist else None
+    uploaded = False
     try:
         async with runtime.upload_lock:
             bin_data, preview_png, used_mode = await async_convert_for_entry(
@@ -343,9 +363,7 @@ async def async_render_and_upload(
             except FraimicError as err:
                 raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
 
-            if external_started:
-                scheduler.finish_external_upload(uploaded=True)
-                external_started = False
+            uploaded = True
             if preview_png:
                 runtime.last_preview = preview_png
                 if runtime.preview_image is not None:
@@ -354,8 +372,7 @@ async def async_render_and_upload(
             # Pull a fresh snapshot so last-refresh / status updates promptly.
             await runtime.coordinator.async_request_refresh()
     finally:
-        if external_started:
-            scheduler.finish_external_upload(uploaded=False)
+        finish_external_upload(scheduler, uploaded=uploaded)
 
     return {
         "mode": used_mode,
