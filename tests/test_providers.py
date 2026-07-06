@@ -321,6 +321,31 @@ def test_engine_falls_back_to_best_scored_download() -> None:
     assert image.candidate.item_id == "ok"
 
 
+def test_engine_skips_candidate_when_dimension_probe_raises() -> None:
+    session = FakeSession()
+    session.add("https://x/bad.png", FakeResponse(body=b"bad"))
+    session.add("https://x/good.png", FakeResponse(body=_png(2000, 1500)))
+    provider = _Provider(
+        [
+            _candidate("bad", "https://x/bad.png"),
+            _candidate("good", "https://x/good.png"),
+        ]
+    )
+
+    async def dims_of(data: bytes) -> tuple[int, int]:
+        if data == b"bad":
+            raise RuntimeError("decode failed")
+        return await _dims_from_png(data)
+
+    image = _run(
+        engine.async_pick_and_download(
+            provider, session, cache_mod.ProviderCache(), REQUEST, dims_of=dims_of
+        )
+    )
+
+    assert image.candidate.item_id == "good"
+
+
 def test_engine_raises_when_nothing_downloads() -> None:
     session = FakeSession()
     session.add("https://x/", FakeResponse(status=404))
@@ -461,6 +486,21 @@ def test_caption_strip_is_palette_pure_and_composite_sizes() -> None:
 
     composed = caption.composite_with_caption(_png(1000, 700), "Some credit", 800, 480)
     with Image.open(io.BytesIO(composed)) as img:
+        assert img.size == (800, 480)
+
+
+def test_caption_composite_preserves_contain_fit() -> None:
+    import io
+
+    from PIL import Image
+
+    caption = load("providers.caption")
+    composed = caption.composite_with_caption(
+        _png(1000, 100), "Some credit", 800, 480, "contain"
+    )
+
+    with Image.open(io.BytesIO(composed)).convert("RGB") as img:
+        assert img.getpixel((10, 10)) == (255, 255, 255)
         assert img.size == (800, 480)
 
 

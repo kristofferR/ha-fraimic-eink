@@ -111,14 +111,16 @@ class ClevelandProvider(ArtProvider):
     async def async_by_id(
         self, session: Any, cache: Any, item_id: str, request: FetchRequest
     ) -> ArtCandidate:
-        await cache.async_throttle(self.key, self.min_interval)
-        resp = await session.get(
-            ITEM_URL.format(id=item_id), headers=api_headers(), timeout=API_TIMEOUT
+        payload = await async_fetch_json(
+            session,
+            cache,
+            key=self.key,
+            min_interval=self.min_interval,
+            url=ITEM_URL.format(id=item_id),
+            error_label=f"Cleveland artwork {item_id}",
+            headers=api_headers(),
+            timeout=API_TIMEOUT,
         )
-        async with resp:
-            if resp.status != 200:
-                raise ArtFetchError(f"Cleveland artwork {item_id}: HTTP {resp.status}")
-            payload = await resp.json()
         candidate = parse_cleveland_item(payload.get("data") or {})
         if candidate is None:
             raise ArtFetchError(f"Cleveland artwork {item_id} has no print image")

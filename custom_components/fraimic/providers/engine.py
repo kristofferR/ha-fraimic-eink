@@ -151,8 +151,13 @@ async def async_pick_and_download(
             data = await async_download(
                 session, candidate.image_url, provider.image_headers(candidate)
             )
+        except (ArtFetchError, OSError) as err:
+            last_error = err
+            _LOGGER.debug("%s: candidate %s failed: %s", provider.key, candidate.item_id, err)
+            continue
+        try:
             width, height = await dims_of(data)
-        except (ArtFetchError, ValueError, OSError) as err:
+        except Exception as err:  # noqa: BLE001 - image decoders fail broadly
             last_error = err
             _LOGGER.debug("%s: candidate %s failed: %s", provider.key, candidate.item_id, err)
             continue

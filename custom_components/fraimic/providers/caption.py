@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import io
 
-from ..const import MAX_SOURCE_PIXELS
+from ..const import FIT_CONTAIN, FIT_CONTAIN_BLACK, FIT_STRETCH, MAX_SOURCE_PIXELS
 from ..render.svg import SvgDoc, rasterize, snap_to_colors, truncate
 from ..render.theme import PALETTE_HEX
 
@@ -35,22 +35,33 @@ def caption_strip_png(text: str, width: int, strip_h: int) -> bytes:
     return snap_to_colors(rasterize(doc.to_string(), width, strip_h), doc.colors)
 
 
-def composite_with_caption(photo: bytes, text: str, width: int, height: int) -> bytes:
-    """Cover-fit ``photo`` above a caption strip; returns width x height PNG."""
+def composite_with_caption(
+    photo: bytes, text: str, width: int, height: int, fit: str = "cover"
+) -> bytes:
+    """Fit ``photo`` above a caption strip; returns width x height PNG."""
     from PIL import Image, ImageOps
 
     strip_h = strip_height(height)
+    photo_size = (width, height - strip_h)
     strip = Image.open(io.BytesIO(caption_strip_png(text, width, strip_h)))
     with Image.open(io.BytesIO(photo)) as src:
         if src.width * src.height > MAX_SOURCE_PIXELS:
             raise ValueError(f"Source image is too large ({src.width}x{src.height})")
         image = ImageOps.exif_transpose(src).convert("RGB")
-        photo_part = ImageOps.fit(
-            image,
-            (width, height - strip_h),
-            method=Image.Resampling.LANCZOS,
-            centering=(0.5, 0.5),
-        )
+        if fit == FIT_STRETCH:
+            photo_part = image.resize(photo_size, Image.Resampling.LANCZOS)
+        elif fit in (FIT_CONTAIN, FIT_CONTAIN_BLACK):
+            color = (0, 0, 0) if fit == FIT_CONTAIN_BLACK else (255, 255, 255)
+            photo_part = ImageOps.pad(
+                image, photo_size, method=Image.Resampling.LANCZOS, color=color
+            )
+        else:
+            photo_part = ImageOps.fit(
+                image,
+                photo_size,
+                method=Image.Resampling.LANCZOS,
+                centering=(0.5, 0.5),
+            )
     canvas = Image.new("RGB", (width, height), (255, 255, 255))
     canvas.paste(photo_part, (0, 0))
     canvas.paste(strip.convert("RGB"), (0, height - strip_h))

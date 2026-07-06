@@ -21,13 +21,13 @@ from ..const import (
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
+    FIT_COVER,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
-    FIT_COVER,
     MODE_NONE,
 )
 from .compose import render_screen
@@ -89,15 +89,21 @@ async def _async_picture_source(
         from ..providers.caption import composite_with_caption
         from ..providers.ha import async_fetch_art
 
+        fit = source.get("fit") or entry.options.get(ATTR_FIT, FIT_COVER)
         art = await async_fetch_art(
-            hass, entry, provider_key, query=source.get("query"), fit=source.get("fit")
+            hass, entry, provider_key, query=source.get("query"), fit=fit
         )
         raw = art.data
         art_info = asdict(art.candidate)
         if source.get("caption") and art.candidate.attribution:
             width, height = viewed_size(entry)
             raw = await hass.async_add_executor_job(
-                composite_with_caption, raw, art.candidate.attribution, width, height
+                composite_with_caption,
+                raw,
+                art.candidate.attribution,
+                width,
+                height,
+                fit,
             )
     else:
         raw = await async_get_source_bytes(
