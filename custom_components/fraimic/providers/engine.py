@@ -56,6 +56,8 @@ async def async_download(session: Any, url: str, headers: dict[str, str]) -> byt
             return await read_capped(resp.content)
         except ValueError as err:
             raise ArtFetchError(f"Image at {url} exceeds the size cap") from err
+        except Exception as err:  # noqa: BLE001 - response stream errors vary
+            raise ArtFetchError(f"Could not download {url}: {err}") from err
 
 
 async def async_download_candidate(

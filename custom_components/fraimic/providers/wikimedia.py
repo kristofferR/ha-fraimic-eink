@@ -47,8 +47,9 @@ def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate 
     parts = [title]
     if artist:
         parts.append(artist)
+    attribution = " — ".join(parts)
     if license_type:
-        parts.append(license_type)
+        attribution += f" ({license_type})"
     return ArtCandidate(
         provider="wikimedia",
         item_id=date_key,
@@ -57,7 +58,7 @@ def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate 
         title=title,
         artist=artist,
         license=license_type,
-        attribution=" — ".join(parts[:2]) + (f" ({license_type})" if license_type else ""),
+        attribution=attribution,
     )
 
 
@@ -92,10 +93,12 @@ class WikimediaProvider(ArtProvider):
     ) -> list[ArtCandidate]:
         now = datetime.now(timezone.utc)
         candidates = []
-        for back in range(min(count, DAYS_BACK)):
+        for back in range(DAYS_BACK):
             candidate = await self._potd(
                 session, cache, now - timedelta(days=back), request.target_width
             )
             if candidate is not None:
                 candidates.append(candidate)
+            if len(candidates) >= count:
+                break
         return candidates

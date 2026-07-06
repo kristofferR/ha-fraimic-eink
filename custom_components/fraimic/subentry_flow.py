@@ -487,7 +487,15 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
                     _PICTURE_SCHEMA,
                     {
                         key: body[key]
-                        for key in ("url", "entity", "fit", "mode")
+                        for key in (
+                            "url",
+                            "entity",
+                            "provider",
+                            "query",
+                            "caption",
+                            "fit",
+                            "mode",
+                        )
                         if key in body
                     },
                 ),

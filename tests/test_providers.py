@@ -101,6 +101,16 @@ def test_parse_apod_filters_videos() -> None:
     assert "APOD" in candidate.attribution
 
 
+def test_wikimedia_attribution_does_not_duplicate_license_without_artist() -> None:
+    payload = _fixture("wikimedia_potd.json")
+    payload["image"]["artist"]["text"] = ""
+    candidate = wikimedia.parse_potd(payload, "2026-07-04", 1600)
+
+    assert candidate is not None
+    assert candidate.attribution.endswith("(CC BY-SA 4.0)")
+    assert "CC BY-SA 4.0 — CC BY-SA 4.0" not in candidate.attribution
+
+
 # --- curation ----------------------------------------------------------
 
 
@@ -162,12 +172,16 @@ class FakeSession:
     def __init__(self):
         self.routes: list[tuple[str, FakeResponse]] = []
         self.requests: list[str] = []
+        self.calls: list[dict[str, object]] = []
 
     def add(self, prefix: str, response: FakeResponse) -> None:
         self.routes.append((prefix, response))
 
     async def get(self, url, headers=None, timeout=None, **kwargs):
         self.requests.append(url)
+        self.calls.append(
+            {"url": url, "headers": headers, "timeout": timeout, **kwargs}
+        )
         for index, (prefix, response) in enumerate(self.routes):
             if url.startswith(prefix):
                 # Consume queued responses so retries get the next one.
@@ -222,6 +236,15 @@ def _png(width: int, height: int) -> bytes:
 
 
 REQUEST = base.FetchRequest(target_width=1600, target_height=1200)
+
+
+class SpyCache(cache_mod.ProviderCache):
+    def __init__(self) -> None:
+        super().__init__()
+        self.throttles: list[tuple[str, float]] = []
+
+    async def async_throttle(self, key: str, min_interval: float) -> None:
+        self.throttles.append((key, min_interval))
 
 
 def test_engine_returns_first_acceptable_candidate() -> None:
@@ -296,6 +319,18 @@ def test_engine_raises_on_empty_candidates() -> None:
         )
 
 
+def test_engine_wraps_body_read_failures() -> None:
+    class BrokenResponse(FakeResponse):
+        async def read(self, _n=-1):
+            raise RuntimeError("stream broke")
+
+    session = FakeSession()
+    session.add("https://x/broken.png", BrokenResponse())
+
+    with pytest.raises(base.ArtFetchError, match="stream broke"):
+        _run(engine.async_download(session, "https://x/broken.png", {}))
+
+
 def test_met_provider_retries_past_imageless_objects() -> None:
     session = FakeSession()
     search = _fixture("met_search.json")
@@ -318,6 +353,40 @@ def test_met_provider_retries_past_imageless_objects() -> None:
     )
     assert [c.title for c in candidates] == ["Wheat Field with Cypresses"]
     assert search["total"] > 0  # fixture sanity
+
+
+def test_apod_uses_encoded_params_and_conservative_demo_key_throttle() -> None:
+    session = FakeSession()
+    session.add(apod.APOD_URL, FakeResponse(payload=[_fixture("apod.json")]))
+    cache = SpyCache()
+    provider = apod.ApodProvider()
+    provider.min_interval = 0
+
+    candidates = _run(provider.async_candidates(session, cache, REQUEST, 1))
+
+    assert len(candidates) == 1
+    assert session.calls[0]["url"] == apod.APOD_URL
+    assert session.calls[0]["params"] == {"api_key": apod.DEMO_KEY, "count": 4}
+    assert cache.throttles == [(provider.key, apod.DEMO_KEY_MIN_INTERVAL)]
+
+
+def test_apod_personal_key_keeps_normal_provider_throttle() -> None:
+    session = FakeSession()
+    session.add(apod.APOD_URL, FakeResponse(payload=[_fixture("apod.json")]))
+    cache = SpyCache()
+    provider = apod.ApodProvider()
+    provider.min_interval = 0
+    request = base.FetchRequest(
+        target_width=REQUEST.target_width,
+        target_height=REQUEST.target_height,
+        api_key="abc&123",
+    )
+
+    candidates = _run(provider.async_candidates(session, cache, request, 1))
+
+    assert len(candidates) == 1
+    assert session.calls[0]["params"] == {"api_key": "abc&123", "count": 4}
+    assert cache.throttles == [(provider.key, 0)]
 
 
 # --- cache -------------------------------------------------------------

@@ -53,6 +53,8 @@ def resolve_provider_key(entry, provider_key: str) -> str:
     if provider_key != PROVIDER_SHUFFLE:
         return provider_key
     available = available_provider_keys(entry)
+    if not available:
+        raise ArtFetchError("No image providers are available")
     # Shuffle means "surprise me with art": prefer the museum pool; fall
     # back to anything available.
     museums = [key for key in available if key in MUSEUM_KEYS]
