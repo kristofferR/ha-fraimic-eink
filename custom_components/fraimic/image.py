@@ -16,14 +16,30 @@ from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
 
 
+def _register_preview_slot(entity: FraimicPreviewImage) -> None:
+    setattr(
+        entity.coordinator.config_entry.runtime_data,
+        entity._runtime_preview_slot,
+        entity,
+    )
+
+
+def _clear_preview_slot(entity: FraimicPreviewImage) -> None:
+    runtime = entity.coordinator.config_entry.runtime_data
+    if getattr(runtime, entity._runtime_preview_slot) is entity:
+        setattr(runtime, entity._runtime_preview_slot, None)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: FraimicConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the Fraimic preview image entity."""
+    """Set up the Fraimic preview image entities."""
     coordinator = entry.runtime_data.coordinator
-    async_add_entities([FraimicPreviewImage(hass, coordinator)])
+    async_add_entities(
+        [FraimicPreviewImage(hass, coordinator), FraimicScreenPreviewImage(hass, coordinator)]
+    )
 
 
 class FraimicPreviewImage(FraimicEntity, ImageEntity):
@@ -31,6 +47,7 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
 
     _attr_translation_key = "preview"
     _attr_content_type = "image/png"
+    _runtime_preview_slot = "preview_image"
 
     def __init__(self, hass: HomeAssistant, coordinator) -> None:
         FraimicEntity.__init__(self, coordinator)
@@ -44,15 +61,13 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
 
         Registering it earlier would let the upload service call set_preview() on
         an entity that HA never added (e.g. if the user disabled it), which would
-        raise on async_write_ha_state.
+            raise on async_write_ha_state.
         """
         await super().async_added_to_hass()
-        self.coordinator.config_entry.runtime_data.preview_image = self
+        _register_preview_slot(self)
 
     async def async_will_remove_from_hass(self) -> None:
-        runtime = self.coordinator.config_entry.runtime_data
-        if runtime.preview_image is self:
-            runtime.preview_image = None
+        _clear_preview_slot(self)
         await super().async_will_remove_from_hass()
 
     @property
@@ -72,3 +87,19 @@ class FraimicPreviewImage(FraimicEntity, ImageEntity):
 
     async def async_image(self) -> bytes | None:
         return self._image
+
+
+class FraimicScreenPreviewImage(FraimicPreviewImage):
+    """Preview of the last rendered dashboard screen.
+
+    Unlike the main preview (what's actually on the frame), this also updates
+    on ``render_screen`` calls with ``preview_only: true`` — the zero-battery
+    way to iterate on a screen design without burning ~30 s e-ink refreshes.
+    """
+
+    _attr_translation_key = "screen_preview"
+    _runtime_preview_slot = "screen_preview_image"
+
+    def __init__(self, hass: HomeAssistant, coordinator) -> None:
+        super().__init__(hass, coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_screen_preview"

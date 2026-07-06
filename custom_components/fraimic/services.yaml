@@ -1,3 +1,56 @@
+render_screen:
+  name: Render screen
+  description: >-
+    Render a dashboard screen (widgets in layout slots) from Home Assistant
+    data and display it on the frame — or preview it without uploading.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: >-
+        Which Fraimic frame to render to. Only required if you have more than
+        one frame configured.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    screen:
+      name: Screen definition
+      description: >-
+        The screen as YAML: a layout (full, half_horizontal, half_vertical or
+        quadrant) and one widget per slot. Widget types: clock, date, stat,
+        entities, template.
+      required: true
+      example: >-
+        layout: quadrant
+
+        widgets:
+          - type: clock
+            slot: top_left
+          - type: stat
+            slot: top_right
+            entity: sensor.outdoor_temperature
+            trend: true
+          - type: entities
+            slot: bottom_left
+            entities:
+              - sensor.indoor_temperature
+              - sensor.indoor_humidity
+          - type: template
+            slot: bottom_right
+            template: "{{ states('sensor.energy_today') }} kWh used today"
+      selector:
+        object:
+    preview_only:
+      name: Preview only
+      description: >-
+        Render only to the Screen preview image entity without uploading to
+        the frame — iterate on a design without spending ~30 s e-ink refreshes
+        and battery.
+      required: false
+      default: false
+      selector:
+        boolean:
+
 upload_image:
   name: Upload image
   description: >-

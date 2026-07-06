@@ -7,12 +7,18 @@ and uploads it.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
 import aiohttp
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -26,8 +32,10 @@ from .const import (
     ATTR_IMAGE_ENTITY,
     ATTR_MODE,
     ATTR_PATH,
+    ATTR_PREVIEW_ONLY,
     ATTR_ROTATE,
     ATTR_SATURATION,
+    ATTR_SCREEN,
     ATTR_SHARPEN,
     ATTR_TONE,
     ATTR_URL,
@@ -48,10 +56,13 @@ from .const import (
     MAX_BIN_SIZE,
     MODE_AUTO,
     MODE_NONE,
+    SERVICE_RENDER_SCREEN,
     SERVICE_UPLOAD_IMAGE,
 )
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .image_convert import convert_image
+from .render.display import async_show_screen
+from .render.schema import SCREEN_SCHEMA, screen_from_dict
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,6 +111,15 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
 )
 
 
+RENDER_SCREEN_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+        vol.Required(ATTR_SCREEN): vol.All(dict, SCREEN_SCHEMA),
+        vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
+    }
+)
+
+
 def _resolve_mode(data: dict, options: dict) -> str:
     """Pick the dither mode: call > legacy ``dither`` bool > frame option > auto."""
     if data.get(ATTR_MODE):
@@ -118,6 +138,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         SERVICE_UPLOAD_IMAGE,
         _async_handle_upload_image,
         schema=UPLOAD_IMAGE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_RENDER_SCREEN,
+        _async_handle_render_screen,
+        schema=RENDER_SCREEN_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )
 
 
@@ -211,15 +238,33 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     await async_render_and_upload(hass, entry, raw, dict(call.data))
 
 
-async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | None = None) -> None:
-    """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
+async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:
+    """Handle the ``fraimic.render_screen`` service call."""
+    hass = call.hass
+    entry = _resolve_entry(hass, call)
+    screen = screen_from_dict(call.data[ATTR_SCREEN])
+    result = await async_show_screen(
+        hass, entry, screen, preview_only=call.data[ATTR_PREVIEW_ONLY]
+    )
+    return result if call.return_response else None
+
+
+async def async_convert_for_entry(
+    hass,
+    entry,
+    raw: bytes,
+    overrides: dict | None = None,
+    *,
+    preprocess: bool = True,
+) -> tuple[bytes, bytes | None, str]:
+    """Convert ``raw`` image bytes for ``entry``'s frame, without uploading.
 
     Each processing param resolves as: explicit ``overrides`` value > per-frame
-    option > global default. Shared by the ``upload_image`` service and the
-    media_player ``play_media`` path.
+    option > global default. Returns ``(bin_data, preview_png, used_mode)``.
+    ``preprocess=False`` skips photo enhancement (autocontrast/tone/...) for
+    sources that are already final panel content — rendered dashboard screens.
     """
     overrides = overrides or {}
-    runtime = entry.runtime_data
     options = entry.options
 
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
@@ -257,12 +302,33 @@ async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | Non
             sharpen,
             tone,
             preview_rotate,
+            preprocess,
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
         raise HomeAssistantError(f"Could not convert the image: {err}") from err
 
     if requested_mode == MODE_AUTO:
         _LOGGER.info("Fraimic auto-selected dither mode '%s' for this image", used_mode)
+    return bin_data, preview_png, used_mode
+
+
+async def async_render_and_upload(
+    hass,
+    entry,
+    raw: bytes,
+    overrides: dict | None = None,
+    *,
+    preprocess: bool = True,
+) -> dict:
+    """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
+
+    Shared by the ``upload_image`` service, the media_player ``play_media``
+    path, and screen rendering. Returns ``{"mode", "content_hash"}``.
+    """
+    runtime = entry.runtime_data
+    bin_data, preview_png, used_mode = await async_convert_for_entry(
+        hass, entry, raw, overrides, preprocess=preprocess
+    )
 
     try:
         await runtime.client.upload_image(bin_data)
@@ -276,6 +342,10 @@ async def async_render_and_upload(hass, entry, raw: bytes, overrides: dict | Non
 
     # Pull a fresh snapshot so last-refresh / status updates promptly.
     await runtime.coordinator.async_request_refresh()
+    return {
+        "mode": used_mode,
+        "content_hash": hashlib.sha256(bin_data).hexdigest(),
+    }
 
 
 def _convert(
@@ -290,6 +360,7 @@ def _convert(
     sharpen: float,
     tone: float,
     preview_rotate: int,
+    preprocess: bool = True,
 ) -> tuple[bytes, bytes | None, str]:
     return convert_image(
         raw,
@@ -303,4 +374,5 @@ def _convert(
         contrast=contrast,
         sharpen=sharpen,
         tone=tone,
+        preprocess=preprocess,
     )

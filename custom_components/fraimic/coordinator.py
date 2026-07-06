@@ -27,6 +27,9 @@ class FraimicRuntimeData:
         # Set by the image platform once its preview entity is created, so the
         # upload service can refresh the on-dashboard preview.
         self.preview_image: Any = None
+        # Ditto for the dashboard-screen preview entity (render_screen output,
+        # including preview-only renders that never reach the frame).
+        self.screen_preview_image: Any = None
         # Last preview PNG, also exposed as the media_player's artwork.
         self.last_preview: bytes | None = None
 

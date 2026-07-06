@@ -1,9 +1,9 @@
 """Tests for the Fraimic Spectra 6 image-processing pipeline.
 
 These exercise the pure conversion logic (no Home Assistant required), so they
-can run standalone:
+can run standalone (deps cover the whole tests/ directory):
 
-    uv run --with pillow --with numpy --with pytest pytest
+    uv run --with pillow --with numpy --with voluptuous --with resvg-py --with pytest pytest
 """
 
 from __future__ import annotations
@@ -71,11 +71,16 @@ def test_output_is_exact_size(mode: str) -> None:
 
 
 @pytest.mark.parametrize("mode", ALL_MODES)
-def test_no_nibble_exceeds_five(mode: str) -> None:
-    """Every nibble must be a valid Spectra index 0-5 (the cycled-palette gotcha)."""
+def test_only_valid_panel_nibbles(mode: str) -> None:
+    """Every nibble must be a valid E Ink Spectra 6 panel code.
+
+    The panel codes are 0x0-0x3, 0x5, 0x6 — 0x4 is unused by the standard and
+    anything above 0x6 would be garbage (the cycled-palette gotcha).
+    """
     w, h = LARGE
     data = ic.image_to_bin(_gradient(w, h), width=w, height=h, mode=mode, **RAW)
-    assert max({b >> 4 for b in data} | {b & 0x0F for b in data}) <= 5
+    nibbles = {b >> 4 for b in data} | {b & 0x0F for b in data}
+    assert nibbles <= {0x0, 0x1, 0x2, 0x3, 0x5, 0x6}, f"invalid nibbles: {nibbles}"
 
 
 def test_small_frame_size_scales() -> None:
@@ -99,10 +104,15 @@ def test_auto_mode_handles_1x1_source() -> None:
     list(enumerate(const.SPECTRA6_RGB)),
 )
 def test_calibrated_colors_map_to_their_own_index(index, rgb) -> None:
-    """A solid patch of a calibrated palette colour must quantise to that index."""
+    """A solid patch of a calibrated palette colour must quantise to that colour.
+
+    The packed byte carries the E Ink *panel code* for the palette position
+    (positions 4/5 map to nibbles 0x5/0x6 — 0x4 is unused by the standard).
+    """
     w, h = LARGE
     data = ic.image_to_bin(_solid(w, h, tuple(rgb)), width=w, height=h, mode="none", **RAW)
-    expected = (index << 4) | index
+    nibble = const.SPECTRA6_PANEL_INDEX[index]
+    expected = (nibble << 4) | nibble
     assert set(data) == {expected}, f"{rgb} -> {hex(data[0])}, expected {hex(expected)}"
 
 

@@ -98,7 +98,8 @@
       "restart": { "name": "Restart" }
     },
     "image": {
-      "preview": { "name": "Current artwork" }
+      "preview": { "name": "Current artwork" },
+      "screen_preview": { "name": "Screen preview" }
     }
   },
   "services": {
@@ -149,6 +150,24 @@
         "tone": {
           "name": "Tone curve",
           "description": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff. 0 disables."
+        }
+      }
+    },
+    "render_screen": {
+      "name": "Render screen",
+      "description": "Render a dashboard screen (widgets in layout slots) from Home Assistant data and display it on the frame.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which Fraimic frame to render to. Only required with multiple frames."
+        },
+        "screen": {
+          "name": "Screen definition",
+          "description": "The screen as YAML: layout (full, half_horizontal, half_vertical, quadrant) and one widget per slot. See the integration docs for the widget reference."
+        },
+        "preview_only": {
+          "name": "Preview only",
+          "description": "Render only to the Screen preview image entity without uploading — iterate on a design without spending ~30 s e-ink refreshes and battery."
         }
       }
     }

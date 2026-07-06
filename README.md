@@ -71,7 +71,7 @@ pass it explicitly; otherwise the frame's configured default is used.
 | Sensor | Battery %, Battery voltage, Battery source, Wi-Fi signal, Wi-Fi SSID, Wi-Fi channel, IP address, Firmware, Uptime, Last refresh, Next refresh |
 | Binary sensor | Charging, Cable connected, Wi-Fi connected, Registered, Time synced, Voice recording, Keep awake |
 | Button | Refresh display, Sleep, Restart |
-| Image | Current artwork (colour preview of the last upload) |
+| Image | Current artwork (colour preview of the last upload), Screen preview (last rendered [dashboard screen](#dashboard-screens)) |
 | Media player | Display images via the media browser / `play_media` |
 
 Diagnostic / noisy entities (SSID, IP, voltage, uptime, …) are disabled by default — enable
@@ -218,6 +218,76 @@ automation:
 
 **Low battery alert** — just a `numeric_state` trigger on `sensor.fraimic_e_ink_canvas_battery`;
 no template sensor needed.
+
+## Dashboard screens
+
+The frame can render **Home Assistant data natively** — sensors, entity lists, templated text —
+as a designed e-ink dashboard, TRMNL-style: widgets composed into layout slots, built as crisp
+vector graphics on the server (no headless browser, works on any HA install) using only the
+panel's six real colours, so the result is pixel-perfect with zero dithering noise.
+
+![Sample dashboard screen](docs/sample-screen.png)
+
+The screen above is exactly what this call produces:
+
+```yaml
+action: fraimic.render_screen
+data:
+  screen:
+    name: Home
+    layout: quadrant          # full | half_horizontal | half_vertical | quadrant
+    widgets:
+      - type: clock
+        slot: top_left
+      - type: stat
+        slot: top_right
+        entity: sensor.outdoor_temperature
+        icon: mdi:thermometer
+        trend: true           # ▲/▼ + change vs 1 h ago (needs recorder)
+      - type: entities
+        slot: bottom_left
+        entities:
+          - sensor.living_room_temperature
+          - sensor.living_room_humidity
+          - light.kitchen
+          - lock.front_door
+      - type: template
+        slot: bottom_right
+        template: >-
+          Energy today: {{ states('sensor.energy_today') }} kWh
+```
+
+Layouts define the slots: `full` (`main`), `half_horizontal` (`top`/`bottom`), `half_vertical`
+(`left`/`right`), `quadrant` (`top_left`/`top_right`/`bottom_left`/`bottom_right`) — one widget
+per slot. Empty slots stay blank.
+
+### Widgets
+
+| Type | What it shows | Key options |
+|------|---------------|-------------|
+| `clock` | Big HH:MM | `format` (strftime, no seconds) |
+| `date` | Weekday + date | `format` (default `%A, %-d %B`) |
+| `stat` | One big value + label + icon + optional trend arrow | `entity` (required), `name`, `icon`, `unit`, `precision`, `trend`, `trend_hours`, `color` |
+| `entities` | Rows of name → state (with icons) | `entities` (list of ids or `{entity, name, icon}`), `max_rows` |
+| `template` | Free-form Jinja-templated text | `template` (required), `align` (`left`/`center`), `size` (`s`/`m`/`l`) |
+
+Screen-level options: `name` (shown in the header), `background` / `accent` / per-stat `color`
+(one of `black`, `white`, `yellow`, `red`, `blue`, `green` — the panel's real palette),
+`padding`, and `show_header: false` to drop the title bar. Icons are any
+[Material Design Icon](https://pictogrammers.com/library/mdi/) (`mdi:...`), same names as
+everywhere in HA.
+
+### Designing without burning refreshes
+
+Every upload is a full ~30 s e-ink refresh and costs battery. Add `preview_only: true` to the
+service call and the screen renders **only to the `Screen preview` image entity** — exactly what
+the panel would show, including the 6-colour quantisation — so you can iterate on a design from
+Developer Tools with zero uploads, then drop the flag when it's right.
+
+Called from an automation (time pattern, state trigger, …), `render_screen` keeps the frame's
+dashboard current — the same trigger patterns as the artwork examples above. A built-in playlist
+scheduler (rotating multiple screens with per-screen intervals and time windows, skipping
+uploads when nothing changed) is planned next.
 
 ## How image conversion works
 
