@@ -43,6 +43,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
             library = FraimicLibrary(hass)
             await library.async_setup()
             domain_data[DATA_LIBRARY] = library
+        library = domain_data[DATA_LIBRARY]
     async_register_views(hass)
 
     client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
@@ -71,7 +72,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
 
     async_setup_services(hass)
     # Pre-render the library's default variants for this frame in the background.
-    domain_data[DATA_LIBRARY].schedule_full_backfill()
+    library.schedule_full_backfill()
     return True
 
 

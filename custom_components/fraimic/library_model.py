@@ -118,6 +118,9 @@ class LibraryImage:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LibraryImage:
+        crops = data.get("crops") or {}
+        if not isinstance(crops, dict):
+            crops = {}
         return cls(
             image_id=str(data["image_id"]),
             filename=str(data.get("filename") or "image"),
@@ -126,7 +129,7 @@ class LibraryImage:
             width=data.get("width"),
             height=data.get("height"),
             albums=list(data.get("albums") or [LIBRARY_ALBUM_DEFAULT]),
-            crops={str(k): list(v) for k, v in (data.get("crops") or {}).items()},
+            crops={str(k): list(v) for k, v in crops.items()},
         )
 
 

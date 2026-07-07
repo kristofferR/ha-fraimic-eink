@@ -308,9 +308,12 @@ class FraimicLibrary:
         except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
             raise HomeAssistantError(f"Could not convert library image: {err}") from err
 
-        await self.hass.async_add_executor_job(
-            self._write_render_sync, render_dir, key, bin_data, preview_png, used_mode
-        )
+        try:
+            await self.hass.async_add_executor_job(
+                self._write_render_sync, render_dir, key, bin_data, preview_png, used_mode
+            )
+        except OSError as err:
+            _LOGGER.warning("Could not write render cache for %s: %s", image_id, err)
         return bin_data, preview_png, used_mode
 
     def _read_render_sync(
@@ -331,10 +334,21 @@ class FraimicLibrary:
         self, render_dir: Path, key: str, bin_data: bytes, preview_png: bytes | None, mode: str
     ) -> None:
         render_dir.mkdir(parents=True, exist_ok=True)
-        (render_dir / f"{key}.bin").write_bytes(bin_data)
+
+        def _atomic_write(path: Path, write) -> None:
+            tmp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+            write(tmp)
+            tmp.replace(path)
+
+        _atomic_write(render_dir / f"{key}.bin", lambda path: path.write_bytes(bin_data))
         if preview_png is not None:
-            (render_dir / f"{key}.png").write_bytes(preview_png)
-        (render_dir / f"{key}.json").write_text(json.dumps({"mode": mode}), encoding="utf-8")
+            _atomic_write(
+                render_dir / f"{key}.png", lambda path: path.write_bytes(preview_png)
+            )
+        _atomic_write(
+            render_dir / f"{key}.json",
+            lambda path: path.write_text(json.dumps({"mode": mode}), encoding="utf-8"),
+        )
 
     async def async_send_to_entry(
         self,
@@ -401,6 +415,13 @@ class FraimicLibrary:
                     )
                 except asyncio.CancelledError:
                     raise
+                except Exception as err:  # noqa: BLE001 - backfill is best-effort
+                    _LOGGER.warning(
+                        "Backfill render of %s for %s failed unexpectedly: %s",
+                        image_id,
+                        getattr(entry, "title", entry.entry_id),
+                        err,
+                    )
 
 
 def _probe_dimensions(data: bytes) -> tuple[int, int]:
@@ -420,7 +441,7 @@ def _probe_dimensions(data: bytes) -> tuple[int, int]:
         with Image.open(io.BytesIO(data)) as img:
             width, height = img.size
             orientation = img.getexif().get(0x0112)
-    except UnidentifiedImageError as err:
+    except (UnidentifiedImageError, OSError) as err:
         raise ValueError("undecodable image data") from err
     # Orientations 5-8 transpose the axes; the library stores display-space
     # dimensions because that's the space crop boxes are defined in.

@@ -7,38 +7,14 @@ Standalone like test_image_convert (no Home Assistant import):
 
 from __future__ import annotations
 
-import importlib.util
 import io
-import sys
-import types
-from pathlib import Path
 
 import pytest
+from conftest import load
 
-PKG_DIR = Path(__file__).resolve().parents[1] / "custom_components" / "fraimic"
-
-
-def _load():
-    if "fraimic" not in sys.modules:
-        pkg = types.ModuleType("fraimic")
-        pkg.__path__ = [str(PKG_DIR)]
-        sys.modules["fraimic"] = pkg
-    for name in ("const", "image_convert", "library_model"):
-        mod_name = f"fraimic.{name}"
-        if mod_name not in sys.modules:
-            spec = importlib.util.spec_from_file_location(mod_name, PKG_DIR / f"{name}.py")
-            assert spec and spec.loader
-            module = importlib.util.module_from_spec(spec)
-            sys.modules[mod_name] = module
-            spec.loader.exec_module(module)
-    return (
-        sys.modules["fraimic.const"],
-        sys.modules["fraimic.image_convert"],
-        sys.modules["fraimic.library_model"],
-    )
-
-
-const, ic, lm = _load()
+const = load("const")
+ic = load("image_convert")
+lm = load("library_model")
 
 
 # --------------------------------------------------------------------- model
@@ -135,6 +111,22 @@ def test_manifest_roundtrip_skips_broken_entries():
     restored = lm.manifest_from_dict(data)
     assert set(restored) == {"good"}
     assert restored["good"].filename == "a.jpg"
+
+
+def test_manifest_skips_entry_with_bad_crop_map():
+    restored = lm.manifest_from_dict(
+        {
+            "images": {
+                "bad": {
+                    "filename": "bad.jpg",
+                    "uploaded_at": 1,
+                    "crops": "not-a-map",
+                }
+            }
+        }
+    )
+
+    assert restored["bad"].crops == {}
 
 
 @pytest.mark.parametrize(

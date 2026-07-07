@@ -282,7 +282,8 @@ class LibrarySendView(_FraimicView):
                 scheduler = begin_external_upload(entry)
                 await library.async_send_to_entry(image_id, entry)
                 uploaded = True
-            except HomeAssistantError as err:
+            except Exception as err:  # noqa: BLE001 - isolate per-frame failures
+                _LOGGER.exception("Failed to send library image to %s", entry.entry_id)
                 return str(err)
             finally:
                 finish_external_upload(scheduler, uploaded=uploaded)
@@ -291,7 +292,7 @@ class LibrarySendView(_FraimicView):
         errors = await asyncio.gather(*(_send(entry) for entry in entries))
         results = {
             entry.entry_id: {"ok": error is None, "error": error}
-            for entry, error in zip(entries, errors)
+            for entry, error in zip(entries, errors, strict=True)
         }
         status = (
             HTTPStatus.OK
