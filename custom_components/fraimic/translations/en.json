@@ -26,7 +26,8 @@
       "cannot_connect": "Could not reach the frame. Is it awake and on the same network?",
       "custom_resolution_required": "Custom selected — enter both Width and Height.",
       "odd_resolution": "Height must be divisible by 4 (the frame packs pixels in vertical pairs per half-panel).",
-      "resolution_too_large": "That resolution is too large for the frame to render."
+      "resolution_too_large": "That resolution is too large for the frame to render.",
+      "provider_key_required": "That default provider needs an API key."
     },
     "abort": {
       "already_configured": "This frame is already set up.",
@@ -177,9 +178,6 @@
           "nasa_api_key": "Free key from api.nasa.gov raises the APOD rate limit (DEMO_KEY works without one).",
           "unsplash_access_key": "Enables the Unsplash photo provider. Free at unsplash.com/developers.",
           "pexels_api_key": "Enables the Pexels photo provider. Free at pexels.com/api."
-        },
-        "error": {
-          "provider_key_required": "That default provider needs an API key."
         }
       }
     }
