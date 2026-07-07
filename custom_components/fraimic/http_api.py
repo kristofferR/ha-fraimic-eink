@@ -53,6 +53,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         LibraryUploadView(),
         LibraryImageView(),
         LibraryCropView(),
+        LibraryPreviewView(),
         LibraryThumbView(),
         LibraryAlbumView(),
         LibrarySendView(),
@@ -212,6 +213,37 @@ class LibraryCropView(_FraimicView):
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.NOT_FOUND)
         return self.json(image.to_dict())
+
+
+class LibraryPreviewView(_FraimicView):
+    """Dithered e-ink preview of an image for a frame, with an ad-hoc crop.
+
+    Powers the crop editor's "Preview on e-ink" button. Nothing is saved or
+    uploaded; the response is the palette-exact PNG the renderer would show.
+    """
+
+    url = "/api/fraimic/library/image/{image_id}/preview"
+    name = "api:fraimic:library:preview"
+
+    async def post(self, request: web.Request, image_id: str) -> web.Response:
+        hass = request.app[KEY_HASS]
+        library = self._library(request)
+        body = await self._json_body(request)
+        entry_id = body.get("entry_id")
+        entry = next(
+            (e for e in loaded_fraimic_entries(hass) if e.entry_id == entry_id), None
+        )
+        if entry is None:
+            return self.json_message("Unknown or unloaded entry_id", HTTPStatus.BAD_REQUEST)
+        try:
+            png = await library.async_render_adhoc_preview(
+                image_id, entry, body.get("box")
+            )
+        except ValueError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        return web.Response(body=png, content_type="image/png")
 
 
 class LibraryThumbView(_FraimicView):

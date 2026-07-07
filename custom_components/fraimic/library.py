@@ -35,6 +35,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .api import FraimicError
 from .const import (
+    ATTR_ROTATE,
     DOMAIN,
     LIBRARY_ALBUM_DEFAULT,
     LIBRARY_DIR,
@@ -293,7 +294,12 @@ class FraimicLibrary:
         """Return ``(bin, preview_png, mode)`` for one frame, via the cache."""
         image = self.get(image_id)
         params = resolve_render_params(entry, overrides)
-        crop = image.crop_for(params["width"], params["height"])
+        crop_width, crop_height = _crop_key_size(params)
+        crop = (
+            None
+            if overrides and overrides.get(ATTR_ROTATE)
+            else image.crop_for(crop_width, crop_height)
+        )
         cache_params = dict(params)
         cache_params["crop"] = list(crop) if crop else None
         key = render_cache_key(cache_params)
@@ -374,6 +380,40 @@ class FraimicLibrary:
             await async_upload_rendered(
                 entry, *rendered, media_title=image.filename, lock=False
             )
+
+    async def async_render_adhoc_preview(
+        self,
+        image_id: str,
+        entry: ConfigEntry,
+        box: list[float] | None,
+    ) -> bytes:
+        """Dithered preview PNG for an arbitrary (possibly unsaved) crop box.
+
+        Backs the crop editor's "Preview on e-ink" button: shows exactly what
+        the panel will render for the box being edited, without saving the
+        crop, uploading anything, or polluting the render cache. A box that
+        matches the saved crop goes through the normal cached path.
+        """
+        image = self.get(image_id)
+        params = resolve_render_params(entry)
+        crop = normalize_crop(box) if box is not None else None
+        crop_width, crop_height = _crop_key_size(params)
+        if crop == image.crop_for(crop_width, crop_height):
+            _, preview_png, _ = await self.async_render_for_entry(image_id, entry)
+            if preview_png is not None:
+                return preview_png
+        source = await self.hass.async_add_executor_job(
+            self.original_path(image).read_bytes
+        )
+        try:
+            _, preview_png, _ = await self.hass.async_add_executor_job(
+                lambda: convert_image(source, **params, crop=crop)
+            )
+        except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
+            raise HomeAssistantError(f"Could not render the preview: {err}") from err
+        if preview_png is None:  # pragma: no cover - preview=True is the default
+            raise HomeAssistantError("Renderer returned no preview")
+        return preview_png
 
     # -------------------------------------------------------------- backfill
 
@@ -484,6 +524,13 @@ def _probe_dimensions(data: bytes) -> tuple[int, int]:
     if orientation in (5, 6, 7, 8):
         width, height = height, width
     return width, height
+
+
+def _crop_key_size(params: dict[str, Any]) -> tuple[int, int]:
+    """Return wall-visible dimensions for crop storage and lookup."""
+    if params.get("rotate") in (90, 270):
+        return (params["height"], params["width"])
+    return (params["width"], params["height"])
 
 
 def _make_thumbnail(original: Path) -> bytes:
