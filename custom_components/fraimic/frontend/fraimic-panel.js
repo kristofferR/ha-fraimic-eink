@@ -176,13 +176,18 @@ class FraimicPanel extends HTMLElement {
   /* ---------------------------------------------------------------- data */
 
   async _refreshAll() {
+    const packsPromise = this._loadPacks()
+      .then(() => {
+        if (this._tab === "packs") this._renderTab();
+      })
+      .catch((err) => this._toast(err.message, true));
     await Promise.all([
       this._loadLibrary(),
       this._loadFrames(),
       this._loadScenes(),
-      this._loadPacks(),
     ]).catch((err) => this._toast(err.message, true));
     this._renderTab();
+    await packsPromise;
   }
 
   async _loadLibrary() {
@@ -534,7 +539,7 @@ class FraimicPanel extends HTMLElement {
 
     const filter = this._el("select", {
       onchange: (ev) => {
-        this._albumFilter = ev.target.value;
+        this._setAlbumFilter(ev.target.value);
         this._renderTab();
       },
     });
@@ -604,7 +609,7 @@ class FraimicPanel extends HTMLElement {
             {
               class: "albumcard",
               onclick: () => {
-                this._albumFilter = album;
+                this._setAlbumFilter(album);
                 this._renderTab();
               },
             },
@@ -630,6 +635,12 @@ class FraimicPanel extends HTMLElement {
     const grid = this._el("div", { class: "grid" });
     for (const image of images) grid.appendChild(this._libraryCard(image));
     root.appendChild(grid);
+  }
+
+  _setAlbumFilter(album) {
+    if (album === this._albumFilter) return;
+    this._albumFilter = album;
+    this._selected.clear();
   }
 
   _libraryCard(image) {
@@ -903,6 +914,8 @@ class FraimicPanel extends HTMLElement {
 
     // Normalized box state [x0, y0, x1, y1]
     let norm = null;
+    let imageReady = false;
+    let preserveOnLoad = false;
     const aspect = () => {
       const size = this._effectiveSize(frame);
       return size.width / size.height;
@@ -917,8 +930,17 @@ class FraimicPanel extends HTMLElement {
       box.style.height = `${(norm[3] - norm[1]) * rect.h}px`;
     };
 
-    img.addEventListener("load", () => placeBox(this._initialBox(image, frame)));
-    this._setImgSrc(img, `${API}/library/image/${image.image_id}`);
+    img.addEventListener("load", () => {
+      imageReady = true;
+      placeBox(preserveOnLoad && norm ? [...norm] : this._initialBox(image, frame));
+      preserveOnLoad = false;
+    });
+    img.addEventListener("error", () => {
+      imageReady = false;
+      box.style.display = "none";
+      this._toast("Could not load a browser-renderable crop image", true);
+    });
+    this._setImgSrc(img, `${API}/library/thumb/${image.image_id}`);
 
     // Pointer interactions: move (box) or aspect-locked resize (handles).
     let gesture = null;
@@ -984,10 +1006,15 @@ class FraimicPanel extends HTMLElement {
       text: "Preview on e-ink",
       onclick: async () => {
         if (previewing) {
+          preserveOnLoad = true;
           img.src = sourceSrc;
           box.style.display = "";
           previewing = false;
           previewBtn.textContent = "Preview on e-ink";
+          return;
+        }
+        if (!imageReady || !norm) {
+          this._toast("Crop image is not ready yet", true);
           return;
         }
         previewBtn.disabled = true;
@@ -1007,6 +1034,7 @@ class FraimicPanel extends HTMLElement {
           }
           const blob = await resp.blob();
           sourceSrc = img.src;
+          preserveOnLoad = true;
           img.src = URL.createObjectURL(blob);
           box.style.display = "none";
           previewing = true;
@@ -1020,11 +1048,16 @@ class FraimicPanel extends HTMLElement {
     });
 
     const save = async () => {
+      if (!imageReady || !norm) {
+        this._toast("Crop image is not ready yet", true);
+        return;
+      }
+      const size = this._effectiveSize(frame);
       try {
         await this._api(`library/image/${image.image_id}/crop`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ width: frame.width, height: frame.height, box: norm }),
+          body: JSON.stringify({ width: size.width, height: size.height, box: norm }),
         });
         this._closeDialog();
         await this._loadLibrary();
@@ -1035,11 +1068,12 @@ class FraimicPanel extends HTMLElement {
       }
     };
     const clear = async () => {
+      const size = this._effectiveSize(frame);
       try {
         await this._api(`library/image/${image.image_id}/crop`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ width: frame.width, height: frame.height, box: null }),
+          body: JSON.stringify({ width: size.width, height: size.height, box: null }),
         });
         this._closeDialog();
         await this._loadLibrary();
@@ -1069,10 +1103,10 @@ class FraimicPanel extends HTMLElement {
   }
 
   _initialBox(image, frame) {
-    const key = `${frame.width}x${frame.height}`;
+    const size = this._effectiveSize(frame);
+    const key = `${size.width}x${size.height}`;
     if (image.crops && image.crops[key]) return [...image.crops[key]];
     // Default: the centered cover-crop the pipeline would use anyway.
-    const size = this._effectiveSize(frame);
     const target = size.width / size.height;
     const source = image.width && image.height ? image.width / image.height : target;
     if (source > target) {
@@ -1259,9 +1293,10 @@ class FraimicPanel extends HTMLElement {
     }
 
     const save = async () => {
-      const mappings = {};
+      const mappings = scene ? { ...scene.mappings } : {};
       for (const [entryId, select] of selects) {
         if (select.value) mappings[entryId] = select.value;
+        else delete mappings[entryId];
       }
       try {
         if (scene) {

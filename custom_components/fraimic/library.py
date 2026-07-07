@@ -280,7 +280,8 @@ class FraimicLibrary:
         """Return ``(bin, preview_png, mode)`` for one frame, via the cache."""
         image = self.get(image_id)
         params = resolve_render_params(entry, overrides)
-        crop = image.crop_for(params["width"], params["height"])
+        crop_width, crop_height = _crop_key_size(params)
+        crop = image.crop_for(crop_width, crop_height)
         cache_params = dict(params)
         cache_params["crop"] = list(crop) if crop else None
         key = render_cache_key(cache_params)
@@ -354,7 +355,8 @@ class FraimicLibrary:
         image = self.get(image_id)
         params = resolve_render_params(entry)
         crop = normalize_crop(box) if box is not None else None
-        if crop == image.crop_for(params["width"], params["height"]):
+        crop_width, crop_height = _crop_key_size(params)
+        if crop == image.crop_for(crop_width, crop_height):
             _, preview_png, _ = await self.async_render_for_entry(image_id, entry)
             if preview_png is not None:
                 return preview_png
@@ -456,6 +458,13 @@ def _probe_dimensions(data: bytes) -> tuple[int, int]:
     if orientation in (5, 6, 7, 8):
         width, height = height, width
     return width, height
+
+
+def _crop_key_size(params: dict[str, Any]) -> tuple[int, int]:
+    """Return wall-visible dimensions for crop storage and lookup."""
+    if params.get("rotate") in (90, 270):
+        return (params["height"], params["width"])
+    return (params["width"], params["height"])
 
 
 def _make_thumbnail(original: Path) -> bytes:
