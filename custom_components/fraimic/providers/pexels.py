@@ -18,7 +18,7 @@ API_TIMEOUT = 20.0
 
 def parse_pexels_photo(item: dict) -> ArtCandidate | None:
     src = item.get("src") or {}
-    image_url = src.get("large2x") or src.get("original")
+    image_url = src.get("original") or src.get("large2x")
     if not image_url:
         return None
     photographer = item.get("photographer") or "Unknown"
@@ -42,7 +42,7 @@ class PexelsProvider(ArtProvider):
     name = "Pexels"
     requires_key = True
     key_option = "pexels_api_key"
-    min_interval = 2.0  # 200 req/hr
+    min_interval = 18.0  # 200 req/hr
 
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
@@ -52,17 +52,22 @@ class PexelsProvider(ArtProvider):
         orientation = (
             "landscape" if request.target_width >= request.target_height else "portrait"
         )
-        page = random.randint(1, 20)
         if request.query:
-            url = (
-                f"{SEARCH_URL}?query={request.query}&orientation={orientation}"
-                f"&per_page={count}&page={page}"
-            )
+            url = SEARCH_URL
+            params = {
+                "query": request.query,
+                "orientation": orientation,
+                "per_page": count,
+                "page": 1,
+            }
         else:
-            url = f"{CURATED_URL}?per_page={count}&page={page}"
+            url = CURATED_URL
+            page = random.randint(1, 20)
+            params = {"per_page": count, "page": page}
         await cache.async_throttle(self.key, self.min_interval)
         resp = await session.get(
             url,
+            params=params,
             headers=api_headers({"Authorization": request.api_key}),
             timeout=API_TIMEOUT,
         )

@@ -42,6 +42,8 @@ class FraimicRuntimeData:
         # Attribution info for online artwork currently on the frame
         # (asdict of providers.base.ArtCandidate), or None.
         self.last_art: dict[str, Any] | None = None
+        # Fallback media-player title for non-provider content currently on the frame.
+        self.media_title: str | None = None
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):

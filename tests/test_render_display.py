@@ -6,6 +6,7 @@ import asyncio
 import sys
 import types
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
@@ -103,6 +104,7 @@ def _entry(rotation: int = 0) -> types.SimpleNamespace:
             last_preview=None,
             screen_preview_image=_PreviewImage(),
             last_art=None,
+            media_title=None,
             coordinator=types.SimpleNamespace(async_update_listeners=lambda: None),
         ),
     )
@@ -148,7 +150,7 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
         return b"bin-data", b"preview-png", "none"
 
     async def render_and_upload(*_args: object, **_kwargs: object) -> dict:
-        raise AssertionError("preview-only must not upload")
+        pytest.fail("preview-only must not upload")
 
     monkeypatch.setattr(display, "async_build_context", build_context)
     monkeypatch.setattr(display, "render_screen", render_screen)
@@ -187,7 +189,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
     async def convert_for_entry(
         *_args: object, **_kwargs: object
     ) -> tuple[bytes, bytes, str]:
-        raise AssertionError("upload path must use async_render_and_upload")
+        pytest.fail("upload path must use async_render_and_upload")
 
     async def render_and_upload(
         _hass: object,
@@ -256,7 +258,7 @@ def test_upload_path_holds_playlist_before_rendering(
     async def convert_for_entry(
         *_args: object, **_kwargs: object
     ) -> tuple[bytes, bytes, str]:
-        raise AssertionError("upload path must use async_render_and_upload")
+        pytest.fail("upload path must use async_render_and_upload")
 
     async def render_and_upload(
         _hass: object,
@@ -304,6 +306,103 @@ def test_upload_path_holds_playlist_before_rendering(
 
     assert result["uploaded"] is True
     assert events == ["begin", "build", "render", ("upload", False), ("finish", True)]
+
+
+def test_skipped_picture_upload_keeps_current_art_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+    listener_calls: list[str] = []
+
+    @dataclass
+    class Candidate:
+        provider: str
+        item_id: str
+        image_url: str
+        title: str
+        artist: str
+        attribution: str
+
+    @dataclass
+    class Art:
+        candidate: Candidate
+        data: bytes
+
+    art = Art(
+        candidate=Candidate(
+            provider="bing",
+            item_id="daily",
+            image_url="https://example.test/daily.jpg",
+            title="Daily Art",
+            artist="Artist",
+            attribution="Photo by Artist",
+        ),
+        data=b"art-png",
+    )
+
+    async def picture_source(
+        _hass: object, _entry: object, _screen: object
+    ) -> tuple[bytes, dict, Art]:
+        return b"art-png", {}, art
+
+    async def convert_for_entry(
+        *_args: object, **_kwargs: object
+    ) -> tuple[bytes, bytes, str]:
+        pytest.fail("upload path must use async_render_and_upload")
+
+    async def render_and_upload(
+        _hass: object,
+        _entry: object,
+        png: bytes,
+        overrides: dict,
+        *,
+        preprocess: bool,
+        skip_if_hash: str | None,
+        hold_playlist: bool,
+    ) -> dict:
+        assert png == b"art-png"
+        assert overrides == {}
+        assert preprocess is True
+        assert skip_if_hash == "same-hash"
+        assert hold_playlist is False
+        return {
+            "uploaded": False,
+            "content_hash": "same-hash",
+            "mode": "auto",
+            "preview_png": b"preview",
+        }
+
+    monkeypatch.setattr(display, "_async_picture_source", picture_source)
+    _install_services(
+        monkeypatch,
+        async_convert_for_entry=convert_for_entry,
+        async_render_and_upload=render_and_upload,
+    )
+
+    entry = _entry()
+    entry.runtime_data.coordinator = types.SimpleNamespace(
+        async_update_listeners=lambda: listener_calls.append("notify")
+    )
+    screen = types.SimpleNamespace(
+        name="Daily",
+        kind=display.KIND_PICTURE,
+        source={"provider": "bing"},
+    )
+
+    result = asyncio.run(
+        display.async_show_screen(
+            _Hass(),
+            entry,
+            screen,
+            skip_if_hash="same-hash",
+            hold_playlist=False,
+        )
+    )
+
+    assert result["uploaded"] is False
+    assert entry.runtime_data.last_art["title"] == "Daily Art"
+    assert entry.runtime_data.media_title == "Daily Art"
+    assert listener_calls == ["notify"]
 
 
 def test_render_errors_become_home_assistant_errors(

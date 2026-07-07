@@ -80,6 +80,9 @@ class LibraryImage:
     width: int | None = None
     height: int | None = None
     albums: list[str] = field(default_factory=lambda: [LIBRARY_ALBUM_DEFAULT])
+    source_url: str | None = None
+    license: str | None = None
+    attribution: str | None = None
     # Saved manual crops, keyed by resolution_key(): [x0, y0, x1, y1] normalized.
     crops: dict[str, list[float]] = field(default_factory=dict)
 
@@ -87,6 +90,8 @@ class LibraryImage:
         """Albums with duplicates removed and the default as fallback."""
         seen: list[str] = []
         for album in self.albums:
+            if not isinstance(album, str):
+                continue
             album = album.strip()
             if album and album not in seen:
                 seen.append(album)
@@ -113,11 +118,26 @@ class LibraryImage:
             "width": self.width,
             "height": self.height,
             "albums": self.normalized_albums(),
+            "source_url": self.source_url,
+            "license": self.license,
+            "attribution": self.attribution,
             "crops": self.crops,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LibraryImage:
+        crops = data.get("crops") or {}
+        if not isinstance(crops, dict):
+            crops = {}
+        parsed_crops: dict[str, list[float]] = {}
+        for key, value in crops.items():
+            try:
+                parsed_crops[str(key)] = list(value)
+            except TypeError:
+                continue
+        albums = data.get("albums") or [LIBRARY_ALBUM_DEFAULT]
+        if not isinstance(albums, list):
+            albums = [LIBRARY_ALBUM_DEFAULT]
         return cls(
             image_id=str(data["image_id"]),
             filename=str(data.get("filename") or "image"),
@@ -125,9 +145,19 @@ class LibraryImage:
             uploaded_at=float(data.get("uploaded_at") or 0.0),
             width=data.get("width"),
             height=data.get("height"),
-            albums=list(data.get("albums") or [LIBRARY_ALBUM_DEFAULT]),
-            crops={str(k): list(v) for k, v in (data.get("crops") or {}).items()},
+            albums=[album for album in albums if isinstance(album, str)],
+            source_url=_optional_string(data.get("source_url")),
+            license=_optional_string(data.get("license")),
+            attribution=_optional_string(data.get("attribution")),
+            crops=parsed_crops,
         )
+
+
+def _optional_string(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
 
 
 def manifest_to_dict(images: dict[str, LibraryImage]) -> dict[str, Any]:
@@ -137,10 +167,15 @@ def manifest_to_dict(images: dict[str, LibraryImage]) -> dict[str, Any]:
     }
 
 
-def manifest_from_dict(data: dict[str, Any]) -> dict[str, LibraryImage]:
+def manifest_from_dict(data: Any) -> dict[str, LibraryImage]:
     """Parse a manifest dict, skipping entries too broken to load."""
     images: dict[str, LibraryImage] = {}
-    for image_id, raw in (data.get("images") or {}).items():
+    if not isinstance(data, dict):
+        return images
+    raw_images = data.get("images") or {}
+    if not isinstance(raw_images, dict):
+        return images
+    for image_id, raw in raw_images.items():
         try:
             raw = dict(raw)
             raw.setdefault("image_id", image_id)

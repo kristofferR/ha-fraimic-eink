@@ -12,6 +12,7 @@ import random
 from typing import Any
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
+from .engine import async_fetch_json
 
 SEARCH_URL = "https://api.artic.edu/api/v1/artworks/search"
 IIIF_URL = "https://www.artic.edu/iiif/2/{image_id}/full/{size},/0/default.jpg"
@@ -94,17 +95,18 @@ class AicProvider(ArtProvider):
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
-        await cache.async_throttle(self.key, self.min_interval)
-        resp = await session.post(
-            SEARCH_URL,
+        payload = await async_fetch_json(
+            session,
+            cache,
+            key=self.key,
+            min_interval=self.min_interval,
+            url=SEARCH_URL,
+            method="post",
+            error_label="AIC search",
             json=_search_body(random.randrange(1_000_000), count * 2),
             headers=api_headers({"AIC-User-Agent": api_headers()["User-Agent"]}),
             timeout=API_TIMEOUT,
         )
-        async with resp:
-            if resp.status != 200:
-                raise ArtFetchError(f"AIC search returned HTTP {resp.status}")
-            payload = await resp.json()
         candidates = [
             candidate
             for item in payload.get("data", [])

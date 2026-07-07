@@ -33,11 +33,12 @@ def validate_catalog(data: dict[str, Any]) -> list[dict[str, Any]]:
         if not isinstance(images, list) or not images:
             raise ValueError(f"Pack {pack_id!r} has no images")
         for image in images:
-            for key in ("title", "url", "filename"):
+            for key in ("title", "url", "preview_url", "filename"):
                 if not isinstance(image.get(key), str) or not image[key]:
                     raise ValueError(f"Image in pack {pack_id!r} is missing {key!r}")
-            if not image["url"].startswith("https://"):
-                raise ValueError(f"Image URL in pack {pack_id!r} must be https")
+            for key in ("url", "preview_url"):
+                if not image[key].startswith("https://"):
+                    raise ValueError(f"Image {key} in pack {pack_id!r} must be https")
     return packs
 
 
@@ -57,8 +58,12 @@ REMOTE_PACK_PREFIX = "fa-"
 
 
 def _remote_category(pack: dict[str, Any]) -> str:
-    raw = pack.get("categories") or [pack.get("category") or "Art"]
-    first = str(raw[0])
+    categories = pack.get("categories")
+    if isinstance(categories, list) and categories:
+        first = str(categories[0])
+    else:
+        category = pack.get("category")
+        first = category if isinstance(category, str) and category else "Art"
     return _REMOTE_CATEGORIES.get(first, first.replace("_", " ").title())
 
 
@@ -70,21 +75,34 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
     which are scripts for a different integration — is skipped, never fatal.
     """
     packs: list[dict[str, Any]] = []
+    if not isinstance(data, dict):
+        return packs
+    remote_packs = data.get("packs") or []
+    if not isinstance(remote_packs, list):
+        return packs
     raw_base = raw_base.rstrip("/")
-    for pack in data.get("packs") or []:
+    for pack in remote_packs:
         if not isinstance(pack, dict) or pack.get("type") == "widget":
             continue
         pack_id = pack.get("id")
         name = pack.get("name")
         if not pack_id or not isinstance(pack_id, str) or not isinstance(name, str):
             continue
+        raw_images = pack.get("images") or []
+        if not isinstance(raw_images, list):
+            continue
         images = []
-        for image in pack.get("images") or []:
+        for image in raw_images:
             if not isinstance(image, dict):
                 continue
             path = image.get("path")
             filename = image.get("filename")
-            if not path or not filename or not isinstance(path, str):
+            if (
+                not path
+                or not filename
+                or not isinstance(path, str)
+                or not isinstance(filename, str)
+            ):
                 continue
             url = f"{raw_base}/{path.lstrip('/')}"
             images.append(
@@ -95,7 +113,9 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
                     "filename": f"{pack_id}_{filename}",
                     # GitHub-raw images are hot-linkable; galleries use them directly.
                     "preview_url": url,
-                    "source_url": image.get("commons_url"),
+                    "source_url": _optional_string(image.get("commons_url")),
+                    "license": _optional_string(image.get("license")),
+                    "attribution": _optional_string(image.get("attribution")),
                 }
             )
         if not images:
@@ -116,6 +136,13 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
             }
         )
     return packs
+
+
+def _optional_string(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
 
 
 def _is_landscape(width: int | None, height: int | None) -> bool | None:

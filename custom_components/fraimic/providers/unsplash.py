@@ -9,7 +9,6 @@ source.unsplash.com is dead — never build URLs by hand.
 from __future__ import annotations
 
 import logging
-from dataclasses import replace
 from typing import Any
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
@@ -50,7 +49,7 @@ class UnsplashProvider(ArtProvider):
     name = "Unsplash"
     requires_key = True
     key_option = "unsplash_access_key"
-    min_interval = 2.0  # demo tier: 50 req/hr
+    min_interval = 72.0  # demo tier: 50 req/hr
 
     def _headers(self, request: FetchRequest) -> dict[str, str]:
         return api_headers({"Authorization": f"Client-ID {request.api_key}"})
@@ -63,36 +62,39 @@ class UnsplashProvider(ArtProvider):
         orientation = (
             "landscape" if request.target_width >= request.target_height else "portrait"
         )
-        url = f"{RANDOM_URL}?count={count}&orientation={orientation}"
+        params = {"count": count, "orientation": orientation}
         if request.query:
-            url += f"&query={request.query}"
+            params["query"] = request.query
         await cache.async_throttle(self.key, self.min_interval)
-        resp = await session.get(url, headers=self._headers(request), timeout=API_TIMEOUT)
+        resp = await session.get(
+            RANDOM_URL,
+            params=params,
+            headers=self._headers(request),
+            timeout=API_TIMEOUT,
+        )
         async with resp:
             if resp.status != 200:
                 raise ArtFetchError(f"Unsplash returned HTTP {resp.status}")
             payload = await resp.json()
         items = payload if isinstance(payload, list) else [payload]
-        candidates = [
+        return [
             candidate
             for item in items
             if (candidate := parse_unsplash_photo(item, request.target_width * 2))
         ]
-        # The download ping needs the key later, when the photo is displayed.
-        return [
-            replace(c, extra={**(c.extra or {}), "api_key": request.api_key})
-            for c in candidates
-        ]
 
-    async def async_on_display(self, session: Any, candidate: ArtCandidate) -> None:
+    async def async_on_display(
+        self, session: Any, candidate: ArtCandidate, request: FetchRequest
+    ) -> None:
         """Guideline-mandated download ping; failures only logged."""
         location = (candidate.extra or {}).get("download_location")
-        api_key = (candidate.extra or {}).get("api_key")
         if not location:
             return
         try:
             headers = api_headers(
-                {"Authorization": f"Client-ID {api_key}"} if api_key else None
+                {"Authorization": f"Client-ID {request.api_key}"}
+                if request.api_key
+                else None
             )
             resp = await session.get(location, headers=headers, timeout=10)
             async with resp:

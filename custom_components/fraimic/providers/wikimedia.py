@@ -17,13 +17,24 @@ FEED_URL = "https://api.wikimedia.org/feed/v1/wikipedia/en/featured/{y}/{m:02d}/
 FEED_TTL = 6 * 3600
 API_TIMEOUT = 20.0
 DAYS_BACK = 4  # today + previous days as retry material
+STANDARD_THUMB_WIDTHS = (20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840)
 
 _THUMB_WIDTH_RE = re.compile(r"/(\d+)px-")
 
 
+def standard_thumb_width(width: int) -> int:
+    """Smallest Wikimedia standard thumbnail width that covers ``width``."""
+    for standard in STANDARD_THUMB_WIDTHS:
+        if standard >= width:
+            return standard
+    return STANDARD_THUMB_WIDTHS[-1]
+
+
 def sized_thumb(thumb_url: str, width: int) -> str:
     """Rewrite a Commons thumb URL (`.../960px-Foo.jpg`) to another width."""
-    return _THUMB_WIDTH_RE.sub(f"/{width}px-", thumb_url, count=1)
+    return _THUMB_WIDTH_RE.sub(
+        f"/{standard_thumb_width(width)}px-", thumb_url, count=1
+    )
 
 
 def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate | None:
@@ -47,8 +58,9 @@ def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate 
     parts = [title]
     if artist:
         parts.append(artist)
+    attribution = " — ".join(parts)
     if license_type:
-        parts.append(license_type)
+        attribution += f" ({license_type})"
     return ArtCandidate(
         provider="wikimedia",
         item_id=date_key,
@@ -57,7 +69,7 @@ def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate 
         title=title,
         artist=artist,
         license=license_type,
-        attribution=" — ".join(parts[:2]) + (f" ({license_type})" if license_type else ""),
+        attribution=attribution,
     )
 
 
@@ -92,10 +104,12 @@ class WikimediaProvider(ArtProvider):
     ) -> list[ArtCandidate]:
         now = datetime.now(timezone.utc)
         candidates = []
-        for back in range(min(count, DAYS_BACK)):
+        for back in range(DAYS_BACK):
             candidate = await self._potd(
                 session, cache, now - timedelta(days=back), request.target_width
             )
             if candidate is not None:
                 candidates.append(candidate)
+            if len(candidates) >= count:
+                break
         return candidates

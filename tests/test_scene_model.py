@@ -7,6 +7,8 @@ import sys
 import types
 from pathlib import Path
 
+import pytest
+
 PKG_DIR = Path(__file__).resolve().parents[1] / "custom_components" / "fraimic"
 
 
@@ -34,10 +36,13 @@ def test_scene_roundtrip():
         name="Morning wall",
         mappings={"entry_1": "img_1", "entry_2": "img_2"},
         created_at=123.0,
+        source=sm.SCENE_SOURCE_PACK,
+        source_id="pack-1",
     )
     restored = sm.Scene.from_dict(scene.to_dict())
     assert restored == scene
-    assert restored.source == sm.SCENE_SOURCE_USER
+    assert restored.source == sm.SCENE_SOURCE_PACK
+    assert restored.source_id == "pack-1"
 
 
 def test_scene_from_dict_drops_empty_mappings():
@@ -45,6 +50,16 @@ def test_scene_from_dict_drops_empty_mappings():
         {"scene_id": "x", "name": "S", "mappings": {"entry_1": "", "entry_2": "img"}}
     )
     assert scene.mappings == {"entry_2": "img"}
+
+
+def test_scene_from_dict_drops_malformed_mappings():
+    scene = sm.Scene.from_dict({"scene_id": "x", "name": "S", "mappings": ["bad"]})
+    assert scene.mappings == {}
+
+
+@pytest.mark.parametrize("data", [None, [], {"scenes": []}, {"scenes": "bad"}])
+def test_scenes_from_dict_ignores_malformed_store_shapes(data):
+    assert sm.scenes_from_dict(data) == {}
 
 
 def test_scenes_dict_roundtrip_skips_broken():

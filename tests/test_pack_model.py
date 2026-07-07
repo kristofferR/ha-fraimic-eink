@@ -34,7 +34,7 @@ pm = _load()
 def test_bundled_catalog_is_valid():
     data = json.loads((PKG_DIR / "packs" / "catalog.json").read_text(encoding="utf-8"))
     packs = pm.validate_catalog(data)
-    assert len(packs) >= 1
+    assert len(packs) >= 4
     # Every filename must be unique across the catalog so installs into the
     # library never collide on originals' names.
     filenames = [image["filename"] for pack in packs for image in pack["images"]]
@@ -58,6 +58,8 @@ def test_map_remote_catalog():
                         "path": "scene_packs/monet/01.jpg",
                         "title": "Impression, Sunrise",
                         "commons_url": "https://commons.wikimedia.org/wiki/File:x.jpg",
+                        "license": "CC BY-SA 4.0",
+                        "attribution": "Claude Monet, Wikimedia Commons",
                     }
                 ],
             },
@@ -79,12 +81,42 @@ def test_map_remote_catalog():
     assert image["preview_url"] == image["url"]
     assert image["filename"] == "monet_01.jpg"
     assert image["source_url"].startswith("https://commons.wikimedia.org/")
+    assert image["license"] == "CC BY-SA 4.0"
+    assert image["attribution"] == "Claude Monet, Wikimedia Commons"
     assert "frame-addons" in pack["attribution"]
 
 
 def test_map_remote_catalog_empty_or_garbage():
     assert pm.map_remote_catalog({}, "https://x") == []
+    assert pm.map_remote_catalog([], "https://x") == []
+    assert pm.map_remote_catalog({"packs": "bad"}, "https://x") == []
     assert pm.map_remote_catalog({"packs": ["nope", 4]}, "https://x") == []
+    assert (
+        pm.map_remote_catalog(
+            {"packs": [{"id": "bad", "name": "Bad", "images": 1}]},
+            "https://x",
+        )
+        == []
+    )
+
+
+def test_map_remote_catalog_ignores_malformed_categories():
+    data = {
+        "packs": [
+            {
+                "id": "weird",
+                "name": "Weird",
+                "categories": {"not": "a-list"},
+                "images": [
+                    {"filename": "01.jpg", "path": "scene_packs/weird/01.jpg"}
+                ],
+            }
+        ]
+    }
+
+    packs = pm.map_remote_catalog(data, "https://raw.example/main")
+
+    assert packs[0]["category"] == "Art"
 
 
 @pytest.mark.parametrize(
@@ -101,7 +133,49 @@ def test_map_remote_catalog_empty_or_garbage():
                     "name": "X",
                     "category": "Art",
                     "attribution": "a",
-                    "images": [{"title": "t", "url": "http://insecure", "filename": "f"}],
+                    "images": [
+                        {
+                            "title": "t",
+                            "url": "http://insecure",
+                            "preview_url": "https://example.test/p.jpg",
+                            "filename": "f",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "packs": [
+                {
+                    "id": "x",
+                    "name": "X",
+                    "category": "Art",
+                    "attribution": "a",
+                    "images": [
+                        {
+                            "title": "t",
+                            "url": "https://example.test/i.jpg",
+                            "filename": "f",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "packs": [
+                {
+                    "id": "x",
+                    "name": "X",
+                    "category": "Art",
+                    "attribution": "a",
+                    "images": [
+                        {
+                            "title": "t",
+                            "url": "https://example.test/i.jpg",
+                            "preview_url": "http://insecure",
+                            "filename": "f",
+                        }
+                    ],
                 }
             ]
         },
