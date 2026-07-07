@@ -22,6 +22,7 @@ import asyncio
 import json
 import logging
 import time
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -244,7 +245,19 @@ class ArtPackManager:
             pack = self._get_pack(pack_id)
             session = async_get_clientsession(self.hass)
             current_urls = {image["url"] for image in pack["images"]}
-            live = self._live_images(pack_id, current_urls)
+            all_live = self._live_images(pack_id)
+            stale = {
+                url: image_id
+                for url, image_id in all_live.items()
+                if url not in current_urls
+            }
+            if stale:
+                await self._async_delete_pack_images(stale.values())
+            live = {
+                url: image_id
+                for url, image_id in all_live.items()
+                if url in current_urls
+            }
             failed: list[dict[str, str]] = []
             downloaded = 0
 
@@ -343,8 +356,9 @@ class ArtPackManager:
             if self._is_pack_scene(
                 scene, pack["id"], pack["name"], installed_image_ids
             ):
+                merged_mappings = {**scene.mappings, **mappings}
                 updated = await self.scenes.async_update(
-                    scene.scene_id, mappings=mappings, source_id=pack["id"]
+                    scene.scene_id, mappings=merged_mappings, source_id=pack["id"]
                 )
                 return updated.scene_id
         scene_name = self._available_pack_scene_name(pack["name"])
@@ -422,12 +436,7 @@ class ArtPackManager:
             pack_scene_ids = self._pack_scene_ids(
                 pack_id, pack_name, set(live.values())
             )
-            for image_id in live.values():
-                try:
-                    await self.library.async_delete_image(image_id)
-                except HomeAssistantError:
-                    continue
-                await self.scenes.async_prune_image(image_id)
+            await self._async_delete_pack_images(live.values())
             for scene_id in pack_scene_ids:
                 try:
                     await self.scenes.async_delete(scene_id)
@@ -464,3 +473,12 @@ class ArtPackManager:
             ):
                 scene_ids.append(scene.scene_id)
         return scene_ids
+
+    async def _async_delete_pack_images(self, image_ids: Iterable[str]) -> None:
+        """Delete pack-owned images and prune references from scenes."""
+        for image_id in image_ids:
+            try:
+                await self.library.async_delete_image(image_id)
+            except HomeAssistantError:
+                continue
+            await self.scenes.async_prune_image(image_id)
