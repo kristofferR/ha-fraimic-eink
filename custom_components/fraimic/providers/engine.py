@@ -13,7 +13,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from ..const import MAX_SOURCE_BYTES
+from ..const import MAX_SOURCE_BYTES, MAX_SOURCE_PIXELS
 from .base import ArtCandidate, ArtFetchError, ArtImage, ArtProvider, FetchRequest
 from .curation import acceptable_for_fit, aspect_score
 
@@ -160,6 +160,15 @@ async def async_pick_and_download(
         except Exception as err:  # noqa: BLE001 - image decoders fail broadly
             last_error = err
             _LOGGER.debug("%s: candidate %s failed: %s", provider.key, candidate.item_id, err)
+            continue
+        if width * height > MAX_SOURCE_PIXELS:
+            last_error = ArtFetchError(f"image is too large ({width}x{height})")
+            _LOGGER.debug(
+                "%s: candidate %s failed: %s",
+                provider.key,
+                candidate.item_id,
+                last_error,
+            )
             continue
         image = ArtImage(data=data, candidate=candidate)
         if acceptable_for_fit(width, height, tw, th, request.fit):

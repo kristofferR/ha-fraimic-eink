@@ -105,3 +105,5 @@ async def async_fetch_art(
         raise ArtFetchError(f"{provider.name}: {err}") from err
     except (aiohttp.ClientError, asyncio.TimeoutError) as err:
         raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
+    except Exception as err:  # noqa: BLE001 - provider parser/decoder failures vary
+        raise ArtFetchError(f"{provider.name}: {err}") from err

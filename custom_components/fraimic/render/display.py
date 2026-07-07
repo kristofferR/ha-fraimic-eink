@@ -87,7 +87,7 @@ async def _async_picture_source(
         from dataclasses import asdict
 
         from ..providers.caption import composite_with_caption
-        from ..providers.ha import async_fetch_art
+        from ..providers.ha import ArtFetchError, async_fetch_art
 
         fit = source.get("fit") or entry.options.get(ATTR_FIT, FIT_COVER)
         art = await async_fetch_art(
@@ -97,14 +97,17 @@ async def _async_picture_source(
         art_info = asdict(art.candidate)
         if source.get("caption") and art.candidate.attribution:
             width, height = viewed_size(entry)
-            raw = await hass.async_add_executor_job(
-                composite_with_caption,
-                raw,
-                art.candidate.attribution,
-                width,
-                height,
-                fit,
-            )
+            try:
+                raw = await hass.async_add_executor_job(
+                    composite_with_caption,
+                    raw,
+                    art.candidate.attribution,
+                    width,
+                    height,
+                    fit,
+                )
+            except ValueError as err:
+                raise ArtFetchError(f"Captioned image: {err}") from err
     else:
         raw = await async_get_source_bytes(
             hass,

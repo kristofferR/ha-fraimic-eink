@@ -346,6 +346,34 @@ def test_engine_skips_candidate_when_dimension_probe_raises() -> None:
     assert image.candidate.item_id == "good"
 
 
+def test_engine_skips_candidate_over_source_pixel_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession()
+    session.add("https://x/huge.png", FakeResponse(body=b"huge"))
+    session.add("https://x/good.png", FakeResponse(body=_png(2000, 1500)))
+    provider = _Provider(
+        [
+            _candidate("huge", "https://x/huge.png"),
+            _candidate("good", "https://x/good.png"),
+        ]
+    )
+    monkeypatch.setattr(engine, "MAX_SOURCE_PIXELS", 3_500_000)
+
+    async def dims_of(data: bytes) -> tuple[int, int]:
+        if data == b"huge":
+            return (20, 20)
+        return await _dims_from_png(data)
+
+    image = _run(
+        engine.async_pick_and_download(
+            provider, session, cache_mod.ProviderCache(), REQUEST, dims_of=dims_of
+        )
+    )
+
+    assert image.candidate.item_id == "good"
+
+
 def test_engine_raises_when_nothing_downloads() -> None:
     session = FakeSession()
     session.add("https://x/", FakeResponse(status=404))
