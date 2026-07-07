@@ -106,7 +106,7 @@ async def _async_picture_source(
                     height,
                     fit,
                 )
-            except ValueError as err:
+            except Exception as err:  # noqa: BLE001 - image decoders fail broadly
                 raise ArtFetchError(f"Captioned image: {err}") from err
     else:
         raw = await async_get_source_bytes(

@@ -75,14 +75,15 @@ def test_parse_cleveland_item() -> None:
 def test_parse_wikimedia_potd_prefers_sized_thumb() -> None:
     candidate = wikimedia.parse_potd(_fixture("wikimedia_potd.json"), "2026-07-04", 1600)
     assert candidate is not None
-    assert "2400px-" in candidate.image_url  # 1.5x target width
+    assert "3840px-" in candidate.image_url  # snapped up from 1.5x target width
     assert candidate.license == "CC BY-SA 4.0"
     assert candidate.attribution  # attribution mandatory for CC BY-SA
 
 
 def test_wikimedia_sized_thumb_rewrite() -> None:
     url = "https://upload.wikimedia.org/x/thumb/a/ab/Foo.jpg/960px-Foo.jpg"
-    assert wikimedia.sized_thumb(url, 2400).endswith("/2400px-Foo.jpg")
+    assert wikimedia.sized_thumb(url, 1800).endswith("/1920px-Foo.jpg")
+    assert wikimedia.sized_thumb(url, 2400).endswith("/3840px-Foo.jpg")
 
 
 def test_parse_bing_archive_rewrites_uhd() -> None:
@@ -362,7 +363,7 @@ def test_engine_skips_candidate_over_source_pixel_limit(
 
     async def dims_of(data: bytes) -> tuple[int, int]:
         if data == b"huge":
-            return (20, 20)
+            return (2_000, 2_000)
         return await _dims_from_png(data)
 
     image = _run(

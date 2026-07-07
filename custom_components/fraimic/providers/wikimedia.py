@@ -17,13 +17,24 @@ FEED_URL = "https://api.wikimedia.org/feed/v1/wikipedia/en/featured/{y}/{m:02d}/
 FEED_TTL = 6 * 3600
 API_TIMEOUT = 20.0
 DAYS_BACK = 4  # today + previous days as retry material
+STANDARD_THUMB_WIDTHS = (20, 40, 60, 120, 250, 330, 500, 960, 1280, 1920, 3840)
 
 _THUMB_WIDTH_RE = re.compile(r"/(\d+)px-")
 
 
+def standard_thumb_width(width: int) -> int:
+    """Smallest Wikimedia standard thumbnail width that covers ``width``."""
+    for standard in STANDARD_THUMB_WIDTHS:
+        if standard >= width:
+            return standard
+    return STANDARD_THUMB_WIDTHS[-1]
+
+
 def sized_thumb(thumb_url: str, width: int) -> str:
     """Rewrite a Commons thumb URL (`.../960px-Foo.jpg`) to another width."""
-    return _THUMB_WIDTH_RE.sub(f"/{width}px-", thumb_url, count=1)
+    return _THUMB_WIDTH_RE.sub(
+        f"/{standard_thumb_width(width)}px-", thumb_url, count=1
+    )
 
 
 def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate | None:
