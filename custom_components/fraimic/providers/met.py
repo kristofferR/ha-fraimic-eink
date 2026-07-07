@@ -11,6 +11,7 @@ import random
 from typing import Any
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
+from .engine import async_fetch_json
 
 SEARCH_URL = (
     "https://collectionapi.metmuseum.org/public/collection/v1/search"
@@ -51,14 +52,16 @@ class MetProvider(ArtProvider):
     async def _pool(self, session: Any, cache: Any) -> list[int]:
         pool = cache.get("met_ids", POOL_TTL)
         if pool is None:
-            await cache.async_throttle(self.key, self.min_interval)
-            resp = await session.get(
-                SEARCH_URL, headers=api_headers(), timeout=API_TIMEOUT
+            payload = await async_fetch_json(
+                session,
+                cache,
+                key=self.key,
+                min_interval=self.min_interval,
+                url=SEARCH_URL,
+                error_label="Met search",
+                headers=api_headers(),
+                timeout=API_TIMEOUT,
             )
-            async with resp:
-                if resp.status != 200:
-                    raise ArtFetchError(f"Met search returned HTTP {resp.status}")
-                payload = await resp.json()
             pool = payload.get("objectIDs") or []
             if not pool:
                 raise ArtFetchError("Met search returned no objects")
