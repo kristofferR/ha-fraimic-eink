@@ -10,6 +10,7 @@ quantisation is lossless), packs the ``.bin``, and uploads.
 from __future__ import annotations
 
 import hashlib
+from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -33,6 +34,9 @@ from ..const import (
 from .compose import render_screen
 from .fetch import async_build_context
 from .schema import KIND_PICTURE, ScreenConfig
+
+if TYPE_CHECKING:
+    from ..coordinator import FraimicConfigEntry
 
 # The screen PNG already is final panel content: no photo enhancement.
 _NEUTRAL_OVERRIDES = {
@@ -71,7 +75,7 @@ async def async_render_screen(
 
 
 async def _async_picture_source(
-    hass: HomeAssistant, entry, screen: ScreenConfig
+    hass: HomeAssistant, entry: FraimicConfigEntry, screen: ScreenConfig
 ) -> tuple[bytes, dict, dict | None]:
     """Raw bytes + conversion overrides (+ art attribution) for a picture screen.
 
