@@ -32,6 +32,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .coordinator import FraimicConfigEntry
+from .providers.ha import ArtFetchError
 from .render.display import async_show_screen
 from .render.playlist import eligible, next_screen
 from .render.schema import ScreenConfig
@@ -272,6 +273,20 @@ class FraimicScheduler:
                 skip_if_hash=self.displayed_hash,
                 hold_playlist=False,
             )
+        except ArtFetchError as err:
+            # The online image source failed — the frame itself is fine. Keep
+            # the current screen, back off so the 60 s tick doesn't hammer a
+            # struggling API, and leave the sleep-pending machinery alone.
+            if manual:
+                raise
+            _LOGGER.warning(
+                "Playlist: online image for %r unavailable, keeping current "
+                "screen: %s",
+                screen.name,
+                err,
+            )
+            self._hold_until = dt_util.utcnow() + timedelta(seconds=300)
+            return
         except FrameUploadError as err:
             if self._pending is not screen or manual:
                 self._pending_requires_enabled = not manual

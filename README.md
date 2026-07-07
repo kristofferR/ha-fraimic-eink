@@ -354,6 +354,44 @@ rotates through its screens by itself:
 - Selecting a screen in the **Screen** select (or pressing Next/Previous) shows it immediately
   and rotation continues from there. Playlist state survives restarts.
 
+## Online artwork
+
+The frame can fetch art **by itself** — no keys, no accounts:
+
+```yaml
+action: fraimic.show_online_image
+data:
+  provider: shuffle     # random masterpiece from a random museum
+  caption: true         # small attribution strip: "The Bedroom — Vincent van Gogh, Art Institute of Chicago"
+```
+
+**Zero-config sources:** `met` (The Met), `aic` (Art Institute of Chicago), `cleveland`
+(Cleveland Museum of Art) — public-domain masterpieces from each museum's open-access API,
+aggressively curated for the panel (highlights only, paintings preferred, resolution and
+aspect-ratio checked against your frame's mounted orientation). Plus `wikimedia` (Commons
+picture of the day), `bing` (Bing's daily image — unofficial endpoint, personal use),
+`apod` (NASA Astronomy Picture of the Day), and `picsum` (random stock photos).
+`shuffle` picks a random museum.
+
+**In the playlist:** a `kind: picture` screen with a `provider` shows a *fresh* artwork every
+rotation — a set-and-forget art frame:
+
+```yaml
+# As a stored screen (Add dashboard screen → layout: Picture), or inline:
+action: fraimic.render_screen
+data:
+  screen:
+    name: Daily art
+    kind: picture
+    provider: shuffle
+    caption: true
+    interval: 3600
+```
+
+If an online source is down, the playlist keeps the current image and retries later — a flaky
+API never blanks your wall. Attribution for whatever is showing is returned in the service
+response (`title`, `artist`, `attribution`).
+
 ## How image conversion works
 
 Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw, header-less,

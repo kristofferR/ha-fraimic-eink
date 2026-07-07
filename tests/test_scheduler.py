@@ -29,11 +29,18 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator = types.ModuleType("fraimic.coordinator")
     screens = types.ModuleType("fraimic.screens")
     services = types.ModuleType("fraimic.services")
+    # scheduler imports ArtFetchError from providers.ha, which pulls aiohttp —
+    # stub it like the other HA-touching neighbours.
+    providers = types.ModuleType("fraimic.providers")
+    providers_ha = types.ModuleType("fraimic.providers.ha")
 
     class HomeAssistant:
         pass
 
     class HomeAssistantError(Exception):
+        pass
+
+    class ArtFetchError(HomeAssistantError):
         pass
 
     class Store:
@@ -74,6 +81,8 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator.FraimicConfigEntry = SimpleNamespace
     screens.screens_from_entry = lambda _entry: []
     services.FrameUploadError = FrameUploadError
+    providers.ha = providers_ha
+    providers_ha.ArtFetchError = ArtFetchError
     homeassistant.core = core
     homeassistant.exceptions = exceptions
     homeassistant.helpers = helpers
@@ -97,6 +106,8 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
         "fraimic.coordinator": coordinator,
         "fraimic.screens": screens,
         "fraimic.services": services,
+        "fraimic.providers": providers,
+        "fraimic.providers.ha": providers_ha,
     }.items():
         monkeypatch.setitem(sys.modules, name, module)
 
@@ -420,6 +431,26 @@ def test_failed_manual_screen_render_preserves_hold(
     scheduler._hold_until = hold_until
 
     with pytest.raises(scheduler_mod.HomeAssistantError, match="render failed"):
+        asyncio.run(scheduler.async_select(screen))
+
+    assert scheduler._hold_until == hold_until
+
+
+def test_failed_manual_online_fetch_preserves_hold_and_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    hold_until = datetime(2026, 7, 3, 12, 35)
+    screen = SimpleNamespace(screen_id="screen-1", name="Broken online")
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise scheduler_mod.ArtFetchError("provider failed")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler._hold_until = hold_until
+
+    with pytest.raises(scheduler_mod.ArtFetchError, match="provider failed"):
         asyncio.run(scheduler.async_select(screen))
 
     assert scheduler._hold_until == hold_until

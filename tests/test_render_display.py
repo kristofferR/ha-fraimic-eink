@@ -102,6 +102,8 @@ def _entry(rotation: int = 0) -> types.SimpleNamespace:
         runtime_data=types.SimpleNamespace(
             last_preview=None,
             screen_preview_image=_PreviewImage(),
+            last_art=None,
+            coordinator=types.SimpleNamespace(async_update_listeners=lambda: None),
         ),
     )
 
@@ -226,6 +228,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
         "height": 480,
         "content_hash": "abc123",
         "mode": "none",
+        "art": None,
     }
     assert calls == [("upload", b"screen-png", display._NEUTRAL_OVERRIDES, False, True)]
     assert entry.runtime_data.screen_preview_image.calls == [
@@ -354,7 +357,7 @@ def test_picture_source_redacts_url_failures(monkeypatch: pytest.MonkeyPatch) ->
     )
 
     with pytest.raises(error) as err:
-        asyncio.run(display._async_picture_source(_Hass(), screen))
+        asyncio.run(display._async_picture_source(_Hass(), _entry(), screen))
 
     message = str(err.value)
     assert "Could not download image URL: network down" in message

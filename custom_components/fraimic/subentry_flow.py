@@ -37,7 +37,9 @@ from .const import (
     DITHER_MODES,
     FIT_MODES,
     MIN_SCREEN_INTERVAL,
+    PROVIDER_SHUFFLE,
 )
+from .providers import PROVIDERS
 from .render.layout import LAYOUT_SLOTS
 from .render.schema import DAYS, SCREEN_SCHEMA
 
@@ -217,8 +219,19 @@ _BASICS_SCHEMA = vol.Schema(
     }
 )
 
+_PROVIDER_OPTIONS = [
+    SelectOptionDict(value=PROVIDER_SHUFFLE, label="Surprise me — random museum art"),
+    *(
+        SelectOptionDict(value=provider.key, label=provider.name)
+        for provider in PROVIDERS.values()
+    ),
+]
+
 _PICTURE_SCHEMA = vol.Schema(
     {
+        vol.Optional("provider"): _select(_PROVIDER_OPTIONS),
+        vol.Optional("query"): TextSelector(),
+        vol.Optional("caption", default=False): BooleanSelector(),
         vol.Optional("url"): TextSelector(),
         vol.Optional("entity"): EntitySelector(
             EntitySelectorConfig(domain=["camera", "image"])
@@ -314,8 +327,12 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
         errors: dict[str, str] = {}
         if user_input is not None:
             source = _clean(user_input)
-            if len([k for k in ("url", "entity") if source.get(k)]) != 1:
+            if len([k for k in ("url", "entity", "provider") if source.get(k)]) != 1:
                 errors["base"] = "picture_source"
+            elif (source.get("query") or source.get("caption")) and not source.get(
+                "provider"
+            ):
+                errors["base"] = "provider_only_fields"
             else:
                 return self._finish({"kind": "picture", **source})
 
@@ -470,7 +487,15 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
                     _PICTURE_SCHEMA,
                     {
                         key: body[key]
-                        for key in ("url", "entity", "fit", "mode")
+                        for key in (
+                            "url",
+                            "entity",
+                            "provider",
+                            "query",
+                            "caption",
+                            "fit",
+                            "mode",
+                        )
                         if key in body
                     },
                 ),
