@@ -137,6 +137,19 @@ def test_manifest_roundtrip_skips_broken_entries():
     assert restored["good"].filename == "a.jpg"
 
 
+@pytest.mark.parametrize(
+    "data",
+    [
+        None,
+        [],
+        {"images": []},
+        {"images": None},
+    ],
+)
+def test_manifest_from_dict_ignores_non_object_shapes(data):
+    assert lm.manifest_from_dict(data) == {}
+
+
 def test_all_albums_default_first():
     images = {
         "a": lm.LibraryImage("a", "a", "image/png", 0.0, albums=["Zebra"]),

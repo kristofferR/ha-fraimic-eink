@@ -10,7 +10,6 @@ quantisation is lossless), packs the ``.bin``, and uploads.
 from __future__ import annotations
 
 import hashlib
-from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
@@ -48,6 +47,24 @@ _NEUTRAL_OVERRIDES = {
     ATTR_SHARPEN: 0.0,
     ATTR_TONE: 0.0,
 }
+
+
+def _public_art_dict(candidate) -> dict:
+    """Attribution metadata safe for HA state and service responses."""
+    return {
+        key: value
+        for key in (
+            "provider",
+            "item_id",
+            "title",
+            "artist",
+            "license",
+            "attribution",
+            "width",
+            "height",
+        )
+        if (value := getattr(candidate, key, None)) is not None
+    }
 
 
 def viewed_size(entry) -> tuple[int, int]:
@@ -158,7 +175,7 @@ async def async_show_screen(
         art_info: dict | None = None
         if screen.kind == KIND_PICTURE:
             png, overrides, art = await _async_picture_source(hass, entry, screen)
-            art_info = asdict(art.candidate) if art is not None else None
+            art_info = _public_art_dict(art.candidate) if art is not None else None
             preprocess = True
         else:
             png, mode = await async_render_screen(hass, entry, screen)

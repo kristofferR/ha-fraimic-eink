@@ -40,6 +40,7 @@ from .const import (
     LIBRARY_DIR,
     LIBRARY_THUMB_SIZE,
     MAX_SOURCE_BYTES,
+    MAX_SOURCE_PIXELS,
 )
 from .helpers import loaded_fraimic_entries, resolve_render_params
 from .image_convert import convert_image
@@ -153,6 +154,8 @@ class FraimicLibrary:
 
         def _store() -> tuple[int, int]:
             size = _probe_dimensions(data)
+            if size[0] * size[1] > MAX_SOURCE_PIXELS:
+                raise ValueError(f"image is too large ({size[0]}x{size[1]})")
             self.original_path(image).write_bytes(data)
             return size
 
@@ -290,9 +293,14 @@ class FraimicLibrary:
         if cached is not None:
             return cached
 
-        source = await self.hass.async_add_executor_job(
-            self.original_path(image).read_bytes
-        )
+        try:
+            source = await self.hass.async_add_executor_job(
+                self.original_path(image).read_bytes
+            )
+        except OSError as err:
+            raise HomeAssistantError(
+                f"Library file for {image_id} is missing: {err}"
+            ) from err
         try:
             bin_data, preview_png, used_mode = await self.hass.async_add_executor_job(
                 lambda: convert_image(source, **params, crop=crop)
@@ -335,19 +343,24 @@ class FraimicLibrary:
         overrides: dict | None = None,
     ) -> None:
         """Render (cache-aware) and upload one library image to one frame."""
-        bin_data, preview_png, used_mode = await self.async_render_for_entry(
-            image_id, entry, overrides
-        )
+        image = self.get(image_id)
         runtime = entry.runtime_data
-        try:
-            await runtime.client.upload_image(bin_data)
-        except FraimicError as err:
-            raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
-        if preview_png:
-            runtime.last_preview = preview_png
-            if runtime.preview_image is not None:
-                runtime.preview_image.set_preview(preview_png, used_mode)
-        await runtime.coordinator.async_request_refresh()
+        async with runtime.upload_lock:
+            bin_data, preview_png, used_mode = await self.async_render_for_entry(
+                image_id, entry, overrides
+            )
+            try:
+                await runtime.client.upload_image(bin_data)
+            except FraimicError as err:
+                raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+            runtime.last_art = None
+            runtime.media_title = image.filename
+            if preview_png:
+                runtime.last_preview = preview_png
+                if runtime.preview_image is not None:
+                    runtime.preview_image.set_preview(preview_png, used_mode)
+            await runtime.coordinator.async_request_refresh()
+            runtime.coordinator.async_update_listeners()
 
     # -------------------------------------------------------------- backfill
 

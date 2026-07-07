@@ -137,10 +137,15 @@ def manifest_to_dict(images: dict[str, LibraryImage]) -> dict[str, Any]:
     }
 
 
-def manifest_from_dict(data: dict[str, Any]) -> dict[str, LibraryImage]:
+def manifest_from_dict(data: Any) -> dict[str, LibraryImage]:
     """Parse a manifest dict, skipping entries too broken to load."""
     images: dict[str, LibraryImage] = {}
-    for image_id, raw in (data.get("images") or {}).items():
+    if not isinstance(data, dict):
+        return images
+    raw_images = data.get("images") or {}
+    if not isinstance(raw_images, dict):
+        return images
+    for image_id, raw in raw_images.items():
         try:
             raw = dict(raw)
             raw.setdefault("image_id", image_id)
