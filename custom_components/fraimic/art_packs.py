@@ -198,6 +198,12 @@ class ArtPackManager:
                     failed.append({"title": image_def["title"], "error": str(err)})
                 else:
                     live[url] = library_image.image_id
+                    self.installed[pack_id] = {
+                        "installed_at": time.time(),
+                        "name": pack["name"],
+                        "images": dict(live),
+                    }
+                    await self._async_save()
                     downloaded += 1
                 delay = (
                     DOWNLOAD_DELAY_COMMONS
@@ -267,13 +273,41 @@ class ArtPackManager:
             return None
 
         for scene in self.scenes.scenes.values():
-            if scene.source == SCENE_SOURCE_PACK and scene.name == pack["name"]:
+            if (
+                scene.source == SCENE_SOURCE_PACK
+                and (
+                    scene.name == pack["name"]
+                    or scene.name.startswith(self._pack_scene_name_prefix(pack["name"]))
+                )
+            ):
                 updated = await self.scenes.async_update(scene.scene_id, mappings=mappings)
                 return updated.scene_id
+        scene_name = self._available_pack_scene_name(pack["name"])
         created = await self.scenes.async_create(
-            pack["name"], mappings, source=SCENE_SOURCE_PACK
+            scene_name, mappings, source=SCENE_SOURCE_PACK
         )
         return created.scene_id
+
+    @staticmethod
+    def _pack_scene_name_prefix(pack_name: str) -> str:
+        return f"{pack_name} (Pack"
+
+    def _available_pack_scene_name(self, pack_name: str) -> str:
+        """Return a name that will not collide with user-created scenes."""
+        existing = {
+            scene.name.strip().casefold() for scene in self.scenes.scenes.values()
+        }
+        if pack_name.strip().casefold() not in existing:
+            return pack_name
+        base = self._pack_scene_name_prefix(pack_name) + ")"
+        if base.casefold() not in existing:
+            return base
+        suffix = 2
+        while True:
+            candidate = self._pack_scene_name_prefix(pack_name) + f" {suffix})"
+            if candidate.casefold() not in existing:
+                return candidate
+            suffix += 1
 
     # ------------------------------------------------------------- uninstall
 
@@ -311,7 +345,10 @@ class ArtPackManager:
         for scene in self.scenes.scenes.values():
             if scene.source != SCENE_SOURCE_PACK:
                 continue
-            if pack_name is not None and scene.name == pack_name:
+            if pack_name is not None and (
+                scene.name == pack_name
+                or scene.name.startswith(self._pack_scene_name_prefix(pack_name))
+            ):
                 scene_ids.append(scene.scene_id)
                 continue
             if image_ids and any(

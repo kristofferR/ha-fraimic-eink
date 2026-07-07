@@ -34,7 +34,7 @@ pm = _load()
 def test_bundled_catalog_is_valid():
     data = json.loads((PKG_DIR / "packs" / "catalog.json").read_text(encoding="utf-8"))
     packs = pm.validate_catalog(data)
-    assert len(packs) >= 1
+    assert len(packs) >= 4
     # Every filename must be unique across the catalog so installs into the
     # library never collide on originals' names.
     filenames = [image["filename"] for pack in packs for image in pack["images"]]
@@ -87,6 +87,13 @@ def test_map_remote_catalog_empty_or_garbage():
     assert pm.map_remote_catalog([], "https://x") == []
     assert pm.map_remote_catalog({"packs": "bad"}, "https://x") == []
     assert pm.map_remote_catalog({"packs": ["nope", 4]}, "https://x") == []
+    assert (
+        pm.map_remote_catalog(
+            {"packs": [{"id": "bad", "name": "Bad", "images": 1}]},
+            "https://x",
+        )
+        == []
+    )
 
 
 def test_map_remote_catalog_ignores_malformed_categories():

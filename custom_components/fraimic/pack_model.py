@@ -87,8 +87,11 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
         name = pack.get("name")
         if not pack_id or not isinstance(pack_id, str) or not isinstance(name, str):
             continue
+        raw_images = pack.get("images") or []
+        if not isinstance(raw_images, list):
+            continue
         images = []
-        for image in pack.get("images") or []:
+        for image in raw_images:
             if not isinstance(image, dict):
                 continue
             path = image.get("path")
