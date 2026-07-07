@@ -267,6 +267,16 @@
     }
   },
   "services": {
+    "send_scene": {
+      "name": "Send scene",
+      "description": "Push a Fraimic scene's mapped images to their assigned frames all at once. Scenes are created in the Fraimic panel.",
+      "fields": {
+        "name": {
+          "name": "Scene name",
+          "description": "Name of the scene (case-insensitive)."
+        }
+      }
+    },
     "upload_image": {
       "name": "Upload image",
       "description": "Convert an ordinary image to the Fraimic .bin format and display it on the frame.",

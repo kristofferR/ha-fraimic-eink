@@ -201,6 +201,8 @@ CONF_DEFAULT_PROVIDER: Final = "default_provider"
 
 # Services
 SERVICE_UPLOAD_IMAGE: Final = "upload_image"
+SERVICE_SEND_SCENE: Final = "send_scene"
+ATTR_SCENE_NAME: Final = "name"
 SERVICE_RENDER_SCREEN: Final = "render_screen"
 SERVICE_SHOW_ONLINE_IMAGE: Final = "show_online_image"
 

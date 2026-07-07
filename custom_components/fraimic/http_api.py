@@ -28,6 +28,7 @@ from .const import (
 )
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary, get_library
+from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
 from .services import begin_external_upload, finish_external_upload
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +56,9 @@ def async_register_views(hass: HomeAssistant) -> None:
         LibraryAlbumView(),
         LibrarySendView(),
         FramesView(),
+        ScenesView(),
+        SceneView(),
+        SceneSendView(),
     ):
         hass.http.register_view(view)
 
@@ -174,6 +178,9 @@ class LibraryImageView(_FraimicView):
             await library.async_delete_image(image_id)
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        # Scenes must not keep dangling references to a deleted image.
+        if scenes := get_scene_manager(request.app[KEY_HASS]):
+            await scenes.async_prune_image(image_id)
         return self.json({"deleted": image_id})
 
 
@@ -294,6 +301,104 @@ class LibrarySendView(_FraimicView):
             entry.entry_id: {"ok": error is None, "error": error}
             for entry, error in zip(entries, errors, strict=True)
         }
+        status = (
+            HTTPStatus.OK
+            if any(result["ok"] for result in results.values())
+            else HTTPStatus.BAD_GATEWAY
+        )
+        return self.json({"results": results}, status_code=status)
+
+
+class _SceneViewMixin(_FraimicView):
+    """Adds scene-manager resolution to a view."""
+
+    def _scenes(self, request: web.Request) -> SceneManager:
+        manager = get_scene_manager(request.app[KEY_HASS])
+        if manager is None:
+            raise web.HTTPServiceUnavailable(text="Fraimic is not set up")
+        return manager
+
+    @staticmethod
+    def _mappings_from(body: dict[str, Any]) -> dict[str, str] | None:
+        mappings = body.get("mappings")
+        if mappings is None:
+            return None
+        if not isinstance(mappings, dict) or not all(
+            isinstance(k, str) and isinstance(v, str) for k, v in mappings.items()
+        ):
+            raise web.HTTPBadRequest(text="mappings must map entry_id to image_id")
+        return mappings
+
+
+class ScenesView(_SceneViewMixin):
+    """List and create scenes."""
+
+    url = "/api/fraimic/scenes"
+    name = "api:fraimic:scenes"
+
+    async def get(self, request: web.Request) -> web.Response:
+        manager = self._scenes(request)
+        scenes = sorted(manager.scenes.values(), key=lambda scene: scene.name.casefold())
+        return self.json({"scenes": [scene.to_dict() for scene in scenes]})
+
+    async def post(self, request: web.Request) -> web.Response:
+        manager = self._scenes(request)
+        body = await self._json_body(request)
+        name = body.get("name", "")
+        if not isinstance(name, str):
+            return self.json_message("name must be a string", HTTPStatus.BAD_REQUEST)
+        try:
+            scene = await manager.async_create(name, self._mappings_from(body) or {})
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        return self.json(scene.to_dict())
+
+
+class SceneView(_SceneViewMixin):
+    """Update or delete one scene."""
+
+    url = "/api/fraimic/scenes/{scene_id}"
+    name = "api:fraimic:scene"
+
+    async def post(self, request: web.Request, scene_id: str) -> web.Response:
+        manager = self._scenes(request)
+        body = await self._json_body(request)
+        name = body.get("name")
+        if name is not None and not isinstance(name, str):
+            return self.json_message("name must be a string", HTTPStatus.BAD_REQUEST)
+        try:
+            scene = await manager.async_update(
+                scene_id, name=name, mappings=self._mappings_from(body)
+            )
+        except SceneNotFoundError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        return self.json(scene.to_dict())
+
+    async def delete(self, request: web.Request, scene_id: str) -> web.Response:
+        manager = self._scenes(request)
+        try:
+            await manager.async_delete(scene_id)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return self.json({"deleted": scene_id})
+
+
+class SceneSendView(_SceneViewMixin):
+    """Activate a scene from the panel."""
+
+    url = "/api/fraimic/scenes/{scene_id}/send"
+    name = "api:fraimic:scene:send"
+
+    async def post(self, request: web.Request, scene_id: str) -> web.Response:
+        manager = self._scenes(request)
+        try:
+            results = await manager.async_send(scene_id)
+        except SceneNotFoundError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_GATEWAY)
         status = (
             HTTPStatus.OK
             if any(result["ok"] for result in results.values())

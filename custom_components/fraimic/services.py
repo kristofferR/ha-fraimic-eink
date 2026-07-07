@@ -39,6 +39,7 @@ from .const import (
     ATTR_SATURATION,
     ATTR_SCREEN,
     ATTR_SCREEN_ID,
+    ATTR_SCENE_NAME,
     ATTR_SHARPEN,
     ATTR_TONE,
     ATTR_URL,
@@ -62,6 +63,7 @@ from .const import (
     PROVIDER_KEYS,
     PROVIDER_SHUFFLE,
     SERVICE_RENDER_SCREEN,
+    SERVICE_SEND_SCENE,
     SERVICE_SHOW_ONLINE_IMAGE,
     SERVICE_UPLOAD_IMAGE,
 )
@@ -69,11 +71,14 @@ from .coordinator import FraimicConfigEntry
 from .image_convert import convert_image
 from .library import get_library
 from .render.display import async_show_screen
+from .scenes import get_scene_manager
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
 from .screens import AmbiguousScreenNameError, screen_by_key
 from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
+
+ERR_NO_FRAIMIC_FRAME = "No Fraimic frame is set up"
 
 
 class FrameUploadError(HomeAssistantError):
@@ -208,6 +213,12 @@ def async_setup_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN,
+        SERVICE_SEND_SCENE,
+        _async_handle_send_scene,
+        schema=SEND_SCENE_SCHEMA,
+    )
+    hass.services.async_register(
+        DOMAIN,
         SERVICE_SHOW_ONLINE_IMAGE,
         _async_handle_show_online_image,
         schema=SHOW_ONLINE_IMAGE_SCHEMA,
@@ -291,6 +302,21 @@ async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:
         hass, entry, screen, preview_only=call.data[ATTR_PREVIEW_ONLY]
     )
     return result if call.return_response else None
+
+
+SEND_SCENE_SCHEMA = vol.Schema({vol.Required(ATTR_SCENE_NAME): cv.string})
+
+
+async def _async_handle_send_scene(call: ServiceCall) -> None:
+    """Handle ``fraimic.send_scene``: activate a scene by (case-insensitive) name."""
+    manager = get_scene_manager(call.hass)
+    if manager is None:
+        raise ServiceValidationError(ERR_NO_FRAIMIC_FRAME)
+    scene = manager.find_by_name(call.data[ATTR_SCENE_NAME])
+    results = await manager.async_send(scene.scene_id)
+    failed = {k: r["error"] for k, r in results.items() if not r["ok"]}
+    if failed:
+        _LOGGER.warning("Scene %s partially failed: %s", scene.name, failed)
 
 
 async def _async_handle_show_online_image(call: ServiceCall) -> ServiceResponse:

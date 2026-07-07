@@ -149,6 +149,25 @@ def test_manifest_keeps_image_when_one_crop_value_is_bad():
     assert restored["mixed"].crops == {"1600x1200": [0.1, 0.1, 0.9, 0.9]}
 
 
+def test_manifest_ignores_non_string_album_entries():
+    restored = lm.manifest_from_dict(
+        {
+            "images": {
+                "mixed": {
+                    "filename": "mixed.jpg",
+                    "uploaded_at": 1,
+                    "albums": ["Art", None, 42, "  ", "Art", "Wall"],
+                }
+            }
+        }
+    )
+
+    image = restored["mixed"]
+    assert image.albums == ["Art", "  ", "Art", "Wall"]
+    assert image.normalized_albums() == ["Art", "Wall"]
+    assert image.to_dict()["albums"] == ["Art", "Wall"]
+
+
 @pytest.mark.parametrize(
     "data",
     [

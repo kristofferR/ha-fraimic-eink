@@ -1,3 +1,17 @@
+send_scene:
+  name: Send scene
+  description: >-
+    Push a Fraimic scene's mapped images to their assigned frames all at once.
+    Scenes are created in the Fraimic panel.
+  fields:
+    name:
+      name: Scene name
+      description: Name of the scene (case-insensitive).
+      required: true
+      example: Morning wall
+      selector:
+        text:
+
 show_online_image:
   name: Show online image
   description: >-

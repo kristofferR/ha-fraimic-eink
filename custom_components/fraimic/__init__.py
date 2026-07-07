@@ -18,6 +18,7 @@ from .coordinator import (
 from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
+from .scenes import DATA_SCENES, SceneManager
 from .scheduler import FraimicScheduler
 from .services import async_setup_services
 
@@ -26,6 +27,7 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.IMAGE,
     Platform.MEDIA_PLAYER,
+    Platform.SCENE,
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
@@ -37,13 +39,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Domain-wide singletons (shared by every frame): the media library and the
     # HTTP API. Created by whichever entry loads first.
     domain_data = hass.data.setdefault(DOMAIN, {})
-    library_lock = domain_data.setdefault("library_setup_lock", asyncio.Lock())
-    async with library_lock:
+    domain_lock = domain_data.setdefault("domain_setup_lock", asyncio.Lock())
+    async with domain_lock:
         if DATA_LIBRARY not in domain_data:
             library = FraimicLibrary(hass)
             await library.async_setup()
             domain_data[DATA_LIBRARY] = library
         library = domain_data[DATA_LIBRARY]
+        if DATA_SCENES not in domain_data:
+            scenes = SceneManager(hass, library)
+            await scenes.async_setup()
+            domain_data[DATA_SCENES] = scenes
     async_register_views(hass)
 
     client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
@@ -82,7 +88,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
     if unload_ok and not loaded_fraimic_entries(hass):
         # Last frame gone: stop the library's background worker. The HTTP views
         # stay registered (aiohttp routes can't be removed) and answer 503.
-        library = hass.data.get(DOMAIN, {}).pop(DATA_LIBRARY, None)
+        domain_data = hass.data.get(DOMAIN, {})
+        domain_data.pop(DATA_SCENES, None)
+        library = domain_data.pop(DATA_LIBRARY, None)
         if library is not None:
             await library.async_shutdown()
     return unload_ok

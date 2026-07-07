@@ -85,12 +85,15 @@ def _load_services(monkeypatch: pytest.MonkeyPatch):
     screens = types.ModuleType("fraimic.screens")
     screens.AmbiguousScreenNameError = ValueError
     screens.screen_by_key = lambda _entry, _key: None
+    scenes = types.ModuleType("fraimic.scenes")
+    scenes.get_scene_manager = lambda _hass: None
     monkeypatch.setitem(sys.modules, "fraimic.coordinator", coordinator)
     monkeypatch.setitem(sys.modules, "fraimic.library", library)
     monkeypatch.setitem(sys.modules, "fraimic.render.display", render_display)
     monkeypatch.setitem(sys.modules, "fraimic.render.schema", render_schema)
     monkeypatch.setitem(sys.modules, "fraimic.source", source)
     monkeypatch.setitem(sys.modules, "fraimic.screens", screens)
+    monkeypatch.setitem(sys.modules, "fraimic.scenes", scenes)
     for name in (
         "fraimic.services",
     ):
