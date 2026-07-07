@@ -489,8 +489,13 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
                     {
                         key: body[key]
                         for key in (
-                            "provider", "query", "caption",
-                            "url", "entity", "fit", "mode",
+                            "url",
+                            "entity",
+                            "provider",
+                            "query",
+                            "caption",
+                            "fit",
+                            "mode",
                         )
                         if key in body
                     },

@@ -73,7 +73,7 @@ class FraimicCard extends HTMLElement {
         </ha-card>
       `;
       this._root.getElementById("open").addEventListener("click", () => {
-        history.pushState(null, "", "/fraimic");
+        history.pushState(null, "", this._panelPath());
         window.dispatchEvent(new CustomEvent("location-changed"));
       });
       this._root.getElementById("imgwrap").addEventListener("click", () => {
@@ -89,12 +89,14 @@ class FraimicCard extends HTMLElement {
 
   set hass(hass) {
     if (!this._config) return;
+    this._hass = hass;
     const state = hass.states[this._config.entity];
     const wrap = this._root.getElementById("imgwrap");
     const picture = state && state.attributes.entity_picture;
     const stamp = state ? state.state : "";
-    if (picture && this._lastStamp !== stamp) {
+    if (picture && (this._lastStamp !== stamp || this._placeholderSet)) {
       this._lastStamp = stamp;
+      this._placeholderSet = false;
       wrap.innerHTML = "";
       const img = document.createElement("img");
       img.src = picture;
@@ -122,6 +124,12 @@ class FraimicCard extends HTMLElement {
       online.textContent = isOn ? "Online" : "Offline";
       online.classList.toggle("offline", !isOn);
     }
+  }
+
+  _panelPath() {
+    const panels = this._hass && this._hass.panels;
+    if (panels && panels.fraimic_panel) return "/fraimic_panel";
+    return "/fraimic";
   }
 
   getCardSize() {

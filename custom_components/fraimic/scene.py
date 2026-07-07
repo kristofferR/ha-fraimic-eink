@@ -17,17 +17,22 @@ from homeassistant.components.scene import Scene as SceneEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.device_registry import DeviceInfo
-from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
 from .coordinator import FraimicConfigEntry
+from .helpers import loaded_fraimic_entries
 from .scene_model import Scene
 from .scenes import SIGNAL_SCENES_UPDATED, SceneManager, get_scene_manager
 
 _LOGGER = logging.getLogger(__name__)
 
 DATA_SCENE_HOST = "scene_host"
+DATA_SCENE_HOST_CANDIDATES = "scene_host_candidates"
 
 
 async def async_setup_entry(
@@ -37,14 +42,23 @@ async def async_setup_entry(
 ) -> None:
     """Host the domain's scene entities on the first entry that loads."""
     domain_data = hass.data.setdefault(DOMAIN, {})
-    if domain_data.get(DATA_SCENE_HOST) is not None:
-        return
-    domain_data[DATA_SCENE_HOST] = entry.entry_id
+    candidates: set[str] = domain_data.setdefault(DATA_SCENE_HOST_CANDIDATES, set())
+    candidates.add(entry.entry_id)
+    domain_data.setdefault(DATA_SCENE_HOST, entry.entry_id)
 
     @callback
     def _release_host() -> None:
+        candidates.discard(entry.entry_id)
         if domain_data.get(DATA_SCENE_HOST) == entry.entry_id:
-            domain_data.pop(DATA_SCENE_HOST, None)
+            loaded = {loaded.entry_id for loaded in loaded_fraimic_entries(hass)}
+            next_host = next(
+                (candidate for candidate in candidates if candidate in loaded), None
+            )
+            if next_host is None:
+                domain_data.pop(DATA_SCENE_HOST, None)
+            else:
+                domain_data[DATA_SCENE_HOST] = next_host
+                async_dispatcher_send(hass, SIGNAL_SCENES_UPDATED)
 
     entry.async_on_unload(_release_host)
 
@@ -57,19 +71,25 @@ async def async_setup_entry(
     @callback
     def _sync_entities() -> None:
         """Reconcile entities with the manager's current scene set."""
+        if domain_data.get(DATA_SCENE_HOST) != entry.entry_id:
+            return
         added = [
             FraimicSceneEntity(manager, scene_id)
             for scene_id in manager.scenes
             if scene_id not in entities
         ]
+        added_ids = set()
         for entity in added:
             entities[entity.scene_id] = entity
+            added_ids.add(entity.scene_id)
         if added:
             async_add_entities(added)
 
         registry = er.async_get(hass)
         for scene_id in list(entities):
             if scene_id in manager.scenes:
+                if scene_id in added_ids:
+                    continue
                 entities[scene_id].async_write_ha_state()
                 continue
             entity = entities.pop(scene_id)

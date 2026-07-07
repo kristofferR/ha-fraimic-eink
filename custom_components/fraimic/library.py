@@ -35,11 +35,13 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .api import FraimicError
 from .const import (
+    ATTR_ROTATE,
     DOMAIN,
     LIBRARY_ALBUM_DEFAULT,
     LIBRARY_DIR,
     LIBRARY_THUMB_SIZE,
     MAX_SOURCE_BYTES,
+    MAX_SOURCE_PIXELS,
 )
 from .helpers import loaded_fraimic_entries, resolve_render_params
 from .image_convert import convert_image
@@ -135,7 +137,14 @@ class FraimicLibrary:
         return self.originals_dir / f"{image.image_id}_{safe_filename(image.filename)}"
 
     async def async_add_image(
-        self, data: bytes, filename: str, *, albums: list[str] | None = None
+        self,
+        data: bytes,
+        filename: str,
+        *,
+        albums: list[str] | None = None,
+        source_url: str | None = None,
+        license_text: str | None = None,
+        attribution: str | None = None,
     ) -> LibraryImage:
         """Store an uploaded original and register it in the manifest."""
         if len(data) > MAX_SOURCE_BYTES:
@@ -149,10 +158,15 @@ class FraimicLibrary:
             content_type=content_type,
             uploaded_at=time.time(),
             albums=[a for a in (albums or []) if a.strip()] or [LIBRARY_ALBUM_DEFAULT],
+            source_url=source_url,
+            license=license_text,
+            attribution=attribution,
         )
 
         def _store() -> tuple[int, int]:
             size = _probe_dimensions(data)
+            if size[0] * size[1] > MAX_SOURCE_PIXELS:
+                raise ValueError(f"image is too large ({size[0]}x{size[1]})")
             self.original_path(image).write_bytes(data)
             return size
 
@@ -280,7 +294,12 @@ class FraimicLibrary:
         """Return ``(bin, preview_png, mode)`` for one frame, via the cache."""
         image = self.get(image_id)
         params = resolve_render_params(entry, overrides)
-        crop = image.crop_for(params["width"], params["height"])
+        crop_width, crop_height = _crop_key_size(params)
+        crop = (
+            None
+            if overrides and overrides.get(ATTR_ROTATE)
+            else image.crop_for(crop_width, crop_height)
+        )
         cache_params = dict(params)
         cache_params["crop"] = list(crop) if crop else None
         key = render_cache_key(cache_params)
@@ -290,9 +309,14 @@ class FraimicLibrary:
         if cached is not None:
             return cached
 
-        source = await self.hass.async_add_executor_job(
-            self.original_path(image).read_bytes
-        )
+        try:
+            source = await self.hass.async_add_executor_job(
+                self.original_path(image).read_bytes
+            )
+        except OSError as err:
+            raise HomeAssistantError(
+                f"Library file for {image_id} is missing: {err}"
+            ) from err
         try:
             bin_data, preview_png, used_mode = await self.hass.async_add_executor_job(
                 lambda: convert_image(source, **params, crop=crop)
@@ -300,9 +324,12 @@ class FraimicLibrary:
         except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
             raise HomeAssistantError(f"Could not convert library image: {err}") from err
 
-        await self.hass.async_add_executor_job(
-            self._write_render_sync, render_dir, key, bin_data, preview_png, used_mode
-        )
+        try:
+            await self.hass.async_add_executor_job(
+                self._write_render_sync, render_dir, key, bin_data, preview_png, used_mode
+            )
+        except OSError as err:
+            _LOGGER.warning("Could not write render cache for %s: %s", image_id, err)
         return bin_data, preview_png, used_mode
 
     def _read_render_sync(
@@ -323,10 +350,21 @@ class FraimicLibrary:
         self, render_dir: Path, key: str, bin_data: bytes, preview_png: bytes | None, mode: str
     ) -> None:
         render_dir.mkdir(parents=True, exist_ok=True)
-        (render_dir / f"{key}.bin").write_bytes(bin_data)
+
+        def _atomic_write(path: Path, write) -> None:
+            tmp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+            write(tmp)
+            tmp.replace(path)
+
+        _atomic_write(render_dir / f"{key}.bin", lambda path: path.write_bytes(bin_data))
         if preview_png is not None:
-            (render_dir / f"{key}.png").write_bytes(preview_png)
-        (render_dir / f"{key}.json").write_text(json.dumps({"mode": mode}), encoding="utf-8")
+            _atomic_write(
+                render_dir / f"{key}.png", lambda path: path.write_bytes(preview_png)
+            )
+        _atomic_write(
+            render_dir / f"{key}.json",
+            lambda path: path.write_text(json.dumps({"mode": mode}), encoding="utf-8"),
+        )
 
     async def async_send_to_entry(
         self,
@@ -335,8 +373,13 @@ class FraimicLibrary:
         overrides: dict | None = None,
     ) -> None:
         """Render (cache-aware) and upload one library image to one frame."""
-        rendered = await self.async_render_for_entry(image_id, entry, overrides)
-        await async_upload_rendered(entry, *rendered)
+        image = self.get(image_id)
+        runtime = entry.runtime_data
+        async with runtime.upload_lock:
+            rendered = await self.async_render_for_entry(image_id, entry, overrides)
+            await async_upload_rendered(
+                entry, *rendered, media_title=image.filename, lock=False
+            )
 
     async def async_render_adhoc_preview(
         self,
@@ -354,7 +397,8 @@ class FraimicLibrary:
         image = self.get(image_id)
         params = resolve_render_params(entry)
         crop = normalize_crop(box) if box is not None else None
-        if crop == image.crop_for(params["width"], params["height"]):
+        crop_width, crop_height = _crop_key_size(params)
+        if crop == image.crop_for(crop_width, crop_height):
             _, preview_png, _ = await self.async_render_for_entry(image_id, entry)
             if preview_png is not None:
                 return preview_png
@@ -410,10 +454,23 @@ class FraimicLibrary:
                     )
                 except asyncio.CancelledError:
                     raise
+                except Exception as err:  # noqa: BLE001 - backfill is best-effort
+                    _LOGGER.warning(
+                        "Backfill render of %s for %s failed unexpectedly: %s",
+                        image_id,
+                        getattr(entry, "title", entry.entry_id),
+                        err,
+                    )
 
 
 async def async_upload_rendered(
-    entry: ConfigEntry, bin_data: bytes, preview_png: bytes | None, mode: str
+    entry: ConfigEntry,
+    bin_data: bytes,
+    preview_png: bytes | None,
+    mode: str,
+    *,
+    media_title: str | None = None,
+    lock: bool = True,
 ) -> None:
     """Upload an already-rendered buffer to one frame and update its preview.
 
@@ -422,20 +479,27 @@ async def async_upload_rendered(
     upload lock so a library/scene send can't interleave with a playlist or
     manual upload on the same (easily wedged) ESP32.
     """
-    import contextlib
-
     runtime = entry.runtime_data
-    lock = getattr(runtime, "upload_lock", None) or contextlib.nullcontext()
-    async with lock:
+
+    async def _upload() -> None:
         try:
             await runtime.client.upload_image(bin_data)
         except FraimicError as err:
             raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+        runtime.last_art = None
+        runtime.media_title = media_title
         if preview_png:
             runtime.last_preview = preview_png
             if runtime.preview_image is not None:
                 runtime.preview_image.set_preview(preview_png, mode)
         await runtime.coordinator.async_request_refresh()
+        runtime.coordinator.async_update_listeners()
+
+    if lock:
+        async with runtime.upload_lock:
+            await _upload()
+    else:
+        await _upload()
 
 
 def _probe_dimensions(data: bytes) -> tuple[int, int]:
@@ -455,13 +519,20 @@ def _probe_dimensions(data: bytes) -> tuple[int, int]:
         with Image.open(io.BytesIO(data)) as img:
             width, height = img.size
             orientation = img.getexif().get(0x0112)
-    except UnidentifiedImageError as err:
+    except (UnidentifiedImageError, OSError) as err:
         raise ValueError("undecodable image data") from err
     # Orientations 5-8 transpose the axes; the library stores display-space
     # dimensions because that's the space crop boxes are defined in.
     if orientation in (5, 6, 7, 8):
         width, height = height, width
     return width, height
+
+
+def _crop_key_size(params: dict[str, Any]) -> tuple[int, int]:
+    """Return wall-visible dimensions for crop storage and lookup."""
+    if params.get("rotate") in (90, 270):
+        return (params["height"], params["width"])
+    return (params["width"], params["height"])
 
 
 def _make_thumbnail(original: Path) -> bytes:

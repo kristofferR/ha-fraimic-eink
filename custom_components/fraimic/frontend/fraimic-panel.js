@@ -179,13 +179,18 @@ class FraimicPanel extends HTMLElement {
   /* ---------------------------------------------------------------- data */
 
   async _refreshAll() {
+    const packsPromise = this._loadPacks()
+      .then(() => {
+        if (this._tab === "packs") this._renderTab();
+      })
+      .catch((err) => this._toast(err.message, true));
     await Promise.all([
       this._loadLibrary(),
       this._loadFrames(),
       this._loadScenes(),
-      this._loadPacks(),
     ]).catch((err) => this._toast(err.message, true));
     this._renderTab();
+    await packsPromise;
   }
 
   async _loadLibrary() {
@@ -581,7 +586,7 @@ class FraimicPanel extends HTMLElement {
 
     const filter = this._el("select", {
       onchange: (ev) => {
-        this._albumFilter = ev.target.value;
+        this._setAlbumFilter(ev.target.value);
         this._renderTab();
       },
     });
@@ -651,7 +656,7 @@ class FraimicPanel extends HTMLElement {
             {
               class: "albumcard",
               onclick: () => {
-                this._albumFilter = album;
+                this._setAlbumFilter(album);
                 this._renderTab();
               },
             },
@@ -677,6 +682,12 @@ class FraimicPanel extends HTMLElement {
     const grid = this._el("div", { class: "grid" });
     for (const image of images) grid.appendChild(this._libraryCard(image));
     root.appendChild(grid);
+  }
+
+  _setAlbumFilter(album) {
+    if (album === this._albumFilter) return;
+    this._albumFilter = album;
+    this._selected.clear();
   }
 
   _libraryCard(image) {
@@ -937,6 +948,7 @@ class FraimicPanel extends HTMLElement {
         frame = this._frames[Number(frameSelect.value)];
         if (previewing) {
           img.src = sourceSrc;
+          revokePreview();
           box.style.display = "";
           previewing = false;
           previewBtn.textContent = "Preview on e-ink";
@@ -950,6 +962,8 @@ class FraimicPanel extends HTMLElement {
 
     // Normalized box state [x0, y0, x1, y1]
     let norm = null;
+    let imageReady = false;
+    let preserveOnLoad = false;
     const aspect = () => {
       const size = this._effectiveSize(frame);
       return size.width / size.height;
@@ -964,8 +978,17 @@ class FraimicPanel extends HTMLElement {
       box.style.height = `${(norm[3] - norm[1]) * rect.h}px`;
     };
 
-    img.addEventListener("load", () => placeBox(this._initialBox(image, frame)));
-    this._setImgSrc(img, `${API}/library/image/${image.image_id}`);
+    img.addEventListener("load", () => {
+      imageReady = true;
+      placeBox(preserveOnLoad && norm ? [...norm] : this._initialBox(image, frame));
+      preserveOnLoad = false;
+    });
+    img.addEventListener("error", () => {
+      imageReady = false;
+      box.style.display = "none";
+      this._toast("Could not load a browser-renderable crop image", true);
+    });
+    this._setImgSrc(img, `${API}/library/thumb/${image.image_id}`);
 
     // Pointer interactions: move (box) or aspect-locked resize (handles).
     let gesture = null;
@@ -1026,15 +1049,28 @@ class FraimicPanel extends HTMLElement {
     // dither pipeline (nothing saved/uploaded) and swaps it into the stage.
     let previewing = false;
     let sourceSrc = null;
+    let previewObjectUrl = null;
+    const revokePreview = () => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = null;
+      }
+    };
     const previewBtn = this._el("button", {
       class: "btn",
       text: "Preview on e-ink",
       onclick: async () => {
         if (previewing) {
+          preserveOnLoad = true;
           img.src = sourceSrc;
+          revokePreview();
           box.style.display = "";
           previewing = false;
           previewBtn.textContent = "Preview on e-ink";
+          return;
+        }
+        if (!imageReady || !norm) {
+          this._toast("Crop image is not ready yet", true);
           return;
         }
         previewBtn.disabled = true;
@@ -1054,7 +1090,10 @@ class FraimicPanel extends HTMLElement {
           }
           const blob = await resp.blob();
           sourceSrc = img.src;
-          img.src = URL.createObjectURL(blob);
+          preserveOnLoad = true;
+          revokePreview();
+          previewObjectUrl = URL.createObjectURL(blob);
+          img.src = previewObjectUrl;
           box.style.display = "none";
           previewing = true;
           previewBtn.textContent = "Back to crop";
@@ -1067,11 +1106,16 @@ class FraimicPanel extends HTMLElement {
     });
 
     const save = async () => {
+      if (!imageReady || !norm) {
+        this._toast("Crop image is not ready yet", true);
+        return;
+      }
+      const size = this._effectiveSize(frame);
       try {
         await this._api(`library/image/${image.image_id}/crop`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ width: frame.width, height: frame.height, box: norm }),
+          body: JSON.stringify({ width: size.width, height: size.height, box: norm }),
         });
         this._closeDialog();
         await this._loadLibrary();
@@ -1082,11 +1126,12 @@ class FraimicPanel extends HTMLElement {
       }
     };
     const clear = async () => {
+      const size = this._effectiveSize(frame);
       try {
         await this._api(`library/image/${image.image_id}/crop`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ width: frame.width, height: frame.height, box: null }),
+          body: JSON.stringify({ width: size.width, height: size.height, box: null }),
         });
         this._closeDialog();
         await this._loadLibrary();
@@ -1111,15 +1156,17 @@ class FraimicPanel extends HTMLElement {
         this._el("button", { class: "btn", text: "Clear crop", onclick: clear }),
         this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
         this._el("button", { class: "btn raised", text: "Save", onclick: save }),
-      ]
+      ],
+      false,
+      revokePreview
     );
   }
 
   _initialBox(image, frame) {
-    const key = `${frame.width}x${frame.height}`;
+    const size = this._effectiveSize(frame);
+    const key = `${size.width}x${size.height}`;
     if (image.crops && image.crops[key]) return [...image.crops[key]];
     // Default: the centered cover-crop the pipeline would use anyway.
-    const size = this._effectiveSize(frame);
     const target = size.width / size.height;
     const source = image.width && image.height ? image.width / image.height : target;
     if (source > target) {
@@ -1306,9 +1353,10 @@ class FraimicPanel extends HTMLElement {
     }
 
     const save = async () => {
-      const mappings = {};
+      const mappings = scene ? { ...scene.mappings } : {};
       for (const [entryId, select] of selects) {
         if (select.value) mappings[entryId] = select.value;
+        else delete mappings[entryId];
       }
       try {
         if (scene) {
@@ -1938,8 +1986,12 @@ class FraimicPanel extends HTMLElement {
 
   /* -------------------------------------------------------------- dialog */
 
-  _openDialog(title, contentNodes, actionNodes, wide = false) {
+  _openDialog(title, contentNodes, actionNodes, wide = false, onClose = null) {
     const modal = this.shadowRoot.getElementById("modal");
+    const cleanup = this._dialogCleanup;
+    this._dialogCleanup = null;
+    if (cleanup) cleanup();
+    this._dialogCleanup = onClose;
     modal.innerHTML = "";
     const dialog = this._el("div", { class: wide ? "dialog wide" : "dialog" }, [
       this._el("h2", { text: title }),
@@ -1957,6 +2009,9 @@ class FraimicPanel extends HTMLElement {
   }
 
   _closeDialog() {
+    const cleanup = this._dialogCleanup;
+    this._dialogCleanup = null;
+    if (cleanup) cleanup();
     this.shadowRoot.getElementById("modal").innerHTML = "";
   }
 }

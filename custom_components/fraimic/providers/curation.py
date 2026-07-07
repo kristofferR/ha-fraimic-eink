@@ -4,7 +4,21 @@ from __future__ import annotations
 
 import math
 
-from ..const import ART_ASPECT_MAX, ART_ASPECT_MIN, MIN_ART_SHORT_EDGE
+from ..const import (
+    ART_ASPECT_MAX,
+    ART_ASPECT_MIN,
+    FIT_CONTAIN,
+    FIT_CONTAIN_BLACK,
+    FIT_STRETCH,
+    MIN_ART_SHORT_EDGE,
+)
+
+ASPECT_RELAXED_FITS = {FIT_CONTAIN, FIT_CONTAIN_BLACK, FIT_STRETCH}
+
+
+def large_enough(width: int, height: int) -> bool:
+    """Image has enough source resolution to avoid obvious upscale softness."""
+    return width > 0 and height > 0 and min(width, height) >= MIN_ART_SHORT_EDGE
 
 
 def acceptable(width: int, height: int, target_w: int, target_h: int) -> bool:
@@ -16,12 +30,19 @@ def acceptable(width: int, height: int, target_w: int, target_h: int) -> bool:
       viewed aspect: cover-cropping handles moderate mismatch, but extreme
       panoramas / tall scrolls lose most of the artwork to the crop.
     """
-    if width <= 0 or height <= 0:
-        return False
-    if min(width, height) < MIN_ART_SHORT_EDGE:
+    if not large_enough(width, height):
         return False
     ratio = (width / height) / (target_w / target_h)
     return ART_ASPECT_MIN <= ratio <= ART_ASPECT_MAX
+
+
+def acceptable_for_fit(
+    width: int, height: int, target_w: int, target_h: int, fit: str
+) -> bool:
+    """Is this image suitable after accounting for the requested fit policy?"""
+    if fit in ASPECT_RELAXED_FITS:
+        return large_enough(width, height)
+    return acceptable(width, height, target_w, target_h)
 
 
 def aspect_score(width: int, height: int, target_w: int, target_h: int) -> float:

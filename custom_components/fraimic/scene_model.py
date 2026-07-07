@@ -25,6 +25,7 @@ class Scene:
     mappings: dict[str, str] = field(default_factory=dict)
     created_at: float = 0.0
     source: str = SCENE_SOURCE_USER
+    source_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -33,13 +34,17 @@ class Scene:
             "mappings": self.mappings,
             "created_at": self.created_at,
             "source": self.source,
+            "source_id": self.source_id,
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Scene:
+        raw_mappings = data.get("mappings") or {}
+        if not isinstance(raw_mappings, dict):
+            raw_mappings = {}
         mappings = {
             str(entry_id): str(image_id)
-            for entry_id, image_id in (data.get("mappings") or {}).items()
+            for entry_id, image_id in raw_mappings.items()
             if image_id
         }
         return cls(
@@ -48,6 +53,7 @@ class Scene:
             mappings=mappings,
             created_at=float(data.get("created_at") or 0.0),
             source=str(data.get("source") or SCENE_SOURCE_USER),
+            source_id=str(data["source_id"]) if data.get("source_id") else None,
         )
 
 
@@ -58,7 +64,12 @@ def scenes_to_dict(scenes: dict[str, Scene]) -> dict[str, Any]:
 def scenes_from_dict(data: dict[str, Any]) -> dict[str, Scene]:
     """Parse stored scenes, skipping entries too broken to load."""
     scenes: dict[str, Scene] = {}
-    for scene_id, raw in (data.get("scenes") or {}).items():
+    if not isinstance(data, dict):
+        return scenes
+    raw_scenes = data.get("scenes") or {}
+    if not isinstance(raw_scenes, dict):
+        return scenes
+    for scene_id, raw in raw_scenes.items():
         try:
             raw = dict(raw)
             raw.setdefault("scene_id", scene_id)

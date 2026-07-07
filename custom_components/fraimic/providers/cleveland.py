@@ -10,6 +10,7 @@ import random
 from typing import Any
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
+from .engine import async_fetch_json
 
 LIST_URL = (
     "https://openaccess-api.clevelandart.org/api/artworks/"
@@ -68,14 +69,16 @@ class ClevelandProvider(ArtProvider):
     async def _total(self, session: Any, cache: Any) -> int:
         total = cache.get("cleveland_total", COUNT_TTL)
         if total is None:
-            await cache.async_throttle(self.key, self.min_interval)
-            resp = await session.get(
-                f"{LIST_URL}&limit=1", headers=api_headers(), timeout=API_TIMEOUT
+            payload = await async_fetch_json(
+                session,
+                cache,
+                key=self.key,
+                min_interval=self.min_interval,
+                url=f"{LIST_URL}&limit=1",
+                error_label="Cleveland list",
+                headers=api_headers(),
+                timeout=API_TIMEOUT,
             )
-            async with resp:
-                if resp.status != 200:
-                    raise ArtFetchError(f"Cleveland list returned HTTP {resp.status}")
-                payload = await resp.json()
             total = (payload.get("info") or {}).get("total") or 0
             if not total:
                 raise ArtFetchError("Cleveland returned an empty highlight pool")
@@ -108,14 +111,16 @@ class ClevelandProvider(ArtProvider):
     async def async_by_id(
         self, session: Any, cache: Any, item_id: str, request: FetchRequest
     ) -> ArtCandidate:
-        await cache.async_throttle(self.key, self.min_interval)
-        resp = await session.get(
-            ITEM_URL.format(id=item_id), headers=api_headers(), timeout=API_TIMEOUT
+        payload = await async_fetch_json(
+            session,
+            cache,
+            key=self.key,
+            min_interval=self.min_interval,
+            url=ITEM_URL.format(id=item_id),
+            error_label=f"Cleveland artwork {item_id}",
+            headers=api_headers(),
+            timeout=API_TIMEOUT,
         )
-        async with resp:
-            if resp.status != 200:
-                raise ArtFetchError(f"Cleveland artwork {item_id}: HTTP {resp.status}")
-            payload = await resp.json()
         candidate = parse_cleveland_item(payload.get("data") or {})
         if candidate is None:
             raise ArtFetchError(f"Cleveland artwork {item_id} has no print image")

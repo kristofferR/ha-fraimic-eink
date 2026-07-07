@@ -26,6 +26,7 @@ _LOGGER = logging.getLogger(__name__)
 
 URL_BASE = "/fraimic_static"
 PANEL_URL_PATH = "fraimic"
+PANEL_FALLBACK_URL_PATH = "fraimic_panel"
 
 DATA_STATIC_REGISTERED = "static_registered"
 DATA_PANEL_REGISTERED = "panel_registered"
@@ -51,28 +52,46 @@ async def async_register_panel(hass: HomeAssistant) -> None:
         add_extra_js_url(hass, f"{URL_BASE}/fraimic-card.js?v={version}")
 
     if not domain_data.get(DATA_PANEL_REGISTERED):
-        domain_data[DATA_PANEL_REGISTERED] = True
-        async_register_built_in_panel(
-            hass,
-            component_name="custom",
-            sidebar_title="Fraimic",
-            sidebar_icon="mdi:image-frame",
-            frontend_url_path=PANEL_URL_PATH,
-            require_admin=False,
-            config={
-                "_panel_custom": {
-                    "name": "fraimic-panel",
-                    "module_url": f"{URL_BASE}/fraimic-panel.js?v={version}",
-                    "embed_iframe": False,
-                    "trust_external": False,
-                }
-            },
-        )
+        try:
+            _register_panel(hass, version, PANEL_URL_PATH)
+            domain_data[DATA_PANEL_REGISTERED] = PANEL_URL_PATH
+        except ValueError:
+            _LOGGER.warning(
+                "The /%s panel path is already in use; registering /%s instead",
+                PANEL_URL_PATH,
+                PANEL_FALLBACK_URL_PATH,
+            )
+            try:
+                _register_panel(hass, version, PANEL_FALLBACK_URL_PATH)
+            except ValueError:
+                _LOGGER.exception("Could not register the Fraimic sidebar panel")
+            else:
+                domain_data[DATA_PANEL_REGISTERED] = PANEL_FALLBACK_URL_PATH
+
+
+def _register_panel(hass: HomeAssistant, version: str, url_path: str) -> None:
+    async_register_built_in_panel(
+        hass,
+        component_name="custom",
+        sidebar_title="Fraimic",
+        sidebar_icon="mdi:image-frame",
+        frontend_url_path=url_path,
+        require_admin=False,
+        config={
+            "_panel_custom": {
+                "name": "fraimic-panel",
+                "module_url": f"{URL_BASE}/fraimic-panel.js?v={version}",
+                "embed_iframe": False,
+                "trust_external": False,
+            }
+        },
+    )
 
 
 @callback
 def async_unregister_panel(hass: HomeAssistant) -> None:
     """Remove the sidebar panel (static paths cannot be unregistered)."""
     domain_data = hass.data.get(DOMAIN, {})
-    if domain_data.pop(DATA_PANEL_REGISTERED, None):
-        async_remove_panel(hass, PANEL_URL_PATH)
+    url_path = domain_data.pop(DATA_PANEL_REGISTERED, None)
+    if url_path:
+        async_remove_panel(hass, url_path)

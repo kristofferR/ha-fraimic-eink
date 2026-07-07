@@ -179,6 +179,9 @@
           "pexels_api_key": "Enables the Pexels photo provider. Free at pexels.com/api."
         }
       }
+    },
+    "error": {
+      "provider_key_required": "That default provider needs an API key."
     }
   },
   "entity": {
