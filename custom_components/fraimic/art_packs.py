@@ -66,6 +66,7 @@ USER_AGENT = "ha-fraimic-eink/1.0 (https://github.com/kristofferR/ha-fraimic-ein
 REMOTE_PACK_RAW_BASE = "https://raw.githubusercontent.com/dsackr/frame-addons/main"
 REMOTE_PACK_INDEX_URL = f"{REMOTE_PACK_RAW_BASE}/scene_packs/index.json"
 REMOTE_PACK_TTL = 6 * 3600
+REMOTE_PACK_FAILURE_TTL = 300
 
 
 @callback
@@ -106,7 +107,9 @@ class ArtPackManager:
         Never raises: an unreachable index just leaves the previous (possibly
         empty) remote list in place.
         """
-        if self.remote_packs and time.time() - self._remote_fetched_at < REMOTE_PACK_TTL:
+        now = time.time()
+        ttl = REMOTE_PACK_TTL if self.remote_packs else REMOTE_PACK_FAILURE_TTL
+        if self._remote_fetched_at and now - self._remote_fetched_at < ttl:
             return
         session = async_get_clientsession(self.hass)
         try:
@@ -119,7 +122,14 @@ class ArtPackManager:
                 if resp.status != 200:
                     raise HomeAssistantError(f"HTTP {resp.status}")
                 data = await resp.json(content_type=None)
-        except (HomeAssistantError, aiohttp.ClientError, asyncio.TimeoutError, ValueError) as err:
+        except (
+            HomeAssistantError,
+            aiohttp.ClientError,
+            asyncio.TimeoutError,
+            TypeError,
+            ValueError,
+        ) as err:
+            self._remote_fetched_at = time.time()
             _LOGGER.warning("Could not fetch the community pack catalog: %s", err)
             return
         self.remote_packs = map_remote_catalog(data or {}, REMOTE_PACK_RAW_BASE)
@@ -196,7 +206,11 @@ class ArtPackManager:
                 )
                 await asyncio.sleep(delay)
 
-            self.installed[pack_id] = {"installed_at": time.time(), "images": live}
+            self.installed[pack_id] = {
+                "installed_at": time.time(),
+                "name": pack["name"],
+                "images": live,
+            }
             await self._async_save()
 
             scene_id = None
@@ -220,10 +234,14 @@ class ArtPackManager:
         async with resp:
             if resp.status != 200:
                 raise HomeAssistantError(f"HTTP {resp.status} from {url}")
-            data = await resp.content.read(MAX_SOURCE_BYTES + 1)
-            if len(data) > MAX_SOURCE_BYTES:
-                raise HomeAssistantError("Downloaded image is too large")
-            return data
+            chunks: list[bytes] = []
+            size = 0
+            while chunk := await resp.content.read(64 * 1024):
+                size += len(chunk)
+                if size > MAX_SOURCE_BYTES:
+                    raise HomeAssistantError("Downloaded image is too large")
+                chunks.append(chunk)
+            return b"".join(chunks)
 
     async def _async_sync_pack_scene(
         self, pack: dict[str, Any], image_ids: list[str]
@@ -261,14 +279,43 @@ class ArtPackManager:
 
     async def async_uninstall(self, pack_id: str) -> dict[str, Any]:
         """Remove a pack's images from the library (scenes are pruned too)."""
-        self._get_pack(pack_id)
-        live = self._live_images(pack_id)
-        for image_id in live.values():
+        async with self._install_lock:
+            record = self.installed.get(pack_id)
             try:
-                await self.library.async_delete_image(image_id)
+                pack = self._get_pack(pack_id)
             except HomeAssistantError:
+                if record is None:
+                    raise
+                pack = None
+            pack_name = (pack or record or {}).get("name")
+            live = self._live_images(pack_id)
+            pack_scene_ids = self._pack_scene_ids(pack_name, set(live.values()))
+            for image_id in live.values():
+                try:
+                    await self.library.async_delete_image(image_id)
+                except HomeAssistantError:
+                    continue
+                await self.scenes.async_prune_image(image_id)
+            for scene_id in pack_scene_ids:
+                try:
+                    await self.scenes.async_delete(scene_id)
+                except HomeAssistantError:
+                    continue
+            self.installed.pop(pack_id, None)
+            await self._async_save()
+            return {"pack_id": pack_id, "removed": len(live)}
+
+    def _pack_scene_ids(self, pack_name: str | None, image_ids: set[str]) -> list[str]:
+        """Find auto-scenes owned by a pack before uninstall pruning mutates them."""
+        scene_ids = []
+        for scene in self.scenes.scenes.values():
+            if scene.source != SCENE_SOURCE_PACK:
                 continue
-            await self.scenes.async_prune_image(image_id)
-        self.installed.pop(pack_id, None)
-        await self._async_save()
-        return {"pack_id": pack_id, "removed": len(live)}
+            if pack_name is not None and scene.name == pack_name:
+                scene_ids.append(scene.scene_id)
+                continue
+            if image_ids and any(
+                image_id in image_ids for image_id in scene.mappings.values()
+            ):
+                scene_ids.append(scene.scene_id)
+        return scene_ids

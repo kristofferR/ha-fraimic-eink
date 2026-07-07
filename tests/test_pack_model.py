@@ -84,7 +84,28 @@ def test_map_remote_catalog():
 
 def test_map_remote_catalog_empty_or_garbage():
     assert pm.map_remote_catalog({}, "https://x") == []
+    assert pm.map_remote_catalog([], "https://x") == []
+    assert pm.map_remote_catalog({"packs": "bad"}, "https://x") == []
     assert pm.map_remote_catalog({"packs": ["nope", 4]}, "https://x") == []
+
+
+def test_map_remote_catalog_ignores_malformed_categories():
+    data = {
+        "packs": [
+            {
+                "id": "weird",
+                "name": "Weird",
+                "categories": {"not": "a-list"},
+                "images": [
+                    {"filename": "01.jpg", "path": "scene_packs/weird/01.jpg"}
+                ],
+            }
+        ]
+    }
+
+    packs = pm.map_remote_catalog(data, "https://raw.example/main")
+
+    assert packs[0]["category"] == "Art"
 
 
 @pytest.mark.parametrize(

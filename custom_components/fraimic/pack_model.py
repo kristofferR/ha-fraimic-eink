@@ -57,8 +57,12 @@ REMOTE_PACK_PREFIX = "fa-"
 
 
 def _remote_category(pack: dict[str, Any]) -> str:
-    raw = pack.get("categories") or [pack.get("category") or "Art"]
-    first = str(raw[0])
+    categories = pack.get("categories")
+    if isinstance(categories, list) and categories:
+        first = str(categories[0])
+    else:
+        category = pack.get("category")
+        first = category if isinstance(category, str) and category else "Art"
     return _REMOTE_CATEGORIES.get(first, first.replace("_", " ").title())
 
 
@@ -70,8 +74,13 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
     which are scripts for a different integration — is skipped, never fatal.
     """
     packs: list[dict[str, Any]] = []
+    if not isinstance(data, dict):
+        return packs
+    remote_packs = data.get("packs") or []
+    if not isinstance(remote_packs, list):
+        return packs
     raw_base = raw_base.rstrip("/")
-    for pack in data.get("packs") or []:
+    for pack in remote_packs:
         if not isinstance(pack, dict) or pack.get("type") == "widget":
             continue
         pack_id = pack.get("id")
@@ -84,7 +93,12 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
                 continue
             path = image.get("path")
             filename = image.get("filename")
-            if not path or not filename or not isinstance(path, str):
+            if (
+                not path
+                or not filename
+                or not isinstance(path, str)
+                or not isinstance(filename, str)
+            ):
                 continue
             url = f"{raw_base}/{path.lstrip('/')}"
             images.append(
