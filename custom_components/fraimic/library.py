@@ -357,9 +357,13 @@ class FraimicLibrary:
         overrides: dict | None = None,
     ) -> None:
         """Render (cache-aware) and upload one library image to one frame."""
-        rendered = await self.async_render_for_entry(image_id, entry, overrides)
         image = self.get(image_id)
-        await async_upload_rendered(entry, *rendered, media_title=image.filename)
+        runtime = entry.runtime_data
+        async with runtime.upload_lock:
+            rendered = await self.async_render_for_entry(image_id, entry, overrides)
+            await async_upload_rendered(
+                entry, *rendered, media_title=image.filename, lock=False
+            )
 
     # -------------------------------------------------------------- backfill
 
@@ -416,6 +420,7 @@ async def async_upload_rendered(
     mode: str,
     *,
     media_title: str | None = None,
+    lock: bool = True,
 ) -> None:
     """Upload an already-rendered buffer to one frame and update its preview.
 
@@ -423,7 +428,8 @@ async def async_upload_rendered(
     frames first, then uploads concurrently).
     """
     runtime = entry.runtime_data
-    async with runtime.upload_lock:
+
+    async def _upload() -> None:
         try:
             await runtime.client.upload_image(bin_data)
         except FraimicError as err:
@@ -436,6 +442,12 @@ async def async_upload_rendered(
                 runtime.preview_image.set_preview(preview_png, mode)
         await runtime.coordinator.async_request_refresh()
         runtime.coordinator.async_update_listeners()
+
+    if lock:
+        async with runtime.upload_lock:
+            await _upload()
+    else:
+        await _upload()
 
 
 def _probe_dimensions(data: bytes) -> tuple[int, int]:

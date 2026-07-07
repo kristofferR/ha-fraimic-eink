@@ -37,9 +37,12 @@ class Scene:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Scene:
+        raw_mappings = data.get("mappings") or {}
+        if not isinstance(raw_mappings, dict):
+            raw_mappings = {}
         mappings = {
             str(entry_id): str(image_id)
-            for entry_id, image_id in (data.get("mappings") or {}).items()
+            for entry_id, image_id in raw_mappings.items()
             if image_id
         }
         return cls(

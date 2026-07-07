@@ -47,6 +47,11 @@ def test_scene_from_dict_drops_empty_mappings():
     assert scene.mappings == {"entry_2": "img"}
 
 
+def test_scene_from_dict_drops_malformed_mappings():
+    scene = sm.Scene.from_dict({"scene_id": "x", "name": "S", "mappings": ["bad"]})
+    assert scene.mappings == {}
+
+
 def test_scenes_dict_roundtrip_skips_broken():
     scenes = {"good": sm.Scene(scene_id="good", name="G", mappings={"e": "i"})}
     data = sm.scenes_to_dict(scenes)
