@@ -126,11 +126,18 @@ class _Scheduler:
 
     def __init__(self) -> None:
         self.events: list[tuple[str, bool | None]] = []
+        self.active = 0
+
+    @property
+    def external_upload_active(self) -> bool:
+        return self.active > 0
 
     def begin_external_upload(self) -> None:
+        self.active += 1
         self.events.append(("begin", None))
 
     def finish_external_upload(self, *, uploaded: bool, hold: bool = True) -> None:
+        self.active = max(0, self.active - 1)
         self.events.append(("finish", uploaded))
 
 
@@ -221,3 +228,18 @@ def test_scene_send_releases_scheduler_guards_on_cancellation(
 
     assert entries[0].scheduler.events == [("begin", None), ("finish", False)]
     assert entries[1].scheduler.events == [("begin", None), ("finish", False)]
+
+
+def test_scene_send_rejects_overlapping_external_upload(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenes = _load_scenes(monkeypatch)
+    entry = _entry("entry-1")
+    entry.scheduler.active = 1
+    manager = scenes.SceneManager(SimpleNamespace(entries=[entry]), _Library())
+    scene = asyncio.run(manager.async_create("Wall", {"entry-1": "img-1"}))
+
+    with pytest.raises(scenes.HomeAssistantError, match="failed on every frame"):
+        asyncio.run(manager.async_send(scene.scene_id))
+
+    assert entry.scheduler.events == []

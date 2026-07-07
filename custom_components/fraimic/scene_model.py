@@ -61,7 +61,12 @@ def scenes_to_dict(scenes: dict[str, Scene]) -> dict[str, Any]:
 def scenes_from_dict(data: dict[str, Any]) -> dict[str, Scene]:
     """Parse stored scenes, skipping entries too broken to load."""
     scenes: dict[str, Scene] = {}
-    for scene_id, raw in (data.get("scenes") or {}).items():
+    if not isinstance(data, dict):
+        return scenes
+    raw_scenes = data.get("scenes") or {}
+    if not isinstance(raw_scenes, dict):
+        return scenes
+    for scene_id, raw in raw_scenes.items():
         try:
             raw = dict(raw)
             raw.setdefault("scene_id", scene_id)

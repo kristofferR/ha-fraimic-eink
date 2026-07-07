@@ -286,7 +286,7 @@ def _begin_scene_upload(entry) -> Any:
     scheduler = getattr(entry.runtime_data, "scheduler", None)
     if scheduler is None:
         return None
-    if scheduler.busy:
+    if scheduler.busy or scheduler.external_upload_active:
         raise HomeAssistantError("A playlist upload is already in progress")
     scheduler.begin_external_upload()
     return scheduler
