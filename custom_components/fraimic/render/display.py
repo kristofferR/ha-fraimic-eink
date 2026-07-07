@@ -10,6 +10,7 @@ quantisation is lossless), packs the ``.bin``, and uploads.
 from __future__ import annotations
 
 import hashlib
+from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -21,18 +22,21 @@ from ..const import (
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
+    FIT_COVER,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
-    FIT_COVER,
     MODE_NONE,
 )
 from .compose import render_screen
 from .fetch import async_build_context
 from .schema import KIND_PICTURE, ScreenConfig
+
+if TYPE_CHECKING:
+    from ..coordinator import FraimicConfigEntry
 
 # The screen PNG already is final panel content: no photo enhancement.
 _NEUTRAL_OVERRIDES = {
@@ -71,7 +75,7 @@ async def async_render_screen(
 
 
 async def _async_picture_source(
-    hass: HomeAssistant, entry, screen: ScreenConfig
+    hass: HomeAssistant, entry: FraimicConfigEntry, screen: ScreenConfig
 ) -> tuple[bytes, dict, dict | None]:
     """Raw bytes + conversion overrides (+ art attribution) for a picture screen.
 
@@ -87,18 +91,27 @@ async def _async_picture_source(
         from dataclasses import asdict
 
         from ..providers.caption import composite_with_caption
-        from ..providers.ha import async_fetch_art
+        from ..providers.ha import ArtFetchError, async_fetch_art
 
+        fit = source.get("fit") or entry.options.get(ATTR_FIT, FIT_COVER)
         art = await async_fetch_art(
-            hass, entry, provider_key, query=source.get("query")
+            hass, entry, provider_key, query=source.get("query"), fit=fit
         )
         raw = art.data
         art_info = asdict(art.candidate)
         if source.get("caption") and art.candidate.attribution:
             width, height = viewed_size(entry)
-            raw = await hass.async_add_executor_job(
-                composite_with_caption, raw, art.candidate.attribution, width, height
-            )
+            try:
+                raw = await hass.async_add_executor_job(
+                    composite_with_caption,
+                    raw,
+                    art.candidate.attribution,
+                    width,
+                    height,
+                    fit,
+                )
+            except Exception as err:  # noqa: BLE001 - image decoders fail broadly
+                raise ArtFetchError(f"Captioned image: {err}") from err
     else:
         raw = await async_get_source_bytes(
             hass,
