@@ -28,6 +28,7 @@ from .const import (
     ATTR_DITHER,
     ATTR_FIT,
     ATTR_IMAGE_ENTITY,
+    ATTR_LIBRARY_IMAGE,
     ATTR_MODE,
     ATTR_CAPTION,
     ATTR_PATH,
@@ -66,6 +67,7 @@ from .const import (
 )
 from .coordinator import FraimicConfigEntry
 from .image_convert import convert_image
+from .library import get_library
 from .render.display import async_show_screen
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
 from .screens import AmbiguousScreenNameError, screen_by_key
@@ -97,10 +99,15 @@ def finish_external_upload(scheduler, *, uploaded: bool, hold: bool = True) -> N
 
 def _require_one_source(data: dict) -> dict:
     """Ensure exactly one image source was provided."""
-    sources = [k for k in (ATTR_PATH, ATTR_URL, ATTR_IMAGE_ENTITY) if data.get(k)]
+    sources = [
+        k
+        for k in (ATTR_PATH, ATTR_URL, ATTR_IMAGE_ENTITY, ATTR_LIBRARY_IMAGE)
+        if data.get(k)
+    ]
     if not sources:
         raise vol.Invalid(
-            f"Provide one image source: {ATTR_PATH}, {ATTR_URL}, or {ATTR_IMAGE_ENTITY}"
+            f"Provide one image source: {ATTR_PATH}, {ATTR_URL}, "
+            f"{ATTR_IMAGE_ENTITY}, or {ATTR_LIBRARY_IMAGE}"
         )
     return data
 
@@ -112,6 +119,7 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
             vol.Exclusive(ATTR_PATH, "source"): cv.string,
             vol.Exclusive(ATTR_URL, "source"): cv.url,
             vol.Exclusive(ATTR_IMAGE_ENTITY, "source"): cv.entity_id,
+            vol.Exclusive(ATTR_LIBRARY_IMAGE, "source"): cv.string,
             # All processing params are optional with NO schema default — when a
             # call omits one, the frame's per-entry option (then the global
             # default) is used. This is what makes them configurable per frame.
@@ -238,6 +246,14 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     scheduler = begin_external_upload(entry)
     uploaded = False
     try:
+        if image_id := call.data.get(ATTR_LIBRARY_IMAGE):
+            # Library sends reuse the render cache and honour saved crops.
+            library = get_library(hass)
+            if library is None:
+                raise ServiceValidationError("The Fraimic library is not set up")
+            await library.async_send_to_entry(image_id, entry, dict(call.data))
+            uploaded = True
+            return
         raw = await async_get_source_bytes(
             hass,
             path=call.data.get(ATTR_PATH),

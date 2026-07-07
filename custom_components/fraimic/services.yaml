@@ -175,6 +175,15 @@ upload_image:
           domain:
             - camera
             - image
+    library_image_id:
+      name: Library image
+      description: >-
+        ID of an image in the Fraimic media library. Library sends reuse the
+        cached conversion and honour any crop saved for this frame's resolution.
+      required: false
+      example: 3f9a1c2b4d5e
+      selector:
+        text:
     fit:
       name: Fit mode
       description: >-

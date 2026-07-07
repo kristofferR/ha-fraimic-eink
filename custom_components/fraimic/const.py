@@ -143,6 +143,14 @@ NEUTRAL_CHROMA_T: Final = 0.06
 AUTO_FLAT_THRESHOLD: Final = 0.6
 AUTO_DOMINANCE_THRESHOLD: Final = 0.7
 
+# Media library. Originals + manifest live under <config>/fraimic_library/;
+# rendered .bin/.png pairs are cached per (resolution + conversion params) so a
+# playlist/scene can re-send an image without paying the dither cost again.
+LIBRARY_DIR: Final = "fraimic_library"
+LIBRARY_ALBUM_DEFAULT: Final = "Images"
+# Longest edge of the JPEG thumbnails served to the panel grid.
+LIBRARY_THUMB_SIZE: Final = 480
+
 # Named palette positions for dashboard screens (position in SPECTRA6_RGB).
 # Screens render with these exact calibrated RGB values so every flat region
 # quantises losslessly to its palette index (mode "none", no dithering noise).
@@ -207,6 +215,7 @@ ATTR_CONFIG_ENTRY: Final = "config_entry_id"
 ATTR_PATH: Final = "path"
 ATTR_URL: Final = "url"
 ATTR_IMAGE_ENTITY: Final = "image_entity_id"
+ATTR_LIBRARY_IMAGE: Final = "library_image_id"
 ATTR_FIT: Final = "fit"
 ATTR_ROTATE: Final = "rotate"
 ATTR_DITHER: Final = "dither"

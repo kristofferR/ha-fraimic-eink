@@ -1,0 +1,332 @@
+"""Authenticated HTTP API backing the Fraimic panel.
+
+All views live under ``/api/fraimic/`` and use Home Assistant's normal bearer
+auth (``requires_auth`` default), so the frontend panel can call them with
+``hass.fetchWithAuth`` and nothing is exposed to the LAN unauthenticated.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+from http import HTTPStatus
+from typing import Any
+
+from aiohttp import web
+from homeassistant.components.http import KEY_HASS, HomeAssistantView
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+
+from .const import (
+    CONF_HEIGHT,
+    CONF_ROTATION,
+    CONF_WIDTH,
+    DEFAULT_ROTATION,
+    DOMAIN,
+    MAX_SOURCE_BYTES,
+)
+from .helpers import loaded_fraimic_entries
+from .library import FraimicLibrary, get_library
+from .services import begin_external_upload, finish_external_upload
+
+_LOGGER = logging.getLogger(__name__)
+
+DATA_VIEWS_REGISTERED = "views_registered"
+
+
+def async_register_views(hass: HomeAssistant) -> None:
+    """Register all Fraimic HTTP views (idempotent).
+
+    aiohttp routes cannot be removed, so this happens once per HA run and the
+    handlers look the library up lazily — a 503 answers any call that races an
+    unloaded integration.
+    """
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    if domain_data.get(DATA_VIEWS_REGISTERED):
+        return
+    domain_data[DATA_VIEWS_REGISTERED] = True
+    for view in (
+        LibraryListView(),
+        LibraryUploadView(),
+        LibraryImageView(),
+        LibraryCropView(),
+        LibraryThumbView(),
+        LibraryAlbumView(),
+        LibrarySendView(),
+        FramesView(),
+    ):
+        hass.http.register_view(view)
+
+
+class _FraimicView(HomeAssistantView):
+    """Base class: resolves the library and normalizes error responses."""
+
+    def _library(self, request: web.Request) -> FraimicLibrary:
+        library = get_library(request.app[KEY_HASS])
+        if library is None:
+            raise web.HTTPServiceUnavailable(text="Fraimic is not set up")
+        return library
+
+    async def _json_body(self, request: web.Request) -> dict[str, Any]:
+        try:
+            data = await request.json()
+        except ValueError:
+            raise web.HTTPBadRequest(text="Body must be JSON") from None
+        if not isinstance(data, dict):
+            raise web.HTTPBadRequest(text="Body must be a JSON object")
+        return data
+
+
+class LibraryListView(_FraimicView):
+    """List the library contents for the panel grid."""
+
+    url = "/api/fraimic/library"
+    name = "api:fraimic:library"
+
+    async def get(self, request: web.Request) -> web.Response:
+        library = self._library(request)
+        images = sorted(
+            library.images.values(), key=lambda image: image.uploaded_at, reverse=True
+        )
+        return self.json(
+            {
+                "images": [image.to_dict() for image in images],
+                "albums": library.albums(),
+            }
+        )
+
+
+class LibraryUploadView(_FraimicView):
+    """Accept a multipart image upload into the library."""
+
+    url = "/api/fraimic/library/upload"
+    name = "api:fraimic:library:upload"
+
+    async def post(self, request: web.Request) -> web.Response:
+        library = self._library(request)
+        try:
+            reader = await request.multipart()
+        except (AssertionError, ValueError):
+            return self.json_message(
+                "Expected a multipart upload", HTTPStatus.BAD_REQUEST
+            )
+
+        data: bytes | None = None
+        filename = "image"
+        albums: list[str] = []
+        async for part in reader:
+            if part.name == "file":
+                filename = part.filename or filename
+                chunks: list[bytes] = []
+                size = 0
+                while chunk := await part.read_chunk(64 * 1024):
+                    size += len(chunk)
+                    if size > MAX_SOURCE_BYTES:
+                        return self.json_message(
+                            "Image is too large", HTTPStatus.REQUEST_ENTITY_TOO_LARGE
+                        )
+                    chunks.append(chunk)
+                data = b"".join(chunks)
+            elif part.name == "album":
+                albums.append((await part.text()).strip())
+
+        if not data:
+            return self.json_message("No file field in upload", HTTPStatus.BAD_REQUEST)
+        try:
+            image = await library.async_add_image(data, filename, albums=albums)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        return self.json(image.to_dict())
+
+
+class LibraryImageView(_FraimicView):
+    """Serve, update, or delete one library image."""
+
+    url = "/api/fraimic/library/image/{image_id}"
+    name = "api:fraimic:library:image"
+
+    async def get(self, request: web.Request, image_id: str) -> web.Response:
+        library = self._library(request)
+        try:
+            data, content_type = await library.async_get_original(image_id)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return web.Response(body=data, content_type=content_type)
+
+    async def post(self, request: web.Request, image_id: str) -> web.Response:
+        library = self._library(request)
+        body = await self._json_body(request)
+        albums = body.get("albums")
+        if albums is not None and not (
+            isinstance(albums, list) and all(isinstance(a, str) for a in albums)
+        ):
+            return self.json_message("albums must be a list of strings", HTTPStatus.BAD_REQUEST)
+        try:
+            image = await library.async_update_image(image_id, albums=albums)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return self.json(image.to_dict())
+
+    async def delete(self, request: web.Request, image_id: str) -> web.Response:
+        library = self._library(request)
+        try:
+            await library.async_delete_image(image_id)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return self.json({"deleted": image_id})
+
+
+class LibraryCropView(_FraimicView):
+    """Save or clear the per-resolution manual crop for an image."""
+
+    url = "/api/fraimic/library/image/{image_id}/crop"
+    name = "api:fraimic:library:crop"
+
+    async def post(self, request: web.Request, image_id: str) -> web.Response:
+        library = self._library(request)
+        body = await self._json_body(request)
+        try:
+            width = int(body["width"])
+            height = int(body["height"])
+        except (KeyError, TypeError, ValueError):
+            return self.json_message(
+                "width and height are required", HTTPStatus.BAD_REQUEST
+            )
+        box = body.get("box")
+        try:
+            image = await library.async_set_crop(image_id, width, height, box)
+        except ValueError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return self.json(image.to_dict())
+
+
+class LibraryThumbView(_FraimicView):
+    """Serve the cached JPEG thumbnail for the panel grid."""
+
+    url = "/api/fraimic/library/thumb/{image_id}"
+    name = "api:fraimic:library:thumb"
+
+    async def get(self, request: web.Request, image_id: str) -> web.Response:
+        library = self._library(request)
+        try:
+            data = await library.async_get_thumbnail(image_id)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return web.Response(
+            body=data,
+            content_type="image/jpeg",
+            headers={"Cache-Control": "private, max-age=86400"},
+        )
+
+
+class LibraryAlbumView(_FraimicView):
+    """Album operations (rename/delete) applied across the whole library."""
+
+    url = "/api/fraimic/library/album"
+    name = "api:fraimic:library:album"
+
+    async def post(self, request: web.Request) -> web.Response:
+        library = self._library(request)
+        body = await self._json_body(request)
+        action = body.get("action")
+        name = body.get("name", "")
+        try:
+            if action == "rename":
+                await library.async_rename_album(name, body.get("new_name", ""))
+            elif action == "delete":
+                await library.async_delete_album(name)
+            else:
+                return self.json_message(
+                    "action must be rename or delete", HTTPStatus.BAD_REQUEST
+                )
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        return self.json({"albums": library.albums()})
+
+
+class LibrarySendView(_FraimicView):
+    """Send one library image to one or more frames."""
+
+    url = "/api/fraimic/library/send"
+    name = "api:fraimic:library:send"
+
+    async def post(self, request: web.Request) -> web.Response:
+        hass = request.app[KEY_HASS]
+        library = self._library(request)
+        body = await self._json_body(request)
+        image_id = body.get("image_id")
+        if not isinstance(image_id, str):
+            return self.json_message("image_id is required", HTTPStatus.BAD_REQUEST)
+
+        entries = loaded_fraimic_entries(hass)
+        if "entry_ids" in body:
+            entry_ids = body["entry_ids"]
+            if not isinstance(entry_ids, list) or not all(
+                isinstance(entry_id, str) for entry_id in entry_ids
+            ):
+                return self.json_message(
+                    "entry_ids must be a list", HTTPStatus.BAD_REQUEST
+                )
+            selected = set(entry_ids)
+            entries = [entry for entry in entries if entry.entry_id in selected]
+        if not entries:
+            return self.json_message("No matching loaded frames", HTTPStatus.BAD_REQUEST)
+
+        async def _send(entry: ConfigEntry) -> str | None:
+            scheduler = None
+            uploaded = False
+            try:
+                scheduler = begin_external_upload(entry)
+                await library.async_send_to_entry(image_id, entry)
+                uploaded = True
+            except Exception as err:  # noqa: BLE001 - isolate per-frame failures
+                _LOGGER.exception("Failed to send library image to %s", entry.entry_id)
+                return str(err)
+            finally:
+                finish_external_upload(scheduler, uploaded=uploaded)
+            return None
+
+        errors = await asyncio.gather(*(_send(entry) for entry in entries))
+        results = {
+            entry.entry_id: {"ok": error is None, "error": error}
+            for entry, error in zip(entries, errors, strict=True)
+        }
+        status = (
+            HTTPStatus.OK
+            if any(result["ok"] for result in results.values())
+            else HTTPStatus.BAD_GATEWAY
+        )
+        return self.json({"results": results}, status_code=status)
+
+
+class FramesView(_FraimicView):
+    """Describe the configured frames for the panel's Frames tab."""
+
+    url = "/api/fraimic/frames"
+    name = "api:fraimic:frames"
+
+    async def get(self, request: web.Request) -> web.Response:
+        hass = request.app[KEY_HASS]
+        frames = []
+        for entry in loaded_fraimic_entries(hass):
+            runtime = entry.runtime_data
+            coordinator = runtime.coordinator
+            info = coordinator.data or {}
+            frames.append(
+                {
+                    "entry_id": entry.entry_id,
+                    "title": entry.title,
+                    "host": runtime.client.host,
+                    "width": entry.data.get(CONF_WIDTH),
+                    "height": entry.data.get(CONF_HEIGHT),
+                    "rotation": entry.options.get(CONF_ROTATION, DEFAULT_ROTATION),
+                    "online": coordinator.last_update_success,
+                    "battery": (info.get("battery") or {}).get("percent"),
+                    "charging": (info.get("battery") or {}).get("charging"),
+                    "firmware": info.get("firmware_version"),
+                }
+            )
+        return self.json({"frames": frames})
