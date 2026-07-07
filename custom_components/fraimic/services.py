@@ -250,6 +250,7 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
         uploaded = result.get("uploaded", True)
         if uploaded:
             entry.runtime_data.last_art = None
+            entry.runtime_data.media_title = None
             entry.runtime_data.coordinator.async_update_listeners()
     finally:
         finish_external_upload(scheduler, uploaded=uploaded)

@@ -194,17 +194,18 @@ async def async_show_screen(
         uploaded = result.get("uploaded", True)
         preview_png = result.pop("preview_png", None)
         _set_screen_preview(runtime, preview_png, result["mode"])
-        if uploaded:
-            if art is not None:
-                from ..providers.ha import async_art_displayed
-
-                await async_art_displayed(hass, entry, art)
+        if uploaded or result.get("content_hash") == skip_if_hash:
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = art_info
+            runtime.media_title = art_info.get("title") if art_info else None
             # Entities read this lazily — poke coordinator listeners so their
             # attributes update now instead of at the next poll.
             runtime.coordinator.async_update_listeners()
+            if uploaded and art is not None:
+                from ..providers.ha import async_art_displayed
+
+                await async_art_displayed(hass, entry, art)
         return {"width": width, "height": height, "art": art_info, **result}
     finally:
         finish_external_upload(scheduler, uploaded=uploaded)

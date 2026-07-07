@@ -74,15 +74,15 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._camera_entity: str | None = None
         self._camera_unsub = None
         self._camera_generation = 0
-        self._local_media_title: str | None = None
 
     @property
     def media_title(self) -> str | None:
         """Title of what's on the frame: online artwork wins over file names."""
-        art = self.coordinator.config_entry.runtime_data.last_art
+        runtime = self.coordinator.config_entry.runtime_data
+        art = runtime.last_art
         if art and art.get("title"):
             return art["title"]
-        return self._local_media_title
+        return runtime.media_title
 
     @property
     def state(self) -> MediaPlayerState:
@@ -142,6 +142,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             uploaded = result.get("uploaded", True)
             if uploaded:
                 entry.runtime_data.last_art = None
+                entry.runtime_data.media_title = None
                 entry.runtime_data.coordinator.async_update_listeners()
         finally:
             stale_camera_upload = (
@@ -287,13 +288,12 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 )
                 uploaded = result.get("uploaded", True)
                 if uploaded:
-                    await async_art_displayed(self.hass, entry, art)
                     entry.runtime_data.last_art = asdict(art.candidate)
+                    entry.runtime_data.media_title = art.candidate.title
+                    self.coordinator.async_update_listeners()
+                    await async_art_displayed(self.hass, entry, art)
             finally:
                 finish_external_upload(scheduler, uploaded=uploaded)
-            # Attribution attributes on the image entities read this lazily.
-            self.coordinator.async_update_listeners()
-            self._local_media_title = art.candidate.title
             self.async_write_ha_state()
             return
 
@@ -346,7 +346,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)
                 )
-            self._local_media_title = camera_entity
+            self.coordinator.config_entry.runtime_data.media_title = camera_entity
             self.async_write_ha_state()
             return
 
@@ -383,9 +383,9 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             uploaded = result.get("uploaded", True)
         finally:
             finish_external_upload(scheduler, uploaded=uploaded)
-        self._local_media_title = media_id.rsplit("/", 1)[-1]
         if uploaded:
             entry.runtime_data.last_art = None
+            entry.runtime_data.media_title = media_id.rsplit("/", 1)[-1]
             entry.runtime_data.coordinator.async_update_listeners()
         self.async_write_ha_state()
 
