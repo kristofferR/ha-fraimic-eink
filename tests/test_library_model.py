@@ -129,6 +129,26 @@ def test_manifest_skips_entry_with_bad_crop_map():
     assert restored["bad"].crops == {}
 
 
+def test_manifest_keeps_image_when_one_crop_value_is_bad():
+    restored = lm.manifest_from_dict(
+        {
+            "images": {
+                "mixed": {
+                    "filename": "mixed.jpg",
+                    "uploaded_at": 1,
+                    "crops": {
+                        "bad": None,
+                        "1600x1200": [0.1, 0.1, 0.9, 0.9],
+                    },
+                }
+            }
+        }
+    )
+
+    assert set(restored) == {"mixed"}
+    assert restored["mixed"].crops == {"1600x1200": [0.1, 0.1, 0.9, 0.9]}
+
+
 @pytest.mark.parametrize(
     "data",
     [

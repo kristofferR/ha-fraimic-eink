@@ -121,6 +121,12 @@ class LibraryImage:
         crops = data.get("crops") or {}
         if not isinstance(crops, dict):
             crops = {}
+        parsed_crops: dict[str, list[float]] = {}
+        for key, value in crops.items():
+            try:
+                parsed_crops[str(key)] = list(value)
+            except TypeError:
+                continue
         return cls(
             image_id=str(data["image_id"]),
             filename=str(data.get("filename") or "image"),
@@ -129,7 +135,7 @@ class LibraryImage:
             width=data.get("width"),
             height=data.get("height"),
             albums=list(data.get("albums") or [LIBRARY_ALBUM_DEFAULT]),
-            crops={str(k): list(v) for k, v in crops.items()},
+            crops=parsed_crops,
         )
 
 
