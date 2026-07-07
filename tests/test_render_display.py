@@ -150,7 +150,7 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
         return b"bin-data", b"preview-png", "none"
 
     async def render_and_upload(*_args: object, **_kwargs: object) -> dict:
-        raise AssertionError("preview-only must not upload")
+        pytest.fail("preview-only must not upload")
 
     monkeypatch.setattr(display, "async_build_context", build_context)
     monkeypatch.setattr(display, "render_screen", render_screen)
@@ -189,7 +189,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
     async def convert_for_entry(
         *_args: object, **_kwargs: object
     ) -> tuple[bytes, bytes, str]:
-        raise AssertionError("upload path must use async_render_and_upload")
+        pytest.fail("upload path must use async_render_and_upload")
 
     async def render_and_upload(
         _hass: object,
@@ -258,7 +258,7 @@ def test_upload_path_holds_playlist_before_rendering(
     async def convert_for_entry(
         *_args: object, **_kwargs: object
     ) -> tuple[bytes, bytes, str]:
-        raise AssertionError("upload path must use async_render_and_upload")
+        pytest.fail("upload path must use async_render_and_upload")
 
     async def render_and_upload(
         _hass: object,
@@ -348,7 +348,7 @@ def test_skipped_picture_upload_keeps_current_art_metadata(
     async def convert_for_entry(
         *_args: object, **_kwargs: object
     ) -> tuple[bytes, bytes, str]:
-        raise AssertionError("upload path must use async_render_and_upload")
+        pytest.fail("upload path must use async_render_and_upload")
 
     async def render_and_upload(
         _hass: object,

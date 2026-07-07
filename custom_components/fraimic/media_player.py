@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import timedelta
+from urllib.parse import unquote, urlsplit
 
 import aiohttp
 from homeassistant.components import media_source
@@ -45,6 +46,14 @@ from .services import (
 ONLINE_ROOT = f"{MEDIA_SCHEME}://"
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _media_title_from_id(media_id: str) -> str:
+    """Best-effort display title without leaking resolved URLs or query tokens."""
+    parsed = urlsplit(media_id)
+    path = parsed.path or media_id
+    title = unquote(path.rstrip("/").rsplit("/", 1)[-1])
+    return title or parsed.netloc or "Image"
 
 
 async def async_setup_entry(
@@ -141,9 +150,14 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             )
             uploaded = result.get("uploaded", True)
             if uploaded:
+                current_camera_upload = (
+                    camera_generation is None
+                    or camera_generation == self._camera_generation
+                )
                 entry.runtime_data.last_art = None
-                entry.runtime_data.media_title = None
-                entry.runtime_data.coordinator.async_update_listeners()
+                if current_camera_upload:
+                    entry.runtime_data.media_title = camera_entity
+                    entry.runtime_data.coordinator.async_update_listeners()
         finally:
             stale_camera_upload = (
                 uploaded
@@ -346,13 +360,13 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)
                 )
-            self.coordinator.config_entry.runtime_data.media_title = camera_entity
             self.async_write_ha_state()
             return
 
         entry = self.coordinator.config_entry
         scheduler = begin_external_upload(entry)
         uploaded = False
+        media_title = _media_title_from_id(media_id)
         try:
             if media_source.is_media_source_id(media_id):
                 sourced = await media_source.async_resolve_media(
@@ -385,7 +399,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             finish_external_upload(scheduler, uploaded=uploaded)
         if uploaded:
             entry.runtime_data.last_art = None
-            entry.runtime_data.media_title = media_id.rsplit("/", 1)[-1]
+            entry.runtime_data.media_title = media_title
             entry.runtime_data.coordinator.async_update_listeners()
         self.async_write_ha_state()
 
