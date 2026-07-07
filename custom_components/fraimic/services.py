@@ -248,6 +248,8 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
             hass, entry, raw, dict(call.data), hold_playlist=False
         )
         uploaded = result.get("uploaded", True)
+        if uploaded:
+            entry.runtime_data.last_art = None
     finally:
         finish_external_upload(scheduler, uploaded=uploaded)
 

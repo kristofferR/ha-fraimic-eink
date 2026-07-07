@@ -108,8 +108,6 @@ async def async_fetch_art(
         raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
     except Exception as err:  # noqa: BLE001 - provider parser/decoder failures vary
         raise ArtFetchError(f"{provider.name}: {err}") from err
-    # Provider compliance hook (e.g. Unsplash's mandated download ping).
-    await provider.async_on_display(session, image.candidate)
     return image
 
 
@@ -122,6 +120,10 @@ def _request_for(hass: HomeAssistant, entry, provider) -> FetchRequest:
         target_height=height,
         api_key=entry.options.get(provider.key_option) if provider.key_option else None,
     )
+
+
+def _browse_stash_key(entry, provider_key: str) -> str:
+    return f"browse_{entry.entry_id}_{provider_key}"
 
 
 async def async_browse_candidates(
@@ -146,7 +148,7 @@ async def async_browse_candidates(
     # Daily providers have no by-id lookup; the browse stash covers the gap
     # between browsing and clicking.
     stash = {candidate.item_id: candidate for candidate in candidates}
-    cache.set(f"browse_{provider_key}", stash)
+    cache.set(_browse_stash_key(entry, provider_key), stash)
     return candidates
 
 
@@ -162,7 +164,7 @@ async def async_art_by_media_id(
         raise ArtFetchError(f"Unknown image provider: {provider_key}")
     session = async_get_clientsession(hass)
     cache = _cache(hass)
-    stash = cache.get(f"browse_{provider_key}", BROWSE_STASH_TTL) or {}
+    stash = cache.get(_browse_stash_key(entry, provider_key), BROWSE_STASH_TTL) or {}
     candidate = stash.get(item_id)
     try:
         if candidate is None:
@@ -176,5 +178,15 @@ async def async_art_by_media_id(
         raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
     except Exception as err:  # noqa: BLE001 - provider parser/decoder failures vary
         raise ArtFetchError(f"{provider.name}: {err}") from err
-    await provider.async_on_display(session, image.candidate)
     return image
+
+
+async def async_art_displayed(hass: HomeAssistant, entry, art: ArtImage) -> None:
+    """Run provider display hooks after an image is actually uploaded."""
+    provider = get_provider(art.candidate.provider)
+    if provider is None:
+        return
+    session = async_get_clientsession(hass)
+    await provider.async_on_display(
+        session, art.candidate, _request_for(hass, entry, provider)
+    )

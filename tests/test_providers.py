@@ -573,6 +573,27 @@ def test_parse_unsplash_photo() -> None:
     assert candidate.title == "A man drinking a coffee."
 
 
+def test_unsplash_candidates_do_not_store_api_key() -> None:
+    unsplash = load("providers.unsplash")
+    session = FakeSession()
+    session.add(unsplash.RANDOM_URL, FakeResponse(payload=_fixture("unsplash_random.json")))
+    provider = unsplash.UnsplashProvider()
+    provider.min_interval = 0
+    request = base.FetchRequest(
+        target_width=1600,
+        target_height=1200,
+        query="coffee",
+        api_key="secret-key",
+    )
+
+    candidates = _run(
+        provider.async_candidates(session, cache_mod.ProviderCache(), request, 1)
+    )
+
+    assert candidates
+    assert "api_key" not in (candidates[0].extra or {})
+
+
 def test_parse_pexels_photo() -> None:
     pexels = load("providers.pexels")
 

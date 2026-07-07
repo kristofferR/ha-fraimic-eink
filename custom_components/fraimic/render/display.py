@@ -10,6 +10,7 @@ quantisation is lossless), packs the ``.bin``, and uploads.
 from __future__ import annotations
 
 import hashlib
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
@@ -76,7 +77,7 @@ async def async_render_screen(
 
 async def _async_picture_source(
     hass: HomeAssistant, entry: FraimicConfigEntry, screen: ScreenConfig
-) -> tuple[bytes, dict, dict | None]:
+) -> tuple[bytes, dict, object | None]:
     """Raw bytes + conversion overrides (+ art attribution) for a picture screen.
 
     Pictures go through the normal photo pipeline (dither + preprocessing) —
@@ -86,10 +87,8 @@ async def _async_picture_source(
     from ..source import async_get_source_bytes
 
     source = screen.source or {}
-    art_info: dict | None = None
+    art = None
     if provider_key := source.get("provider"):
-        from dataclasses import asdict
-
         from ..providers.caption import composite_with_caption
         from ..providers.ha import ArtFetchError, async_fetch_art
 
@@ -98,7 +97,6 @@ async def _async_picture_source(
             hass, entry, provider_key, query=source.get("query"), fit=fit
         )
         raw = art.data
-        art_info = asdict(art.candidate)
         if source.get("caption") and art.candidate.attribution:
             width, height = viewed_size(entry)
             try:
@@ -124,7 +122,7 @@ async def _async_picture_source(
         overrides[ATTR_FIT] = fit
     if mode := source.get("mode"):
         overrides[ATTR_MODE] = mode
-    return raw, overrides, art_info
+    return raw, overrides, art
 
 
 async def async_show_screen(
@@ -156,9 +154,11 @@ async def async_show_screen(
     )
     uploaded = False
     try:
+        art = None
         art_info: dict | None = None
         if screen.kind == KIND_PICTURE:
-            png, overrides, art_info = await _async_picture_source(hass, entry, screen)
+            png, overrides, art = await _async_picture_source(hass, entry, screen)
+            art_info = asdict(art.candidate) if art is not None else None
             preprocess = True
         else:
             png, mode = await async_render_screen(hass, entry, screen)
@@ -195,6 +195,10 @@ async def async_show_screen(
         preview_png = result.pop("preview_png", None)
         _set_screen_preview(runtime, preview_png, result["mode"])
         if uploaded:
+            if art is not None:
+                from ..providers.ha import async_art_displayed
+
+                await async_art_displayed(hass, entry, art)
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = art_info

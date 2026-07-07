@@ -94,7 +94,9 @@ class ArtProvider:
         """A specific item (media-browser click). Default: unsupported."""
         raise ArtFetchError(f"{self.name} does not support fetching by id")
 
-    async def async_on_display(self, session: Any, candidate: ArtCandidate) -> None:
+    async def async_on_display(
+        self, session: Any, candidate: ArtCandidate, request: FetchRequest
+    ) -> None:
         """Hook fired when a candidate is actually shown (Unsplash ping)."""
 
     def image_headers(self, candidate: ArtCandidate) -> dict[str, str]:
