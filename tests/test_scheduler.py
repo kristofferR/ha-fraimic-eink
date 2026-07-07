@@ -436,6 +436,26 @@ def test_failed_manual_screen_render_preserves_hold(
     assert scheduler._hold_until == hold_until
 
 
+def test_failed_manual_online_fetch_preserves_hold_and_raises(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    hold_until = datetime(2026, 7, 3, 12, 35)
+    screen = SimpleNamespace(screen_id="screen-1", name="Broken online")
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise scheduler_mod.ArtFetchError("provider failed")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler._hold_until = hold_until
+
+    with pytest.raises(scheduler_mod.ArtFetchError, match="provider failed"):
+        asyncio.run(scheduler.async_select(screen))
+
+    assert scheduler._hold_until == hold_until
+
+
 def test_automatic_wake_retry_skips_closed_screen_window(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

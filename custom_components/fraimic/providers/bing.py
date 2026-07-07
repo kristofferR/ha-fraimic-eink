@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
+from .base import ArtCandidate, ArtProvider, FetchRequest, api_headers
+from .engine import async_fetch_json
 
 ARCHIVE_URL = "https://www.bing.com/HPImageArchive.aspx?format=js&idx=0&n=8&mkt=en-US"
 BASE = "https://www.bing.com"
@@ -51,14 +52,17 @@ class BingProvider(ArtProvider):
     ) -> list[ArtCandidate]:
         candidates = cache.get("bing_archive", ARCHIVE_TTL)
         if candidates is None:
-            await cache.async_throttle(self.key, self.min_interval)
-            resp = await session.get(
-                ARCHIVE_URL, headers=api_headers(), timeout=API_TIMEOUT
+            payload = await async_fetch_json(
+                session,
+                cache,
+                key=self.key,
+                min_interval=self.min_interval,
+                url=ARCHIVE_URL,
+                error_label="Bing archive",
+                headers=api_headers(),
+                timeout=API_TIMEOUT,
+                json_kwargs={"content_type": None},
             )
-            async with resp:
-                if resp.status != 200:
-                    raise ArtFetchError(f"Bing archive returned HTTP {resp.status}")
-                payload = await resp.json(content_type=None)
             candidates = parse_bing_archive(payload)
             cache.set("bing_archive", candidates)
         return candidates[:count]
