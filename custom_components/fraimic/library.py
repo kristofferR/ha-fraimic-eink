@@ -475,7 +475,9 @@ async def async_upload_rendered(
     """Upload an already-rendered buffer to one frame and update its preview.
 
     Shared by direct library sends and scene activation (which pre-renders all
-    frames first, then uploads concurrently).
+    frames first, then uploads concurrently). Serializes against the frame's
+    upload lock so a library/scene send can't interleave with a playlist or
+    manual upload on the same (easily wedged) ESP32.
     """
     runtime = entry.runtime_data
 

@@ -30,6 +30,7 @@ from .const import (
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary, get_library
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
+from .screens_http import screens_views
 from .services import begin_external_upload, finish_external_upload
 
 _LOGGER = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         PacksView(),
         PackInstallView(),
         PackUninstallView(),
+        *screens_views(),
     ):
         hass.http.register_view(view)
 
