@@ -147,7 +147,8 @@ async def async_browse_candidates(
         raise ArtFetchError(f"{provider.name}: {err}") from err
     # Daily providers have no by-id lookup; the browse stash covers the gap
     # between browsing and clicking.
-    stash = {candidate.item_id: candidate for candidate in candidates}
+    stash = cache.get(_browse_stash_key(entry, provider_key), BROWSE_STASH_TTL) or {}
+    stash = {**stash, **{candidate.item_id: candidate for candidate in candidates}}
     cache.set(_browse_stash_key(entry, provider_key), stash)
     return candidates
 

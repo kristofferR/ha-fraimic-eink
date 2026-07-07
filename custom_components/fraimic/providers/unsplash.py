@@ -62,11 +62,16 @@ class UnsplashProvider(ArtProvider):
         orientation = (
             "landscape" if request.target_width >= request.target_height else "portrait"
         )
-        url = f"{RANDOM_URL}?count={count}&orientation={orientation}"
+        params = {"count": count, "orientation": orientation}
         if request.query:
-            url += f"&query={request.query}"
+            params["query"] = request.query
         await cache.async_throttle(self.key, self.min_interval)
-        resp = await session.get(url, headers=self._headers(request), timeout=API_TIMEOUT)
+        resp = await session.get(
+            RANDOM_URL,
+            params=params,
+            headers=self._headers(request),
+            timeout=API_TIMEOUT,
+        )
         async with resp:
             if resp.status != 200:
                 raise ArtFetchError(f"Unsplash returned HTTP {resp.status}")

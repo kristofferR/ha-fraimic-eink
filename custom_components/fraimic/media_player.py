@@ -277,11 +277,19 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             if parsed is None:
                 raise HomeAssistantError(f"Invalid online media id: {media_id}")
             entry = self.coordinator.config_entry
-            art = await async_art_by_media_id(self.hass, entry, *parsed)
-            result = await async_render_and_upload(self.hass, entry, art.data)
-            if result.get("uploaded", True):
-                await async_art_displayed(self.hass, entry, art)
-                entry.runtime_data.last_art = asdict(art.candidate)
+            scheduler = begin_external_upload(entry)
+            uploaded = False
+            try:
+                art = await async_art_by_media_id(self.hass, entry, *parsed)
+                result = await async_render_and_upload(
+                    self.hass, entry, art.data, hold_playlist=False
+                )
+                uploaded = result.get("uploaded", True)
+                if uploaded:
+                    await async_art_displayed(self.hass, entry, art)
+                    entry.runtime_data.last_art = asdict(art.candidate)
+            finally:
+                finish_external_upload(scheduler, uploaded=uploaded)
             # Attribution attributes on the image entities read this lazily.
             self.coordinator.async_update_listeners()
             self._local_media_title = art.candidate.title

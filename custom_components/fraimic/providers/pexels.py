@@ -54,15 +54,20 @@ class PexelsProvider(ArtProvider):
         )
         page = random.randint(1, 20)
         if request.query:
-            url = (
-                f"{SEARCH_URL}?query={request.query}&orientation={orientation}"
-                f"&per_page={count}&page={page}"
-            )
+            url = SEARCH_URL
+            params = {
+                "query": request.query,
+                "orientation": orientation,
+                "per_page": count,
+                "page": page,
+            }
         else:
-            url = f"{CURATED_URL}?per_page={count}&page={page}"
+            url = CURATED_URL
+            params = {"per_page": count, "page": page}
         await cache.async_throttle(self.key, self.min_interval)
         resp = await session.get(
             url,
+            params=params,
             headers=api_headers({"Authorization": request.api_key}),
             timeout=API_TIMEOUT,
         )
