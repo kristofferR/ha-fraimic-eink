@@ -1673,6 +1673,7 @@ class FraimicPanel extends HTMLElement {
   _openScreenEditor(stored) {
     const descriptors = this._descriptors;
     const layouts = descriptors.layouts;
+    const defaultLayout = layouts.quadrant ? "quadrant" : Object.keys(layouts)[0];
 
     // Editor state. `slots` maps slot name -> {type, values} (dashboard kind).
     const def = stored
@@ -1688,6 +1689,9 @@ class FraimicPanel extends HTMLElement {
           interval: 1800,
           enabled: true,
         };
+    def.kind = def.kind || "dashboard";
+    if (!layouts[def.layout]) def.layout = defaultLayout;
+    if (!Array.isArray(def.widgets)) def.widgets = [];
     const slots = {};
     for (const widget of def.widgets || []) {
       const { type, slot, ...values } = widget;
@@ -1737,6 +1741,19 @@ class FraimicPanel extends HTMLElement {
     const status = this._el("div", { class: "status" });
     let previewTimer = null;
     let previewSeq = 0;
+    let previewObjectUrl = null;
+    const revokeScreenPreview = () => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = null;
+      }
+    };
+    const cleanupPreview = () => {
+      clearTimeout(previewTimer);
+      previewTimer = null;
+      previewSeq += 1;
+      revokeScreenPreview();
+    };
     const renderPreview = async () => {
       const seq = ++previewSeq;
       status.className = "status";
@@ -1758,7 +1775,9 @@ class FraimicPanel extends HTMLElement {
         }
         const blob = await resp.blob();
         if (seq !== previewSeq) return; // a newer render superseded this one
-        previewImg.src = URL.createObjectURL(blob);
+        revokeScreenPreview();
+        previewObjectUrl = URL.createObjectURL(blob);
+        previewImg.src = previewObjectUrl;
         status.textContent = "Live preview — exactly what the frame will show";
       } catch (err) {
         if (seq !== previewSeq) return;
@@ -1945,21 +1964,23 @@ class FraimicPanel extends HTMLElement {
       this._el("button", { class: "btn", text: "Refresh preview", onclick: renderPreview }),
     ]);
 
+    let screenId = stored ? stored.screen_id : null;
     const save = async (andSend) => {
       try {
         const body = { entry_id: this._screensEntry, screen: collect() };
-        if (stored) body.screen_id = stored.screen_id;
+        if (screenId) body.screen_id = screenId;
         const result = await this._api("screens/save", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
+        screenId = result.screen_id;
         if (andSend) {
           this._toast("Saved — sending to the frame (~30 s refresh)");
           await this._api("screens/send", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ entry_id: this._screensEntry, screen_id: result.screen_id }),
+            body: JSON.stringify({ entry_id: this._screensEntry, screen_id: screenId }),
           });
         }
         this._closeDialog();
@@ -1979,7 +2000,8 @@ class FraimicPanel extends HTMLElement {
         this._el("button", { class: "btn", text: "Save & send", onclick: () => save(true) }),
         this._el("button", { class: "btn raised", text: "Save", onclick: () => save(false) }),
       ],
-      true
+      true,
+      cleanupPreview
     );
     renderPreview();
   }

@@ -24,11 +24,13 @@ def test_descriptor_shape() -> None:
     for wtype, meta in editor.WIDGET_FIELDS.items():
         assert meta["label"], wtype
         for field in meta["fields"]:
-            assert field["key"], (wtype, field)
-            assert field["type"] in FIELD_TYPES, (wtype, field)
-            assert field["label"], (wtype, field)
-            if field["type"] == "select":
-                assert field["options"], (wtype, field)
+            _assert_field_shape(field, wtype)
+    for group, fields in (
+        ("screen", editor.SCREEN_FIELDS),
+        ("picture", editor.PICTURE_FIELDS),
+    ):
+        for field in fields:
+            _assert_field_shape(field, group)
 
 
 def test_editor_field_keys_are_valid_widget_options() -> None:
@@ -72,3 +74,48 @@ def test_editor_field_keys_are_valid_widget_options() -> None:
                 else:
                     payload.setdefault("url", "https://example.com/x.png")
             widget_schema(payload)
+
+
+def test_screen_field_keys_are_valid_screen_options() -> None:
+    """Every screen-level editor field key must be accepted by SCREEN_SCHEMA."""
+    for field in editor.SCREEN_FIELDS:
+        payload = {
+            "kind": "dashboard",
+            "layout": "full",
+            "widgets": [{"type": "clock", "slot": "main"}],
+            field["key"]: _field_sample(field),
+        }
+        schema.SCREEN_SCHEMA(payload)
+
+
+def test_picture_field_keys_are_valid_picture_options() -> None:
+    """Every picture editor field key must be accepted by SCREEN_SCHEMA."""
+    for field in editor.PICTURE_FIELDS:
+        payload = {"kind": "picture", "url": "https://example.com/image.png"}
+        if field["key"] == "entity":
+            payload = {"kind": "picture", "entity": "camera.test"}
+        elif field["key"] != "url":
+            payload[field["key"]] = _field_sample(field)
+        schema.SCREEN_SCHEMA(payload)
+
+
+def _assert_field_shape(field: dict, owner: str) -> None:
+    assert field["key"], (owner, field)
+    assert field["type"] in FIELD_TYPES, (owner, field)
+    assert field["label"], (owner, field)
+    if field["type"] == "select":
+        assert field["options"], (owner, field)
+
+
+def _field_sample(field: dict) -> object:
+    if field["type"] == "select":
+        return field["options"][0]
+    if field["type"] == "number":
+        return field.get("default", field.get("min", 1))
+    if field["type"] == "bool":
+        return field.get("default", True)
+    if field["type"] == "entity":
+        return "camera.test"
+    if field["type"] == "entity_list":
+        return ["sensor.test"]
+    return field.get("default", "x")

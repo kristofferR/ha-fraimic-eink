@@ -49,6 +49,13 @@ def _validate_screen(raw: Any) -> dict:
         raise web.HTTPBadRequest(text=f"Invalid screen: {err}") from err
 
 
+def _assert_admin(request: web.Request) -> None:
+    """Require an admin user before mutating screens or fetching preview data."""
+    user = request.get("hass_user")
+    if not getattr(user, "is_admin", False):
+        raise web.HTTPForbidden(text="Admin required")
+
+
 class _ScreensViewBase(HomeAssistantView):
     async def _json_body(self, request: web.Request) -> dict[str, Any]:
         try:
@@ -106,6 +113,7 @@ class ScreenPreviewView(_ScreensViewBase):
     name = "api:fraimic:screens:preview"
 
     async def post(self, request: web.Request) -> web.Response:
+        _assert_admin(request)
         hass = request.app[KEY_HASS]
         body = await self._json_body(request)
         entry = _resolve_entry(hass, body.get("entry_id"))
@@ -150,6 +158,7 @@ class ScreenSaveView(_ScreensViewBase):
     name = "api:fraimic:screens:save"
 
     async def post(self, request: web.Request) -> web.Response:
+        _assert_admin(request)
         hass = request.app[KEY_HASS]
         body = await self._json_body(request)
         entry = _resolve_entry(hass, body.get("entry_id"))
@@ -182,6 +191,7 @@ class ScreenDeleteView(_ScreensViewBase):
     name = "api:fraimic:screens:delete"
 
     async def delete(self, request: web.Request, screen_id: str) -> web.Response:
+        _assert_admin(request)
         hass = request.app[KEY_HASS]
         entry = _resolve_entry(hass, request.query.get("entry_id"))
         subentry = entry.subentries.get(screen_id)
@@ -201,6 +211,7 @@ class ScreenSendView(_ScreensViewBase):
         from .render.display import async_show_screen
         from .screens import screen_by_key
 
+        _assert_admin(request)
         hass = request.app[KEY_HASS]
         body = await self._json_body(request)
         entry = _resolve_entry(hass, body.get("entry_id"))
