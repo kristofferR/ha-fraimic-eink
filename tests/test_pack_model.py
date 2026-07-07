@@ -58,6 +58,8 @@ def test_map_remote_catalog():
                         "path": "scene_packs/monet/01.jpg",
                         "title": "Impression, Sunrise",
                         "commons_url": "https://commons.wikimedia.org/wiki/File:x.jpg",
+                        "license": "CC BY-SA 4.0",
+                        "attribution": "Claude Monet, Wikimedia Commons",
                     }
                 ],
             },
@@ -79,6 +81,8 @@ def test_map_remote_catalog():
     assert image["preview_url"] == image["url"]
     assert image["filename"] == "monet_01.jpg"
     assert image["source_url"].startswith("https://commons.wikimedia.org/")
+    assert image["license"] == "CC BY-SA 4.0"
+    assert image["attribution"] == "Claude Monet, Wikimedia Commons"
     assert "frame-addons" in pack["attribution"]
 
 

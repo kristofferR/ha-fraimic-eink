@@ -272,7 +272,12 @@ class ArtPackManager:
                 try:
                     data = await self._async_download(session, url)
                     library_image = await self.library.async_add_image(
-                        data, image_def["filename"], albums=[pack["name"]]
+                        data,
+                        image_def["filename"],
+                        albums=[pack["name"]],
+                        source_url=image_def.get("source_url"),
+                        license_text=image_def.get("license"),
+                        attribution=image_def.get("attribution"),
                     )
                 except (HomeAssistantError, aiohttp.ClientError, asyncio.TimeoutError) as err:
                     _LOGGER.warning(

@@ -113,7 +113,9 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
                     "filename": f"{pack_id}_{filename}",
                     # GitHub-raw images are hot-linkable; galleries use them directly.
                     "preview_url": url,
-                    "source_url": image.get("commons_url"),
+                    "source_url": _optional_string(image.get("commons_url")),
+                    "license": _optional_string(image.get("license")),
+                    "attribution": _optional_string(image.get("attribution")),
                 }
             )
         if not images:
@@ -134,6 +136,13 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
             }
         )
     return packs
+
+
+def _optional_string(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
 
 
 def _is_landscape(width: int | None, height: int | None) -> bool | None:

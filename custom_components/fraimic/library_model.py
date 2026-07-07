@@ -80,6 +80,9 @@ class LibraryImage:
     width: int | None = None
     height: int | None = None
     albums: list[str] = field(default_factory=lambda: [LIBRARY_ALBUM_DEFAULT])
+    source_url: str | None = None
+    license: str | None = None
+    attribution: str | None = None
     # Saved manual crops, keyed by resolution_key(): [x0, y0, x1, y1] normalized.
     crops: dict[str, list[float]] = field(default_factory=dict)
 
@@ -115,6 +118,9 @@ class LibraryImage:
             "width": self.width,
             "height": self.height,
             "albums": self.normalized_albums(),
+            "source_url": self.source_url,
+            "license": self.license,
+            "attribution": self.attribution,
             "crops": self.crops,
         }
 
@@ -140,8 +146,18 @@ class LibraryImage:
             width=data.get("width"),
             height=data.get("height"),
             albums=[album for album in albums if isinstance(album, str)],
+            source_url=_optional_string(data.get("source_url")),
+            license=_optional_string(data.get("license")),
+            attribution=_optional_string(data.get("attribution")),
             crops=parsed_crops,
         )
+
+
+def _optional_string(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    return value or None
 
 
 def manifest_to_dict(images: dict[str, LibraryImage]) -> dict[str, Any]:
