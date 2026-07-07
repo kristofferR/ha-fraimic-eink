@@ -25,6 +25,7 @@ class Scene:
     mappings: dict[str, str] = field(default_factory=dict)
     created_at: float = 0.0
     source: str = SCENE_SOURCE_USER
+    source_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -33,6 +34,7 @@ class Scene:
             "mappings": self.mappings,
             "created_at": self.created_at,
             "source": self.source,
+            "source_id": self.source_id,
         }
 
     @classmethod
@@ -51,6 +53,7 @@ class Scene:
             mappings=mappings,
             created_at=float(data.get("created_at") or 0.0),
             source=str(data.get("source") or SCENE_SOURCE_USER),
+            source_id=str(data["source_id"]) if data.get("source_id") else None,
         )
 
 

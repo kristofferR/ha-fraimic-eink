@@ -118,6 +118,7 @@ class SceneManager:
         mappings: dict[str, str],
         *,
         source: str = SCENE_SOURCE_USER,
+        source_id: str | None = None,
     ) -> Scene:
         name = self._validate_name(name)
         mappings = self._validate_mappings(mappings)
@@ -127,6 +128,7 @@ class SceneManager:
             mappings=mappings,
             created_at=time.time(),
             source=source,
+            source_id=source_id,
         )
         self.scenes[scene.scene_id] = scene
         await self._async_save()
@@ -138,6 +140,7 @@ class SceneManager:
         *,
         name: str | None = None,
         mappings: dict[str, str] | None = None,
+        source_id: str | None = None,
     ) -> Scene:
         scene = self.get(scene_id)
         next_name = scene.name
@@ -148,6 +151,8 @@ class SceneManager:
             next_mappings = self._validate_mappings(mappings)
         scene.name = next_name
         scene.mappings = next_mappings
+        if source_id is not None:
+            scene.source_id = source_id
         await self._async_save()
         return scene
 

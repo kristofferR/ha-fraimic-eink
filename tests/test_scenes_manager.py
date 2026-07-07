@@ -113,6 +113,32 @@ def test_scene_update_validates_before_mutating(
     assert scene.mappings == {"entry-1": "img-1"}
 
 
+def test_scene_create_and_update_tracks_source_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenes = _load_scenes(monkeypatch)
+    manager = scenes.SceneManager(SimpleNamespace(entries=[]), _Library())
+
+    scene = asyncio.run(
+        manager.async_create(
+            "Pack",
+            {"entry-1": "img-1"},
+            source="pack",
+            source_id="pack-1",
+        )
+    )
+    updated = asyncio.run(
+        manager.async_update(
+            scene.scene_id,
+            mappings={"entry-1": "img-2"},
+            source_id="pack-2",
+        )
+    )
+
+    assert updated.source == "pack"
+    assert updated.source_id == "pack-2"
+
+
 def test_missing_scene_id_raises_typed_error(monkeypatch: pytest.MonkeyPatch) -> None:
     scenes = _load_scenes(monkeypatch)
     manager = scenes.SceneManager(SimpleNamespace(entries=[]), _Library())

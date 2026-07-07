@@ -24,6 +24,7 @@ import logging
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import aiohttp
 from homeassistant.core import HomeAssistant, callback
@@ -44,7 +45,7 @@ from .const import (
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary
 from .pack_model import map_remote_catalog, match_images_to_frames, validate_catalog
-from .scene_model import SCENE_SOURCE_PACK
+from .scene_model import SCENE_SOURCE_PACK, Scene
 from .scenes import SceneManager
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,28 +148,92 @@ class ArtPackManager:
                 return pack
         raise HomeAssistantError(f"No art pack with id {pack_id}")
 
-    def _live_images(self, pack_id: str) -> dict[str, str]:
+    def _live_images(
+        self, pack_id: str, current_urls: set[str] | None = None
+    ) -> dict[str, str]:
         """The pack's installed url→image_id map, dropping deleted images."""
         record = self.installed.get(pack_id) or {}
         return {
             url: image_id
             for url, image_id in (record.get("images") or {}).items()
             if image_id in self.library.images
+            and (current_urls is None or url in current_urls)
         }
 
     def status(self) -> list[dict[str, Any]]:
         """Merged catalog + installed state for the panel's Art Packs tab."""
         result = []
+        seen_ids = set()
         for pack in self._all_packs():
-            live = self._live_images(pack["id"])
+            seen_ids.add(pack["id"])
+            current_urls = {image["url"] for image in pack["images"]}
+            live = self._live_images(pack["id"], current_urls)
             result.append(
                 {
                     **pack,
                     "installed_count": len(live),
-                    "installed": len(live) == len(pack["images"]),
+                    "installed": bool(current_urls) and set(live) == current_urls,
+                }
+            )
+        for pack_id, record in self.installed.items():
+            if pack_id in seen_ids:
+                continue
+            live = self._live_images(pack_id)
+            if not live:
+                continue
+            pack = self._installed_only_pack(pack_id, record, live)
+            result.append(
+                {
+                    **pack,
+                    "installed_count": len(live),
+                    "installed": True,
                 }
             )
         return result
+
+    def _installed_only_pack(
+        self, pack_id: str, record: dict[str, Any], live: dict[str, str]
+    ) -> dict[str, Any]:
+        """Build a catalog row for an installed pack missing from live catalogs."""
+        images = []
+        for url, image_id in live.items():
+            filename = Path(urlparse(url).path).name or f"{image_id}.jpg"
+            images.append(
+                {
+                    "title": self.library.images[image_id].filename,
+                    "url": url,
+                    "preview_url": url,
+                    "filename": filename,
+                }
+            )
+        return {
+            "id": pack_id,
+            "name": str(record.get("name") or pack_id),
+            "category": "Installed",
+            "description": "Installed pack not currently available in the catalog.",
+            "attribution": "See original catalog source",
+            "cover_url": images[0]["url"],
+            "images": images,
+        }
+
+    def _installed_record(
+        self,
+        pack_id: str,
+        pack_name: str,
+        images: dict[str, str],
+        *,
+        scene_id: str | None = None,
+    ) -> dict[str, Any]:
+        record: dict[str, Any] = {
+            "installed_at": time.time(),
+            "name": pack_name,
+            "images": dict(images),
+        }
+        previous_scene_id = (self.installed.get(pack_id) or {}).get("scene_id")
+        scene_id = scene_id or previous_scene_id
+        if isinstance(scene_id, str) and scene_id:
+            record["scene_id"] = scene_id
+        return record
 
     # --------------------------------------------------------------- install
 
@@ -178,7 +243,8 @@ class ArtPackManager:
         async with self._install_lock:
             pack = self._get_pack(pack_id)
             session = async_get_clientsession(self.hass)
-            live = self._live_images(pack_id)
+            current_urls = {image["url"] for image in pack["images"]}
+            live = self._live_images(pack_id, current_urls)
             failed: list[dict[str, str]] = []
             downloaded = 0
 
@@ -198,11 +264,9 @@ class ArtPackManager:
                     failed.append({"title": image_def["title"], "error": str(err)})
                 else:
                     live[url] = library_image.image_id
-                    self.installed[pack_id] = {
-                        "installed_at": time.time(),
-                        "name": pack["name"],
-                        "images": dict(live),
-                    }
+                    self.installed[pack_id] = self._installed_record(
+                        pack_id, pack["name"], live
+                    )
                     await self._async_save()
                     downloaded += 1
                 delay = (
@@ -212,16 +276,18 @@ class ArtPackManager:
                 )
                 await asyncio.sleep(delay)
 
-            self.installed[pack_id] = {
-                "installed_at": time.time(),
-                "name": pack["name"],
-                "images": live,
-            }
+            self.installed[pack_id] = self._installed_record(
+                pack_id, pack["name"], live
+            )
             await self._async_save()
 
             scene_id = None
             if live:
                 scene_id = await self._async_sync_pack_scene(pack, list(live.values()))
+                self.installed[pack_id] = self._installed_record(
+                    pack_id, pack["name"], live, scene_id=scene_id
+                )
+                await self._async_save()
             return {
                 "pack_id": pack_id,
                 "downloaded": downloaded,
@@ -272,25 +338,55 @@ class ArtPackManager:
         if not mappings:
             return None
 
+        installed_image_ids = set(image_ids)
         for scene in self.scenes.scenes.values():
-            if (
-                scene.source == SCENE_SOURCE_PACK
-                and (
-                    scene.name == pack["name"]
-                    or scene.name.startswith(self._pack_scene_name_prefix(pack["name"]))
-                )
+            if self._is_pack_scene(
+                scene, pack["id"], pack["name"], installed_image_ids
             ):
-                updated = await self.scenes.async_update(scene.scene_id, mappings=mappings)
+                updated = await self.scenes.async_update(
+                    scene.scene_id, mappings=mappings, source_id=pack["id"]
+                )
                 return updated.scene_id
         scene_name = self._available_pack_scene_name(pack["name"])
         created = await self.scenes.async_create(
-            scene_name, mappings, source=SCENE_SOURCE_PACK
+            scene_name, mappings, source=SCENE_SOURCE_PACK, source_id=pack["id"]
         )
         return created.scene_id
 
+    def _is_pack_scene(
+        self,
+        scene: Scene,
+        pack_id: str,
+        pack_name: str,
+        installed_image_ids: set[str],
+    ) -> bool:
+        if scene.source != SCENE_SOURCE_PACK:
+            return False
+        if scene.source_id == pack_id:
+            return True
+        record_scene_id = (self.installed.get(pack_id) or {}).get("scene_id")
+        if isinstance(record_scene_id, str) and scene.scene_id == record_scene_id:
+            return True
+        if scene.source_id:
+            return False
+        if not (
+            scene.name == pack_name or self._is_pack_scene_name(scene.name, pack_name)
+        ):
+            return False
+        return bool(installed_image_ids) and any(
+            image_id in installed_image_ids for image_id in scene.mappings.values()
+        )
+
     @staticmethod
-    def _pack_scene_name_prefix(pack_name: str) -> str:
-        return f"{pack_name} (Pack"
+    def _pack_scene_name(pack_name: str) -> str:
+        return f"{pack_name} (Pack)"
+
+    @classmethod
+    def _is_pack_scene_name(cls, scene_name: str, pack_name: str) -> bool:
+        prefix = f"{pack_name} (Pack "
+        return scene_name == cls._pack_scene_name(pack_name) or (
+            scene_name.startswith(prefix) and scene_name.endswith(")")
+        )
 
     def _available_pack_scene_name(self, pack_name: str) -> str:
         """Return a name that will not collide with user-created scenes."""
@@ -299,12 +395,12 @@ class ArtPackManager:
         }
         if pack_name.strip().casefold() not in existing:
             return pack_name
-        base = self._pack_scene_name_prefix(pack_name) + ")"
+        base = self._pack_scene_name(pack_name)
         if base.casefold() not in existing:
             return base
         suffix = 2
         while True:
-            candidate = self._pack_scene_name_prefix(pack_name) + f" {suffix})"
+            candidate = f"{pack_name} (Pack {suffix})"
             if candidate.casefold() not in existing:
                 return candidate
             suffix += 1
@@ -323,7 +419,9 @@ class ArtPackManager:
                 pack = None
             pack_name = (pack or record or {}).get("name")
             live = self._live_images(pack_id)
-            pack_scene_ids = self._pack_scene_ids(pack_name, set(live.values()))
+            pack_scene_ids = self._pack_scene_ids(
+                pack_id, pack_name, set(live.values())
+            )
             for image_id in live.values():
                 try:
                     await self.library.async_delete_image(image_id)
@@ -339,20 +437,30 @@ class ArtPackManager:
             await self._async_save()
             return {"pack_id": pack_id, "removed": len(live)}
 
-    def _pack_scene_ids(self, pack_name: str | None, image_ids: set[str]) -> list[str]:
+    def _pack_scene_ids(
+        self, pack_id: str, pack_name: str | None, image_ids: set[str]
+    ) -> list[str]:
         """Find auto-scenes owned by a pack before uninstall pruning mutates them."""
         scene_ids = []
         for scene in self.scenes.scenes.values():
             if scene.source != SCENE_SOURCE_PACK:
                 continue
-            if pack_name is not None and (
-                scene.name == pack_name
-                or scene.name.startswith(self._pack_scene_name_prefix(pack_name))
-            ):
+            if scene.source_id == pack_id:
                 scene_ids.append(scene.scene_id)
                 continue
-            if image_ids and any(
-                image_id in image_ids for image_id in scene.mappings.values()
+            record_scene_id = (self.installed.get(pack_id) or {}).get("scene_id")
+            if isinstance(record_scene_id, str) and scene.scene_id == record_scene_id:
+                scene_ids.append(scene.scene_id)
+                continue
+            if (
+                pack_name is not None
+                and not scene.source_id
+                and (
+                    scene.name == pack_name
+                    or self._is_pack_scene_name(scene.name, pack_name)
+                )
+                and image_ids
+                and any(image_id in image_ids for image_id in scene.mappings.values())
             ):
                 scene_ids.append(scene.scene_id)
         return scene_ids
