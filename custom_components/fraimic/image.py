@@ -120,3 +120,8 @@ class FraimicScreenPreviewImage(FraimicPreviewImage):
     def __init__(self, hass: HomeAssistant, coordinator) -> None:
         super().__init__(hass, coordinator)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_screen_preview"
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        """Screen previews are design artifacts, not displayed artwork."""
+        return {"dither_mode": self._mode} if self._mode else {}

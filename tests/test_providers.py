@@ -600,8 +600,36 @@ def test_parse_pexels_photo() -> None:
     photos = _fixture("pexels_search.json")["photos"]
     candidate = pexels.parse_pexels_photo(photos[0])
     assert candidate is not None
-    assert candidate.image_url.startswith("https://images.pexels.com/")
+    assert candidate.image_url == photos[0]["src"]["original"]
     assert candidate.attribution == "Photo by Joey Farina on Pexels"
     assert candidate.width == 3024
     # Item without src urls is rejected.
     assert pexels.parse_pexels_photo(photos[1]) is None
+
+
+def test_pexels_search_uses_first_page_original_size_and_hourly_throttle() -> None:
+    pexels = load("providers.pexels")
+    session = FakeSession()
+    session.add(pexels.SEARCH_URL, FakeResponse(payload=_fixture("pexels_search.json")))
+    cache = SpyCache()
+    provider = pexels.PexelsProvider()
+    request = base.FetchRequest(
+        target_width=1600,
+        target_height=1200,
+        query="coffee",
+        api_key="secret-key",
+    )
+
+    candidates = _run(provider.async_candidates(session, cache, request, 1))
+
+    assert (
+        candidates[0].image_url
+        == _fixture("pexels_search.json")["photos"][0]["src"]["original"]
+    )
+    assert session.calls[0]["params"] == {
+        "query": "coffee",
+        "orientation": "landscape",
+        "per_page": 1,
+        "page": 1,
+    }
+    assert cache.throttles == [("pexels", 18.0)]

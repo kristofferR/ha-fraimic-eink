@@ -142,6 +142,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             uploaded = result.get("uploaded", True)
             if uploaded:
                 entry.runtime_data.last_art = None
+                entry.runtime_data.coordinator.async_update_listeners()
         finally:
             stale_camera_upload = (
                 uploaded
@@ -385,6 +386,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._local_media_title = media_id.rsplit("/", 1)[-1]
         if uploaded:
             entry.runtime_data.last_art = None
+            entry.runtime_data.coordinator.async_update_listeners()
         self.async_write_ha_state()
 
     @property

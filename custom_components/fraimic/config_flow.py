@@ -59,6 +59,7 @@ from .const import (
     ROTATION_OPTIONS,
 )
 from .coordinator import normalize_info
+from .providers import PROVIDERS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -219,8 +220,18 @@ class FraimicOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            provider_key = user_input.get(CONF_DEFAULT_PROVIDER)
+            provider = PROVIDERS.get(provider_key)
+            if (
+                provider is not None
+                and provider.requires_key
+                and not user_input.get(provider.key_option or "")
+            ):
+                errors[CONF_DEFAULT_PROVIDER] = "provider_key_required"
+            else:
+                return self.async_create_entry(title="", data=user_input)
 
         o = self.config_entry.options
         return self.async_show_form(
@@ -285,6 +296,7 @@ class FraimicOptionsFlow(OptionsFlow):
                     ): str,
                 }
             ),
+            errors=errors,
         )
 
 

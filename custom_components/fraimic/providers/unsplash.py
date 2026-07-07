@@ -49,7 +49,7 @@ class UnsplashProvider(ArtProvider):
     name = "Unsplash"
     requires_key = True
     key_option = "unsplash_access_key"
-    min_interval = 2.0  # demo tier: 50 req/hr
+    min_interval = 72.0  # demo tier: 50 req/hr
 
     def _headers(self, request: FetchRequest) -> dict[str, str]:
         return api_headers({"Authorization": f"Client-ID {request.api_key}"})
