@@ -28,7 +28,7 @@ from .const import (
 )
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary, get_library
-from .scenes import SceneManager, get_scene_manager
+from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
 from .services import begin_external_upload, finish_external_upload
 
 _LOGGER = logging.getLogger(__name__)
@@ -344,10 +344,11 @@ class ScenesView(_SceneViewMixin):
     async def post(self, request: web.Request) -> web.Response:
         manager = self._scenes(request)
         body = await self._json_body(request)
+        name = body.get("name", "")
+        if not isinstance(name, str):
+            return self.json_message("name must be a string", HTTPStatus.BAD_REQUEST)
         try:
-            scene = await manager.async_create(
-                str(body.get("name", "")), self._mappings_from(body) or {}
-            )
+            scene = await manager.async_create(name, self._mappings_from(body) or {})
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         return self.json(scene.to_dict())
@@ -369,6 +370,8 @@ class SceneView(_SceneViewMixin):
             scene = await manager.async_update(
                 scene_id, name=name, mappings=self._mappings_from(body)
             )
+        except SceneNotFoundError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         return self.json(scene.to_dict())
@@ -392,6 +395,8 @@ class SceneSendView(_SceneViewMixin):
         manager = self._scenes(request)
         try:
             results = await manager.async_send(scene_id)
+        except SceneNotFoundError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.BAD_GATEWAY)
         status = (

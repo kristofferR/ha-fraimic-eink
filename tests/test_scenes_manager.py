@@ -70,12 +70,15 @@ def _load_scenes(monkeypatch: pytest.MonkeyPatch):
 
 class _Library:
     def __init__(self) -> None:
-        self.images = {"img-1", "img-2", "img-3", "missing"}
+        self.images = {
+            image_id: SimpleNamespace(filename=f"{image_id}.jpg")
+            for image_id in ("img-1", "img-2", "img-3", "missing")
+        }
 
-    def get(self, image_id: str) -> str:
+    def get(self, image_id: str) -> SimpleNamespace:
         if image_id not in self.images:
             raise ValueError(image_id)
-        return image_id
+        return self.images[image_id]
 
 
 def test_scene_names_are_case_insensitive_unique(
@@ -108,6 +111,14 @@ def test_scene_update_validates_before_mutating(
 
     assert scene.name == "Morning"
     assert scene.mappings == {"entry-1": "img-1"}
+
+
+def test_missing_scene_id_raises_typed_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    scenes = _load_scenes(monkeypatch)
+    manager = scenes.SceneManager(SimpleNamespace(entries=[]), _Library())
+
+    with pytest.raises(scenes.SceneNotFoundError):
+        manager.get("missing-scene")
 
 
 class _Scheduler:
@@ -176,7 +187,7 @@ def test_scene_send_snapshots_mappings_and_isolates_failures(
         ("entry-2", "missing"),
         ("entry-3", "img-3"),
     ]
-    assert upload_calls == [("entry-1", "Wall"), ("entry-3", "Wall")]
+    assert upload_calls == [("entry-1", "img-1.jpg"), ("entry-3", "img-3.jpg")]
     assert results == {
         "entry-4": {"ok": False, "error": "Frame is not loaded"},
         "entry-2": {"ok": False, "error": "source disappeared"},
@@ -186,3 +197,27 @@ def test_scene_send_snapshots_mappings_and_isolates_failures(
     assert entries[0].scheduler.events == [("begin", None), ("finish", True)]
     assert entries[1].scheduler.events == [("begin", None), ("finish", False)]
     assert entries[2].scheduler.events == [("begin", None), ("finish", True)]
+
+
+def test_scene_send_releases_scheduler_guards_on_cancellation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scenes = _load_scenes(monkeypatch)
+    entries = [_entry("entry-1"), _entry("entry-2")]
+    manager = scenes.SceneManager(SimpleNamespace(entries=entries), _Library())
+    scene = asyncio.run(
+        manager.async_create("Wall", {"entry-1": "img-1", "entry-2": "img-2"})
+    )
+
+    async def render(_image_id: str, _entry: SimpleNamespace):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(
+        manager.library, "async_render_for_entry", render, raising=False
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(manager.async_send(scene.scene_id))
+
+    assert entries[0].scheduler.events == [("begin", None), ("finish", False)]
+    assert entries[1].scheduler.events == [("begin", None), ("finish", False)]

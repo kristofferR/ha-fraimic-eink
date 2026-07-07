@@ -39,6 +39,10 @@ STORAGE_VERSION = 1
 SIGNAL_SCENES_UPDATED = f"{DOMAIN}_scenes_updated"
 
 
+class SceneNotFoundError(HomeAssistantError):
+    """Raised when a scene id does not exist."""
+
+
 @callback
 def get_scene_manager(hass: HomeAssistant) -> SceneManager | None:
     """Return the domain-wide scene manager, if initialized."""
@@ -67,7 +71,7 @@ class SceneManager:
     def get(self, scene_id: str) -> Scene:
         scene = self.scenes.get(scene_id)
         if scene is None:
-            raise HomeAssistantError(f"No Fraimic scene with id {scene_id}")
+            raise SceneNotFoundError(f"No Fraimic scene with id {scene_id}")
         return scene
 
     def find_by_name(self, name: str) -> Scene:
@@ -207,58 +211,68 @@ class SceneManager:
             else:
                 active_entries[entry_id] = entry
 
-        # Phase 1: render sequentially (CPU-bound; cache makes repeats instant).
-        prepared = {}
-        for entry_id, entry in active_entries.items():
-            image_id = mappings[entry_id]
-            try:
-                prepared[entry_id] = await self.library.async_render_for_entry(
-                    image_id, entry
-                )
-            except HomeAssistantError as err:
-                results[entry_id] = {"ok": False, "error": str(err)}
-                _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=False)
-            except asyncio.CancelledError:
-                raise
-            except Exception as err:  # noqa: BLE001 - isolate per-frame failures
-                _LOGGER.warning(
-                    "Scene %s failed to render for %s: %s",
-                    scene_name,
-                    getattr(entry, "title", entry_id),
-                    err,
-                )
-                results[entry_id] = {"ok": False, "error": str(err)}
-                _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=False)
+        try:
+            # Phase 1: render sequentially (CPU-bound; cache makes repeats instant).
+            prepared = {}
+            media_titles = {}
+            for entry_id, entry in active_entries.items():
+                image_id = mappings[entry_id]
+                try:
+                    media_titles[entry_id] = self.library.get(image_id).filename
+                    prepared[entry_id] = await self.library.async_render_for_entry(
+                        image_id, entry
+                    )
+                except HomeAssistantError as err:
+                    results[entry_id] = {"ok": False, "error": str(err)}
+                    _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=False)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as err:  # noqa: BLE001 - isolate per-frame failures
+                    _LOGGER.warning(
+                        "Scene %s failed to render for %s: %s",
+                        scene_name,
+                        getattr(entry, "title", entry_id),
+                        err,
+                    )
+                    results[entry_id] = {"ok": False, "error": str(err)}
+                    _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=False)
 
-        # Phase 2: upload concurrently; one wedged/sleeping frame can't block
-        # or fail the others.
-        async def _push(entry_id: str) -> None:
-            uploaded = False
-            try:
-                await async_upload_rendered(
-                    active_entries[entry_id],
-                    *prepared[entry_id],
-                    media_title=scene_name,
-                )
-                uploaded = True
-            except HomeAssistantError as err:
-                results[entry_id] = {"ok": False, "error": str(err)}
-            except asyncio.CancelledError:
-                raise
-            except Exception as err:  # noqa: BLE001 - isolate per-frame failures
-                _LOGGER.warning(
-                    "Scene %s failed to upload to %s: %s",
-                    scene_name,
-                    getattr(active_entries[entry_id], "title", entry_id),
-                    err,
-                )
-                results[entry_id] = {"ok": False, "error": str(err)}
-            else:
-                results[entry_id] = {"ok": True, "error": None}
-            finally:
-                _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=uploaded)
+            # Phase 2: upload concurrently; one wedged/sleeping frame can't block
+            # or fail the others.
+            async def _push(entry_id: str) -> None:
+                uploaded = False
+                try:
+                    await async_upload_rendered(
+                        active_entries[entry_id],
+                        *prepared[entry_id],
+                        media_title=media_titles[entry_id],
+                    )
+                    uploaded = True
+                except HomeAssistantError as err:
+                    results[entry_id] = {"ok": False, "error": str(err)}
+                except asyncio.CancelledError:
+                    raise
+                except Exception as err:  # noqa: BLE001 - isolate per-frame failures
+                    _LOGGER.warning(
+                        "Scene %s failed to upload to %s: %s",
+                        scene_name,
+                        getattr(active_entries[entry_id], "title", entry_id),
+                        err,
+                    )
+                    results[entry_id] = {"ok": False, "error": str(err)}
+                else:
+                    results[entry_id] = {"ok": True, "error": None}
+                finally:
+                    _finish_scene_upload(
+                        schedulers.pop(entry_id, None), uploaded=uploaded
+                    )
 
-        await asyncio.gather(*(_push(entry_id) for entry_id in prepared))
+            await asyncio.gather(*(_push(entry_id) for entry_id in prepared))
+        finally:
+            for scheduler in list(schedulers.values()):
+                _finish_scene_upload(scheduler, uploaded=False)
+            schedulers.clear()
+
         failures = [r["error"] for r in results.values() if not r["ok"]]
         if failures and not any(r["ok"] for r in results.values()):
             raise HomeAssistantError(

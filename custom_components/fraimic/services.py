@@ -78,6 +78,8 @@ from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
 
+ERR_NO_FRAIMIC_FRAME = "No Fraimic frame is set up"
+
 
 class FrameUploadError(HomeAssistantError):
     """Raised when conversion succeeded but the frame upload failed."""
@@ -309,7 +311,7 @@ async def _async_handle_send_scene(call: ServiceCall) -> None:
     """Handle ``fraimic.send_scene``: activate a scene by (case-insensitive) name."""
     manager = get_scene_manager(call.hass)
     if manager is None:
-        raise ServiceValidationError("No Fraimic frame is set up")
+        raise ServiceValidationError(ERR_NO_FRAIMIC_FRAME)
     scene = manager.find_by_name(call.data[ATTR_SCENE_NAME])
     results = await manager.async_send(scene.scene_id)
     failed = {k: r["error"] for k, r in results.items() if not r["ok"]}
