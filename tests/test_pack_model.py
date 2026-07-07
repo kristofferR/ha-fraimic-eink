@@ -129,7 +129,49 @@ def test_map_remote_catalog_ignores_malformed_categories():
                     "name": "X",
                     "category": "Art",
                     "attribution": "a",
-                    "images": [{"title": "t", "url": "http://insecure", "filename": "f"}],
+                    "images": [
+                        {
+                            "title": "t",
+                            "url": "http://insecure",
+                            "preview_url": "https://example.test/p.jpg",
+                            "filename": "f",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "packs": [
+                {
+                    "id": "x",
+                    "name": "X",
+                    "category": "Art",
+                    "attribution": "a",
+                    "images": [
+                        {
+                            "title": "t",
+                            "url": "https://example.test/i.jpg",
+                            "filename": "f",
+                        }
+                    ],
+                }
+            ]
+        },
+        {
+            "packs": [
+                {
+                    "id": "x",
+                    "name": "X",
+                    "category": "Art",
+                    "attribution": "a",
+                    "images": [
+                        {
+                            "title": "t",
+                            "url": "https://example.test/i.jpg",
+                            "preview_url": "http://insecure",
+                            "filename": "f",
+                        }
+                    ],
                 }
             ]
         },

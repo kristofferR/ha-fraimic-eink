@@ -96,10 +96,14 @@ class ArtPackManager:
 
     async def async_setup(self) -> None:
         catalog_path = Path(__file__).parent / "packs" / "catalog.json"
-        raw = await self.hass.async_add_executor_job(
-            catalog_path.read_text, "utf-8"
-        )
-        self.packs = validate_catalog(json.loads(raw))
+        try:
+            raw = await self.hass.async_add_executor_job(
+                catalog_path.read_text, "utf-8"
+            )
+            self.packs = validate_catalog(json.loads(raw))
+        except (OSError, TypeError, ValueError):
+            _LOGGER.exception("Could not load bundled art pack catalog")
+            self.packs = []
         data = await self._store.async_load()
         self.installed = (data or {}).get("installed", {})
 
@@ -371,7 +375,7 @@ class ArtPackManager:
         self,
         scene: Scene,
         pack_id: str,
-        pack_name: str,
+        pack_name: str | None,
         installed_image_ids: set[str],
     ) -> bool:
         if scene.source != SCENE_SOURCE_PACK:
@@ -382,6 +386,8 @@ class ArtPackManager:
         if isinstance(record_scene_id, str) and scene.scene_id == record_scene_id:
             return True
         if scene.source_id:
+            return False
+        if pack_name is None:
             return False
         if not (
             scene.name == pack_name or self._is_pack_scene_name(scene.name, pack_name)
@@ -452,25 +458,7 @@ class ArtPackManager:
         """Find auto-scenes owned by a pack before uninstall pruning mutates them."""
         scene_ids = []
         for scene in self.scenes.scenes.values():
-            if scene.source != SCENE_SOURCE_PACK:
-                continue
-            if scene.source_id == pack_id:
-                scene_ids.append(scene.scene_id)
-                continue
-            record_scene_id = (self.installed.get(pack_id) or {}).get("scene_id")
-            if isinstance(record_scene_id, str) and scene.scene_id == record_scene_id:
-                scene_ids.append(scene.scene_id)
-                continue
-            if (
-                pack_name is not None
-                and not scene.source_id
-                and (
-                    scene.name == pack_name
-                    or self._is_pack_scene_name(scene.name, pack_name)
-                )
-                and image_ids
-                and any(image_id in image_ids for image_id in scene.mappings.values())
-            ):
+            if self._is_pack_scene(scene, pack_id, pack_name, image_ids):
                 scene_ids.append(scene.scene_id)
         return scene_ids
 

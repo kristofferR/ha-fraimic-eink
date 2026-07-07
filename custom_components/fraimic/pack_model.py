@@ -33,11 +33,12 @@ def validate_catalog(data: dict[str, Any]) -> list[dict[str, Any]]:
         if not isinstance(images, list) or not images:
             raise ValueError(f"Pack {pack_id!r} has no images")
         for image in images:
-            for key in ("title", "url", "filename"):
+            for key in ("title", "url", "preview_url", "filename"):
                 if not isinstance(image.get(key), str) or not image[key]:
                     raise ValueError(f"Image in pack {pack_id!r} is missing {key!r}")
-            if not image["url"].startswith("https://"):
-                raise ValueError(f"Image URL in pack {pack_id!r} must be https")
+            for key in ("url", "preview_url"):
+                if not image[key].startswith("https://"):
+                    raise ValueError(f"Image {key} in pack {pack_id!r} must be https")
     return packs
 
 
