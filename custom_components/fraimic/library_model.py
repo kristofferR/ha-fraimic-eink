@@ -87,6 +87,8 @@ class LibraryImage:
         """Albums with duplicates removed and the default as fallback."""
         seen: list[str] = []
         for album in self.albums:
+            if not isinstance(album, str):
+                continue
             album = album.strip()
             if album and album not in seen:
                 seen.append(album)
@@ -127,6 +129,9 @@ class LibraryImage:
                 parsed_crops[str(key)] = list(value)
             except TypeError:
                 continue
+        albums = data.get("albums") or [LIBRARY_ALBUM_DEFAULT]
+        if not isinstance(albums, list):
+            albums = [LIBRARY_ALBUM_DEFAULT]
         return cls(
             image_id=str(data["image_id"]),
             filename=str(data.get("filename") or "image"),
@@ -134,7 +139,7 @@ class LibraryImage:
             uploaded_at=float(data.get("uploaded_at") or 0.0),
             width=data.get("width"),
             height=data.get("height"),
-            albums=list(data.get("albums") or [LIBRARY_ALBUM_DEFAULT]),
+            albums=[album for album in albums if isinstance(album, str)],
             crops=parsed_crops,
         )
 

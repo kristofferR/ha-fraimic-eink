@@ -73,10 +73,28 @@ class SceneManager:
     def find_by_name(self, name: str) -> Scene:
         """Case-insensitive scene lookup for the service/voice path."""
         wanted = name.strip().casefold()
-        for scene in self.scenes.values():
-            if scene.name.strip().casefold() == wanted:
-                return scene
+        matches = [
+            scene
+            for scene in self.scenes.values()
+            if scene.name.strip().casefold() == wanted
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        if matches:
+            raise HomeAssistantError(f"Multiple Fraimic scenes named {name!r}")
         raise HomeAssistantError(f"No Fraimic scene named {name!r}")
+
+    def _validate_name(self, name: str, *, scene_id: str | None = None) -> str:
+        cleaned = name.strip()
+        if not cleaned:
+            raise HomeAssistantError("Scene name cannot be empty")
+        wanted = cleaned.casefold()
+        for scene in self.scenes.values():
+            if scene.scene_id != scene_id and scene.name.strip().casefold() == wanted:
+                raise HomeAssistantError(
+                    f"A Fraimic scene named {cleaned!r} already exists"
+                )
+        return cleaned
 
     def _validate_mappings(self, mappings: dict[str, str]) -> dict[str, str]:
         cleaned: dict[str, str] = {}
@@ -97,13 +115,12 @@ class SceneManager:
         *,
         source: str = SCENE_SOURCE_USER,
     ) -> Scene:
-        name = name.strip()
-        if not name:
-            raise HomeAssistantError("Scene name cannot be empty")
+        name = self._validate_name(name)
+        mappings = self._validate_mappings(mappings)
         scene = Scene(
             scene_id=uuid.uuid4().hex[:12],
             name=name,
-            mappings=self._validate_mappings(mappings),
+            mappings=mappings,
             created_at=time.time(),
             source=source,
         )
@@ -119,13 +136,14 @@ class SceneManager:
         mappings: dict[str, str] | None = None,
     ) -> Scene:
         scene = self.get(scene_id)
+        next_name = scene.name
+        next_mappings = scene.mappings
         if name is not None:
-            name = name.strip()
-            if not name:
-                raise HomeAssistantError("Scene name cannot be empty")
-            scene.name = name
+            next_name = self._validate_name(name, scene_id=scene_id)
         if mappings is not None:
-            scene.mappings = self._validate_mappings(mappings)
+            next_mappings = self._validate_mappings(mappings)
+        scene.name = next_name
+        scene.mappings = next_mappings
         await self._async_save()
         return scene
 
@@ -162,46 +180,105 @@ class SceneManager:
     async def async_send(self, scene_id: str) -> dict[str, dict[str, Any]]:
         """Activate a scene. Returns per-entry ``{"ok": bool, "error": ...}``."""
         scene = self.get(scene_id)
+        scene_name = scene.name
+        mappings = dict(scene.mappings)
         entries = {
             entry.entry_id: entry
             for entry in loaded_fraimic_entries(self.hass)
-            if entry.entry_id in scene.mappings
+            if entry.entry_id in mappings
         }
         results: dict[str, dict[str, Any]] = {
             entry_id: {"ok": False, "error": "Frame is not loaded"}
-            for entry_id in scene.mappings
+            for entry_id in mappings
             if entry_id not in entries
         }
         if not entries:
             raise HomeAssistantError(
-                f"None of the frames in scene {scene.name!r} are currently loaded"
+                f"None of the frames in scene {scene_name!r} are currently loaded"
             )
+
+        schedulers = {}
+        active_entries = {}
+        for entry_id, entry in entries.items():
+            try:
+                schedulers[entry_id] = _begin_scene_upload(entry)
+            except HomeAssistantError as err:
+                results[entry_id] = {"ok": False, "error": str(err)}
+            else:
+                active_entries[entry_id] = entry
 
         # Phase 1: render sequentially (CPU-bound; cache makes repeats instant).
         prepared = {}
-        for entry_id, entry in entries.items():
-            image_id = scene.mappings[entry_id]
+        for entry_id, entry in active_entries.items():
+            image_id = mappings[entry_id]
             try:
                 prepared[entry_id] = await self.library.async_render_for_entry(
                     image_id, entry
                 )
             except HomeAssistantError as err:
                 results[entry_id] = {"ok": False, "error": str(err)}
+                _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=False)
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:  # noqa: BLE001 - isolate per-frame failures
+                _LOGGER.warning(
+                    "Scene %s failed to render for %s: %s",
+                    scene_name,
+                    getattr(entry, "title", entry_id),
+                    err,
+                )
+                results[entry_id] = {"ok": False, "error": str(err)}
+                _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=False)
 
         # Phase 2: upload concurrently; one wedged/sleeping frame can't block
         # or fail the others.
         async def _push(entry_id: str) -> None:
+            uploaded = False
             try:
-                await async_upload_rendered(entries[entry_id], *prepared[entry_id])
+                await async_upload_rendered(
+                    active_entries[entry_id],
+                    *prepared[entry_id],
+                    media_title=scene_name,
+                )
+                uploaded = True
             except HomeAssistantError as err:
+                results[entry_id] = {"ok": False, "error": str(err)}
+            except asyncio.CancelledError:
+                raise
+            except Exception as err:  # noqa: BLE001 - isolate per-frame failures
+                _LOGGER.warning(
+                    "Scene %s failed to upload to %s: %s",
+                    scene_name,
+                    getattr(active_entries[entry_id], "title", entry_id),
+                    err,
+                )
                 results[entry_id] = {"ok": False, "error": str(err)}
             else:
                 results[entry_id] = {"ok": True, "error": None}
+            finally:
+                _finish_scene_upload(schedulers.pop(entry_id, None), uploaded=uploaded)
 
         await asyncio.gather(*(_push(entry_id) for entry_id in prepared))
         failures = [r["error"] for r in results.values() if not r["ok"]]
         if failures and not any(r["ok"] for r in results.values()):
             raise HomeAssistantError(
-                f"Scene {scene.name!r} failed on every frame: {failures[0]}"
+                f"Scene {scene_name!r} failed on every frame: {failures[0]}"
             )
         return results
+
+
+def _begin_scene_upload(entry) -> Any:
+    """Block playlist work while a scene upload is being prepared."""
+    scheduler = getattr(entry.runtime_data, "scheduler", None)
+    if scheduler is None:
+        return None
+    if scheduler.busy:
+        raise HomeAssistantError("A playlist upload is already in progress")
+    scheduler.begin_external_upload()
+    return scheduler
+
+
+def _finish_scene_upload(scheduler: Any, *, uploaded: bool) -> None:
+    """Release a scene-upload guard and hold the playlist after success."""
+    if scheduler is not None:
+        scheduler.finish_external_upload(uploaded=uploaded)
