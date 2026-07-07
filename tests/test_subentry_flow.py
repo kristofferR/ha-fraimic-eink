@@ -87,6 +87,9 @@ def test_finish_returns_picture_form_for_invalid_url(monkeypatch) -> None:
     flow = _load_flow(monkeypatch)
     handler = flow.ScreenSubentryFlowHandler()
     handler._basics = {"name": "Bad picture", "layout": "picture"}
+    # The picture form's provider dropdown reads the entry options; outside a
+    # real flow the base class has no _get_entry, so stub an optionless entry.
+    handler._get_entry = lambda: SimpleNamespace(options={})
 
     result = handler._finish({"kind": "picture", "url": "ftp://example.test/x.png"})
 

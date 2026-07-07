@@ -549,3 +549,87 @@ def test_shuffle_and_availability() -> None:
     entry = SimpleNamespace(options={})
     keys = providers_pkg.available_provider_keys(entry)
     assert set(providers_pkg.MUSEUM_KEYS) <= set(keys)
+    # Keyed providers hidden without keys, shown with them.
+    assert "unsplash" not in keys
+    assert "pexels" not in keys
+    keyed = SimpleNamespace(
+        options={"unsplash_access_key": "abc", "pexels_api_key": "def"}
+    )
+    keyed_keys = providers_pkg.available_provider_keys(keyed)
+    assert "unsplash" in keyed_keys
+    assert "pexels" in keyed_keys
+
+
+def test_parse_unsplash_photo() -> None:
+    unsplash = load("providers.unsplash")
+
+    item = _fixture("unsplash_random.json")[0]
+    candidate = unsplash.parse_unsplash_photo(item, 3200)
+    assert candidate is not None
+    assert candidate.image_url.startswith("https://images.unsplash.com/")
+    assert "w=3200" in candidate.image_url and "fm=jpg" in candidate.image_url
+    assert candidate.attribution == "Photo by Jeff Sheldon on Unsplash"
+    assert candidate.extra["download_location"].endswith("download?ixid=abc123")
+    assert candidate.title == "A man drinking a coffee."
+
+
+def test_unsplash_candidates_do_not_store_api_key() -> None:
+    unsplash = load("providers.unsplash")
+    session = FakeSession()
+    session.add(unsplash.RANDOM_URL, FakeResponse(payload=_fixture("unsplash_random.json")))
+    provider = unsplash.UnsplashProvider()
+    provider.min_interval = 0
+    request = base.FetchRequest(
+        target_width=1600,
+        target_height=1200,
+        query="coffee",
+        api_key="secret-key",
+    )
+
+    candidates = _run(
+        provider.async_candidates(session, cache_mod.ProviderCache(), request, 1)
+    )
+
+    assert candidates
+    assert "api_key" not in (candidates[0].extra or {})
+
+
+def test_parse_pexels_photo() -> None:
+    pexels = load("providers.pexels")
+
+    photos = _fixture("pexels_search.json")["photos"]
+    candidate = pexels.parse_pexels_photo(photos[0])
+    assert candidate is not None
+    assert candidate.image_url == photos[0]["src"]["original"]
+    assert candidate.attribution == "Photo by Joey Farina on Pexels"
+    assert candidate.width == 3024
+    # Item without src urls is rejected.
+    assert pexels.parse_pexels_photo(photos[1]) is None
+
+
+def test_pexels_search_uses_first_page_original_size_and_hourly_throttle() -> None:
+    pexels = load("providers.pexels")
+    session = FakeSession()
+    session.add(pexels.SEARCH_URL, FakeResponse(payload=_fixture("pexels_search.json")))
+    cache = SpyCache()
+    provider = pexels.PexelsProvider()
+    request = base.FetchRequest(
+        target_width=1600,
+        target_height=1200,
+        query="coffee",
+        api_key="secret-key",
+    )
+
+    candidates = _run(provider.async_candidates(session, cache, request, 1))
+
+    assert (
+        candidates[0].image_url
+        == _fixture("pexels_search.json")["photos"][0]["src"]["original"]
+    )
+    assert session.calls[0]["params"] == {
+        "query": "coffee",
+        "orientation": "landscape",
+        "per_page": 1,
+        "page": 1,
+    }
+    assert cache.throttles == [("pexels", 18.0)]

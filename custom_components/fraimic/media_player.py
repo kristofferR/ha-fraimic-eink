@@ -11,11 +11,13 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import timedelta
+from urllib.parse import unquote, urlsplit
 
 import aiohttp
 from homeassistant.components import media_source
 from homeassistant.components.media_player import (
     BrowseMedia,
+    MediaClass,
     MediaPlayerDeviceClass,
     MediaPlayerEntity,
     MediaPlayerEntityFeature,
@@ -29,10 +31,11 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_time_interval
 
-from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL
+from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL, MEDIA_SCHEME
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
+from .providers import PROVIDERS, available_provider_keys, build_media_id, parse_media_id
 from .providers.engine import read_capped
 from .services import (
     async_render_and_upload,
@@ -40,7 +43,17 @@ from .services import (
     finish_external_upload,
 )
 
+ONLINE_ROOT = f"{MEDIA_SCHEME}://"
+
 _LOGGER = logging.getLogger(__name__)
+
+
+def _media_title_from_id(media_id: str) -> str:
+    """Best-effort display title without leaking resolved URLs or query tokens."""
+    parsed = urlsplit(media_id)
+    path = parsed.path or media_id
+    title = unquote(path.rstrip("/").rsplit("/", 1)[-1])
+    return title or parsed.netloc or "Image"
 
 
 async def async_setup_entry(
@@ -70,6 +83,15 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._camera_entity: str | None = None
         self._camera_unsub = None
         self._camera_generation = 0
+
+    @property
+    def media_title(self) -> str | None:
+        """Title of what's on the frame: online artwork wins over file names."""
+        runtime = self.coordinator.config_entry.runtime_data
+        art = runtime.last_art
+        if art and art.get("title"):
+            return art["title"]
+        return runtime.media_title
 
     @property
     def state(self) -> MediaPlayerState:
@@ -127,6 +149,15 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self.hass, entry, image.content, hold_playlist=False
             )
             uploaded = result.get("uploaded", True)
+            if uploaded:
+                current_camera_upload = (
+                    camera_generation is None
+                    or camera_generation == self._camera_generation
+                )
+                entry.runtime_data.last_art = None
+                if current_camera_upload:
+                    entry.runtime_data.media_title = camera_entity
+                    entry.runtime_data.coordinator.async_update_listeners()
         finally:
             stale_camera_upload = (
                 uploaded
@@ -162,14 +193,88 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         media_content_type: MediaType | str | None = None,
         media_content_id: str | None = None,
     ) -> BrowseMedia:
-        """Browse media sources: images, plus cameras (snapshotted on play)."""
-        return await media_source.async_browse_media(
+        """Browse media sources + online artwork providers."""
+        if media_content_id and media_content_id.startswith(ONLINE_ROOT):
+            return await self._async_browse_online(media_content_id)
+        root = await media_source.async_browse_media(
             self.hass,
             media_content_id,
             content_filter=lambda item: (
                 item.media_content_type.startswith("image/")
                 or (item.media_content_id or "").startswith("media-source://camera/")
             ),
+        )
+        if not media_content_id:
+            # Inject the online-artwork directory at the top level.
+            online = BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id=ONLINE_ROOT,
+                media_content_type="",
+                title="Online artwork",
+                can_play=False,
+                can_expand=True,
+            )
+            root.children = [online, *(root.children or [])]
+        return root
+
+    async def _async_browse_online(self, media_id: str) -> BrowseMedia:
+        """The fraimic-online:// tree: providers, then 20 fresh picks each."""
+        from .providers.ha import async_browse_candidates
+
+        entry = self.coordinator.config_entry
+        if media_id == ONLINE_ROOT:
+            children = [
+                BrowseMedia(
+                    media_class=MediaClass.DIRECTORY,
+                    media_content_id=f"{ONLINE_ROOT}{key}",
+                    media_content_type="",
+                    title=PROVIDERS[key].name,
+                    can_play=False,
+                    can_expand=True,
+                )
+                for key in available_provider_keys(entry)
+            ]
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id=ONLINE_ROOT,
+                media_content_type="",
+                title="Online artwork",
+                can_play=False,
+                can_expand=True,
+                children=children,
+                children_media_class=MediaClass.DIRECTORY,
+            )
+
+        provider_key = media_id.removeprefix(ONLINE_ROOT).split("/", 1)[0]
+        provider = PROVIDERS.get(provider_key)
+        if provider is None:
+            raise HomeAssistantError(f"Unknown online source: {provider_key}")
+        candidates = await async_browse_candidates(self.hass, entry, provider_key)
+        children = [
+            BrowseMedia(
+                media_class=MediaClass.IMAGE,
+                media_content_id=build_media_id(provider_key, candidate.item_id),
+                media_content_type="image/jpeg",
+                title=(
+                    f"{candidate.title} — {candidate.artist}"
+                    if candidate.artist
+                    else candidate.title
+                ),
+                can_play=True,
+                can_expand=False,
+                thumbnail=candidate.thumb_url,
+            )
+            for candidate in candidates
+        ]
+        return BrowseMedia(
+            media_class=MediaClass.DIRECTORY,
+            media_content_id=media_id,
+            media_content_type="",
+            title=provider.name,
+            can_play=False,
+            can_expand=True,
+            children=children,
+            children_media_class=MediaClass.IMAGE,
         )
 
     async def async_play_media(
@@ -178,6 +283,33 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         """Display an image on the frame."""
         # Playing anything replaces whatever camera loop was running.
         self._stop_camera_loop()
+
+        if media_id.startswith(ONLINE_ROOT):
+            from dataclasses import asdict
+
+            from .providers.ha import async_art_by_media_id, async_art_displayed
+
+            parsed = parse_media_id(media_id)
+            if parsed is None:
+                raise HomeAssistantError(f"Invalid online media id: {media_id}")
+            entry = self.coordinator.config_entry
+            scheduler = begin_external_upload(entry)
+            uploaded = False
+            try:
+                art = await async_art_by_media_id(self.hass, entry, *parsed)
+                result = await async_render_and_upload(
+                    self.hass, entry, art.data, hold_playlist=False
+                )
+                uploaded = result.get("uploaded", True)
+                if uploaded:
+                    entry.runtime_data.last_art = asdict(art.candidate)
+                    entry.runtime_data.media_title = art.candidate.title
+                    self.coordinator.async_update_listeners()
+                    await async_art_displayed(self.hass, entry, art)
+            finally:
+                finish_external_upload(scheduler, uploaded=uploaded)
+            self.async_write_ha_state()
+            return
 
         # Camera media-source items resolve to *live stream* URLs (HLS/MJPEG),
         # which aren't decodable images — take a still snapshot instead, and
@@ -228,13 +360,13 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self._camera_unsub = async_track_time_interval(
                     self.hass, self._async_camera_tick, timedelta(seconds=interval)
                 )
-            self._attr_media_title = camera_entity
             self.async_write_ha_state()
             return
 
         entry = self.coordinator.config_entry
         scheduler = begin_external_upload(entry)
         uploaded = False
+        media_title = _media_title_from_id(media_id)
         try:
             if media_source.is_media_source_id(media_id):
                 sourced = await media_source.async_resolve_media(
@@ -265,8 +397,17 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             uploaded = result.get("uploaded", True)
         finally:
             finish_external_upload(scheduler, uploaded=uploaded)
-        self._attr_media_title = media_id.rsplit("/", 1)[-1]
+        if uploaded:
+            entry.runtime_data.last_art = None
+            entry.runtime_data.media_title = media_title
+            entry.runtime_data.coordinator.async_update_listeners()
         self.async_write_ha_state()
+
+    @property
+    def media_artist(self) -> str | None:
+        """Artist of online artwork currently on the frame, if any."""
+        art = self.coordinator.config_entry.runtime_data.last_art
+        return art.get("artist") if art else None
 
     @property
     def media_image_hash(self) -> str | None:

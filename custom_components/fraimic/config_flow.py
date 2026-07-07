@@ -27,10 +27,14 @@ from .const import (
     ATTR_SHARPEN,
     ATTR_TONE,
     CONF_CAMERA_INTERVAL,
+    CONF_DEFAULT_PROVIDER,
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
+    CONF_NASA_API_KEY,
+    CONF_PEXELS_KEY,
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
+    CONF_UNSPLASH_KEY,
     CONF_WIDTH,
     DEFAULT_CAMERA_INTERVAL,
     DEFAULT_CONTRAST,
@@ -50,9 +54,12 @@ from .const import (
     MIN_SCAN_INTERVAL,
     MODE_AUTO,
     MODEL_CUSTOM,
+    PROVIDER_KEYS,
+    PROVIDER_SHUFFLE,
     ROTATION_OPTIONS,
 )
 from .coordinator import normalize_info
+from .providers import PROVIDERS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -213,8 +220,18 @@ class FraimicOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            provider_key = user_input.get(CONF_DEFAULT_PROVIDER)
+            provider = PROVIDERS.get(provider_key)
+            if (
+                provider is not None
+                and provider.requires_key
+                and not user_input.get(provider.key_option or "")
+            ):
+                errors[CONF_DEFAULT_PROVIDER] = "provider_key_required"
+            else:
+                return self.async_create_entry(title="", data=user_input)
 
         o = self.config_entry.options
         return self.async_show_form(
@@ -258,8 +275,28 @@ class FraimicOptionsFlow(OptionsFlow):
                     vol.Required(
                         ATTR_TONE, default=o.get(ATTR_TONE, DEFAULT_TONE)
                     ): vol.All(vol.Coerce(float), vol.Range(min=0.0, max=100.0)),
+                    # Online artwork: default source for the "New artwork"
+                    # button, plus optional API keys for keyed providers
+                    # (leave a key empty to disable that provider).
+                    vol.Required(
+                        CONF_DEFAULT_PROVIDER,
+                        default=o.get(CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE),
+                    ): vol.In((PROVIDER_SHUFFLE, *PROVIDER_KEYS)),
+                    vol.Optional(
+                        CONF_NASA_API_KEY,
+                        description={"suggested_value": o.get(CONF_NASA_API_KEY)},
+                    ): str,
+                    vol.Optional(
+                        CONF_UNSPLASH_KEY,
+                        description={"suggested_value": o.get(CONF_UNSPLASH_KEY)},
+                    ): str,
+                    vol.Optional(
+                        CONF_PEXELS_KEY,
+                        description={"suggested_value": o.get(CONF_PEXELS_KEY)},
+                    ): str,
                 }
             ),
+            errors=errors,
         )
 
 

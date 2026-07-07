@@ -39,7 +39,7 @@ from .const import (
     MIN_SCREEN_INTERVAL,
     PROVIDER_SHUFFLE,
 )
-from .providers import PROVIDERS
+from .providers import PROVIDERS, available_provider_keys
 from .render.layout import LAYOUT_SLOTS
 from .render.schema import DAYS, SCREEN_SCHEMA
 
@@ -219,27 +219,28 @@ _BASICS_SCHEMA = vol.Schema(
     }
 )
 
-_PROVIDER_OPTIONS = [
-    SelectOptionDict(value=PROVIDER_SHUFFLE, label="Surprise me — random museum art"),
-    *(
-        SelectOptionDict(value=provider.key, label=provider.name)
-        for provider in PROVIDERS.values()
-    ),
-]
-
-_PICTURE_SCHEMA = vol.Schema(
-    {
-        vol.Optional("provider"): _select(_PROVIDER_OPTIONS),
-        vol.Optional("query"): TextSelector(),
-        vol.Optional("caption", default=False): BooleanSelector(),
-        vol.Optional("url"): TextSelector(),
-        vol.Optional("entity"): EntitySelector(
-            EntitySelectorConfig(domain=["camera", "image"])
+def _picture_schema(entry) -> vol.Schema:
+    """Picture-source form; keyed providers appear only when configured."""
+    provider_options = [
+        SelectOptionDict(value=PROVIDER_SHUFFLE, label="Surprise me — random museum art"),
+        *(
+            SelectOptionDict(value=key, label=PROVIDERS[key].name)
+            for key in available_provider_keys(entry)
         ),
-        vol.Optional("fit"): _simple_select(*FIT_MODES),
-        vol.Optional("mode"): _simple_select(*DITHER_MODES),
-    }
-)
+    ]
+    return vol.Schema(
+        {
+            vol.Optional("provider"): _select(provider_options),
+            vol.Optional("query"): TextSelector(),
+            vol.Optional("caption", default=False): BooleanSelector(),
+            vol.Optional("url"): TextSelector(),
+            vol.Optional("entity"): EntitySelector(
+                EntitySelectorConfig(domain=["camera", "image"])
+            ),
+            vol.Optional("fit"): _simple_select(*FIT_MODES),
+            vol.Optional("mode"): _simple_select(*DITHER_MODES),
+        }
+    )
 
 
 def _clean(user_input: dict[str, Any]) -> dict[str, Any]:
@@ -339,7 +340,7 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
         return self.async_show_form(
             step_id="picture",
             data_schema=self.add_suggested_values_to_schema(
-                _PICTURE_SCHEMA, self._existing
+                _picture_schema(self._get_entry()), self._existing
             ),
             errors=errors,
         )
@@ -484,7 +485,7 @@ class ScreenSubentryFlowHandler(ConfigSubentryFlow):
             return self.async_show_form(
                 step_id="picture",
                 data_schema=self.add_suggested_values_to_schema(
-                    _PICTURE_SCHEMA,
+                    _picture_schema(self._get_entry()),
                     {
                         key: body[key]
                         for key in (

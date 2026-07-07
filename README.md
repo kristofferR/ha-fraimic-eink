@@ -390,7 +390,20 @@ data:
 
 If an online source is down, the playlist keeps the current image and retries later — a flaky
 API never blanks your wall. Attribution for whatever is showing is returned in the service
-response (`title`, `artist`, `attribution`).
+response (`title`, `artist`, `attribution`) and exposed as attributes on the preview image
+entities and the media player.
+
+**Browse before you commit:** open the frame's media player → **Browse media** → **Online
+artwork** → pick a source → 20 fresh picks with thumbnails; click one to display it. Each visit
+reshuffles.
+
+**One-tap art:** every frame gets a **New artwork** button entity — press it (or automate it)
+for a fresh captioned piece from your default source (options → *Default online-art source*).
+
+**Optional keys** (frame options): a free [api.nasa.gov](https://api.nasa.gov) key raises the
+APOD rate limit, and free [Unsplash](https://unsplash.com/developers) /
+[Pexels](https://www.pexels.com/api/) keys unlock keyword-searchable photography
+(`provider: unsplash, query: northern lights`). Keyed providers stay hidden until a key is set.
 
 ## How image conversion works
 
