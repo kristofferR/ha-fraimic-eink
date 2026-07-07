@@ -36,10 +36,13 @@ def test_scene_roundtrip():
         name="Morning wall",
         mappings={"entry_1": "img_1", "entry_2": "img_2"},
         created_at=123.0,
+        source=sm.SCENE_SOURCE_PACK,
+        source_id="pack-1",
     )
     restored = sm.Scene.from_dict(scene.to_dict())
     assert restored == scene
-    assert restored.source == sm.SCENE_SOURCE_USER
+    assert restored.source == sm.SCENE_SOURCE_PACK
+    assert restored.source_id == "pack-1"
 
 
 def test_scene_from_dict_drops_empty_mappings():

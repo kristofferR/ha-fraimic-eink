@@ -18,6 +18,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
+from .art_packs import ArtPackManager, get_pack_manager
 from .const import (
     CONF_HEIGHT,
     CONF_ROTATION,
@@ -59,6 +60,9 @@ def async_register_views(hass: HomeAssistant) -> None:
         ScenesView(),
         SceneView(),
         SceneSendView(),
+        PacksView(),
+        PackInstallView(),
+        PackUninstallView(),
     ):
         hass.http.register_view(view)
 
@@ -405,6 +409,57 @@ class SceneSendView(_SceneViewMixin):
             else HTTPStatus.BAD_GATEWAY
         )
         return self.json({"results": results}, status_code=status)
+
+
+class _PackViewMixin(_FraimicView):
+    """Adds pack-manager resolution to a view."""
+
+    def _packs(self, request: web.Request) -> ArtPackManager:
+        manager = get_pack_manager(request.app[KEY_HASS])
+        if manager is None:
+            raise web.HTTPServiceUnavailable(text="Fraimic is not set up")
+        return manager
+
+
+class PacksView(_PackViewMixin):
+    """Catalog + installed state for the panel's Add-ons tab."""
+
+    url = "/api/fraimic/packs"
+    name = "api:fraimic:packs"
+
+    async def get(self, request: web.Request) -> web.Response:
+        manager = self._packs(request)
+        # TTL-cached; a failed fetch degrades to bundled-only, never errors.
+        await manager.async_refresh_remote()
+        return self.json({"packs": manager.status()})
+
+
+class PackInstallView(_PackViewMixin):
+    """Install (or resume a partial install of) one pack."""
+
+    url = "/api/fraimic/packs/{pack_id}/install"
+    name = "api:fraimic:packs:install"
+
+    async def post(self, request: web.Request, pack_id: str) -> web.Response:
+        try:
+            result = await self._packs(request).async_install(pack_id)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return self.json(result)
+
+
+class PackUninstallView(_PackViewMixin):
+    """Remove a pack's images from the library."""
+
+    url = "/api/fraimic/packs/{pack_id}/uninstall"
+    name = "api:fraimic:packs:uninstall"
+
+    async def post(self, request: web.Request, pack_id: str) -> web.Response:
+        try:
+            result = await self._packs(request).async_uninstall(pack_id)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return self.json(result)
 
 
 class FramesView(_FraimicView):

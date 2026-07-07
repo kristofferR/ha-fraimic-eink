@@ -82,11 +82,17 @@ def test_library_image_roundtrip_and_album_fallback():
         content_type="image/jpeg",
         uploaded_at=123.0,
         albums=["  ", "Art", "Art", ""],
+        source_url="https://example.test/source",
+        license="CC BY-SA 4.0",
+        attribution="Artist, Source (CC BY-SA 4.0)",
         crops={"1600x1200": [0.1, 0.1, 0.9, 0.9]},
     )
     assert image.normalized_albums() == ["Art"]
     restored = lm.LibraryImage.from_dict(image.to_dict())
     assert restored.image_id == "abc123def456"
+    assert restored.source_url == "https://example.test/source"
+    assert restored.license == "CC BY-SA 4.0"
+    assert restored.attribution == "Artist, Source (CC BY-SA 4.0)"
     assert restored.crop_for(1600, 1200) == (0.1, 0.1, 0.9, 0.9)
     assert restored.crop_for(2560, 1440) is None
 

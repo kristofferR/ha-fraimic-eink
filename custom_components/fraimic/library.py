@@ -136,7 +136,14 @@ class FraimicLibrary:
         return self.originals_dir / f"{image.image_id}_{safe_filename(image.filename)}"
 
     async def async_add_image(
-        self, data: bytes, filename: str, *, albums: list[str] | None = None
+        self,
+        data: bytes,
+        filename: str,
+        *,
+        albums: list[str] | None = None,
+        source_url: str | None = None,
+        license_text: str | None = None,
+        attribution: str | None = None,
     ) -> LibraryImage:
         """Store an uploaded original and register it in the manifest."""
         if len(data) > MAX_SOURCE_BYTES:
@@ -150,6 +157,9 @@ class FraimicLibrary:
             content_type=content_type,
             uploaded_at=time.time(),
             albums=[a for a in (albums or []) if a.strip()] or [LIBRARY_ALBUM_DEFAULT],
+            source_url=source_url,
+            license=license_text,
+            attribution=attribution,
         )
 
         def _store() -> tuple[int, int]:

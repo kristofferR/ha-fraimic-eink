@@ -1,0 +1,141 @@
+{
+  "version": 1,
+  "packs": [
+    {
+      "id": "winter",
+      "name": "Winter & Mist",
+      "category": "Seasonal & Holiday",
+      "description": "Snow, ice, and fog: Bruegel, Avercamp, Monet's magpie, and Friedrich's wanderer.",
+      "attribution": "Public domain, via Wikimedia Commons",
+      "cover_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pieter%20Bruegel%20the%20Elder%20-%20Hunters%20in%20the%20Snow%20(Winter)%20-%20Google%20Art%20Project.jpg?width=480",
+      "images": [
+        {
+          "title": "Hunters in the Snow",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pieter%20Bruegel%20the%20Elder%20-%20Hunters%20in%20the%20Snow%20(Winter)%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Pieter%20Bruegel%20the%20Elder%20-%20Hunters%20in%20the%20Snow%20(Winter)%20-%20Google%20Art%20Project.jpg?width=480",
+          "filename": "bruegel_hunters_in_the_snow.jpg"
+        },
+        {
+          "title": "Winter Landscape with Ice Skaters",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hendrick%20Avercamp%20-%20Winterlandschap%20met%20ijsvermaak.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hendrick%20Avercamp%20-%20Winterlandschap%20met%20ijsvermaak.jpg?width=480",
+          "filename": "avercamp_winter_landscape.jpg"
+        },
+        {
+          "title": "The Magpie",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20The%20Magpie%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20The%20Magpie%20-%20Google%20Art%20Project.jpg?width=480",
+          "filename": "monet_the_magpie.jpg"
+        },
+        {
+          "title": "Wanderer above the Sea of Fog",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Caspar%20David%20Friedrich%20-%20Wanderer%20above%20the%20sea%20of%20fog.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Caspar%20David%20Friedrich%20-%20Wanderer%20above%20the%20sea%20of%20fog.jpg?width=480",
+          "filename": "friedrich_wanderer.jpg"
+        }
+      ]
+    },
+    {
+      "id": "van_gogh",
+      "name": "Vincent van Gogh",
+      "category": "Famous Artists",
+      "description": "Post-Impressionist color and movement: night skies, flowers, irises, and cypress fields.",
+      "attribution": "Public domain, via Wikimedia Commons",
+      "cover_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Van%20Gogh%20-%20Starry%20Night%20-%20Google%20Art%20Project.jpg?width=480",
+      "images": [
+        {
+          "title": "Starry Night",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Van%20Gogh%20-%20Starry%20Night%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Van%20Gogh%20-%20Starry%20Night%20-%20Google%20Art%20Project.jpg?width=480",
+          "filename": "van_gogh_starry_night.jpg"
+        },
+        {
+          "title": "Sunflowers",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Sunflowers%20-%20VGM%20F458.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Sunflowers%20-%20VGM%20F458.jpg?width=480",
+          "filename": "van_gogh_sunflowers.jpg"
+        },
+        {
+          "title": "Irises",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Irises%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Vincent%20van%20Gogh%20-%20Irises%20-%20Google%20Art%20Project.jpg?width=480",
+          "filename": "van_gogh_irises.jpg"
+        },
+        {
+          "title": "Wheat Field with Cypresses",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Wheat%20Field%20with%20Cypresses%20MET%20DT1567.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Wheat%20Field%20with%20Cypresses%20MET%20DT1567.jpg?width=480",
+          "filename": "van_gogh_wheat_field_cypresses.jpg"
+        }
+      ]
+    },
+    {
+      "id": "monet",
+      "name": "Claude Monet",
+      "category": "Famous Artists",
+      "description": "Impressionist light studies: water lilies, sunrise, cathedrals, and Venice at dusk.",
+      "attribution": "Public domain, via Wikimedia Commons",
+      "cover_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Water%20Lilies%20-%20Google%20Art%20Project.jpg?width=480",
+      "images": [
+        {
+          "title": "Water Lilies",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Water%20Lilies%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Water%20Lilies%20-%20Google%20Art%20Project.jpg?width=480",
+          "filename": "monet_water_lilies.jpg"
+        },
+        {
+          "title": "Impression, Sunrise",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Monet%20-%20Impression%2C%20Sunrise.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Monet%20-%20Impression%2C%20Sunrise.jpg?width=480",
+          "filename": "monet_impression_sunrise.jpg"
+        },
+        {
+          "title": "Rouen Cathedral, West Facade",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Rouen%20Cathedral%2C%20West%20Facade.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Rouen%20Cathedral%2C%20West%20Facade.jpg?width=480",
+          "filename": "monet_rouen_cathedral.jpg"
+        },
+        {
+          "title": "Twilight, Venice",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Twilight%2C%20Venice.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Claude%20Monet%20-%20Twilight%2C%20Venice.jpg?width=480",
+          "filename": "monet_twilight_venice.jpg"
+        }
+      ]
+    },
+    {
+      "id": "japanese_woodblock",
+      "name": "Japanese Woodblock",
+      "category": "Famous Artists",
+      "description": "Ukiyo-e landmarks and weather studies by Hokusai and Hiroshige.",
+      "attribution": "Public domain, via Wikimedia Commons",
+      "cover_url": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Great%20Wave%20off%20Kanagawa.jpg?width=480",
+      "images": [
+        {
+          "title": "The Great Wave off Kanagawa",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Great%20Wave%20off%20Kanagawa.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/The%20Great%20Wave%20off%20Kanagawa.jpg?width=480",
+          "filename": "hokusai_great_wave.jpg"
+        },
+        {
+          "title": "Fine Wind, Clear Morning",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Katsushika%20Hokusai%20-%20Fine%20Wind%2C%20Clear%20Morning%20%28Gaif%C5%AB%20kaisei%29%20-%20Google%20Art%20Project.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Katsushika%20Hokusai%20-%20Fine%20Wind%2C%20Clear%20Morning%20%28Gaif%C5%AB%20kaisei%29%20-%20Google%20Art%20Project.jpg?width=480",
+          "filename": "hokusai_fine_wind_clear_morning.jpg"
+        },
+        {
+          "title": "Sudden Shower over Shin-Ohashi Bridge and Atake",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hiroshige%2C%20Sudden%20shower%20over%20Shin-%C5%8Chashi%20bridge%20and%20Atake%2C%201857.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Hiroshige%2C%20Sudden%20shower%20over%20Shin-%C5%8Chashi%20bridge%20and%20Atake%2C%201857.jpg?width=480",
+          "filename": "hiroshige_sudden_shower.jpg"
+        },
+        {
+          "title": "Plum Garden at Kameido",
+          "url": "https://commons.wikimedia.org/wiki/Special:FilePath/Plum%20garden%20at%20Kameido%20%28Kameido%20umeyashiki%29%20%28CBL%20J%202693%29.jpg?width=2600",
+          "preview_url": "https://commons.wikimedia.org/wiki/Special:FilePath/Plum%20garden%20at%20Kameido%20%28Kameido%20umeyashiki%29%20%28CBL%20J%202693%29.jpg?width=480",
+          "filename": "hiroshige_plum_garden_kameido.jpg"
+        }
+      ]
+    }
+  ]
+}
