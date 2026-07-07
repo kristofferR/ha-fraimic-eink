@@ -18,10 +18,18 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import CONF_HEIGHT, CONF_ROTATION, CONF_WIDTH, DEFAULT_ROTATION, DOMAIN, MAX_SOURCE_BYTES
+from .const import (
+    CONF_HEIGHT,
+    CONF_ROTATION,
+    CONF_WIDTH,
+    DEFAULT_ROTATION,
+    DOMAIN,
+    MAX_SOURCE_BYTES,
+)
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary, get_library
 from .scenes import SceneManager, get_scene_manager
+from .services import begin_external_upload, finish_external_upload
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -261,22 +269,37 @@ class LibrarySendView(_FraimicView):
             return self.json_message("image_id is required", HTTPStatus.BAD_REQUEST)
 
         entries = loaded_fraimic_entries(hass)
-        if entry_ids := body.get("entry_ids"):
-            entries = [entry for entry in entries if entry.entry_id in entry_ids]
+        if "entry_ids" in body:
+            entry_ids = body["entry_ids"]
+            if not isinstance(entry_ids, list) or not all(
+                isinstance(entry_id, str) for entry_id in entry_ids
+            ):
+                return self.json_message(
+                    "entry_ids must be a list", HTTPStatus.BAD_REQUEST
+                )
+            selected = set(entry_ids)
+            entries = [entry for entry in entries if entry.entry_id in selected]
         if not entries:
             return self.json_message("No matching loaded frames", HTTPStatus.BAD_REQUEST)
 
         async def _send(entry: ConfigEntry) -> str | None:
+            scheduler = None
+            uploaded = False
             try:
+                scheduler = begin_external_upload(entry)
                 await library.async_send_to_entry(image_id, entry)
-            except HomeAssistantError as err:
+                uploaded = True
+            except Exception as err:  # noqa: BLE001 - isolate per-frame failures
+                _LOGGER.exception("Failed to send library image to %s", entry.entry_id)
                 return str(err)
+            finally:
+                finish_external_upload(scheduler, uploaded=uploaded)
             return None
 
         errors = await asyncio.gather(*(_send(entry) for entry in entries))
         results = {
             entry.entry_id: {"ok": error is None, "error": error}
-            for entry, error in zip(entries, errors)
+            for entry, error in zip(entries, errors, strict=True)
         }
         status = (
             HTTPStatus.OK

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
@@ -37,14 +39,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Domain-wide singletons (shared by every frame): the media library and the
     # HTTP API. Created by whichever entry loads first.
     domain_data = hass.data.setdefault(DOMAIN, {})
-    if DATA_LIBRARY not in domain_data:
-        library = FraimicLibrary(hass)
-        await library.async_setup()
-        domain_data[DATA_LIBRARY] = library
-    if DATA_SCENES not in domain_data:
-        scenes = SceneManager(hass, domain_data[DATA_LIBRARY])
-        await scenes.async_setup()
-        domain_data[DATA_SCENES] = scenes
+    domain_lock = domain_data.setdefault("domain_setup_lock", asyncio.Lock())
+    async with domain_lock:
+        if DATA_LIBRARY not in domain_data:
+            library = FraimicLibrary(hass)
+            await library.async_setup()
+            domain_data[DATA_LIBRARY] = library
+        library = domain_data[DATA_LIBRARY]
+        if DATA_SCENES not in domain_data:
+            scenes = SceneManager(hass, library)
+            await scenes.async_setup()
+            domain_data[DATA_SCENES] = scenes
     async_register_views(hass)
 
     client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
@@ -73,7 +78,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
 
     async_setup_services(hass)
     # Pre-render the library's default variants for this frame in the background.
-    domain_data[DATA_LIBRARY].schedule_full_backfill()
+    library.schedule_full_backfill()
     return True
 
 

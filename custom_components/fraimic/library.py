@@ -40,6 +40,7 @@ from .const import (
     LIBRARY_DIR,
     LIBRARY_THUMB_SIZE,
     MAX_SOURCE_BYTES,
+    MAX_SOURCE_PIXELS,
 )
 from .helpers import loaded_fraimic_entries, resolve_render_params
 from .image_convert import convert_image
@@ -153,6 +154,8 @@ class FraimicLibrary:
 
         def _store() -> tuple[int, int]:
             size = _probe_dimensions(data)
+            if size[0] * size[1] > MAX_SOURCE_PIXELS:
+                raise ValueError(f"image is too large ({size[0]}x{size[1]})")
             self.original_path(image).write_bytes(data)
             return size
 
@@ -290,9 +293,14 @@ class FraimicLibrary:
         if cached is not None:
             return cached
 
-        source = await self.hass.async_add_executor_job(
-            self.original_path(image).read_bytes
-        )
+        try:
+            source = await self.hass.async_add_executor_job(
+                self.original_path(image).read_bytes
+            )
+        except OSError as err:
+            raise HomeAssistantError(
+                f"Library file for {image_id} is missing: {err}"
+            ) from err
         try:
             bin_data, preview_png, used_mode = await self.hass.async_add_executor_job(
                 lambda: convert_image(source, **params, crop=crop)
@@ -300,9 +308,12 @@ class FraimicLibrary:
         except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
             raise HomeAssistantError(f"Could not convert library image: {err}") from err
 
-        await self.hass.async_add_executor_job(
-            self._write_render_sync, render_dir, key, bin_data, preview_png, used_mode
-        )
+        try:
+            await self.hass.async_add_executor_job(
+                self._write_render_sync, render_dir, key, bin_data, preview_png, used_mode
+            )
+        except OSError as err:
+            _LOGGER.warning("Could not write render cache for %s: %s", image_id, err)
         return bin_data, preview_png, used_mode
 
     def _read_render_sync(
@@ -323,10 +334,21 @@ class FraimicLibrary:
         self, render_dir: Path, key: str, bin_data: bytes, preview_png: bytes | None, mode: str
     ) -> None:
         render_dir.mkdir(parents=True, exist_ok=True)
-        (render_dir / f"{key}.bin").write_bytes(bin_data)
+
+        def _atomic_write(path: Path, write) -> None:
+            tmp = path.with_name(f"{path.name}.{uuid.uuid4().hex}.tmp")
+            write(tmp)
+            tmp.replace(path)
+
+        _atomic_write(render_dir / f"{key}.bin", lambda path: path.write_bytes(bin_data))
         if preview_png is not None:
-            (render_dir / f"{key}.png").write_bytes(preview_png)
-        (render_dir / f"{key}.json").write_text(json.dumps({"mode": mode}), encoding="utf-8")
+            _atomic_write(
+                render_dir / f"{key}.png", lambda path: path.write_bytes(preview_png)
+            )
+        _atomic_write(
+            render_dir / f"{key}.json",
+            lambda path: path.write_text(json.dumps({"mode": mode}), encoding="utf-8"),
+        )
 
     async def async_send_to_entry(
         self,
@@ -336,7 +358,8 @@ class FraimicLibrary:
     ) -> None:
         """Render (cache-aware) and upload one library image to one frame."""
         rendered = await self.async_render_for_entry(image_id, entry, overrides)
-        await async_upload_rendered(entry, *rendered)
+        image = self.get(image_id)
+        await async_upload_rendered(entry, *rendered, media_title=image.filename)
 
     # -------------------------------------------------------------- backfill
 
@@ -377,10 +400,22 @@ class FraimicLibrary:
                     )
                 except asyncio.CancelledError:
                     raise
+                except Exception as err:  # noqa: BLE001 - backfill is best-effort
+                    _LOGGER.warning(
+                        "Backfill render of %s for %s failed unexpectedly: %s",
+                        image_id,
+                        getattr(entry, "title", entry.entry_id),
+                        err,
+                    )
 
 
 async def async_upload_rendered(
-    entry: ConfigEntry, bin_data: bytes, preview_png: bytes | None, mode: str
+    entry: ConfigEntry,
+    bin_data: bytes,
+    preview_png: bytes | None,
+    mode: str,
+    *,
+    media_title: str | None = None,
 ) -> None:
     """Upload an already-rendered buffer to one frame and update its preview.
 
@@ -388,15 +423,19 @@ async def async_upload_rendered(
     frames first, then uploads concurrently).
     """
     runtime = entry.runtime_data
-    try:
-        await runtime.client.upload_image(bin_data)
-    except FraimicError as err:
-        raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
-    if preview_png:
-        runtime.last_preview = preview_png
-        if runtime.preview_image is not None:
-            runtime.preview_image.set_preview(preview_png, mode)
-    await runtime.coordinator.async_request_refresh()
+    async with runtime.upload_lock:
+        try:
+            await runtime.client.upload_image(bin_data)
+        except FraimicError as err:
+            raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+        runtime.last_art = None
+        runtime.media_title = media_title
+        if preview_png:
+            runtime.last_preview = preview_png
+            if runtime.preview_image is not None:
+                runtime.preview_image.set_preview(preview_png, mode)
+        await runtime.coordinator.async_request_refresh()
+        runtime.coordinator.async_update_listeners()
 
 
 def _probe_dimensions(data: bytes) -> tuple[int, int]:
@@ -416,7 +455,7 @@ def _probe_dimensions(data: bytes) -> tuple[int, int]:
         with Image.open(io.BytesIO(data)) as img:
             width, height = img.size
             orientation = img.getexif().get(0x0112)
-    except UnidentifiedImageError as err:
+    except (UnidentifiedImageError, OSError) as err:
         raise ValueError("undecodable image data") from err
     # Orientations 5-8 transpose the axes; the library stores display-space
     # dimensions because that's the space crop boxes are defined in.

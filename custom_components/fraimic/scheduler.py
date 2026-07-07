@@ -277,6 +277,8 @@ class FraimicScheduler:
             # The online image source failed — the frame itself is fine. Keep
             # the current screen, back off so the 60 s tick doesn't hammer a
             # struggling API, and leave the sleep-pending machinery alone.
+            if manual:
+                raise
             _LOGGER.warning(
                 "Playlist: online image for %r unavailable, keeping current "
                 "screen: %s",

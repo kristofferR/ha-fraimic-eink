@@ -115,6 +115,9 @@ class FraimicNewArtworkButton(FraimicEntity, ButtonEntity):
 
         entry = self.coordinator.config_entry
         provider = entry.options.get(CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE)
+        stopper = entry.runtime_data.stop_camera_loop
+        if stopper is not None:
+            stopper()
         screen = screen_from_dict(
             SCREEN_SCHEMA(
                 {
