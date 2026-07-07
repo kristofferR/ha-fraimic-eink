@@ -901,6 +901,7 @@ class FraimicPanel extends HTMLElement {
         frame = this._frames[Number(frameSelect.value)];
         if (previewing) {
           img.src = sourceSrc;
+          revokePreview();
           box.style.display = "";
           previewing = false;
           previewBtn.textContent = "Preview on e-ink";
@@ -1001,6 +1002,13 @@ class FraimicPanel extends HTMLElement {
     // dither pipeline (nothing saved/uploaded) and swaps it into the stage.
     let previewing = false;
     let sourceSrc = null;
+    let previewObjectUrl = null;
+    const revokePreview = () => {
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = null;
+      }
+    };
     const previewBtn = this._el("button", {
       class: "btn",
       text: "Preview on e-ink",
@@ -1008,6 +1016,7 @@ class FraimicPanel extends HTMLElement {
         if (previewing) {
           preserveOnLoad = true;
           img.src = sourceSrc;
+          revokePreview();
           box.style.display = "";
           previewing = false;
           previewBtn.textContent = "Preview on e-ink";
@@ -1035,7 +1044,9 @@ class FraimicPanel extends HTMLElement {
           const blob = await resp.blob();
           sourceSrc = img.src;
           preserveOnLoad = true;
-          img.src = URL.createObjectURL(blob);
+          revokePreview();
+          previewObjectUrl = URL.createObjectURL(blob);
+          img.src = previewObjectUrl;
           box.style.display = "none";
           previewing = true;
           previewBtn.textContent = "Back to crop";
@@ -1098,7 +1109,8 @@ class FraimicPanel extends HTMLElement {
         this._el("button", { class: "btn", text: "Clear crop", onclick: clear }),
         this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
         this._el("button", { class: "btn raised", text: "Save", onclick: save }),
-      ]
+      ],
+      revokePreview
     );
   }
 
@@ -1475,8 +1487,9 @@ class FraimicPanel extends HTMLElement {
 
   /* -------------------------------------------------------------- dialog */
 
-  _openDialog(title, contentNodes, actionNodes) {
+  _openDialog(title, contentNodes, actionNodes, onClose = null) {
     const modal = this.shadowRoot.getElementById("modal");
+    this._dialogCleanup = onClose;
     modal.innerHTML = "";
     const dialog = this._el("div", { class: "dialog" }, [
       this._el("h2", { text: title }),
@@ -1494,6 +1507,9 @@ class FraimicPanel extends HTMLElement {
   }
 
   _closeDialog() {
+    const cleanup = this._dialogCleanup;
+    this._dialogCleanup = null;
+    if (cleanup) cleanup();
     this.shadowRoot.getElementById("modal").innerHTML = "";
   }
 }

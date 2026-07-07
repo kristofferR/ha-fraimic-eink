@@ -35,6 +35,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .api import FraimicError
 from .const import (
+    ATTR_ROTATE,
     DOMAIN,
     LIBRARY_ALBUM_DEFAULT,
     LIBRARY_DIR,
@@ -294,7 +295,11 @@ class FraimicLibrary:
         image = self.get(image_id)
         params = resolve_render_params(entry, overrides)
         crop_width, crop_height = _crop_key_size(params)
-        crop = image.crop_for(crop_width, crop_height)
+        crop = (
+            None
+            if overrides and overrides.get(ATTR_ROTATE)
+            else image.crop_for(crop_width, crop_height)
+        )
         cache_params = dict(params)
         cache_params["crop"] = list(crop) if crop else None
         key = render_cache_key(cache_params)
