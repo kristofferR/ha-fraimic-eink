@@ -8,6 +8,9 @@
  */
 
 const API = "/api/fraimic";
+// Mirrors MIN_ART_SHORT_EDGE in const.py: anything with a shorter short edge
+// upscales visibly soft on the ~150 PPI panel.
+const LOW_RES_SHORT_EDGE = 1000;
 
 class FraimicPanel extends HTMLElement {
   constructor() {
@@ -26,6 +29,7 @@ class FraimicPanel extends HTMLElement {
     this._descriptors = null;
     this._selectMode = false;
     this._selected = new Set();
+    this._dialogStack = [];
     this._highlightEntry = null;
     this._signedCache = new Map();
     // Lazy thumbnails: sign only near-viewport images, a few at a time, so a
@@ -161,6 +165,16 @@ class FraimicPanel extends HTMLElement {
     }
     for (const child of children) node.appendChild(child);
     return node;
+  }
+
+  _onImageDims(img, callback) {
+    // Natural dimensions of an <img>, whether it is still loading or was
+    // already complete (cache hit) when we got here.
+    const report = () => {
+      if (img.naturalWidth) callback(img.naturalWidth, img.naturalHeight);
+    };
+    if (img.complete) report();
+    else img.addEventListener("load", report, { once: true });
   }
 
   _effectiveSize(frame) {
@@ -338,6 +352,10 @@ class FraimicPanel extends HTMLElement {
           background: var(--secondary-background-color);
           color: var(--secondary-text-color);
           margin: 2px 2px 0 0;
+        }
+        .chip.warn {
+          background: var(--warning-color, #ff9800);
+          color: var(--text-primary-color, #fff);
         }
         .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
         .dot.on { background: var(--success-color, #4caf50); }
@@ -716,7 +734,7 @@ class FraimicPanel extends HTMLElement {
           this._el("button", {
             class: "btn",
             text: "Send",
-            onclick: () => this._sendImage(image),
+            onclick: () => this._openCropEditor(image, { send: true }),
           }),
           this._el("button", {
             class: "btn",
@@ -812,58 +830,6 @@ class FraimicPanel extends HTMLElement {
     this._renderTab();
   }
 
-  async _sendImage(image) {
-    const frame = await this._pickFrame("Send to frame");
-    if (!frame) return;
-    const targets = frame === "all" ? this._frames : [frame];
-    this._toast("Sending… the e-ink refresh takes ~30 s");
-    try {
-      const result = await this._api("library/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          image_id: image.image_id,
-          entry_ids: targets.map((f) => f.entry_id),
-        }),
-      });
-      const failed = Object.values(result.results).filter((r) => !r.ok);
-      this._toast(
-        failed.length
-          ? `Sent with ${failed.length} failure(s): ${failed[0].error}`
-          : "Sent ✓",
-        Boolean(failed.length)
-      );
-    } catch (err) {
-      this._toast(err.message, true);
-    }
-  }
-
-  _pickFrame(title) {
-    if (!this._frames.length) {
-      this._toast("No frames are loaded", true);
-      return Promise.resolve(null);
-    }
-    if (this._frames.length === 1) return Promise.resolve(this._frames[0]);
-    return new Promise((resolve) => {
-      const select = this._el("select");
-      select.appendChild(this._el("option", { value: "all", text: "All frames" }));
-      this._frames.forEach((frame, index) => {
-        select.appendChild(this._el("option", { value: String(index), text: this._frameLabel(frame) }));
-      });
-      this._openDialog(title, [this._el("div", { class: "row" }, [select])], [
-        this._el("button", { class: "btn", text: "Cancel", onclick: () => { this._closeDialog(); resolve(null); } }),
-        this._el("button", {
-          class: "btn raised",
-          text: "Send",
-          onclick: () => {
-            this._closeDialog();
-            resolve(select.value === "all" ? "all" : this._frames[Number(select.value)]);
-          },
-        }),
-      ]);
-    });
-  }
-
   async _editAlbums(image) {
     const current = image.albums.join(", ");
     const answer = prompt("Albums (comma-separated):", current);
@@ -929,12 +895,39 @@ class FraimicPanel extends HTMLElement {
 
   /* --------------------------------------------------------- crop editor */
 
-  async _openCropEditor(image) {
+  /* Normalized 0-1 point maps between original space and a display rotated
+   * ``r`` degrees clockwise. */
+  static _rotatePoint(x, y, r) {
+    if (r === 90) return [1 - y, x];
+    if (r === 180) return [1 - x, 1 - y];
+    if (r === 270) return [y, 1 - x];
+    return [x, y];
+  }
+
+  static _mapBox(box, r, toDisplay) {
+    const rot = toDisplay ? r : (360 - r) % 360;
+    const [ax, ay] = FraimicPanel._rotatePoint(box[0], box[1], rot);
+    const [bx, by] = FraimicPanel._rotatePoint(box[2], box[3], rot);
+    return [Math.min(ax, bx), Math.min(ay, by), Math.max(ax, bx), Math.max(ay, by)];
+  }
+
+  /* The crop/rotate window. Options:
+   *   send:  true makes the primary action save the crop and send the image
+   *          to the selected frame (the flow every "choose an image" enters).
+   *   frame: preselect a target frame (scene editor rows pass theirs).
+   *   stack: open on top of the current dialog and return to it on close. */
+  async _openCropEditor(image, { send = false, frame: presetFrame = null, stack = false } = {}) {
     if (!this._frames.length) {
       this._toast("No frames are loaded", true);
       return;
     }
-    let frame = this._frames[0];
+    let frame = presetFrame || this._frames[0];
+    const rotationFor = (f) => {
+      const size = this._effectiveSize(f);
+      const saved = image.rotations && image.rotations[`${size.width}x${size.height}`];
+      return [90, 180, 270].includes(saved) ? saved : 0;
+    };
+    let rotation = rotationFor(frame);
 
     const img = this._el("img", { draggable: "false" });
     const box = this._el("div", { id: "cropBox" });
@@ -946,21 +939,24 @@ class FraimicPanel extends HTMLElement {
     const frameSelect = this._el("select", {
       onchange: () => {
         frame = this._frames[Number(frameSelect.value)];
+        rotation = rotationFor(frame);
         if (previewing) {
-          img.src = sourceSrc;
           revokePreview();
           box.style.display = "";
           previewing = false;
           previewBtn.textContent = "Preview on e-ink";
         }
-        placeBox(this._initialBox(image, frame));
+        renderStage();
       },
     });
     this._frames.forEach((f, index) => {
-      frameSelect.appendChild(this._el("option", { value: String(index), text: this._frameLabel(f) }));
+      const option = this._el("option", { value: String(index), text: this._frameLabel(f) });
+      if (f === frame) option.selected = true;
+      frameSelect.appendChild(option);
     });
 
-    // Normalized box state [x0, y0, x1, y1]
+    // Normalized box state [x0, y0, x1, y1] in DISPLAY space (the image as
+    // shown, i.e. already rotated); converted to original space on save.
     let norm = null;
     let imageReady = false;
     let preserveOnLoad = false;
@@ -980,7 +976,7 @@ class FraimicPanel extends HTMLElement {
 
     img.addEventListener("load", () => {
       imageReady = true;
-      placeBox(preserveOnLoad && norm ? [...norm] : this._initialBox(image, frame));
+      placeBox(preserveOnLoad && norm ? [...norm] : this._initialBox(image, frame, rotation));
       preserveOnLoad = false;
     });
     img.addEventListener("error", () => {
@@ -988,7 +984,44 @@ class FraimicPanel extends HTMLElement {
       box.style.display = "none";
       this._toast("Could not load a browser-renderable crop image", true);
     });
-    this._setImgSrc(img, `${API}/library/thumb/${image.image_id}`);
+
+    // The rotated view is drawn locally: the base thumbnail is fetched once
+    // and redrawn onto a canvas at the current rotation.
+    const baseImg = new Image();
+    const renderStage = () => {
+      if (!baseImg.naturalWidth) return;
+      let next = baseImg.src;
+      if (rotation) {
+        const swap = rotation === 90 || rotation === 270;
+        const canvas = document.createElement("canvas");
+        canvas.width = swap ? baseImg.naturalHeight : baseImg.naturalWidth;
+        canvas.height = swap ? baseImg.naturalWidth : baseImg.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        ctx.drawImage(baseImg, -baseImg.naturalWidth / 2, -baseImg.naturalHeight / 2);
+        next = canvas.toDataURL("image/jpeg", 0.92);
+      }
+      if (img.src === next) {
+        // Same pixels (e.g. frame changed, rotation didn't): the load event
+        // won't refire, so place the box directly.
+        placeBox(preserveOnLoad && norm ? [...norm] : this._initialBox(image, frame, rotation));
+        preserveOnLoad = false;
+        return;
+      }
+      img.src = next;
+    };
+    baseImg.addEventListener("load", renderStage);
+    baseImg.addEventListener("error", () => {
+      imageReady = false;
+      box.style.display = "none";
+      this._toast("Could not load a browser-renderable crop image", true);
+    });
+    this._signedUrl(`${API}/library/thumb/${image.image_id}`)
+      .then((url) => {
+        baseImg.src = url;
+      })
+      .catch(() => this._toast("Could not load the crop image", true));
 
     // Pointer interactions: move (box) or aspect-locked resize (handles).
     let gesture = null;
@@ -1048,7 +1081,6 @@ class FraimicPanel extends HTMLElement {
     // "Preview on e-ink": server-renders the current box through the real
     // dither pipeline (nothing saved/uploaded) and swaps it into the stage.
     let previewing = false;
-    let sourceSrc = null;
     let previewObjectUrl = null;
     const revokePreview = () => {
       if (previewObjectUrl) {
@@ -1056,17 +1088,20 @@ class FraimicPanel extends HTMLElement {
         previewObjectUrl = null;
       }
     };
+    const exitPreview = () => {
+      preserveOnLoad = true;
+      revokePreview();
+      box.style.display = "";
+      previewing = false;
+      previewBtn.textContent = "Preview on e-ink";
+      renderStage();
+    };
     const previewBtn = this._el("button", {
       class: "btn",
       text: "Preview on e-ink",
       onclick: async () => {
         if (previewing) {
-          preserveOnLoad = true;
-          img.src = sourceSrc;
-          revokePreview();
-          box.style.display = "";
-          previewing = false;
-          previewBtn.textContent = "Preview on e-ink";
+          exitPreview();
           return;
         }
         if (!imageReady || !norm) {
@@ -1081,7 +1116,11 @@ class FraimicPanel extends HTMLElement {
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ entry_id: frame.entry_id, box: norm }),
+              body: JSON.stringify({
+                entry_id: frame.entry_id,
+                box: FraimicPanel._mapBox(norm, rotation, false),
+                rotate: rotation,
+              }),
             }
           );
           if (!resp.ok) {
@@ -1089,7 +1128,6 @@ class FraimicPanel extends HTMLElement {
             throw new Error(body.message || resp.statusText);
           }
           const blob = await resp.blob();
-          sourceSrc = img.src;
           preserveOnLoad = true;
           revokePreview();
           previewObjectUrl = URL.createObjectURL(blob);
@@ -1105,18 +1143,39 @@ class FraimicPanel extends HTMLElement {
       },
     });
 
+    const rotateBtn = this._el("button", {
+      class: "btn",
+      text: "Rotate 90°",
+      onclick: () => {
+        if (previewing) exitPreview();
+        rotation = (rotation + 90) % 360;
+        rotateBtn.textContent = rotation ? `Rotate 90° (${rotation}°)` : "Rotate 90°";
+        norm = null; // the box is re-fit for the new orientation on load
+        renderStage();
+      },
+    });
+    if (rotation) rotateBtn.textContent = `Rotate 90° (${rotation}°)`;
+
+    const saveCrop = async () => {
+      const size = this._effectiveSize(frame);
+      await this._api(`library/image/${image.image_id}/crop`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          width: size.width,
+          height: size.height,
+          box: FraimicPanel._mapBox(norm, rotation, false),
+          rotate: rotation,
+        }),
+      });
+    };
     const save = async () => {
       if (!imageReady || !norm) {
         this._toast("Crop image is not ready yet", true);
         return;
       }
-      const size = this._effectiveSize(frame);
       try {
-        await this._api(`library/image/${image.image_id}/crop`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ width: size.width, height: size.height, box: norm }),
-        });
+        await saveCrop();
         this._closeDialog();
         await this._loadLibrary();
         this._renderTab();
@@ -1125,25 +1184,69 @@ class FraimicPanel extends HTMLElement {
         this._toast(err.message, true);
       }
     };
+    const saveAndSend = async (ev) => {
+      if (!imageReady || !norm) {
+        this._toast("Crop image is not ready yet", true);
+        return;
+      }
+      ev.target.disabled = true;
+      try {
+        await saveCrop();
+        this._closeDialog();
+        this._toast("Sending… the e-ink refresh takes ~30 s");
+        const result = await this._api("library/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            image_id: image.image_id,
+            entry_ids: [frame.entry_id],
+          }),
+        });
+        const failed = Object.values(result.results).filter((r) => !r.ok);
+        this._toast(
+          failed.length ? `Send failed: ${failed[0].error}` : "Sent ✓",
+          Boolean(failed.length)
+        );
+        await this._loadLibrary();
+        this._renderTab();
+      } catch (err) {
+        this._toast(err.message, true);
+        ev.target.disabled = false;
+      }
+    };
     const clear = async () => {
       const size = this._effectiveSize(frame);
       try {
         await this._api(`library/image/${image.image_id}/crop`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ width: size.width, height: size.height, box: null }),
+          body: JSON.stringify({ width: size.width, height: size.height, box: null, rotate: 0 }),
         });
         this._closeDialog();
         await this._loadLibrary();
         this._renderTab();
-        this._toast("Crop cleared");
+        this._toast("Crop and rotation cleared");
       } catch (err) {
         this._toast(err.message, true);
       }
     };
 
+    const actions = [
+      previewBtn,
+      rotateBtn,
+      this._el("button", { class: "btn", text: "Clear crop", onclick: clear }),
+      this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
+    ];
+    if (send) {
+      actions.push(
+        this._el("button", { class: "btn raised", text: "Save & send", onclick: saveAndSend })
+      );
+    } else {
+      actions.push(this._el("button", { class: "btn raised", text: "Save", onclick: save }));
+    }
+
     this._openDialog(
-      `Crop — ${image.filename}`,
+      `${send ? "Send" : "Crop"} — ${image.filename}`,
       [
         this._el("div", { class: "row" }, [
           this._el("label", { text: "Target frame" }),
@@ -1151,24 +1254,32 @@ class FraimicPanel extends HTMLElement {
         ]),
         stage,
       ],
-      [
-        previewBtn,
-        this._el("button", { class: "btn", text: "Clear crop", onclick: clear }),
-        this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
-        this._el("button", { class: "btn raised", text: "Save", onclick: save }),
-      ],
+      actions,
       false,
-      revokePreview
+      revokePreview,
+      stack
     );
   }
 
-  _initialBox(image, frame) {
+  _initialBox(image, frame, rotation = 0) {
     const size = this._effectiveSize(frame);
     const key = `${size.width}x${size.height}`;
-    if (image.crops && image.crops[key]) return [...image.crops[key]];
-    // Default: the centered cover-crop the pipeline would use anyway.
+    const savedRotation =
+      image.rotations && [90, 180, 270].includes(image.rotations[key])
+        ? image.rotations[key]
+        : 0;
+    // The saved crop was drawn at the saved rotation; at any other rotation
+    // its aspect no longer matches the frame, so fall through to the default.
+    if (rotation === savedRotation && image.crops && image.crops[key]) {
+      return FraimicPanel._mapBox([...image.crops[key]], rotation, true);
+    }
+    // Default: the centered cover-crop the pipeline would use anyway, in
+    // display space (source axes swap at 90°/270°).
     const target = size.width / size.height;
-    const source = image.width && image.height ? image.width / image.height : target;
+    const swap = rotation === 90 || rotation === 270;
+    const sourceW = swap ? image.height : image.width;
+    const sourceH = swap ? image.width : image.height;
+    const source = sourceW && sourceH ? sourceW / sourceH : target;
     if (source > target) {
       const w = target / source;
       return [(1 - w) / 2, 0, (1 + w) / 2, 1];
@@ -1340,7 +1451,13 @@ class FraimicPanel extends HTMLElement {
         if (select.value) this._setImgSrc(preview, `${API}/library/thumb/${select.value}`);
         else preview.removeAttribute("src");
       };
-      select.addEventListener("change", syncPreview);
+      select.addEventListener("change", () => {
+        syncPreview();
+        // Choosing an image is followed by the crop/rotate window for the
+        // frame it was chosen for; closing it returns to this dialog.
+        const chosen = this._images.find((entry) => entry.image_id === select.value);
+        if (chosen) this._openCropEditor(chosen, { frame, stack: true });
+      });
       syncPreview();
       selects.set(frame.entry_id, select);
       rows.push(
@@ -1441,6 +1558,23 @@ class FraimicPanel extends HTMLElement {
           text: `${pack.installed_count}/${pack.images.length} installed · ${pack.attribution}`,
         }),
       ]);
+      // Remote-catalog covers hot-link the actual pack image, so the loaded
+      // cover reveals the pack's true resolution for free. Some community
+      // packs are thumbnail-sized (TV title cards ~300 px) and upscale badly
+      // on the panel — badge them before the user installs.
+      if (pack.images.some((image) => image.url === cover.src)) {
+        this._onImageDims(cover, (width, height) => {
+          if (Math.min(width, height) >= LOW_RES_SHORT_EDGE) return;
+          body.insertBefore(
+            this._el("span", {
+              class: "chip warn",
+              title: "These images are smaller than the frame's panel and will look soft",
+              text: `Low resolution (${width}×${height})`,
+            }),
+            body.children[3]
+          );
+        });
+      }
       const installBtn = this._el("button", {
         class: "btn raised",
         text: pack.installed ? "Reinstall missing" : pack.installed_count ? "Resume install" : "Install",
@@ -1512,6 +1646,16 @@ class FraimicPanel extends HTMLElement {
         );
       }
       counter.textContent = `${index + 1} / ${pack.images.length}`;
+      // Remote packs preview the full image, so its natural size is the real
+      // resolution — surface it (with a low-res nudge) while browsing.
+      if ((image.preview_url || image.url) === image.url) {
+        const current = index;
+        this._onImageDims(img, (width, height) => {
+          if (index !== current) return; // user already navigated away
+          const soft = Math.min(width, height) < LOW_RES_SHORT_EDGE ? " · low res" : "";
+          counter.textContent = `${index + 1} / ${pack.images.length} · ${width}×${height}${soft}`;
+        });
+      }
     };
     show();
 
@@ -2008,13 +2152,24 @@ class FraimicPanel extends HTMLElement {
 
   /* -------------------------------------------------------------- dialog */
 
-  _openDialog(title, contentNodes, actionNodes, wide = false, onClose = null) {
+  /* Dialogs stack: opening one over another (e.g. the crop window on top of
+   * the scene editor) detaches the current overlay — DOM state and all — and
+   * restores it when the top dialog closes. */
+  _openDialog(title, contentNodes, actionNodes, wide = false, onClose = null, stack = false) {
     const modal = this.shadowRoot.getElementById("modal");
-    const cleanup = this._dialogCleanup;
-    this._dialogCleanup = null;
-    if (cleanup) cleanup();
+    if (stack && modal.firstChild) {
+      this._dialogStack.push({
+        overlay: modal.firstChild,
+        cleanup: this._dialogCleanup,
+      });
+      modal.firstChild.remove();
+    } else {
+      const cleanup = this._dialogCleanup;
+      if (cleanup) cleanup();
+      this._dialogStack = [];
+      modal.innerHTML = "";
+    }
     this._dialogCleanup = onClose;
-    modal.innerHTML = "";
     const dialog = this._el("div", { class: wide ? "dialog wide" : "dialog" }, [
       this._el("h2", { text: title }),
       ...contentNodes,
@@ -2034,7 +2189,13 @@ class FraimicPanel extends HTMLElement {
     const cleanup = this._dialogCleanup;
     this._dialogCleanup = null;
     if (cleanup) cleanup();
-    this.shadowRoot.getElementById("modal").innerHTML = "";
+    const modal = this.shadowRoot.getElementById("modal");
+    modal.innerHTML = "";
+    const previous = this._dialogStack.pop();
+    if (previous) {
+      this._dialogCleanup = previous.cleanup;
+      modal.appendChild(previous.overlay);
+    }
   }
 }
 

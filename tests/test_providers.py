@@ -198,7 +198,7 @@ class FakeSession:
         raise AssertionError(f"unexpected request: {url}")
 
     async def post(self, url, headers=None, timeout=None, **kwargs):
-        return await self.get(url, headers=headers, timeout=timeout)
+        return await self.get(url, headers=headers, timeout=timeout, **kwargs)
 
 
 class _Provider(base.ArtProvider):
@@ -432,6 +432,51 @@ def test_met_provider_retries_past_imageless_objects() -> None:
     )
     assert [c.title for c in candidates] == ["Wheat Field with Cypresses"]
     assert search["total"] > 0  # fixture sanity
+
+
+def test_aic_candidates_sample_a_random_page_of_the_cached_pool(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The AIC API ignores function_score/random_score (verified live), so
+    # variety must come from a random page offset over the cached pool total.
+    session = FakeSession()
+    session.add(
+        aic.SEARCH_URL, FakeResponse(payload={"pagination": {"total": 119}, "data": []})
+    )
+    session.add(aic.SEARCH_URL, FakeResponse(payload=_fixture("aic_search.json")))
+    session.add(aic.SEARCH_URL, FakeResponse(payload=_fixture("aic_search.json")))
+    monkeypatch.setattr(aic.random, "randrange", lambda stop: 2)
+    provider = aic.AicProvider()
+    provider.min_interval = 0
+
+    candidates = _run(
+        provider.async_candidates(session, cache_mod.ProviderCache(), REQUEST, 8)
+    )
+
+    assert candidates
+    assert session.calls[0]["json"]["limit"] == 1  # pool-total probe
+    body = session.calls[1]["json"]
+    assert body["limit"] == 16
+    assert body["page"] == 3  # randrange(ceil(119/16)) + 1
+    assert "function_score" not in json.dumps(body)
+
+
+def test_aic_pool_total_is_cached_across_calls() -> None:
+    session = FakeSession()
+    session.add(
+        aic.SEARCH_URL, FakeResponse(payload={"pagination": {"total": 10}, "data": []})
+    )
+    session.add(aic.SEARCH_URL, FakeResponse(payload=_fixture("aic_search.json")))
+    session.add(aic.SEARCH_URL, FakeResponse(payload=_fixture("aic_search.json")))
+    cache = cache_mod.ProviderCache()
+    provider = aic.AicProvider()
+    provider.min_interval = 0
+
+    _run(provider.async_candidates(session, cache, REQUEST, 4))
+    _run(provider.async_candidates(session, cache, REQUEST, 4))
+
+    # 1 total probe + 2 page fetches; no second total probe.
+    assert len(session.calls) == 3
 
 
 def test_apod_uses_encoded_params_and_conservative_demo_key_throttle() -> None:

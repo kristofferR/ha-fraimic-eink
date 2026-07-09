@@ -108,6 +108,28 @@ def test_bad_saved_crop_is_ignored_not_fatal():
     assert image.crop_for(1600, 1200) is None
 
 
+def test_rotations_roundtrip_and_bad_values_dropped():
+    image = lm.LibraryImage(
+        "id",
+        "f",
+        "image/png",
+        0.0,
+        rotations={"1600x1200": 90},
+    )
+    assert image.rotation_for(1600, 1200) == 90
+    assert image.rotation_for(2560, 1440) == 0
+    restored = lm.LibraryImage.from_dict(image.to_dict())
+    assert restored.rotation_for(1600, 1200) == 90
+
+    # Hand-edited manifests: invalid rotation values are dropped, not fatal.
+    mangled = image.to_dict()
+    mangled["rotations"] = {"1600x1200": 45, "1200x1600": "90", "800x480": 180}
+    restored = lm.LibraryImage.from_dict(mangled)
+    assert restored.rotation_for(1600, 1200) == 0
+    assert restored.rotation_for(1200, 1600) == 0
+    assert restored.rotation_for(800, 480) == 180
+
+
 def test_manifest_roundtrip_skips_broken_entries():
     images = {
         "good": lm.LibraryImage("good", "a.jpg", "image/jpeg", 1.0),

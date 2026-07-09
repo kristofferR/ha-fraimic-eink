@@ -208,8 +208,15 @@ class LibraryCropView(_FraimicView):
                 "width and height are required", HTTPStatus.BAD_REQUEST
             )
         box = body.get("box")
+        rotate = body.get("rotate")
+        if rotate is not None and rotate not in (0, 90, 180, 270):
+            return self.json_message(
+                "rotate must be 0, 90, 180 or 270", HTTPStatus.BAD_REQUEST
+            )
         try:
-            image = await library.async_set_crop(image_id, width, height, box)
+            image = await library.async_set_crop(
+                image_id, width, height, box, rotate=rotate
+            )
         except ValueError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         except HomeAssistantError as err:
@@ -237,9 +244,14 @@ class LibraryPreviewView(_FraimicView):
         )
         if entry is None:
             return self.json_message("Unknown or unloaded entry_id", HTTPStatus.BAD_REQUEST)
+        rotate = body.get("rotate")
+        if rotate is not None and rotate not in (0, 90, 180, 270):
+            return self.json_message(
+                "rotate must be 0, 90, 180 or 270", HTTPStatus.BAD_REQUEST
+            )
         try:
             png = await library.async_render_adhoc_preview(
-                image_id, entry, body.get("box")
+                image_id, entry, body.get("box"), rotate=rotate
             )
         except ValueError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)

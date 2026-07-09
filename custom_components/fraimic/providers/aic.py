@@ -1,7 +1,10 @@
 """Art Institute of Chicago — open access, no key, CC0 for public domain.
 
 The boosted public-domain paintings pool (~120 certified masterpieces) is
-queried with a fresh random seed per call via Elasticsearch function_score.
+sampled via a random page offset (the pool total is cached 24 h). The API
+silently ignores Elasticsearch ``function_score``/``random_score`` — verified
+live: three different seeds returned the identical order, so seed-based
+randomisation always served the same painting.
 Image delivery: IIIF at 1686 px (the public-domain maximum). The image CDN
 requires a Referer header (hotlink protection) — verified live.
 """
@@ -19,29 +22,23 @@ IIIF_URL = "https://www.artic.edu/iiif/2/{image_id}/full/{size},/0/default.jpg"
 FULL_SIZE = 1686  # public-domain maximum
 THUMB_SIZE = 843
 API_TIMEOUT = 20.0
+POOL_TTL = 24 * 3600
 
 
-def _search_body(seed: int, limit: int) -> dict:
+def _search_body(limit: int, page: int = 1) -> dict:
     return {
         "query": {
-            "function_score": {
-                "query": {
-                    "bool": {
-                        "filter": [
-                            {"term": {"is_public_domain": True}},
-                            {"term": {"is_boosted": True}},
-                            {"term": {"artwork_type_title.keyword": "Painting"}},
-                        ]
-                    }
-                },
-                "boost_mode": "replace",
-                # NOTE: must not be an empty object — the API's PHP layer
-                # turns {} into [] and Elasticsearch rejects it.
-                "random_score": {"seed": seed, "field": "id"},
+            "bool": {
+                "filter": [
+                    {"term": {"is_public_domain": True}},
+                    {"term": {"is_boosted": True}},
+                    {"term": {"artwork_type_title.keyword": "Painting"}},
+                ]
             }
         },
         "fields": "id,title,image_id,artist_display,thumbnail",
         "limit": limit,
+        "page": page,
     }
 
 
@@ -92,9 +89,33 @@ class AicProvider(ArtProvider):
             "Referer": "https://www.artic.edu/",
         }
 
+    async def _total(self, session: Any, cache: Any) -> int:
+        total = cache.get("aic_total", POOL_TTL)
+        if total is None:
+            payload = await async_fetch_json(
+                session,
+                cache,
+                key=self.key,
+                min_interval=self.min_interval,
+                url=SEARCH_URL,
+                method="post",
+                error_label="AIC search",
+                json=_search_body(limit=1),
+                headers=api_headers({"AIC-User-Agent": api_headers()["User-Agent"]}),
+                timeout=API_TIMEOUT,
+            )
+            total = (payload.get("pagination") or {}).get("total") or 0
+            if not total:
+                raise ArtFetchError("AIC returned an empty boosted-paintings pool")
+            cache.set("aic_total", total)
+        return total
+
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
+        total = await self._total(session, cache)
+        limit = count * 2
+        page = random.randrange(max(1, -(-total // limit))) + 1
         payload = await async_fetch_json(
             session,
             cache,
@@ -103,7 +124,7 @@ class AicProvider(ArtProvider):
             url=SEARCH_URL,
             method="post",
             error_label="AIC search",
-            json=_search_body(random.randrange(1_000_000), count * 2),
+            json=_search_body(limit=limit, page=page),
             headers=api_headers({"AIC-User-Agent": api_headers()["User-Agent"]}),
             timeout=API_TIMEOUT,
         )
@@ -112,6 +133,7 @@ class AicProvider(ArtProvider):
             for item in payload.get("data", [])
             if (candidate := parse_aic_item(item)) is not None
         ]
+        random.shuffle(candidates)
         return candidates[:count]
 
     async def async_by_id(

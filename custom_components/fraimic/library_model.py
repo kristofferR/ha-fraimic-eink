@@ -85,6 +85,10 @@ class LibraryImage:
     attribution: str | None = None
     # Saved manual crops, keyed by resolution_key(): [x0, y0, x1, y1] normalized.
     crops: dict[str, list[float]] = field(default_factory=dict)
+    # Saved manual rotations (clockwise 90/180/270), same key space as crops.
+    # The crop box is stored in original-image space; the pipeline crops first
+    # and then rotates, so the pair always stays consistent.
+    rotations: dict[str, int] = field(default_factory=dict)
 
     def normalized_albums(self) -> list[str]:
         """Albums with duplicates removed and the default as fallback."""
@@ -109,6 +113,11 @@ class LibraryImage:
             # the image unsendable; ignore the bad crop instead.
             return None
 
+    def rotation_for(self, width: int, height: int) -> int:
+        """Return the saved clockwise rotation for a resolution (0 if none)."""
+        rotation = self.rotations.get(resolution_key(width, height))
+        return rotation if rotation in (90, 180, 270) else 0
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "image_id": self.image_id,
@@ -122,6 +131,7 @@ class LibraryImage:
             "license": self.license,
             "attribution": self.attribution,
             "crops": self.crops,
+            "rotations": self.rotations,
         }
 
     @classmethod
@@ -135,6 +145,13 @@ class LibraryImage:
                 parsed_crops[str(key)] = list(value)
             except TypeError:
                 continue
+        rotations = data.get("rotations") or {}
+        if not isinstance(rotations, dict):
+            rotations = {}
+        parsed_rotations: dict[str, int] = {}
+        for key, value in rotations.items():
+            if value in (90, 180, 270):
+                parsed_rotations[str(key)] = value
         albums = data.get("albums") or [LIBRARY_ALBUM_DEFAULT]
         if not isinstance(albums, list):
             albums = [LIBRARY_ALBUM_DEFAULT]
@@ -150,6 +167,7 @@ class LibraryImage:
             license=_optional_string(data.get("license")),
             attribution=_optional_string(data.get("attribution")),
             crops=parsed_crops,
+            rotations=parsed_rotations,
         )
 
 

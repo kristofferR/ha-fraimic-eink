@@ -206,12 +206,19 @@ class FraimicLibrary:
         return image
 
     async def async_set_crop(
-        self, image_id: str, width: int, height: int, box: list[float] | None
+        self,
+        image_id: str,
+        width: int,
+        height: int,
+        box: list[float] | None,
+        rotate: int | None = None,
     ) -> LibraryImage:
         """Set (or clear, with ``box=None``) the crop for one resolution.
 
-        Every cached render at that resolution is stale afterwards, so they are
-        deleted in the same step — a prefix match on the cache-file stem.
+        ``rotate`` (clockwise 90/180/270; 0 clears, None leaves untouched)
+        stores the manual rotation applied alongside the crop. Every cached
+        render at that resolution is stale afterwards, so they are deleted in
+        the same step — a prefix match on the cache-file stem.
         """
         image = self.get(image_id)
         key = resolution_key(width, height)
@@ -219,17 +226,30 @@ class FraimicLibrary:
             image.crops.pop(key, None)
         else:
             image.crops[key] = list(normalize_crop(box))
+        if rotate is not None:
+            if rotate in (90, 180, 270):
+                image.rotations[key] = rotate
+            elif rotate == 0:
+                image.rotations.pop(key, None)
+            else:
+                raise ValueError(f"rotate must be 0, 90, 180 or 270, got {rotate!r}")
         await self._async_save_manifest()
-        await self.hass.async_add_executor_job(self._invalidate_renders_sync, image_id, key)
+        await self.hass.async_add_executor_job(
+            self._invalidate_renders_sync, image_id, width, height
+        )
         self.schedule_backfill(image_id)
         return image
 
-    def _invalidate_renders_sync(self, image_id: str, res_key: str) -> None:
+    def _invalidate_renders_sync(self, image_id: str, width: int, height: int) -> None:
+        # Crop keys are wall-visible dims but cache stems are native frame
+        # dims, so a frame mounted at 90°/270° stores under the transposed
+        # stem — invalidate both orientations.
         render_dir = self.renders_dir / image_id
         if not render_dir.is_dir():
             return
+        prefixes = (f"{resolution_key(width, height)}_", f"{resolution_key(height, width)}_")
         for path in render_dir.iterdir():
-            if path.name.startswith(f"{res_key}_"):
+            if path.name.startswith(prefixes):
                 path.unlink(missing_ok=True)
 
     # ---------------------------------------------------------------- albums
@@ -295,11 +315,16 @@ class FraimicLibrary:
         image = self.get(image_id)
         params = resolve_render_params(entry, overrides)
         crop_width, crop_height = _crop_key_size(params)
-        crop = (
-            None
-            if overrides and overrides.get(ATTR_ROTATE)
-            else image.crop_for(crop_width, crop_height)
-        )
+        # A per-call rotate override changes the wall aspect, so the saved
+        # crop/rotation pair (drawn for the mount orientation) no longer fits.
+        if overrides and overrides.get(ATTR_ROTATE):
+            crop = None
+        else:
+            crop = image.crop_for(crop_width, crop_height)
+            if saved_rotate := image.rotation_for(crop_width, crop_height):
+                # Crop first (original space), then rotate — matching the
+                # pipeline order, so the pair stays consistent.
+                params["rotate"] = (params["rotate"] + saved_rotate) % 360
         cache_params = dict(params)
         cache_params["crop"] = list(crop) if crop else None
         key = render_cache_key(cache_params)
@@ -386,22 +411,30 @@ class FraimicLibrary:
         image_id: str,
         entry: ConfigEntry,
         box: list[float] | None,
+        rotate: int | None = None,
     ) -> bytes:
         """Dithered preview PNG for an arbitrary (possibly unsaved) crop box.
 
         Backs the crop editor's "Preview on e-ink" button: shows exactly what
-        the panel will render for the box being edited, without saving the
-        crop, uploading anything, or polluting the render cache. A box that
-        matches the saved crop goes through the normal cached path.
+        the panel will render for the box (and manual ``rotate``) being
+        edited, without saving anything, uploading anything, or polluting the
+        render cache. A box/rotation pair that matches the saved state goes
+        through the normal cached path.
         """
         image = self.get(image_id)
         params = resolve_render_params(entry)
         crop = normalize_crop(box) if box is not None else None
         crop_width, crop_height = _crop_key_size(params)
-        if crop == image.crop_for(crop_width, crop_height):
+        if rotate is None:
+            rotate = image.rotation_for(crop_width, crop_height)
+        if crop == image.crop_for(crop_width, crop_height) and rotate == image.rotation_for(
+            crop_width, crop_height
+        ):
             _, preview_png, _ = await self.async_render_for_entry(image_id, entry)
             if preview_png is not None:
                 return preview_png
+        if rotate:
+            params["rotate"] = (params["rotate"] + rotate) % 360
         source = await self.hass.async_add_executor_job(
             self.original_path(image).read_bytes
         )
