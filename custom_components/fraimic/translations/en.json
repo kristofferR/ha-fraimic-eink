@@ -160,6 +160,7 @@
           "tone": "Tone curve",
           "default_provider": "Default online-art source",
           "nasa_api_key": "NASA API key (optional)",
+          "smithsonian_api_key": "Smithsonian API key (optional)",
           "unsplash_access_key": "Unsplash access key (optional)",
           "pexels_api_key": "Pexels API key (optional)"
         },
@@ -175,6 +176,7 @@
           "tone": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff.",
           "default_provider": "Used by the New artwork button. 'shuffle' picks a random museum.",
           "nasa_api_key": "Free key from api.nasa.gov raises the APOD rate limit (DEMO_KEY works without one).",
+          "smithsonian_api_key": "Free key from api.data.gov raises the Smithsonian rate limit (DEMO_KEY works without one).",
           "unsplash_access_key": "Enables the Unsplash photo provider. Free at unsplash.com/developers.",
           "pexels_api_key": "Enables the Pexels photo provider. Free at pexels.com/api."
         }

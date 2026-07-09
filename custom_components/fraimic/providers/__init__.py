@@ -11,10 +11,15 @@ from .apod import ApodProvider
 from .base import ArtProvider
 from .bing import BingProvider
 from .cleveland import ClevelandProvider
+from .dimu import DimuProvider
 from .met import MetProvider
+from .nasa import NasaImagesProvider
 from .pexels import PexelsProvider
 from .picsum import PicsumProvider
+from .smithsonian import SmithsonianProvider
+from .smk import SmkProvider
 from .unsplash import UnsplashProvider
+from .wellcome import WellcomeProvider
 from .wikimedia import WikimediaProvider
 
 PROVIDERS: dict[str, ArtProvider] = {
@@ -23,17 +28,24 @@ PROVIDERS: dict[str, ArtProvider] = {
         MetProvider(),
         AicProvider(),
         ClevelandProvider(),
+        SmkProvider(),
+        DimuProvider(),
+        SmithsonianProvider(),
+        WellcomeProvider(),
         WikimediaProvider(),
         BingProvider(),
         ApodProvider(),
+        NasaImagesProvider(),
         PicsumProvider(),
         UnsplashProvider(),
         PexelsProvider(),
     )
 }
 
-# The three museums: the zero-config "surprise me with art" pool.
-MUSEUM_KEYS: tuple[str, ...] = ("met", "aic", "cleveland")
+# The keyless museums: the zero-config "surprise me with art" pool.
+# (Smithsonian stays out — its DEMO_KEY tier is too rate-limited for shuffle;
+# Wellcome is illustration/archive material rather than wall masterpieces.)
+MUSEUM_KEYS: tuple[str, ...] = ("met", "aic", "cleveland", "smk", "dimu")
 
 
 def get_provider(key: str) -> ArtProvider | None:

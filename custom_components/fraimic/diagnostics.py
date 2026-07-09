@@ -7,7 +7,12 @@ from typing import Any
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
 
-from .const import CONF_NASA_API_KEY, CONF_PEXELS_KEY, CONF_UNSPLASH_KEY
+from .const import (
+    CONF_NASA_API_KEY,
+    CONF_PEXELS_KEY,
+    CONF_SMITHSONIAN_KEY,
+    CONF_UNSPLASH_KEY,
+)
 from .coordinator import FraimicConfigEntry
 
 TO_REDACT = {
@@ -17,6 +22,7 @@ TO_REDACT = {
     "ip_address",
     "device_id",
     CONF_NASA_API_KEY,
+    CONF_SMITHSONIAN_KEY,
     CONF_UNSPLASH_KEY,
     CONF_PEXELS_KEY,
 }

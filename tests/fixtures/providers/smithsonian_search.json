@@ -1,0 +1,151 @@
+{
+ "status": 200,
+ "response": {
+  "rows": [
+   {
+    "id": "ld1-1643381040022-1643381052268-0",
+    "title": "The Broyling of Their Fish over the Flame of Fier",
+    "content": {
+     "descriptiveNonRepeating": {
+      "guid": "http://n2t.net/ark:/65665/vk7005e02ab-d565-404e-8015-507842d3c0af",
+      "title": {
+       "label": "Title",
+       "content": "The Broyling of Their Fish over the Flame of Fier"
+      },
+      "record_ID": "saam_1985.66.403_415",
+      "unit_code": "SAAM",
+      "title_sort": "THE BROYLING OF THEIR FISH OVER THE FLAME OF FIER",
+      "data_source": "Smithsonian American Art Museum",
+      "record_link": "https://americanart.si.edu/collections/search/artwork/?id=18693",
+      "online_media": {
+       "media": [
+        {
+         "id": "media:SAAM-1985.66.403415_1",
+         "guid": "http://n2t.net/ark:/65665/bj999968995-57a5-4117-84f4-4db43d8fa32b",
+         "type": "Images",
+         "idsId": "SAAM-1985.66.403415_1",
+         "usage": {
+          "access": "CC0"
+         },
+         "content": "https://ids.si.edu/ids/deliveryService?id=SAAM-1985.66.403415_1",
+         "thumbnail": "https://ids.si.edu/ids/deliveryService?id=SAAM-1985.66.403415_1",
+         "altTextAccessibility": "",
+         "extDescrAccessibility": "",
+         "resources": [
+          {
+           "label": "Screen Image",
+           "url": "https://ids.si.edu/ids/download?id=SAAM-1985.66.403415_1_screen"
+          },
+          {
+           "label": "Thumbnail Image",
+           "url": "https://ids.si.edu/ids/download?id=SAAM-1985.66.403415_1_thumb"
+          }
+         ]
+        }
+       ],
+       "mediaCount": 1
+      },
+      "metadata_usage": {
+       "access": "CC0"
+      }
+     },
+     "freetext": {
+      "name": [
+       {
+        "label": "Artist",
+        "content": "Spencer Nichols, born Washington, DC 1875-died Kent, CT 1950"
+       }
+      ]
+     },
+     "indexedStructured": {
+      "name": [
+       "Nichols, Spencer"
+      ],
+      "object_type": [
+       "Paintings"
+      ]
+     }
+    },
+    "url": "edanmdm:saam_1985.66.403_415"
+   },
+   {
+    "id": "ld1-1643381040022-1643381043647-1",
+    "title": "Louisa Catherine Adams Clement",
+    "content": {
+     "descriptiveNonRepeating": {
+      "guid": "http://n2t.net/ark:/65665/vk7bd021515-4c4a-4a81-a9ec-d0c54f5b0a8c",
+      "title": {
+       "label": "Title",
+       "content": "Louisa Catherine Adams Clement"
+      },
+      "record_ID": "saam_1950.6.15",
+      "unit_code": "SAAM",
+      "title_sort": "LOUISA CATHERINE ADAMS CLEMENT",
+      "data_source": "Smithsonian American Art Museum",
+      "record_link": "https://americanart.si.edu/collections/search/artwork/?id=4969",
+      "online_media": {
+       "media": [
+        {
+         "id": "media:SAAM-1950.6.15_1",
+         "guid": "http://n2t.net/ark:/65665/bj908226f39-beae-45e5-ab5e-174b4a6bb918",
+         "type": "Images",
+         "idsId": "SAAM-1950.6.15_1",
+         "usage": {
+          "access": "CC0"
+         },
+         "content": "https://ids.si.edu/ids/deliveryService?id=SAAM-1950.6.15_1",
+         "thumbnail": "https://ids.si.edu/ids/deliveryService?id=SAAM-1950.6.15_1",
+         "altTextAccessibility": "",
+         "extDescrAccessibility": "",
+         "resources": [
+          {
+           "label": "Screen Image",
+           "url": "https://ids.si.edu/ids/download?id=SAAM-1950.6.15_1_screen"
+          },
+          {
+           "label": "Thumbnail Image",
+           "url": "https://ids.si.edu/ids/download?id=SAAM-1950.6.15_1_thumb"
+          }
+         ]
+        }
+       ],
+       "mediaCount": 1
+      },
+      "metadata_usage": {
+       "access": "CC0"
+      }
+     },
+     "freetext": {
+      "date": [
+       {
+        "label": "Date",
+        "content": "ca. 1910"
+       }
+      ],
+      "name": [
+       {
+        "label": "Artist",
+        "content": "Mary Louisa Adams Clement, born Newbury, MA 1882-died Warrenton, VA 1950"
+       },
+       {
+        "label": "Sitter",
+        "content": "Louisa Catherine Adams Clement"
+       }
+      ]
+     },
+     "indexedStructured": {
+      "name": [
+       "Clement, Mary Louisa Adams",
+       "Clement, Louisa Catherine Adams"
+      ],
+      "object_type": [
+       "Paintings"
+      ]
+     }
+    },
+    "url": "edanmdm:saam_1950.6.15"
+   }
+  ],
+  "rowCount": 4065
+ }
+}

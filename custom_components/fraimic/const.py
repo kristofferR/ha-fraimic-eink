@@ -169,16 +169,25 @@ MIN_SCREEN_INTERVAL: Final = 300
 DEFAULT_SCREEN_INTERVAL: Final = 1800
 
 # Online image providers ("art frame" mode).
-# Keyless: three museums (CC0 masterpieces), Wikimedia picture of the day,
-# Bing image of the day (unofficial; personal use), NASA APOD (DEMO_KEY tier
-# suffices for daily use), Lorem Picsum (random demo photos).
+# Keyless: five museums (CC0/public-domain masterpieces — dimu is
+# Nasjonalmuseet via the DigitaltMuseum API), Wellcome Collection
+# (illustration/archive), Wikimedia picture of the day, Bing image of the day
+# (unofficial; personal use), NASA APOD and the NASA Image Library
+# (DEMO_KEY/keyless tiers suffice for daily use), Lorem Picsum (random demo
+# photos). Smithsonian works on DEMO_KEY; a free api.data.gov key raises its
+# limit.
 PROVIDER_KEYS: Final = (
     "met",
     "aic",
     "cleveland",
+    "smk",
+    "dimu",
+    "smithsonian",  # optional free api.data.gov key (frame options)
+    "wellcome",
     "wikimedia",
     "bing",
     "apod",
+    "nasa",
     "picsum",
     "unsplash",  # requires a free API key (frame options)
     "pexels",  # requires a free API key (frame options)
@@ -195,6 +204,7 @@ ART_ASPECT_MAX: Final = 2.0
 
 # Optional provider API keys (entry options).
 CONF_NASA_API_KEY: Final = "nasa_api_key"
+CONF_SMITHSONIAN_KEY: Final = "smithsonian_api_key"
 CONF_UNSPLASH_KEY: Final = "unsplash_access_key"
 CONF_PEXELS_KEY: Final = "pexels_api_key"
 CONF_DEFAULT_PROVIDER: Final = "default_provider"
