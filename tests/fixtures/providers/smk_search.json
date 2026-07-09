@@ -1,0 +1,100 @@
+{
+ "offset": 0,
+ "rows": 2,
+ "found": 4633,
+ "items": [
+  {
+   "id": "1170004265_object",
+   "production": [
+    {
+     "creator": "Ballin, Mogens",
+     "creator_forename": "Mogens",
+     "creator_surname": "Ballin",
+     "creator_date_of_birth": "1871-03-20T00:00:00.000Z",
+     "creator_date_of_death": "1914-01-27T00:00:00.000Z",
+     "creator_nationality": "Dansk",
+     "creator_gender": "MALE",
+     "creator_lref": "8445_person"
+    }
+   ],
+   "titles": [
+    {
+     "title": "Skovinteriør med kroget træ",
+     "type": "museumstitel",
+     "language": "dansk"
+    }
+   ],
+   "object_number": "KMS8914",
+   "public_domain": true,
+   "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+   "alternative_images": [
+    {
+     "mime_type": "image/tiff",
+     "iiif_id": "https://iip.smk.dk/iiif/jp2/1g05ff90s_KMS8914.tif.jp2",
+     "iiif_info": "https://iip.smk.dk/iiif/jp2/1g05ff90s_KMS8914.tif.jp2/info.json",
+     "width": 4724,
+     "height": 5482,
+     "size": 26798725.51724138,
+     "thumbnail": "https://iip-thumb.smk.dk/iiif/jp2/1g05ff90s_KMS8914.tif.jp2/full/!1024,/0/default.jpg",
+     "native": "https://iip.smk.dk/iiif/jp2/1g05ff90s_KMS8914.tif.jp2/full/full/0/native.jpg",
+     "cropped": [
+      "true"
+     ],
+     "orientation": "portrait"
+    }
+   ],
+   "image_iiif_id": "https://iip.smk.dk/iiif/jp2/gf06g715p_kms8914.tif.jp2",
+   "image_width": 9581,
+   "image_height": 11258,
+   "image_thumbnail": "https://iip-thumb.smk.dk/iiif/jp2/gf06g715p_kms8914.tif.jp2/full/!1024,/0/default.jpg",
+   "image_native": "https://api.smk.dk/api/v1/download/W3siaW1nX3VybCI6Imh0dHBzOi8vaWlwLnNtay5kay9paWlmL2pwMi9nZjA2ZzcxNXBfa21zODkxNC50aWYuanAyL2Z1bGwvZnVsbC8wL25hdGl2ZS5qcGciLCJwdWJsaWNfZG9tYWluIjp0cnVlLCJvYmplY3RfbnVtYmVyIjoiS01TODkxNCIsIm51bSI6IiJ9XQ==/KMS8914.jpg"
+  },
+  {
+   "id": "1170009810_object",
+   "production": [
+    {
+     "creator": "Ring, L.A.",
+     "creator_forename": "L.A.",
+     "creator_surname": "Ring",
+     "creator_date_of_birth": "1854-08-15T00:00:00.000Z",
+     "creator_date_of_death": "1933-09-10T00:00:00.000Z",
+     "creator_nationality": "Dansk",
+     "creator_gender": "MALE",
+     "creator_history": "L.A. Ring kom fra landet, og han glemte det aldrig. Ikke alene tog han navn efter den landsby i Sydsjælland, hvor han var født, han tog også landbefolkningens vilkår på sig som sin skæbne. Som maler distancerede han sig således aldrig fra sin ydmyge oprindelse, men gjorde den tværtimod til sit altdominerende tema og satte den dermed et minde, der hører mellem de stolteste i dansk kunst. Modsat mange andre malere i både ind- og udland, bl.a. hans franske forbilleder Jules Bastien-Lepage og Jean Franois Rafaëlli, der tog samme motivkreds op i anden halvdel af 1800-tallet, forlenede R. aldrig sine skildringer af landbefolkningen med de sentimentale eller anekdotiske træk, der kunne gøre billederne salgbare i storbyen, og han forfaldt heller aldrig til det facile håndelag, der ellers karakteriserede tidens realistiske maleri. Hans billeder er malet med en fuldkommen selvfølgelig solidaritet og så direkte og utilsløret, at en samtidig kritiker kaldte ham \"Hæslighedens Apostel\". Når man alligevel ikke kan rubricere R. som bondemaler, endsige som genremaler, skyldes det træk ved hans kunst, der rækker ud over det lokale og knytter ham til tidens symbolistiske strømninger. Han kan her sidestilles med Vilhelm Hammershøi, både m.h.t. format og betydning. R. var socialist i sin ungdom, men denne overbevisning prægede ikke hans kunst i propagandistisk retning. Den sociale indignation lå snarere i selve registreringens præcision. Hans skildringer af landsbyen og det dyrkede land omkring den er indtrængende og nøjeregnende i positivistisk forstand. Men de er også mere end det. Ved sin overraskende beskæring af motiverne, sin raffinerede kompositionsteknik og sin særegne pointering af de enkelte elementer formår R. at tilføre billederne en ekstra dimension, hinsides det skildrede. Et af ledemotiverne i hans kunst er vejen, og her ikke kun landevejen, hulvejen og markstien, men også vandveje som bække, åløb, flodmundinger og åbent hav og de mere moderne som broer, jernbanespor og telefontråde. Vejene leder blikket ind i billederne og videre ud af dem igen, og de skal ikke kun forstås bogstaveligt, men også symbolistisk som sindbilleder på den menneskelige tilværelse. R. var depressivt anlagt, men hans fortolkning af livets vej er det modsatte. Der er snarere noget dynamisk over den og noget moderne. Det er verden her og nu, der optager ham, også når han skildrer sine bondestuer. Her kommer gæster på besøg udefra, og her kommer postbudet ind med aviser og breve. Der er tydeligvis en større verden udenfor. Tærskler som vinduer og døre pointeres, tanker og længsler antydes upåfaldende i de impliceredes ansigter. I enkelte værker træder det symbolistiske dog mere entydigt frem. Som i de billeder, hvor R. i monumental form, og inspireret af Jean-Franois Millet, skildrer bønder der sår, og bønder der høster, eller i de meget få, hvor han som i et syn suggererer døden som knokkelmand i nattehimmelen over en gammel, udslidt kone eller maner den frem på lignende vis under muren omkring Melby Kirkegård. R. hører mellem de betydligste danske landskabsmalere overhovedet. Han trækker på traditionen fra Lundbye og Kyhn og fastholder og uddyber den gennem et langt liv uden et øjeblik at slække på kravene til sig selv. Hans sidste landskabsbilleder fra Skt. Jørgensbjerg ved Roskilde står på ingen måde tilbage for dem, han havde malet tidligere i karrieren. Han var i stand til at mobilisere en kolossal præcision i detaljen uden et øjeblik at tabe sit overordnede sigte af syne. Det var essensen af det danske landskab og vejrlig, han uddrog, og ved at lade vejene skære sig igennem det som spor af menneskelig aktivitet kom landskaberne til at stå frem som sindbilleder på selve eksistensen.",
+     "creator_lref": "1049_person"
+    }
+   ],
+   "titles": [
+    {
+     "title": "Udsigt fra en vej i udkanten af Næstved",
+     "type": "museumstitel",
+     "language": "dansk"
+    }
+   ],
+   "object_number": "KMS8892",
+   "public_domain": true,
+   "rights": "https://creativecommons.org/publicdomain/mark/1.0/",
+   "alternative_images": [
+    {
+     "mime_type": "image/tiff",
+     "iiif_id": "https://iip.smk.dk/iiif/jp2/p5547v80d_KMS8892.tif.jp2",
+     "iiif_info": "https://iip.smk.dk/iiif/jp2/p5547v80d_KMS8892.tif.jp2/info.json",
+     "width": 5906,
+     "height": 4395,
+     "size": 26860517.24137931,
+     "thumbnail": "https://iip-thumb.smk.dk/iiif/jp2/p5547v80d_KMS8892.tif.jp2/full/!1024,/0/default.jpg",
+     "native": "https://iip.smk.dk/iiif/jp2/p5547v80d_KMS8892.tif.jp2/full/full/0/native.jpg",
+     "cropped": [
+      "true"
+     ],
+     "orientation": "landscape"
+    }
+   ],
+   "image_iiif_id": "https://iip.smk.dk/iiif/jp2/9p290d734_KMS8892.tif.jp2",
+   "image_width": 4442,
+   "image_height": 2933,
+   "image_thumbnail": "https://iip-thumb.smk.dk/iiif/jp2/9p290d734_KMS8892.tif.jp2/full/!1024,/0/default.jpg",
+   "image_native": "https://api.smk.dk/api/v1/download/W3siaW1nX3VybCI6Imh0dHBzOi8vaWlwLnNtay5kay9paWlmL2pwMi85cDI5MGQ3MzRfS01TODg5Mi50aWYuanAyL2Z1bGwvZnVsbC8wL25hdGl2ZS5qcGciLCJwdWJsaWNfZG9tYWluIjp0cnVlLCJvYmplY3RfbnVtYmVyIjoiS01TODg5MiIsIm51bSI6IiJ9XQ==/KMS8892.jpg"
+  }
+ ]
+}

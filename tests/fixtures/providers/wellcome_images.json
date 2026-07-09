@@ -1,0 +1,137 @@
+{
+ "type": "ResultList",
+ "pageSize": 2,
+ "totalPages": 26,
+ "totalResults": 52,
+ "results": [
+  {
+   "id": "pawqz7qe",
+   "locations": [
+    {
+     "url": "https://iiif.wellcomecollection.org/image/M0001404/info.json",
+     "credit": "Wellcome Collection",
+     "license": {
+      "id": "cc-by",
+      "type": "License",
+      "label": "Attribution 4.0 International (CC BY 4.0)",
+      "url": "http://creativecommons.org/licenses/by/4.0/"
+     },
+     "accessConditions": [
+      {
+       "method": {
+        "id": "view-online",
+        "type": "AccessMethod",
+        "label": "View online"
+       },
+       "status": {
+        "id": "open",
+        "type": "AccessStatus",
+        "label": "Open"
+       },
+       "type": "AccessCondition"
+      }
+     ],
+     "locationType": {
+      "id": "iiif-image",
+      "type": "LocationType",
+      "label": "IIIF Image API"
+     },
+     "type": "DigitalLocation"
+    }
+   ],
+   "source": {
+    "id": "nx4fetrf",
+    "title": "M0001404: Botanical illustration of Cinchona hyoenanche globosa",
+    "type": "Work",
+    "contributors": []
+   },
+   "type": "Image"
+  },
+  {
+   "id": "axukhcfa",
+   "locations": [
+    {
+     "url": "https://iiif.wellcomecollection.org/image/L0049888/info.json",
+     "credit": "Wellcome Collection",
+     "license": {
+      "id": "pdm",
+      "type": "License",
+      "label": "Public Domain Mark",
+      "url": "https://creativecommons.org/share-your-work/public-domain/pdm/"
+     },
+     "accessConditions": [
+      {
+       "method": {
+        "id": "view-online",
+        "type": "AccessMethod",
+        "label": "View online"
+       },
+       "status": {
+        "id": "open",
+        "type": "AccessStatus",
+        "label": "Open"
+       },
+       "type": "AccessCondition"
+      }
+     ],
+     "locationType": {
+      "id": "iiif-image",
+      "type": "LocationType",
+      "label": "IIIF Image API"
+     },
+     "type": "DigitalLocation"
+    }
+   ],
+   "source": {
+    "id": "y4gewf5b",
+    "title": "New illustration of the sexual system of Carolus von Linnaeus : comprehending an elucidation of the several parts of the fructification ; a prize dissertation on the sexes of plants, a full explanation of the classes, and orders, of the sexual system ; and the Temple of Flora, or Garden of nature, being Picturesque, botanical, coloured plates, of select plants, illustrative of the same, with descriptions ; [motto: 4 lines] / by Robert John Thornton.",
+    "type": "Work",
+    "contributors": [
+     {
+      "agent": {
+       "id": "q5xw52v5",
+       "label": "Robert John Thornton",
+       "identifiers": [
+        {
+         "value": "n84168453",
+         "type": "Identifier",
+         "identifierType": {
+          "id": "lc-names",
+          "type": "IdentifierType",
+          "label": "Library of Congress Name authority records"
+         }
+        }
+       ],
+       "type": "Person"
+      },
+      "roles": [],
+      "primary": true,
+      "type": "Contributor"
+     },
+     {
+      "agent": {
+       "id": "bjyr6rvb",
+       "label": "Carl Linnaeus",
+       "identifiers": [
+        {
+         "value": "n79109333",
+         "type": "Identifier",
+         "identifierType": {
+          "id": "lc-names",
+          "type": "IdentifierType",
+          "label": "Library of Congress Name authority records"
+         }
+        }
+       ],
+       "type": "Person"
+      },
+      "roles": [],
+      "primary": false,
+      "type": "Contributor"
+     }
+    ]
+   },
+   "type": "Image"
+  }
+ ]
+}

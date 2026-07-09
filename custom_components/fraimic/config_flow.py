@@ -34,6 +34,7 @@ from .const import (
     CONF_PEXELS_KEY,
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
+    CONF_SMITHSONIAN_KEY,
     CONF_UNSPLASH_KEY,
     CONF_WIDTH,
     DEFAULT_CAMERA_INTERVAL,
@@ -285,6 +286,10 @@ class FraimicOptionsFlow(OptionsFlow):
                     vol.Optional(
                         CONF_NASA_API_KEY,
                         description={"suggested_value": o.get(CONF_NASA_API_KEY)},
+                    ): str,
+                    vol.Optional(
+                        CONF_SMITHSONIAN_KEY,
+                        description={"suggested_value": o.get(CONF_SMITHSONIAN_KEY)},
                     ): str,
                     vol.Optional(
                         CONF_UNSPLASH_KEY,

@@ -366,11 +366,17 @@ data:
 ```
 
 **Zero-config sources:** `met` (The Met), `aic` (Art Institute of Chicago), `cleveland`
-(Cleveland Museum of Art) — public-domain masterpieces from each museum's open-access API,
-aggressively curated for the panel (highlights only, paintings preferred, resolution and
-aspect-ratio checked against your frame's mounted orientation). Plus `wikimedia` (Commons
+(Cleveland Museum of Art), `smk` (SMK — National Gallery of Denmark), `dimu`
+(Nasjonalmuseet, via the DigitaltMuseum API — Norwegian paintings by default, or search
+all 250+ Nordic museums with `query: Munch`) — public-domain masterpieces from each
+museum's open-access API, aggressively curated for the panel (highlights only, paintings
+preferred, resolution and aspect-ratio checked against your frame's mounted orientation).
+Plus `smithsonian` (Smithsonian Open Access — CC0 American Art paintings by default, or
+search the whole collection with `query`), `wellcome` (Wellcome Collection — open-access
+paintings, botanical and natural-history illustration, searchable), `wikimedia` (Commons
 picture of the day), `bing` (Bing's daily image — unofficial endpoint, personal use),
-`apod` (NASA Astronomy Picture of the Day), and `picsum` (random stock photos).
+`apod` (NASA Astronomy Picture of the Day), `nasa` (the NASA Image Library — searchable
+space photography, e.g. `query: aurora borealis`), and `picsum` (random stock photos).
 `shuffle` picks a random museum.
 
 **In the playlist:** a `kind: picture` screen with a `provider` shows a *fresh* artwork every
@@ -401,9 +407,11 @@ reshuffles.
 for a fresh captioned piece from your default source (options → *Default online-art source*).
 
 **Optional keys** (frame options): a free [api.nasa.gov](https://api.nasa.gov) key raises the
-APOD rate limit, and free [Unsplash](https://unsplash.com/developers) /
-[Pexels](https://www.pexels.com/api/) keys unlock keyword-searchable photography
-(`provider: unsplash, query: northern lights`). Keyed providers stay hidden until a key is set.
+APOD rate limit, a free [api.data.gov](https://api.data.gov) key raises the Smithsonian
+rate limit (both work keyless on `DEMO_KEY` for daily use), and free
+[Unsplash](https://unsplash.com/developers) / [Pexels](https://www.pexels.com/api/) keys
+unlock keyword-searchable photography (`provider: unsplash, query: northern lights`).
+Unsplash/Pexels stay hidden until a key is set.
 
 ## How image conversion works
 

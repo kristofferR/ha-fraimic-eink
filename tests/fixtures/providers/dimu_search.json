@@ -1,0 +1,70 @@
+{
+ "response": {
+  "numFound": 5080,
+  "start": 0,
+  "docs": [
+   {
+    "identifier.id": "NG.M.02880",
+    "identifier.owner": "NMK-B",
+    "artifact.uuid": "842510a0-4390-46cd-9503-d758eac2627c",
+    "artifact.type": "Fineart",
+    "artifact.uniqueId": "0210414978895",
+    "artifact.hasChildren": false,
+    "artifact.ingress.title": "Gran [Maleri]",
+    "artifact.ingress.producer": "Enger, Erling",
+    "artifact.ingress.producerRole": "Kunstner",
+    "artifact.ingress.production.fromYear": 1935,
+    "artifact.ingress.production.toYear": 1935,
+    "artifact.updatedDate": "2025-10-19T20:05:52.083Z",
+    "artifact.publishedDate": "2025-03-21T22:29:07.221Z",
+    "artifact.ingress.classification": [
+     "532"
+    ],
+    "artifact.ingress.subjects": [
+     "Bildende kunst"
+    ],
+    "artifact.ingress.names": [
+     "Maleri"
+    ],
+    "artifact.ingress.license": [
+     " ©"
+    ],
+    "artifact.pictureCount": 2,
+    "artifact.hasPictures": true,
+    "artifact.defaultMediaIdentifier": "019EGKhP38u9U",
+    "artifact.defaultPictureIndex": 1
+   },
+   {
+    "identifier.id": "NG.M.02656",
+    "identifier.owner": "NMK-B",
+    "artifact.uuid": "b02b70bc-6ebc-4c3b-9c6c-bbce06b54284",
+    "artifact.type": "Fineart",
+    "artifact.uniqueId": "0210414963404",
+    "artifact.hasChildren": false,
+    "artifact.ingress.title": "Skystudie [Maleri]",
+    "artifact.ingress.producer": "Baade, Knud",
+    "artifact.ingress.producerRole": "Kunstner",
+    "artifact.ingress.production.fromYear": 1837,
+    "artifact.ingress.production.toYear": 1837,
+    "artifact.updatedDate": "2025-08-25T19:37:19.797Z",
+    "artifact.publishedDate": "2025-03-21T09:26:31.817Z",
+    "artifact.ingress.classification": [
+     "532"
+    ],
+    "artifact.ingress.subjects": [
+     "Bildende kunst"
+    ],
+    "artifact.ingress.names": [
+     "Maleri"
+    ],
+    "artifact.ingress.license": [
+     "None None"
+    ],
+    "artifact.pictureCount": 1,
+    "artifact.hasPictures": true,
+    "artifact.defaultMediaIdentifier": "019EGKhGX3NS8",
+    "artifact.defaultPictureIndex": 1
+   }
+  ]
+ }
+}

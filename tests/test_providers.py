@@ -1,8 +1,8 @@
 """Tests for the online image providers (pure parsing/curation/engine).
 
 Fixtures under tests/fixtures/providers/ are trimmed real API responses
-captured 2026-07-05. No network is touched: the engine runs against a
-hand-rolled fake session.
+captured 2026-07-05 (smk/nasa/smithsonian: 2026-07-10). No network is
+touched: the engine runs against a hand-rolled fake session.
 """
 
 from __future__ import annotations
@@ -24,6 +24,11 @@ cleveland = load("providers.cleveland")
 wikimedia = load("providers.wikimedia")
 bing = load("providers.bing")
 apod = load("providers.apod")
+smk = load("providers.smk")
+nasa = load("providers.nasa")
+smithsonian = load("providers.smithsonian")
+dimu = load("providers.dimu")
+wellcome = load("providers.wellcome")
 providers_pkg = load("providers")
 
 FIXTURES = Path(__file__).parent / "fixtures" / "providers"
@@ -100,6 +105,149 @@ def test_parse_apod_filters_videos() -> None:
     candidate = apod.parse_apod_items(image_item)[0]
     assert candidate.image_url == (image_item.get("hdurl") or image_item["url"])
     assert "APOD" in candidate.attribution
+
+
+def test_parse_smk_item() -> None:
+    item = _fixture("smk_search.json")["items"][0]
+    candidate = smk.parse_smk_item(item)
+    assert candidate is not None
+    assert candidate.item_id == "KMS8914"
+    # IIIF sized tier, never the multi-hundred-MB native download URL.
+    assert candidate.image_url.endswith("/full/!2400,2400/0/default.jpg")
+    assert "api.smk.dk/api/v1/download" not in candidate.image_url
+    # 9581x11258 master scaled to what the !2400,2400 IIIF request delivers.
+    assert candidate.height == 2400
+    assert candidate.width and candidate.width < 2400
+    assert candidate.artist == "Mogens Ballin"  # surname-first field reordered
+    assert "SMK" in candidate.attribution
+
+
+def test_parse_smk_item_without_iiif_image_is_rejected() -> None:
+    item = dict(_fixture("smk_search.json")["items"][0])
+    item.pop("image_iiif_id")
+    assert smk.parse_smk_item(item) is None
+
+
+def test_parse_nasa_item_picks_largest_real_rendition() -> None:
+    item = _fixture("nasa_search.json")["collection"]["items"][0]
+    candidate = nasa.parse_nasa_item(item)
+    assert candidate is not None
+    assert candidate.item_id == "PIA14417"
+    # The links list orig (2800x1400), medium and small renditions — orig must
+    # win, and the rel=preview thumb must not be picked as the image.
+    assert candidate.image_url.endswith("~orig.jpg")
+    assert candidate.width == 2800 and candidate.height == 1400
+    assert candidate.thumb_url and candidate.thumb_url.endswith("~thumb.jpg")
+    assert "NASA" in candidate.attribution
+
+
+def test_parse_nasa_item_without_image_links_is_rejected() -> None:
+    item = dict(_fixture("nasa_search.json")["collection"]["items"][0])
+    item["links"] = [{"href": "https://x/video.mp4", "rel": "canonical"}]
+    assert nasa.parse_nasa_item(item) is None
+
+
+def test_nasa_rendition_rank_prefers_orig_when_dims_unknown() -> None:
+    ranks = [
+        nasa._rendition_rank(f"https://x/a~{stem}.jpg")
+        for stem in ("orig", "large", "medium", "small", "unknown")
+    ]
+    assert ranks == sorted(ranks, reverse=True)
+
+
+def test_parse_smithsonian_row() -> None:
+    row = _fixture("smithsonian_search.json")["response"]["rows"][0]
+    candidate = smithsonian.parse_smithsonian_row(row)
+    assert candidate is not None
+    # The EDAN url, not the bare record_ID — the content endpoint 404s on that.
+    assert candidate.item_id == "edanmdm:saam_1985.66.403_415"
+    assert candidate.image_url.startswith("https://ids.si.edu/ids/deliveryService?id=")
+    assert candidate.image_url.endswith("&max=3000")
+    assert candidate.license == "CC0"
+    # "Spencer Nichols, born Washington, DC 1875-died Kent, CT 1950" → name only
+    assert candidate.artist and "born" not in candidate.artist
+    assert candidate.artist in candidate.attribution
+
+
+def test_parse_smithsonian_row_without_cc0_media_is_rejected() -> None:
+    import copy
+
+    row = copy.deepcopy(_fixture("smithsonian_search.json")["response"]["rows"][0])
+    for entry in row["content"]["descriptiveNonRepeating"]["online_media"]["media"]:
+        entry["usage"] = {"access": "Usage conditions apply"}
+    assert smithsonian.parse_smithsonian_row(row) is None
+
+
+def test_parse_dimu_doc() -> None:
+    doc = _fixture("dimu_search.json")["response"]["docs"][0]
+    candidate = dimu.parse_dimu_doc(doc)
+    assert candidate is not None
+    assert candidate.item_id == doc["artifact.uuid"]
+    # High-bitrate 1200x1200 tier (dimension=max serves the same pixels at a
+    # fraction of the quality — verified live).
+    assert candidate.image_url.startswith("https://dms01.dimu.org/image/")
+    assert "dimension=1200x1200" in candidate.image_url
+    assert candidate.title == "Gran"  # " [Maleri]" suffix stripped
+    assert candidate.artist == "Erling Enger"  # surname-first flipped
+    assert "Nasjonalmuseet" in candidate.attribution
+
+
+def test_parse_dimu_doc_without_media_is_rejected() -> None:
+    doc = dict(_fixture("dimu_search.json")["response"]["docs"][0])
+    doc.pop("artifact.defaultMediaIdentifier")
+    assert dimu.parse_dimu_doc(doc) is None
+
+
+def test_dimu_candidates_use_server_side_random_sort(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession()
+    session.add(dimu.SEARCH_URL, FakeResponse(payload=_fixture("dimu_search.json")))
+    monkeypatch.setattr(dimu.random, "randrange", lambda stop: 4711)
+    provider = dimu.DimuProvider()
+    provider.min_interval = 0
+
+    candidates = _run(
+        provider.async_candidates(session, cache_mod.ProviderCache(), REQUEST, 2)
+    )
+
+    assert len(candidates) == 2
+    params = session.calls[0]["params"]
+    assert params["sort"] == "random_4711 asc"
+    assert params["api.key"] == dimu.DEMO_KEY
+    assert "identifier.owner:NMK-B" in params["fq"]  # zero-query default pool
+
+
+def test_dimu_query_searches_all_fine_art() -> None:
+    session = FakeSession()
+    session.add(dimu.SEARCH_URL, FakeResponse(payload=_fixture("dimu_search.json")))
+    provider = dimu.DimuProvider()
+    provider.min_interval = 0
+    request = base.FetchRequest(target_width=1600, target_height=1200, query="Munch")
+
+    _run(provider.async_candidates(session, cache_mod.ProviderCache(), request, 2))
+
+    params = session.calls[0]["params"]
+    assert params["q"] == "Munch"
+    assert "artifact.type:Fineart" in params["fq"]
+    assert not any("NMK" in f for f in params["fq"])
+
+
+def test_parse_wellcome_image() -> None:
+    item = _fixture("wellcome_images.json")["results"][0]
+    candidate = wellcome.parse_wellcome_image(item)
+    assert candidate is not None
+    assert candidate.image_url.endswith("/full/!2400,2400/0/default.jpg")
+    assert candidate.image_url.startswith("https://iiif.wellcomecollection.org/image/")
+    assert candidate.title.startswith("Botanical illustration")  # ref prefix dropped
+    assert candidate.license and "CC BY" in candidate.license
+    assert "Wellcome Collection" in candidate.attribution
+
+
+def test_parse_wellcome_image_without_iiif_location_is_rejected() -> None:
+    item = dict(_fixture("wellcome_images.json")["results"][0])
+    item["locations"] = [{"url": "https://example.com/not-iiif.jpg"}]
+    assert wellcome.parse_wellcome_image(item) is None
 
 
 def test_wikimedia_attribution_does_not_duplicate_license_without_artist() -> None:
@@ -516,6 +664,76 @@ def test_apod_personal_key_keeps_normal_provider_throttle() -> None:
     assert len(candidates) == 1
     assert session.calls[0]["params"] == {"api_key": "abc&123", "count": 4}
     assert cache.throttles == [(provider.key, 0)]
+
+
+def test_smk_candidates_use_random_offset_and_cache_total(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession()
+    search_payload = _fixture("smk_search.json")
+    session.add(smk.SEARCH_URL[: smk.SEARCH_URL.index("?")], FakeResponse(payload=search_payload))
+    session.add(smk.SEARCH_URL[: smk.SEARCH_URL.index("?")], FakeResponse(payload=search_payload))
+    session.add(smk.SEARCH_URL[: smk.SEARCH_URL.index("?")], FakeResponse(payload=search_payload))
+    monkeypatch.setattr(smk.random, "randrange", lambda stop: 41)
+    cache = cache_mod.ProviderCache()
+    provider = smk.SmkProvider()
+    provider.min_interval = 0
+
+    candidates = _run(provider.async_candidates(session, cache, REQUEST, 2))
+
+    assert candidates and all(c.provider == "smk" for c in candidates)
+    assert "rows=1" in session.calls[0]["url"]  # pool-total probe
+    assert "offset=41&rows=2" in session.calls[1]["url"]
+
+    _run(provider.async_candidates(session, cache, REQUEST, 2))
+    assert len(session.calls) == 3  # total probe not repeated
+
+
+def test_nasa_candidates_probe_total_then_fetch_random_page(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession()
+    payload = _fixture("nasa_search.json")
+    session.add(nasa.SEARCH_URL, FakeResponse(payload=payload))
+    session.add(nasa.SEARCH_URL, FakeResponse(payload=payload))
+    monkeypatch.setattr(nasa.random, "randint", lambda a, b: b)
+    cache = cache_mod.ProviderCache()
+    provider = nasa.NasaImagesProvider()
+    provider.min_interval = 0
+    request = base.FetchRequest(
+        target_width=1600, target_height=1200, query="nebula"
+    )
+
+    candidates = _run(provider.async_candidates(session, cache, request, 2))
+
+    assert candidates
+    assert session.calls[0]["params"]["page_size"] == 1  # total probe
+    # total_hits=316, page_size=10 → last full page 31.
+    assert session.calls[1]["params"] == {
+        "q": "nebula",
+        "media_type": "image",
+        "page": 31,
+        "page_size": 10,
+    }
+
+
+def test_smithsonian_demo_key_results_are_cached() -> None:
+    session = FakeSession()
+    payload = _fixture("smithsonian_search.json")
+    session.add(smithsonian.SEARCH_URL, FakeResponse(payload=payload))
+    session.add(smithsonian.SEARCH_URL, FakeResponse(payload=payload))
+    cache = cache_mod.ProviderCache()
+    provider = smithsonian.SmithsonianProvider()
+    provider.min_interval = 0
+
+    candidates = _run(provider.async_candidates(session, cache, REQUEST, 2))
+    assert candidates
+    assert session.calls[0]["params"]["api_key"] == smithsonian.DEMO_KEY
+    calls_after_first = len(session.calls)
+
+    cached = _run(provider.async_candidates(session, cache, REQUEST, 2))
+    assert cached == candidates
+    assert len(session.calls) == calls_after_first  # served from the demo cache
 
 
 # --- cache -------------------------------------------------------------
