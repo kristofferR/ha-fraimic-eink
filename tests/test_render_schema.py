@@ -26,7 +26,7 @@ def test_minimal_screen_normalises_with_defaults() -> None:
     assert result["name"] == "Dashboard"
     assert result["background"] == "white"
     assert result["accent"] == "red"
-    assert result["interval"] == 1800
+    assert result["interval"] == 6 * 3600
     widget = result["widgets"][0]
     assert widget == {"type": "clock", "slot": "main", "options": {"format": "%H:%M"}}
 

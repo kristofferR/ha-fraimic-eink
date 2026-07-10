@@ -60,9 +60,28 @@ when you have more than one. The `fraimic.upload_image` service takes a **Frame*
 
 Every image setting is **configurable per frame** via the integration's **Configure** button —
 not just YAML/service-call. Each frame stores its own defaults for **dither mode, fit, saturation,
-contrast, sharpen**, plus **polling interval** (default 300 s) and **base rotation** (0/90/180/270,
+contrast, sharpen**, plus **power mode**, polling interval and **base rotation** (0/90/180/270,
 to match how that frame is mounted). The `upload_image` service overrides a value only when you
 pass it explicitly; otherwise the frame's configured default is used.
+
+### Battery-saving modes
+
+New frames default to **Minimum** mode: no startup or periodic requests, no active queued-send
+polling unless the frame advertised its next scheduled wake, and at most one automatic redraw per
+day while unplugged. Use **Refresh frame data** when you want fresh sensors, battery-health data,
+or cloud albums; cached values survive Home Assistant restarts.
+
+- **Balanced** polls no faster than hourly and permits up to eight automatic redraws per day.
+- **Responsive** retains the old polling behaviour and permits up to 48 automatic redraws per day.
+- Existing entries migrate to Responsive so an upgrade does not silently change their behaviour.
+- Automatic camera, playlist, and scheduled sends are deferred below 25% battery; charging bypasses
+  cooldowns and budgets. Manual sends always remain available.
+- Every integration upload shares a persisted content hash, so identical output is never redrawn.
+  Native scheduled refreshes invalidate that hash.
+- Queued sends use lightweight liveness probes with exponential backoff and latest-wins delivery.
+  In Minimum mode, wake the frame and press **Try queued send** for immediate delivery.
+- **Sleep after upload** is an experimental opt-in. It waits 45 seconds for rendering, then sleeps
+  an unplugged frame only when no upload/queue work remains and firmware keep-awake is off.
 
 ## Entities
 
@@ -84,9 +103,9 @@ an error that says what it actually was.
 
 **Cameras:** playing a camera on the frame (media browser or
 `play_media` with `media-source://camera/camera.x` / plain `camera.x`) takes a **still
-snapshot** — a live stream is meaningless on a ~30 s E-Ink panel. By default it keeps
-re-snapshotting every 30 minutes while the player is *Playing* (a slow live view); tune or
-disable this with the **Camera refresh interval** option per frame (min 60 s, `0` = show once).
+snapshot** — a live stream is meaningless on a ~30 s E-Ink panel. By default it takes one
+snapshot only; enable periodic snapshots with the **Camera refresh interval** option per frame
+(min 60 s, `0` = show once).
 Press **Stop** on the media player to end the loop — the last image stays on the frame.
 
 ## Dashboard
@@ -338,7 +357,7 @@ When a frame has stored screens, it grows four playlist entities: a **Playlist**
 **Screen** select, and **Next/Previous screen** buttons. Turn the switch on and the frame
 rotates through its screens by itself:
 
-- Each screen shows for its own **rotation interval** (min 5 minutes) and only inside its
+- Each new screen shows for its own **rotation interval** (default 6 hours, min 30 minutes) and only inside its
   optional **time-of-day window / weekdays** (TRMNL-style scheduling: calendar+weather in the
   morning, photos in the evening…).
 - Before every upload the freshly rendered panel content is **hashed and compared with what's

@@ -77,6 +77,8 @@ async def async_get_config_entry_diagnostics(
 ) -> dict[str, Any]:
     """Return diagnostics for a config entry."""
     coordinator = entry.runtime_data.coordinator
+    # Slow health data is fetched only for this explicit diagnostics request.
+    await coordinator.async_refresh_info_page()
     return {
         # entry.title embeds the host/IP, so it's omitted from shared diagnostics.
         "entry": {
@@ -84,6 +86,8 @@ async def async_get_config_entry_diagnostics(
             "resolution": [entry.data.get("width"), entry.data.get("height")],
         },
         "data": async_redact_data(coordinator.data or {}, TO_REDACT),
+        "battery_health": dict(coordinator.info_page),
+        "power": entry.runtime_data.power.diagnostics(),
         # Recent frame logs (/logs admin page) — the only source for the WiFi
         # drop / upload-wedge symptoms; fetched on demand, never fatal.
         "logs": await _async_logs(coordinator),

@@ -34,6 +34,7 @@ from ..const import (
 from .compose import render_screen
 from .fetch import async_build_context
 from .schema import KIND_PICTURE, ScreenConfig
+from ..power import TRIGGER_MANUAL
 
 if TYPE_CHECKING:
     from ..coordinator import FraimicConfigEntry
@@ -150,6 +151,7 @@ async def async_show_screen(
     preview_only: bool = False,
     skip_if_hash: str | None = None,
     hold_playlist: bool = True,
+    trigger: str = TRIGGER_MANUAL,
 ) -> dict:
     """Render ``screen`` and upload it — or only refresh the screen preview.
 
@@ -199,19 +201,21 @@ async def async_show_screen(
                 "art": art_info,
             }
 
+        upload_kwargs = {
+            "preprocess": preprocess,
+            "skip_if_hash": skip_if_hash,
+            "hold_playlist": scheduler is None and hold_playlist,
+        }
+        if trigger != TRIGGER_MANUAL:
+            upload_kwargs["trigger"] = trigger
         result = await async_render_and_upload(
-            hass,
-            entry,
-            png,
-            overrides,
-            preprocess=preprocess,
-            skip_if_hash=skip_if_hash,
-            hold_playlist=scheduler is None and hold_playlist,
+            hass, entry, png, overrides, **upload_kwargs
         )
         uploaded = result.get("uploaded", True)
+        displayed = result.get("displayed", uploaded)
         preview_png = result.pop("preview_png", None)
         _set_screen_preview(runtime, preview_png, result["mode"])
-        if uploaded or result.get("content_hash") == skip_if_hash:
+        if displayed or result.get("content_hash") == skip_if_hash:
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = art_info

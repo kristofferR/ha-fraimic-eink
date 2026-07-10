@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -24,7 +25,6 @@ from .api import (
 )
 from .const import DOMAIN
 from .info_page import parse_info_page
-from .send_queue import FAST_POLL_SECONDS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,16 +39,7 @@ REDISCOVERY_MIN_INTERVAL = 3600  # seconds between subnet scans
 REDISCOVERY_PROBE_TIMEOUT = 2.0  # per-host /api/info probe
 REDISCOVERY_CONCURRENCY = 32
 
-# The /info HTML page (panel size, battery health) changes slowly; scrape it
-# on the first successful poll and then daily, retrying hourly on failure. A
-# scrape failure must never fail the coordinator.
-INFO_PAGE_INTERVAL = 24 * 3600
-INFO_PAGE_RETRY_INTERVAL = 3600
-
-# The albums list is proxied by the frame to the Fraimic cloud — poll it on
-# its own slow cadence, gated on the frame being reachable at all. LAN-only
-# frames answer 502 server_unreachable; that simply leaves albums as None.
-ALBUMS_INTERVAL = 30 * 60
+CACHE_VERSION = 1
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -71,6 +62,8 @@ class FraimicRuntimeData:
         self.scheduler: Any = None
         # Queued-send manager (send_queue.FraimicSendQueue; set during setup).
         self.send_queue: Any = None
+        # Battery policy / redraw accounting (set during entry setup).
+        self.power: Any = None
         # Serialize uploads; the frame can only process one long refresh.
         self.upload_lock = asyncio.Lock()
         # Set by the media player so enabling playlists can stop camera loops.
@@ -92,27 +85,52 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         hass: HomeAssistant,
         entry: FraimicConfigEntry,
         client: FraimicClient,
-        scan_interval: int,
+        scan_interval: int | None,
     ) -> None:
         super().__init__(
             hass,
             _LOGGER,
             config_entry=entry,
             name=DOMAIN,
-            update_interval=timedelta(seconds=scan_interval),
+            update_interval=(
+                timedelta(seconds=scan_interval) if scan_interval is not None else None
+            ),
         )
         self.client = client
-        self._scan_interval = scan_interval
         # Parsed /info HTML diagnostics (panel size, battery health); empty
         # until the first successful scrape.
         self.info_page: dict[str, Any] = {}
-        self._info_page_next = 0.0
         # Cloud albums proxied via the frame; None until (unless) fetched.
         self.albums: list[dict[str, Any]] | None = None
-        self._albums_next = 0.0
+        self._store: Store[dict[str, Any]] = Store(
+            hass, CACHE_VERSION, f"{DOMAIN}_coordinator_{entry.entry_id}"
+        )
         self._consecutive_failures = 0
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
+
+    async def async_restore(self) -> None:
+        """Restore the last snapshot without contacting a sleeping frame."""
+        cached = await self._store.async_load() or {}
+        data = cached.get("data")
+        if isinstance(data, dict):
+            self.data = data
+            self.last_update_success = True
+        info_page = cached.get("info_page")
+        if isinstance(info_page, dict):
+            self.info_page = info_page
+        albums = cached.get("albums")
+        if isinstance(albums, list):
+            self.albums = albums
+
+    async def _async_save_cache(self) -> None:
+        await self._store.async_save(
+            {
+                "data": self.data,
+                "info_page": self.info_page,
+                "albums": self.albums,
+            }
+        )
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -132,44 +150,45 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             data.get("firmware_version")
         )
         self._async_backfill_unique_id(data)
-        await self._async_maybe_scrape_info_page()
-        await self._async_maybe_fetch_albums()
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        if runtime is not None and runtime.power is not None:
+            await runtime.power.async_observe_frame(data)
+        self.data = data
+        await self._async_save_cache()
         return data
 
-    async def _async_maybe_fetch_albums(self) -> None:
-        """Refresh the cloud albums list on a slow cadence (never fatal)."""
-        now = time.monotonic()
-        if now < self._albums_next:
-            return
-        self._albums_next = now + ALBUMS_INTERVAL
+    async def async_refresh_albums(self) -> list[dict[str, Any]] | None:
+        """Fetch cloud albums on demand; normal coordinator polls never do this."""
         try:
             self.albums = await self.client.get_albums()
         except FraimicError as err:
-            _LOGGER.debug("Fetching albums failed (frame offline or LAN-only): %s", err)
+            _LOGGER.debug("On-demand album fetch failed: %s", err)
+            return self.albums
+        await self._async_save_cache()
+        self.async_update_listeners()
+        return self.albums
 
     def expire_albums_cache(self) -> None:
-        """Force the next poll to re-fetch albums (after an album edit)."""
-        self._albums_next = 0.0
+        """Invalidate albums after an edit without causing a background fetch."""
+        self.albums = None
+        self.config_entry.async_create_task(
+            self.hass,
+            self._async_save_cache(),
+            "fraimic-save-albums-invalidation",
+        )
 
-    def set_fast_poll(self, enabled: bool) -> None:
-        """Poll every 30 s while a send is queued so the wake is noticed fast."""
-        seconds = FAST_POLL_SECONDS if enabled else self._scan_interval
-        self.update_interval = timedelta(seconds=seconds)
-
-    async def _async_maybe_scrape_info_page(self) -> None:
-        """Refresh the parsed /info HTML diagnostics on a slow cadence."""
-        now = time.monotonic()
-        if now < self._info_page_next:
-            return
+    async def async_refresh_info_page(self) -> dict[str, Any]:
+        """Scrape slow battery-health diagnostics only when explicitly needed."""
         try:
             parsed = parse_info_page(await self.client.get_info_page())
         except FraimicError as err:
-            _LOGGER.debug("Scraping /info failed (retrying later): %s", err)
-            self._info_page_next = now + INFO_PAGE_RETRY_INTERVAL
-            return
-        self._info_page_next = now + INFO_PAGE_INTERVAL
+            _LOGGER.debug("On-demand /info scrape failed: %s", err)
+            return self.info_page
         if parsed:
             self.info_page = parsed
+            await self._async_save_cache()
+            self.async_update_listeners()
+        return self.info_page
 
     def _async_backfill_unique_id(self, data: dict[str, Any]) -> None:
         """Adopt the frame's stable ``device_key`` as the entry's unique_id.

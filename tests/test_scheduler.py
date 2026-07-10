@@ -197,6 +197,36 @@ def test_successful_wake_retry_clears_pending(
     assert scheduler._hold_until is None
 
 
+def test_power_deferred_screen_does_not_replace_displayed_hash(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    deferred = SimpleNamespace(screen_id="next", name="Next", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {
+            "uploaded": False,
+            "displayed": False,
+            "content_hash": "not-on-glass",
+            "skip_reason": "low_battery",
+        }
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, deferred]
+    scheduler.current_id = current.screen_id
+    scheduler.displayed_hash = "on-glass"
+    original_rotation = datetime(2026, 7, 3, 11, 0)
+    scheduler._last_rotation = original_rotation
+
+    asyncio.run(scheduler._async_show(deferred))
+
+    assert scheduler.current_id == current.screen_id
+    assert scheduler.displayed_hash == "on-glass"
+    assert scheduler._last_rotation == original_rotation
+
+
 def test_wake_retry_rechecks_enabled_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

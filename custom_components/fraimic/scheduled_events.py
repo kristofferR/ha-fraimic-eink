@@ -32,6 +32,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN
 from .helpers import loaded_fraimic_entries
+from .power import TRIGGER_SCHEDULED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -214,7 +215,7 @@ class ScheduledEventManager:
             if scene is None:
                 await self._async_mark_missing(event, f"scene {scene_name!r} not found")
                 return
-            await scenes.async_send(scene.scene_id)
+            await scenes.async_send(scene.scene_id, trigger=TRIGGER_SCHEDULED)
             return
 
         entry = next(
@@ -245,7 +246,12 @@ class ScheduledEventManager:
                     event, f"library image {image_id} no longer exists"
                 )
                 return
-            await library.async_send_to_entry(image_id, entry, dict(event.get("overrides") or {}))
+            await library.async_send_to_entry(
+                image_id,
+                entry,
+                dict(event.get("overrides") or {}),
+                trigger=TRIGGER_SCHEDULED,
+            )
             return
 
         from .source import async_get_source_bytes
@@ -268,6 +274,7 @@ class ScheduledEventManager:
             hold_playlist=False,
             queue_if_asleep=True,
             title=event["name"],
+            trigger=TRIGGER_SCHEDULED,
         )
 
     async def _async_mark_missing(self, event: dict[str, Any], reason: str) -> None:

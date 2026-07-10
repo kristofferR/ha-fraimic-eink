@@ -22,6 +22,7 @@ from homeassistant.helpers.storage import Store
 from .const import DOMAIN
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary, async_upload_rendered
+from .power import TRIGGER_MANUAL
 from .scene_model import (
     SCENE_SOURCE_USER,
     Scene,
@@ -186,7 +187,9 @@ class SceneManager:
 
     # ------------------------------------------------------------ activation
 
-    async def async_send(self, scene_id: str) -> dict[str, dict[str, Any]]:
+    async def async_send(
+        self, scene_id: str, *, trigger: str = TRIGGER_MANUAL
+    ) -> dict[str, dict[str, Any]]:
         """Activate a scene. Returns per-entry ``{"ok": bool, "error": ...}``."""
         scene = self.get(scene_id)
         scene_name = scene.name
@@ -252,6 +255,7 @@ class SceneManager:
                         *prepared[entry_id],
                         media_title=media_titles[entry_id],
                         queue_if_asleep=True,
+                        trigger=trigger,
                     )
                     uploaded = True
                 except HomeAssistantError as err:

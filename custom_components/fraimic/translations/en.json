@@ -159,8 +159,10 @@
     "step": {
       "init": {
         "title": "Fraimic options",
-        "description": "These image settings are this frame's defaults — every upload uses them unless the upload_image service call overrides a value.",
+        "description": "Choose how aggressively the integration saves the frame battery, then configure image defaults. Minimum mode makes no startup or periodic frame requests.",
         "data": {
+          "power_mode": "Power mode",
+          "auto_sleep_after_upload": "Sleep after upload (experimental)",
           "scan_interval": "Polling interval (seconds)",
           "rotation": "Rotation (degrees)",
           "camera_refresh_interval": "Camera refresh interval (seconds)",
@@ -177,7 +179,9 @@
           "pexels_api_key": "Pexels API key (optional)"
         },
         "data_description": {
-          "scan_interval": "How often to poll the frame. The frame is battery-powered; 300 seconds is recommended.",
+          "power_mode": "minimum: no periodic polling and at most one automatic redraw/day; balanced: hourly polling and up to eight automatic redraws/day; responsive: legacy-style polling and up to 48 automatic redraws/day.",
+          "auto_sleep_after_upload": "After a successful redraw, wait 45 seconds and ask an unplugged frame to sleep. Disabled when charging, keep-awake is set, work is queued, or power state is unknown.",
+          "scan_interval": "Requested polling interval. Power mode may raise it; Minimum disables periodic polling entirely.",
           "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape).",
           "camera_refresh_interval": "How often a camera ‘playing’ on this frame takes a fresh snapshot. Each update is a full ~30 s E-Ink refresh and costs battery — minimum 60. 0 = show once, no auto-refresh.",
           "mode": "auto/error-diffusion for photos, bayer for graphics, none for nearest-colour.",
@@ -294,7 +298,9 @@
       "restart": { "name": "Restart" },
       "next_screen": { "name": "Next screen" },
       "previous_screen": { "name": "Previous screen" },
-      "new_artwork": { "name": "New artwork" }
+      "new_artwork": { "name": "New artwork" },
+      "refresh_data": { "name": "Refresh frame data" },
+      "try_queued_send": { "name": "Try queued send" }
     },
     "image": {
       "preview": { "name": "Current artwork" },

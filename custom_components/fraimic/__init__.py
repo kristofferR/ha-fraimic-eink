@@ -10,7 +10,13 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
-from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL, DOMAIN
+from .const import (
+    CONF_CAMERA_INTERVAL,
+    CONF_POWER_MODE,
+    CONF_SCAN_INTERVAL,
+    DOMAIN,
+    POWER_MODE_RESPONSIVE,
+)
 from .coordinator import (
     FraimicConfigEntry,
     FraimicDataUpdateCoordinator,
@@ -20,6 +26,7 @@ from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
 from .panel import async_register_panel, async_unregister_panel
+from .power import FraimicPowerManager, effective_scan_interval
 from .scenes import DATA_SCENES, SceneManager
 from .scheduled_events import DATA_SCHEDULED_EVENTS, ScheduledEventManager
 from .scheduler import FraimicScheduler
@@ -67,17 +74,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     await async_register_panel(hass)
 
     client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
-    scan_interval = entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    scan_interval = effective_scan_interval(dict(entry.options))
 
     coordinator = FraimicDataUpdateCoordinator(hass, entry, client, scan_interval)
+    entry.runtime_data = FraimicRuntimeData(coordinator, client)
+    power = FraimicPowerManager(hass, entry)
+    entry.runtime_data.power = power
+    await power.async_setup()
+    entry.async_on_unload(power.shutdown)
+    await coordinator.async_restore()
     # Do NOT use async_config_entry_first_refresh here: it raises
     # ConfigEntryNotReady on a failed first poll, which would abort setup whenever
     # the (battery-powered) frame is in deep sleep on restart — the entities would
     # then never be created. Instead refresh non-fatally and set up regardless, so
     # entities exist and show unavailable until the frame next wakes.
-    await coordinator.async_refresh()
-
-    entry.runtime_data = FraimicRuntimeData(coordinator, client)
+    if power.startup_poll:
+        await coordinator.async_refresh()
 
     # Queued delivery for sends that target a sleeping frame; resumes any
     # payload persisted before a restart.
@@ -120,6 +132,17 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
             await library.async_shutdown()
         async_unregister_panel(hass)
     return unload_ok
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> bool:
+    """Keep existing installations responsive while new entries save battery."""
+    if entry.version < 2:
+        options = dict(entry.options)
+        options.setdefault(CONF_POWER_MODE, POWER_MODE_RESPONSIVE)
+        options.setdefault(CONF_SCAN_INTERVAL, 300)
+        options.setdefault(CONF_CAMERA_INTERVAL, 1800)
+        hass.config_entries.async_update_entry(entry, options=options, version=2)
+    return True
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: FraimicConfigEntry) -> None:

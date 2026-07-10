@@ -20,6 +20,7 @@ can be regenerated (and is, by the background backfill worker).
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import mimetypes
@@ -55,6 +56,7 @@ from .library_model import (
     resolution_key,
     safe_filename,
 )
+from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -396,6 +398,8 @@ class FraimicLibrary:
         image_id: str,
         entry: ConfigEntry,
         overrides: dict | None = None,
+        *,
+        trigger: str = TRIGGER_MANUAL,
     ) -> None:
         """Render (cache-aware) and upload one library image to one frame."""
         image = self.get(image_id)
@@ -408,6 +412,7 @@ class FraimicLibrary:
                 media_title=image.filename,
                 lock=False,
                 queue_if_asleep=True,
+                trigger=trigger,
             )
 
     async def async_render_adhoc_preview(
@@ -509,6 +514,7 @@ async def async_upload_rendered(
     media_title: str | None = None,
     lock: bool = True,
     queue_if_asleep: bool = False,
+    trigger: str = TRIGGER_MANUAL,
 ) -> None:
     """Upload an already-rendered buffer to one frame and update its preview.
 
@@ -521,13 +527,45 @@ async def async_upload_rendered(
     failing when it is unreachable (user-initiated sends).
     """
     runtime = entry.runtime_data
+    content_hash = hashlib.sha256(bin_data).hexdigest()
+    power_token = runtime.power.begin(trigger)
 
     async def _upload() -> None:
         queue = getattr(runtime, "send_queue", None) if queue_if_asleep else None
+        reason = runtime.power.skip_reason(
+            content_hash,
+            trigger,
+            power_token,
+            runtime.coordinator.data,
+        )
+        if reason is not None:
+            if reason in DEFER_REASONS and queue is not None:
+                await queue.async_queue_deferred(
+                    bin_data,
+                    preview_png,
+                    mode,
+                    media_title or "image",
+                    content_hash,
+                    trigger,
+                )
+            elif reason == SKIP_DUPLICATE:
+                runtime.last_art = None
+                runtime.media_title = media_title
+                if preview_png:
+                    runtime.last_preview = preview_png
+                    if runtime.preview_image is not None:
+                        runtime.preview_image.set_preview(preview_png, mode)
+                runtime.coordinator.async_update_listeners()
+            return
         if queue is not None:
             try:
                 sent_now = await queue.async_upload_or_queue(
-                    bin_data, preview_png, mode, media_title or "image"
+                    bin_data,
+                    preview_png,
+                    mode,
+                    media_title or "image",
+                    content_hash,
+                    trigger,
                 )
             except FraimicError as err:
                 raise HomeAssistantError(
@@ -549,14 +587,18 @@ async def async_upload_rendered(
             runtime.last_preview = preview_png
             if runtime.preview_image is not None:
                 runtime.preview_image.set_preview(preview_png, mode)
-        await runtime.coordinator.async_request_refresh()
+        await runtime.power.async_record_upload(content_hash, trigger)
+        runtime.power.schedule_sleep()
         runtime.coordinator.async_update_listeners()
 
-    if lock:
-        async with runtime.upload_lock:
+    try:
+        if lock:
+            async with runtime.upload_lock:
+                await _upload()
+        else:
             await _upload()
-    else:
-        await _upload()
+    finally:
+        runtime.power.finish(power_token)
 
 
 def _probe_dimensions(data: bytes) -> tuple[int, int]:
