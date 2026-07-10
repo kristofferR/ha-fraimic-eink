@@ -33,6 +33,7 @@ from homeassistant.util import dt as dt_util
 from .const import DOMAIN
 from .coordinator import FraimicConfigEntry
 from .providers.ha import ArtFetchError
+from .power import TRIGGER_MANUAL, TRIGGER_PLAYLIST
 from .render.display import async_show_screen
 from .render.playlist import eligible, next_screen
 from .render.schema import ScreenConfig
@@ -272,6 +273,7 @@ class FraimicScheduler:
                 screen,
                 skip_if_hash=self.displayed_hash,
                 hold_playlist=False,
+                trigger=TRIGGER_MANUAL if manual else TRIGGER_PLAYLIST,
             )
         except ArtFetchError as err:
             # The online image source failed — the frame itself is fine. Keep

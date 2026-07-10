@@ -36,7 +36,7 @@ from .const import (
     DEFAULT_SCREEN_INTERVAL,
     DITHER_MODES,
     FIT_MODES,
-    MIN_SCREEN_INTERVAL,
+    MIN_NEW_SCREEN_INTERVAL,
     PROVIDER_SHUFFLE,
 )
 from .providers import PROVIDERS, available_provider_keys
@@ -210,7 +210,7 @@ _BASICS_SCHEMA = vol.Schema(
         vol.Required("accent", default="red"): _select(_COLOR_OPTIONS),
         vol.Required("show_header", default=True): BooleanSelector(),
         vol.Required("interval", default=DEFAULT_SCREEN_INTERVAL): _number(
-            MIN_SCREEN_INTERVAL, 86400, 60
+            MIN_NEW_SCREEN_INTERVAL, 86400, 60
         ),
         vol.Optional("window_after"): TimeSelector(),
         vol.Optional("window_before"): TimeSelector(),

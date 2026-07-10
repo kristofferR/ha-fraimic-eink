@@ -2,9 +2,9 @@
 
 The frame is battery-powered and unreachable in deep sleep, so a send that
 misses it would otherwise just fail. Instead, the rendered ``.bin`` (plus its
-preview) is persisted to disk and flushed on the next successful coordinator
-poll — i.e. the moment the frame wakes. While something is queued the
-coordinator fast-polls so the wake is noticed quickly.
+preview) is persisted to disk and flushed on the next observed wake. Probes
+use a power-mode-aware backoff; minimum mode is passive unless the frame has
+advertised its own next scheduled wake.
 
 Delivery semantics (hardware-informed, see #28/#33):
 
@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
@@ -38,6 +39,13 @@ from .api import (
     FraimicTimeoutError,
 )
 from .const import DOMAIN
+from .power import (
+    DEFER_REASONS,
+    SKIP_DUPLICATE,
+    TRIGGER_MANUAL,
+    power_mode,
+    queue_probe_delay,
+)
 
 if TYPE_CHECKING:
     from .coordinator import FraimicConfigEntry
@@ -49,10 +57,6 @@ STORAGE_VERSION = 1
 # A queued image is dropped if the frame hasn't woken within this window —
 # day-old automation content (weather, dashboards) shouldn't suddenly render.
 QUEUE_TTL = 24 * 3600
-
-# Poll cadence while a send is queued, so the wake is noticed fast.
-FAST_POLL_SECONDS = 30
-
 
 def signal_send_status(entry_id: str) -> str:
     """Dispatcher signal carrying send-status updates for one frame."""
@@ -76,13 +80,15 @@ class FraimicSendQueue:
         self._pending: dict[str, Any] | None = None
         self._flushing = False
         self._unsub_listener: Any = None
+        self._unsub_probe: Any = None
+        self._probe_attempt = 0
         # Last human-readable status, mirrored by the send_status sensor.
         self.status: str = "Idle"
 
     # ---------------------------------------------------------------- setup
 
     async def async_setup(self) -> None:
-        """Load persisted state and resume fast-polling if something waits."""
+        """Load persisted state and resume power-aware wake detection."""
         data = await self._store.async_load()
         if data and data.get("pending"):
             self._pending = data["pending"]
@@ -110,6 +116,8 @@ class FraimicSendQueue:
         preview_png: bytes | None,
         mode: str,
         title: str,
+        content_hash: str,
+        trigger: str = TRIGGER_MANUAL,
     ) -> bool:
         """Upload now if possible, else queue for the frame's next wake.
 
@@ -129,7 +137,9 @@ class FraimicSendQueue:
             self._dispatch(f"Sent {title} (unconfirmed — the frame's reply timed out)")
             return True
         except FraimicConnectionError:
-            await self._async_queue(bin_data, preview_png, mode, title)
+            await self._async_queue(
+                bin_data, preview_png, mode, title, content_hash, trigger
+            )
             return False
         # FraimicApiError/FraimicError propagate: a real rejection (bad size
         # etc.) won't fix itself by waiting for a wake.
@@ -137,8 +147,28 @@ class FraimicSendQueue:
         self._dispatch(f"Sent {self._now_str()}")
         return True
 
+    async def async_queue_deferred(
+        self,
+        bin_data: bytes,
+        preview_png: bytes | None,
+        mode: str,
+        title: str,
+        content_hash: str,
+        trigger: str,
+    ) -> None:
+        """Persist power-deferred automatic content in the latest-wins slot."""
+        await self._async_queue(
+            bin_data, preview_png, mode, title, content_hash, trigger
+        )
+
     async def _async_queue(
-        self, bin_data: bytes, preview_png: bytes | None, mode: str, title: str
+        self,
+        bin_data: bytes,
+        preview_png: bytes | None,
+        mode: str,
+        title: str,
+        content_hash: str,
+        trigger: str,
     ) -> None:
         def _write() -> None:
             import os
@@ -157,6 +187,8 @@ class FraimicSendQueue:
             "token": time.monotonic_ns(),
             "queued_at": time.time(),
             "has_preview": bool(preview_png),
+            "content_hash": content_hash,
+            "trigger": trigger,
         }
         await self._store.async_save({"pending": self._pending})
         self._start_waiting()
@@ -166,6 +198,45 @@ class FraimicSendQueue:
             self._entry.title,
             title,
         )
+
+    async def async_try_send(self) -> None:
+        """User-requested liveness check and immediate queued delivery attempt."""
+        if self._pending is None:
+            self._dispatch("Idle — nothing is queued")
+            return
+        try:
+            battery = await self._entry.runtime_data.client.get_battery()
+        except FraimicError:
+            self._dispatch("Frame is still asleep — tap it, then try again")
+            return
+        self._apply_battery(battery)
+        await self._async_flush()
+
+    async def _async_probe(self, _now: Any = None) -> None:
+        self._unsub_probe = None
+        if self._pending is None:
+            return
+        self._probe_attempt += 1
+        try:
+            battery = await self._entry.runtime_data.client.get_battery()
+        except FraimicError:
+            self._schedule_probe()
+            return
+        self._apply_battery(battery)
+        await self._async_flush()
+
+    def _apply_battery(self, payload: dict[str, Any]) -> None:
+        """Merge a cheap liveness response into the policy's current snapshot."""
+        runtime = self._entry.runtime_data
+        current = dict(runtime.coordinator.data or {})
+        existing = current.get("battery")
+        existing = dict(existing) if isinstance(existing, dict) else {}
+        update = payload.get("battery") if isinstance(payload.get("battery"), dict) else payload
+        for key in ("percent", "voltage_mv", "charging", "cable_connected", "source"):
+            if key in update:
+                existing[key] = update[key]
+        current["battery"] = existing
+        runtime.coordinator.data = current
 
     # ---------------------------------------------------------------- flush
 
@@ -220,24 +291,52 @@ class FraimicSendQueue:
                 # we waited for the lock.
                 if self._pending is None or self._pending["token"] != token:
                     return
+                content_hash = pending.get("content_hash") or ""
+                trigger = pending.get("trigger") or TRIGGER_MANUAL
+                power_token = runtime.power.begin(trigger)
+                reason = runtime.power.skip_reason(
+                    content_hash,
+                    trigger,
+                    power_token,
+                    runtime.coordinator.data,
+                )
+                runtime.power.finish(power_token)
+                if reason == SKIP_DUPLICATE:
+                    if preview_png:
+                        runtime.last_preview = preview_png
+                        if runtime.preview_image is not None:
+                            runtime.preview_image.set_preview(
+                                preview_png, pending.get("mode") or ""
+                            )
+                    runtime.media_title = title
+                    await self._async_clear(f"Already displaying {title}")
+                    return
+                if reason in DEFER_REASONS:
+                    self._dispatch(f"Deferred {title} to save battery ({reason})")
+                    self._schedule_probe()
+                    return
                 self._dispatch(f"Sending {title}...")
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:
+                    await runtime.power.async_record_upload(content_hash, trigger)
                     await self._async_clear(
                         f"Sent {title} (unconfirmed — the frame's reply timed out)"
                     )
+                    runtime.power.schedule_sleep()
                     return
                 except FraimicConnectionError:
                     # Fell asleep again before the upload; keep it queued.
                     self._dispatch(
                         f"Waiting to send {title} — tap the frame to wake it up"
                     )
+                    self._schedule_probe()
                     return
                 except (FraimicApiError, FraimicError) as err:
                     await self._async_clear(f"Failed to send {title}: {err}")
                     return
 
+                await runtime.power.async_record_upload(content_hash, trigger)
                 await self._async_clear(f"Sent {self._now_str()}")
                 if preview_png:
                     runtime.last_preview = preview_png
@@ -249,6 +348,7 @@ class FraimicSendQueue:
                 _LOGGER.info(
                     "Delivered queued image '%s' to %s", title, self._entry.title
                 )
+                runtime.power.schedule_sleep()
         finally:
             self._flushing = False
 
@@ -268,16 +368,36 @@ class FraimicSendQueue:
 
     def _start_waiting(self) -> None:
         coordinator = self._entry.runtime_data.coordinator
-        coordinator.set_fast_poll(True)
         if self._unsub_listener is None:
             self._unsub_listener = coordinator.async_add_listener(
                 self._on_coordinator_update
             )
+        self._probe_attempt = 0
+        self._schedule_probe()
+
+    def _schedule_probe(self) -> None:
+        if self._pending is None or self._unsub_probe is not None:
+            return
+        coordinator = self._entry.runtime_data.coordinator
+        display = (coordinator.data or {}).get("display") or {}
+        delay = queue_probe_delay(
+            power_mode(dict(self._entry.options)),
+            self._probe_attempt,
+            next_refresh=display.get("next_refresh"),
+        )
+        if delay is None:
+            return
+        remaining = QUEUE_TTL - (time.time() - self._pending.get("queued_at", 0))
+        if remaining <= 0:
+            return
+        self._unsub_probe = async_call_later(
+            self._hass, min(delay, remaining), self._async_probe
+        )
 
     def _stop_waiting(self) -> None:
-        runtime = getattr(self._entry, "runtime_data", None)
-        if runtime is not None:
-            runtime.coordinator.set_fast_poll(False)
+        if self._unsub_probe is not None:
+            self._unsub_probe()
+            self._unsub_probe = None
         if self._unsub_listener is not None:
             self._unsub_listener()
             self._unsub_listener = None

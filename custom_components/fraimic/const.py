@@ -16,6 +16,19 @@ CONF_WIDTH: Final = "width"
 CONF_HEIGHT: Final = "height"
 CONF_FRAME_MODEL: Final = "frame_model"
 CONF_ROTATION: Final = "rotation"
+CONF_POWER_MODE: Final = "power_mode"
+CONF_AUTO_SLEEP: Final = "auto_sleep_after_upload"
+
+POWER_MODE_MINIMUM: Final = "minimum"
+POWER_MODE_BALANCED: Final = "balanced"
+POWER_MODE_RESPONSIVE: Final = "responsive"
+POWER_MODES: Final = (
+    POWER_MODE_MINIMUM,
+    POWER_MODE_BALANCED,
+    POWER_MODE_RESPONSIVE,
+)
+DEFAULT_POWER_MODE: Final = POWER_MODE_MINIMUM
+DEFAULT_AUTO_SLEEP: Final = False
 
 # Per-frame base rotation (degrees clockwise) applied to every upload, on top of
 # any per-call rotate. Lets you correct how the frame is physically mounted.
@@ -23,16 +36,16 @@ DEFAULT_ROTATION: Final = 0
 ROTATION_OPTIONS: Final = (0, 90, 180, 270)
 
 DEFAULT_HOST: Final = "fraimic.local"
-# The frame is battery-powered; polling /api/info every 5 minutes is a good
-# balance. Users can change this in the options flow.
-DEFAULT_SCAN_INTERVAL: Final = 300
+# Balanced/responsive modes use this requested interval as a floor; Minimum
+# mode disables periodic polling completely.
+DEFAULT_SCAN_INTERVAL: Final = 3600
 MIN_SCAN_INTERVAL: Final = 30
 
 # How often a camera "playing" on the frame re-snapshots (seconds). Every
 # update is a full ~30 s E-Ink refresh cycle and costs battery, so this is
-# deliberately slow. 0 = snapshot once, no auto-refresh.
+# opt-in. 0 = snapshot once, no auto-refresh.
 CONF_CAMERA_INTERVAL: Final = "camera_refresh_interval"
-DEFAULT_CAMERA_INTERVAL: Final = 1800
+DEFAULT_CAMERA_INTERVAL: Final = 0
 MIN_CAMERA_INTERVAL: Final = 60
 DEFAULT_TIMEOUT: Final = 10
 # The ESP32 web server is slow on large uploads; give it generous time.
@@ -165,8 +178,12 @@ PALETTE_NAMES: Final = {
 
 # Dashboard screens: rotation interval bounds (each upload is a full ~30 s
 # E-Ink refresh and costs battery, so the floor is deliberately high).
+# Stored screens from older releases may legitimately use the old five-minute
+# floor. Keep the parser backwards-compatible while the UI applies the safer
+# floor to newly created/edited screens.
 MIN_SCREEN_INTERVAL: Final = 300
-DEFAULT_SCREEN_INTERVAL: Final = 1800
+MIN_NEW_SCREEN_INTERVAL: Final = 1800
+DEFAULT_SCREEN_INTERVAL: Final = 6 * 3600
 
 # Online image providers ("art frame" mode).
 # Keyless: five museums (CC0/public-domain masterpieces — dimu is

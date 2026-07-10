@@ -37,6 +37,7 @@ from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
 from .providers import PROVIDERS, available_provider_keys, build_media_id, parse_media_id
 from .providers.engine import read_capped
+from .power import TRIGGER_CAMERA, TRIGGER_MANUAL
 from .services import (
     async_render_and_upload,
     begin_external_upload,
@@ -136,6 +137,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         *,
         camera_generation: int | None = None,
         hold_playlist: bool = True,
+        trigger: str = TRIGGER_MANUAL,
     ) -> None:
         """Snapshot ``camera_entity`` and display it on the frame."""
         from homeassistant.components.camera import async_get_image
@@ -146,10 +148,14 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         try:
             image = await async_get_image(self.hass, camera_entity)
             result = await async_render_and_upload(
-                self.hass, entry, image.content, hold_playlist=False
+                self.hass,
+                entry,
+                image.content,
+                hold_playlist=False,
+                trigger=trigger,
             )
             uploaded = result.get("uploaded", True)
-            if uploaded:
+            if result.get("displayed", uploaded):
                 current_camera_upload = (
                     camera_generation is None
                     or camera_generation == self._camera_generation
@@ -180,6 +186,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self._camera_entity,
                 camera_generation=self._camera_generation,
                 hold_playlist=False,
+                trigger=TRIGGER_CAMERA,
             )
         except HomeAssistantError as err:
             _LOGGER.warning(
@@ -301,7 +308,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                     self.hass, entry, art.data, hold_playlist=False
                 )
                 uploaded = result.get("uploaded", True)
-                if uploaded:
+                if result.get("displayed", uploaded):
                     entry.runtime_data.last_art = asdict(art.candidate)
                     entry.runtime_data.media_title = art.candidate.title
                     self.coordinator.async_update_listeners()
@@ -402,7 +409,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             uploaded = result.get("uploaded", True)
         finally:
             finish_external_upload(scheduler, uploaded=uploaded)
-        if uploaded:
+        if uploaded or result.get("displayed", False):
             entry.runtime_data.last_art = None
             entry.runtime_data.media_title = media_title
             entry.runtime_data.coordinator.async_update_listeners()

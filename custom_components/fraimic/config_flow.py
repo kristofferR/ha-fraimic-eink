@@ -28,20 +28,24 @@ from .const import (
     ATTR_SHARPEN,
     ATTR_TONE,
     CONF_CAMERA_INTERVAL,
+    CONF_AUTO_SLEEP,
     CONF_DEFAULT_PROVIDER,
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
     CONF_NASA_API_KEY,
     CONF_PEXELS_KEY,
     CONF_ROTATION,
+    CONF_POWER_MODE,
     CONF_SCAN_INTERVAL,
     CONF_SMITHSONIAN_KEY,
     CONF_UNSPLASH_KEY,
     CONF_WIDTH,
     DEFAULT_CAMERA_INTERVAL,
+    DEFAULT_AUTO_SLEEP,
     DEFAULT_CONTRAST,
     DEFAULT_HOST,
     DEFAULT_ROTATION,
+    DEFAULT_POWER_MODE,
     DEFAULT_SATURATION,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SHARPEN,
@@ -58,6 +62,7 @@ from .const import (
     MODEL_CUSTOM,
     PROVIDER_KEYS,
     PROVIDER_SHUFFLE,
+    POWER_MODES,
     ROTATION_OPTIONS,
 )
 from .coordinator import normalize_info
@@ -79,7 +84,7 @@ async def _async_probe(hass, host: str) -> dict[str, Any] | None:
 class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the UI config flow for Fraimic."""
 
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self) -> None:
         self._host: str | None = None
@@ -301,6 +306,14 @@ class FraimicOptionsFlow(OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Required(
+                        CONF_POWER_MODE,
+                        default=o.get(CONF_POWER_MODE, DEFAULT_POWER_MODE),
+                    ): vol.In(POWER_MODES),
+                    vol.Required(
+                        CONF_AUTO_SLEEP,
+                        default=o.get(CONF_AUTO_SLEEP, DEFAULT_AUTO_SLEEP),
+                    ): bool,
                     vol.Required(
                         CONF_SCAN_INTERVAL,
                         default=o.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),

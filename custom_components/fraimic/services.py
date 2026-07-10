@@ -21,7 +21,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .api import FraimicConnectionError, FraimicError, FraimicTimeoutError
+from .api import FraimicConnectionError, FraimicError
 from .const import (
     ATTR_CONFIG_ENTRY,
     ATTR_CONTRAST,
@@ -74,6 +74,7 @@ from .const import (
 from .coordinator import FraimicConfigEntry
 from .image_convert import convert_image
 from .library import get_library
+from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
 from .render.display import async_show_screen
 from .scenes import get_scene_manager
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
@@ -519,7 +520,7 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
             title=_source_title(call.data),
         )
         uploaded = result.get("uploaded", True)
-        if uploaded:
+        if result.get("displayed", uploaded):
             entry.runtime_data.last_art = None
             entry.runtime_data.media_title = None
             entry.runtime_data.coordinator.async_update_listeners()
@@ -671,6 +672,7 @@ async def async_render_and_upload(
     hold_playlist: bool = True,
     queue_if_asleep: bool = False,
     title: str | None = None,
+    trigger: str = TRIGGER_MANUAL,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
@@ -691,6 +693,7 @@ async def async_render_and_upload(
     """
     runtime = entry.runtime_data
     scheduler = begin_external_upload(entry) if hold_playlist else None
+    power_token = runtime.power.begin(trigger)
     uploaded = False
     try:
         async with runtime.upload_lock:
@@ -698,17 +701,41 @@ async def async_render_and_upload(
                 hass, entry, raw, overrides, preprocess=preprocess
             )
             content_hash = hashlib.sha256(bin_data).hexdigest()
-            if skip_if_hash is not None and content_hash == skip_if_hash:
+            reason = (
+                SKIP_DUPLICATE
+                if skip_if_hash is not None and content_hash == skip_if_hash
+                else runtime.power.skip_reason(
+                    content_hash,
+                    trigger,
+                    power_token,
+                    runtime.coordinator.data,
+                )
+            )
+            if reason is not None:
                 if preview_png:
                     runtime.last_preview = preview_png
                     if runtime.preview_image is not None:
                         runtime.preview_image.set_preview(preview_png, used_mode)
+                queue = runtime.send_queue if queue_if_asleep else None
+                queued = False
+                if reason in DEFER_REASONS and queue is not None:
+                    await queue.async_queue_deferred(
+                        bin_data,
+                        preview_png,
+                        used_mode,
+                        title or "image",
+                        content_hash,
+                        trigger,
+                    )
+                    queued = True
                 return {
                     "mode": used_mode,
                     "content_hash": content_hash,
                     "uploaded": False,
-                    "queued": False,
+                    "queued": queued,
                     "preview_png": preview_png,
+                    "skip_reason": reason,
+                    "displayed": reason == SKIP_DUPLICATE,
                 }
 
             queued = False
@@ -716,7 +743,12 @@ async def async_render_and_upload(
             if queue is not None:
                 try:
                     uploaded = await queue.async_upload_or_queue(
-                        bin_data, preview_png, used_mode, title or "image"
+                        bin_data,
+                        preview_png,
+                        used_mode,
+                        title or "image",
+                        content_hash,
+                        trigger,
                     )
                 except FraimicError as err:
                     raise HomeAssistantError(
@@ -742,9 +774,10 @@ async def async_render_and_upload(
                     runtime.preview_image.set_preview(preview_png, used_mode)
 
             if uploaded:
-                # Pull a fresh snapshot so last-refresh / status updates promptly.
-                await runtime.coordinator.async_request_refresh()
+                await runtime.power.async_record_upload(content_hash, trigger)
+                runtime.power.schedule_sleep()
     finally:
+        runtime.power.finish(power_token)
         finish_external_upload(scheduler, uploaded=uploaded)
 
     return {
@@ -753,6 +786,7 @@ async def async_render_and_upload(
         "uploaded": uploaded,
         "queued": queued,
         "preview_png": preview_png,
+        "displayed": uploaded,
     }
 
 

@@ -59,7 +59,11 @@ async def async_setup_entry(
     entities: list[ButtonEntity] = [
         FraimicButton(coordinator, desc) for desc in BUTTONS
     ]
-    entities.append(FraimicNewArtworkButton(coordinator))
+    entities += [
+        FraimicNewArtworkButton(coordinator),
+        FraimicDataRefreshButton(coordinator),
+        FraimicTryQueuedSendButton(coordinator),
+    ]
     scheduler = entry.runtime_data.scheduler
     if scheduler is not None and scheduler.screens:
         entities += [
@@ -93,9 +97,46 @@ class FraimicButton(FraimicEntity, ButtonEntity):
             raise HomeAssistantError(
                 f"Could not reach the frame to {self.entity_description.key}: {err}"
             ) from err
-        # Reflect the new state (e.g. uptime reset, sleeping) without waiting for
-        # the next poll.
+
+
+class FraimicDataRefreshButton(FraimicEntity, ButtonEntity):
+    """Explicitly refresh normal and otherwise-on-demand frame metadata."""
+
+    _attr_translation_key = "refresh_data"
+    _attr_icon = "mdi:database-refresh"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_refresh_data"
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    async def async_press(self) -> None:
         await self.coordinator.async_request_refresh()
+        if not self.coordinator.last_update_success:
+            raise HomeAssistantError("The frame is asleep or unreachable")
+        await self.coordinator.async_refresh_info_page()
+        await self.coordinator.async_refresh_albums()
+
+
+class FraimicTryQueuedSendButton(FraimicEntity, ButtonEntity):
+    """Try a persisted queued send after the user wakes the frame."""
+
+    _attr_translation_key = "try_queued_send"
+    _attr_icon = "mdi:send-clock"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_try_queued_send"
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.config_entry.runtime_data.send_queue is not None
+
+    async def async_press(self) -> None:
+        await self.coordinator.config_entry.runtime_data.send_queue.async_try_send()
 
 
 class FraimicNewArtworkButton(FraimicEntity, ButtonEntity):
