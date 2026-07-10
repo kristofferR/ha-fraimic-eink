@@ -298,7 +298,10 @@ class FraimicOptionsFlow(OptionsFlow):
                 and not user_input.get(provider.key_option or "")
             ):
                 errors[CONF_DEFAULT_PROVIDER] = "provider_key_required"
-            else:
+            camera_interval = user_input.get(CONF_CAMERA_INTERVAL, 0)
+            if 0 < camera_interval < MIN_CAMERA_INTERVAL:
+                errors[CONF_CAMERA_INTERVAL] = "camera_interval_too_low"
+            if not errors:
                 return self.async_create_entry(title="", data=user_input)
 
         o = self.config_entry.options
@@ -324,13 +327,12 @@ class FraimicOptionsFlow(OptionsFlow):
                     # How often a "playing" camera re-snapshots onto the frame.
                     # 0 disables the loop (snapshot once). Each update is a full
                     # E-Ink refresh, so a slow floor keeps battery/panel sane.
+                    # The 0-or->=MIN rule is enforced in the handler above:
+                    # vol.Any is not serializable for the frontend form.
                     vol.Required(
                         CONF_CAMERA_INTERVAL,
                         default=o.get(CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL),
-                    ): vol.All(
-                        vol.Coerce(int),
-                        vol.Any(vol.In((0,)), vol.Range(min=MIN_CAMERA_INTERVAL)),
-                    ),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0)),
                     # Per-frame image-processing defaults (overridable per upload).
                     vol.Required(
                         ATTR_MODE, default=o.get(ATTR_MODE, MODE_AUTO)

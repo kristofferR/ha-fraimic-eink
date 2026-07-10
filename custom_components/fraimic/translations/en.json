@@ -199,7 +199,8 @@
       }
     },
     "error": {
-      "provider_key_required": "That default provider needs an API key."
+      "provider_key_required": "That default provider needs an API key.",
+      "camera_interval_too_low": "Use 0 to disable, or at least 60 seconds."
     }
   },
   "entity": {
