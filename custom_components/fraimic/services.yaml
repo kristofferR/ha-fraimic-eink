@@ -424,6 +424,53 @@ schedule_send:
             - atkinson
             - bayer
             - none
+    rotate:
+      name: Rotate
+      description: Override the rotation (degrees) for this send.
+      required: false
+      selector:
+        select:
+          options:
+            - "0"
+            - "90"
+            - "180"
+            - "270"
+    saturation:
+      name: Saturation
+      description: Override the frame's saturation for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+    contrast:
+      name: Contrast
+      description: Override the frame's contrast for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+    sharpen:
+      name: Sharpen
+      description: Override the frame's sharpen amount for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+    tone:
+      name: Tone curve
+      description: Override the frame's tone-curve strength for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
 
 cancel_scheduled_send:
   name: Cancel a scheduled send

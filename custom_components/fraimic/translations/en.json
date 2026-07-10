@@ -467,6 +467,26 @@
         "mode": {
           "name": "Dither mode",
           "description": "Override the frame's dither mode for this send."
+        },
+        "rotate": {
+          "name": "Rotate",
+          "description": "Override the rotation (degrees) for this send."
+        },
+        "saturation": {
+          "name": "Saturation",
+          "description": "Override the frame's saturation for this send."
+        },
+        "contrast": {
+          "name": "Contrast",
+          "description": "Override the frame's contrast for this send."
+        },
+        "sharpen": {
+          "name": "Sharpen",
+          "description": "Override the frame's sharpen amount for this send."
+        },
+        "tone": {
+          "name": "Tone curve",
+          "description": "Override the frame's tone-curve strength for this send."
         }
       }
     },

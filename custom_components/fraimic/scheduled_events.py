@@ -154,8 +154,11 @@ class ScheduledEventManager:
         self._firing = True
         try:
             now = dt_util.utcnow()
-            for event in list(self._events.values()):
-                if event.get("state") != STATE_PENDING:
+            for event_id in list(self._events):
+                # Re-fetch each round: async_cancel() may run while an earlier
+                # event awaits storage or the send itself.
+                event = self._events.get(event_id)
+                if event is None or event.get("state") != STATE_PENDING:
                     continue
                 when = dt_util.parse_datetime(event["at"])
                 if when is None or when > now:
@@ -177,6 +180,10 @@ class ScheduledEventManager:
                 when = _next_occurrence(when, recurrence)
             event["at"] = when.isoformat()
         await self._async_save()
+        if self._events.get(event["id"]) is not event:
+            # Cancelled while the fire record was being persisted — a
+            # cancellation that already reported success must not redraw.
+            return
 
         try:
             await self._async_send(event)

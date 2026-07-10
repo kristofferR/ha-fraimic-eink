@@ -31,6 +31,7 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
 
     class SupportsResponse:
         OPTIONAL = object()
+        ONLY = object()
 
     class HomeAssistantError(Exception):
         pass

@@ -227,10 +227,10 @@ SCHEDULE_SEND_SCHEMA = vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=3.0)
             ),
             vol.Optional(ATTR_SHARPEN): vol.All(
-                vol.Coerce(float), vol.Range(min=0.0, max=3.0)
+                vol.Coerce(float), vol.Range(min=0.0, max=100.0)
             ),
             vol.Optional(ATTR_TONE): vol.All(
-                vol.Coerce(float), vol.Range(min=-100, max=100)
+                vol.Coerce(float), vol.Range(min=0.0, max=100.0)
             ),
         },
         extra=vol.PREVENT_EXTRA,

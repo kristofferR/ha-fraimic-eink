@@ -123,7 +123,9 @@ class FraimicSendQueue:
             await runtime.client.upload_image(bin_data)
         except FraimicTimeoutError:
             # Possibly accepted with the response blocked by the redraw; do
-            # not retry (double-redraw hazard) and do not queue.
+            # not retry (double-redraw hazard) and do not queue. Latest wins:
+            # drop any older queued payload so it can't overwrite this later.
+            await self._async_drop_pending()
             self._dispatch(f"Sent {title} (unconfirmed — the frame's reply timed out)")
             return True
         except FraimicConnectionError:
@@ -131,6 +133,7 @@ class FraimicSendQueue:
             return False
         # FraimicApiError/FraimicError propagate: a real rejection (bad size
         # etc.) won't fix itself by waiting for a wake.
+        await self._async_drop_pending()
         self._dispatch(f"Sent {self._now_str()}")
         return True
 
@@ -252,10 +255,16 @@ class FraimicSendQueue:
     # ------------------------------------------------------------- plumbing
 
     async def _async_clear(self, status: str) -> None:
+        await self._async_drop_pending()
+        self._dispatch(status)
+
+    async def _async_drop_pending(self) -> None:
+        """Forget any queued payload (no status change)."""
+        if self._pending is None:
+            return
         self._pending = None
         await self._store.async_save({"pending": None})
         self._stop_waiting()
-        self._dispatch(status)
 
     def _start_waiting(self) -> None:
         coordinator = self._entry.runtime_data.coordinator
