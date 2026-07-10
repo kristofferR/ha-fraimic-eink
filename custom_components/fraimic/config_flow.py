@@ -16,6 +16,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .api import FraimicClient, FraimicError, normalize_host
@@ -123,6 +124,61 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
         self.context["title_placeholders"] = {"name": _title(host)}
         return await self._async_resolution_or_create()
 
+    async def async_step_dhcp(
+        self, discovery_info: DhcpServiceInfo
+    ) -> ConfigFlowResult:
+        """Handle a frame discovered via its DHCP lease (Fraimic MAC OUIs).
+
+        Also self-heals an existing entry: if the device_key matches a
+        configured frame, the stored host is rewritten to the new lease IP.
+        """
+        host = discovery_info.ip
+        info = await _async_probe(self.hass, host)
+        if info is None:
+            return self.async_abort(reason="cannot_connect")
+
+        await self._async_set_unique_id(host, info, updates={CONF_HOST: host})
+        self._host = host
+        self._info = info
+        self.context["title_placeholders"] = {"name": _title(host)}
+        return await self._async_resolution_or_create()
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the host of an existing entry without removing it."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            host = normalize_host(user_input[CONF_HOST])
+            info = await _async_probe(self.hass, host)
+            if info is None:
+                errors["base"] = "cannot_connect"
+            else:
+                probed = info.get("device_key") or info.get("device_id")
+                old_host = str(entry.data.get(CONF_HOST, "")).lower()
+                if probed and entry.unique_id not in (None, "", old_host, str(probed)):
+                    # The probed frame is a different physical device than the
+                    # one this entry represents.
+                    return self.async_abort(reason="not_same_device")
+                return self.async_update_reload_and_abort(
+                    entry,
+                    unique_id=str(probed) if probed else entry.unique_id,
+                    data_updates={CONF_HOST: host},
+                )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_HOST, default=entry.data.get(CONF_HOST, DEFAULT_HOST)
+                    ): str
+                }
+            ),
+            errors=errors,
+        )
+
     async def _async_resolution_or_create(self) -> ConfigFlowResult:
         """Auto-create the entry if the frame's resolution can be detected,
         otherwise fall back to asking the user."""
@@ -192,8 +248,14 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _async_set_unique_id(
         self, host: str, info: dict[str, Any], updates: dict | None = None
     ) -> None:
-        """Use the device_id as the unique id when available, else the host."""
-        unique = info.get("device_id") or host.lower()
+        """Use the frame's stable id as the unique id when available, else the host.
+
+        ``device_key`` is the frame's stable per-device identifier (it also
+        authenticates the frame against the Fraimic cloud), so re-adding a
+        frame whose IP changed updates the stored host in place instead of
+        creating a duplicate entry.
+        """
+        unique = info.get("device_key") or info.get("device_id") or host.lower()
         await self.async_set_unique_id(str(unique))
         self._abort_if_unique_id_configured(updates=updates or {CONF_HOST: host})
 

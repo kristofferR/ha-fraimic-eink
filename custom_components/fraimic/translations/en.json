@@ -20,6 +20,16 @@
           "width": "Width (px, Custom only)",
           "height": "Height (px, Custom only)"
         }
+      },
+      "reconfigure": {
+        "title": "Update frame address",
+        "description": "Point this entry at the frame's new address. The frame must be awake, and it must be the same physical frame.",
+        "data": {
+          "host": "Host"
+        },
+        "data_description": {
+          "host": "mDNS name (fraimic.local) or IP address of the frame."
+        }
       }
     },
     "error": {
@@ -30,7 +40,9 @@
     },
     "abort": {
       "already_configured": "This frame is already set up.",
-      "cannot_connect": "Could not reach the discovered frame."
+      "cannot_connect": "Could not reach the discovered frame.",
+      "not_same_device": "That address answers as a different frame than this entry. Add it as a new device instead.",
+      "reconfigure_successful": "Frame address updated."
     }
   },
   "config_subentries": {
@@ -224,6 +236,18 @@
       },
       "next_refresh": {
         "name": "Next refresh"
+      },
+      "battery_cycles": {
+        "name": "Battery cycles"
+      },
+      "battery_soh": {
+        "name": "Battery health"
+      },
+      "battery_current": {
+        "name": "Battery current"
+      },
+      "battery_temperature": {
+        "name": "Battery temperature"
       }
     },
     "binary_sensor": {
@@ -247,6 +271,15 @@
       },
       "keep_awake": {
         "name": "Keep awake"
+      },
+      "auto_update": {
+        "name": "Auto-update"
+      },
+      "charging_led": {
+        "name": "Charging LED"
+      },
+      "render_problem": {
+        "name": "Render problem"
       }
     },
     "button": {
