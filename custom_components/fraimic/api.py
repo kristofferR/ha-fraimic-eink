@@ -43,6 +43,34 @@ class FraimicApiError(FraimicError):
         self.error = error
 
 
+# First firmware verified (on real hardware) to accept POST /api/image with an
+# application/octet-stream body. Older firmware (0.2.21) answered 501 and hung.
+MIN_API_IMAGE_FIRMWARE = (0, 2, 28)
+
+
+def parse_firmware(version: Any) -> tuple[int, ...] | None:
+    """Parse a firmware string like ``0.2.28`` / ``v0.2.28`` into an int tuple."""
+    if not isinstance(version, str):
+        return None
+    parts = version.strip().lstrip("vV").split(".")
+    try:
+        return tuple(int(p) for p in parts)
+    except ValueError:
+        return None
+
+
+def firmware_supports_api_image(version: Any) -> bool:
+    """True when this firmware's ``POST /api/image`` is safe to use.
+
+    Verified on real hardware: 0.2.28 accepts an octet-stream body and returns
+    structured errors; 0.2.21 answered 501 and wedged the HTTP server. Unknown
+    or unparsable versions stay on the multipart ``/upload`` path, which works
+    on every firmware seen so far.
+    """
+    parsed = parse_firmware(version)
+    return parsed is not None and parsed >= MIN_API_IMAGE_FIRMWARE
+
+
 def normalize_host(host: str) -> str:
     """Return a bare host (no scheme, no trailing slash) from user input."""
     host = host.strip()
@@ -58,6 +86,10 @@ class FraimicClient:
 
     def __init__(self, host: str, session: aiohttp.ClientSession) -> None:
         self._host = normalize_host(host)
+        # Uploads go to POST /api/image (octet-stream) when the coordinator has
+        # confirmed a firmware that supports it, else multipart /upload. False
+        # until the first successful poll (e.g. frame asleep at startup).
+        self.prefer_api_image = False
         self._session = session
         # Bracket bare IPv6 literals (2+ colons, not already bracketed) so the URL
         # is valid; a normal "host" or "host:port" is left untouched.
@@ -129,20 +161,27 @@ class FraimicClient:
     ) -> None:
         """Upload a raw Spectra 6 ``.bin`` image and render it.
 
-        Uses ``POST /upload`` with a ``multipart/form-data`` ``image`` field —
-        the path the frame's own portal uses. Verified on real hardware
-        (firmware 0.2.21): a successful ``/upload`` renders the image by itself
-        (~20-30 s), so no follow-up ``/api/refresh`` is needed — firing one
-        mid-render just gets the connection reset by the busy ESP32. ``refresh``
-        stays available for firmwares that need the explicit kick. Do NOT use
-        ``POST /api/image`` with an octet-stream body — on real frames it
-        returns 501 and hangs the device for 45+ seconds.
+        Two firmware-dependent wire paths (both verified on real hardware):
+
+        - Firmware >= 0.2.28 (``prefer_api_image``): ``POST /api/image`` with a
+          raw ``application/octet-stream`` body. Returns
+          ``{"status": "rendering", "bytes_received": N}`` in ~10 s and gives
+          structured errors (``invalid_image_size``, ``unsupported_content_type``).
+        - Otherwise: ``POST /upload`` with a ``multipart/form-data`` ``image``
+          field — the path the frame's own portal uses, works on every firmware
+          seen so far. On firmware 0.2.21, ``/api/image`` instead returned 501
+          and hung the device, hence the version gate.
+
+        Either way a successful upload renders the image by itself (~20-30 s),
+        so no follow-up ``/api/refresh`` is needed — firing one mid-render just
+        gets the connection reset by the busy ESP32. ``refresh`` stays available
+        for firmwares that need the explicit kick.
 
         ``recover`` handles a firmware bug seen repeatedly on real hardware:
         after an aborted/interrupted upload the frame's upload handler wedges —
-        ``/upload`` connections get reset while the rest of the API still
-        answers. A device restart clears it, so on a connection-level upload
-        failure we restart the frame, wait for it to come back, and retry once.
+        upload connections get reset while the rest of the API still answers.
+        A device restart clears it, so on a connection-level upload failure we
+        restart the frame, wait for it to come back, and retry once.
         """
         if len(data) > MAX_BIN_SIZE:
             raise FraimicError(
@@ -150,12 +189,13 @@ class FraimicClient:
                 f"{MAX_BIN_SIZE} bytes"
             )
 
+        attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
         try:
-            await self._do_upload(data)
+            await attempt(data)
         except FraimicConnectionError:
             if not recover:
                 raise
-            # The wedge only affects /upload; if the whole frame is down (deep
+            # The wedge only affects uploads; if the whole frame is down (deep
             # sleep), the restart below fails the same way and we re-raise.
             _LOGGER.warning(
                 "Upload to %s failed at the connection level — the frame's "
@@ -165,7 +205,7 @@ class FraimicClient:
             )
             await self.restart()
             await self._wait_reachable()
-            await self._do_upload(data)
+            await attempt(data)
 
         if refresh:
             # A refresh failure is non-fatal (the image is already buffered), but
@@ -174,6 +214,35 @@ class FraimicClient:
                 await self.refresh()
             except FraimicError as err:
                 _LOGGER.warning("Image uploaded but display refresh failed: %s", err)
+
+    async def _do_upload_api_image(self, data: bytes) -> None:
+        """One ``POST /api/image`` attempt (firmware >= 0.2.28).
+
+        The body must be raw bytes with ``Content-Type: application/octet-stream``
+        — anything else (including multipart) gets a 501 ``unsupported_content_type``
+        and, for large bodies, briefly wedges the frame's HTTP server because the
+        firmware rejects without draining the request.
+        """
+        resp = await self._request(
+            "POST",
+            "/api/image",
+            data=data,
+            headers={"Content-Type": "application/octet-stream"},
+            timeout=UPLOAD_TIMEOUT,
+        )
+        async with resp:
+            try:
+                body = await resp.json(content_type=None)
+            except (aiohttp.ClientError, ValueError):
+                body = None
+            if resp.status >= 400:
+                error = body.get("error") if isinstance(body, dict) else None
+                raise FraimicApiError(
+                    f"Upload failed with HTTP {resp.status}"
+                    + (f" ({error})" if error else ""),
+                    status=resp.status,
+                    error=error,
+                )
 
     async def _do_upload(self, data: bytes) -> None:
         """One ``POST /upload`` attempt."""

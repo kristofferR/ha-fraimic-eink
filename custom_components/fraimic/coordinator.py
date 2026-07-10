@@ -11,7 +11,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .api import FraimicClient, FraimicConnectionError, FraimicError
+from .api import (
+    FraimicClient,
+    FraimicConnectionError,
+    FraimicError,
+    firmware_supports_api_image,
+)
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,7 +74,13 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
-            return normalize_info(await self.client.get_info())
+            data = normalize_info(await self.client.get_info())
+            # Newer firmware accepts the simpler (and structured-error) upload
+            # path; the client stays on multipart /upload until confirmed.
+            self.client.prefer_api_image = firmware_supports_api_image(
+                data.get("firmware_version")
+            )
+            return data
         except FraimicConnectionError as err:
             # The frame is unreachable — most likely in deep sleep. Surface this
             # as a (non-noisy) UpdateFailed so entities go unavailable cleanly.
