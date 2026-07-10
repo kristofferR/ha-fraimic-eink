@@ -13,6 +13,14 @@
     "http",
     "media_source"
   ],
+  "dhcp": [
+    {
+      "macaddress": "1CDBD4*"
+    },
+    {
+      "macaddress": "3CDC75*"
+    }
+  ],
   "documentation": "https://github.com/kristofferR/ha-fraimic-eink",
   "integration_type": "device",
   "iot_class": "local_polling",

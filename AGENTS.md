@@ -12,7 +12,7 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `services.py` | `fraimic.upload_image` service + `async_render_and_upload()` shared render+upload orchestration. |
 | `coordinator.py` | Coordinator (polls `/api/info`), `FraimicRuntimeData` (coordinator, client, `preview_image`, `last_preview`), `normalize_info()` (flat/nested firmware JSON → one shape). |
 | `entity.py` | `FraimicEntity` base (device_info, model naming from resolution). |
-| `config_flow.py` | Config flow (host/zeroconf, resolution detect/pick) + options flow (per-frame settings). |
+| `config_flow.py` | Config flow (host/zeroconf/DHCP, reconfigure, resolution detect/pick) + options flow (per-frame settings). |
 | `media_player.py` | Display images via media browser / `play_media`; camera snapshot refresh loop. |
 | `image.py` | Write-only `image` entity showing the last-uploaded preview PNG. |
 | `sensor.py` / `binary_sensor.py` / `button.py` | Description-driven diagnostic entities + Refresh/Sleep/Restart buttons. |
@@ -94,9 +94,16 @@ not primaries.
 
 ## Config / options
 
-- Config flow: host (default `fraimic.local`) or zeroconf; resolution auto-detect
-  (`FRAME_MODELS`: standard 1600×1200, large 2560×1440) else user picks;
-  resolution saved to `entry.data`.
+- Config flow: host (default `fraimic.local`), zeroconf, or DHCP (Fraimic MAC
+  OUIs `1CDBD4*`/`3CDC75*`); resolution auto-detect (`FRAME_MODELS`: standard
+  1600×1200, large 2560×1440) else user picks; resolution saved to `entry.data`.
+- Entry unique_id is the frame's stable `device.device_key` (host as fallback);
+  the coordinator backfills it on the first successful poll of older entries.
+  A `reconfigure` step changes the host in place (aborts on device_key
+  mismatch), and discovery of a known device_key rewrites the stored host.
+- IP-change self-healing: after 3 consecutive failed polls the coordinator
+  scans the local /24 (rate-limited to 1/hour, only when the host is an IP
+  literal) for the entry's device_key and rewrites `CONF_HOST` on a match.
 - Options (per frame):
   - `scan_interval` (min 30s)
   - `rotation` (base mount 0/90/180/270)

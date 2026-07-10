@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
+import time
 from datetime import timedelta
 from typing import Any
 
+import aiohttp
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import (
@@ -20,6 +25,17 @@ from .api import (
 from .const import DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
+
+# IP-change rediscovery: after this many consecutive failed polls the frame is
+# considered missing (not just mid-wake), and the local /24 may be scanned for
+# a device answering /api/info with this entry's device_key. Deep sleep also
+# looks like consecutive failures, so scans are rate-limited hard — a sleeping
+# frame costs one ~15 s LAN sweep per interval, a moved frame recovers within
+# one interval of waking at its new address.
+REDISCOVERY_FAIL_THRESHOLD = 3
+REDISCOVERY_MIN_INTERVAL = 3600  # seconds between subnet scans
+REDISCOVERY_PROBE_TIMEOUT = 2.0  # per-host /api/info probe
+REDISCOVERY_CONCURRENCY = 32
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -71,22 +87,119 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.client = client
+        self._consecutive_failures = 0
+        self._last_rediscovery = 0.0
+        self._rediscovery_task: asyncio.Task | None = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             data = normalize_info(await self.client.get_info())
-            # Newer firmware accepts the simpler (and structured-error) upload
-            # path; the client stays on multipart /upload until confirmed.
-            self.client.prefer_api_image = firmware_supports_api_image(
-                data.get("firmware_version")
-            )
-            return data
         except FraimicConnectionError as err:
             # The frame is unreachable — most likely in deep sleep. Surface this
             # as a (non-noisy) UpdateFailed so entities go unavailable cleanly.
+            self._consecutive_failures += 1
+            self._async_maybe_rediscover()
             raise UpdateFailed(str(err)) from err
         except FraimicError as err:
             raise UpdateFailed(str(err)) from err
+        self._consecutive_failures = 0
+        # Newer firmware accepts the simpler (and structured-error) upload
+        # path; the client stays on multipart /upload until confirmed.
+        self.client.prefer_api_image = firmware_supports_api_image(
+            data.get("firmware_version")
+        )
+        self._async_backfill_unique_id(data)
+        return data
+
+    def _async_backfill_unique_id(self, data: dict[str, Any]) -> None:
+        """Adopt the frame's stable ``device_key`` as the entry's unique_id.
+
+        Entries created before device_key support (or while the frame was
+        asleep) carry a host-based unique_id; upgrade it on the first
+        successful poll so an IP change can never look like a new device.
+        """
+        device_key = data.get("device_key")
+        entry = self.config_entry
+        if not device_key or entry.unique_id == device_key:
+            return
+        for other in self.hass.config_entries.async_entries(DOMAIN):
+            if other.entry_id != entry.entry_id and other.unique_id == device_key:
+                _LOGGER.warning(
+                    "Frame at %s reports device_key %s, already claimed by "
+                    "entry %s — leaving unique_id unchanged",
+                    self.client.host,
+                    device_key,
+                    other.title,
+                )
+                return
+        _LOGGER.debug(
+            "Backfilling unique_id %s for entry %s", device_key, entry.title
+        )
+        self.hass.config_entries.async_update_entry(entry, unique_id=device_key)
+
+    def _async_maybe_rediscover(self) -> None:
+        """Kick off a subnet scan for the frame's new IP, heavily rate-limited."""
+        if self._consecutive_failures < REDISCOVERY_FAIL_THRESHOLD:
+            return
+        device_key = self.config_entry.unique_id
+        if not device_key:
+            return
+        try:
+            ipaddress.IPv4Address(self.client.host)
+        except ValueError:
+            # Hostname-configured entries (fraimic.local) re-resolve on their
+            # own; scanning is only useful when a raw IP went stale.
+            return
+        if self._rediscovery_task is not None and not self._rediscovery_task.done():
+            return
+        now = time.monotonic()
+        if now - self._last_rediscovery < REDISCOVERY_MIN_INTERVAL:
+            return
+        self._last_rediscovery = now
+        self._rediscovery_task = self.config_entry.async_create_background_task(
+            self.hass,
+            self._async_rediscover(self.client.host, device_key),
+            name=f"fraimic-rediscover-{self.config_entry.entry_id}",
+        )
+
+    async def _async_rediscover(self, last_ip: str, device_key: str) -> None:
+        """Scan the /24 around the last known IP for this frame's device_key."""
+        network = ipaddress.ip_network(f"{last_ip}/24", strict=False)
+        session = async_get_clientsession(self.hass)
+        semaphore = asyncio.Semaphore(REDISCOVERY_CONCURRENCY)
+
+        async def probe(ip: str) -> str | None:
+            async with semaphore:
+                try:
+                    async with session.get(
+                        f"http://{ip}/api/info",
+                        timeout=aiohttp.ClientTimeout(total=REDISCOVERY_PROBE_TIMEOUT),
+                    ) as resp:
+                        if resp.status != 200:
+                            return None
+                        raw = await resp.json(content_type=None)
+                except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
+                    return None
+            if not isinstance(raw, dict):
+                return None
+            return ip if normalize_info(raw).get("device_key") == device_key else None
+
+        results = await asyncio.gather(*(probe(str(ip)) for ip in network.hosts()))
+        found = next((ip for ip in results if ip), None)
+        if found is None or found == self.client.host:
+            return
+        _LOGGER.warning(
+            "Frame %s moved from %s to %s — updating the config entry",
+            self.config_entry.title,
+            last_ip,
+            found,
+        )
+        # The entry's update listener reloads it, rebuilding the client with
+        # the new host.
+        self.hass.config_entries.async_update_entry(
+            self.config_entry,
+            data={**self.config_entry.data, CONF_HOST: found},
+        )
 
 
 def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
@@ -117,6 +230,9 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
     return {
         "firmware_version": pick("firmware_version", ("device", "firmware_version")),
         "device_id": pick("device_id", ("device", "device_id"), ("device", "id")),
+        # Stable per-device identifier (also the frame's cloud credential id);
+        # used as the config entry unique_id.
+        "device_key": pick(("device", "device_key"), "device_key"),
         "model": pick(
             "display_type", "model", "device_type", "variant", ("device", "model")
         ),
@@ -126,6 +242,7 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
             "rssi": pick(("wifi", "rssi"), "wifi_rssi", "rssi"),
             "channel": pick(("wifi", "channel"), "wifi_channel"),
             "ip": pick(("wifi", "ip"), "ip_address", "ip"),
+            "mac": pick(("wifi", "mac"), "mac", "mac_address"),
         },
         "battery": {
             "percent": pick(("battery", "percent"), "battery_pct", "battery_percent"),
