@@ -20,19 +20,26 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |
 | `tests/test_image_convert.py` | Standalone pipeline tests (no HA import). |
 
-## Frame REST API (`api.py`) — verified on firmware 0.2.21
+## Frame REST API (`api.py`) — verified on firmware 0.2.21 + 0.2.28
 
 Base `http://{host}`, **unauthenticated**, local HTTP.
 
 - `GET /api/info` — device snapshot (polled). `GET /api/battery` — liveness.
 - `POST /api/restart` / `/api/sleep` (blocked while charging) / `/api/refresh`.
-- `POST /upload` — multipart `image` field, the ONLY image path used.
+- `POST /api/image` — raw `application/octet-stream` `.bin` body; used on firmware >= 0.2.28.
+- `POST /upload` — multipart `image` field; fallback for older/unknown firmware.
 
 Hardware quirks the code accounts for:
 
-- **Upload via `POST /upload` multipart**, filename `image.bin`, 90s timeout.
+- **Upload path is firmware-gated** (`client.prefer_api_image`, set by the
+  coordinator): fw >= 0.2.28 uses `POST /api/image` octet-stream (structured
+  errors: `invalid_image_size`, `unsupported_content_type`); older/unknown fw
+  uses `POST /upload` multipart, filename `image.bin`. 90s timeout either way.
   A successful upload renders by itself (~20-30s); no follow-up `/api/refresh`.
-- **Never use `POST /api/image`** — returns 501 and hangs the frame 45s+.
+- `/api/image` requires `Content-Type: application/octet-stream` exactly —
+  multipart or other types get a 501 `unsupported_content_type`, and a large
+  rejected body briefly wedges the HTTP server (firmware 0.2.21 wedged hard,
+  which is why older firmware stays on `/upload`).
 - `upload_image(recover=True)` restarts + retries once on connection-level
   failure (firmware upload-handler wedge).
 - Frame is battery-powered; deep sleep = unreachable → entities go unavailable.

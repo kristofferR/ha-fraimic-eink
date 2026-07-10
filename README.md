@@ -474,8 +474,13 @@ Fraimic's official REST API guide describes the frame as "4-bit **grayscale**, u
 `POST /api/image` (octet-stream body)". On real hardware that is wrong on two counts:
 
 - The panel is **Spectra 6 colour**, not grayscale.
-- Uploads go to **`POST /upload`** (multipart). The documented `POST /api/image` returns 501
-  **and hangs the frame for 45+ seconds** — this integration never uses it.
+- On firmware **0.2.21**, the documented `POST /api/image` returned 501 and hung the frame for
+  45+ seconds — only **`POST /upload`** (multipart) worked. Firmware **0.2.28** fixed it:
+  `/api/image` with a raw `application/octet-stream` body now works and returns structured
+  errors (`invalid_image_size`, `unsupported_content_type`). The integration uses `/api/image`
+  once it has confirmed firmware >= 0.2.28 and multipart `/upload` otherwise. Note `/api/image`
+  is strict about `Content-Type` — anything but `application/octet-stream` (including
+  multipart) gets a 501, and a large rejected body briefly wedges the frame's HTTP server.
 
 The `.bin` buffer layout was **reverse-engineered on a real 13.3" frame (firmware 0.2.21)**
 with physical test patterns, and it differs from every community write-up we found — including
@@ -518,8 +523,9 @@ documented in [`docs/device-http-api.md`](docs/device-http-api.md).
 
 ## Credits
 
-- The `/upload` endpoint and the `POST /api/image` hang were first documented by
-  [**dsackr/fraimic-controller**](https://github.com/dsackr/fraimic-controller) — thank you.
+- The `/upload` endpoint and the (firmware 0.2.21) `POST /api/image` hang were first
+  documented by [**dsackr/fraimic-controller**](https://github.com/dsackr/fraimic-controller)
+  — thank you.
   The actual buffer layout and palette codes on firmware 0.2.21 were reverse-engineered for
   this integration on real hardware (see [Accuracy note](#accuracy-note)).
 - Not affiliated with Fraimic. Unofficial, community-built. MIT licensed.
