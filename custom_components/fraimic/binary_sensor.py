@@ -83,6 +83,33 @@ BINARY_SENSORS: tuple[FraimicBinaryDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=lambda d: _g(d, "settings", "keep_awake"),
     ),
+    FraimicBinaryDescription(
+        key="auto_update",
+        translation_key="auto_update",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: _g(d, "settings", "auto_update"),
+    ),
+    FraimicBinaryDescription(
+        key="charging_led",
+        translation_key="charging_led",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: _g(d, "settings", "charging_led"),
+    ),
+    # On when the panel has failed render attempts — a frame that accepts
+    # uploads but can't draw is otherwise invisible from the JSON API.
+    FraimicBinaryDescription(
+        key="render_problem",
+        translation_key="render_problem",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: (
+            None
+            if _g(d, "display", "render_failures") is None
+            else _g(d, "display", "render_failures") > 0
+        ),
+    ),
 )
 
 
@@ -113,3 +140,15 @@ class FraimicBinarySensor(FraimicEntity, BinarySensorEntity):
             return None
         value = self.entity_description.value_fn(data)
         return None if value is None else bool(value)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.entity_description.key != "render_problem":
+            return None
+        data = self.coordinator.data
+        if not isinstance(data, dict):
+            return None
+        return {
+            "render_attempts": _g(data, "display", "render_attempts"),
+            "render_failures": _g(data, "display", "render_failures"),
+        }

@@ -17,6 +17,7 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `image.py` | Write-only `image` entity showing the last-uploaded preview PNG. |
 | `sensor.py` / `binary_sensor.py` / `button.py` | Description-driven diagnostic entities + Refresh/Sleep/Restart buttons. |
 | `diagnostics.py` | Redacted config-entry diagnostics. |
+| `info_page.py` | Pure parser for the `/info` HTML admin page (panel size, battery health). |
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |
 | `tests/test_image_convert.py` | Standalone pipeline tests (no HA import). |
 
@@ -25,6 +26,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 Base `http://{host}`, **unauthenticated**, local HTTP.
 
 - `GET /api/info` — device snapshot (polled). `GET /api/battery` — liveness.
+- `GET /info` — HTML admin page; scraped daily for panel size + battery health
+  (cycles, SOH, current, temperature) via `info_page.parse_info_page()`.
 - `POST /api/restart` / `/api/sleep` (blocked while charging) / `/api/refresh`.
 - `POST /api/image` — raw `application/octet-stream` `.bin` body; used on firmware >= 0.2.28.
 - `POST /upload` — multipart `image` field; fallback for older/unknown firmware.

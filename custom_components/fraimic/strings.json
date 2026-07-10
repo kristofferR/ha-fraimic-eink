@@ -236,6 +236,18 @@
       },
       "next_refresh": {
         "name": "Next refresh"
+      },
+      "battery_cycles": {
+        "name": "Battery cycles"
+      },
+      "battery_soh": {
+        "name": "Battery health"
+      },
+      "battery_current": {
+        "name": "Battery current"
+      },
+      "battery_temperature": {
+        "name": "Battery temperature"
       }
     },
     "binary_sensor": {
@@ -259,6 +271,15 @@
       },
       "keep_awake": {
         "name": "Keep awake"
+      },
+      "auto_update": {
+        "name": "Auto-update"
+      },
+      "charging_led": {
+        "name": "Charging LED"
+      },
+      "render_problem": {
+        "name": "Render problem"
       }
     },
     "button": {

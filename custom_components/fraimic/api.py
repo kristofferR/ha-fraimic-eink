@@ -136,6 +136,20 @@ class FraimicClient:
         """Return the full device snapshot from ``GET /api/info``."""
         return await self._json("GET", "/api/info")
 
+    async def get_info_page(self) -> str:
+        """Return the raw ``GET /info`` HTML admin page.
+
+        Carries panel size and battery-health data absent from the JSON API;
+        parsed by ``info_page.parse_info_page()``.
+        """
+        resp = await self._request("GET", "/info")
+        async with resp:
+            if resp.status >= 400:
+                raise FraimicApiError(
+                    f"GET /info returned HTTP {resp.status}", status=resp.status
+                )
+            return await resp.text()
+
     async def get_battery(self) -> dict[str, Any]:
         """Return the lightweight battery status from ``GET /api/battery``."""
         return await self._json("GET", "/api/battery")

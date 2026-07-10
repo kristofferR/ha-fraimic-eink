@@ -17,7 +17,9 @@ from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
+    UnitOfElectricCurrent,
     UnitOfElectricPotential,
+    UnitOfTemperature,
     UnitOfTime,
 )
 from homeassistant.core import HomeAssistant
@@ -145,6 +147,47 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
     ),
 )
 
+# Battery-health diagnostics scraped from the /info HTML page (see
+# info_page.py) — data absent from every JSON endpoint. These read
+# ``coordinator.info_page`` instead of the poll data and show unknown until
+# the first successful scrape.
+INFO_PAGE_SENSORS: tuple[FraimicSensorDescription, ...] = (
+    FraimicSensorDescription(
+        key="battery_cycles",
+        translation_key="battery_cycles",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.get("battery_cycles"),
+    ),
+    FraimicSensorDescription(
+        key="battery_soh",
+        translation_key="battery_soh",
+        native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.get("battery_soh"),
+    ),
+    FraimicSensorDescription(
+        key="battery_current",
+        translation_key="battery_current",
+        device_class=SensorDeviceClass.CURRENT,
+        native_unit_of_measurement=UnitOfElectricCurrent.MILLIAMPERE,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+        value_fn=lambda d: d.get("battery_current_ma"),
+    ),
+    FraimicSensorDescription(
+        key="battery_temperature",
+        translation_key="battery_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: d.get("battery_temperature_c"),
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -153,7 +196,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fraimic sensors from a config entry."""
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(FraimicSensor(coordinator, desc) for desc in SENSORS)
+    entities: list[FraimicSensor] = [
+        FraimicSensor(coordinator, desc) for desc in SENSORS
+    ]
+    entities.extend(
+        FraimicInfoPageSensor(coordinator, desc) for desc in INFO_PAGE_SENSORS
+    )
+    async_add_entities(entities)
 
 
 class FraimicSensor(FraimicEntity, SensorEntity):
@@ -172,3 +221,11 @@ class FraimicSensor(FraimicEntity, SensorEntity):
         if not isinstance(data, dict):
             return None
         return self.entity_description.value_fn(data)
+
+
+class FraimicInfoPageSensor(FraimicSensor):
+    """A sensor fed by the scraped /info HTML page instead of the poll data."""
+
+    @property
+    def native_value(self) -> Any:
+        return self.entity_description.value_fn(self.coordinator.info_page)

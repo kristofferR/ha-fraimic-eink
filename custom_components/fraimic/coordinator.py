@@ -23,6 +23,7 @@ from .api import (
     firmware_supports_api_image,
 )
 from .const import DOMAIN
+from .info_page import parse_info_page
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -36,6 +37,12 @@ REDISCOVERY_FAIL_THRESHOLD = 3
 REDISCOVERY_MIN_INTERVAL = 3600  # seconds between subnet scans
 REDISCOVERY_PROBE_TIMEOUT = 2.0  # per-host /api/info probe
 REDISCOVERY_CONCURRENCY = 32
+
+# The /info HTML page (panel size, battery health) changes slowly; scrape it
+# on the first successful poll and then daily, retrying hourly on failure. A
+# scrape failure must never fail the coordinator.
+INFO_PAGE_INTERVAL = 24 * 3600
+INFO_PAGE_RETRY_INTERVAL = 3600
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -87,6 +94,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.client = client
+        # Parsed /info HTML diagnostics (panel size, battery health); empty
+        # until the first successful scrape.
+        self.info_page: dict[str, Any] = {}
+        self._info_page_next = 0.0
         self._consecutive_failures = 0
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
@@ -109,7 +120,23 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             data.get("firmware_version")
         )
         self._async_backfill_unique_id(data)
+        await self._async_maybe_scrape_info_page()
         return data
+
+    async def _async_maybe_scrape_info_page(self) -> None:
+        """Refresh the parsed /info HTML diagnostics on a slow cadence."""
+        now = time.monotonic()
+        if now < self._info_page_next:
+            return
+        try:
+            parsed = parse_info_page(await self.client.get_info_page())
+        except FraimicError as err:
+            _LOGGER.debug("Scraping /info failed (retrying later): %s", err)
+            self._info_page_next = now + INFO_PAGE_RETRY_INTERVAL
+            return
+        self._info_page_next = now + INFO_PAGE_INTERVAL
+        if parsed:
+            self.info_page = parsed
 
     def _async_backfill_unique_id(self, data: dict[str, Any]) -> None:
         """Adopt the frame's stable ``device_key`` as the entry's unique_id.
@@ -259,10 +286,14 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
         "settings": {
             "voice_recording": pick(("settings", "voice_recording"), "voice_recording"),
             "keep_awake": pick(("settings", "keep_awake"), "keep_awake"),
+            "auto_update": pick(("settings", "auto_update"), "auto_update"),
+            "charging_led": pick(("settings", "charging_led"), "charging_led"),
         },
         "display": {
             "last_refresh": pick(("display", "last_refresh"), "last_refresh"),
             "next_refresh": pick(("display", "next_refresh"), "next_refresh"),
+            "render_attempts": pick(("display", "render_attempts"), "render_attempts"),
+            "render_failures": pick(("display", "render_failures"), "render_failures"),
             "width": pick(("display", "width"), "display_width", "width"),
             "height": pick(("display", "height"), "display_height", "height"),
         },
