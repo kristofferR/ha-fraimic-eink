@@ -81,6 +81,7 @@ class FraimicSendQueue:
         self._flushing = False
         self._unsub_listener: Any = None
         self._unsub_probe: Any = None
+        self._unsub_expiry: Any = None
         self._probe_attempt = 0
         # Last human-readable status, mirrored by the send_status sensor.
         self.status: str = "Idle"
@@ -224,6 +225,19 @@ class FraimicSendQueue:
             return
         self._apply_battery(battery)
         await self._async_flush()
+
+    async def _async_expire(self, _now: Any = None) -> None:
+        """Drop an expired item locally without making a frame request."""
+        self._unsub_expiry = None
+        if self._pending is None:
+            return
+        age = time.time() - self._pending.get("queued_at", 0)
+        if age < QUEUE_TTL:
+            self._schedule_expiry()
+            return
+        await self._async_clear(
+            f"Gave up: frame never woke up for '{self._pending.get('title')}'"
+        )
 
     def _apply_battery(self, payload: dict[str, Any]) -> None:
         """Merge a cheap liveness response into the policy's current snapshot."""
@@ -373,7 +387,19 @@ class FraimicSendQueue:
                 self._on_coordinator_update
             )
         self._probe_attempt = 0
+        if self._unsub_expiry is not None:
+            self._unsub_expiry()
+            self._unsub_expiry = None
+        self._schedule_expiry()
         self._schedule_probe()
+
+    def _schedule_expiry(self) -> None:
+        if self._pending is None or self._unsub_expiry is not None:
+            return
+        remaining = QUEUE_TTL - (time.time() - self._pending.get("queued_at", 0))
+        self._unsub_expiry = async_call_later(
+            self._hass, max(0, remaining), self._async_expire
+        )
 
     def _schedule_probe(self) -> None:
         if self._pending is None or self._unsub_probe is not None:
@@ -388,7 +414,7 @@ class FraimicSendQueue:
         if delay is None:
             return
         remaining = QUEUE_TTL - (time.time() - self._pending.get("queued_at", 0))
-        if remaining <= 0:
+        if remaining <= 0 or delay >= remaining:
             return
         self._unsub_probe = async_call_later(
             self._hass, min(delay, remaining), self._async_probe
@@ -398,6 +424,9 @@ class FraimicSendQueue:
         if self._unsub_probe is not None:
             self._unsub_probe()
             self._unsub_probe = None
+        if self._unsub_expiry is not None:
+            self._unsub_expiry()
+            self._unsub_expiry = None
         if self._unsub_listener is not None:
             self._unsub_listener()
             self._unsub_listener = None

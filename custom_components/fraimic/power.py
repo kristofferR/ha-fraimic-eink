@@ -63,12 +63,34 @@ class PowerProfile:
     automatic_interval: int
     daily_automatic_budget: int
     queue_backoff: tuple[int, ...]
+    require_known_battery: bool
 
 
 PROFILES = {
-    POWER_MODE_MINIMUM: PowerProfile(None, False, 6 * 3600, 1, ()),
-    POWER_MODE_BALANCED: PowerProfile(3600, True, 30 * 60, 8, (30, 30, 120, 300, 900, 3600)),
-    POWER_MODE_RESPONSIVE: PowerProfile(30, True, 5 * 60, 48, (30, 30, 30, 60, 120, 300)),
+    POWER_MODE_MINIMUM: PowerProfile(
+        poll_floor=None,
+        startup_poll=False,
+        automatic_interval=6 * 3600,
+        daily_automatic_budget=1,
+        queue_backoff=(),
+        require_known_battery=True,
+    ),
+    POWER_MODE_BALANCED: PowerProfile(
+        poll_floor=3600,
+        startup_poll=True,
+        automatic_interval=30 * 60,
+        daily_automatic_budget=8,
+        queue_backoff=(30, 30, 120, 300, 900, 3600),
+        require_known_battery=False,
+    ),
+    POWER_MODE_RESPONSIVE: PowerProfile(
+        poll_floor=30,
+        startup_poll=True,
+        automatic_interval=5 * 60,
+        daily_automatic_budget=48,
+        queue_backoff=(30, 30, 30, 60, 120, 300),
+        require_known_battery=False,
+    ),
 }
 
 
@@ -134,6 +156,7 @@ class FraimicPowerManager:
         self.last_hash: str | None = None
         self.last_display_marker: str | None = None
         self.last_automatic_at = 0.0
+        self.last_upload_at = 0.0
         self.budget_day = ""
         self.automatic_count = 0
         self.upload_count = 0
@@ -158,6 +181,7 @@ class FraimicPowerManager:
         self.last_hash = data.get("last_hash")
         self.last_display_marker = data.get("last_display_marker")
         self.last_automatic_at = float(data.get("last_automatic_at", 0.0))
+        self.last_upload_at = float(data.get("last_upload_at", 0.0))
         self.budget_day = str(data.get("budget_day", ""))
         self.automatic_count = int(data.get("automatic_count", 0))
         self.upload_count = int(data.get("upload_count", 0))
@@ -176,6 +200,7 @@ class FraimicPowerManager:
                 "last_hash": self.last_hash,
                 "last_display_marker": self.last_display_marker,
                 "last_automatic_at": self.last_automatic_at,
+                "last_upload_at": self.last_upload_at,
                 "budget_day": self.budget_day,
                 "automatic_count": self.automatic_count,
                 "upload_count": self.upload_count,
@@ -216,7 +241,16 @@ class FraimicPowerManager:
         now: float | None = None,
     ) -> str | None:
         """Return why a rendered send should not touch the frame."""
-        if content_hash == self.last_hash:
+        now = time.time() if now is None else now
+        data = data or {}
+        display = data.get("display") if isinstance(data, dict) else {}
+        next_native_refresh = _timestamp(
+            display.get("next_refresh") if isinstance(display, dict) else None
+        )
+        native_refresh_may_have_run = (
+            next_native_refresh is not None and next_native_refresh <= now
+        )
+        if content_hash == self.last_hash and not native_refresh_may_have_run:
             return self._count_skip(SKIP_DUPLICATE)
         automatic = trigger in AUTOMATIC_TRIGGERS
         if not automatic:
@@ -224,16 +258,18 @@ class FraimicPowerManager:
         if token != self._latest_automatic_token:
             return self._count_skip(SKIP_COALESCED)
 
-        data = data or {}
         battery = data.get("battery") if isinstance(data, dict) else {}
         battery = battery if isinstance(battery, dict) else {}
         charging = battery.get("charging") is True or battery.get("cable_connected") is True
         percent = battery.get("percent")
+        if not charging and self.profile.require_known_battery and not isinstance(
+            percent, (int, float)
+        ):
+            return self._count_skip(SKIP_LOW_BATTERY)
         if not charging and isinstance(percent, (int, float)) and percent < 25:
             return self._count_skip(SKIP_LOW_BATTERY)
 
-        now = time.time() if now is None else now
-        if not charging and now - self.last_automatic_at < self.profile.automatic_interval:
+        if not charging and now - self.last_upload_at < self.profile.automatic_interval:
             return self._count_skip(SKIP_COOLDOWN)
         today = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
         count = self.automatic_count if self.budget_day == today else 0
@@ -246,6 +282,7 @@ class FraimicPowerManager:
     ) -> None:
         now = time.time() if now is None else now
         self.last_hash = content_hash
+        self.last_upload_at = now
         self.upload_count += 1
         if trigger in AUTOMATIC_TRIGGERS:
             today = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
@@ -263,7 +300,9 @@ class FraimicPowerManager:
         if not marker:
             return
         marker = str(marker)
-        if self.last_display_marker and marker != self.last_display_marker:
+        if marker == self.last_display_marker:
+            return
+        if self.last_display_marker:
             self.last_hash = None
         self.last_display_marker = marker
         await self._async_save()
@@ -310,6 +349,7 @@ class FraimicPowerManager:
             "effective_scan_interval": effective_scan_interval(dict(self.entry.options)),
             "last_hash_known": self.last_hash is not None,
             "automatic_count_today": self.automatic_count,
+            "last_upload_at": self.last_upload_at or None,
             "upload_count": self.upload_count,
             "skip_counts": dict(self.skip_counts),
         }

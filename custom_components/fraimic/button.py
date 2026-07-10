@@ -20,6 +20,13 @@ from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
 
 
+class FraimicFrameUnavailableError(HomeAssistantError):
+    """Raised when an explicit refresh targets a sleeping frame."""
+
+    def __init__(self) -> None:
+        super().__init__("The frame is asleep or unreachable")
+
+
 @dataclass(frozen=True, kw_only=True)
 class FraimicButtonDescription(ButtonEntityDescription):
     """Describes a Fraimic action button."""
@@ -116,7 +123,7 @@ class FraimicDataRefreshButton(FraimicEntity, ButtonEntity):
     async def async_press(self) -> None:
         await self.coordinator.async_request_refresh()
         if not self.coordinator.last_update_success:
-            raise HomeAssistantError("The frame is asleep or unreachable")
+            raise FraimicFrameUnavailableError
         await self.coordinator.async_refresh_info_page()
         await self.coordinator.async_refresh_albums()
 
@@ -136,7 +143,10 @@ class FraimicTryQueuedSendButton(FraimicEntity, ButtonEntity):
         return self.coordinator.config_entry.runtime_data.send_queue is not None
 
     async def async_press(self) -> None:
-        await self.coordinator.config_entry.runtime_data.send_queue.async_try_send()
+        queue = self.coordinator.config_entry.runtime_data.send_queue
+        if queue is None:
+            return
+        await queue.async_try_send()
 
 
 class FraimicNewArtworkButton(FraimicEntity, ButtonEntity):

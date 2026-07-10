@@ -309,6 +309,16 @@ class FraimicScheduler:
             return
         finally:
             self._busy = False
+        displayed = result.get("displayed", result.get("uploaded", True))
+        if not displayed:
+            # Power policy/coalescing skipped this redraw. Never claim its hash
+            # is on the glass or count the skipped work as a completed rotation.
+            _LOGGER.debug(
+                "Playlist deferred %r without changing the display (%s)",
+                screen.name,
+                result.get("skip_reason", "power policy"),
+            )
+            return
         self._pending = None
         self.current_id = screen.screen_id
         self.displayed_hash = result.get("content_hash")

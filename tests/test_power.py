@@ -13,7 +13,9 @@ const = load("const")
 power = load("power")
 
 
-def _manager(mode: str = const.POWER_MODE_MINIMUM):
+def _manager(
+    mode: str = const.POWER_MODE_MINIMUM,
+) -> power.FraimicPowerManager:
     entry = SimpleNamespace(entry_id="entry", options={const.CONF_POWER_MODE: mode})
     return power.FraimicPowerManager(SimpleNamespace(), entry)
 
@@ -57,6 +59,19 @@ def test_global_duplicate_suppression_applies_to_manual_sends() -> None:
     assert manager.skip_reason("same", power.TRIGGER_MANUAL, token, {}) == power.SKIP_DUPLICATE
 
 
+def test_due_native_refresh_invalidates_duplicate_assumption() -> None:
+    manager = _manager()
+    manager.last_hash = "same"
+    token = manager.begin(power.TRIGGER_MANUAL)
+    assert manager.skip_reason(
+        "same",
+        power.TRIGGER_MANUAL,
+        token,
+        {"display": {"next_refresh": "1970-01-01T00:16:40+00:00"}},
+        now=1001,
+    ) is None
+
+
 def test_automatic_send_is_gated_on_low_battery() -> None:
     manager = _manager(const.POWER_MODE_BALANCED)
     token = manager.begin(power.TRIGGER_PLAYLIST)
@@ -66,6 +81,14 @@ def test_automatic_send_is_gated_on_low_battery() -> None:
         token,
         {"battery": {"percent": 24, "charging": False}},
         now=10_000,
+    ) == power.SKIP_LOW_BATTERY
+
+
+def test_minimum_mode_defers_automatic_send_with_unknown_battery() -> None:
+    manager = _manager()
+    token = manager.begin(power.TRIGGER_PLAYLIST)
+    assert manager.skip_reason(
+        "new", power.TRIGGER_PLAYLIST, token, {}, now=100_000
     ) == power.SKIP_LOW_BATTERY
 
 
@@ -112,6 +135,7 @@ def test_minimum_daily_budget_blocks_second_automatic_redraw() -> None:
         manager.async_record_upload("first", power.TRIGGER_SCHEDULED, now=100_000)
     )
     manager.last_automatic_at = 0
+    manager.last_upload_at = 0
     token = manager.begin(power.TRIGGER_SCHEDULED)
     assert manager.skip_reason(
         "second",
@@ -120,6 +144,21 @@ def test_minimum_daily_budget_blocks_second_automatic_redraw() -> None:
         {"battery": {"percent": 80, "charging": False}},
         now=100_001,
     ) == power.SKIP_DAILY_BUDGET
+
+
+def test_manual_redraw_starts_automatic_cooldown() -> None:
+    manager = _manager(const.POWER_MODE_BALANCED)
+    asyncio.run(
+        manager.async_record_upload("manual", power.TRIGGER_MANUAL, now=100_000)
+    )
+    token = manager.begin(power.TRIGGER_CAMERA)
+    assert manager.skip_reason(
+        "camera",
+        power.TRIGGER_CAMERA,
+        token,
+        {"battery": {"percent": 80, "charging": False}},
+        now=100_001,
+    ) == power.SKIP_COOLDOWN
 
 
 def test_experimental_auto_sleep_obeys_safe_guards(

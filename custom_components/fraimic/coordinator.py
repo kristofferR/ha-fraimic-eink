@@ -171,6 +171,11 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def expire_albums_cache(self) -> None:
         """Invalidate albums after an edit without causing a background fetch."""
         self.albums = None
+        self.config_entry.async_create_task(
+            self.hass,
+            self._async_save_cache(),
+            "fraimic-save-albums-invalidation",
+        )
 
     async def async_refresh_info_page(self) -> dict[str, Any]:
         """Scrape slow battery-health diagnostics only when explicitly needed."""
