@@ -58,6 +58,11 @@ class FraimicApiError(FraimicError):
 # application/octet-stream body. Older firmware (0.2.21) answered 501 and hung.
 MIN_API_IMAGE_FIRMWARE = (0, 2, 28)
 
+# Firmware-side (rate-limited) password gate on the /logs and /dev pages —
+# literally "debug" reversed. Unlocks the Info-level log lines; Warning/Error
+# are served without it. Verified on fw 0.2.21 and 0.2.28.
+LOG_VERBOSE_PASSWORD = "gubed"
+
 
 def parse_firmware(version: Any) -> tuple[int, ...] | None:
     """Parse a firmware string like ``0.2.28`` / ``v0.2.28`` into an int tuple."""
@@ -164,6 +169,58 @@ class FraimicClient:
                     f"GET /info returned HTTP {resp.status}", status=resp.status
                 )
             return await resp.text()
+
+    async def get_logs(self, *, verbose: bool = True) -> str:
+        """Return the raw ``GET /logs`` HTML admin page (ESP-IDF log viewer).
+
+        Warning/Error lines are always present; ``verbose`` also fetches the
+        Info level, which the firmware only serves after the ``gubed`` password
+        gate. That gate is a ``POST /logs`` with ``password=gubed`` which sets a
+        ``debug_session`` cookie (``Path=/logs``); we capture it and replay it
+        on the follow-up ``GET`` rather than touching the shared session jar.
+        A failed unlock simply yields the Warning/Error view. Parsed by
+        ``log_page.parse_logs_page()``.
+        """
+        cookie: str | None = None
+        if verbose:
+            try:
+                resp = await self._request(
+                    "POST",
+                    "/logs",
+                    data={"password": LOG_VERBOSE_PASSWORD},
+                    allow_redirects=False,
+                )
+                async with resp:
+                    set_cookie = resp.headers.get("Set-Cookie", "")
+                    if "debug_session" in set_cookie:
+                        cookie = set_cookie.split(";", 1)[0]
+            except FraimicError:
+                # Unlock is best-effort; fall through to the unauthenticated view.
+                cookie = None
+
+        headers = {"Cookie": cookie} if cookie else None
+        resp = await self._request("GET", "/logs", headers=headers)
+        async with resp:
+            if resp.status >= 400:
+                raise FraimicApiError(
+                    f"GET /logs returned HTTP {resp.status}", status=resp.status
+                )
+            return await resp.text()
+
+    async def clear_logs(self) -> None:
+        """Clear the frame's captured logs (``POST /logs/action`` action=clear)."""
+        resp = await self._request(
+            "POST",
+            "/logs/action",
+            data={"action": "clear"},
+            allow_redirects=False,
+        )
+        async with resp:
+            if resp.status >= 400:
+                raise FraimicApiError(
+                    f"POST /logs/action returned HTTP {resp.status}",
+                    status=resp.status,
+                )
 
     async def get_albums(self) -> list[dict[str, Any]]:
         """Return the frame's cloud albums (``GET /api/albums``).

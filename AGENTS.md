@@ -16,8 +16,9 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `media_player.py` | Display images via media browser / `play_media`; camera snapshot refresh loop. |
 | `image.py` | Write-only `image` entity showing the last-uploaded preview PNG. |
 | `sensor.py` / `binary_sensor.py` / `button.py` | Description-driven diagnostic entities + Refresh/Sleep/Restart buttons. |
-| `diagnostics.py` | Redacted config-entry diagnostics. |
+| `diagnostics.py` | Redacted config-entry diagnostics; includes recent `/logs` tail. |
 | `info_page.py` | Pure parser for the `/info` HTML admin page (panel size, battery health). |
+| `log_page.py` | Pure parser for the `/logs` ESP-IDF viewer (current + previous boot). |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |

@@ -35,6 +35,7 @@ cloud-driven and gated by the `auto_update` setting (see below).
 | `GET /wifi`, `GET /get-started` | Wi-Fi / onboarding |
 | `GET /logs` | ESP-IDF log viewer (see below) |
 | `GET /dev` | **Developer Mode** (see below) |
+| `GET /test` | **Factory Tests** page, incl. factory reset (see below) |
 | `GET /battery/status` | JSON used by the portal's live battery widget |
 
 ## `/api/info` schema (0.2.21, nested)
@@ -82,15 +83,61 @@ A password-gated page that points the frame at Fraimic's **dev** backend
 - Entering dev mode makes all AI prompts / downloads use the dev environment — **not** something
   you want on a normal production frame.
 
+## Factory Tests — `GET /test`
+
+An **HTML page** (open `http://{host}/test` in a browser, not a JSON API) titled *Factory Tests*,
+with hardware bring-up controls. Each control is a small `fetch()` against a query-string action;
+verified on fw 0.2.28:
+
+| Control | Request | Effect |
+|---|---|---|
+| Upload Image | `POST /test?action=upload` (multipart) | Test image upload |
+| LED | `POST /test?action=led` | Blink the status LED |
+| Microphone | `POST /test?action=mic_start` / `mic_stats` / `mic_stop` | Mic capture self-test |
+| Accelerometer | `POST /test?action=accel_start` / `accel` / `accel_stop` | Read the accelerometer |
+| Touch | `GET /test?action=touch` | Touch-sensor readback |
+| Battery | `GET /test?action=battery` | Battery readback |
+| **Reset Device** | `GET /action?mode=reset` | **Factory reset** — see below |
+
+### ⚠️ Factory reset — `GET /action?mode=reset`
+
+The **Reset Device** button issues a bare `GET /action?mode=reset`. It wipes the frame's settings
+and pairing and then enters sleep; the page shows *"Device being reset to factory settings…"* →
+*"Done - Device entering sleep"*. Re-pairing afterwards requires the Fraimic app and physical
+access to the frame.
+
+Note it is an **unauthenticated GET** — anything that can reach the frame's HTTP port can trigger
+it, and a plain GET is the kind of thing a link-prefetcher or crawler could hit. Treat the frame's
+LAN exposure accordingly.
+
+**Integration decision:** deliberately **docs-only, not wired in.** It is destructive, one plain
+GET, and irreversible over the LAN; exposing it as a button or service (even guarded) is not worth
+the accidental-trigger risk when the frame already serves the control on its own page. See #39.
+
 ## Logs — `GET /logs`
 
 ESP-IDF log viewer with per-subsystem tabs (WiFi, Server, System, Recording, Display, Battery,
-OTA) and Error/Warning/Info level filters. The standard levels are readable **without** a
-password; a password (same firmware-side, rate-limited gate as `/dev`) unlocks the extra verbose
-tabs. `POST /logs/action` with `action=clear` clears captured logs.
+OTA) and Error/Warning/Info level filters, plus a **Previous** tab for the prior boot. The log
+lines are embedded as plain text in two `<div class='log-area'>` blocks — `logOutput` (current
+boot) and `prevOutput` (previous boot). The integration parses these in `log_page.py` and
+includes the recent tail in `diagnostics.py`.
 
-The log/dev password is **not** recoverable over HTTP — it lives in the firmware. Obtain it from
-Fraimic support, or by dumping the ESP32 flash and running `strings`.
+**Level gating (verified on fw 0.2.21 and 0.2.28):** Warning/Error lines are served on a plain
+`GET /logs` with **no** authentication. The **Info** level is gated by a firmware-side,
+rate-limited password (the same gate as `/dev`) — and that password is **`gubed`** ("debug"
+reversed). It is *not* an opaque secret that needs a flash dump: it is a fixed string baked into
+the firmware. The unlock is a small session flow:
+
+1. `POST /logs` with `password=gubed` (form-encoded). On success the frame replies `303 See Other`
+   with `Set-Cookie: debug_session=1; Path=/logs; HttpOnly; SameSite=Strict`. A wrong password
+   also 303s but sets **no** cookie (and the attempt is rate-limited).
+2. `GET /logs` carrying that cookie now includes the Info-level lines.
+
+`POST /logs/action` with `action=clear` clears the captured logs (also 303s).
+
+Log capture is the only source for diagnosing the WiFi-drop-during-voice-recording symptom
+(`WiFi lost — reason 2/4/204`) and upload-handler wedges, which is why the integration pulls it
+into diagnostics.
 
 ## Cloud & network requirements
 
