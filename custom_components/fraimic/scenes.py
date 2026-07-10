@@ -251,6 +251,7 @@ class SceneManager:
                         active_entries[entry_id],
                         *prepared[entry_id],
                         media_title=media_titles[entry_id],
+                        queue_if_asleep=True,
                     )
                     uploaded = True
                 except HomeAssistantError as err:

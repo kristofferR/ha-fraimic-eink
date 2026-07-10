@@ -403,7 +403,11 @@ class FraimicLibrary:
         async with runtime.upload_lock:
             rendered = await self.async_render_for_entry(image_id, entry, overrides)
             await async_upload_rendered(
-                entry, *rendered, media_title=image.filename, lock=False
+                entry,
+                *rendered,
+                media_title=image.filename,
+                lock=False,
+                queue_if_asleep=True,
             )
 
     async def async_render_adhoc_preview(
@@ -504,6 +508,7 @@ async def async_upload_rendered(
     *,
     media_title: str | None = None,
     lock: bool = True,
+    queue_if_asleep: bool = False,
 ) -> None:
     """Upload an already-rendered buffer to one frame and update its preview.
 
@@ -511,14 +516,33 @@ async def async_upload_rendered(
     frames first, then uploads concurrently). Serializes against the frame's
     upload lock so a library/scene send can't interleave with a playlist or
     manual upload on the same (easily wedged) ESP32.
+
+    ``queue_if_asleep``: queue the buffer for the frame's next wake instead of
+    failing when it is unreachable (user-initiated sends).
     """
     runtime = entry.runtime_data
 
     async def _upload() -> None:
-        try:
-            await runtime.client.upload_image(bin_data)
-        except FraimicError as err:
-            raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+        queue = getattr(runtime, "send_queue", None) if queue_if_asleep else None
+        if queue is not None:
+            try:
+                sent_now = await queue.async_upload_or_queue(
+                    bin_data, preview_png, mode, media_title or "image"
+                )
+            except FraimicError as err:
+                raise HomeAssistantError(
+                    f"Could not upload to the frame: {err}"
+                ) from err
+            if not sent_now:
+                # Queued: the flush updates preview/title on delivery.
+                return
+        else:
+            try:
+                await runtime.client.upload_image(bin_data)
+            except FraimicError as err:
+                raise HomeAssistantError(
+                    f"Could not upload to the frame: {err}"
+                ) from err
         runtime.last_art = None
         runtime.media_title = media_title
         if preview_png:

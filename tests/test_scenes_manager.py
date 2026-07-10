@@ -205,7 +205,7 @@ def test_scene_send_snapshots_mappings_and_isolates_failures(
             raise OSError("source disappeared")
         return (b"bin", b"png", "auto")
 
-    async def upload(entry: SimpleNamespace, *_args, media_title=None) -> None:
+    async def upload(entry: SimpleNamespace, *_args, media_title=None, **_kwargs) -> None:
         upload_calls.append((entry.entry_id, media_title))
 
     monkeypatch.setattr(

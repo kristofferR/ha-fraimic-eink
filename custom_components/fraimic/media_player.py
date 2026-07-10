@@ -392,7 +392,12 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                     raise HomeAssistantError("Image is too large") from err
 
             result = await async_render_and_upload(
-                self.hass, entry, raw, hold_playlist=False
+                self.hass,
+                entry,
+                raw,
+                hold_playlist=False,
+                queue_if_asleep=True,
+                title=media_title or "image",
             )
             uploaded = result.get("uploaded", True)
         finally:

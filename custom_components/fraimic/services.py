@@ -21,7 +21,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .api import FraimicConnectionError, FraimicError
+from .api import FraimicConnectionError, FraimicError, FraimicTimeoutError
 from .const import (
     ATTR_CONFIG_ENTRY,
     ATTR_CONTRAST,
@@ -62,9 +62,13 @@ from .const import (
     MODE_NONE,
     PROVIDER_KEYS,
     PROVIDER_SHUFFLE,
+    SERVICE_CANCEL_SCHEDULED_SEND,
+    SERVICE_LIST_SCHEDULED_SENDS,
     SERVICE_RENDER_SCREEN,
+    SERVICE_SCHEDULE_SEND,
     SERVICE_SEND_SCENE,
     SERVICE_SHOW_ONLINE_IMAGE,
+    SERVICE_UPDATE_ALBUM,
     SERVICE_UPLOAD_IMAGE,
 )
 from .coordinator import FraimicConfigEntry
@@ -73,6 +77,7 @@ from .library import get_library
 from .render.display import async_show_screen
 from .scenes import get_scene_manager
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
+from .scheduled_events import RECURRENCE_NONE, RECURRENCES, get_scheduled_events
 from .screens import AmbiguousScreenNameError, screen_by_key
 from .source import async_get_source_bytes
 
@@ -194,6 +199,200 @@ def _resolve_mode(data: dict, options: dict) -> str:
     return options.get(ATTR_MODE, MODE_AUTO)
 
 
+ATTR_AT = "at"
+ATTR_RECURRENCE = "recurrence"
+ATTR_NAME = "name"
+ATTR_EVENT_ID = "event_id"
+ATTR_ALL = "all"
+
+SCHEDULE_SEND_SCHEMA = vol.All(
+    vol.Schema(
+        {
+            vol.Required(ATTR_AT): cv.datetime,
+            vol.Optional(ATTR_RECURRENCE, default=RECURRENCE_NONE): vol.In(RECURRENCES),
+            vol.Optional(ATTR_NAME): cv.string,
+            vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+            vol.Exclusive(ATTR_SCENE_NAME, "target"): cv.string,
+            vol.Exclusive(ATTR_PATH, "source"): cv.string,
+            vol.Exclusive(ATTR_URL, "source"): cv.url,
+            vol.Exclusive(ATTR_IMAGE_ENTITY, "source"): cv.entity_id,
+            vol.Exclusive(ATTR_LIBRARY_IMAGE, "source"): cv.string,
+            vol.Optional(ATTR_FIT): vol.In(FIT_MODES),
+            vol.Optional(ATTR_ROTATE): vol.All(vol.Coerce(int), vol.In((0, 90, 180, 270))),
+            vol.Optional(ATTR_MODE): vol.In(DITHER_MODES),
+            vol.Optional(ATTR_SATURATION): vol.All(
+                vol.Coerce(float), vol.Range(min=0.0, max=3.0)
+            ),
+            vol.Optional(ATTR_CONTRAST): vol.All(
+                vol.Coerce(float), vol.Range(min=0.0, max=3.0)
+            ),
+            vol.Optional(ATTR_SHARPEN): vol.All(
+                vol.Coerce(float), vol.Range(min=0.0, max=3.0)
+            ),
+            vol.Optional(ATTR_TONE): vol.All(
+                vol.Coerce(float), vol.Range(min=-100, max=100)
+            ),
+        },
+        extra=vol.PREVENT_EXTRA,
+    ),
+)
+
+CANCEL_SCHEDULED_SEND_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_EVENT_ID): cv.string,
+        vol.Optional(ATTR_ALL, default=False): cv.boolean,
+    }
+)
+
+_OVERRIDE_KEYS = (
+    ATTR_FIT,
+    ATTR_ROTATE,
+    ATTR_MODE,
+    ATTR_SATURATION,
+    ATTR_CONTRAST,
+    ATTR_SHARPEN,
+    ATTR_TONE,
+)
+
+
+async def _async_handle_schedule_send(call: ServiceCall) -> ServiceResponse:
+    """Handle ``fraimic.schedule_send``."""
+    hass = call.hass
+    manager = get_scheduled_events(hass)
+    if manager is None:
+        raise ServiceValidationError(ERR_NO_FRAIMIC_FRAME)
+
+    scene = call.data.get(ATTR_SCENE_NAME)
+    source = {
+        key: call.data[attr]
+        for key, attr in (
+            ("path", ATTR_PATH),
+            ("url", ATTR_URL),
+            ("image_entity", ATTR_IMAGE_ENTITY),
+            ("library_image", ATTR_LIBRARY_IMAGE),
+        )
+        if attr in call.data
+    }
+    if scene is None and not source:
+        raise ServiceValidationError(
+            "Provide an image source (path, url, image_entity, library_image) "
+            "or a scene to activate"
+        )
+    if scene is not None and source:
+        raise ServiceValidationError("Give either a scene or an image source, not both")
+
+    entry_id = None
+    if scene is None:
+        entry_id = _resolve_entry(hass, call).entry_id
+
+    event_id = await manager.async_add(
+        name=call.data.get(ATTR_NAME),
+        when=call.data[ATTR_AT],
+        recurrence=call.data[ATTR_RECURRENCE],
+        entry_id=entry_id,
+        scene=scene,
+        source=source,
+        overrides={k: call.data[k] for k in _OVERRIDE_KEYS if k in call.data},
+    )
+    if call.return_response:
+        return {"event_id": event_id}
+    return None
+
+
+async def _async_handle_cancel_scheduled_send(call: ServiceCall) -> ServiceResponse:
+    """Handle ``fraimic.cancel_scheduled_send``."""
+    manager = get_scheduled_events(call.hass)
+    if manager is None:
+        raise ServiceValidationError(ERR_NO_FRAIMIC_FRAME)
+    event_id = call.data.get(ATTR_EVENT_ID)
+    if event_id is None and not call.data.get(ATTR_ALL):
+        raise ServiceValidationError("Give an event_id, or set all: true")
+    count = await manager.async_cancel(event_id)
+    if call.return_response:
+        return {"cancelled": count}
+    return None
+
+
+async def _async_handle_list_scheduled_sends(call: ServiceCall) -> ServiceResponse:
+    """Handle ``fraimic.list_scheduled_sends``."""
+    manager = get_scheduled_events(call.hass)
+    if manager is None:
+        raise ServiceValidationError(ERR_NO_FRAIMIC_FRAME)
+    return {"events": manager.as_list()}
+
+
+ATTR_ALBUM_ID = "album_id"
+ATTR_DESCRIPTION = "description"
+ATTR_ACTIVE = "active"
+ATTR_PLAYBACK_MODE = "playback_mode"
+ATTR_SCHEDULE = "schedule"
+
+UPDATE_ALBUM_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+        vol.Required(ATTR_ALBUM_ID): cv.string,
+        vol.Optional(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_DESCRIPTION): cv.string,
+        vol.Optional(ATTR_ACTIVE): cv.boolean,
+        vol.Optional(ATTR_PLAYBACK_MODE): vol.In(("sequential", "random")),
+        vol.Optional(ATTR_SCHEDULE): dict,
+    }
+)
+
+
+async def _async_handle_update_album(call: ServiceCall) -> ServiceResponse:
+    """Handle ``fraimic.update_album`` (partial edit, cloud proxied).
+
+    Read-modify-write: the Fraimic cloud does NOT merge the ``schedule``
+    object — a PUT with a partial schedule nulls every omitted field — so the
+    current album is fetched first and the full schedule shape is always sent.
+    """
+    hass = call.hass
+    entry = _resolve_entry(hass, call)
+    client = entry.runtime_data.client
+    album_id = call.data[ATTR_ALBUM_ID]
+
+    try:
+        albums = await client.get_albums()
+    except FraimicError as err:
+        raise HomeAssistantError(
+            f"Could not read albums (the frame needs internet access): {err}"
+        ) from err
+    album = next(
+        (a for a in albums if isinstance(a, dict) and str(a.get("id")) == album_id),
+        None,
+    )
+    if album is None:
+        raise ServiceValidationError(f"No album with id {album_id} on this account")
+
+    payload: dict = {}
+    for attr, key in (
+        (ATTR_NAME, "name"),
+        (ATTR_DESCRIPTION, "description"),
+        (ATTR_ACTIVE, "active"),
+        (ATTR_PLAYBACK_MODE, "playback_mode"),
+    ):
+        if attr in call.data:
+            payload[key] = call.data[attr]
+    if ATTR_SCHEDULE in call.data:
+        payload["schedule"] = call.data[ATTR_SCHEDULE]
+    elif album.get("schedule") is not None:
+        # Not being edited — resend the existing schedule in full so the
+        # cloud's non-merging PUT can't null it.
+        payload["schedule"] = album["schedule"]
+    if not payload:
+        raise ServiceValidationError("Nothing to update — give at least one field")
+
+    try:
+        result = await client.update_album(album_id, payload)
+    except FraimicError as err:
+        raise HomeAssistantError(f"Album update failed: {err}") from err
+    entry.runtime_data.coordinator.expire_albums_cache()
+    if call.return_response:
+        return {"album": {k: result.get(k) for k in ("id", "name", "active") if isinstance(result, dict) and k in result}}
+    return None
+
+
 def async_setup_services(hass: HomeAssistant) -> None:
     """Register integration services (idempotent)."""
     if hass.services.has_service(DOMAIN, SERVICE_UPLOAD_IMAGE):
@@ -224,6 +423,34 @@ def async_setup_services(hass: HomeAssistant) -> None:
         schema=SHOW_ONLINE_IMAGE_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SCHEDULE_SEND,
+        _async_handle_schedule_send,
+        schema=SCHEDULE_SEND_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CANCEL_SCHEDULED_SEND,
+        _async_handle_cancel_scheduled_send,
+        schema=CANCEL_SCHEDULED_SEND_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_LIST_SCHEDULED_SENDS,
+        _async_handle_list_scheduled_sends,
+        schema=vol.Schema({}),
+        supports_response=SupportsResponse.ONLY,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_UPDATE_ALBUM,
+        _async_handle_update_album,
+        schema=UPDATE_ALBUM_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
 
 def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> FraimicConfigEntry:
@@ -250,6 +477,17 @@ def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> FraimicConfigEntry
     return loaded[0]
 
 
+def _source_title(data: dict) -> str:
+    """Short human label for the send_status sensor."""
+    if path := data.get(ATTR_PATH):
+        return path.rsplit("/", 1)[-1]
+    if url := data.get(ATTR_URL):
+        return url.split("?", 1)[0].rstrip("/").rsplit("/", 1)[-1] or "image"
+    if entity_id := data.get(ATTR_IMAGE_ENTITY):
+        return entity_id
+    return "image"
+
+
 async def _async_handle_upload_image(call: ServiceCall) -> None:
     """Handle the ``fraimic.upload_image`` service call."""
     hass = call.hass
@@ -272,7 +510,13 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
             entity_id=call.data.get(ATTR_IMAGE_ENTITY),
         )
         result = await async_render_and_upload(
-            hass, entry, raw, dict(call.data), hold_playlist=False
+            hass,
+            entry,
+            raw,
+            dict(call.data),
+            hold_playlist=False,
+            queue_if_asleep=True,
+            title=_source_title(call.data),
         )
         uploaded = result.get("uploaded", True)
         if uploaded:
@@ -425,18 +669,25 @@ async def async_render_and_upload(
     preprocess: bool = True,
     skip_if_hash: str | None = None,
     hold_playlist: bool = True,
+    queue_if_asleep: bool = False,
+    title: str | None = None,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
     Shared by the ``upload_image`` service, the media_player ``play_media``
     path, and screen rendering. Returns
-    ``{"mode", "content_hash", "uploaded"}``.
+    ``{"mode", "content_hash", "uploaded", "queued"}``.
 
     ``skip_if_hash``: when the freshly packed ``.bin``'s SHA-256 equals this,
     the frame is not touched (``uploaded: False``) — content is identical and
     an upload would only burn a ~30 s e-ink refresh and battery.
     ``hold_playlist``: manual uploads pause the playlist scheduler for one
     interval; the scheduler's own uploads pass False.
+    ``queue_if_asleep``: user-initiated sends queue for the frame's next wake
+    instead of failing when it is unreachable (see ``send_queue``); periodic
+    senders (playlist, camera loop) must NOT set this — they produce fresh
+    content on the next cycle anyway. ``title`` labels the send in the
+    ``send_status`` sensor.
     """
     runtime = entry.runtime_data
     scheduler = begin_external_upload(entry) if hold_playlist else None
@@ -456,31 +707,51 @@ async def async_render_and_upload(
                     "mode": used_mode,
                     "content_hash": content_hash,
                     "uploaded": False,
+                    "queued": False,
                     "preview_png": preview_png,
                 }
 
-            try:
-                await runtime.client.upload_image(bin_data)
-            except FraimicConnectionError as err:
-                raise FrameUploadError(f"Could not upload to the frame: {err}") from err
-            except FraimicError as err:
-                raise HomeAssistantError(f"Could not upload to the frame: {err}") from err
+            queued = False
+            queue = runtime.send_queue if queue_if_asleep else None
+            if queue is not None:
+                try:
+                    uploaded = await queue.async_upload_or_queue(
+                        bin_data, preview_png, used_mode, title or "image"
+                    )
+                except FraimicError as err:
+                    raise HomeAssistantError(
+                        f"Could not upload to the frame: {err}"
+                    ) from err
+                queued = not uploaded
+            else:
+                try:
+                    await runtime.client.upload_image(bin_data)
+                except FraimicConnectionError as err:
+                    raise FrameUploadError(
+                        f"Could not upload to the frame: {err}"
+                    ) from err
+                except FraimicError as err:
+                    raise HomeAssistantError(
+                        f"Could not upload to the frame: {err}"
+                    ) from err
+                uploaded = True
 
-            uploaded = True
-            if preview_png:
+            if uploaded and preview_png:
                 runtime.last_preview = preview_png
                 if runtime.preview_image is not None:
                     runtime.preview_image.set_preview(preview_png, used_mode)
 
-            # Pull a fresh snapshot so last-refresh / status updates promptly.
-            await runtime.coordinator.async_request_refresh()
+            if uploaded:
+                # Pull a fresh snapshot so last-refresh / status updates promptly.
+                await runtime.coordinator.async_request_refresh()
     finally:
         finish_external_upload(scheduler, uploaded=uploaded)
 
     return {
         "mode": used_mode,
         "content_hash": content_hash,
-        "uploaded": True,
+        "uploaded": uploaded,
+        "queued": queued,
         "preview_png": preview_png,
     }
 

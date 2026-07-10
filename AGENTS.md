@@ -18,6 +18,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `sensor.py` / `binary_sensor.py` / `button.py` | Description-driven diagnostic entities + Refresh/Sleep/Restart buttons. |
 | `diagnostics.py` | Redacted config-entry diagnostics. |
 | `info_page.py` | Pure parser for the `/info` HTML admin page (panel size, battery health). |
+| `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
+| `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |
 | `tests/test_image_convert.py` | Standalone pipeline tests (no HA import). |
 
@@ -28,6 +30,12 @@ Base `http://{host}`, **unauthenticated**, local HTTP.
 - `GET /api/info` — device snapshot (polled). `GET /api/battery` — liveness.
 - `GET /info` — HTML admin page; scraped daily for panel size + battery health
   (cycles, SOH, current, temperature) via `info_page.parse_info_page()`.
+- `GET/PUT /api/albums` — cloud albums proxied by the frame (needs frame
+  internet; LAN-only frames answer 502 `server_unreachable`). Polled every
+  30 min; the PUT does NOT merge `schedule` — always read-modify-write it.
+- Upload timeouts raise `FraimicTimeoutError` and are never blindly retried:
+  the firmware can block the response for the full ~30 s redraw after
+  accepting, so a retry could double-redraw the panel.
 - `POST /api/restart` / `/api/sleep` (blocked while charging) / `/api/refresh`.
 - `POST /api/image` — raw `application/octet-stream` `.bin` body; used on firmware >= 0.2.28.
 - `POST /upload` — multipart `image` field; fallback for older/unknown firmware.

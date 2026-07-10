@@ -24,6 +24,7 @@ from .api import (
 )
 from .const import DOMAIN
 from .info_page import parse_info_page
+from .send_queue import FAST_POLL_SECONDS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,6 +45,11 @@ REDISCOVERY_CONCURRENCY = 32
 INFO_PAGE_INTERVAL = 24 * 3600
 INFO_PAGE_RETRY_INTERVAL = 3600
 
+# The albums list is proxied by the frame to the Fraimic cloud — poll it on
+# its own slow cadence, gated on the frame being reachable at all. LAN-only
+# frames answer 502 server_unreachable; that simply leaves albums as None.
+ALBUMS_INTERVAL = 30 * 60
+
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
 
@@ -63,6 +69,8 @@ class FraimicRuntimeData:
         self.last_preview: bytes | None = None
         # Playlist scheduler (set during entry setup; None until then).
         self.scheduler: Any = None
+        # Queued-send manager (send_queue.FraimicSendQueue; set during setup).
+        self.send_queue: Any = None
         # Serialize uploads; the frame can only process one long refresh.
         self.upload_lock = asyncio.Lock()
         # Set by the media player so enabling playlists can stop camera loops.
@@ -94,10 +102,14 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=timedelta(seconds=scan_interval),
         )
         self.client = client
+        self._scan_interval = scan_interval
         # Parsed /info HTML diagnostics (panel size, battery health); empty
         # until the first successful scrape.
         self.info_page: dict[str, Any] = {}
         self._info_page_next = 0.0
+        # Cloud albums proxied via the frame; None until (unless) fetched.
+        self.albums: list[dict[str, Any]] | None = None
+        self._albums_next = 0.0
         self._consecutive_failures = 0
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
@@ -121,7 +133,28 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self._async_backfill_unique_id(data)
         await self._async_maybe_scrape_info_page()
+        await self._async_maybe_fetch_albums()
         return data
+
+    async def _async_maybe_fetch_albums(self) -> None:
+        """Refresh the cloud albums list on a slow cadence (never fatal)."""
+        now = time.monotonic()
+        if now < self._albums_next:
+            return
+        self._albums_next = now + ALBUMS_INTERVAL
+        try:
+            self.albums = await self.client.get_albums()
+        except FraimicError as err:
+            _LOGGER.debug("Fetching albums failed (frame offline or LAN-only): %s", err)
+
+    def expire_albums_cache(self) -> None:
+        """Force the next poll to re-fetch albums (after an album edit)."""
+        self._albums_next = 0.0
+
+    def set_fast_poll(self, enabled: bool) -> None:
+        """Poll every 30 s while a send is queued so the wake is noticed fast."""
+        seconds = FAST_POLL_SECONDS if enabled else self._scan_interval
+        self.update_interval = timedelta(seconds=seconds)
 
     async def _async_maybe_scrape_info_page(self) -> None:
         """Refresh the parsed /info HTML diagnostics on a slow cadence."""

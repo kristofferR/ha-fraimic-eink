@@ -211,6 +211,10 @@ CONF_DEFAULT_PROVIDER: Final = "default_provider"
 
 # Services
 SERVICE_UPLOAD_IMAGE: Final = "upload_image"
+SERVICE_SCHEDULE_SEND: Final = "schedule_send"
+SERVICE_CANCEL_SCHEDULED_SEND: Final = "cancel_scheduled_send"
+SERVICE_LIST_SCHEDULED_SENDS: Final = "list_scheduled_sends"
+SERVICE_UPDATE_ALBUM: Final = "update_album"
 SERVICE_SEND_SCENE: Final = "send_scene"
 ATTR_SCENE_NAME: Final = "name"
 SERVICE_RENDER_SCREEN: Final = "render_screen"

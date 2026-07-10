@@ -22,12 +22,14 @@ from homeassistant.const import (
     UnitOfTemperature,
     UnitOfTime,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
+from .send_queue import signal_send_status
 
 
 def _parse_timestamp(value: Any) -> datetime | None:
@@ -203,6 +205,9 @@ async def async_setup_entry(
         FraimicInfoPageSensor(coordinator, desc) for desc in INFO_PAGE_SENSORS
     )
     async_add_entities(entities)
+    async_add_entities(
+        [FraimicSendStatusSensor(coordinator), FraimicAlbumsSensor(coordinator)]
+    )
 
 
 class FraimicSensor(FraimicEntity, SensorEntity):
@@ -229,3 +234,100 @@ class FraimicInfoPageSensor(FraimicSensor):
     @property
     def native_value(self) -> Any:
         return self.entity_description.value_fn(self.coordinator.info_page)
+
+
+class FraimicSendStatusSensor(FraimicEntity, SensorEntity):
+    """Plain-text delivery status for sends to this frame.
+
+    Stays available while the frame sleeps — that is exactly when it has
+    something useful to say ("tap the frame to wake it up"). Driven by
+    dispatcher signals from the send queue.
+    """
+
+    _attr_translation_key = "send_status"
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_send_status"
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                signal_send_status(self.coordinator.config_entry.entry_id),
+                self._on_status,
+            )
+        )
+
+    @callback
+    def _on_status(self, status: str) -> None:
+        self.async_write_ha_state()
+
+    @property
+    def available(self) -> bool:
+        return True
+
+    @property
+    def _queue(self):
+        runtime = getattr(self.coordinator.config_entry, "runtime_data", None)
+        return getattr(runtime, "send_queue", None)
+
+    @property
+    def native_value(self) -> str | None:
+        queue = self._queue
+        return queue.status if queue is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        queue = self._queue
+        if queue is None or queue.pending is None:
+            return None
+        pending = queue.pending
+        return {
+            "queued_title": pending.get("title"),
+            "queued_at": dt_util.utc_from_timestamp(
+                pending["queued_at"]
+            ).isoformat(),
+        }
+
+
+# Whitelisted per-album attribute fields. Everything else is dropped — the
+# cloud payload includes presigned S3 image URLs, which are short-lived
+# bearer credentials and don't belong in the state machine.
+_ALBUM_FIELDS = ("id", "name", "active", "playback_mode", "image_count", "schedule")
+
+
+class FraimicAlbumsSensor(FraimicEntity, SensorEntity):
+    """Count + metadata of the frame's cloud albums.
+
+    The frame proxies /api/albums to the Fraimic cloud with its own
+    device_key, so this only has data when the frame has real internet;
+    LAN-only frames leave it unknown.
+    """
+
+    _attr_translation_key = "albums"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_albums"
+
+    @property
+    def native_value(self) -> int | None:
+        albums = self.coordinator.albums
+        return len(albums) if albums is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        albums = self.coordinator.albums
+        if albums is None:
+            return None
+        return {
+            "albums": [
+                {k: album.get(k) for k in _ALBUM_FIELDS if k in album}
+                for album in albums
+                if isinstance(album, dict)
+            ]
+        }
