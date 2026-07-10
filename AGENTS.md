@@ -40,6 +40,11 @@ Base `http://{host}`, **unauthenticated**, local HTTP.
 - `POST /api/restart` / `/api/sleep` (blocked while charging) / `/api/refresh`.
 - `POST /api/image` — raw `application/octet-stream` `.bin` body; used on firmware >= 0.2.28.
 - `POST /upload` — multipart `image` field; fallback for older/unknown firmware.
+- `GET /test` — HTML web page (open in a browser, not an API call) exposing a
+  **factory reset** (wipes frame settings/pairing). Destructive; not wired into
+  the integration.
+
+Full local API reference: [`docs/frame-api/routes.md`](docs/frame-api/routes.md).
 
 Hardware quirks the code accounts for:
 
