@@ -29,6 +29,17 @@ class FraimicConnectionError(FraimicError):
     """
 
 
+class FraimicTimeoutError(FraimicConnectionError):
+    """Raised when a request timed out.
+
+    Distinct from other connection errors because a timed-out *upload* is not
+    a confirmed failure: the firmware can block the HTTP response for the full
+    ~30 s redraw after accepting the image, so the upload may well have
+    succeeded. Callers must never blindly retry an upload on this error — a
+    retry would double-redraw the (slow, visible) panel.
+    """
+
+
 class FraimicApiError(FraimicError):
     """Raised when the frame returns an error response.
 
@@ -108,7 +119,11 @@ class FraimicClient:
         timeout = aiohttp.ClientTimeout(total=kwargs.pop("timeout", DEFAULT_TIMEOUT))
         try:
             return await self._session.request(method, url, timeout=timeout, **kwargs)
-        except (aiohttp.ClientConnectionError, asyncio.TimeoutError) as err:
+        except asyncio.TimeoutError as err:
+            raise FraimicTimeoutError(
+                f"Request to Fraimic at {self._host} timed out"
+            ) from err
+        except aiohttp.ClientConnectionError as err:
             raise FraimicConnectionError(f"Cannot reach Fraimic at {self._host}: {err}") from err
         except aiohttp.ClientError as err:
             raise FraimicError(f"Unexpected error talking to {self._host}: {err}") from err
@@ -149,6 +164,28 @@ class FraimicClient:
                     f"GET /info returned HTTP {resp.status}", status=resp.status
                 )
             return await resp.text()
+
+    async def get_albums(self) -> list[dict[str, Any]]:
+        """Return the frame's cloud albums (``GET /api/albums``).
+
+        The frame proxies this to origin.fraimic.com using its own
+        device_key, so it only works when the frame has real internet —
+        LAN-only frames answer ``502 {"error": "server_unreachable"}``.
+        """
+        data = await self._json("GET", "/api/albums", timeout=30)
+        albums = data.get("albums", data)
+        return albums if isinstance(albums, list) else []
+
+    async def update_album(self, album_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+        """Partially edit one album (``PUT /api/albums/{id}``, cloud proxy).
+
+        The cloud does NOT merge the ``schedule`` object — a PUT with a
+        partial schedule nulls the omitted fields, so callers must always
+        read-modify-write the full schedule shape.
+        """
+        return await self._json(
+            "PUT", f"/api/albums/{album_id}", json=payload, timeout=30
+        )
 
     async def get_battery(self) -> dict[str, Any]:
         """Return the lightweight battery status from ``GET /api/battery``."""
@@ -206,6 +243,11 @@ class FraimicClient:
         attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
         try:
             await attempt(data)
+        except FraimicTimeoutError:
+            # The frame may have accepted the image and be mid-redraw with the
+            # response blocked — a restart+retry here could double-redraw the
+            # panel. Surface the timeout instead; callers decide what it means.
+            raise
         except FraimicConnectionError:
             if not recover:
                 raise

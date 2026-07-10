@@ -321,3 +321,235 @@ upload_image:
           max: 100
           step: 5
           mode: slider
+
+schedule_send:
+  name: Schedule a send
+  description: >-
+    Send an image to a frame (or activate a scene) at a future time —
+    one-shot or recurring daily/weekly/monthly. Fires that miss a sleeping
+    frame are queued for its next wake; one-shots missed while Home
+    Assistant was down fire once on restart.
+  fields:
+    at:
+      name: When
+      description: Date and time of the (first) send.
+      required: true
+      example: "2026-07-11 07:30:00"
+      selector:
+        datetime:
+    recurrence:
+      name: Repeat
+      description: How often to repeat the send.
+      required: false
+      default: none
+      selector:
+        select:
+          options:
+            - none
+            - daily
+            - weekly
+            - monthly
+    name:
+      name: Name
+      description: Label shown in listings and the send status sensor.
+      required: false
+      example: Morning artwork
+      selector:
+        text:
+    config_entry_id:
+      name: Frame
+      description: >-
+        Which Fraimic frame to send to. Only required if you have more than
+        one frame configured. Ignored when a scene is given.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    scene:
+      name: Scene
+      description: >-
+        Activate this Fraimic scene instead of sending a single image
+        (name or id, case-insensitive).
+      required: false
+      example: Morning wall
+      selector:
+        text:
+    path:
+      name: File path
+      description: Path to an image file readable by Home Assistant.
+      required: false
+      example: /config/www/photo.jpg
+      selector:
+        text:
+    url:
+      name: URL
+      description: HTTP(S) URL of an image to download at fire time.
+      required: false
+      selector:
+        text:
+    image_entity:
+      name: Camera or image entity
+      description: Snapshot this entity at fire time.
+      required: false
+      selector:
+        entity:
+          domain:
+            - camera
+            - image
+    library_image:
+      name: Library image
+      description: Id of an image in the Fraimic library.
+      required: false
+      selector:
+        text:
+    fit:
+      name: Fit
+      description: Override the frame's fit mode for this send.
+      required: false
+      selector:
+        select:
+          options:
+            - cover
+            - contain
+            - stretch
+    mode:
+      name: Dither mode
+      description: Override the frame's dither mode for this send.
+      required: false
+      selector:
+        select:
+          options:
+            - auto
+            - floyd_steinberg
+            - atkinson
+            - bayer
+            - none
+    rotate:
+      name: Rotate
+      description: Override the rotation (degrees) for this send.
+      required: false
+      selector:
+        select:
+          options:
+            - "0"
+            - "90"
+            - "180"
+            - "270"
+    saturation:
+      name: Saturation
+      description: Override the frame's saturation for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+    contrast:
+      name: Contrast
+      description: Override the frame's contrast for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 3
+          step: 0.05
+    sharpen:
+      name: Sharpen
+      description: Override the frame's sharpen amount for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+    tone:
+      name: Tone curve
+      description: Override the frame's tone-curve strength for this send.
+      required: false
+      selector:
+        number:
+          min: 0
+          max: 100
+          step: 1
+
+cancel_scheduled_send:
+  name: Cancel a scheduled send
+  description: Cancel one scheduled send by id, or all of them.
+  fields:
+    event_id:
+      name: Event id
+      description: The id returned by schedule_send (see list_scheduled_sends).
+      required: false
+      selector:
+        text:
+    all:
+      name: Cancel all
+      description: Cancel every scheduled send.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+list_scheduled_sends:
+  name: List scheduled sends
+  description: >-
+    Returns every scheduled send with its id, next fire time, recurrence and
+    state (pending / done / target_missing).
+
+update_album:
+  name: Update album
+  description: >-
+    Edit one of the frame's cloud albums (name, description, slideshow
+    on/off, playback mode, schedule). Proxied through the frame to the
+    Fraimic cloud, so the frame needs internet access. Creating, deleting
+    and assigning albums to devices is only possible in the Fraimic app.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: Which frame to proxy through. Only required with multiple frames.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    album_id:
+      name: Album id
+      description: The album's id (see the Albums sensor attributes).
+      required: true
+      selector:
+        text:
+    name:
+      name: Name
+      description: New album name.
+      required: false
+      selector:
+        text:
+    description:
+      name: Description
+      description: New album description.
+      required: false
+      selector:
+        text:
+    active:
+      name: Active
+      description: Turn the album's slideshow on or off.
+      required: false
+      selector:
+        boolean:
+    playback_mode:
+      name: Playback mode
+      description: Order images play in.
+      required: false
+      selector:
+        select:
+          options:
+            - sequential
+            - random
+    schedule:
+      name: Schedule
+      description: >-
+        Full schedule object — either {"type": "interval", "every": N,
+        "unit": "minutes"|"hours"|"days"} or {"type": "specific_days", ...}.
+        The cloud replaces the whole schedule, so give the complete shape.
+      required: false
+      selector:
+        object:

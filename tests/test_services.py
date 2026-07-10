@@ -31,6 +31,7 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
 
     class SupportsResponse:
         OPTIONAL = object()
+        ONLY = object()
 
     class HomeAssistantError(Exception):
         pass
@@ -49,6 +50,7 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     config_validation.url = str
     config_validation.entity_id = str
     config_validation.boolean = bool
+    config_validation.datetime = lambda value: value
     helpers.config_validation = config_validation
     homeassistant.config_entries = config_entries
     homeassistant.core = core
@@ -87,6 +89,10 @@ def _load_services(monkeypatch: pytest.MonkeyPatch):
     screens.screen_by_key = lambda _entry, _key: None
     scenes = types.ModuleType("fraimic.scenes")
     scenes.get_scene_manager = lambda _hass: None
+    scheduled_events = types.ModuleType("fraimic.scheduled_events")
+    scheduled_events.RECURRENCE_NONE = "none"
+    scheduled_events.RECURRENCES = ("none", "daily", "weekly", "monthly")
+    scheduled_events.get_scheduled_events = lambda _hass: None
     monkeypatch.setitem(sys.modules, "fraimic.coordinator", coordinator)
     monkeypatch.setitem(sys.modules, "fraimic.library", library)
     monkeypatch.setitem(sys.modules, "fraimic.render.display", render_display)
@@ -94,6 +100,7 @@ def _load_services(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(sys.modules, "fraimic.source", source)
     monkeypatch.setitem(sys.modules, "fraimic.screens", screens)
     monkeypatch.setitem(sys.modules, "fraimic.scenes", scenes)
+    monkeypatch.setitem(sys.modules, "fraimic.scheduled_events", scheduled_events)
     for name in (
         "fraimic.services",
     ):

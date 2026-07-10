@@ -248,6 +248,12 @@
       },
       "battery_temperature": {
         "name": "Battery temperature"
+      },
+      "send_status": {
+        "name": "Send status"
+      },
+      "albums": {
+        "name": "Albums"
       }
     },
     "binary_sensor": {
@@ -411,6 +417,128 @@
         "preview_only": {
           "name": "Preview only",
           "description": "Render only to the Screen preview image entity without uploading — iterate on a design without spending ~30 s e-ink refreshes and battery."
+        }
+      }
+    },
+    "schedule_send": {
+      "name": "Schedule a send",
+      "description": "Send an image to a frame (or activate a scene) at a future time — one-shot or recurring daily/weekly/monthly.",
+      "fields": {
+        "at": {
+          "name": "When",
+          "description": "Date and time of the (first) send."
+        },
+        "recurrence": {
+          "name": "Repeat",
+          "description": "How often to repeat the send."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Label shown in listings and the send status sensor."
+        },
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which Fraimic frame to send to. Ignored when a scene is given."
+        },
+        "scene": {
+          "name": "Scene",
+          "description": "Activate this Fraimic scene instead of sending a single image."
+        },
+        "path": {
+          "name": "File path",
+          "description": "Path to an image file readable by Home Assistant."
+        },
+        "url": {
+          "name": "URL",
+          "description": "HTTP(S) URL of an image to download at fire time."
+        },
+        "image_entity": {
+          "name": "Camera or image entity",
+          "description": "Snapshot this entity at fire time."
+        },
+        "library_image": {
+          "name": "Library image",
+          "description": "Id of an image in the Fraimic library."
+        },
+        "fit": {
+          "name": "Fit",
+          "description": "Override the frame's fit mode for this send."
+        },
+        "mode": {
+          "name": "Dither mode",
+          "description": "Override the frame's dither mode for this send."
+        },
+        "rotate": {
+          "name": "Rotate",
+          "description": "Override the rotation (degrees) for this send."
+        },
+        "saturation": {
+          "name": "Saturation",
+          "description": "Override the frame's saturation for this send."
+        },
+        "contrast": {
+          "name": "Contrast",
+          "description": "Override the frame's contrast for this send."
+        },
+        "sharpen": {
+          "name": "Sharpen",
+          "description": "Override the frame's sharpen amount for this send."
+        },
+        "tone": {
+          "name": "Tone curve",
+          "description": "Override the frame's tone-curve strength for this send."
+        }
+      }
+    },
+    "cancel_scheduled_send": {
+      "name": "Cancel a scheduled send",
+      "description": "Cancel one scheduled send by id, or all of them.",
+      "fields": {
+        "event_id": {
+          "name": "Event id",
+          "description": "The id returned by schedule_send (see list_scheduled_sends)."
+        },
+        "all": {
+          "name": "Cancel all",
+          "description": "Cancel every scheduled send."
+        }
+      }
+    },
+    "list_scheduled_sends": {
+      "name": "List scheduled sends",
+      "description": "Returns every scheduled send with its id, next fire time, recurrence and state."
+    },
+    "update_album": {
+      "name": "Update album",
+      "description": "Edit one of the frame's cloud albums (name, description, slideshow on/off, playback mode, schedule). The frame needs internet access.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which frame to proxy through. Only required with multiple frames."
+        },
+        "album_id": {
+          "name": "Album id",
+          "description": "The album's id (see the Albums sensor attributes)."
+        },
+        "name": {
+          "name": "Name",
+          "description": "New album name."
+        },
+        "description": {
+          "name": "Description",
+          "description": "New album description."
+        },
+        "active": {
+          "name": "Active",
+          "description": "Turn the album's slideshow on or off."
+        },
+        "playback_mode": {
+          "name": "Playback mode",
+          "description": "Order images play in."
+        },
+        "schedule": {
+          "name": "Schedule",
+          "description": "Full schedule object; the cloud replaces the whole schedule."
         }
       }
     }

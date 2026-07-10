@@ -21,7 +21,9 @@ from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
 from .panel import async_register_panel, async_unregister_panel
 from .scenes import DATA_SCENES, SceneManager
+from .scheduled_events import DATA_SCHEDULED_EVENTS, ScheduledEventManager
 from .scheduler import FraimicScheduler
+from .send_queue import FraimicSendQueue
 from .services import async_setup_services
 
 PLATFORMS: list[Platform] = [
@@ -57,6 +59,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
             packs = ArtPackManager(hass, library, scenes)
             await packs.async_setup()
             domain_data[DATA_PACKS] = packs
+        if DATA_SCHEDULED_EVENTS not in domain_data:
+            scheduled = ScheduledEventManager(hass)
+            await scheduled.async_setup()
+            domain_data[DATA_SCHEDULED_EVENTS] = scheduled
     async_register_views(hass)
     await async_register_panel(hass)
 
@@ -72,6 +78,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     await coordinator.async_refresh()
 
     entry.runtime_data = FraimicRuntimeData(coordinator, client)
+
+    # Queued delivery for sends that target a sleeping frame; resumes any
+    # payload persisted before a restart.
+    send_queue = FraimicSendQueue(hass, entry)
+    entry.runtime_data.send_queue = send_queue
+    await send_queue.async_setup()
+    entry.async_on_unload(send_queue.shutdown)
 
     # Playlist scheduler for stored screens; started before the platforms so
     # the switch/select/button entities can see it. Subentry changes reload
@@ -97,6 +110,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
         # Last frame gone: stop the library's background worker. The HTTP views
         # stay registered (aiohttp routes can't be removed) and answer 503.
         domain_data = hass.data.get(DOMAIN, {})
+        scheduled = domain_data.pop(DATA_SCHEDULED_EVENTS, None)
+        if scheduled is not None:
+            scheduled.shutdown()
         domain_data.pop(DATA_PACKS, None)
         domain_data.pop(DATA_SCENES, None)
         library = domain_data.pop(DATA_LIBRARY, None)
