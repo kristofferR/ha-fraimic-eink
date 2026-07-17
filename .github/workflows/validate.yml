@@ -35,9 +35,6 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          # Brands requires a PR to home-assistant/brands; not applicable to a
-          # manually-added custom repository.
-          ignore: brands
 
   tests:
     name: Tests
