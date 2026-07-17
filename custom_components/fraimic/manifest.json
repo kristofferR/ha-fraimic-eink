@@ -30,7 +30,7 @@
     "pillow-heif>=0.16.0",
     "resvg-py>=0.3.2"
   ],
-  "version": "1.4.0",
+  "version": "1.4.1",
   "zeroconf": [
     {
       "type": "_http._tcp.local.",
