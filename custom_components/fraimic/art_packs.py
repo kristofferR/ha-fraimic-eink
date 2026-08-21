@@ -55,6 +55,7 @@ from .pack_model import (
     map_remote_catalog,
     match_images_to_frames,
     materialize_reframed_pack,
+    reframed_filename,
     validate_catalog,
 )
 from .providers.base import BrowseFolder
@@ -129,6 +130,33 @@ class ArtPackManager:
             self.packs = []
         data = await self._store.async_load()
         self.installed = (data or {}).get("installed", {})
+        await self._async_migrate_reframed_filenames()
+
+    async def _async_migrate_reframed_filenames(self) -> None:
+        """Give already-installed Reframed artwork human-readable filenames."""
+        for image_id, library_image in self.library.images.items():
+            if not (
+                library_image.source_url
+                and library_image.source_url.startswith(
+                    "https://www.reframed.gallery/"
+                )
+                and library_image.attribution
+            ):
+                continue
+            title, separator, _credit = library_image.attribution.partition(" — ")
+            if not separator:
+                continue
+            filename = reframed_filename(
+                title, library_image.filename, library_image.attribution
+            )
+            try:
+                await self.library.async_rename_image(image_id, filename)
+            except HomeAssistantError as err:
+                _LOGGER.warning(
+                    "Could not migrate Reframed image %s filename: %s",
+                    image_id,
+                    err,
+                )
 
     async def async_refresh_remote(self) -> None:
         """Fetch the community catalog if the cached copy is stale.

@@ -169,8 +169,7 @@ def test_materialize_reframed_pack_maps_metadata_and_deduplicates():
     assert image["title"] == "Elk in Oak Grove"
     assert image["url"] == "https://files.test/elk/original"
     assert image["preview_url"] == "https://images.test/elk"
-    assert image["filename"].startswith("reframed_albert_bierstadt_elk_in_oak_grove_")
-    assert image["filename"].endswith(".jpg")
+    assert image["filename"] == "Albert Bierstadt - Elk in Oak Grove.jpg"
     assert image["source_url"].startswith("https://www.reframed.gallery/")
 
 

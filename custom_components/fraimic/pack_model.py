@@ -6,8 +6,6 @@ frames when the installer auto-creates a scene.
 
 from __future__ import annotations
 
-import hashlib
-import re
 from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
@@ -185,6 +183,23 @@ def make_reframed_pack(
     }
 
 
+def reframed_filename(
+    title: str, image_url: str, attribution: str | None = None
+) -> str:
+    """Use ``Artist - Artwork`` as the readable library filename."""
+    suffix = PurePosixPath(urlsplit(image_url).path).suffix.lower()
+    if suffix not in (".avif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"):
+        suffix = ".jpg"
+    title = title.strip() or "Untitled"
+    artist = None
+    if attribution:
+        _attributed_title, separator, credit = attribution.partition(" — ")
+        if separator:
+            artist = credit.removesuffix(", Reframed Gallery").strip() or None
+    stem = f"{artist} - {title}" if artist else title
+    return f"{stem}{suffix}"
+
+
 def materialize_reframed_pack(
     pack: dict[str, Any], candidates: list[Any]
 ) -> dict[str, Any]:
@@ -197,25 +212,19 @@ def materialize_reframed_pack(
         if not item_id or item_id in seen_ids or not image_url.startswith("https://"):
             continue
         seen_ids.add(item_id)
-        path = PurePosixPath(urlsplit(image_url).path)
-        suffix = path.suffix.lower()
-        if suffix not in (".avif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"):
-            suffix = ".jpg"
-        slug = re.sub(r"[^a-z0-9]+", "_", item_id.casefold()).strip("_")[-64:]
-        digest = hashlib.sha256(item_id.encode()).hexdigest()[:10]
+        title = str(getattr(candidate, "title", "") or "Untitled").strip()
         extra = getattr(candidate, "extra", None)
         source_url = extra.get("source_url") if isinstance(extra, dict) else None
+        attribution = _optional_string(getattr(candidate, "attribution", None))
         images.append(
             {
-                "title": str(getattr(candidate, "title", "") or "Untitled"),
+                "title": title,
                 "url": image_url,
                 "preview_url": str(getattr(candidate, "thumb_url", "") or image_url),
-                "filename": f"reframed_{slug}_{digest}{suffix}",
+                "filename": reframed_filename(title, image_url, attribution),
                 "source_url": _optional_string(source_url),
                 "license": _optional_string(getattr(candidate, "license", None)),
-                "attribution": _optional_string(
-                    getattr(candidate, "attribution", None)
-                ),
+                "attribution": attribution,
             }
         )
         if len(images) >= REFRAMED_PACK_LIMIT:

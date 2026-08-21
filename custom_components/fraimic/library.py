@@ -207,6 +207,29 @@ class FraimicLibrary:
         await self._async_save_manifest()
         return image
 
+    async def async_rename_image(
+        self, image_id: str, filename: str
+    ) -> LibraryImage:
+        """Rename an original while preserving its stable library id."""
+        image = self.get(image_id)
+        filename = safe_filename(filename)
+        if filename == image.filename:
+            return image
+
+        old_path = self.original_path(image)
+        new_path = self.originals_dir / f"{image.image_id}_{filename}"
+        try:
+            await self.hass.async_add_executor_job(old_path.replace, new_path)
+        except OSError as err:
+            raise HomeAssistantError(f"Could not rename image: {err}") from err
+
+        image.filename = filename
+        image.content_type = (
+            mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        )
+        await self._async_save_manifest()
+        return image
+
     async def async_set_crop(
         self,
         image_id: str,

@@ -21,13 +21,18 @@ RENDER_CACHE_VERSION = 1
 
 MANIFEST_VERSION = 1
 
-_SAFE_FILENAME = re.compile(r"[^A-Za-z0-9._-]+")
+_SAFE_FILENAME = re.compile(r"[^\w .(),'’\-]+", re.UNICODE)
 
 
 def safe_filename(name: str) -> str:
     """Reduce an arbitrary upload filename to a filesystem-safe form."""
-    name = _SAFE_FILENAME.sub("_", name.strip().strip("."))
-    return name[-80:] or "image"
+    name = _SAFE_FILENAME.sub(" ", name.strip().strip("."))
+    name = re.sub(r"\s+", " ", name).strip().strip(".")
+    if len(name) <= 80:
+        return name or "image"
+    stem, separator, extension = name.rpartition(".")
+    suffix = f".{extension}" if separator and len(extension) <= 10 else ""
+    return f"{(stem if suffix else name)[: 80 - len(suffix)].rstrip()}{suffix}"
 
 
 def resolution_key(width: int, height: int) -> str:
