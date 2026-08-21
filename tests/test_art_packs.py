@@ -149,3 +149,26 @@ def test_reframed_refresh_without_loaded_frame_is_rate_limited(
 
     assert manager._reframed_fetched_at == 1_000.0
     assert manager.reframed_refreshing is False
+
+
+def test_failed_reframed_refresh_uses_failure_ttl_with_cached_packs(
+    art_packs_module, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    art_packs = art_packs_module
+    now = 1_000.0
+    monkeypatch.setattr(art_packs.time, "time", lambda: now)
+    monkeypatch.setattr(art_packs, "loaded_fraimic_entries", lambda _hass: [object()])
+
+    async def fail_refresh(*_args):
+        raise art_packs.ArtFetchError("offline")
+
+    monkeypatch.setattr(art_packs, "async_browse_provider", fail_refresh)
+    manager = art_packs.ArtPackManager(object(), types.SimpleNamespace(), object())
+    manager.reframed_packs = [{"id": "cached-pack"}]
+
+    asyncio.run(manager.async_refresh_reframed())
+
+    assert manager.reframed_packs == [{"id": "cached-pack"}]
+    assert manager._reframed_last_refresh_succeeded is False
+    now += art_packs.REFRAMED_PACK_FAILURE_TTL + 1
+    assert manager._reframed_refresh_due() is True

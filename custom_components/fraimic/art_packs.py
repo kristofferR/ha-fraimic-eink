@@ -118,6 +118,7 @@ class ArtPackManager:
         self.reframed_packs: list[dict[str, Any]] = []
         self._remote_fetched_at: float = 0.0
         self._reframed_fetched_at: float = 0.0
+        self._reframed_last_refresh_succeeded = False
         self._reframed_refresh_task: asyncio.Task[None] | None = None
         self._active_install_progress: dict[str, tuple[int, int]] = {}
         # pack_id -> installed image ids plus catalog metadata used after restart.
@@ -206,6 +207,7 @@ class ArtPackManager:
         entries = loaded_fraimic_entries(self.hass)
         if not entries:
             self._reframed_fetched_at = time.time()
+            self._reframed_last_refresh_succeeded = False
             return
         entry = entries[0]
         packs: dict[str, dict[str, Any]] = {}
@@ -237,10 +239,12 @@ class ArtPackManager:
                 packs[pack["id"]] = pack
         except ArtFetchError as err:
             self._reframed_fetched_at = time.time()
+            self._reframed_last_refresh_succeeded = False
             _LOGGER.warning("Could not fetch the Reframed pack catalog: %s", err)
             return
         except Exception:
             self._reframed_fetched_at = time.time()
+            self._reframed_last_refresh_succeeded = False
             _LOGGER.exception("Reframed pack catalog refresh failed")
             return
 
@@ -248,9 +252,14 @@ class ArtPackManager:
             packs.values(), key=lambda pack: (pack["category"], pack["name"].casefold())
         )
         self._reframed_fetched_at = time.time()
+        self._reframed_last_refresh_succeeded = True
 
     def _reframed_refresh_due(self) -> bool:
-        ttl = REFRAMED_PACK_TTL if self.reframed_packs else REFRAMED_PACK_FAILURE_TTL
+        ttl = (
+            REFRAMED_PACK_TTL
+            if self._reframed_last_refresh_succeeded
+            else REFRAMED_PACK_FAILURE_TTL
+        )
         return not self._reframed_fetched_at or (
             time.time() - self._reframed_fetched_at >= ttl
         )
