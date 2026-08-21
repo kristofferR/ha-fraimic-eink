@@ -291,7 +291,7 @@ SCREEN_SCHEMA = vol.All(
             vol.Optional("widgets", default=[]): vol.All(list, vol.Length(max=4)),
             # Picture-screen source (kind: picture only) — shown full-bleed via
             # the normal photo pipeline (dithered, preprocessed). Exactly one
-            # of url / entity / provider.
+            # of url / entity / provider / library_image.
             vol.Optional("url"): _HTTP_URL,
             vol.Optional("entity"): _ENTITY_ID,
             vol.Optional("provider"): vol.In((*PROVIDER_KEYS, PROVIDER_SHUFFLE)),
@@ -349,6 +349,7 @@ class ScreenConfig:
     interval: int = DEFAULT_SCREEN_INTERVAL
     windows: tuple[TimeWindow, ...] = ()
     enabled: bool = True
+    overlay_mode: str = "inherit"
 
 
 def _parse_time(value: str) -> time:

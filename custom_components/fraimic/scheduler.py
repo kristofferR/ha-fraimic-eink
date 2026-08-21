@@ -67,6 +67,7 @@ class FraimicScheduler:
         self.playlist_id: str | None = None
         self.shuffle = False
         self.screens: list[ScreenConfig] = []
+        self._playback_order: list[str] = []
         self._load_assigned_playlist()
         self.enabled = False
         self._stored_enabled = False
@@ -78,6 +79,7 @@ class FraimicScheduler:
         self._pending: ScreenConfig | None = None
         self._pending_requires_enabled = True
         self._pending_from_queue = False
+        self._pending_hold_on_success = False
         self._queued_ids: list[str] = []
         self._playlist_order: list[str] = []
         self._external_upload_count = 0
@@ -97,13 +99,26 @@ class FraimicScheduler:
         """Refresh the assigned catalog playlist or use the legacy slide list."""
         if self._playlists is None:
             self.screens = screens_from_entry(self.entry)
+            self._playback_order = [screen.screen_id for screen in self.screens]
             return
         playlist = self._playlists.assigned_to(self.entry.entry_id)
         self.playlist_id = playlist.playlist_id if playlist is not None else None
         self.shuffle = playlist.shuffle if playlist is not None else False
         self.screens = self._playlists.render_slides(self.playlist_id)
+        self._playback_order = [screen.screen_id for screen in self.screens]
         if self.shuffle:
-            random.shuffle(self.screens)
+            random.shuffle(self._playback_order)
+
+    def _rotation_screens(self) -> list[ScreenConfig]:
+        """Catalog slides in the current playback order."""
+        if not self._playback_order:
+            return self.screens
+        by_id = {screen.screen_id: screen for screen in self.screens}
+        return [
+            by_id[slide_id]
+            for slide_id in self._playback_order
+            if slide_id in by_id
+        ]
 
     # -- lifecycle --------------------------------------------------------
 
@@ -250,8 +265,9 @@ class FraimicScheduler:
         cursor = self._playlist_cursor_id or self.current_id
         seen = {cursor} if cursor is not None else set()
         now = dt_util.now()
-        for _ in range(len(self.screens)):
-            candidate = next_screen(self.screens, cursor, now)
+        rotation = self._rotation_screens()
+        for _ in range(len(rotation)):
+            candidate = next_screen(rotation, cursor, now)
             if candidate is None or candidate.screen_id in seen:
                 break
             upcoming.append(candidate)
@@ -303,16 +319,22 @@ class FraimicScheduler:
     async def async_previous(self) -> None:
         await self._async_step(-1)
 
-    async def async_select(self, screen: ScreenConfig) -> None:
+    async def async_select(self, screen: ScreenConfig, *, hold: bool = False) -> None:
         """Show a specific screen now and pin rotation to it."""
-        await self._async_show(screen, manual=True)
+        await self._async_show(
+            screen,
+            manual=True,
+            advance_playlist=not hold,
+            clear_hold_on_success=not hold,
+            hold_on_success=hold,
+        )
 
     async def _async_step(self, step: int) -> None:
         if step > 0 and self.queued_slides:
             await self._async_show_queued(self.queued_slides[0], manual=True)
             return
         candidate = next_screen(
-            self.screens,
+            self._rotation_screens(),
             self._playlist_cursor_id or self.current_id,
             dt_util.now(),
             step=step,
@@ -372,18 +394,25 @@ class FraimicScheduler:
         queued = self.queued_slides
         if queued:
             self._pending = queued[0]
+            catalog_ids = {screen.screen_id for screen in self.screens}
+            self._pending_hold_on_success = self._pending.screen_id not in catalog_ids
             return
         self._pending = None
         self._pending_from_queue = False
+        self._pending_hold_on_success = False
 
     async def async_reorder_upcoming(self, ordered_ids: list[str]) -> None:
         """Reorder the visible playlist window while keeping hidden slides stable."""
+        if self.shuffle:
+            raise HomeAssistantError("A shuffled playlist cannot be reordered")
         expected = [
             slide.screen_id
             for slide in self.playlist_up_next(limit=len(ordered_ids))
         ]
         if Counter(ordered_ids) != Counter(expected):
-            raise HomeAssistantError("The playlist changed before it could be reordered")
+            raise HomeAssistantError(
+                "The playlist changed before it could be reordered"
+            )
         by_id = {screen.screen_id: screen for screen in self.screens}
         positions = {
             screen.screen_id: index for index, screen in enumerate(self.screens)
@@ -392,6 +421,7 @@ class FraimicScheduler:
         for expected_id, ordered_id in zip(expected, ordered_ids, strict=True):
             reordered[positions[expected_id]] = by_id[ordered_id]
         self.screens = reordered
+        self._playback_order = [screen.screen_id for screen in self.screens]
         self._playlist_order = [screen.screen_id for screen in self.screens]
         if self._playlists is not None and self.playlist_id is not None:
             await self._playlists.async_reorder(
@@ -420,6 +450,15 @@ class FraimicScheduler:
             self.displayed_hash = None
             self._pending = None
             self._pending_from_queue = False
+            self._pending_hold_on_success = False
+        elif self._pending is not None:
+            replacement = self._slide_by_id(self._pending.screen_id)
+            if replacement is None:
+                self._pending = None
+                self._pending_from_queue = False
+                self._pending_hold_on_success = False
+            else:
+                self._pending = replacement
         if start:
             self.enabled = True
             self._stored_enabled = True
@@ -515,7 +554,7 @@ class FraimicScheduler:
             await self._async_show_queued(self.queued_slides[0], manual=False)
             return
         candidate = next_screen(
-            self.screens, self._playlist_cursor_id or self.current_id, now
+            self._rotation_screens(), self._playlist_cursor_id or self.current_id, now
         )
         if candidate is None:
             return  # nothing in window right now; leave the frame as-is
@@ -528,7 +567,11 @@ class FraimicScheduler:
         self._pending_from_queue = True
         try:
             displayed = await self._async_show(
-                slide, manual=manual, advance_playlist=False
+                slide,
+                manual=manual,
+                advance_playlist=False,
+                hold_on_success=slide.screen_id
+                not in {screen.screen_id for screen in self.screens},
             )
         except Exception:
             self._pending_from_queue = False
@@ -546,6 +589,7 @@ class FraimicScheduler:
         except ValueError:
             pass
         self._pending_from_queue = False
+        self._pending_hold_on_success = False
         await self._async_save()
         self._notify()
 
@@ -556,6 +600,7 @@ class FraimicScheduler:
         manual: bool = False,
         clear_hold_on_success: bool | None = None,
         advance_playlist: bool = True,
+        hold_on_success: bool = False,
     ) -> bool:
         self._last_show_permanently_rejected = False
         if self._busy or self.external_upload_active:
@@ -597,12 +642,14 @@ class FraimicScheduler:
                 if self._pending is not screen or manual:
                     self._pending_requires_enabled = not manual
                 self._pending = screen
+                self._pending_hold_on_success = hold_on_success
                 _LOGGER.debug(
                     "Playlist could not show %r (frame asleep?): %s", screen.name, err
                 )
                 return False
             except HomeAssistantError as err:
                 self._pending = None
+                self._pending_hold_on_success = False
                 if manual:
                     raise
                 self._last_show_permanently_rejected = True
@@ -625,12 +672,17 @@ class FraimicScheduler:
                 )
                 return False
             self._pending = None
+            self._pending_hold_on_success = False
             self.current_id = screen.screen_id
             if advance_playlist:
                 self._playlist_cursor_id = screen.screen_id
             self.displayed_hash = result.get("content_hash")
             self._last_rotation = dt_util.utcnow()
-            if clear_hold_on_success:
+            if hold_on_success:
+                self._hold_until = dt_util.utcnow() + timedelta(
+                    seconds=screen.interval
+                )
+            elif clear_hold_on_success:
                 self._hold_until = None
             if not result.get("uploaded", True):
                 _LOGGER.debug(
@@ -676,11 +728,13 @@ class FraimicScheduler:
             await self._async_rotate(force=True)
             return
         pending_from_queue = self._pending_from_queue
+        pending_hold_on_success = self._pending_hold_on_success
         displayed = await self._async_show(
             screen,
             manual=False,
             clear_hold_on_success=not pending_requires_enabled,
-            advance_playlist=not pending_from_queue,
+            advance_playlist=not pending_from_queue and not pending_hold_on_success,
+            hold_on_success=pending_hold_on_success,
         )
         if (displayed or self._last_show_permanently_rejected) and pending_from_queue:
             await self._async_consume_queued(screen.screen_id)
@@ -688,6 +742,7 @@ class FraimicScheduler:
             self._pending_requires_enabled = pending_requires_enabled
         elif not displayed:
             self._pending_from_queue = False
+            self._pending_hold_on_success = False
 
     async def _async_save(self) -> None:
         data = {

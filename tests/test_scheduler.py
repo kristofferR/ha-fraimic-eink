@@ -210,7 +210,10 @@ def test_named_playlist_assignment_and_global_queue_lookup(
     scheduler._load_assigned_playlist()
 
     assert scheduler.shuffle is True
-    assert scheduler.screens == [second, active]
+    assert scheduler.screens == [active, second]
+    assert scheduler._rotation_screens() == [second, active]
+    with pytest.raises(scheduler_mod.HomeAssistantError, match="shuffled"):
+        asyncio.run(scheduler.async_reorder_upcoming([second.screen_id]))
 
 
 def test_new_pending_screen_requires_enabled_after_upload_failure(
@@ -251,6 +254,78 @@ def test_successful_wake_retry_clears_pending(
     assert scheduler.current_id == "screen-1"
     assert scheduler.displayed_hash == "hash123"
     assert scheduler._hold_until is None
+
+
+def test_external_one_off_holds_without_advancing_playlist_cursor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    catalog = SimpleNamespace(screen_id="catalog", name="Catalog", interval=1800)
+    external = SimpleNamespace(screen_id="external", name="External", interval=900)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {"uploaded": True, "content_hash": "external-hash"}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [catalog]
+    scheduler._playlist_cursor_id = catalog.screen_id
+
+    asyncio.run(scheduler.async_select(external, hold=True))
+
+    assert scheduler.current_id == external.screen_id
+    assert scheduler._playlist_cursor_id == catalog.screen_id
+    assert scheduler._hold_until == datetime(2026, 7, 3, 12, 20)
+
+
+def test_playlist_refresh_replaces_or_clears_pending_slide(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    playlist = SimpleNamespace(
+        playlist_id="playlist-1",
+        name="Gallery",
+        interval=1800,
+        shuffle=False,
+    )
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    pending = SimpleNamespace(screen_id="pending", name="Old", interval=1800)
+    replacement = SimpleNamespace(
+        screen_id="pending", name="Updated", interval=1800
+    )
+
+    class Playlists:
+        slides = [current, pending]
+
+        def assigned_to(self, _entry_id: str) -> object:
+            return playlist
+
+        def render_slides(self, _playlist_id: str) -> list[object]:
+            return list(self.slides)
+
+        def get(self, _playlist_id: str) -> object:
+            return playlist
+
+        def render_slide_by_id(self, slide_id: str) -> object | None:
+            return next(
+                (slide for slide in self.slides if slide.screen_id == slide_id),
+                None,
+            )
+
+    playlists = Playlists()
+    scheduler = scheduler_mod.FraimicScheduler(
+        SimpleNamespace(), _entry(), playlists
+    )
+    scheduler.current_id = current.screen_id
+    scheduler._pending = pending
+    playlists.slides = [current, replacement]
+
+    asyncio.run(scheduler.async_refresh_playlist())
+    assert scheduler._pending is replacement
+
+    playlists.slides = [current]
+    asyncio.run(scheduler.async_refresh_playlist())
+    assert scheduler._pending is None
 
 
 def test_power_deferred_screen_does_not_replace_displayed_hash(

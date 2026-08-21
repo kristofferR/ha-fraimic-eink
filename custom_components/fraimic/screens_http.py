@@ -23,6 +23,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN, PALETTE_NAMES
 from .helpers import loaded_fraimic_entries
+from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .render.display import async_render_screen
 from .render.layout import LAYOUT_SLOTS
 from .render.schema import KIND_PICTURE, SCREEN_SCHEMA, screen_from_dict
@@ -172,6 +173,10 @@ class ScreenSaveView(_ScreensViewBase):
             hass.config_entries.async_update_subentry(
                 entry, subentry, data=MappingProxyType(data), title=title
             )
+            manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+            if isinstance(manager, PlaylistManager):
+                await manager.async_sync_legacy_slide(entry, subentry_id)
+                await entry.runtime_data.scheduler.async_refresh_playlist()
             return self.json({"screen_id": subentry_id, "saved": True})
 
         subentry = ConfigSubentry(

@@ -59,6 +59,7 @@ class FraimicPanel extends HTMLElement {
     this._playerRefreshTimer = null;
     this._playerRefreshInFlight = false;
     this._playerGeneration = 0;
+    this._addingToPlaylist = null;
     // Lazy thumbnails: sign only near-viewport images, a few at a time, so a
     // large library doesn't fire hundreds of sign_path calls on tab open.
     this._signQueue = [];
@@ -85,9 +86,6 @@ class FraimicPanel extends HTMLElement {
 
   connectedCallback() {
     window.addEventListener("popstate", this._onPopState);
-  }
-
-  connectedCallback() {
     if (this._initialized) this._startPlayerRefresh();
   }
 
@@ -202,8 +200,26 @@ class FraimicPanel extends HTMLElement {
   _toast(message, isError = false, options = {}) {
     const bar = this.shadowRoot.getElementById("toast");
     bar.innerHTML = "";
+    bar.setAttribute("role", "status");
+    bar.setAttribute("aria-live", isError ? "assertive" : "polite");
     bar.appendChild(this._el("span", { text: message }));
+    const dismiss = () => {
+      clearTimeout(this._toastTimer);
+      this._toastTimer = setTimeout(() => {
+        bar.className = "";
+      }, options.duration || 4000);
+    };
     if (options.actionLabel && options.action) {
+      bar.addEventListener("focusin", () => clearTimeout(this._toastTimer), {
+        once: true,
+      });
+      bar.addEventListener(
+        "focusout",
+        (event) => {
+          if (!bar.contains(event.relatedTarget)) dismiss();
+        },
+        { once: true }
+      );
       bar.appendChild(
         this._el("button", {
           class: "text-button toast-action",
@@ -217,10 +233,7 @@ class FraimicPanel extends HTMLElement {
       );
     }
     bar.className = isError ? "show error" : "show";
-    clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => {
-      bar.className = "";
-    }, options.duration || 4000);
+    dismiss();
   }
 
   _el(tag, props = {}, children = []) {
@@ -424,14 +437,21 @@ class FraimicPanel extends HTMLElement {
     }
   }
 
+  _panelBasePath() {
+    const match = window.location.pathname.match(/^\/(fraimic(?:_panel)?)(?:\/|$)/);
+    return match ? `/${match[1]}` : "/fraimic";
+  }
+
   _syncRouteFromLocation() {
-    const match = window.location.pathname.match(/\/fraimic\/playlists\/([^/]+)\/?$/);
+    const base = this._panelBasePath();
+    const relative = window.location.pathname.slice(base.length);
+    const match = relative.match(/^\/playlists\/([^/]+)\/?$/);
     if (match) {
       this._route = "playlist-detail";
       this._playlistId = decodeURIComponent(match[1]);
       return;
     }
-    if (/\/fraimic\/playlists\/?$/.test(window.location.pathname)) {
+    if (/^\/playlists\/?$/.test(relative)) {
       this._route = "playlists";
       this._playlistId = null;
       return;
@@ -447,12 +467,16 @@ class FraimicPanel extends HTMLElement {
     this._playlistMenu = null;
     this._playlistRowMenu = null;
     if (push) {
+      const base = this._panelBasePath();
       const path = route === "playlist-detail"
-        ? `/fraimic/playlists/${encodeURIComponent(playlistId)}`
+        ? `${base}/playlists/${encodeURIComponent(playlistId)}`
         : route === "playlists"
-          ? "/fraimic/playlists"
-          : "/fraimic";
+          ? `${base}/playlists`
+          : base;
       window.history.pushState({ fraimicRoute: route }, "", path);
+      window.dispatchEvent(new CustomEvent("location-changed", {
+        detail: { replace: false },
+      }));
     }
     await this._loadRouteData();
   }
@@ -2319,17 +2343,19 @@ class FraimicPanel extends HTMLElement {
         )
       );
     }
-    row.appendChild(
-      this._iconButton("mdi:dots-horizontal", `Move ${item.title}`, () => {
-        const key = `${section}:${index}`;
-        this._rowMenu = this._rowMenu === key ? null : key;
-        this._renderQueue();
-      })
-    );
+    if (reorderable) {
+      row.appendChild(
+        this._iconButton("mdi:dots-horizontal", `Move ${item.title}`, () => {
+          const key = `${section}:${index}`;
+          this._rowMenu = this._rowMenu === key ? null : key;
+          this._renderQueue();
+        })
+      );
+    }
     if (reorderable) this._wireQueueDrag(row, grip, section, index);
 
     const children = [row];
-    if (this._rowMenu === `${section}:${index}`) {
+    if (reorderable && this._rowMenu === `${section}:${index}`) {
       const actions = this._el("div", { class: "row-actions" });
       const add = (label, destination) => {
         const button = this._el("button", {
@@ -3030,6 +3056,10 @@ class FraimicPanel extends HTMLElement {
       );
     };
     add("From the gallery", () => {
+      this._addingToPlaylist = {
+        id: this._playlist.id,
+        name: this._playlist.name,
+      };
       this._tab = "packs";
       this._navigateRoute("browse");
     });
@@ -3039,8 +3069,9 @@ class FraimicPanel extends HTMLElement {
     return popover;
   }
 
-  async _addPlaylistSlides(slides) {
-    const playlistId = this._playlist.id;
+  async _addPlaylistSlides(slides, targetId = null) {
+    const playlistId = targetId || this._playlist?.id || this._addingToPlaylist?.id;
+    if (!playlistId) return;
     try {
       const response = await this._api(`playlists/${playlistId}/slides`, {
         method: "POST",
@@ -3053,6 +3084,10 @@ class FraimicPanel extends HTMLElement {
         this._closeDialog();
         await this._loadPlayer().catch(() => {});
         this._renderPlaylistDetail();
+      } else if (this._addingToPlaylist?.id === playlistId) {
+        this._addingToPlaylist = null;
+        this._closeDialog();
+        await this._showPlaylistDetail(playlistId);
       }
     } catch (err) {
       this._toast(err.message, true);
@@ -3349,15 +3384,17 @@ class FraimicPanel extends HTMLElement {
 
   async _playlistSlideControl(slide, action) {
     const frame = this._activeFrame();
-    if (!frame) return;
+    const playlistId = this._playlist?.id;
+    if (!frame || !playlistId) return;
     this._playlistRowMenu = null;
     if (action === "show_now") this._beginOptimisticSend(slide.title, frame);
     try {
-      const response = await this._api(`playlists/${this._playlist.id}/slides`, {
+      const response = await this._api(`playlists/${playlistId}/slides`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, slide_id: slide.id, entry_id: frame.entry_id }),
       });
+      if (this._playlist?.id !== playlistId) return;
       this._playlist = response.playlist;
       await this._loadPlayer();
       this._renderPlaylistDetail();
@@ -3391,12 +3428,16 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _stopPlaylist(frame) {
+    const playlistId = this._playlist?.id;
+    if (!playlistId) return;
     try {
-      this._playlist = await this._api(`playlists/${this._playlist.id}/control`, {
+      const playlist = await this._api(`playlists/${playlistId}/control`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "stop", entry_id: frame.entry_id }),
       });
+      if (this._playlist?.id !== playlistId) return;
+      this._playlist = playlist;
       this._playlistMenu = null;
       await this._loadPlayer().catch(() => {});
       this._renderPlaylistDetail();
@@ -3406,12 +3447,16 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _setPlaylistShuffle(shuffle) {
+    const playlistId = this._playlist?.id;
+    if (!playlistId) return;
     try {
-      this._playlist = await this._api(`playlists/${this._playlist.id}/control`, {
+      const playlist = await this._api(`playlists/${playlistId}/control`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "shuffle", shuffle }),
       });
+      if (this._playlist?.id !== playlistId) return;
+      this._playlist = playlist;
       this._playlistMenu = null;
       await this._loadPlayer().catch(() => {});
       this._renderPlaylistDetail();
@@ -3421,12 +3466,16 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _setPlaylistInterval(interval) {
+    const playlistId = this._playlist?.id;
+    if (!playlistId) return;
     try {
-      this._playlist = await this._api(`playlists/${this._playlist.id}/control`, {
+      const playlist = await this._api(`playlists/${playlistId}/control`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "interval", interval }),
       });
+      if (this._playlist?.id !== playlistId) return;
+      this._playlist = playlist;
       this._playlistMenu = null;
       await this._loadPlayer().catch(() => {});
       this._renderPlaylistDetail();
@@ -3628,12 +3677,15 @@ class FraimicPanel extends HTMLElement {
       }),
     ]);
     const done = async () => {
+      const playlistId = this._playlist?.id;
+      if (!playlistId) return;
       try {
-        const response = await this._api(`playlists/${this._playlist.id}/slides`, {
+        const response = await this._api(`playlists/${playlistId}/slides`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "settings", slide_id: slide.id, ...values }),
         });
+        if (this._playlist?.id !== playlistId) return;
         this._playlist = response.playlist;
         this._closeDialog();
         this._renderPlaylistDetail();
@@ -3662,10 +3714,9 @@ class FraimicPanel extends HTMLElement {
   }
 
   _adjustPlaylistCrop(slide) {
-    const match = slide.thumbnail_url?.match(/\/library\/(?:image|thumb)\/([^/?]+)/);
-    const image = match
-      ? this._images.find((item) => item.image_id === decodeURIComponent(match[1]))
-      : null;
+    const image = this._images.find(
+      (item) => item.image_id === slide.library_image
+    );
     if (!image) {
       this._toast("Crop is available for pictures in your library.", true);
       return;
@@ -4630,6 +4681,23 @@ class FraimicPanel extends HTMLElement {
   /* --------------------------------------------------------------- packs */
 
   _renderPacks(root) {
+    if (this._addingToPlaylist) {
+      root.appendChild(
+        this._el("div", { class: "toolbar" }, [
+          this._el("strong", {
+            text: `Adding to ${this._addingToPlaylist.name}`,
+          }),
+          this._el("button", {
+            class: "text-button",
+            text: "Cancel",
+            onclick: () => {
+              this._addingToPlaylist = null;
+              this._renderTab();
+            },
+          }),
+        ])
+      );
+    }
     if (!this._packs.length) {
       root.appendChild(this._el("div", { class: "empty", text: "No packs in the catalog." }));
       return;
@@ -4915,9 +4983,31 @@ class FraimicPanel extends HTMLElement {
         this._el("button", { class: "btn", text: "Next ›", onclick: () => nav(1) }),
       ]),
     ]);
-    this._openDialog(pack.name, [gallery], [
+    const actions = [
       this._el("button", { class: "btn", text: "Close", onclick: () => this._closeDialog() }),
-    ]);
+    ];
+    if (this._addingToPlaylist) {
+      const target = this._addingToPlaylist;
+      actions.push(
+        this._el("button", {
+          class: "btn raised",
+          text: "Add slide",
+          onclick: () => {
+            const image = pack.images[index];
+            this._addPlaylistSlides(
+              [{
+                name: image.title || pack.name,
+                kind: "picture",
+                url: image.url,
+                fit: "cover",
+              }],
+              target.id
+            );
+          },
+        })
+      );
+    }
+    this._openDialog(pack.name, [gallery], actions);
   }
 
   /* ------------------------------------------------------------- screens */

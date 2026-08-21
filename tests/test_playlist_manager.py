@@ -37,6 +37,9 @@ def _load_playlists(
         async def async_save(self, data: dict) -> None:
             self.saved.append(copy.deepcopy(data))
 
+    Store.loaded = None
+    Store.saved = []
+
     core.HomeAssistant = HomeAssistant
     storage.Store = Store
     helpers.storage = storage
@@ -113,6 +116,7 @@ def test_migrates_each_frame_once_and_materializes_playlist_settings(
     rendered = manager.render_slides(playlist.playlist_id)
     assert [slide.interval for slide in rendered] == [900, 900]
     assert rendered[0].source["tone"] == "vivid"
+    assert rendered[0].overlay_mode == "none"
     assert len(store.saved) == 2
 
     store.loaded = store.saved[-1]
@@ -158,7 +162,9 @@ def test_add_duplicate_reorder_remove_and_undo(
         slide.data for slide in playlist.slides
     ]
 
-    asyncio.run(manager.async_reorder(playlist.playlist_id, list(reversed(original_ids))))
+    asyncio.run(
+        manager.async_reorder(playlist.playlist_id, list(reversed(original_ids)))
+    )
     assert [slide.slide_id for slide in playlist.slides] == list(reversed(original_ids))
     with pytest.raises(playlists.PlaylistChangedError):
         asyncio.run(manager.async_reorder(playlist.playlist_id, [original_ids[0]]))
@@ -184,6 +190,65 @@ def test_add_duplicate_reorder_remove_and_undo(
     assert affected == ["frame-1"]
     assert manager.assigned_to("frame-1") is None
     assert manager.assignments == {}
+
+
+def test_add_rejects_non_mapping_and_prunes_deleted_images(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    playlists, _store = _load_playlists(monkeypatch)
+    manager = playlists.PlaylistManager(SimpleNamespace())
+    playlist = asyncio.run(manager.async_create("Gallery"))
+
+    with pytest.raises(ValueError, match="expected a mapping"):
+        asyncio.run(manager.async_add_slides(playlist.playlist_id, ["bad"]))
+
+    asyncio.run(
+        manager.async_add_slides(
+            playlist.playlist_id,
+            [
+                {
+                    "name": "Stored",
+                    "kind": "picture",
+                    "library_image": "image-1",
+                },
+                {
+                    "name": "Remote",
+                    "kind": "picture",
+                    "url": "https://example.com/remote.jpg",
+                },
+            ],
+        )
+    )
+    affected = asyncio.run(manager.async_prune_image("image-1"))
+
+    assert affected == {playlist.playlist_id}
+    assert [slide.data["name"] for slide in playlist.slides] == ["Remote"]
+
+
+def test_migration_refreshes_edited_legacy_slide(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    playlists, _store = _load_playlists(monkeypatch)
+    manager = playlists.PlaylistManager(SimpleNamespace())
+    subentry = _subentry(
+        "photo",
+        "Morning",
+        {"kind": "picture", "url": "https://example.com/one.jpg"},
+    )
+    entry = SimpleNamespace(
+        entry_id="frame-1",
+        title="Living room",
+        subentries={"photo": subentry},
+    )
+    asyncio.run(manager.async_migrate_entry(entry))
+    subentry.data = {
+        "kind": "picture",
+        "url": "https://example.com/two.jpg",
+    }
+
+    asyncio.run(manager.async_sync_legacy_slide(entry, "photo"))
+
+    assert manager.playlists[0].slides[0].data["url"].endswith("two.jpg")
 
 
 def test_corrupt_store_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:

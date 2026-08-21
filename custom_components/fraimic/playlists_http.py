@@ -13,6 +13,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
 from .helpers import loaded_fraimic_entries
+from .http_helpers import require_loaded_entry
 from .library import get_library
 from .playlists import (
     DATA_PLAYLISTS,
@@ -25,25 +26,15 @@ from .playlists import (
 from .render.schema import KIND_DASHBOARD
 
 
+class PlaylistRequestError(ValueError):
+    """Raised when a playlist request body has an invalid shape."""
+
+
 def _manager(hass: HomeAssistant) -> PlaylistManager:
     manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
     if manager is None:
         raise web.HTTPServiceUnavailable(text="Fraimic playlists are not loaded")
     return manager
-
-
-def _entry(hass: HomeAssistant, entry_id: Any):
-    entry = next(
-        (
-            candidate
-            for candidate in loaded_fraimic_entries(hass)
-            if candidate.entry_id == entry_id
-        ),
-        None,
-    )
-    if entry is None:
-        raise web.HTTPBadRequest(text="Unknown or unloaded entry_id")
-    return entry
 
 
 def _assert_admin(request: web.Request) -> None:
@@ -107,6 +98,7 @@ def _slide_payload(slide: PlaylistSlide, *, on_frame: bool = False) -> dict[str,
         "artist": None,
         "meta": meta,
         "thumbnail_url": _slide_thumbnail(slide),
+        "library_image": data.get("library_image"),
         "fit": data.get("fit", "cover"),
         "tone": slide.tone,
         "overlays": overlays,
@@ -291,13 +283,16 @@ class PlaylistControlView(_PlaylistView):
         try:
             playlist = manager.require(playlist_id)
             if action == "play":
-                entry = _entry(hass, body.get("entry_id"))
+                entry = require_loaded_entry(hass, body.get("entry_id"))
+                stopper = entry.runtime_data.stop_camera_loop
+                if stopper is not None:
+                    stopper()
                 await manager.async_assign(entry.entry_id, playlist_id)
                 await entry.runtime_data.scheduler.async_refresh_playlist(
                     reset=True, start=True
                 )
             elif action == "stop":
-                entry = _entry(hass, body.get("entry_id"))
+                entry = require_loaded_entry(hass, body.get("entry_id"))
                 if manager.assignments.get(entry.entry_id) == playlist_id:
                     await entry.runtime_data.scheduler.async_set_enabled(False)
             elif action == "shuffle":
@@ -332,96 +327,140 @@ class PlaylistSlidesView(_PlaylistView):
     url = "/api/fraimic/playlists/{playlist_id}/slides"
     name = "api:fraimic:playlist:slides"
 
+    async def _reorder(
+        self,
+        hass: HomeAssistant,
+        manager: PlaylistManager,
+        playlist_id: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        ordered_ids = body.get("ordered_ids")
+        if not isinstance(ordered_ids, list) or not all(
+            isinstance(slide_id, str) for slide_id in ordered_ids
+        ):
+            raise PlaylistRequestError("ordered_ids must be slide ids")
+        await manager.async_reorder(playlist_id, ordered_ids)
+        await _refresh_assigned(hass, manager, playlist_id)
+        return {}
+
+    async def _add(
+        self,
+        hass: HomeAssistant,
+        manager: PlaylistManager,
+        playlist_id: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        slides = body.get("slides")
+        if not isinstance(slides, list):
+            raise PlaylistRequestError("slides must be a list")
+        library = get_library(hass)
+        for slide in slides:
+            if not isinstance(slide, dict):
+                raise PlaylistRequestError("slides must contain objects")
+            if (image_id := slide.get("library_image")) and (
+                library is None or image_id not in library.images
+            ):
+                raise web.HTTPNotFound(text="Library picture not found")
+        await manager.async_add_slides(playlist_id, slides)
+        await _refresh_assigned(hass, manager, playlist_id)
+        return {}
+
+    async def _remove(
+        self,
+        hass: HomeAssistant,
+        manager: PlaylistManager,
+        playlist_id: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        slide_id = body.get("slide_id")
+        if not isinstance(slide_id, str):
+            raise PlaylistRequestError("slide_id is required")
+        token = await manager.async_remove_slide(playlist_id, slide_id)
+        await _refresh_assigned(hass, manager, playlist_id)
+        return {"undo_token": token}
+
+    async def _undo(
+        self,
+        hass: HomeAssistant,
+        manager: PlaylistManager,
+        playlist_id: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        token = body.get("undo_token")
+        if not isinstance(token, str):
+            raise PlaylistRequestError("undo_token is required")
+        await manager.async_undo_remove(playlist_id, token)
+        await _refresh_assigned(hass, manager, playlist_id)
+        return {}
+
+    async def _settings(
+        self,
+        hass: HomeAssistant,
+        manager: PlaylistManager,
+        playlist_id: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        slide_id = body.get("slide_id")
+        if not isinstance(slide_id, str):
+            raise PlaylistRequestError("slide_id is required")
+        await manager.async_update_slide(
+            playlist_id,
+            slide_id,
+            fit=body.get("fit"),
+            tone=body.get("tone"),
+            overlays=body.get("overlays"),
+        )
+        await _refresh_assigned(hass, manager, playlist_id)
+        return {}
+
+    async def _play(
+        self,
+        hass: HomeAssistant,
+        manager: PlaylistManager,
+        playlist_id: str,
+        body: dict[str, Any],
+    ) -> dict[str, Any]:
+        slide_id = body.get("slide_id")
+        if not isinstance(slide_id, str):
+            raise PlaylistRequestError("slide_id is required")
+        slide = manager.render_slide(playlist_id, slide_id)
+        if slide is None:
+            raise PlaylistChangedError("That slide is no longer available")
+        entry = require_loaded_entry(hass, body.get("entry_id"))
+        if body["action"] == "show_now":
+            await entry.runtime_data.scheduler.async_select(
+                slide,
+                hold=manager.assignments.get(entry.entry_id) != playlist_id,
+            )
+        else:
+            await entry.runtime_data.scheduler.async_add_to_queue(
+                slide, play_next=True
+            )
+        return {}
+
     async def post(self, request: web.Request, playlist_id: str) -> web.Response:
         _assert_admin(request)
         hass = request.app[KEY_HASS]
         manager = _manager(hass)
         body = await self._body(request)
         action = body.get("action")
+        handlers = {
+            "reorder": self._reorder,
+            "add": self._add,
+            "remove": self._remove,
+            "undo": self._undo,
+            "settings": self._settings,
+            "show_now": self._play,
+            "play_next": self._play,
+        }
+        handler = handlers.get(action)
+        if handler is None:
+            return self.json_message("Unknown action", HTTPStatus.BAD_REQUEST)
         try:
-            if action == "reorder":
-                ordered_ids = body.get("ordered_ids")
-                if not isinstance(ordered_ids, list) or not all(
-                    isinstance(slide_id, str) for slide_id in ordered_ids
-                ):
-                    return self.json_message(
-                        "ordered_ids must be slide ids", HTTPStatus.BAD_REQUEST
-                    )
-                await manager.async_reorder(playlist_id, ordered_ids)
-                await _refresh_assigned(hass, manager, playlist_id)
-                result: dict[str, Any] = {}
-            elif action == "add":
-                slides = body.get("slides")
-                if not isinstance(slides, list) or not all(
-                    isinstance(slide, dict) for slide in slides
-                ):
-                    return self.json_message(
-                        "slides must be a list", HTTPStatus.BAD_REQUEST
-                    )
-                library = get_library(hass)
-                for slide in slides:
-                    if (image_id := slide.get("library_image")) and (
-                        library is None or image_id not in library.images
-                    ):
-                        return self.json_message(
-                            "Library picture not found", HTTPStatus.NOT_FOUND
-                        )
-                await manager.async_add_slides(playlist_id, slides)
-                await _refresh_assigned(hass, manager, playlist_id)
-                result = {}
-            elif action == "remove":
-                slide_id = body.get("slide_id")
-                if not isinstance(slide_id, str):
-                    return self.json_message(
-                        "slide_id is required", HTTPStatus.BAD_REQUEST
-                    )
-                token = await manager.async_remove_slide(playlist_id, slide_id)
-                await _refresh_assigned(hass, manager, playlist_id)
-                result = {"undo_token": token}
-            elif action == "undo":
-                token = body.get("undo_token")
-                if not isinstance(token, str):
-                    return self.json_message(
-                        "undo_token is required", HTTPStatus.BAD_REQUEST
-                    )
-                await manager.async_undo_remove(playlist_id, token)
-                await _refresh_assigned(hass, manager, playlist_id)
-                result = {}
-            elif action == "settings":
-                slide_id = body.get("slide_id")
-                if not isinstance(slide_id, str):
-                    return self.json_message(
-                        "slide_id is required", HTTPStatus.BAD_REQUEST
-                    )
-                await manager.async_update_slide(
-                    playlist_id,
-                    slide_id,
-                    fit=body.get("fit"),
-                    tone=body.get("tone"),
-                    overlays=body.get("overlays"),
-                )
-                await _refresh_assigned(hass, manager, playlist_id)
-                result = {}
-            elif action in {"show_now", "play_next"}:
-                slide_id = body.get("slide_id")
-                if not isinstance(slide_id, str):
-                    return self.json_message(
-                        "slide_id is required", HTTPStatus.BAD_REQUEST
-                    )
-                slide = manager.render_slide(playlist_id, slide_id)
-                if slide is None:
-                    raise PlaylistChangedError("That slide is no longer available")
-                entry = _entry(hass, body.get("entry_id"))
-                if action == "show_now":
-                    await entry.runtime_data.scheduler.async_select(slide)
-                else:
-                    await entry.runtime_data.scheduler.async_add_to_queue(
-                        slide, play_next=True
-                    )
-                result = {}
-            else:
-                return self.json_message("Unknown action", HTTPStatus.BAD_REQUEST)
+            result = await handler(hass, manager, playlist_id, body)
             playlist = manager.require(playlist_id)
+        except PlaylistRequestError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         except (
             PlaylistNotFoundError,
             PlaylistChangedError,

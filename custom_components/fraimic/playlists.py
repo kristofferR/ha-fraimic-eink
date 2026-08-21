@@ -227,31 +227,59 @@ class PlaylistManager:
         async with self._lock:
             if entry.entry_id in self._migrated_entries:
                 return
-            slides: list[PlaylistSlide] = []
-            interval = DEFAULT_SCREEN_INTERVAL
-            for subentry in getattr(entry, "subentries", {}).values():
-                if subentry.subentry_type != SUBENTRY_TYPE_SCREEN:
-                    continue
-                raw = dict(subentry.data)
-                raw["name"] = subentry.title or raw.get("name") or "Slide"
-                try:
-                    data = _validated_slide_data(raw)
-                except vol.Invalid:
-                    continue
-                if not slides:
-                    interval = data.get("interval", DEFAULT_SCREEN_INTERVAL)
-                slides.append(PlaylistSlide(subentry.subentry_id, data))
+            slides = self._legacy_slides(entry)
             if slides:
                 playlist = Playlist(
                     playlist_id=uuid.uuid4().hex,
                     name=entry.title,
-                    interval=interval,
+                    interval=slides[0].data.get(
+                        "interval", DEFAULT_SCREEN_INTERVAL
+                    ),
                     slides=slides,
                 )
                 self.playlists.append(playlist)
                 self.assignments.setdefault(entry.entry_id, playlist.playlist_id)
             self._migrated_entries.add(entry.entry_id)
             await self._async_save()
+
+    async def async_sync_legacy_slide(self, entry: Any, slide_id: str) -> None:
+        """Copy one explicit legacy-editor update into its migrated slide."""
+        current = next(
+            (
+                slide
+                for slide in self._legacy_slides(entry)
+                if slide.slide_id == slide_id
+            ),
+            None,
+        )
+        if current is None:
+            return
+        async with self._lock:
+            changed = False
+            for playlist in self.playlists:
+                for stored in playlist.slides:
+                    if stored.slide_id == slide_id and stored.data != current.data:
+                        stored.data = current.data
+                        playlist.modified_at = time.time()
+                        changed = True
+            if changed:
+                await self._async_save()
+
+    @staticmethod
+    def _legacy_slides(entry: Any) -> list[PlaylistSlide]:
+        """Read the current valid legacy subentries without mutating storage."""
+        slides: list[PlaylistSlide] = []
+        for subentry in getattr(entry, "subentries", {}).values():
+            if subentry.subentry_type != SUBENTRY_TYPE_SCREEN:
+                continue
+            raw = dict(subentry.data)
+            raw["name"] = subentry.title or raw.get("name") or "Slide"
+            try:
+                data = _validated_slide_data(raw)
+            except vol.Invalid:
+                continue
+            slides.append(PlaylistSlide(subentry.subentry_id, data))
+        return slides
 
     def get(self, playlist_id: str | None) -> Playlist | None:
         if playlist_id is None:
@@ -287,30 +315,40 @@ class PlaylistManager:
             return []
         rendered: list[ScreenConfig] = []
         for slide in playlist.slides:
-            data = dict(slide.data)
-            data["interval"] = playlist.interval
-            try:
-                rendered_slide = screen_from_dict(data, slide.slide_id)
-            except (KeyError, TypeError, ValueError):
-                continue
-            if rendered_slide.kind == KIND_PICTURE:
-                source = dict(rendered_slide.source or {})
-                source["tone"] = slide.tone
-                rendered_slide = replace(rendered_slide, source=source)
-            rendered.append(replace(rendered_slide, interval=playlist.interval))
+            if rendered_slide := self._render_slide(playlist, slide):
+                rendered.append(rendered_slide)
         return rendered
+
+    @staticmethod
+    def _render_slide(
+        playlist: Playlist, slide: PlaylistSlide
+    ) -> ScreenConfig | None:
+        data = dict(slide.data)
+        data["interval"] = playlist.interval
+        try:
+            rendered = screen_from_dict(data, slide.slide_id)
+        except (KeyError, TypeError, ValueError):
+            return None
+        if rendered.kind == KIND_PICTURE:
+            source = dict(rendered.source or {})
+            source["tone"] = slide.tone
+            rendered = replace(rendered, source=source)
+        return replace(
+            rendered,
+            interval=playlist.interval,
+            overlay_mode=slide.overlays,
+        )
 
     def render_slide(
         self, playlist_id: str, slide_id: str
     ) -> ScreenConfig | None:
-        return next(
-            (
-                rendered_slide
-                for rendered_slide in self.render_slides(playlist_id)
-                if rendered_slide.screen_id == slide_id
-            ),
-            None,
+        playlist = self.get(playlist_id)
+        if playlist is None:
+            return None
+        slide = next(
+            (item for item in playlist.slides if item.slide_id == slide_id), None
         )
+        return self._render_slide(playlist, slide) if slide is not None else None
 
     def render_slide_by_id(self, slide_id: str) -> ScreenConfig | None:
         for playlist in self.playlists:
@@ -399,7 +437,9 @@ class PlaylistManager:
             playlist = self.require(playlist_id)
             existing = [slide.slide_id for slide in playlist.slides]
             if Counter(existing) != Counter(ordered_ids):
-                raise PlaylistChangedError("The playlist changed before it was reordered")
+                raise PlaylistChangedError(
+                    "The playlist changed before it was reordered"
+                )
             by_id = {slide.slide_id: slide for slide in playlist.slides}
             playlist.slides = [by_id[slide_id] for slide_id in ordered_ids]
             playlist.modified_at = time.time()
@@ -411,6 +451,10 @@ class PlaylistManager:
         """Validate and append slides supplied by the detail add menu."""
         slides: list[PlaylistSlide] = []
         for raw in raw_slides:
+            if not isinstance(raw, dict):
+                raise ValueError(  # noqa: TRY004 - public mutation contract
+                    "Invalid slide: expected a mapping"
+                )
             try:
                 data = _validated_slide_data(raw)
             except (TypeError, vol.Invalid) as err:
@@ -424,6 +468,25 @@ class PlaylistManager:
             playlist.modified_at = time.time()
             await self._async_save()
             return playlist
+
+    async def async_prune_image(self, image_id: str) -> set[str]:
+        """Remove every slide that refers to a deleted library picture."""
+        affected: set[str] = set()
+        async with self._lock:
+            for playlist in self.playlists:
+                kept = [
+                    slide
+                    for slide in playlist.slides
+                    if slide.data.get("library_image") != image_id
+                ]
+                if len(kept) == len(playlist.slides):
+                    continue
+                playlist.slides = kept
+                playlist.modified_at = time.time()
+                affected.add(playlist.playlist_id)
+            if affected:
+                await self._async_save()
+        return affected
 
     async def async_remove_slide(self, playlist_id: str, slide_id: str) -> str:
         async with self._lock:

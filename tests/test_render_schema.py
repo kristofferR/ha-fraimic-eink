@@ -113,6 +113,19 @@ def test_picture_slide_accepts_library_reference() -> None:
     }
 
 
+def test_library_reference_is_exclusive_to_picture_source() -> None:
+    with pytest.raises(vol.Invalid, match="exactly one"):
+        schema.SCREEN_SCHEMA(
+            {
+                "kind": "picture",
+                "library_image": "image-1",
+                "url": "https://example.com/art.jpg",
+            }
+        )
+    with pytest.raises(vol.Invalid, match="only valid"):
+        schema.SCREEN_SCHEMA(_minimal(library_image="image-1"))
+
+
 def test_screen_from_dict_parses_windows() -> None:
     data = schema.SCREEN_SCHEMA(
         _minimal(windows=[{"after": "07:30", "before": "22:00", "days": ["mon", "sun"]}])

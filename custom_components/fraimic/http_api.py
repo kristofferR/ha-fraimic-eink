@@ -32,7 +32,9 @@ from .const import (
 )
 from .coordinator import REDISCOVERY_FAIL_THRESHOLD
 from .helpers import loaded_fraimic_entries
+from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
+from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .playlists_http import playlist_views
 from .render.schema import ScreenConfig
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
@@ -193,14 +195,21 @@ class LibraryImageView(_FraimicView):
         return self.json(image.to_dict())
 
     async def delete(self, request: web.Request, image_id: str) -> web.Response:
+        hass = request.app[KEY_HASS]
         library = self._library(request)
         try:
             await library.async_delete_image(image_id)
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.NOT_FOUND)
         # Scenes must not keep dangling references to a deleted image.
-        if scenes := get_scene_manager(request.app[KEY_HASS]):
+        if scenes := get_scene_manager(hass):
             await scenes.async_prune_image(image_id)
+        playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+        if isinstance(playlists, PlaylistManager):
+            affected = await playlists.async_prune_image(image_id)
+            for entry in loaded_fraimic_entries(hass):
+                if playlists.assignments.get(entry.entry_id) in affected:
+                    await entry.runtime_data.scheduler.async_refresh_playlist()
         return self.json({"deleted": image_id})
 
 
@@ -569,17 +578,6 @@ class FramesView(_FraimicView):
         return self.json({"frames": frames})
 
 
-def _entry_by_id(hass: HomeAssistant, entry_id: Any) -> ConfigEntry:
-    """Resolve one loaded frame entry or reject the request."""
-    entry = next(
-        (candidate for candidate in loaded_fraimic_entries(hass) if candidate.entry_id == entry_id),
-        None,
-    )
-    if entry is None:
-        raise web.HTTPBadRequest(text="Unknown or unloaded entry_id")
-    return entry
-
-
 def _frame_payload(entry: ConfigEntry) -> dict[str, Any]:
     """Return the selected-frame fields used by the redesigned shell."""
     runtime = entry.runtime_data
@@ -641,6 +639,7 @@ def _slide_payload(
                 else source.get("url")
             )
         ),
+        "library_image": source.get("library_image"),
         "live": bool(provider),
         "shuffle_album": provider == "shuffle",
         "blank": False,
@@ -652,7 +651,7 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
     runtime = entry.runtime_data
     scheduler = runtime.scheduler
     playlist_id = scheduler.playlist_id
-    playlist_name = scheduler.playlist_name if playlist_id is not None else None
+    playlist_name = scheduler.playlist_name
     frame = _frame_payload(entry)
     current = scheduler.current_screen
     art = runtime.last_art or {}
@@ -764,7 +763,9 @@ class PlayerStateView(_FraimicView):
     name = "api:fraimic:player"
 
     async def get(self, request: web.Request) -> web.Response:
-        entry = _entry_by_id(request.app[KEY_HASS], request.query.get("entry_id"))
+        entry = require_loaded_entry(
+            request.app[KEY_HASS], request.query.get("entry_id")
+        )
         return self.json(_player_payload(entry))
 
 
@@ -775,7 +776,7 @@ class PlayerArtworkView(_FraimicView):
     name = "api:fraimic:player:artwork"
 
     async def get(self, request: web.Request, entry_id: str) -> web.Response:
-        entry = _entry_by_id(request.app[KEY_HASS], entry_id)
+        entry = require_loaded_entry(request.app[KEY_HASS], entry_id)
         preview = entry.runtime_data.last_preview
         if preview is None:
             raise web.HTTPNotFound(text="No artwork preview is available")
@@ -794,7 +795,7 @@ class PlayerControlView(_FraimicView):
 
     async def post(self, request: web.Request) -> web.Response:
         body = await self._json_body(request)
-        entry = _entry_by_id(request.app[KEY_HASS], body.get("entry_id"))
+        entry = require_loaded_entry(request.app[KEY_HASS], body.get("entry_id"))
         runtime = entry.runtime_data
         scheduler = runtime.scheduler
         action = body.get("action")
@@ -831,7 +832,7 @@ class PlayerQueueView(_FraimicView):
 
     async def post(self, request: web.Request) -> web.Response:
         body = await self._json_body(request)
-        entry = _entry_by_id(request.app[KEY_HASS], body.get("entry_id"))
+        entry = require_loaded_entry(request.app[KEY_HASS], body.get("entry_id"))
         scheduler = entry.runtime_data.scheduler
         action = body.get("action")
         try:
@@ -875,7 +876,20 @@ class PlayerQueueView(_FraimicView):
                 if section == "queue":
                     await scheduler.async_reorder_queue(ordered_ids)
                 elif section == "playlist":
+                    playlist_id = scheduler.playlist_id
                     await scheduler.async_reorder_upcoming(ordered_ids)
+                    if playlist_id is not None:
+                        hass = request.app[KEY_HASS]
+                        playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+                        if isinstance(playlists, PlaylistManager):
+                            for candidate in loaded_fraimic_entries(hass):
+                                if (
+                                    candidate.entry_id != entry.entry_id
+                                    and playlists.assignments.get(candidate.entry_id)
+                                    == playlist_id
+                                ):
+                                    other_scheduler = candidate.runtime_data.scheduler
+                                    await other_scheduler.async_refresh_playlist()
                 else:
                     return self.json_message(
                         "section must be queue or playlist",

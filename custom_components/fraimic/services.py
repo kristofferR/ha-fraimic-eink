@@ -694,6 +694,12 @@ async def async_render_and_upload(
     ``rendered`` supplies an existing cached conversion for library pictures.
     """
     runtime = entry.runtime_data
+    width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
+    height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    if width * height // 2 > MAX_BIN_SIZE:
+        raise HomeAssistantError(
+            f"Frame resolution {width}x{height} is too large to render"
+        )
     scheduler = begin_external_upload(entry) if hold_playlist else None
     power_token = runtime.power.begin(trigger)
     uploaded = False
@@ -704,6 +710,10 @@ async def async_render_and_upload(
                     hass, entry, raw, overrides, preprocess=preprocess
                 )
             bin_data, preview_png, used_mode = rendered
+            if len(bin_data) > MAX_BIN_SIZE:
+                raise HomeAssistantError(
+                    f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
+                )
             content_hash = hashlib.sha256(bin_data).hexdigest()
             reason = (
                 SKIP_DUPLICATE

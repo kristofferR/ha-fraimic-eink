@@ -530,6 +530,49 @@ def test_library_picture_uses_cached_render(
     ]
 
 
+def test_library_picture_preview_only_uses_cached_render(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+
+    class Library:
+        async def async_render_for_entry(
+            self, image_id: str, _entry: object, _overrides: dict
+        ) -> tuple[bytes, bytes, str]:
+            assert image_id == "image-1"
+            return b"cached-bin", b"cached-preview", "none"
+
+    library = types.ModuleType("fraimic.library")
+    library.get_library = lambda _hass: Library()
+    monkeypatch.setitem(sys.modules, "fraimic.library", library)
+
+    async def convert_for_entry(*_args: object, **_kwargs: object) -> object:
+        pytest.fail("a cached library preview must not be converted twice")
+
+    _install_services(
+        monkeypatch,
+        async_convert_for_entry=convert_for_entry,
+        async_render_and_upload=None,
+    )
+    entry = _entry()
+    screen = types.SimpleNamespace(
+        name="Library picture",
+        kind=display.KIND_PICTURE,
+        source={"library_image": "image-1"},
+    )
+
+    result = asyncio.run(
+        display.async_show_screen(_Hass(), entry, screen, preview_only=True)
+    )
+
+    import hashlib
+
+    assert result["content_hash"] == hashlib.sha256(b"cached-bin").hexdigest()
+    assert entry.runtime_data.screen_preview_image.calls == [
+        (b"cached-preview", "none")
+    ]
+
+
 def test_library_picture_requires_library(monkeypatch: pytest.MonkeyPatch) -> None:
     display, error = _load_display(monkeypatch)
     library = types.ModuleType("fraimic.library")
