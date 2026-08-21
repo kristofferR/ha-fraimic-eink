@@ -6,6 +6,7 @@ frames when the installer auto-creates a scene.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import PurePosixPath
 from typing import Any
 from urllib.parse import urlsplit
@@ -64,6 +65,13 @@ REMOTE_PACK_PREFIX = "fa-"
 REFRAMED_PACK_PREFIX = "rg-"
 REFRAMED_PACK_LIMIT = 24
 REFRAMED_FALLBACK_COVER = "https://www.reframed.gallery/favicon.ico"
+
+# Wallhaven's search API returns 24 wallpapers per page. Its packs use the
+# same lazy shape as Reframed: the catalog is instant, while gallery/install
+# resolves the current first page for the selected feed or filter.
+WALLHAVEN_PACK_PREFIX = "wh-"
+WALLHAVEN_PACK_LIMIT = 24
+WALLHAVEN_FALLBACK_COVER = "https://wallhaven.cc/favicon.ico"
 
 
 def _remote_category(pack: dict[str, Any]) -> str:
@@ -179,6 +187,7 @@ def make_reframed_pack(
         "cover_url": cover_url or REFRAMED_FALLBACK_COVER,
         "images": [],
         "image_count": image_count,
+        "provider_key": "reframed",
         "provider_path": normalized,
     }
 
@@ -200,10 +209,53 @@ def reframed_filename(
     return f"{stem}{suffix}"
 
 
-def materialize_reframed_pack(
-    pack: dict[str, Any], candidates: list[Any]
+def make_wallhaven_pack(
+    provider_path: str,
+    name: str,
+    category: str,
+    *,
+    cover_url: str | None = None,
 ) -> dict[str, Any]:
-    """Fill a lazy Reframed pack from current provider candidates."""
+    """Build a lazy catalog row for one Wallhaven feed or filter."""
+    normalized = provider_path.strip("/")
+    pack_id = f"{WALLHAVEN_PACK_PREFIX}{normalized.replace('/', '-').lower()}"
+    return {
+        "id": pack_id,
+        "name": name,
+        "category": category,
+        "description": (
+            "Current SFW wallpapers from Wallhaven. "
+            f"Installs up to {WALLHAVEN_PACK_LIMIT}."
+        ),
+        "attribution": "Wallpapers via Wallhaven; see each image source",
+        "cover_url": cover_url or WALLHAVEN_FALLBACK_COVER,
+        "images": [],
+        "image_count": WALLHAVEN_PACK_LIMIT,
+        "provider_key": "wallhaven",
+        "provider_path": normalized,
+    }
+
+
+def wallhaven_filename(title: str, image_url: str, artist: str | None = None) -> str:
+    """Use ``Artist - Title`` when Wallhaven supplies an uploader."""
+    suffix = PurePosixPath(urlsplit(image_url).path).suffix.lower()
+    if suffix not in (".avif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"):
+        suffix = ".jpg"
+    title = title.strip() or "Untitled"
+    artist = artist.strip() if artist else None
+    stem = f"{artist} - {title}" if artist else title
+    return f"{stem}{suffix}"
+
+
+def _materialize_provider_pack(
+    pack: dict[str, Any],
+    candidates: list[Any],
+    *,
+    limit: int,
+    fallback_cover: str,
+    filename: Callable[[Any, str, str], str],
+) -> dict[str, Any]:
+    """Fill one lazy provider pack from a bounded candidate list."""
     images: list[dict[str, Any]] = []
     seen_ids: set[str] = set()
     for candidate in candidates:
@@ -215,25 +267,60 @@ def materialize_reframed_pack(
         title = str(getattr(candidate, "title", "") or "Untitled").strip()
         extra = getattr(candidate, "extra", None)
         source_url = extra.get("source_url") if isinstance(extra, dict) else None
-        attribution = _optional_string(getattr(candidate, "attribution", None))
         images.append(
             {
                 "title": title,
                 "url": image_url,
                 "preview_url": str(getattr(candidate, "thumb_url", "") or image_url),
-                "filename": reframed_filename(title, image_url, attribution),
+                "filename": filename(candidate, title, image_url),
                 "source_url": _optional_string(source_url),
                 "license": _optional_string(getattr(candidate, "license", None)),
-                "attribution": attribution,
+                "attribution": _optional_string(
+                    getattr(candidate, "attribution", None)
+                ),
             }
         )
-        if len(images) >= REFRAMED_PACK_LIMIT:
+        if len(images) >= limit:
             break
 
     materialized = {**pack, "images": images, "image_count": len(images)}
-    if images and pack.get("cover_url") == REFRAMED_FALLBACK_COVER:
+    if images and pack.get("cover_url") == fallback_cover:
         materialized["cover_url"] = images[0]["preview_url"]
     return materialized
+
+
+def materialize_reframed_pack(
+    pack: dict[str, Any], candidates: list[Any]
+) -> dict[str, Any]:
+    """Fill a lazy Reframed pack from current provider candidates."""
+    return _materialize_provider_pack(
+        pack,
+        candidates,
+        limit=REFRAMED_PACK_LIMIT,
+        fallback_cover=REFRAMED_FALLBACK_COVER,
+        filename=lambda candidate, title, image_url: reframed_filename(
+            title,
+            image_url,
+            _optional_string(getattr(candidate, "attribution", None)),
+        ),
+    )
+
+
+def materialize_wallhaven_pack(
+    pack: dict[str, Any], candidates: list[Any]
+) -> dict[str, Any]:
+    """Fill a lazy Wallhaven pack from current provider candidates."""
+    return _materialize_provider_pack(
+        pack,
+        candidates,
+        limit=WALLHAVEN_PACK_LIMIT,
+        fallback_cover=WALLHAVEN_FALLBACK_COVER,
+        filename=lambda candidate, title, image_url: wallhaven_filename(
+            title,
+            image_url,
+            _optional_string(getattr(candidate, "artist", None)),
+        ),
+    )
 
 
 def _optional_string(value: Any) -> str | None:

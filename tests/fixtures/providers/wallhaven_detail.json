@@ -1,0 +1,24 @@
+{
+  "data": {
+    "id": "mlg7qm",
+    "url": "https://wallhaven.cc/w/mlg7qm",
+    "purity": "sfw",
+    "category": "general",
+    "dimension_x": 3840,
+    "dimension_y": 2160,
+    "file_size": 9787852,
+    "path": "https://w.wallhaven.cc/full/ml/wallhaven-mlg7qm.png",
+    "thumbs": {
+      "large": "https://th.wallhaven.cc/lg/ml/mlg7qm.jpg"
+    },
+    "uploader": {
+      "username": "test-user"
+    },
+    "tags": [
+      {"name": "mountains"},
+      {"name": "landscape"},
+      {"name": "clouds"},
+      {"name": "nature"}
+    ]
+  }
+}

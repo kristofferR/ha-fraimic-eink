@@ -389,11 +389,11 @@
         },
         "provider": {
           "name": "Source",
-          "description": "Where to get the image: shuffle (random museum), Reframed Gallery, museum collections, daily images, or photo sources."
+          "description": "Where to get the image: shuffle (random museum), Reframed Gallery, Wallhaven, museum collections, daily images, or photo sources."
         },
         "query": {
           "name": "Search query",
-          "description": "Keyword for photo providers that support search. Museums ignore it."
+          "description": "Keyword for searchable sources such as Wallhaven, NASA, Smithsonian, Wellcome, DigitaltMuseum, Unsplash, and Pexels."
         },
         "caption": {
           "name": "Caption",

@@ -207,6 +207,51 @@ def test_materialize_reframed_pack_filters_insecure_urls_and_caps_images():
     assert all(image["url"].startswith("https://") for image in materialized["images"])
 
 
+def test_make_wallhaven_pack_is_lazy_and_bounded():
+    pack = pm.make_wallhaven_pack(
+        "top/1M",
+        "This month",
+        "Wallhaven Top",
+    )
+
+    assert pack["id"] == "wh-top-1m"
+    assert pack["provider_key"] == "wallhaven"
+    assert pack["provider_path"] == "top/1M"
+    assert pack["images"] == []
+    assert pack["image_count"] == pm.WALLHAVEN_PACK_LIMIT == 24
+    assert pack["cover_url"] == pm.WALLHAVEN_FALLBACK_COVER
+
+
+def test_materialize_wallhaven_pack_uses_readable_filename_and_metadata():
+    candidate = types.SimpleNamespace(
+        item_id="mlg7qm",
+        image_url="https://w.wallhaven.cc/full/ml/wallhaven-mlg7qm.jpg",
+        thumb_url="https://th.wallhaven.cc/lg/ml/mlg7qm.jpg",
+        title="Mountains · Landscape · Clouds",
+        artist="test-user",
+        license=None,
+        attribution="Mountains · Landscape · Clouds — test-user, Wallhaven",
+        extra={"source_url": "https://wallhaven.cc/w/mlg7qm"},
+    )
+    pack = pm.make_wallhaven_pack("top/1M", "This month", "Wallhaven Top")
+
+    materialized = pm.materialize_wallhaven_pack(pack, [candidate, candidate])
+
+    assert materialized["image_count"] == 1
+    assert materialized["cover_url"] == candidate.thumb_url
+    assert materialized["images"] == [
+        {
+            "title": candidate.title,
+            "url": candidate.image_url,
+            "preview_url": candidate.thumb_url,
+            "filename": "test-user - Mountains · Landscape · Clouds.jpg",
+            "source_url": "https://wallhaven.cc/w/mlg7qm",
+            "license": None,
+            "attribution": candidate.attribution,
+        }
+    ]
+
+
 @pytest.mark.parametrize(
     "broken",
     [
