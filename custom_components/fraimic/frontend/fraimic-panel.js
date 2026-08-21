@@ -3,6 +3,10 @@
 const API = "/api/fraimic";
 const SEARCH_DELAY = 350;
 const SOURCE_LIMIT = 40;
+const ALL_SOURCES_LIMIT = 8;
+const INITIAL_RENDER_LIMIT = 80;
+const RENDER_PAGE_SIZE = 80;
+const SIGNED_PATH_LIMIT = 512;
 const QUEUE_SNAPS = [220, 320, 420];
 const PALETTE = ["black", "white", "yellow", "red", "blue", "green", "neutral"];
 const ANCHORS = [
@@ -311,6 +315,8 @@ class FraimicPanel extends HTMLElement {
     this._rendersWell = false;
     this._galleryLoading = false;
     this._galleryGeneration = 0;
+    this._galleryRenderTimer = null;
+    this._renderLimit = INITIAL_RENDER_LIMIT;
     this._route = "browse";
     this._playlistId = null;
     this._playlists = [];
@@ -338,10 +344,11 @@ class FraimicPanel extends HTMLElement {
     this._initialized = false;
     this._refreshTimer = null;
     this._searchTimer = null;
-    this._galleryObserver = null;
     this._loadingMore = false;
     this._draggedArt = null;
     this._signedPaths = new Map();
+    this._signedPathPromises = new Map();
+    this._imageObserver = null;
     this._playerSignature = null;
     this._onPop = () => { this._syncRoute(); this._loadRoute(); };
     this._onShadowKeyDown = (event) => this._handleKeyDown(event);
@@ -359,7 +366,8 @@ class FraimicPanel extends HTMLElement {
     clearInterval(this._refreshTimer);
     clearTimeout(this._searchTimer);
     clearTimeout(this._toastTimer);
-    this._galleryObserver?.disconnect();
+    clearTimeout(this._galleryRenderTimer);
+    this._imageObserver?.disconnect();
   }
 
   set hass(value) {
@@ -498,6 +506,8 @@ class FraimicPanel extends HTMLElement {
   async _loadGallery() {
     if (!this._selectedFrameId) return;
     const generation = ++this._galleryGeneration;
+    this._loadingMore = false;
+    this._renderLimit = INITIAL_RENDER_LIMIT;
     this._galleryBySource = new Map();
     this._galleryCursorBySource = new Map();
     this._galleryTotalBySource = new Map();
@@ -509,9 +519,10 @@ class FraimicPanel extends HTMLElement {
     this._galleryLoading = true;
     this._renderPreservingFocus();
     const query = this._query.trim();
+    const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
     await Promise.all(sources.map(async (source) => {
       try {
-        const params = new URLSearchParams({ entry_id: this._selectedFrameId, source: source.key, limit: String(SOURCE_LIMIT) });
+        const params = new URLSearchParams({ entry_id: this._selectedFrameId, source: source.key, limit: String(limit) });
         if (query) params.set("q", query);
         const data = await this._api(`gallery?${params}`);
         if (generation !== this._galleryGeneration) return;
@@ -520,14 +531,16 @@ class FraimicPanel extends HTMLElement {
         this._galleryTotalBySource.set(source.key, data.total ?? (data.results || []).length);
         this._sourceStatus.set(source.key, data.source_status?.[0] || { source: source.key, status: "ready" });
         this._mergeFacets(data.facets || {});
-        this._renderPreservingFocus();
+        this._scheduleGalleryRender();
       } catch (error) {
         if (generation !== this._galleryGeneration) return;
         this._sourceStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
-        this._renderPreservingFocus();
+        this._scheduleGalleryRender();
       }
     }));
     if (generation !== this._galleryGeneration) return;
+    clearTimeout(this._galleryRenderTimer);
+    this._galleryRenderTimer = null;
     this._galleryLoading = false;
     if (query) localStorage.setItem("fraimic-last-search", query);
     this._renderPreservingFocus();
@@ -535,6 +548,11 @@ class FraimicPanel extends HTMLElement {
 
   async _loadMoreGallery() {
     if (this._loadingMore || this._galleryLoading) return;
+    if (this._renderLimit < this._filteredItems.length) {
+      this._renderLimit += RENDER_PAGE_SIZE;
+      this._renderPreservingFocus();
+      return;
+    }
     const pending = [...this._galleryCursorBySource.entries()].filter(([, cursor]) => cursor !== null && cursor !== undefined);
     if (!pending.length) return;
     const generation = this._galleryGeneration;
@@ -542,7 +560,8 @@ class FraimicPanel extends HTMLElement {
     this._renderPreservingFocus();
     await Promise.all(pending.map(async ([source, cursor]) => {
       try {
-        const params = new URLSearchParams({ entry_id: this._selectedFrameId, source, limit: String(SOURCE_LIMIT), cursor: String(cursor) });
+        const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
+        const params = new URLSearchParams({ entry_id: this._selectedFrameId, source, limit: String(limit), cursor: String(cursor) });
         if (this._query.trim()) params.set("q", this._query.trim());
         const data = await this._api(`gallery?${params}`);
         if (generation !== this._galleryGeneration) return;
@@ -553,6 +572,7 @@ class FraimicPanel extends HTMLElement {
         this._galleryTotalBySource.set(source, data.total ?? existing.length + (data.results || []).length);
         this._mergeFacets(data.facets || {});
       } catch (error) {
+        if (generation !== this._galleryGeneration) return;
         this._sourceStatus.set(source, { source, status: "error", detail: error.message });
       }
     }));
@@ -561,14 +581,12 @@ class FraimicPanel extends HTMLElement {
     this._renderPreservingFocus();
   }
 
-  _observeGalleryEnd() {
-    this._galleryObserver?.disconnect();
-    const target = this.shadowRoot.querySelector("[data-gallery-end]");
-    if (!target || !("IntersectionObserver" in window)) return;
-    this._galleryObserver = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) this._loadMoreGallery();
-    }, { rootMargin: "320px" });
-    this._galleryObserver.observe(target);
+  _scheduleGalleryRender() {
+    clearTimeout(this._galleryRenderTimer);
+    this._galleryRenderTimer = setTimeout(() => {
+      this._galleryRenderTimer = null;
+      this._renderPreservingFocus();
+    }, 80);
   }
 
   _mergeFacets(next) {
@@ -635,7 +653,6 @@ class FraimicPanel extends HTMLElement {
     this.shadowRoot.innerHTML = html;
     this._bind();
     this._signImages();
-    this._observeGalleryEnd();
   }
 
   _renderPreservingFocus() {
@@ -720,6 +737,7 @@ class FraimicPanel extends HTMLElement {
   _browseTemplate() {
     const failure = this._failureTemplate();
     const items = this._filteredItems;
+    const visibleItems = items.slice(0, this._renderLimit);
     if (this._galleryLoading && !items.length) return `${failure}<div class="content">${this._loadingTemplate()}</div>`;
     if (!items.length && !this._galleryLoading) return `${failure}<div class="empty"><h2>Nothing matched</h2><p>Try all sources, or drop the Fits filter to include more art.</p><div class="empty-actions"><button class="btn primary" data-source="all">Search all sources</button><button class="btn" data-clear-filters>Clear filters</button></div></div>`;
     const discovering = !this._query.trim() && !this._colours.size && !this._artist && !this._era && !this._fits && !this._rendersWell;
@@ -729,8 +747,8 @@ class FraimicPanel extends HTMLElement {
       ? `<div class="empty" style="padding:44px 24px 20px"><h2>${h(this._frame.name)} is showing nothing yet</h2><p>Tap any picture below to put it on the wall, or start a playlist so it changes through the day.</p></div>` : "";
     return `${failure}${adding ? `<div class="adding-bar"><b>Adding to ${h(adding.name)}</b><span class="spacer"></span><button class="btn quiet small" data-stop-adding>Done</button></div>` : ""}${firstRun}<div class="content">${rows}
       <div class="row-head"><h2>${discovering ? "Everything, newest first" : this._query ? this._query : "Results"}</h2><span class="spacer"></span><button class="btn quiet small" data-save-results>Save as playlist</button></div>
-      <div class="masonry">${items.map((item) => this._tileTemplate(item)).join("")}</div>
-      ${[...this._galleryCursorBySource.values()].some((cursor) => cursor != null) ? `<div class="load-more" data-gallery-end><button class="btn" data-load-more ${this._loadingMore ? "disabled" : ""}>${this._loadingMore ? "Loading more" : "Load more"}</button></div>` : ""}
+      <div class="masonry">${visibleItems.map((item) => this._tileTemplate(item)).join("")}</div>
+      ${visibleItems.length < items.length || [...this._galleryCursorBySource.values()].some((cursor) => cursor != null) ? `<div class="load-more"><button class="btn" data-load-more ${this._loadingMore ? "disabled" : ""}>${this._loadingMore ? "Loading more" : "Load more"}</button></div>` : ""}
     </div>`;
   }
 
@@ -1567,19 +1585,49 @@ class FraimicPanel extends HTMLElement {
       img.addEventListener("error", () => img.classList.add("image-failed"), { once: true });
       if (img.complete && img.currentSrc && !img.naturalWidth) img.classList.add("image-failed");
     }
+    this._imageObserver?.disconnect();
     const nodes = images.filter((img) => img.matches("[data-path]:not([data-signing])"));
-    await Promise.all(nodes.map(async (img) => {
-      const path = img.dataset.path; img.dataset.signing = "true";
-      const cached = this._cachedSignedPath(path);
-      if (cached) { if (img.isConnected) img.src = cached; return; }
-      try {
-        const result = await this._hass.callWS({ type: "auth/sign_path", path, expires: 3600 });
-        this._signedPaths.set(path, { path: result.path, expiresAt: Date.now() + 55 * 60 * 1000 });
-        if (this._signedPaths.size > 256) this._signedPaths.delete(this._signedPaths.keys().next().value);
-        if (img.isConnected) img.src = result.path;
+    if (!("IntersectionObserver" in window)) {
+      await Promise.all(nodes.map((img) => this._signImage(img)));
+      return;
+    }
+    this._imageObserver ||= new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        this._imageObserver.unobserve(entry.target);
+        this._signImage(entry.target);
       }
-      catch (_error) { /* the next render retries */ }
-    }));
+    }, { rootMargin: "600px 0px" });
+    for (const img of nodes) {
+      const cached = this._cachedSignedPath(img.dataset.path);
+      if (cached) img.src = cached;
+      else this._imageObserver.observe(img);
+    }
+  }
+
+  async _signImage(img) {
+    const path = img.dataset.path;
+    if (!path || img.dataset.signing) return;
+    img.dataset.signing = "true";
+    const cached = this._cachedSignedPath(path);
+    if (cached) { if (img.isConnected) img.src = cached; return; }
+    let pending = this._signedPathPromises.get(path);
+    if (!pending) {
+      pending = this._hass.callWS({ type: "auth/sign_path", path, expires: 3600 })
+        .then((result) => {
+          this._signedPaths.set(path, { path: result.path, expiresAt: Date.now() + 55 * 60 * 1000 });
+          if (this._signedPaths.size > SIGNED_PATH_LIMIT) this._signedPaths.delete(this._signedPaths.keys().next().value);
+          return result.path;
+        })
+        .finally(() => this._signedPathPromises.delete(path));
+      this._signedPathPromises.set(path, pending);
+    }
+    try {
+      const signed = await pending;
+      if (img.isConnected && img.dataset.path === path) img.src = signed;
+    } catch (_error) {
+      delete img.dataset.signing;
+    }
   }
 }
 

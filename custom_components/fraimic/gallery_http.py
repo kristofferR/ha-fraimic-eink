@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import json
@@ -24,6 +25,7 @@ from .library_model import normalize_crop
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .providers import PROVIDERS, available_provider_keys, get_provider
 from .providers.base import ArtCandidate
+from .providers.cache import ByteCache
 from .providers.ha import (
     ArtFetchError,
     async_art_by_media_id,
@@ -35,7 +37,66 @@ from .render.schema import SCREEN_SCHEMA, screen_from_dict
 LIBRARY_SOURCE = "saved"
 GALLERY_LIMIT = 40
 MAX_GALLERY_OFFSET = 1000
+GALLERY_THUMBNAIL_CACHE_BYTES = 24 * 1024 * 1024
+GALLERY_THUMBNAIL_CACHE_TTL = 3600
+GALLERY_IMAGE_CONCURRENCY = 6
 _PALETTE_COLOURS = ("black", "white", "yellow", "red", "blue", "green", "neutral")
+
+
+def _thumbnail_cache(hass) -> ByteCache:
+    data = hass.data.setdefault(DOMAIN, {})
+    cache = data.get("gallery_thumbnail_cache")
+    if not isinstance(cache, ByteCache):
+        cache = ByteCache(GALLERY_THUMBNAIL_CACHE_BYTES)
+        data["gallery_thumbnail_cache"] = cache
+    return cache
+
+
+async def _async_gallery_image(
+    hass,
+    entry,
+    source: str,
+    item_id: str,
+    *,
+    thumbnail: bool,
+) -> tuple[bytes, str]:
+    data = hass.data.setdefault(DOMAIN, {})
+    key = (entry.entry_id, source, item_id)
+    if thumbnail:
+        cached = _thumbnail_cache(hass).get(key, GALLERY_THUMBNAIL_CACHE_TTL)
+        if cached is not None:
+            return cached
+
+    semaphore = data.setdefault(
+        "gallery_image_semaphore", asyncio.Semaphore(GALLERY_IMAGE_CONCURRENCY)
+    )
+
+    async def fetch() -> tuple[bytes, str]:
+        async with semaphore:
+            art = await async_art_by_media_id(
+                hass, entry, source, item_id, thumbnail=thumbnail
+            )
+            content_type = await hass.async_add_executor_job(
+                _image_content_type, art.data
+            )
+        result = (art.data, content_type)
+        if thumbnail:
+            _thumbnail_cache(hass).set(key, *result)
+        return result
+
+    if not thumbnail:
+        return await fetch()
+
+    in_flight = data.setdefault("gallery_thumbnail_requests", {})
+    task = in_flight.get(key)
+    if task is None:
+        task = hass.async_create_task(fetch())
+        in_flight[key] = task
+    try:
+        return await asyncio.shield(task)
+    finally:
+        if task.done() and in_flight.get(key) is task:
+            del in_flight[key]
 
 
 def _assert_admin(request: web.Request) -> None:
@@ -457,20 +518,13 @@ class GalleryImageView(HomeAssistantView):
                 text="source, item_id, and a valid size are required"
             )
         try:
-            art = await async_art_by_media_id(
-                hass,
-                entry,
-                source,
-                item_id,
-                thumbnail=size == "thumbnail",
-            )
-            content_type = await hass.async_add_executor_job(
-                _image_content_type, art.data
+            image, content_type = await _async_gallery_image(
+                hass, entry, source, item_id, thumbnail=size == "thumbnail"
             )
         except (ArtFetchError, HomeAssistantError, OSError) as err:
             raise web.HTTPBadGateway(text=str(err)) from err
         return web.Response(
-            body=art.data,
+            body=image,
             content_type=content_type,
             headers={"Cache-Control": "private, max-age=3600"},
         )

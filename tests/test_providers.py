@@ -1081,6 +1081,35 @@ def test_cache_evicts_least_recently_used_entry_at_size_limit() -> None:
     assert cache.get("new", ttl=100) == 3
 
 
+def test_byte_cache_is_ttl_and_byte_size_bounded() -> None:
+    clock = {"t": 0.0}
+    cache = cache_mod.ByteCache(max_bytes=6, clock=lambda: clock["t"])
+    cache.set("old", b"123", "image/jpeg")
+    cache.set("recent", b"45", "image/png")
+    assert cache.get("old", ttl=100) == (b"123", "image/jpeg")
+
+    cache.set("new", b"678", "image/webp")
+
+    assert cache.get("recent", ttl=100) is None
+    assert cache.get("old", ttl=100) == (b"123", "image/jpeg")
+    assert cache.get("new", ttl=100) == (b"678", "image/webp")
+    clock["t"] = 101
+    assert cache.get("old", ttl=100) is None
+
+
+def test_byte_cache_replacement_and_oversized_values_do_not_leak_capacity() -> None:
+    cache = cache_mod.ByteCache(max_bytes=4)
+    cache.set("same", b"1234", "image/jpeg")
+    cache.set("same", b"1", "image/png")
+    cache.set("other", b"234", "image/webp")
+
+    assert cache.get("same", ttl=100) == (b"1", "image/png")
+    assert cache.get("other", ttl=100) == (b"234", "image/webp")
+
+    cache.set("too-large", b"12345", "image/jpeg")
+    assert cache.get("too-large", ttl=100) is None
+
+
 def test_browse_selection_survives_provider_cache_eviction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
