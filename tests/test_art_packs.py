@@ -200,7 +200,10 @@ def test_wallhaven_pack_materializes_through_provider(
     art_packs_module, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     art_packs = art_packs_module
-    entry = object()
+    entry = types.SimpleNamespace(
+        data={art_packs.CONF_WIDTH: 1600, art_packs.CONF_HEIGHT: 1200},
+        options={},
+    )
     monkeypatch.setattr(art_packs, "loaded_fraimic_entries", lambda _hass: [entry])
     candidate = types.SimpleNamespace(
         item_id="mlg7qm",
@@ -210,10 +213,14 @@ def test_wallhaven_pack_materializes_through_provider(
         artist=None,
         license=None,
         attribution="General Wallpaper mlg7qm, Wallhaven",
+        width=3840,
+        height=2160,
         extra={"source_url": "https://wallhaven.cc/w/mlg7qm"},
     )
 
-    async def browse(_hass, actual_entry, provider_key, provider_path):
+    async def browse(
+        _hass, actual_entry, provider_key, provider_path
+    ) -> types.SimpleNamespace:
         assert actual_entry is entry
         assert provider_key == "wallhaven"
         assert provider_path == "top/1M"
@@ -226,3 +233,100 @@ def test_wallhaven_pack_materializes_through_provider(
 
     assert pack["image_count"] == 1
     assert pack["images"][0]["filename"] == "General Wallpaper mlg7qm.jpg"
+
+
+def test_wallhaven_pack_rejects_extreme_aspect_candidates(
+    art_packs_module, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    art_packs = art_packs_module
+    entry = types.SimpleNamespace(
+        data={art_packs.CONF_WIDTH: 1600, art_packs.CONF_HEIGHT: 1200},
+        options={},
+    )
+    monkeypatch.setattr(art_packs, "loaded_fraimic_entries", lambda _hass: [entry])
+
+    def candidate(item_id: str, width: int, height: int) -> types.SimpleNamespace:
+        return types.SimpleNamespace(
+            item_id=item_id,
+            image_url=f"https://w.wallhaven.cc/full/aa/wallhaven-{item_id}.jpg",
+            thumb_url=None,
+            title=f"Wallpaper {item_id}",
+            artist=None,
+            license=None,
+            attribution=f"Wallpaper {item_id}, Wallhaven",
+            width=width,
+            height=height,
+            extra={"source_url": f"https://wallhaven.cc/w/{item_id}"},
+        )
+
+    async def browse(
+        _hass, _entry, _provider_key, _provider_path
+    ) -> types.SimpleNamespace:
+        return types.SimpleNamespace(
+            candidates=(
+                candidate("aaaaaa", 6000, 1500),
+                candidate("bbbbbb", 2400, 1600),
+            ),
+            folders=(),
+        )
+
+    monkeypatch.setattr(art_packs, "async_browse_provider", browse)
+    manager = art_packs.ArtPackManager(object(), types.SimpleNamespace(), object())
+
+    pack = asyncio.run(manager.async_gallery("wh-top-1m"))
+
+    assert [image["title"] for image in pack["images"]] == ["Wallpaper bbbbbb"]
+
+
+def test_wallhaven_pack_balances_loaded_frame_orientations(
+    art_packs_module, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    art_packs = art_packs_module
+    landscape = types.SimpleNamespace(
+        data={art_packs.CONF_WIDTH: 1600, art_packs.CONF_HEIGHT: 1200},
+        options={},
+    )
+    portrait = types.SimpleNamespace(
+        data={art_packs.CONF_WIDTH: 1600, art_packs.CONF_HEIGHT: 1200},
+        options={art_packs.CONF_ROTATION: 90},
+    )
+    monkeypatch.setattr(
+        art_packs,
+        "loaded_fraimic_entries",
+        lambda _hass: [landscape, portrait],
+    )
+    calls: list[object] = []
+
+    async def browse(
+        _hass, entry, provider_key, provider_path
+    ) -> types.SimpleNamespace:
+        calls.append(entry)
+        is_portrait = entry is portrait
+        item_id = "pppppp" if is_portrait else "llllll"
+        width, height = (1600, 2400) if is_portrait else (2400, 1600)
+        candidate = types.SimpleNamespace(
+            item_id=item_id,
+            image_url=f"https://w.wallhaven.cc/full/aa/wallhaven-{item_id}.jpg",
+            thumb_url=None,
+            title="Portrait" if is_portrait else "Landscape",
+            artist=None,
+            license=None,
+            attribution="Wallhaven",
+            width=width,
+            height=height,
+            extra={"source_url": f"https://wallhaven.cc/w/{item_id}"},
+        )
+        assert provider_key == "wallhaven"
+        assert provider_path == "top/1M"
+        return types.SimpleNamespace(candidates=(candidate,), folders=())
+
+    monkeypatch.setattr(art_packs, "async_browse_provider", browse)
+    manager = art_packs.ArtPackManager(object(), types.SimpleNamespace(), object())
+
+    pack = asyncio.run(manager.async_gallery("wh-top-1m"))
+
+    assert calls == [landscape, portrait]
+    assert [image["title"] for image in pack["images"]] == [
+        "Landscape",
+        "Portrait",
+    ]

@@ -47,6 +47,7 @@ from .const import (
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
     DOMAIN,
+    FIT_COVER,
     MAX_SOURCE_BYTES,
 )
 from .helpers import loaded_fraimic_entries
@@ -66,6 +67,7 @@ from .pack_model import (
     validate_catalog,
 )
 from .providers.base import BrowseFolder
+from .providers.curation import acceptable_for_fit
 from .providers.ha import ArtFetchError, async_browse_provider
 from .providers.wallhaven import (
     CATEGORY_FOLDERS,
@@ -98,7 +100,7 @@ REMOTE_PACK_TTL = 6 * 3600
 REMOTE_PACK_FAILURE_TTL = 300
 REFRAMED_PACK_TTL = 6 * 3600
 REFRAMED_PACK_FAILURE_TTL = 300
-REFRAMED_PACK_MAX_EXTRA_PAGES = 4
+LAZY_PACK_MAX_EXTRA_PAGES = 4
 
 REFRAMED_GROUPS = (
     ("collections", "Reframed Collections"),
@@ -654,17 +656,82 @@ class ArtPackManager:
         if not entries:
             raise HomeAssistantError("No Fraimic frame is loaded")
 
-        entry = entries[0]
+        if provider_key == "wallhaven":
+            entries_by_size = {
+                self._viewed_size(entry): entry for entry in entries
+            }
+            candidate_groups = [
+                await self._async_browse_pack_candidates(
+                    entry,
+                    provider_key,
+                    provider_path,
+                    pack_limit,
+                    curate_for_entry=True,
+                )
+                for entry in entries_by_size.values()
+            ]
+            candidates = self._round_robin_candidates(
+                candidate_groups, pack_limit
+            )
+        else:
+            candidates = await self._async_browse_pack_candidates(
+                entries[0], provider_key, provider_path, pack_limit
+            )
+
+        materialized = materialize(pack, candidates)
+        if not materialized["images"]:
+            raise HomeAssistantError(
+                f"{provider_name} pack {pack['name']} currently has no downloadable artwork"
+            )
+        return materialized
+
+    async def _async_browse_pack_candidates(
+        self,
+        entry: Any,
+        provider_key: str,
+        provider_path: str,
+        pack_limit: int,
+        *,
+        curate_for_entry: bool = False,
+    ) -> list[Any]:
+        """Collect one bounded, deduplicated candidate group for a frame."""
         first_page = await async_browse_provider(
             self.hass, entry, provider_key, provider_path
         )
-        candidates = list(first_page.candidates)
-        seen = {candidate.item_id for candidate in candidates}
+        candidates: list[Any] = []
+        seen: set[str] = set()
+        target_width, target_height = self._viewed_size(entry)
+
+        def add(page_candidates: Iterable[Any]) -> None:
+            for candidate in page_candidates:
+                item_id = str(getattr(candidate, "item_id", ""))
+                if not item_id or item_id in seen:
+                    continue
+                seen.add(item_id)
+                candidate_width = getattr(candidate, "width", None)
+                candidate_height = getattr(candidate, "height", None)
+                if curate_for_entry and not (
+                    candidate_width
+                    and candidate_height
+                    and acceptable_for_fit(
+                        candidate_width,
+                        candidate_height,
+                        target_width,
+                        target_height,
+                        FIT_COVER,
+                    )
+                ):
+                    continue
+                candidates.append(candidate)
+                if len(candidates) >= pack_limit:
+                    break
+
+        add(first_page.candidates)
         extra_pages = 0
         for folder in first_page.folders:
             if (
                 len(candidates) >= pack_limit
-                or extra_pages >= REFRAMED_PACK_MAX_EXTRA_PAGES
+                or extra_pages >= LAZY_PACK_MAX_EXTRA_PAGES
             ):
                 break
             if not folder.item_id.startswith(f"{provider_path}/page/"):
@@ -673,20 +740,37 @@ class ArtPackManager:
             page = await async_browse_provider(
                 self.hass, entry, provider_key, folder.item_id
             )
-            for candidate in page.candidates:
-                if candidate.item_id in seen:
-                    continue
-                seen.add(candidate.item_id)
-                candidates.append(candidate)
-                if len(candidates) >= pack_limit:
-                    break
+            add(page.candidates)
+        return candidates
 
-        materialized = materialize(pack, candidates)
-        if not materialized["images"]:
-            raise HomeAssistantError(
-                f"{provider_name} pack {pack['name']} currently has no downloadable artwork"
-            )
-        return materialized
+    @staticmethod
+    def _round_robin_candidates(
+        groups: list[list[Any]], limit: int
+    ) -> list[Any]:
+        """Interleave frame-specific pools so every orientation is represented."""
+        candidates: list[Any] = []
+        seen: set[str] = set()
+        for index in range(max((len(group) for group in groups), default=0)):
+            for group in groups:
+                if index >= len(group):
+                    continue
+                candidate = group[index]
+                item_id = str(getattr(candidate, "item_id", ""))
+                if not item_id or item_id in seen:
+                    continue
+                seen.add(item_id)
+                candidates.append(candidate)
+                if len(candidates) >= limit:
+                    return candidates
+        return candidates
+
+    @staticmethod
+    def _viewed_size(entry: Any) -> tuple[int, int]:
+        width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
+        height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+        if entry.options.get(CONF_ROTATION, DEFAULT_ROTATION) in (90, 270):
+            return height, width
+        return width, height
 
     async def _async_download(self, session: aiohttp.ClientSession, url: str) -> bytes:
         resp = await session.get(
@@ -712,10 +796,7 @@ class ArtPackManager:
         """Create or update the pack's auto-scene with orientation matching."""
         frames = []
         for entry in loaded_fraimic_entries(self.hass):
-            width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
-            height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
-            if entry.options.get(CONF_ROTATION, DEFAULT_ROTATION) in (90, 270):
-                width, height = height, width
+            width, height = self._viewed_size(entry)
             frames.append((entry.entry_id, width, height))
         if not frames:
             return None
