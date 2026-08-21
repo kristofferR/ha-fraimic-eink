@@ -276,6 +276,7 @@ class FraimicScheduler:
             raise HomeAssistantError("That slide is no longer available")
         if play_next:
             self._queued_ids.insert(0, slide.screen_id)
+            self._sync_pending_queue_head()
         else:
             self._queued_ids.append(slide.screen_id)
         await self._async_save()
@@ -288,15 +289,8 @@ class FraimicScheduler:
             or self._queued_ids[index] != slide_id
         ):
             raise HomeAssistantError("That queue item is no longer available")
-        removed = self._queued_ids.pop(index)
-        if (
-            self._pending_from_queue
-            and self._pending is not None
-            and self._pending.screen_id == removed
-            and removed not in self._queued_ids
-        ):
-            self._pending = None
-            self._pending_from_queue = False
+        self._queued_ids.pop(index)
+        self._sync_pending_queue_head()
         await self._async_save()
         self._notify()
 
@@ -305,9 +299,7 @@ class FraimicScheduler:
         if not self._queued_ids:
             return
         self._queued_ids.clear()
-        if self._pending_from_queue:
-            self._pending = None
-            self._pending_from_queue = False
+        self._sync_pending_queue_head()
         await self._async_save()
         self._notify()
 
@@ -316,8 +308,20 @@ class FraimicScheduler:
         if Counter(ordered_ids) != Counter(self._queued_ids):
             raise HomeAssistantError("The queue changed before it could be reordered")
         self._queued_ids = list(ordered_ids)
+        self._sync_pending_queue_head()
         await self._async_save()
         self._notify()
+
+    def _sync_pending_queue_head(self) -> None:
+        """Keep a sleeping frame's pending retry aligned with the queue head."""
+        if not self._pending_from_queue:
+            return
+        queued = self.queued_slides
+        if queued:
+            self._pending = queued[0]
+            return
+        self._pending = None
+        self._pending_from_queue = False
 
     async def async_reorder_upcoming(self, ordered_ids: list[str]) -> None:
         """Reorder the visible playlist window while keeping hidden slides stable."""

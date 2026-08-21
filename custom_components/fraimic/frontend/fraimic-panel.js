@@ -49,6 +49,9 @@ class FraimicPanel extends HTMLElement {
     this._dialogStack = [];
     this._highlightEntry = null;
     this._signedCache = new Map();
+    this._playerRefreshTimer = null;
+    this._playerRefreshInFlight = false;
+    this._playerGeneration = 0;
     // Lazy thumbnails: sign only near-viewport images, a few at a time, so a
     // large library doesn't fire hundreds of sign_path calls on tab open.
     this._signQueue = [];
@@ -69,6 +72,10 @@ class FraimicPanel extends HTMLElement {
     this._initialized = false;
   }
 
+  connectedCallback() {
+    if (this._initialized) this._startPlayerRefresh();
+  }
+
   disconnectedCallback() {
     clearTimeout(this._packRefreshTimer);
     clearTimeout(this._packProgressTimer);
@@ -76,6 +83,8 @@ class FraimicPanel extends HTMLElement {
     this._packProgressTimer = null;
     this._packProgressAttempts = 0;
     this._installingPacks.clear();
+    clearInterval(this._playerRefreshTimer);
+    this._playerRefreshTimer = null;
     this._cancelTouchDrag();
   }
 
@@ -92,6 +101,7 @@ class FraimicPanel extends HTMLElement {
       if (query.get("tab")) this._tab = query.get("tab");
       this._renderShell();
       this._refreshAll();
+      this._startPlayerRefresh();
     }
   }
 
@@ -266,11 +276,18 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _loadFrames() {
+    const previousEntryId = this._selectedFrameId;
     this._frames = (await this._api("frames")).frames;
     if (!this._frames.some((frame) => frame.entry_id === this._selectedFrameId)) {
       this._selectedFrameId = this._frames[0]?.entry_id || null;
     }
     if (this._selectedFrameId) this._storeFrame(this._selectedFrameId);
+    if (this._selectedFrameId !== previousEntryId) {
+      this._playerGeneration += 1;
+      this._player = null;
+      this._renderPlayer();
+      this._renderQueue();
+    }
     this._renderFrameChips();
   }
 
@@ -282,11 +299,40 @@ class FraimicPanel extends HTMLElement {
       this._renderQueue();
       return;
     }
-    this._player = await this._api(
+    const entryId = frame.entry_id;
+    const generation = this._playerGeneration;
+    const player = await this._api(
       `player?entry_id=${encodeURIComponent(frame.entry_id)}`
     );
+    if (
+      entryId !== this._selectedFrameId ||
+      generation !== this._playerGeneration
+    ) return null;
+    this._player = player;
     this._renderPlayer();
     this._renderQueue();
+    return player;
+  }
+
+  _startPlayerRefresh() {
+    if (this._playerRefreshTimer || !this.isConnected) return;
+    this._playerRefreshTimer = window.setInterval(
+      () => this._refreshPlayerState(),
+      60 * 1000
+    );
+  }
+
+  async _refreshPlayerState() {
+    if (this._playerRefreshInFlight || !this.isConnected) return;
+    this._playerRefreshInFlight = true;
+    try {
+      await this._loadFrames();
+      await this._loadPlayer();
+    } catch (_err) {
+      // The persistent bar keeps its last known state until the next poll.
+    } finally {
+      this._playerRefreshInFlight = false;
+    }
   }
 
   async _loadScenes() {
@@ -1237,6 +1283,7 @@ class FraimicPanel extends HTMLElement {
   async _selectFrame(entryId) {
     if (entryId === this._selectedFrameId) return;
     this._selectedFrameId = entryId;
+    this._playerGeneration += 1;
     this._storeFrame(entryId);
     this._player = null;
     this._queueOpen = false;
@@ -1424,7 +1471,7 @@ class FraimicPanel extends HTMLElement {
       ])
     );
 
-    if (["playing", "sending", "asleep"].includes(state)) {
+    if (player.transport_available && ["playing", "sending", "asleep"].includes(state)) {
       const disabled = state === "sending";
       const controls = this._el("div", { class: "player-controls" }, [
         this._iconButton(
@@ -1561,25 +1608,44 @@ class FraimicPanel extends HTMLElement {
   async _playerControl(action) {
     const frame = this._activeFrame();
     if (!frame) return;
+    const entryId = frame.entry_id;
+    const generation = ++this._playerGeneration;
     const sending = ["previous", "next", "refresh"].includes(action);
     if (sending) this._beginOptimisticSend(this._player?.current?.title, frame);
+    let player;
     try {
-      this._player = await this._api("player/control", {
+      player = await this._api("player/control", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entry_id: frame.entry_id, action }),
       });
-      if (this._player.state === "asleep" && sending) {
-        this._toast(
-          `${frame.title} is asleep. It will show this when it wakes.`
-        );
-      }
-      await this._loadFrames();
-      this._renderPlayer();
-      this._renderQueue();
     } catch (_err) {
-      await this._loadPlayer().catch(() => {});
-      this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+      if (
+        entryId === this._selectedFrameId &&
+        generation === this._playerGeneration
+      ) {
+        await this._loadPlayer().catch(() => {});
+        this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+      }
+      return;
+    }
+    if (
+      entryId !== this._selectedFrameId ||
+      generation !== this._playerGeneration
+    ) return;
+    this._player = player;
+    if (player.state === "asleep" && sending) {
+      this._toast(
+        `${frame.title} is asleep. It will show this when it wakes.`
+      );
+    }
+    this._renderPlayer();
+    this._renderQueue();
+    try {
+      await this._loadFrames();
+    } catch (_err) {
+      // The command already succeeded. Keep its returned player state and let
+      // the periodic refresh retry frame metadata without suggesting a resend.
     }
   }
 
@@ -1932,6 +1998,7 @@ class FraimicPanel extends HTMLElement {
       ? this._player?.hand_queue
       : this._player?.playlist?.items;
     if (!items || source === destination || !items[source]) return;
+    const entryId = this._selectedFrameId;
     destination = Math.max(0, Math.min(items.length - 1, destination));
     const snapshot = JSON.parse(JSON.stringify(this._player));
     const [moved] = items.splice(source, 1);
@@ -1942,6 +2009,7 @@ class FraimicPanel extends HTMLElement {
       this._markPlaylistWarningSeen();
     }
     this._renderQueue();
+    const generation = this._playerGeneration + 1;
     try {
       const response = await this._queueMutation(
         {
@@ -1955,6 +2023,10 @@ class FraimicPanel extends HTMLElement {
       this._renderPlayer();
       this._renderQueue();
     } catch (_err) {
+      if (
+        entryId !== this._selectedFrameId ||
+        generation !== this._playerGeneration
+      ) return;
       this._player = snapshot;
       this._renderPlayer();
       this._renderQueue();
@@ -1985,11 +2057,17 @@ class FraimicPanel extends HTMLElement {
   async _queueMutation(payload, render = true) {
     const frame = this._activeFrame();
     if (!frame) return null;
+    const entryId = frame.entry_id;
+    const generation = ++this._playerGeneration;
     const response = await this._api("player/queue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entry_id: frame.entry_id, ...payload }),
     });
+    if (
+      entryId !== this._selectedFrameId ||
+      generation !== this._playerGeneration
+    ) return null;
     if (render) {
       this._player = response;
       this._rowMenu = null;
@@ -2000,9 +2078,15 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _safeQueueMutation(payload) {
+    const entryId = this._selectedFrameId;
+    const generation = this._playerGeneration + 1;
     try {
       await this._queueMutation(payload);
     } catch (_err) {
+      if (
+        entryId !== this._selectedFrameId ||
+        generation !== this._playerGeneration
+      ) return;
       this._toast("The queue changed. Try again.", true);
       await this._loadPlayer().catch(() => {});
     }
@@ -2011,11 +2095,15 @@ class FraimicPanel extends HTMLElement {
   async _queueLegacySlide(slideId, playNext) {
     const frame = this._activeFrame();
     if (!frame) return;
+    const entryId = frame.entry_id;
+    const generation = this._playerGeneration + 1;
     try {
-      this._player = await this._queueMutation(
+      const player = await this._queueMutation(
         { action: "add", slide_id: slideId, play_next: playNext },
         false
       );
+      if (!player) return;
+      this._player = player;
       this._renderPlayer();
       this._renderQueue();
       if (playNext) {
@@ -2025,6 +2113,10 @@ class FraimicPanel extends HTMLElement {
         this._toast(`Added to the queue, ${waiting} waiting.`);
       }
     } catch (_err) {
+      if (
+        entryId !== this._selectedFrameId ||
+        generation !== this._playerGeneration
+      ) return;
       this._toast("The queue changed. Try again.", true);
     }
   }
