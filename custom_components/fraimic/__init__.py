@@ -12,8 +12,10 @@ from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
 from .const import (
     CONF_CAMERA_INTERVAL,
+    CONF_HEIGHT,
     CONF_POWER_MODE,
     CONF_SCAN_INTERVAL,
+    CONF_WIDTH,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
 )
@@ -142,6 +144,12 @@ async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) ->
         options.setdefault(CONF_SCAN_INTERVAL, 300)
         options.setdefault(CONF_CAMERA_INTERVAL, 1800)
         hass.config_entries.async_update_entry(entry, options=options, version=2)
+    if entry.version < 3:
+        data = dict(entry.data)
+        if (data.get(CONF_WIDTH), data.get(CONF_HEIGHT)) == (2560, 1440):
+            data[CONF_WIDTH] = 1440
+            data[CONF_HEIGHT] = 2560
+        hass.config_entries.async_update_entry(entry, data=data, version=3)
     return True
 
 

@@ -29,6 +29,7 @@ nasa = load("providers.nasa")
 smithsonian = load("providers.smithsonian")
 dimu = load("providers.dimu")
 wellcome = load("providers.wellcome")
+reframed = load("providers.reframed")
 providers_pkg = load("providers")
 
 FIXTURES = Path(__file__).parent / "fixtures" / "providers"
@@ -258,6 +259,93 @@ def test_wikimedia_attribution_does_not_duplicate_license_without_artist() -> No
     assert candidate is not None
     assert candidate.attribution.endswith("(CC BY-SA 4.0)")
     assert "CC BY-SA 4.0 — CC BY-SA 4.0" not in candidate.attribution
+
+
+REFRAMED_ARTWORK_HTML = """
+<div class="Tile-module__hash__wrapper">
+  <div class="Tile-module__hash__tile">
+    <a class="Tile-module__hash__link" href="/albert-bierstadt/elk-in-oak-grove">
+      <img class="Tile-module__hash__image" src="https://images.test/thumb"
+           alt="Elk in Oak Grove" />
+    </a>
+    <button data-download-url="https://files.test/originals/Albert Bierstadt - Elk in Oak Grove - reframed.jpg"></button>
+  </div>
+</div>
+<a href="/recent/page/2">2</a><a href="/recent/page/8">8</a>
+"""
+
+
+def test_parse_reframed_artwork_tiles_and_pagination() -> None:
+    candidates = reframed.parse_artwork_tiles(REFRAMED_ARTWORK_HTML)
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.provider == "reframed"
+    assert candidate.item_id == "albert-bierstadt/elk-in-oak-grove"
+    assert candidate.title == "Elk in Oak Grove"
+    assert candidate.artist == "Albert Bierstadt"
+    assert candidate.thumb_url == "https://images.test/thumb"
+    assert candidate.extra == {
+        "source_url": (
+            "https://www.reframed.gallery/albert-bierstadt/elk-in-oak-grove"
+        )
+    }
+    assert reframed.parse_page_count(REFRAMED_ARTWORK_HTML, "recent") == 8
+
+
+def test_parse_reframed_group_tiles_and_color_tabs() -> None:
+    groups_html = """
+    <div class="Tile-module__hash__wrapper"><div>
+      <a class="Tile-module__hash__link" href="/collections/after-the-storm">
+        <img class="Tile-module__hash__image" src="https://images.test/storm"
+             alt="After the Storm" />
+      </a>
+      <span class="Tile-module__hash__name">After the Storm</span>
+      <span class="Tile-module__hash__count">22</span>
+    </div></div>
+    <a href="/colors/red"><span></span>Red</a>
+    <a href="/colors/blue"><span></span>Blue</a>
+    <a href="/colors/blue/page/2">2</a>
+    """
+
+    folders = reframed.parse_group_tiles(groups_html, "collections")
+    assert folders == [
+        base.BrowseFolder(
+            item_id="collections/after-the-storm",
+            title="After the Storm",
+            thumb_url="https://images.test/storm",
+            count=22,
+        )
+    ]
+    assert [folder.title for folder in reframed.parse_color_links(groups_html)] == [
+        "Red",
+        "Blue",
+    ]
+
+
+def test_parse_reframed_artwork_detail_json_ld() -> None:
+    artwork = {
+        "@type": "VisualArtwork",
+        "name": "Elk in Oak Grove",
+        "artist": {"name": "Albert Bierstadt"},
+        "contentUrl": "https://files.test/elk.jpg",
+        "thumbnailUrl": "https://images.test/elk",
+    }
+    for document in (artwork, [artwork], {"@graph": [artwork]}):
+        html = (
+            '<script type="application/ld+json">'
+            f"{json.dumps(document)}"
+            "</script>"
+        )
+
+        candidate = reframed.parse_artwork_page(
+            html, "albert-bierstadt/elk-in-oak-grove"
+        )
+
+        assert candidate is not None
+        assert candidate.image_url == "https://files.test/elk.jpg"
+        assert candidate.artist == "Albert Bierstadt"
+        assert candidate.attribution.endswith("Reframed Gallery")
 
 
 # --- curation ----------------------------------------------------------
@@ -546,6 +634,44 @@ def test_engine_raises_on_empty_candidates() -> None:
         )
 
 
+def test_reframed_provider_uses_recent_pages_for_random_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession()
+    session.add(
+        f"{reframed.BASE_URL}/recent",
+        FakeResponse(body=REFRAMED_ARTWORK_HTML.encode()),
+    )
+    monkeypatch.setattr(reframed.random, "randint", lambda start, end: 1)
+    monkeypatch.setattr(reframed.random, "shuffle", lambda candidates: None)
+    provider = reframed.ReframedProvider()
+    provider.min_interval = 0
+
+    candidates = _run(
+        provider.async_candidates(session, cache_mod.ProviderCache(), REQUEST, 20)
+    )
+
+    assert [candidate.item_id for candidate in candidates] == [
+        "albert-bierstadt/elk-in-oak-grove"
+    ]
+    assert session.requests == [f"{reframed.BASE_URL}/recent"]
+
+
+def test_reframed_provider_browse_root_preserves_site_taxonomy() -> None:
+    page = _run(
+        reframed.ReframedProvider().async_browse(None, None, "", REQUEST)
+    )
+
+    assert [folder.item_id for folder in page.folders] == [
+        "collections",
+        "colors",
+        "tags",
+        "artists",
+        "verticals",
+        "recent",
+    ]
+
+
 def test_engine_wraps_body_read_failures() -> None:
     class BrokenResponse(FakeResponse):
         async def read(self, _n=-1):
@@ -812,6 +938,7 @@ def test_shuffle_and_availability() -> None:
     entry = SimpleNamespace(options={})
     keys = providers_pkg.available_provider_keys(entry)
     assert set(providers_pkg.MUSEUM_KEYS) <= set(keys)
+    assert "reframed" in keys
     # Keyed providers hidden without keys, shown with them.
     assert "unsplash" not in keys
     assert "pexels" not in keys

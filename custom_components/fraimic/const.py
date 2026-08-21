@@ -58,11 +58,13 @@ UPLOAD_TIMEOUT: Final = 90
 #   - Standard Canvas (13.3"): 1200x1600 native (3:4). dsackr's working converter
 #     used 1600x1200 (same byte count, landscape layout); both frames auto-orient,
 #     so the exact layout is confirmed per frame via the real-frame test pattern.
-#   - Large Canvas (31.5"): 2560x1440 (16:9).
+#   - Large Canvas (31.5"): 1440x2560 portrait-native (9:16). Its EL315
+#     controller format includes padding, so the wire payload is 2,304,000
+#     bytes rather than width*height/2.
 # Known model presets, surfaced in the config flow for easy setup.
 FRAME_MODELS: Final = {
     "standard": (1600, 1200),  # 13.3" — 960,000-byte buffer
-    "large": (2560, 1440),     # 31.5" — 1,843,200-byte buffer
+    "large": (1440, 2560),     # 31.5" — 2,304,000-byte padded buffer
 }
 MODEL_CUSTOM: Final = "custom"
 
@@ -70,14 +72,19 @@ MODEL_CUSTOM: Final = "custom"
 MODEL_NAMES: Final = {
     (1600, 1200): 'Standard Canvas (13.3")',
     (1200, 1600): 'Standard Canvas (13.3")',
+    # Keep the old marketing-orientation tuple recognizable while existing
+    # entries migrate to the panel's native dimensions.
     (2560, 1440): 'Large Canvas (31.5")',
+    (1440, 2560): 'Large Canvas (31.5")',
 }
 
 DEFAULT_WIDTH: Final = 1600
 DEFAULT_HEIGHT: Final = 1200
-# Generous client-side ceiling — the Large Canvas buffer alone is ~1.84 MB, well
+# Generous client-side ceiling — the Large Canvas buffer alone is ~2.30 MB, well
 # over the small frame's documented 1 MB limit. The frame still validates size.
 MAX_BIN_SIZE: Final = 4 * 1024 * 1024
+LARGE_FRAME_BIN_SIZE: Final = 2_304_000
+LARGE_FRAME_UPLOAD_TIMEOUT: Final = 600
 # Source images are always scaled to the frame resolution, so this is just an
 # out-of-memory guard, not a resolution limit — generous enough for any photo.
 MAX_SOURCE_BYTES: Final = 64 * 1024 * 1024
@@ -187,7 +194,7 @@ DEFAULT_SCREEN_INTERVAL: Final = 6 * 3600
 
 # Online image providers ("art frame" mode).
 # Keyless: five museums (CC0/public-domain masterpieces — dimu is
-# Nasjonalmuseet via the DigitaltMuseum API), Wellcome Collection
+# Nasjonalmuseet via the DigitaltMuseum API), Reframed Gallery, Wellcome Collection
 # (illustration/archive), Wikimedia picture of the day, Bing image of the day
 # (unofficial; personal use), NASA APOD and the NASA Image Library
 # (DEMO_KEY/keyless tiers suffice for daily use), Lorem Picsum (random demo
@@ -199,6 +206,7 @@ PROVIDER_KEYS: Final = (
     "cleveland",
     "smk",
     "dimu",
+    "reframed",
     "smithsonian",  # optional free api.data.gov key (frame options)
     "wellcome",
     "wikimedia",

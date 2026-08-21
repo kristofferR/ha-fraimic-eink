@@ -16,6 +16,7 @@ from .met import MetProvider
 from .nasa import NasaImagesProvider
 from .pexels import PexelsProvider
 from .picsum import PicsumProvider
+from .reframed import ReframedProvider
 from .smithsonian import SmithsonianProvider
 from .smk import SmkProvider
 from .unsplash import UnsplashProvider
@@ -30,6 +31,7 @@ PROVIDERS: dict[str, ArtProvider] = {
         ClevelandProvider(),
         SmkProvider(),
         DimuProvider(),
+        ReframedProvider(),
         SmithsonianProvider(),
         WellcomeProvider(),
         WikimediaProvider(),

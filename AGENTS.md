@@ -98,10 +98,12 @@ graphics), `floyd_steinberg`, `atkinson`, `bayer`, `none`.
 
 ### `.bin` format (reverse-engineered, NOT row-major)
 
-Raw headerless 4bpp, `width*height/2` bytes. Bottom half of panel first, then top
-half; each half column-major, columns left→right scanned **bottom-up**, two
-vertically-adjacent pixels per byte (high nibble first). Palette position →
-E Ink nibble via `SPECTRA6_PANEL_INDEX = (0x0, 0x1, 0x2, 0x3, 0x5, 0x6)` (0x4 unused).
+Raw headerless 4bpp. The 13.3" layout is `width*height/2` bytes: bottom half
+first, then top half; each half column-major, columns left→right scanned
+**bottom-up**, two vertically-adjacent pixels per byte (high nibble first).
+The 31.5" EL315 is portrait-native 1440x2560 and uses eight padded controller
+blocks for an exact 2,304,000-byte payload. Palette position → E Ink nibble
+via `SPECTRA6_PANEL_INDEX = (0x0, 0x1, 0x2, 0x3, 0x5, 0x6)` (0x4 unused).
 
 **height must be divisible by 4.** Buffer capped at `MAX_BIN_SIZE` (4 MB).
 
@@ -113,7 +115,7 @@ not primaries.
 
 - Config flow: host (default `fraimic.local`), zeroconf, or DHCP (Fraimic MAC
   OUIs `1CDBD4*`/`3CDC75*`); resolution auto-detect (`FRAME_MODELS`: standard
-  1600×1200, large 2560×1440) else user picks; resolution saved to `entry.data`.
+  1600×1200, large 1440×2560) else user picks; resolution saved to `entry.data`.
 - Entry unique_id is the frame's stable `device.device_key` (host as fallback);
   the coordinator backfills it on the first successful poll of older entries.
   A `reconfigure` step changes the host in place (aborts on device_key

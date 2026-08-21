@@ -33,9 +33,10 @@ show_online_image:
       description: >-
         Where to get the image. "shuffle" picks a random museum. Museums
         (met, aic, cleveland, smk, dimu/Nasjonalmuseet, smithsonian) serve
-        public-domain masterpieces; wellcome is open-access illustration and
-        art; wikimedia, bing and apod are picture-of-the-day sources; nasa
-        searches the NASA image archive; picsum is random stock photos.
+        public-domain masterpieces; reframed is Reframed Gallery's curated
+        catalogue; wellcome is open-access illustration and art; wikimedia,
+        bing and apod are picture-of-the-day sources; nasa searches the NASA
+        image archive; picsum is random stock photos.
       required: true
       default: shuffle
       selector:
@@ -53,6 +54,8 @@ show_online_image:
               value: smk
             - label: Nasjonalmuseet (DigitaltMuseum)
               value: dimu
+            - label: Reframed Gallery
+              value: reframed
             - label: Smithsonian Open Access
               value: smithsonian
             - label: Wellcome Collection

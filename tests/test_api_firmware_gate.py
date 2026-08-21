@@ -87,3 +87,8 @@ def test_parse_firmware(version, expected):
 )
 def test_firmware_supports_api_image(version, expected):
     assert api.firmware_supports_api_image(version) is expected
+
+
+def test_large_frame_upload_uses_extended_timeout():
+    assert api.FraimicClient._upload_timeout(bytes(2_304_000)) == 600
+    assert api.FraimicClient._upload_timeout(b"small frame") == 90

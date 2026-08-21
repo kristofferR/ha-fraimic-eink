@@ -50,7 +50,7 @@ Make sure the frame is **awake** (tap it — it is unreachable in deep sleep), t
    Docker/VLAN setups). With multiple frames, use IP addresses to tell them apart.
 2. **Resolution is auto-detected** when the frame reports its size or model. If it can't be
    determined, you pick the model — **Standard Canvas** (13.3", 1600×1200) or **Large Canvas**
-   (31.5", 2560×1440) — or choose *Custom* and enter the pixels. Add each frame separately; they
+   (31.5", 1440×2560 native) — or choose *Custom* and enter the pixels. Add each frame separately; they
    can be different models.
 
 **Multiple frames:** add each one separately — they appear as independent devices with their
@@ -390,7 +390,9 @@ data:
 all 250+ Nordic museums with `query: Munch`) — public-domain masterpieces from each
 museum's open-access API, aggressively curated for the panel (highlights only, paintings
 preferred, resolution and aspect-ratio checked against your frame's mounted orientation).
-Plus `smithsonian` (Smithsonian Open Access — CC0 American Art paintings by default, or
+Plus `reframed` ([Reframed Gallery](https://www.reframed.gallery/) — a curated catalogue
+that can be browsed by collection, color, tag, artist, vertical artwork, or recency),
+`smithsonian` (Smithsonian Open Access — CC0 American Art paintings by default, or
 search the whole collection with `query`), `wellcome` (Wellcome Collection — open-access
 paintings, botanical and natural-history illustration, searchable), `wikimedia` (Commons
 picture of the day), `bing` (Bing's daily image — unofficial endpoint, personal use),
@@ -419,8 +421,9 @@ response (`title`, `artist`, `attribution`) and exposed as attributes on the pre
 entities and the media player.
 
 **Browse before you commit:** open the frame's media player → **Browse media** → **Online
-artwork** → pick a source → 20 fresh picks with thumbnails; click one to display it. Each visit
-reshuffles.
+artwork** → pick a source, then click an image to display it. Most sources show 20 fresh picks
+and reshuffle on each visit. Reframed preserves its catalogue folders: Collections, Colors,
+Tags, Artists, Vertical artworks, and Recently added.
 
 **One-tap art:** every frame gets a **New artwork** button entity — press it (or automate it)
 for a fresh captioned piece from your default source (options → *Default online-art source*).

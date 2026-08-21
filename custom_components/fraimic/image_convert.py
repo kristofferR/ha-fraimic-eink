@@ -1,13 +1,12 @@
 """Convert ordinary images into the Fraimic Spectra 6 ``.bin`` display format.
 
-Fraimic frames use an **E Ink Spectra 6** colour panel. The buffer is a raw,
-header-less, uncompressed 4bpp image, ``width * height / 2`` bytes total
-(1600x1200 = 960,000 bytes for the 13.3" frame) — but the scan order is NOT
-row-major. Verified on real hardware (firmware 0.2.21): the buffer holds the
-*bottom* half of the panel first, then the top half, each half column-major
-with columns scanned bottom-up and two vertically-adjacent pixels per byte.
-Pixel values are the E Ink standard Spectra 6 codes (0x4 unused) — see
-``_pack_nibbles`` and ``SPECTRA6_PANEL_INDEX``.
+Fraimic frames use an **E Ink Spectra 6** colour panel. The buffer is raw,
+header-less and uncompressed, but its scan order depends on the panel. The
+13.3" format is 4bpp (960,000 bytes) with two column-major half-panels. The
+31.5" EL315 format is portrait-native 1440x2560 and carries eight controller
+blocks with fixed padding (2,304,000 bytes). Pixel values are the E Ink
+standard Spectra 6 codes (0x4 unused) — see ``_pack_nibbles`` and
+``SPECTRA6_PANEL_INDEX``.
 
 Getting good output from a tiny-gamut, low-contrast 6-colour panel is as much
 about *pre-processing* as it is about the dither, so this module runs a full
@@ -37,6 +36,7 @@ from .const import (
     FIT_CONTAIN,
     FIT_CONTAIN_BLACK,
     FIT_STRETCH,
+    LARGE_FRAME_BIN_SIZE,
     MAX_SOURCE_PIXELS,
     MODE_ATKINSON,
     MODE_AUTO,
@@ -263,7 +263,7 @@ def _palette_distances(flat, palette):
     """Squared OKLab distance to each palette colour + the neutral penalty.
 
     Returns an (N, P) float32 array. Computed one palette colour at a time to
-    avoid the huge (N, P, 3) broadcast temporary (~530 MB on the 2560x1440 frame).
+    avoid the huge (N, P, 3) broadcast temporary (~530 MB on the 1440x2560 frame).
     """
     import numpy as np
 
@@ -318,7 +318,7 @@ def _error_diffuse(oklab, palette, kernel, width: int, height: int):
 
     Only materialises the few rows the kernel touches (current + up to 2 ahead)
     as Python lists at a time, instead of list-converting the whole frame, so a
-    large frame (2560x1440) doesn't balloon memory.
+    large frame (1440x2560) doesn't balloon memory.
 
     The error-adjusted target is clamped to just beyond the palette's reach
     before matching, and the *clamped* value drives the diffused error. FS
@@ -481,6 +481,9 @@ def _pack_nibbles(indices, width: int, height: int) -> bytes:
     arr = panel_nibble[np.asarray(indices, dtype=np.uint8) % SPECTRA6_LEVELS]
     arr = arr.reshape(height, width)
 
+    if (width, height) == (1440, 2560):
+        return _pack_el315(arr)
+
     half_h = height // 2
     parts = []
     for half in (arr[half_h:, :], arr[:half_h, :]):  # bottom half first
@@ -489,6 +492,51 @@ def _pack_nibbles(indices, width: int, height: int) -> bytes:
         pairs = cols.reshape(-1, 2)
         parts.append(((pairs[:, 0] << 4) | (pairs[:, 1] & 0x0F)).astype(np.uint8))
     return np.concatenate(parts).tobytes()
+
+
+def _pack_el315(arr) -> bytes:
+    """Pack native portrait pixels for the 31.5" EL315 controller layout.
+
+    The panel expects eight 288,000-byte IC blocks. IC1-4 cover the bottom
+    half and IC5-8 the top half; each block row walks a two-pixel-wide strip
+    bottom-to-top. IC4 and IC8 contain only 80 real gate lines and pad the
+    remaining 320 bytes of every row with white (0x11).
+    """
+    import numpy as np
+
+    block_rows = 720
+    block_pixels = 800
+    half_rows = 1280
+    flipped = np.flipud(arr)
+    white = SPECTRA6_PANEL_INDEX[1]
+    blocks = []
+
+    for half in range(2):
+        strip = flipped[half * half_rows : (half + 1) * half_rows]
+        band = (
+            strip.reshape(half_rows, block_rows, 2)
+            .transpose(1, 0, 2)
+            .reshape(block_rows, half_rows * 2)
+        )
+        for ic in range(4):
+            real_pixels = 160 if ic == 3 else block_pixels
+            start = ic * block_pixels
+            nibbles = np.full(
+                (block_rows, block_pixels), white, dtype=np.uint8
+            )
+            nibbles[:, :real_pixels] = band[:, start : start + real_pixels]
+            blocks.append(
+                ((nibbles[:, 0::2] << 4) | nibbles[:, 1::2]).reshape(-1)
+            )
+
+    return np.concatenate(blocks).tobytes()
+
+
+def _expected_bin_size(width: int, height: int) -> int:
+    """Return the exact wire payload size for a configured panel."""
+    if (width, height) == (1440, 2560):
+        return LARGE_FRAME_BIN_SIZE
+    return width * height // 2
 
 
 def _indices_to_png(indices, width: int, height: int, preview_rotate: int = 0) -> bytes:
@@ -564,20 +612,19 @@ def convert_image(
             colours, which autocontrast would otherwise shift off-palette.
 
     Returns:
-        ``(bin_bytes, preview_png_or_none, resolved_mode)`` where ``bin_bytes`` is
-        exactly ``width * height / 2`` bytes and ``resolved_mode`` is the concrete
+        ``(bin_bytes, preview_png_or_none, resolved_mode)`` where ``bin_bytes``
+        has the panel's exact wire size and ``resolved_mode`` is the concrete
         mode used (``auto`` is resolved to the mode actually chosen).
     """
     from PIL import Image, ImageOps, UnidentifiedImageError
 
     _ensure_extra_decoders()
 
-    pixels = width * height
     # The native layout packs two vertically-adjacent pixels per byte within
     # each half-panel, so each half's height must itself be even.
     if height % 4:
         raise ValueError("Fraimic buffers require a height divisible by 4")
-    expected = pixels // 2
+    expected = _expected_bin_size(width, height)
     try:
         src_img = Image.open(io.BytesIO(raw))
     except UnidentifiedImageError as err:

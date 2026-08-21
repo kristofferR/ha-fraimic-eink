@@ -14,7 +14,7 @@
       },
       "resolution": {
         "title": "Which Fraimic model?",
-        "description": "Couldn't auto-detect the size of the frame at {host}, so pick the model: Standard Canvas = 13.3\" (1600x1200), Large Canvas = 31.5\" (2560x1440). Choose Custom only if you know the exact pixel size, and fill in Width + Height.",
+        "description": "Couldn't auto-detect the size of the frame at {host}, so pick the model: Standard Canvas = 13.3\" (1600x1200), Large Canvas = 31.5\" (1440x2560 native). Choose Custom only if you know the exact pixel size, and fill in Width + Height.",
         "data": {
           "frame_model": "Frame model",
           "width": "Width (px, Custom only)",
@@ -389,7 +389,7 @@
         },
         "provider": {
           "name": "Source",
-          "description": "Where to get the image: shuffle (random museum), met, aic, cleveland, wikimedia, bing, apod, or picsum."
+          "description": "Where to get the image: shuffle (random museum), Reframed Gallery, museum collections, daily images, or photo sources."
         },
         "query": {
           "name": "Search query",

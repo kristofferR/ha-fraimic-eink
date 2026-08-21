@@ -88,6 +88,36 @@ def test_small_frame_size_scales() -> None:
     assert len(data) == 800 * 480 // 2
 
 
+def test_large_frame_uses_el315_padded_wire_layout() -> None:
+    """The 31.5" panel has eight fixed-size IC blocks, not plain 4bpp."""
+    import numpy as np
+
+    width, height = 1440, 2560
+    indices = np.zeros(width * height, dtype=np.uint8)
+    data = ic._pack_nibbles(indices, width, height)
+
+    assert len(data) == const.LARGE_FRAME_BIN_SIZE == 2_304_000
+    blocks = np.frombuffer(data, dtype=np.uint8).reshape(8, 720, 400)
+    assert np.all(blocks[[0, 1, 2, 4, 5, 6]] == 0x00)
+    assert np.all(blocks[[3, 7], :, :80] == 0x00)
+    assert np.all(blocks[[3, 7], :, 80:] == 0x11)
+
+
+def test_large_frame_el315_corner_mapping() -> None:
+    """Pin the official IC1/IC8 mapping for the bottom/top left corners."""
+    import numpy as np
+
+    width, height = 1440, 2560
+    indices = np.ones((height, width), dtype=np.uint8)
+    indices[height - 1, 0] = 3  # red bottom-left -> IC1 first high nibble
+    indices[0, 0] = 4  # blue top-left -> IC8 first high nibble
+
+    data = ic._pack_nibbles(indices.reshape(-1), width, height)
+
+    assert data[0] == 0x31
+    assert data[7 * 288_000 + 79] == 0x51
+
+
 def test_odd_pixel_count_rejected() -> None:
     with pytest.raises(ValueError):
         ic.image_to_bin(_solid(100, 100, (0, 0, 0)), width=801, height=481, **RAW)

@@ -50,7 +50,9 @@ its own); firing one mid-render just gets the connection reset by the busy ESP32
 ### `POST /upload` — image upload
 `multipart/form-data`, field name `image`, filename `image.bin`,
 `application/octet-stream`. Body is a raw headerless Spectra-6 4bpp buffer
-(`width*height/2` bytes, capped at 4 MB / `MAX_BIN_SIZE`). Uses a 90 s timeout.
+(`width*height/2` bytes for the 13.3" panel; the 31.5" EL315 uses an exact
+2,304,000-byte padded controller layout). Uploads use a 90 s timeout, extended
+to 10 minutes for the large panel's multi-stage redraw.
 
 - A successful upload **renders by itself (~20–30 s)** — no follow-up
   `/api/refresh` required.
@@ -64,7 +66,8 @@ Raw `.bin` body (same buffer as `/upload`) with
 `Content-Type: application/octet-stream` — **exactly** that type; anything else
 (including multipart) gets `501 {"error":"unsupported_content_type"}`.
 
-Verified on fw 0.2.28 (build 4654a1d8), physical 13.3" frame:
+Verified on fw 0.2.28 (build 4654a1d8), physical 13.3" frame, and fw 0.2.29
+(build f1555ee5), physical 31.5" frame:
 
 - Valid body → `200 {"status":"rendering","bytes_received":N}` in ~10 s, then
   renders by itself like `/upload`.

@@ -84,7 +84,7 @@ async def _async_probe(hass, host: str) -> dict[str, Any] | None:
 class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the UI config flow for Fraimic."""
 
-    VERSION = 2
+    VERSION = 3
 
     def __init__(self) -> None:
         self._host: str | None = None
@@ -387,7 +387,7 @@ def _detect_resolution(info: dict[str, Any]) -> tuple[int, int] | None:
 
     Tries, in order: explicit display dimensions, then model/firmware hints
     matched against the two known Fraimic models (Standard 13.3" -> 1600x1200,
-    Large 31.5" -> 2560x1440). Returns ``None`` if it can't tell, so the config
+    Large 31.5" -> 1440x2560). Returns ``None`` if it can't tell, so the config
     flow asks the user.
     """
     display = info.get("display") or {}

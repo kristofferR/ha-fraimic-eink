@@ -12,7 +12,13 @@ from typing import Any
 
 import aiohttp
 
-from .const import DEFAULT_TIMEOUT, MAX_BIN_SIZE, UPLOAD_TIMEOUT
+from .const import (
+    DEFAULT_TIMEOUT,
+    LARGE_FRAME_BIN_SIZE,
+    LARGE_FRAME_UPLOAD_TIMEOUT,
+    MAX_BIN_SIZE,
+    UPLOAD_TIMEOUT,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -341,7 +347,7 @@ class FraimicClient:
             "/api/image",
             data=data,
             headers={"Content-Type": "application/octet-stream"},
-            timeout=UPLOAD_TIMEOUT,
+            timeout=self._upload_timeout(data),
         )
         async with resp:
             try:
@@ -363,7 +369,9 @@ class FraimicClient:
         form.add_field(
             "image", data, filename="image.bin", content_type="application/octet-stream"
         )
-        resp = await self._request("POST", "/upload", data=form, timeout=UPLOAD_TIMEOUT)
+        resp = await self._request(
+            "POST", "/upload", data=form, timeout=self._upload_timeout(data)
+        )
         async with resp:
             if resp.status >= 400:
                 body = await resp.text()
@@ -371,6 +379,13 @@ class FraimicClient:
                     f"Upload failed with HTTP {resp.status}: {body[:200]}",
                     status=resp.status,
                 )
+
+    @staticmethod
+    def _upload_timeout(data: bytes) -> int:
+        """Allow the large panel's multi-stage redraw to finish responding."""
+        if len(data) == LARGE_FRAME_BIN_SIZE:
+            return LARGE_FRAME_UPLOAD_TIMEOUT
+        return UPLOAD_TIMEOUT
 
     async def _wait_reachable(self, *, attempts: int = 12, delay: float = 5.0) -> None:
         """Poll the lightweight battery endpoint until the frame answers."""
