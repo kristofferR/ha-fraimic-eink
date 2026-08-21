@@ -125,8 +125,7 @@ const css = String.raw`
   .actions .btn { height: 26px; min-height: 26px; padding: 0 7px; font-size: 11px; }
   .actions .icon-btn { width: 28px; height: 28px; min-height: 28px; color: var(--primary-text-color); }
   .badge { position: absolute; top: 7px; padding: 3px 6px; border-radius: 4px; background: var(--surface); color: var(--text); font-size: 10px; }
-  .badge.left { left: 7px; } .badge.right { right: 7px; }
-  .crop-hint { position: absolute; right: 7px; bottom: 7px; padding: 2px 5px; border-radius: 3px; background: var(--surface); font-size: 10px; }
+  .badge.right { right: 7px; }
   .loading-grid { columns: 180px; column-gap: 14px; }
   .placeholder { display: inline-block; width: 100%; margin-bottom: 14px; break-inside: avoid; }
   .block { aspect-ratio: var(--skeleton-aspect); background: var(--divider-color); border-radius: 8px; }
@@ -610,21 +609,33 @@ class FraimicPanel extends HTMLElement {
   }
 
   get _filteredItems() {
-    const frame = this._frame;
-    const frameAspect = frame?.width && frame?.height
-      ? ([90, 270].includes(frame.rotation) ? frame.height / frame.width : frame.width / frame.height)
-      : 4 / 3;
     return this._allGalleryItems.filter((item) => {
       if (this._colours.size && !this._colours.has(item.colour)) return false;
       if (this._artist && item.artist !== this._artist) return false;
       if (this._era && String(item.year) !== this._era) return false;
-      if (this._fits) {
-        const aspect = (item.width || 4) / (item.height || 3);
-        if (Math.abs(aspect / frameAspect - 1) > 0.15) return false;
-      }
+      if (this._fits && this._aspectDifference(item) > 0.15) return false;
       if (this._rendersWell && Number(item.palette_score) < 0.75) return false;
       return true;
-    }).sort((a, b) => this._rendersWell ? b.palette_score - a.palette_score : 0);
+    }).sort((a, b) => {
+      const aDifference = this._aspectDifference(a);
+      const bDifference = this._aspectDifference(b);
+      const aUnknown = !Number.isFinite(aDifference);
+      const bUnknown = !Number.isFinite(bDifference);
+      if (aUnknown !== bUnknown) return aUnknown ? 1 : -1;
+      const fitOrder = Number(aDifference > 0.15) - Number(bDifference > 0.15);
+      if (fitOrder) return fitOrder;
+      if (this._rendersWell && b.palette_score !== a.palette_score) return b.palette_score - a.palette_score;
+      return aUnknown ? 0 : aDifference - bDifference;
+    });
+  }
+
+  _aspectDifference(item) {
+    if (!item.dimensions_known || !item.width || !item.height) return Number.POSITIVE_INFINITY;
+    const frame = this._frame;
+    const frameAspect = frame?.width && frame?.height
+      ? ([90, 270].includes(frame.rotation) ? frame.height / frame.width : frame.width / frame.height)
+      : 4 / 3;
+    return Math.abs((item.width / item.height) / frameAspect - 1);
   }
 
   _mergeRouteTitle() {
@@ -759,7 +770,10 @@ class FraimicPanel extends HTMLElement {
 
   _discoveryRows(items) {
     const library = items.filter((item) => item.source === "saved").slice(0, 20);
-    const madeFor = [...items].sort((a, b) => b.palette_score - a.palette_score).slice(0, 20);
+    const madeFor = [...items].sort((a, b) => {
+      const difference = this._aspectDifference(a) - this._aspectDifference(b);
+      return difference || b.palette_score - a.palette_score;
+    }).slice(0, 20);
     const facets = this._facets.colours.slice(0, 2).map((facet) => ({ title: facet.value[0].toUpperCase() + facet.value.slice(1), items: items.filter((item) => item.colour === facet.value).slice(0, 20) }));
     const last = localStorage.getItem("fraimic-last-search");
     const rows = [
@@ -776,16 +790,11 @@ class FraimicPanel extends HTMLElement {
 
   _tileTemplate(item, compact = false) {
     const aspect = `${Math.max(1, item.width || 4)} / ${Math.max(1, item.height || 3)}`;
-    const frame = this._frame;
-    const frameAspect = frame?.width && frame?.height ? ([90, 270].includes(frame.rotation) ? frame.height / frame.width : frame.width / frame.height) : 4 / 3;
-    const crop = Math.abs(((item.width || 4) / (item.height || 3)) / frameAspect - 1) > .15;
     const src = this._imageAttrs(item.thumbnail_url, `${item.title}${item.artist ? `, ${item.artist}` : ""}`);
     return `<article class="tile" tabindex="0" draggable="true" data-item="${h(item.source)}:${h(item.id)}" data-keyboard-item>
       <div class="art" style="--art-aspect:${aspect}" data-detail="${h(item.source)}:${h(item.id)}">
         <img ${src} loading="lazy" decoding="async">
-        ${item.palette_score >= .75 && !this._rendersWell ? `<span class="badge left">renders well</span>` : ""}
         ${item.queued ? `<span class="badge right">queued</span>` : ""}
-        ${crop && !this._fits ? `<span class="crop-hint">crops to fit</span>` : ""}
         <div class="actions">
           <button class="btn primary" data-art-action="show_now" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">Show now</button>
           <button class="btn" data-art-action="queue" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">${item.queued ? "Queued" : "+ Queue"}</button>
@@ -793,7 +802,7 @@ class FraimicPanel extends HTMLElement {
           <button class="icon-btn" data-detail="${h(item.source)}:${h(item.id)}" aria-label="Picture details"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button>
         </div>
       </div>
-      <div class="cap"><b>${h(item.title)}</b><span>${h([item.artist, item.source_name].filter(Boolean).join(" · "))}</span></div>
+      ${compact ? "" : `<div class="cap"><b>${h(item.title)}</b>${item.artist ? `<span>${h(item.artist)}</span>` : ""}</div>`}
     </article>`;
   }
 
