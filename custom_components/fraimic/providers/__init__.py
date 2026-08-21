@@ -20,6 +20,7 @@ from .reframed import ReframedProvider
 from .smithsonian import SmithsonianProvider
 from .smk import SmkProvider
 from .unsplash import UnsplashProvider
+from .wallhaven import WallhavenProvider
 from .wellcome import WellcomeProvider
 from .wikimedia import WikimediaProvider
 
@@ -32,6 +33,7 @@ PROVIDERS: dict[str, ArtProvider] = {
         SmkProvider(),
         DimuProvider(),
         ReframedProvider(),
+        WallhavenProvider(),
         SmithsonianProvider(),
         WellcomeProvider(),
         WikimediaProvider(),

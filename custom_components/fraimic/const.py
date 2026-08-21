@@ -230,7 +230,8 @@ DEFAULT_SCREEN_INTERVAL: Final = 6 * 3600
 
 # Online image providers ("art frame" mode).
 # Keyless: five museums (CC0/public-domain masterpieces — dimu is
-# Nasjonalmuseet via the DigitaltMuseum API), Reframed Gallery, Wellcome Collection
+# Nasjonalmuseet via the DigitaltMuseum API), Reframed Gallery, Wallhaven's SFW
+# wallpaper catalogue, Wellcome Collection
 # (illustration/archive), Wikimedia picture of the day, Bing image of the day
 # (unofficial; personal use), NASA APOD and the NASA Image Library
 # (DEMO_KEY/keyless tiers suffice for daily use), Lorem Picsum (random demo
@@ -243,6 +244,7 @@ PROVIDER_KEYS: Final = (
     "smk",
     "dimu",
     "reframed",
+    "wallhaven",
     "smithsonian",  # optional free api.data.gov key (frame options)
     "wellcome",
     "wikimedia",

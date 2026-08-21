@@ -1,0 +1,45 @@
+{
+  "data": [
+    {
+      "id": "mlg7qm",
+      "url": "https://wallhaven.cc/w/mlg7qm",
+      "views": 18008,
+      "favorites": 177,
+      "source": "",
+      "purity": "sfw",
+      "category": "general",
+      "dimension_x": 3840,
+      "dimension_y": 2160,
+      "resolution": "3840x2160",
+      "ratio": "1.78",
+      "file_size": 9787852,
+      "file_type": "image/png",
+      "created_at": "2026-07-23 02:09:22",
+      "path": "https://w.wallhaven.cc/full/ml/wallhaven-mlg7qm.png",
+      "thumbs": {
+        "large": "https://th.wallhaven.cc/lg/ml/mlg7qm.jpg",
+        "original": "https://th.wallhaven.cc/orig/ml/mlg7qm.jpg",
+        "small": "https://th.wallhaven.cc/small/ml/mlg7qm.jpg"
+      }
+    },
+    {
+      "id": "bad123",
+      "url": "https://wallhaven.cc/w/bad123",
+      "purity": "nsfw",
+      "category": "general",
+      "dimension_x": 3840,
+      "dimension_y": 2160,
+      "file_size": 1000000,
+      "path": "https://w.wallhaven.cc/full/ba/wallhaven-bad123.jpg",
+      "thumbs": {}
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "last_page": 3,
+    "per_page": 24,
+    "total": 52,
+    "query": null,
+    "seed": null
+  }
+}

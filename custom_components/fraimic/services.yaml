@@ -34,9 +34,10 @@ show_online_image:
         Where to get the image. "shuffle" picks a random museum. Museums
         (met, aic, cleveland, smk, dimu/Nasjonalmuseet, smithsonian) serve
         public-domain masterpieces; reframed is Reframed Gallery's curated
-        catalogue; wellcome is open-access illustration and art; wikimedia,
-        bing and apod are picture-of-the-day sources; nasa searches the NASA
-        image archive; picsum is random stock photos.
+        catalogue; wallhaven is a searchable SFW wallpaper catalogue;
+        wellcome is open-access illustration and art; wikimedia, bing and apod
+        are picture-of-the-day sources; nasa searches the NASA image archive;
+        picsum is random stock photos.
       required: true
       default: shuffle
       selector:
@@ -56,6 +57,8 @@ show_online_image:
               value: dimu
             - label: Reframed Gallery
               value: reframed
+            - label: Wallhaven (SFW wallpapers)
+              value: wallhaven
             - label: Smithsonian Open Access
               value: smithsonian
             - label: Wellcome Collection
@@ -73,8 +76,8 @@ show_online_image:
     query:
       name: Search query
       description: >-
-        Keyword for sources that support search (unsplash, pexels, nasa,
-        smithsonian, wellcome, dimu). Other sources ignore it.
+        Keyword for sources that support search (wallhaven, unsplash, pexels,
+        nasa, smithsonian, wellcome, dimu). Other sources ignore it.
       required: false
       example: northern lights
       selector:

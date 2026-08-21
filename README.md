@@ -392,6 +392,8 @@ museum's open-access API, aggressively curated for the panel (highlights only, p
 preferred, resolution and aspect-ratio checked against your frame's mounted orientation).
 Plus `reframed` ([Reframed Gallery](https://www.reframed.gallery/) — a curated catalogue
 that can be browsed by collection, color, tag, artist, vertical artwork, or recency),
+`wallhaven` ([Wallhaven](https://wallhaven.cc/) — keyless SFW wallpapers, searchable and
+browsable by latest, random, views, favorites, top lists, category, or color),
 `smithsonian` (Smithsonian Open Access — CC0 American Art paintings by default, or
 search the whole collection with `query`), `wellcome` (Wellcome Collection — open-access
 paintings, botanical and natural-history illustration, searchable), `wikimedia` (Commons
@@ -423,7 +425,8 @@ entities and the media player.
 **Browse before you commit:** open the frame's media player → **Browse media** → **Online
 artwork** → pick a source, then click an image to display it. Most sources show 20 fresh picks
 and reshuffle on each visit. Reframed preserves its catalogue folders: Collections, Colors,
-Tags, Artists, Vertical artworks, and Recently added.
+Tags, Artists, Vertical artworks, and Recently added. Wallhaven preserves its sorting and
+filtering too: Latest, Random, Most viewed, Most favorited, Top lists, Categories, and Colors.
 
 **Install as art packs:** the Fraimic sidebar's **Art Packs** tab also mirrors every Reframed
 collection, color, tag, and artist, plus Vertical and Recently Added. These live packs resolve

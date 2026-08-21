@@ -32,6 +32,7 @@ smithsonian = load("providers.smithsonian")
 dimu = load("providers.dimu")
 wellcome = load("providers.wellcome")
 reframed = load("providers.reframed")
+wallhaven = load("providers.wallhaven")
 providers_pkg = load("providers")
 
 FIXTURES = Path(__file__).parent / "fixtures" / "providers"
@@ -348,6 +349,33 @@ def test_parse_reframed_artwork_detail_json_ld() -> None:
         assert candidate.image_url == "https://files.test/elk.jpg"
         assert candidate.artist == "Albert Bierstadt"
         assert candidate.attribution.endswith("Reframed Gallery")
+
+
+def test_parse_wallhaven_listing_is_sfw_and_size_aware() -> None:
+    candidates = wallhaven.parse_wallhaven_listing(_fixture("wallhaven_search.json"))
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.provider == "wallhaven"
+    assert candidate.item_id == "mlg7qm"
+    assert candidate.title == "General wallpaper mlg7qm"
+    assert candidate.width == 3840 and candidate.height == 2160
+    assert candidate.thumb_url == "https://th.wallhaven.cc/lg/ml/mlg7qm.jpg"
+    assert candidate.extra == {"source_url": "https://wallhaven.cc/w/mlg7qm"}
+    oversized = dict(_fixture("wallhaven_search.json")["data"][0])
+    oversized["file_size"] = wallhaven.MAX_SOURCE_BYTES + 1
+    assert wallhaven.parse_wallhaven_wallpaper(oversized) is None
+
+
+def test_parse_wallhaven_detail_uses_tags_and_uploader() -> None:
+    candidate = wallhaven.parse_wallhaven_wallpaper(
+        _fixture("wallhaven_detail.json")["data"]
+    )
+
+    assert candidate is not None
+    assert candidate.title == "Mountains · Landscape · Clouds"
+    assert candidate.artist == "test-user"
+    assert candidate.attribution.endswith("test-user, Wallhaven")
 
 
 # --- curation ----------------------------------------------------------
@@ -694,6 +722,118 @@ def test_reframed_provider_browse_artwork_listing_includes_page_folders() -> Non
     ]
 
 
+def test_wallhaven_candidates_use_query_and_frame_orientation() -> None:
+    session = FakeSession()
+    session.add(
+        wallhaven.SEARCH_URL,
+        FakeResponse(payload=_fixture("wallhaven_search.json")),
+    )
+    provider = wallhaven.WallhavenProvider()
+    provider.min_interval = 0
+    request = base.FetchRequest(
+        target_width=1200,
+        target_height=1600,
+        query="northern lights",
+    )
+
+    candidates = _run(
+        provider.async_candidates(session, cache_mod.ProviderCache(), request, 8)
+    )
+
+    assert [candidate.item_id for candidate in candidates] == ["mlg7qm"]
+    assert session.calls[0]["params"] == {
+        "categories": "111",
+        "purity": "100",
+        "atleast": "1200x1600",
+        "ratios": "portrait",
+        "order": "desc",
+        "sorting": "random",
+        "q": "northern lights",
+    }
+
+
+def test_wallhaven_browse_root_exposes_sorting_and_filters() -> None:
+    page = _run(
+        wallhaven.WallhavenProvider().async_browse(None, None, "", REQUEST)
+    )
+
+    assert [folder.item_id for folder in page.folders] == [
+        "latest",
+        "random",
+        "views",
+        "favorites",
+        "top",
+        "categories",
+        "colors",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("browse_id", "expected"),
+    [
+        ("latest", {"sorting": "date_added"}),
+        ("views", {"sorting": "views"}),
+        ("favorites", {"sorting": "favorites"}),
+        ("top/1M", {"sorting": "toplist", "topRange": "1M"}),
+        (
+            "category/100",
+            {"sorting": "toplist", "topRange": "1M", "categories": "100"},
+        ),
+        (
+            "color/000000",
+            {"sorting": "toplist", "topRange": "1M", "colors": "000000"},
+        ),
+    ],
+)
+def test_wallhaven_browse_applies_selected_filter(
+    browse_id: str, expected: dict[str, str]
+) -> None:
+    session = FakeSession()
+    session.add(
+        wallhaven.SEARCH_URL,
+        FakeResponse(payload=_fixture("wallhaven_search.json")),
+    )
+    provider = wallhaven.WallhavenProvider()
+    provider.min_interval = 0
+
+    page = _run(
+        provider.async_browse(
+            session, cache_mod.ProviderCache(), browse_id, REQUEST
+        )
+    )
+
+    assert [candidate.item_id for candidate in page.candidates] == ["mlg7qm"]
+    params = session.calls[0]["params"]
+    assert all(params[key] == value for key, value in expected.items())
+    assert params["purity"] == "100"
+    assert params["ratios"] == "landscape"
+    assert [folder.item_id for folder in page.folders] == [
+        f"{browse_id}/page/2",
+        f"{browse_id}/page/3",
+    ]
+
+
+def test_wallhaven_by_id_uses_detail_metadata() -> None:
+    session = FakeSession()
+    session.add(
+        f"{wallhaven.WALLPAPER_URL}/mlg7qm",
+        FakeResponse(payload=_fixture("wallhaven_detail.json")),
+    )
+    provider = wallhaven.WallhavenProvider()
+    provider.min_interval = 0
+
+    candidate = _run(
+        provider.async_by_id(
+            session, cache_mod.ProviderCache(), "mlg7qm", REQUEST
+        )
+    )
+
+    assert candidate.title == "Mountains · Landscape · Clouds"
+    assert candidate.artist == "test-user"
+    with pytest.raises(base.ArtFetchError, match="Invalid Wallhaven"):
+        _run(provider.async_by_id(session, cache_mod.ProviderCache(), "../bad", REQUEST))
+
+
 def test_engine_wraps_body_read_failures() -> None:
     class BrokenResponse(FakeResponse):
         async def read(self, _n=-1):
@@ -1038,6 +1178,7 @@ def test_shuffle_and_availability() -> None:
     keys = providers_pkg.available_provider_keys(entry)
     assert set(providers_pkg.MUSEUM_KEYS) <= set(keys)
     assert "reframed" in keys
+    assert "wallhaven" in keys
     # Keyed providers hidden without keys, shown with them.
     assert "unsplash" not in keys
     assert "pexels" not in keys
