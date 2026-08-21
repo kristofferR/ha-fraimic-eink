@@ -10,7 +10,6 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import pytest
-
 from conftest import load
 
 
@@ -461,6 +460,94 @@ def test_picture_source_redacts_url_failures(monkeypatch: pytest.MonkeyPatch) ->
     message = str(err.value)
     assert "Could not download image URL: network down" in message
     assert "token=secret" not in message
+
+
+def test_library_picture_uses_cached_render(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+    calls: list[tuple[str, object, dict]] = []
+    rendered = (b"cached-bin", b"cached-preview", "none")
+
+    class Library:
+        async def async_render_for_entry(
+            self, image_id: str, entry: object, overrides: dict
+        ) -> tuple[bytes, bytes, str]:
+            calls.append((image_id, entry, dict(overrides)))
+            return rendered
+
+    library = types.ModuleType("fraimic.library")
+    library.get_library = lambda _hass: Library()
+    monkeypatch.setitem(sys.modules, "fraimic.library", library)
+    entry = _entry()
+    screen = types.SimpleNamespace(
+        name="Library picture",
+        kind=display.KIND_PICTURE,
+        source={
+            "library_image": "image-1",
+            "fit": "contain",
+            "tone": "soft",
+        }
+    )
+
+    async def convert_for_entry(*_args: object, **_kwargs: object) -> object:
+        pytest.fail("a library picture must use its cached render")
+
+    async def render_and_upload(
+        _hass: object,
+        _entry: object,
+        raw: bytes,
+        overrides: dict,
+        **kwargs: object,
+    ) -> dict:
+        assert raw == b""
+        assert overrides == {"fit": "contain", "tone": 0.0}
+        assert kwargs["rendered"] == rendered
+        return {
+            "uploaded": True,
+            "content_hash": "cached-hash",
+            "mode": "none",
+            "preview_png": b"cached-preview",
+        }
+
+    _install_services(
+        monkeypatch,
+        async_convert_for_entry=convert_for_entry,
+        async_render_and_upload=render_and_upload,
+    )
+    result = asyncio.run(display.async_show_screen(_Hass(), entry, screen))
+
+    assert calls == [
+        (
+            "image-1",
+            entry,
+            {"fit": "contain", "tone": 0.0},
+        )
+    ]
+    assert result["content_hash"] == "cached-hash"
+    assert entry.runtime_data.screen_preview_image.calls == [
+        (b"cached-preview", "none")
+    ]
+
+
+def test_library_picture_requires_library(monkeypatch: pytest.MonkeyPatch) -> None:
+    display, error = _load_display(monkeypatch)
+    library = types.ModuleType("fraimic.library")
+    library.get_library = lambda _hass: None
+    monkeypatch.setitem(sys.modules, "fraimic.library", library)
+    _install_services(
+        monkeypatch,
+        async_convert_for_entry=None,
+        async_render_and_upload=None,
+    )
+    screen = types.SimpleNamespace(
+        name="Missing picture",
+        kind=display.KIND_PICTURE,
+        source={"library_image": "missing"},
+    )
+
+    with pytest.raises(error, match="The Fraimic library is not set up"):
+        asyncio.run(display.async_show_screen(_Hass(), _entry(), screen))
 
 
 def test_set_screen_preview_requires_preview_data(

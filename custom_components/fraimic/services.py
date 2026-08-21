@@ -23,6 +23,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .api import FraimicConnectionError, FraimicError
 from .const import (
+    ATTR_CAPTION,
     ATTR_CONFIG_ENTRY,
     ATTR_CONTRAST,
     ATTR_DITHER,
@@ -30,16 +31,15 @@ from .const import (
     ATTR_IMAGE_ENTITY,
     ATTR_LIBRARY_IMAGE,
     ATTR_MODE,
-    ATTR_CAPTION,
     ATTR_PATH,
     ATTR_PREVIEW_ONLY,
     ATTR_PROVIDER,
     ATTR_QUERY,
     ATTR_ROTATE,
     ATTR_SATURATION,
+    ATTR_SCENE_NAME,
     ATTR_SCREEN,
     ATTR_SCREEN_ID,
-    ATTR_SCENE_NAME,
     ATTR_SHARPEN,
     ATTR_TONE,
     ATTR_URL,
@@ -76,8 +76,8 @@ from .image_convert import convert_image
 from .library import get_library
 from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
 from .render.display import async_show_screen
-from .scenes import get_scene_manager
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
+from .scenes import get_scene_manager
 from .scheduled_events import RECURRENCE_NONE, RECURRENCES, get_scheduled_events
 from .screens import AmbiguousScreenNameError, screen_by_key
 from .source import async_get_source_bytes
@@ -673,6 +673,7 @@ async def async_render_and_upload(
     queue_if_asleep: bool = False,
     title: str | None = None,
     trigger: str = TRIGGER_MANUAL,
+    rendered: tuple[bytes, bytes | None, str] | None = None,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
@@ -690,6 +691,7 @@ async def async_render_and_upload(
     senders (playlist, camera loop) must NOT set this — they produce fresh
     content on the next cycle anyway. ``title`` labels the send in the
     ``send_status`` sensor.
+    ``rendered`` supplies an existing cached conversion for library pictures.
     """
     runtime = entry.runtime_data
     scheduler = begin_external_upload(entry) if hold_playlist else None
@@ -697,9 +699,11 @@ async def async_render_and_upload(
     uploaded = False
     try:
         async with runtime.upload_lock:
-            bin_data, preview_png, used_mode = await async_convert_for_entry(
-                hass, entry, raw, overrides, preprocess=preprocess
-            )
+            if rendered is None:
+                rendered = await async_convert_for_entry(
+                    hass, entry, raw, overrides, preprocess=preprocess
+                )
+            bin_data, preview_png, used_mode = rendered
             content_hash = hashlib.sha256(bin_data).hexdigest()
             reason = (
                 SKIP_DUPLICATE

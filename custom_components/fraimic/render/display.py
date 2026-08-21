@@ -22,19 +22,20 @@ from ..const import (
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
-    FIT_COVER,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
+    FIT_COVER,
     MODE_NONE,
+    PLAYLIST_TONE_VALUES,
 )
+from ..power import TRIGGER_MANUAL
 from .compose import render_screen
 from .fetch import async_build_context
 from .schema import KIND_PICTURE, ScreenConfig
-from ..power import TRIGGER_MANUAL
 
 if TYPE_CHECKING:
     from ..coordinator import FraimicConfigEntry
@@ -106,6 +107,9 @@ async def _async_picture_source(
 
     source = screen.source or {}
     art = None
+    overrides = _picture_overrides(source)
+    if source.get("library_image"):
+        raise HomeAssistantError("Library pictures use the cached render path")
     if provider_key := source.get("provider"):
         from ..providers.caption import composite_with_caption
         from ..providers.ha import ArtFetchError, async_fetch_art
@@ -126,7 +130,7 @@ async def _async_picture_source(
                     height,
                     fit,
                 )
-            except Exception as err:  # noqa: BLE001 - image decoders fail broadly
+            except Exception as err:
                 raise ArtFetchError(f"Captioned image: {err}") from err
     else:
         raw = await async_get_source_bytes(
@@ -135,12 +139,19 @@ async def _async_picture_source(
             entity_id=source.get("entity"),
             redact_url=True,
         )
-    overrides: dict = {}
+    return raw, overrides, art
+
+
+def _picture_overrides(source: dict) -> dict:
+    """Resolve per-slide picture controls into conversion overrides."""
+    overrides = {}
     if fit := source.get("fit"):
         overrides[ATTR_FIT] = fit
     if mode := source.get("mode"):
         overrides[ATTR_MODE] = mode
-    return raw, overrides, art
+    if (tone := source.get("tone")) in PLAYLIST_TONE_VALUES:
+        overrides[ATTR_TONE] = PLAYLIST_TONE_VALUES[tone]
+    return overrides
 
 
 async def async_show_screen(
@@ -175,8 +186,24 @@ async def async_show_screen(
     try:
         art = None
         art_info: dict | None = None
+        rendered = None
         if screen.kind == KIND_PICTURE:
-            png, overrides, art = await _async_picture_source(hass, entry, screen)
+            source = screen.source or {}
+            if image_id := source.get("library_image"):
+                from ..library import get_library
+
+                library = get_library(hass)
+                if library is None:
+                    raise HomeAssistantError("The Fraimic library is not set up")
+                overrides = _picture_overrides(source)
+                rendered = await library.async_render_for_entry(
+                    image_id, entry, overrides
+                )
+                png = b""
+            else:
+                png, overrides, art = await _async_picture_source(
+                    hass, entry, screen
+                )
             art_info = _public_art_dict(art.candidate) if art is not None else None
             preprocess = True
         else:
@@ -188,9 +215,11 @@ async def async_show_screen(
         runtime = entry.runtime_data
 
         if preview_only:
-            bin_data, preview_png, used_mode = await async_convert_for_entry(
-                hass, entry, png, overrides, preprocess=preprocess
-            )
+            if rendered is None:
+                rendered = await async_convert_for_entry(
+                    hass, entry, png, overrides, preprocess=preprocess
+                )
+            bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
             return {
                 "uploaded": False,
@@ -206,6 +235,8 @@ async def async_show_screen(
             "skip_if_hash": skip_if_hash,
             "hold_playlist": scheduler is None and hold_playlist,
         }
+        if rendered is not None:
+            upload_kwargs["rendered"] = rendered
         if trigger != TRIGGER_MANUAL:
             upload_kwargs["trigger"] = trigger
         result = await async_render_and_upload(

@@ -159,6 +159,60 @@ def test_wake_retry_keeps_manual_pending_state(
     assert scheduler._pending_requires_enabled is False
 
 
+def test_named_playlist_assignment_and_global_queue_lookup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    assigned = SimpleNamespace(
+        playlist_id="playlist-1",
+        name="Weekends",
+        interval=1800,
+        shuffle=False,
+    )
+    active = SimpleNamespace(screen_id="active", name="Active", interval=1800)
+    second = SimpleNamespace(screen_id="second", name="Second", interval=1800)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+
+    class Playlists:
+        def assigned_to(self, entry_id: str) -> object:
+            assert entry_id == "entry"
+            return assigned
+
+        def render_slides(self, playlist_id: str) -> list[object]:
+            assert playlist_id == "playlist-1"
+            return [active, second]
+
+        def get(self, playlist_id: str) -> object:
+            assert playlist_id == "playlist-1"
+            return assigned
+
+        def render_slide_by_id(self, slide_id: str) -> object | None:
+            return queued if slide_id == "queued" else None
+
+    scheduler = scheduler_mod.FraimicScheduler(
+        SimpleNamespace(), _entry(), Playlists()
+    )
+    scheduler._queued_ids = ["queued"]
+
+    assert scheduler.playlist_id == "playlist-1"
+    assert scheduler.playlist_name == "Weekends"
+    assert scheduler.playlist_interval == 1800
+    assert scheduler.queued_slides == [queued]
+    assert scheduler.shuffle is False
+    assert scheduler.screens == [active, second]
+
+    scheduler._queued_ids.append("missing")
+    asyncio.run(scheduler.async_refresh_playlist())
+    assert scheduler._queued_ids == ["queued"]
+
+    assigned.shuffle = True
+    monkeypatch.setattr(scheduler_mod.random, "shuffle", lambda items: items.reverse())
+    scheduler._load_assigned_playlist()
+
+    assert scheduler.shuffle is True
+    assert scheduler.screens == [second, active]
+
+
 def test_new_pending_screen_requires_enabled_after_upload_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

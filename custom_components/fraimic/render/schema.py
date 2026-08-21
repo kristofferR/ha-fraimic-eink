@@ -225,19 +225,24 @@ WINDOW_SCHEMA = vol.Schema(
 def _validate_screen(data: dict) -> dict:
     """Cross-field validation: kind-dependent requirements, slots fit layout."""
     if data["kind"] == KIND_PICTURE:
-        sources = [key for key in ("url", "entity", "provider") if data.get(key)]
+        sources = [
+            key
+            for key in ("url", "entity", "provider", "library_image")
+            if data.get(key)
+        ]
         if len(sources) != 1:
             raise vol.Invalid(
-                "a picture screen needs exactly one of: url, entity, provider"
+                "a picture screen needs exactly one of: url, entity, provider, "
+                "library_image"
             )
         if (data.get("query") or data.get("caption")) and not data.get("provider"):
             raise vol.Invalid("query/caption are only valid with a provider source")
         if data.get("widgets") or data.get("layout"):
             raise vol.Invalid("picture screens take no layout/widgets — just a source")
         return data
-    if data.get("url") or data.get("entity") or data.get("provider"):
+    if any(data.get(key) for key in ("url", "entity", "provider", "library_image")):
         raise vol.Invalid(
-            "url/entity/provider are only valid on kind: picture screens"
+            "image sources are only valid on kind: picture screens"
         )
     if not data.get("layout"):
         raise vol.Invalid("required key not provided: layout")
@@ -290,6 +295,8 @@ SCREEN_SCHEMA = vol.All(
             vol.Optional("url"): _HTTP_URL,
             vol.Optional("entity"): _ENTITY_ID,
             vol.Optional("provider"): vol.In((*PROVIDER_KEYS, PROVIDER_SHUFFLE)),
+            # Stored media-library source; mutually exclusive with the fields above.
+            vol.Optional("library_image"): vol.All(str, vol.Length(min=1)),
             vol.Optional("query"): str,  # photo providers only
             vol.Optional("caption", default=False): bool,  # attribution strip
             vol.Optional("fit"): vol.In(("cover", "contain", "contain_black", "stretch")),
@@ -355,7 +362,16 @@ def screen_from_dict(data: dict, screen_id: str = "adhoc") -> ScreenConfig:
     if data["kind"] == KIND_PICTURE:
         source = {
             key: data[key]
-            for key in ("url", "entity", "provider", "query", "caption", "fit", "mode")
+            for key in (
+                "url",
+                "entity",
+                "provider",
+                "library_image",
+                "query",
+                "caption",
+                "fit",
+                "mode",
+            )
             if key in data
         }
     return ScreenConfig(

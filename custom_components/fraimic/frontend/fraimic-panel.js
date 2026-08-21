@@ -20,6 +20,12 @@ class FraimicPanel extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this._tab = "library";
+    this._route = "browse";
+    this._playlists = [];
+    this._playlist = null;
+    this._playlistId = null;
+    this._playlistMenu = null;
+    this._playlistRowMenu = null;
     this._images = [];
     this._albums = [];
     this._frames = [];
@@ -47,6 +53,7 @@ class FraimicPanel extends HTMLElement {
     this._selectMode = false;
     this._selected = new Set();
     this._dialogStack = [];
+    this._dialogReturnFocus = null;
     this._highlightEntry = null;
     this._signedCache = new Map();
     // Lazy thumbnails: sign only near-viewport images, a few at a time, so a
@@ -67,9 +74,18 @@ class FraimicPanel extends HTMLElement {
           )
         : null;
     this._initialized = false;
+    this._onPopState = () => {
+      this._syncRouteFromLocation();
+      this._loadRouteData();
+    };
+  }
+
+  connectedCallback() {
+    window.addEventListener("popstate", this._onPopState);
   }
 
   disconnectedCallback() {
+    window.removeEventListener("popstate", this._onPopState);
     clearTimeout(this._packRefreshTimer);
     clearTimeout(this._packProgressTimer);
     this._packRefreshTimer = null;
@@ -90,6 +106,7 @@ class FraimicPanel extends HTMLElement {
         this._tab = "frames";
       }
       if (query.get("tab")) this._tab = query.get("tab");
+      this._syncRouteFromLocation();
       this._renderShell();
       this._refreshAll();
     }
@@ -172,14 +189,28 @@ class FraimicPanel extends HTMLElement {
     }
   }
 
-  _toast(message, isError = false) {
+  _toast(message, isError = false, options = {}) {
     const bar = this.shadowRoot.getElementById("toast");
-    bar.textContent = message;
+    bar.innerHTML = "";
+    bar.appendChild(this._el("span", { text: message }));
+    if (options.actionLabel && options.action) {
+      bar.appendChild(
+        this._el("button", {
+          class: "text-button toast-action",
+          text: options.actionLabel,
+          onclick: async () => {
+            clearTimeout(this._toastTimer);
+            bar.className = "";
+            await options.action();
+          },
+        })
+      );
+    }
     bar.className = isError ? "show error" : "show";
     clearTimeout(this._toastTimer);
     this._toastTimer = setTimeout(() => {
       bar.className = "";
-    }, 4000);
+    }, options.duration || 4000);
   }
 
   _el(tag, props = {}, children = []) {
@@ -255,8 +286,35 @@ class FraimicPanel extends HTMLElement {
       this._loadScenes(),
     ]).catch((err) => this._toast(err.message, true));
     await this._loadPlayer().catch((err) => this._toast(err.message, true));
-    this._renderTab();
+    await this._loadRouteData(false);
+    this._renderCurrentView();
     await packsPromise;
+  }
+
+  async _loadPlaylists() {
+    const frame = this._activeFrame();
+    const query = frame ? `?entry_id=${encodeURIComponent(frame.entry_id)}` : "";
+    this._playlists = (await this._api(`playlists${query}`)).playlists;
+  }
+
+  async _loadPlaylist(playlistId = this._playlistId) {
+    if (!playlistId) return;
+    this._playlist = await this._api(`playlists/${encodeURIComponent(playlistId)}`);
+  }
+
+  async _loadRouteData(render = true) {
+    try {
+      if (this._route === "playlists") await this._loadPlaylists();
+      if (this._route === "playlist-detail") await this._loadPlaylist();
+    } catch (err) {
+      this._toast(err.message, true);
+      if (this._route === "playlist-detail") {
+        this._route = "playlists";
+        this._playlistId = null;
+        await this._loadPlaylists().catch(() => {});
+      }
+    }
+    if (render) this._renderCurrentView();
   }
 
   async _loadLibrary() {
@@ -318,6 +376,114 @@ class FraimicPanel extends HTMLElement {
         }
       }, delay);
     }
+  }
+
+  _syncRouteFromLocation() {
+    const match = window.location.pathname.match(/\/fraimic\/playlists\/([^/]+)\/?$/);
+    if (match) {
+      this._route = "playlist-detail";
+      this._playlistId = decodeURIComponent(match[1]);
+      return;
+    }
+    if (/\/fraimic\/playlists\/?$/.test(window.location.pathname)) {
+      this._route = "playlists";
+      this._playlistId = null;
+      return;
+    }
+    this._route = "browse";
+    this._playlistId = null;
+  }
+
+  async _navigateRoute(route, playlistId = null, push = true) {
+    this._setQueueOpen(false);
+    this._route = route;
+    this._playlistId = playlistId;
+    this._playlistMenu = null;
+    this._playlistRowMenu = null;
+    if (push) {
+      const path = route === "playlist-detail"
+        ? `/fraimic/playlists/${encodeURIComponent(playlistId)}`
+        : route === "playlists"
+          ? "/fraimic/playlists"
+          : "/fraimic";
+      window.history.pushState({ fraimicRoute: route }, "", path);
+    }
+    await this._loadRouteData();
+  }
+
+  _showBrowse() {
+    this._tab = "library";
+    this._navigateRoute("browse");
+  }
+
+  _showPlaylists() {
+    return this._navigateRoute("playlists");
+  }
+
+  _showPlaylistDetail(playlistId) {
+    if (!playlistId) return;
+    return this._navigateRoute("playlist-detail", playlistId);
+  }
+
+  _renderCurrentView() {
+    const viewport = this.shadowRoot.getElementById("legacyViewport");
+    const nav = this.shadowRoot.getElementById("tabs");
+    if (!viewport || !nav) return;
+    const routed = this._route !== "browse";
+    viewport.classList.toggle("playlist-route", routed);
+    nav.hidden = routed;
+    this._renderRouteChrome();
+    if (this._route === "playlists") this._renderPlaylists();
+    else if (this._route === "playlist-detail") this._renderPlaylistDetail();
+    else this._renderTab();
+  }
+
+  _renderRouteChrome() {
+    const brand = this.shadowRoot.getElementById("brandButton");
+    const crumb = this.shadowRoot.getElementById("routeCrumb");
+    const actions = this.shadowRoot.getElementById("routeActions");
+    const chips = this.shadowRoot.getElementById("frameChips");
+    const playlistsButton = this.shadowRoot.getElementById("playlistsButton");
+    const uploadButton = this.shadowRoot.getElementById("uploadButton");
+    if (!brand || !crumb || !actions) return;
+    actions.innerHTML = "";
+    const routed = this._route !== "browse";
+    chips.hidden = routed;
+    playlistsButton.hidden = routed;
+    uploadButton.hidden = routed;
+    crumb.hidden = !routed;
+    actions.hidden = !routed;
+    if (!routed) {
+      brand.textContent = "Fraimic";
+      crumb.textContent = "";
+      return;
+    }
+    if (this._route === "playlists") {
+      brand.textContent = "Fraimic";
+      crumb.textContent = "› Playlists";
+      actions.appendChild(
+        this._el("button", {
+          class: "top-action",
+          text: "+ New playlist",
+          onclick: () => this._openNewPlaylist(),
+        })
+      );
+      return;
+    }
+    brand.textContent = "Playlists";
+    crumb.textContent = `› ${this._playlist?.name || "Playlist"}`;
+    const add = (label, action, danger = false) => {
+      actions.appendChild(
+        this._el("button", {
+          class: `top-action${danger ? " danger" : ""}`,
+          text: label,
+          onclick: action,
+        })
+      );
+    };
+    add("Rename", () => this._openRenamePlaylist());
+    add("Duplicate", () => this._duplicatePlaylist());
+    add("Delete", () => this._deletePlaylist(), true);
   }
 
   /* --------------------------------------------------------------- shell */
@@ -497,6 +663,20 @@ class FraimicPanel extends HTMLElement {
           box-sizing: border-box;
         }
         .dialog h2 { margin: 0 0 12px; font-size: 18px; font-weight: 500; }
+        .dialog-title { display: flex; align-items: flex-start; gap: 12px; }
+        .dialog-title h2 { flex: 1 1 auto; }
+        .dialog-close {
+          width: 44px;
+          height: 44px;
+          margin: -12px -12px 0 0;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--primary-text-color);
+          font: inherit;
+          font-size: 22px;
+          cursor: pointer;
+        }
         .dialog .row { display: flex; gap: 8px; align-items: center; margin: 8px 0; flex-wrap: wrap; }
         .dialog .row label { min-width: 140px; font-size: 14px; }
         .dialog .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
@@ -758,6 +938,22 @@ class FraimicPanel extends HTMLElement {
         .top-action:hover, .brand-button:hover, .menu-item:hover, .text-button:hover {
           color: var(--primary-color);
         }
+        .route-crumb {
+          min-width: 0;
+          overflow: hidden;
+          color: var(--secondary-text-color);
+          font-size: 13px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .route-actions {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+        }
+        .route-crumb[hidden], .route-actions[hidden], .frame-chips[hidden],
+        .top-action[hidden], nav[hidden] { display: none; }
+        .route-actions .danger { color: var(--error-color); }
         .icon-button {
           display: inline-flex;
           align-items: center;
@@ -831,6 +1027,304 @@ class FraimicPanel extends HTMLElement {
         }
         #legacyViewport nav { background: var(--primary-background-color); }
         #legacyViewport main { min-height: 100%; }
+        #legacyViewport.playlist-route main {
+          width: min(100%, 1180px);
+          margin: 0 auto;
+          padding: 28px 20px 52px;
+        }
+
+        /* Phase 2 playlists */
+        .playlist-page-heading {
+          display: flex;
+          align-items: flex-end;
+          gap: 20px;
+          margin-bottom: 22px;
+        }
+        .playlist-page-heading > div:first-child { min-width: 0; flex: 1 1 auto; }
+        .playlist-page-heading h1 {
+          margin: 0;
+          font-size: clamp(24px, 3vw, 36px);
+          font-weight: 600;
+          letter-spacing: -0.035em;
+          line-height: 1.08;
+        }
+        .playlist-eyebrow {
+          margin-bottom: 7px;
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .playlist-summary, .playlist-playing, .playlist-empty p {
+          color: var(--secondary-text-color);
+          line-height: 1.5;
+        }
+        .playlist-summary { margin: 8px 0 0; }
+        .playlist-playing { margin: 4px 0 0; font-size: 13px; }
+        .playlist-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+          gap: 22px 18px;
+        }
+        .playlist-card { position: relative; min-width: 0; }
+        .playlist-cover {
+          position: relative;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          width: 100%;
+          overflow: hidden;
+          border: 1px solid var(--divider-color);
+          border-radius: 6px;
+          background: var(--secondary-background-color);
+          cursor: pointer;
+        }
+        .playlist-cover.single { display: block; }
+        .playlist-cover-cell {
+          min-width: 0;
+          min-height: 0;
+          overflow: hidden;
+          border-right: 1px solid var(--divider-color);
+          border-bottom: 1px solid var(--divider-color);
+          background: var(--secondary-background-color);
+        }
+        .playlist-cover-cell:nth-child(2n) { border-right: 0; }
+        .playlist-cover-cell:nth-child(n + 3) { border-bottom: 0; }
+        .playlist-cover-cell.art-backdrop, .playlist-cover.single.art-backdrop {
+          background: #0d0d0d;
+        }
+        .playlist-cover img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+        .playlist-cover-open {
+          position: absolute;
+          z-index: 1;
+          inset: 0;
+          border: 0;
+          background: transparent;
+          cursor: pointer;
+        }
+        .playlist-card-play {
+          position: absolute;
+          z-index: 2;
+          right: 10px;
+          bottom: 10px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 42px;
+          height: 42px;
+          border: 1px solid var(--primary-text-color);
+          border-radius: 50%;
+          background: var(--primary-text-color);
+          color: var(--primary-background-color);
+          cursor: pointer;
+          opacity: 0;
+        }
+        .playlist-cover:hover .playlist-card-play,
+        .playlist-card-play:focus-visible { opacity: 1; }
+        .playlist-card-copy .playlist-playing-line {
+          display: block;
+          margin-top: 5px;
+          overflow: hidden;
+          color: var(--success-color, var(--primary-color));
+          font-size: 11px;
+          font-weight: 600;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .playlist-card-copy { padding: 10px 2px 0; }
+        .playlist-card-copy strong {
+          display: block;
+          overflow: hidden;
+          font-size: 15px;
+          font-weight: 600;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .playlist-card-copy span {
+          display: block;
+          margin-top: 3px;
+          overflow: hidden;
+          color: var(--secondary-text-color);
+          font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .new-playlist-card {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          align-items: center;
+          justify-content: center;
+          border: 1px dashed var(--divider-color);
+          background: transparent;
+          color: var(--secondary-text-color);
+          font: inherit;
+          font-weight: 600;
+          cursor: pointer;
+        }
+        .new-playlist-card span {
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          font-weight: 400;
+        }
+        .new-playlist-card:hover { color: var(--primary-color); border-color: var(--primary-color); }
+        .playlist-empty {
+          max-width: 620px;
+          padding: 48px 0;
+        }
+        .playlist-empty h1 { margin: 0 0 10px; font-size: 28px; }
+        .playlist-empty p { margin: 0 0 20px; }
+        .playlist-empty-actions, .playlist-controls {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .playlist-control {
+          position: relative;
+          display: inline-flex;
+          align-items: center;
+          min-height: 40px;
+          padding: 0 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          background: transparent;
+          color: var(--primary-text-color);
+          font: inherit;
+          font-size: 13px;
+          cursor: pointer;
+        }
+        .playlist-control.primary {
+          border-color: var(--primary-text-color);
+          background: var(--primary-text-color);
+          color: var(--primary-background-color);
+          font-weight: 600;
+        }
+        .playlist-control:disabled { cursor: default; opacity: 0.45; }
+        .playlist-split { display: inline-flex; }
+        .playlist-split > .playlist-control:first-child {
+          border-top-right-radius: 0;
+          border-bottom-right-radius: 0;
+        }
+        .playlist-split > .playlist-control + .playlist-control {
+          width: 44px;
+          justify-content: center;
+          padding: 0;
+          border-left: 0;
+          border-top-left-radius: 0;
+          border-bottom-left-radius: 0;
+        }
+        .playlist-menu-wrap { position: relative; }
+        .playlist-popover {
+          position: absolute;
+          z-index: 6;
+          top: calc(100% + 6px);
+          right: 0;
+          width: 260px;
+          overflow: hidden;
+          border: 1px solid var(--divider-color);
+          border-radius: 6px;
+          background: var(--card-background-color);
+          box-shadow: var(--ha-card-box-shadow);
+        }
+        .playlist-popover .menu-item[aria-checked="true"] {
+          color: var(--primary-color);
+          font-weight: 600;
+        }
+        .playlist-menu-note {
+          padding: 10px 14px;
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          line-height: 1.45;
+        }
+        .playlist-detail-list {
+          margin: 24px 0 0;
+          padding: 0;
+          border-top: 1px solid var(--divider-color);
+          list-style: none;
+        }
+        .playlist-detail-list > li { position: relative; }
+        .playlist-detail-row { min-height: 88px; padding: 10px 4px; background: transparent; }
+        .playlist-detail-row .frame-art { width: 74px; }
+        .playlist-position {
+          width: 24px;
+          flex: none;
+          color: var(--secondary-text-color);
+          font-variant-numeric: tabular-nums;
+          text-align: right;
+        }
+        .playlist-row-tags {
+          display: flex;
+          gap: 4px;
+          flex-wrap: wrap;
+          margin-top: 5px;
+        }
+        .playlist-row-tags .small-tag { min-height: 22px; padding: 0 6px; }
+        .playlist-detail-list .row-actions { padding-left: 120px; background: transparent; }
+        .slide-settings {
+          display: grid;
+          gap: 18px;
+          width: min(500px, 80vw);
+        }
+        .setting-group { border: 0; margin: 0; padding: 0; }
+        .setting-group legend { margin-bottom: 8px; font-size: 13px; font-weight: 600; }
+        .setting-options { display: flex; gap: 6px; flex-wrap: wrap; }
+        .setting-option {
+          display: inline-flex;
+          align-items: center;
+          min-height: 38px;
+          padding: 0 10px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .setting-option:has(input:checked) { border-color: var(--primary-color); color: var(--primary-color); }
+        .setting-option input { margin: 0 7px 0 0; }
+        .setting-note { color: var(--secondary-text-color); font-size: 12px; }
+        .dialog.playlist-dialog { width: min(560px, 96vw); }
+        .dialog.playlist-dialog .btn { text-transform: none; }
+        .playlist-picker-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+          gap: 12px;
+          width: min(760px, 86vw);
+          max-height: 58vh;
+          overflow: auto;
+        }
+        .playlist-picker-item {
+          min-width: 0;
+          padding: 0;
+          border: 1px solid var(--divider-color);
+          border-radius: 5px;
+          overflow: hidden;
+          background: transparent;
+          color: var(--primary-text-color);
+          cursor: pointer;
+          text-align: left;
+        }
+        .playlist-picker-item[aria-pressed="true"] { border-color: var(--primary-color); }
+        .playlist-picker-thumb {
+          display: block;
+          width: 100%;
+          overflow: hidden;
+          background: #0d0d0d;
+        }
+        .playlist-picker-thumb img { display: block; width: 100%; height: 100%; object-fit: contain; }
+        .playlist-picker-name {
+          display: block;
+          padding: 8px;
+          overflow: hidden;
+          font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        #toast.show { display: flex; align-items: center; gap: 16px; }
+        .toast-action { color: var(--primary-color); font-weight: 600; }
         .queue-backdrop {
           position: absolute;
           z-index: 7;
@@ -922,7 +1416,7 @@ class FraimicPanel extends HTMLElement {
           display: block;
           width: 100%;
           height: 100%;
-          object-fit: cover;
+          object-fit: contain;
         }
         .frame-art.loading::after {
           position: absolute;
@@ -1079,12 +1573,26 @@ class FraimicPanel extends HTMLElement {
         #toast.error { border-color: var(--error-color); }
         @media (max-width: 899px) {
           .player-progress, .overlay-tag { display: none; }
+          .playlist-page-heading { align-items: flex-start; flex-direction: column; }
+        }
+        @media (hover: none) {
+          .playlist-card-play { opacity: 1; }
         }
         @media (max-width: 599px) {
           .app-topbar { padding: 0 12px; }
           .top-text-action { display: none; }
+          .route-actions { gap: 0; }
+          .route-actions .top-action { padding: 0 5px; font-size: 12px; }
           .frame-chips { flex: 1 1 auto; }
           #legacyViewport main { padding: 12px; }
+          #legacyViewport.playlist-route main { padding: 20px 12px 44px; }
+          .playlist-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 10px; }
+          .playlist-card-play { opacity: 1; }
+          .playlist-detail-row { gap: 8px; }
+          .playlist-detail-row .frame-art { width: 56px; }
+          .playlist-position { width: 18px; }
+          .playlist-detail-list .row-actions { padding-left: 12px; }
+          .playlist-popover { right: auto; left: 0; max-width: calc(100vw - 24px); }
           .playerbar { gap: 8px; padding: 0 12px; }
           .playerbar .frame-art { width: 44px; }
           /* Phase 1 mobile player: artwork, title, play, and queue only. */
@@ -1111,8 +1619,10 @@ class FraimicPanel extends HTMLElement {
       <div id="appShell">
         <header class="app-topbar">
           <button class="brand-button" id="brandButton">Fraimic</button>
+          <span class="route-crumb" id="routeCrumb" hidden></span>
           <div class="frame-chips" id="frameChips" role="radiogroup" aria-label="Frames"></div>
           <span class="shell-spacer"></span>
+          <div class="route-actions" id="routeActions" hidden></div>
           <button class="top-action top-text-action" id="playlistsButton">Playlists</button>
           <button class="top-action top-text-action" id="uploadButton">Upload</button>
           <input id="shellUpload" type="file" accept="image/*" multiple hidden>
@@ -1151,11 +1661,11 @@ class FraimicPanel extends HTMLElement {
       );
     }
     this.shadowRoot.getElementById("brandButton").addEventListener("click", () => {
-      this._tab = "library";
-      this._renderTab();
+      if (this._route === "playlist-detail") this._showPlaylists();
+      else this._showBrowse();
     });
     this.shadowRoot.getElementById("playlistsButton").addEventListener("click", () => {
-      this._openLegacySlides();
+      this._showPlaylists();
     });
     const uploadInput = this.shadowRoot.getElementById("shellUpload");
     this.shadowRoot.getElementById("uploadButton").addEventListener("click", () => {
@@ -1176,13 +1686,23 @@ class FraimicPanel extends HTMLElement {
     });
     this.shadowRoot.addEventListener("keydown", (event) => {
       if (event.key !== "Escape") return;
+      if (this.shadowRoot.getElementById("modal")?.firstChild) {
+        this._closeDialog();
+        return;
+      }
       if (this._queueOpen) this._setQueueOpen(false);
+      if (this._playlistMenu || this._playlistRowMenu) {
+        this._playlistMenu = null;
+        this._playlistRowMenu = null;
+        if (this._route === "playlist-detail") this._renderPlaylistDetail();
+      }
       this._appMenuOpen = false;
       this._frameMenuOpen = false;
       this._renderAppMenu();
       this._renderPlayer();
     });
     this._renderFrameChips();
+    this._renderRouteChrome();
     this._renderAppMenu();
     this._renderPlayer();
     this._renderQueue();
@@ -1246,7 +1766,8 @@ class FraimicPanel extends HTMLElement {
     this._renderFrameChips();
     this._renderPlayer();
     this._setQueueOpen(false);
-    if (this._tab === "screens") this._renderTab();
+    if (this._route !== "browse") this._renderCurrentView();
+    else if (this._tab === "screens") this._renderTab();
     try {
       await this._loadPlayer();
     } catch (err) {
@@ -1261,8 +1782,9 @@ class FraimicPanel extends HTMLElement {
       this._screensEntry = frame.entry_id;
       this._screensLoadedFor = null;
     }
+    this._route = "browse";
     this._tab = "screens";
-    this._renderTab();
+    this._renderCurrentView();
   }
 
   _navigate(path) {
@@ -1293,8 +1815,7 @@ class FraimicPanel extends HTMLElement {
       );
     };
     add("Manage library", () => {
-      this._tab = "library";
-      this._renderTab();
+      this._showBrowse();
     });
     add("Sources and API keys", () =>
       this._navigate("/config/integrations/integration/fraimic")
@@ -1490,7 +2011,7 @@ class FraimicPanel extends HTMLElement {
         this._el("button", {
           class: "player-action primary",
           text: "Choose a playlist",
-          onclick: () => this._openLegacySlides(),
+          onclick: () => this._showPlaylists(),
         })
       );
     } else {
@@ -1647,7 +2168,7 @@ class FraimicPanel extends HTMLElement {
           this._el("button", {
             class: "text-button small-tag",
             text: this._formatInterval(playlist.interval),
-            onclick: () => this._openLegacySlides(),
+            onclick: () => this._openIntervalMenu(playlist.id),
           })
         );
       }
@@ -1655,7 +2176,7 @@ class FraimicPanel extends HTMLElement {
         this._el("button", {
           class: "text-button",
           text: "Open playlist",
-          onclick: () => this._openLegacySlides(),
+          onclick: () => this._showPlaylistDetail(playlist.id),
         })
       );
       root.appendChild(this._queueHeader(title, actions));
@@ -1678,7 +2199,7 @@ class FraimicPanel extends HTMLElement {
         this._el("button", {
           class: "player-action primary",
           text: "Choose a playlist",
-          onclick: () => this._openLegacySlides(),
+          onclick: () => this._showPlaylists(),
         }),
       ]);
       root.appendChild(empty);
@@ -1864,8 +2385,10 @@ class FraimicPanel extends HTMLElement {
       drag.destination = destination;
       this._markInsertion(target, after);
     }
-    const sheet = this.shadowRoot.getElementById("queueSheet");
-    const rect = sheet.getBoundingClientRect();
+    const scrollRoot = drag.section === "detail"
+      ? this.shadowRoot.getElementById("legacyViewport")
+      : this.shadowRoot.getElementById("queueSheet");
+    const rect = scrollRoot.getBoundingClientRect();
     drag.scrollDirection = drag.y < rect.top + 48 ? -1 : drag.y > rect.bottom - 48 ? 1 : 0;
     this._runTouchAutoscroll();
   }
@@ -1884,8 +2407,10 @@ class FraimicPanel extends HTMLElement {
       this._touchAutoScrollFrame = null;
       const current = this._touchDrag;
       if (!current?.active || !current.scrollDirection) return;
-      this.shadowRoot.getElementById("queueSheet").scrollTop +=
-        current.scrollDirection * 12;
+      const scrollRoot = current.section === "detail"
+        ? this.shadowRoot.getElementById("legacyViewport")
+        : this.shadowRoot.getElementById("queueSheet");
+      scrollRoot.scrollTop += current.scrollDirection * 12;
       this._touchAutoScrollFrame = window.requestAnimationFrame(tick);
     };
     this._touchAutoScrollFrame = window.requestAnimationFrame(tick);
@@ -1928,6 +2453,10 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _moveQueueItem(section, source, destination) {
+    if (section === "detail") {
+      await this._movePlaylistSlide(source, destination);
+      return;
+    }
     const items = section === "queue"
       ? this._player?.hand_queue
       : this._player?.playlist?.items;
@@ -2027,6 +2556,1046 @@ class FraimicPanel extends HTMLElement {
     } catch (_err) {
       this._toast("The queue changed. Try again.", true);
     }
+  }
+
+  /* ----------------------------------------------------------- playlists */
+
+  _playlistSummary(playlist) {
+    const count = playlist.slide_count || 0;
+    const composition = playlist.composition || {};
+    const types = [];
+    if (composition.pictures) {
+      types.push(`${composition.pictures} picture${composition.pictures === 1 ? "" : "s"}`);
+    }
+    if (composition.live_sources) {
+      types.push(`${composition.live_sources} live source${composition.live_sources === 1 ? "" : "s"}`);
+    }
+    if (composition.blank) {
+      types.push(`${composition.blank} blank`);
+    }
+    const parts = [`${count} slide${count === 1 ? "" : "s"}`];
+    if (types.length) parts.push(types.join(", "));
+    return parts.join(" · ");
+  }
+
+  _playlistCardMeta(playlist) {
+    const composition = playlist.composition || {};
+    const count = playlist.slide_count || 0;
+    const countText = count === 1 && composition.live_sources === 1
+      ? "1 live source"
+      : `${count} slide${count === 1 ? "" : "s"}`;
+    const interval = this._playlistIntervalLabel(playlist.interval);
+    return `${countText} · ${interval === "Daily" ? "daily" : `every ${interval}`}`;
+  }
+
+  _playlistIntervalLabel(seconds) {
+    const labels = new Map([
+      [900, "15 min"],
+      [1800, "30 min"],
+      [2700, "45 min"],
+      [3600, "1 h"],
+      [7200, "2 h"],
+      [14400, "4 h"],
+      [43200, "12 h"],
+      [86400, "Daily"],
+    ]);
+    return labels.get(seconds) || this._formatInterval(seconds).replace(/^every /, "");
+  }
+
+  _playlistImage(url, alt = "") {
+    const img = this._el("img", { alt });
+    if (!url) return img;
+    if (/^https?:\/\//i.test(url)) img.src = url;
+    else this._lazyImg(img, url);
+    return img;
+  }
+
+  _playlistCover(playlist) {
+    const thumbnails = playlist.thumbnails || [];
+    const single = playlist.slide_count === 1;
+    const singleThumbnail = thumbnails[0] || null;
+    const cover = this._el("div", {
+      class: `playlist-cover glass${single ? " single" : ""}${singleThumbnail ? " art-backdrop" : ""}`,
+    });
+    if (single) {
+      if (singleThumbnail) {
+        cover.appendChild(this._playlistImage(singleThumbnail, ""));
+      }
+    } else {
+      const cells = Array.from({ length: 4 }, (_, index) => thumbnails[index] || null);
+      for (const thumbnail of cells) {
+        const cell = this._el("div", {
+          class: `playlist-cover-cell${thumbnail ? " art-backdrop" : ""}`,
+        });
+        if (thumbnail) cell.appendChild(this._playlistImage(thumbnail, ""));
+        cover.appendChild(cell);
+      }
+    }
+    cover.appendChild(this._el("button", {
+      class: "playlist-cover-open",
+      "aria-label": `Open ${playlist.name}`,
+      onclick: () => this._showPlaylistDetail(playlist.id),
+    }));
+    const play = this._iconButton(
+      "mdi:play",
+      `Play ${playlist.name} on ${this._activeFrame()?.title || "selected frame"}`,
+      () => this._playPlaylist(playlist),
+      { className: "playlist-card-play", disabled: !playlist.slide_count }
+    );
+    cover.appendChild(play);
+    return cover;
+  }
+
+  _renderPlaylists() {
+    const root = this.shadowRoot.getElementById("content");
+    if (!root) return;
+    root.innerHTML = "";
+    this._renderRouteChrome();
+    if (!this._playlists.length) {
+      root.appendChild(
+        this._el("section", { class: "playlist-empty" }, [
+          this._el("h1", { text: "No playlists yet." }),
+          this._el("p", {
+            text: "A playlist is a list of art that rotates on your frame. Start one from a search, or build it picture by picture.",
+          }),
+          this._el("div", { class: "playlist-empty-actions" }, [
+            this._el("button", {
+              class: "playlist-control primary",
+              text: "New playlist",
+              onclick: () => this._openNewPlaylist(),
+            }),
+            this._el("button", {
+              class: "playlist-control",
+              text: "Browse art",
+              onclick: () => this._showBrowse(),
+            }),
+          ]),
+        ])
+      );
+      return;
+    }
+    root.appendChild(
+      this._el("div", { class: "playlist-page-heading" }, [
+        this._el("div", {}, [
+          this._el("h1", { text: "Playlists" }),
+        ]),
+      ])
+    );
+    const grid = this._el("div", { class: "playlist-grid" });
+    for (const playlist of this._playlists) {
+      const copy = this._el("div", { class: "playlist-card-copy" }, [
+        this._el("strong", { text: playlist.name }),
+        this._el("span", { text: this._playlistCardMeta(playlist) }),
+      ]);
+      if (playlist.playing?.length) {
+        copy.appendChild(
+          this._el("span", {
+            class: "playlist-playing-line",
+            text: `▶ Playing on ${playlist.playing.map((frame) => frame.name).join(", ")}`,
+          })
+        );
+      }
+      grid.appendChild(
+        this._el("article", { class: "playlist-card" }, [
+          this._playlistCover(playlist),
+          copy,
+        ])
+      );
+    }
+    grid.appendChild(
+      this._el(
+        "button",
+        {
+          class: "new-playlist-card glass",
+          onclick: () => this._openNewPlaylist(),
+        },
+        [
+          this._el("strong", { text: "+ New playlist" }),
+          this._el("span", { text: "Empty, or from a search" }),
+        ]
+      )
+    );
+    root.appendChild(grid);
+  }
+
+  _playlistPlayingText(playlist) {
+    const playing = playlist.playing || [];
+    if (!playing.length) return "";
+    return playing
+      .map((frame) => {
+        if (!frame.since) return `Playing on ${frame.name}`;
+        const since = new Date(frame.since).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+        return `Playing on ${frame.name} since ${since}`;
+      })
+      .join(" · ");
+  }
+
+  _renderPlaylistDetail() {
+    const root = this.shadowRoot.getElementById("content");
+    const playlist = this._playlist;
+    if (!root || !playlist) return;
+    root.innerHTML = "";
+    this._renderRouteChrome();
+    const headingCopy = this._el("div", {}, [
+      this._el("div", { class: "playlist-eyebrow", text: "Playlist" }),
+      this._el("h1", { text: playlist.name }),
+      this._el("p", { class: "playlist-summary", text: this._playlistSummary(playlist) }),
+    ]);
+    const playingText = this._playlistPlayingText(playlist);
+    if (playingText) {
+      headingCopy.appendChild(
+        this._el("p", { class: "playlist-playing", text: playingText })
+      );
+    }
+    root.appendChild(
+      this._el("div", { class: "playlist-page-heading" }, [headingCopy])
+    );
+
+    const controls = this._el("div", { class: "playlist-controls" });
+    controls.appendChild(this._playlistPlayControl());
+    controls.appendChild(
+      this._el("button", {
+        class: "playlist-control",
+        text: `Shuffle ${playlist.shuffle ? "on" : "off"}`,
+        "aria-pressed": String(playlist.shuffle),
+        onclick: () => this._setPlaylistShuffle(!playlist.shuffle),
+      })
+    );
+    controls.appendChild(this._playlistMenuButton("interval"));
+    controls.appendChild(this._playlistMenuButton("add"));
+    root.appendChild(controls);
+
+    if (!playlist.slides.length) {
+      root.appendChild(
+        this._el("section", { class: "playlist-empty" }, [
+          this._el("p", {
+            text: "This playlist is empty. Add art from the gallery, or drop pictures here.",
+          }),
+          this._el("div", { class: "playlist-empty-actions" }, [
+            this._el("button", {
+              class: "playlist-control primary",
+              text: "+ Add slides",
+              onclick: () => {
+                this._playlistMenu = "add";
+                this._renderPlaylistDetail();
+              },
+            }),
+          ]),
+        ])
+      );
+      return;
+    }
+
+    const list = this._el("ol", {
+      class: "playlist-detail-list",
+      "aria-live": "polite",
+      "aria-label": `${playlist.name} slides`,
+    });
+    playlist.slides.forEach((slide, index) => {
+      list.appendChild(this._playlistDetailRow(slide, index, playlist.slides.length));
+    });
+    root.appendChild(list);
+  }
+
+  _playlistPlayControl() {
+    const playlist = this._playlist;
+    const selected = this._activeFrame();
+    const selectedPlaying = playlist.playing?.some(
+      (frame) => frame.id === selected?.entry_id
+    );
+    const wrap = this._el("div", { class: "playlist-menu-wrap playlist-split" });
+    const primary = this._el("button", {
+      class: "playlist-control primary",
+      text: selectedPlaying ? "Playing" : `Play on ${selected?.title || "frame"}`,
+      onclick: () => {
+        if (!selectedPlaying) this._playPlaylist(playlist, selected);
+      },
+    });
+    primary.disabled = !selected || !playlist.slide_count || selectedPlaying;
+    wrap.appendChild(primary);
+    if (this._frames.length > 1 || selectedPlaying) {
+      wrap.appendChild(
+        this._el("button", {
+          class: "playlist-control primary",
+          text: "▾",
+          "aria-label": "Choose a frame",
+          "aria-expanded": String(this._playlistMenu === "frames"),
+          onclick: () => {
+            this._playlistMenu = this._playlistMenu === "frames" ? null : "frames";
+            this._renderPlaylistDetail();
+          },
+        })
+      );
+    }
+    if (this._playlistMenu === "frames") {
+      const menu = this._el("div", {
+        class: "playlist-popover",
+        role: "menu",
+        "aria-label": "Frames",
+      });
+      for (const frame of this._frames) {
+        const playing = playlist.playing?.some((item) => item.id === frame.entry_id);
+        menu.appendChild(
+          this._el("button", {
+            class: "menu-item",
+            role: "menuitem",
+            text: playing ? `Stop on ${frame.title}` : `Play on ${frame.title}`,
+            onclick: () => {
+              if (playing) this._stopPlaylist(frame);
+              else this._playPlaylist(playlist, frame);
+            },
+          })
+        );
+      }
+      wrap.appendChild(menu);
+    }
+    return wrap;
+  }
+
+  _playlistMenuButton(menu) {
+    const playlist = this._playlist;
+    const wrap = this._el("div", { class: "playlist-menu-wrap" });
+    const isInterval = menu === "interval";
+    wrap.appendChild(
+      this._el("button", {
+        class: "playlist-control",
+        text: isInterval
+          ? `Changes every ${this._playlistIntervalLabel(playlist.interval)}`
+          : "+ Add slides",
+        "aria-expanded": String(this._playlistMenu === menu),
+        onclick: () => {
+          this._playlistMenu = this._playlistMenu === menu ? null : menu;
+          this._renderPlaylistDetail();
+        },
+      })
+    );
+    if (this._playlistMenu === menu) {
+      wrap.appendChild(isInterval ? this._intervalPopover() : this._addSlidesPopover());
+    }
+    return wrap;
+  }
+
+  _intervalPopover() {
+    const popover = this._el("div", {
+      class: "playlist-popover",
+      role: "menu",
+      "aria-label": "Changes every",
+    });
+    const options = [
+      [900, "15 min"],
+      [1800, "30 min"],
+      [2700, "45 min"],
+      [3600, "1 h"],
+      [7200, "2 h"],
+      [14400, "4 h"],
+      [43200, "12 h"],
+      [86400, "Daily"],
+    ];
+    for (const [seconds, label] of options) {
+      popover.appendChild(
+        this._el("button", {
+          class: "menu-item",
+          role: "menuitemradio",
+          "aria-checked": String(this._playlist.interval === seconds),
+          text: label,
+          onclick: () => this._setPlaylistInterval(seconds),
+        })
+      );
+    }
+    popover.appendChild(
+      this._el("button", {
+        class: "menu-item",
+        text: "Custom",
+        onclick: () => this._openCustomInterval(),
+      })
+    );
+    popover.appendChild(
+      this._el("div", {
+        class: "playlist-menu-note",
+        text: "Each change costs a 30 second refresh and a little battery.",
+      })
+    );
+    return popover;
+  }
+
+  _addSlidesPopover() {
+    const popover = this._el("div", {
+      class: "playlist-popover",
+      role: "menu",
+      "aria-label": "Add slides",
+    });
+    const add = (label, action) => {
+      popover.appendChild(
+        this._el("button", {
+          class: "menu-item",
+          role: "menuitem",
+          text: label,
+          onclick: action,
+        })
+      );
+    };
+    add("From the gallery", () => {
+      this._tab = "packs";
+      this._navigateRoute("browse");
+    });
+    add("From your library", () => this._openLibraryPlaylistPicker());
+    add("A live source", () => this._openLiveSourcePicker());
+    add("Blank slide with overlays", () => this._addBlankSlide());
+    return popover;
+  }
+
+  async _addPlaylistSlides(slides) {
+    const playlistId = this._playlist.id;
+    try {
+      const response = await this._api(`playlists/${playlistId}/slides`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add", slides }),
+      });
+      if (this._playlist?.id === playlistId) {
+        this._playlist = response.playlist;
+        this._playlistMenu = null;
+        this._closeDialog();
+        await this._loadPlayer().catch(() => {});
+        this._renderPlaylistDetail();
+      }
+    } catch (err) {
+      this._toast(err.message, true);
+    }
+  }
+
+  _openLibraryPlaylistPicker() {
+    if (!this._images.length) {
+      this._toast("Your library is empty. Upload pictures first.", true);
+      return;
+    }
+    const selected = new Set();
+    const grid = this._el("div", { class: "playlist-picker-grid" });
+    for (const image of this._images) {
+      const thumbnail = this._el("img", { alt: image.filename });
+      this._lazyImg(thumbnail, `${API}/library/thumb/${image.image_id}`);
+      const item = this._el("button", {
+        class: "playlist-picker-item",
+        "aria-pressed": "false",
+        onclick: () => {
+          if (selected.has(image.image_id)) selected.delete(image.image_id);
+          else selected.add(image.image_id);
+          item.setAttribute("aria-pressed", String(selected.has(image.image_id)));
+        },
+      }, [
+        this._el("span", { class: "playlist-picker-thumb glass" }, [thumbnail]),
+        this._el("span", { class: "playlist-picker-name", text: image.filename }),
+      ]);
+      grid.appendChild(item);
+    }
+    const add = () => {
+      const slides = this._images
+        .filter((image) => selected.has(image.image_id))
+        .map((image) => ({
+          name: image.filename.replace(/\.[^.]+$/, "") || image.filename,
+          kind: "picture",
+          library_image: image.image_id,
+          fit: "cover",
+        }));
+      if (!slides.length) {
+        this._toast("Choose at least one picture.", true);
+        return;
+      }
+      this._addPlaylistSlides(slides);
+    };
+    this._openDialog(
+      "From your library",
+      [grid],
+      [
+        this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
+        this._el("button", { class: "btn raised", text: "Add slides", onclick: add }),
+      ],
+      false,
+      null,
+      false,
+      "playlist-dialog"
+    );
+  }
+
+  _openLiveSourcePicker() {
+    const source = this._el("select", { "aria-label": "Live source" });
+    const sources = [
+      ["shuffle", "Surprise me with art"],
+      ["wikimedia", "Wikimedia picture of the day"],
+      ["bing", "Bing image of the day"],
+      ["apod", "NASA astronomy picture of the day"],
+      ["reframed", "Reframed Gallery"],
+    ];
+    for (const [value, label] of sources) {
+      source.appendChild(this._el("option", { value, text: label }));
+    }
+    const name = this._el("input", {
+      type: "text",
+      value: "Surprise me with art",
+      "aria-label": "Slide name",
+    });
+    source.addEventListener("change", () => {
+      name.value = sources.find(([value]) => value === source.value)?.[1] || "Live source";
+    });
+    this._openDialog(
+      "A live source",
+      [
+        this._el("div", { class: "fieldrow" }, [this._el("label", { text: "Source" }), source]),
+        this._el("div", { class: "fieldrow" }, [this._el("label", { text: "Name" }), name]),
+      ],
+      [
+        this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
+        this._el("button", {
+          class: "btn raised",
+          text: "Add slide",
+          onclick: () => this._addPlaylistSlides([{
+            name: name.value.trim() || "Live source",
+            kind: "picture",
+            provider: source.value,
+            fit: "cover",
+          }]),
+        }),
+      ],
+      false,
+      null,
+      false,
+      "playlist-dialog"
+    );
+  }
+
+  _addBlankSlide() {
+    this._addPlaylistSlides([{
+      name: "Blank slide",
+      kind: "dashboard",
+      layout: "full",
+      widgets: [{ type: "template", slot: "main", template: "{{ '' }}" }],
+      background: "white",
+      accent: "black",
+    }]);
+  }
+
+  _playlistDetailRow(slide, index, count) {
+    const grip = this._el("button", {
+      class: "drag-grip",
+      text: "⠿",
+      "aria-label": `Reorder ${slide.title}`,
+      title: `Reorder ${slide.title}`,
+    });
+    const copy = this._el("div", { class: "queue-copy" }, [
+      this._el("strong", { text: slide.title }),
+      this._el("span", { text: slide.artist || slide.meta }),
+    ]);
+    const tags = this._playlistSlideTags(slide);
+    if (tags.length) {
+      copy.appendChild(
+        this._el(
+          "div",
+          { class: "playlist-row-tags" },
+          tags.map((tag) => this._el("span", { class: "small-tag", text: tag }))
+        )
+      );
+    }
+    const row = this._el("div", {
+      class: "queue-row playlist-detail-row",
+      "data-section": "detail",
+      "data-index": String(index),
+    }, [
+      this._el("span", { class: "playlist-position", text: String(index + 1) }),
+      grip,
+      this._frameArtwork(
+        slide.thumbnail_url,
+        `${slide.title}${slide.artist ? `, ${slide.artist}` : ""}`
+      ),
+      copy,
+      this._iconButton("mdi:dots-horizontal", `Actions for ${slide.title}`, () => {
+        this._playlistRowMenu = this._playlistRowMenu === slide.id ? null : slide.id;
+        this._renderPlaylistDetail();
+      }),
+    ]);
+    this._wireQueueDrag(row, grip, "detail", index);
+    const children = [row];
+    if (this._playlistRowMenu === slide.id) {
+      const actions = this._el("div", { class: "row-actions" });
+      const add = (label, action, danger = false, disabled = false) => {
+        const button = this._el("button", {
+          class: `text-button${danger ? " danger" : ""}`,
+          text: label,
+          onclick: action,
+        });
+        button.disabled = disabled;
+        actions.appendChild(button);
+      };
+      add("Show now", () => this._playlistSlideControl(slide, "show_now"));
+      add("Play next", () => this._playlistSlideControl(slide, "play_next"));
+      add("Move up", () => this._movePlaylistSlide(index, index - 1), false, index === 0);
+      add("Move down", () => this._movePlaylistSlide(index, index + 1), false, index === count - 1);
+      add("Move to top", () => this._movePlaylistSlide(index, 0), false, index === 0);
+      add("Move to bottom", () => this._movePlaylistSlide(index, count - 1), false, index === count - 1);
+      add("Overlays", () => this._openSlideSettings(slide, "overlays"));
+      add("Fit and tone", () => this._openSlideSettings(slide, "fit"));
+      if (slide.editable) add("Edit", () => this._editLegacySlide(slide));
+      add("Remove", () => this._removePlaylistSlide(slide), true);
+      children.push(actions);
+    }
+    return this._el("li", {}, children);
+  }
+
+  _playlistSlideTags(slide) {
+    const tags = [];
+    if (slide.fit === "contain") tags.push("Contain");
+    if (slide.tone && slide.tone !== "balanced") {
+      tags.push(slide.tone[0].toUpperCase() + slide.tone.slice(1));
+    }
+    if (slide.overlays === "none") tags.push("No overlays");
+    if (slide.overlays === "custom") tags.push("Custom overlays");
+    if (slide.shuffle_album) tags.push("Shuffle");
+    if (slide.live) tags.push("Live");
+    if (slide.on_frame) tags.push("On frame");
+    return tags;
+  }
+
+  async _movePlaylistSlide(source, destination) {
+    const slides = this._playlist?.slides;
+    if (!slides || source === destination || !slides[source]) return;
+    destination = Math.max(0, Math.min(slides.length - 1, destination));
+    const snapshot = JSON.parse(JSON.stringify(this._playlist));
+    const playlistId = this._playlist.id;
+    const previousOrder = snapshot.slides.map((slide) => slide.id);
+    const [moved] = slides.splice(source, 1);
+    slides.splice(destination, 0, moved);
+    this._playlistRowMenu = null;
+    this._renderPlaylistDetail();
+    try {
+      const response = await this._api(`playlists/${playlistId}/slides`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "reorder",
+          ordered_ids: slides.map((slide) => slide.id),
+        }),
+      });
+      if (this._playlist?.id === playlistId) {
+        this._playlist = response.playlist;
+        await this._loadPlayer().catch(() => {});
+        this._renderPlaylistDetail();
+      }
+      this._toast("Playlist reordered.", false, {
+        actionLabel: "Undo",
+        duration: 8000,
+        action: async () => {
+          try {
+            const restored = await this._api(`playlists/${playlistId}/slides`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "reorder", ordered_ids: previousOrder }),
+            });
+            if (this._playlist?.id === playlistId) {
+              this._playlist = restored.playlist;
+              this._renderPlaylistDetail();
+            }
+          } catch (err) {
+            this._toast(err.message, true);
+          }
+        },
+      });
+    } catch (_err) {
+      if (this._playlist?.id === playlistId) {
+        this._playlist = snapshot;
+        this._renderPlaylistDetail();
+      }
+      this._toast("The playlist changed. Your previous order is restored.", true);
+    }
+  }
+
+  async _removePlaylistSlide(slide) {
+    const snapshot = JSON.parse(JSON.stringify(this._playlist));
+    const playlistId = this._playlist.id;
+    this._playlist.slides = this._playlist.slides.filter((item) => item.id !== slide.id);
+    this._playlist.slide_count = this._playlist.slides.length;
+    this._playlistRowMenu = null;
+    this._renderPlaylistDetail();
+    try {
+      const response = await this._api(`playlists/${playlistId}/slides`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove", slide_id: slide.id }),
+      });
+      if (this._playlist?.id === playlistId) {
+        this._playlist = response.playlist;
+        this._renderPlaylistDetail();
+      }
+      this._toast("Removed from playlist.", false, {
+        actionLabel: "Undo",
+        duration: 8000,
+        action: async () => {
+          try {
+            const restored = await this._api(`playlists/${playlistId}/slides`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "undo", undo_token: response.undo_token }),
+            });
+            if (this._playlist?.id === playlistId) {
+              this._playlist = restored.playlist;
+              this._renderPlaylistDetail();
+            }
+          } catch (err) {
+            this._toast(err.message, true);
+          }
+        },
+      });
+    } catch (_err) {
+      if (this._playlist?.id === playlistId) {
+        this._playlist = snapshot;
+        this._renderPlaylistDetail();
+      }
+      this._toast("The playlist changed. Try again.", true);
+    }
+  }
+
+  async _playlistSlideControl(slide, action) {
+    const frame = this._activeFrame();
+    if (!frame) return;
+    this._playlistRowMenu = null;
+    if (action === "show_now") this._beginOptimisticSend(slide.title, frame);
+    try {
+      const response = await this._api(`playlists/${this._playlist.id}/slides`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, slide_id: slide.id, entry_id: frame.entry_id }),
+      });
+      this._playlist = response.playlist;
+      await this._loadPlayer();
+      this._renderPlaylistDetail();
+      if (action === "play_next") this._toast(`Playing next on ${frame.title}.`);
+    } catch (_err) {
+      await this._loadPlayer().catch(() => {});
+      this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+    }
+  }
+
+  async _playPlaylist(playlist, targetFrame = null) {
+    const frame = targetFrame || this._activeFrame();
+    if (!frame || !playlist.slide_count) return;
+    this._beginOptimisticSend(playlist.name, frame);
+    try {
+      const response = await this._api(`playlists/${playlist.id}/control`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "play", entry_id: frame.entry_id }),
+      });
+      if (this._playlist?.id === playlist.id) this._playlist = response;
+      await Promise.all([this._loadPlayer(), this._loadFrames(), this._loadPlaylists()]);
+      this._renderCurrentView();
+      if (this._player?.state === "asleep") {
+        this._toast(`${frame.title} is asleep. It will show this when it wakes.`);
+      }
+    } catch (_err) {
+      await this._loadPlayer().catch(() => {});
+      this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+    }
+  }
+
+  async _stopPlaylist(frame) {
+    try {
+      this._playlist = await this._api(`playlists/${this._playlist.id}/control`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "stop", entry_id: frame.entry_id }),
+      });
+      this._playlistMenu = null;
+      await this._loadPlayer().catch(() => {});
+      this._renderPlaylistDetail();
+    } catch (err) {
+      this._toast(err.message, true);
+    }
+  }
+
+  async _setPlaylistShuffle(shuffle) {
+    try {
+      this._playlist = await this._api(`playlists/${this._playlist.id}/control`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "shuffle", shuffle }),
+      });
+      this._playlistMenu = null;
+      await this._loadPlayer().catch(() => {});
+      this._renderPlaylistDetail();
+    } catch (err) {
+      this._toast(err.message, true);
+    }
+  }
+
+  async _setPlaylistInterval(interval) {
+    try {
+      this._playlist = await this._api(`playlists/${this._playlist.id}/control`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "interval", interval }),
+      });
+      this._playlistMenu = null;
+      await this._loadPlayer().catch(() => {});
+      this._renderPlaylistDetail();
+    } catch (err) {
+      this._toast(err.message, true);
+    }
+  }
+
+  async _openIntervalMenu(playlistId) {
+    if (this._route !== "playlist-detail" || this._playlistId !== playlistId) {
+      await this._showPlaylistDetail(playlistId);
+    }
+    this._playlistMenu = "interval";
+    this._renderPlaylistDetail();
+  }
+
+  _openCustomInterval() {
+    const minutes = Math.max(5, Math.round(this._playlist.interval / 60));
+    const input = this._el("input", {
+      type: "number",
+      min: "5",
+      value: String(minutes),
+      "aria-label": "Minutes between changes",
+    });
+    const save = async () => {
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value < 5) {
+        this._toast("Enter at least 5 minutes.", true);
+        return;
+      }
+      this._closeDialog();
+      await this._setPlaylistInterval(Math.round(value * 60));
+    };
+    this._openDialog(
+      "Custom interval",
+      [
+        this._el("div", { class: "fieldrow" }, [
+          this._el("label", { text: "Minutes" }),
+          input,
+        ]),
+        this._el("p", {
+          class: "setting-note",
+          text: "Each change costs a 30 second refresh and a little battery.",
+        }),
+      ],
+      [
+        this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
+        this._el("button", { class: "btn raised", text: "Done", onclick: save }),
+      ],
+      false,
+      null,
+      false,
+      "playlist-dialog"
+    );
+  }
+
+  _playlistNameDialog(title, value, actionLabel, save) {
+    const input = this._el("input", {
+      type: "text",
+      value,
+      maxlength: "120",
+      "aria-label": "Playlist name",
+    });
+    const submit = async () => {
+      const name = input.value.trim();
+      if (!name) {
+        this._toast("Playlist name is required", true);
+        return;
+      }
+      await save(name);
+    };
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") submit();
+    });
+    this._openDialog(
+      title,
+      [this._el("div", { class: "fieldrow" }, [this._el("label", { text: "Name" }), input])],
+      [
+        this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
+        this._el("button", { class: "btn raised", text: actionLabel, onclick: submit }),
+      ],
+      false,
+      null,
+      false,
+      "playlist-dialog"
+    );
+    window.queueMicrotask(() => {
+      input.focus();
+      input.select();
+    });
+  }
+
+  _openNewPlaylist() {
+    this._playlistNameDialog("New playlist", "", "Create", async (name) => {
+      try {
+        const playlist = await this._api("playlists", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name }),
+        });
+        this._closeDialog();
+        await this._showPlaylistDetail(playlist.id);
+      } catch (err) {
+        this._toast(err.message, true);
+      }
+    });
+  }
+
+  _openRenamePlaylist() {
+    if (!this._playlist) return;
+    this._playlistNameDialog("Rename playlist", this._playlist.name, "Rename", async (name) => {
+      try {
+        this._playlist = await this._api(`playlists/${this._playlist.id}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "rename", name }),
+        });
+        this._closeDialog();
+        this._renderPlaylistDetail();
+      } catch (err) {
+        this._toast(err.message, true);
+      }
+    });
+  }
+
+  async _duplicatePlaylist() {
+    if (!this._playlist) return;
+    try {
+      const duplicate = await this._api(`playlists/${this._playlist.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "duplicate" }),
+      });
+      await this._showPlaylistDetail(duplicate.id);
+    } catch (err) {
+      this._toast(err.message, true);
+    }
+  }
+
+  _deletePlaylist() {
+    if (!this._playlist) return;
+    const playlist = this._playlist;
+    const count = playlist.slide_count;
+    const message = this._el("p", {
+      text: `Delete “${playlist.name}” and its ${count} slide${count === 1 ? "" : "s"}? This cannot be undone.`,
+    });
+    const remove = async () => {
+      try {
+        await this._api(`playlists/${playlist.id}`, { method: "DELETE" });
+        this._closeDialog();
+        await this._showPlaylists();
+      } catch (err) {
+        this._toast(err.message, true);
+      }
+    };
+    this._openDialog(
+      "Delete playlist",
+      [message],
+      [
+        this._el("button", { class: "btn", text: "Cancel", onclick: () => this._closeDialog() }),
+        this._el("button", { class: "btn danger", text: "Delete", onclick: remove }),
+      ],
+      false,
+      null,
+      false,
+      "playlist-dialog"
+    );
+  }
+
+  _settingGroup(legend, name, values, selected, onChange) {
+    const options = this._el("div", { class: "setting-options" });
+    for (const [value, label] of values) {
+      const input = this._el("input", { type: "radio", name, value });
+      input.checked = value === selected;
+      input.addEventListener("change", () => onChange(value));
+      options.appendChild(
+        this._el("label", { class: "setting-option" }, [input, document.createTextNode(label)])
+      );
+    }
+    return this._el("fieldset", { class: "setting-group" }, [
+      this._el("legend", { text: legend }),
+      options,
+    ]);
+  }
+
+  _openSlideSettings(slide, focusSection = "fit") {
+    const values = { fit: slide.fit, tone: slide.tone, overlays: slide.overlays };
+    const frame = this._activeFrame();
+    const fitGroup = this._settingGroup("Fit", `fit-${slide.id}`, [["cover", "Cover"], ["contain", "Contain"]], values.fit, (value) => { values.fit = value; });
+    const toneGroup = this._settingGroup("Tone", `tone-${slide.id}`, [["vivid", "Vivid"], ["balanced", "Balanced"], ["soft", "Soft"]], values.tone, (value) => { values.tone = value; });
+    const overlaysGroup = this._settingGroup("Overlays", `overlays-${slide.id}`, [["inherit", "Inherit"], ["none", "None"], ["custom", "Custom"]], values.overlays, (value) => { values.overlays = value; });
+    const content = this._el("div", { class: "slide-settings" }, [
+      fitGroup,
+      toneGroup,
+      overlaysGroup,
+      this._el("div", {
+        class: "setting-note",
+        text: `Inheriting ${this._player?.overlay_count || 0} overlays from ${frame?.title || "frame"}.`,
+      }),
+    ]);
+    const done = async () => {
+      try {
+        const response = await this._api(`playlists/${this._playlist.id}/slides`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "settings", slide_id: slide.id, ...values }),
+        });
+        this._playlist = response.playlist;
+        this._closeDialog();
+        this._renderPlaylistDetail();
+      } catch (err) {
+        this._toast(err.message, true);
+      }
+    };
+    this._openDialog(
+      slide.title,
+      [content],
+      [
+        this._el("button", { class: "btn", text: "Adjust crop", onclick: () => this._adjustPlaylistCrop(slide) }),
+        this._el("button", { class: "btn", text: "Show now", onclick: () => { this._closeDialog(); this._playlistSlideControl(slide, "show_now"); } }),
+        this._el("button", { class: "btn danger", text: "Remove from playlist", onclick: () => { this._closeDialog(); this._removePlaylistSlide(slide); } }),
+        this._el("button", { class: "btn raised", text: "Done", onclick: done }),
+      ],
+      false,
+      null,
+      false,
+      "playlist-dialog"
+    );
+    window.queueMicrotask(() => {
+      const group = focusSection === "overlays" ? overlaysGroup : fitGroup;
+      group.querySelector("input:checked")?.focus();
+    });
+  }
+
+  _adjustPlaylistCrop(slide) {
+    const match = slide.thumbnail_url?.match(/\/library\/(?:image|thumb)\/([^/?]+)/);
+    const image = match
+      ? this._images.find((item) => item.image_id === decodeURIComponent(match[1]))
+      : null;
+    if (!image) {
+      this._toast("Crop is available for pictures in your library.", true);
+      return;
+    }
+    this._openCropEditor(image, { stack: true });
+  }
+
+  async _editLegacySlide(slide) {
+    const frame = this._activeFrame();
+    if (!frame) return;
+    this._screensEntry = frame.entry_id;
+    try {
+      await this._loadScreens();
+      const legacy = this._screens.find((item) => item.screen_id === slide.id);
+      if (legacy) {
+        this._openScreenEditor(legacy);
+        return;
+      }
+    } catch (_err) {
+      /* The legacy editor remains reachable below. */
+    }
+    this._openLegacySlides();
   }
 
   _renderTab() {
@@ -3760,12 +5329,22 @@ class FraimicPanel extends HTMLElement {
   /* Dialogs stack: opening one over another (e.g. the crop window on top of
    * the scene editor) detaches the current overlay — DOM state and all — and
    * restores it when the top dialog closes. */
-  _openDialog(title, contentNodes, actionNodes, wide = false, onClose = null, stack = false) {
+  _openDialog(
+    title,
+    contentNodes,
+    actionNodes,
+    wide = false,
+    onClose = null,
+    stack = false,
+    className = ""
+  ) {
     const modal = this.shadowRoot.getElementById("modal");
+    const trigger = this.shadowRoot.activeElement;
     if (stack && modal.firstChild) {
       this._dialogStack.push({
         overlay: modal.firstChild,
         cleanup: this._dialogCleanup,
+        returnFocus: this._dialogReturnFocus,
       });
       modal.firstChild.remove();
     } else {
@@ -3775,11 +5354,43 @@ class FraimicPanel extends HTMLElement {
       modal.innerHTML = "";
     }
     this._dialogCleanup = onClose;
-    const dialog = this._el("div", { class: wide ? "dialog wide" : "dialog" }, [
-      this._el("h2", { text: title }),
+    this._dialogReturnFocus = trigger;
+    const titleId = `fraimic-dialog-${Date.now()}-${this._dialogStack.length}`;
+    const titleBar = this._el("div", { class: "dialog-title" }, [
+      this._el("h2", { id: titleId, text: title }),
+      this._el("button", {
+        class: "dialog-close",
+        text: "×",
+        "aria-label": "Close",
+        onclick: () => this._closeDialog(),
+      }),
+    ]);
+    const dialog = this._el("div", {
+      class: `dialog${wide ? " wide" : ""}${className ? ` ${className}` : ""}`,
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-labelledby": titleId,
+    }, [
+      titleBar,
       ...contentNodes,
       this._el("div", { class: "dialog-actions" }, actionNodes),
     ]);
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key !== "Tab") return;
+      const focusable = [...dialog.querySelectorAll(
+        "button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex='-1'])"
+      )];
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && this.shadowRoot.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && this.shadowRoot.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
     const overlay = this._el("div", {
       class: "overlay",
       onclick: (ev) => {
@@ -3788,19 +5399,29 @@ class FraimicPanel extends HTMLElement {
     });
     overlay.appendChild(dialog);
     modal.appendChild(overlay);
+    window.queueMicrotask(() => {
+      const field = dialog.querySelector(
+        "input:not(:disabled), select:not(:disabled), textarea:not(:disabled)"
+      );
+      (field || dialog.querySelector("button:not(:disabled)"))?.focus();
+    });
   }
 
   _closeDialog() {
     const cleanup = this._dialogCleanup;
+    const returnFocus = this._dialogReturnFocus;
     this._dialogCleanup = null;
+    this._dialogReturnFocus = null;
     if (cleanup) cleanup();
     const modal = this.shadowRoot.getElementById("modal");
     modal.innerHTML = "";
     const previous = this._dialogStack.pop();
     if (previous) {
       this._dialogCleanup = previous.cleanup;
+      this._dialogReturnFocus = previous.returnFocus;
       modal.appendChild(previous.overlay);
     }
+    if (returnFocus?.isConnected) returnFocus.focus();
   }
 }
 

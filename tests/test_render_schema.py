@@ -101,6 +101,18 @@ def test_picture_screen_accepts_official_mode() -> None:
     assert result["mode"] == "official"
 
 
+def test_picture_slide_accepts_library_reference() -> None:
+    data = schema.SCREEN_SCHEMA(
+        {"kind": "picture", "library_image": "image-1", "fit": "contain"}
+    )
+    slide = schema.screen_from_dict(data, "slide-1")
+    assert slide.source == {
+        "library_image": "image-1",
+        "fit": "contain",
+        "caption": False,
+    }
+
+
 def test_screen_from_dict_parses_windows() -> None:
     data = schema.SCREEN_SCHEMA(
         _minimal(windows=[{"after": "07:30", "before": "22:00", "days": ["mon", "sun"]}])

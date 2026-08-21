@@ -33,6 +33,7 @@ from .const import (
 from .coordinator import REDISCOVERY_FAIL_THRESHOLD
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary, get_library
+from .playlists_http import playlist_views
 from .render.schema import ScreenConfig
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
 from .screens_http import screens_views
@@ -76,6 +77,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         PackView(),
         PackInstallView(),
         PackUninstallView(),
+        *playlist_views(),
         *screens_views(),
     ):
         hass.http.register_view(view)
@@ -614,7 +616,7 @@ def _slide_meta(slide: ScreenConfig) -> str:
         return "Fresh artwork each rotation, nothing stored"
     if entity_id := source.get("entity"):
         return str(entity_id)
-    if source.get("url"):
+    if source.get("url") or source.get("library_image"):
         return "Picture"
     return "Home Assistant"
 
@@ -631,7 +633,14 @@ def _slide_payload(
         "id": slide.screen_id,
         "title": slide.name,
         "meta": _slide_meta(slide),
-        "thumbnail_url": thumbnail_url or source.get("url"),
+        "thumbnail_url": (
+            thumbnail_url
+            or (
+                f"/api/fraimic/library/thumb/{source['library_image']}"
+                if source.get("library_image")
+                else source.get("url")
+            )
+        ),
         "live": bool(provider),
         "shuffle_album": provider == "shuffle",
         "blank": False,
@@ -642,12 +651,16 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
     """Build the complete Phase 1 player and queue state for one frame."""
     runtime = entry.runtime_data
     scheduler = runtime.scheduler
+    playlist_id = scheduler.playlist_id
+    playlist_name = scheduler.playlist_name if playlist_id is not None else None
     frame = _frame_payload(entry)
     current = scheduler.current_screen
     art = runtime.last_art or {}
     title = art.get("title") or runtime.media_title or (current.name if current else None)
     artist = art.get("artist")
-    interval = current.interval if current is not None else None
+    interval = scheduler.playlist_interval
+    if interval is None and current is not None:
+        interval = current.interval
     elapsed: int | None = None
     remaining: int | None = None
     if interval is not None and scheduler.last_rotation is not None:
@@ -693,7 +706,7 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
     )
     queued = scheduler.queued_slides
     full_upcoming = scheduler.playlist_up_next(limit=len(scheduler.screens))
-    upcoming = full_upcoming[:10]
+    upcoming = full_upcoming[: 3 if scheduler.shuffle else 10]
     playlist_queue_count = len(full_upcoming)
     current_thumbnail = artwork_url if current is not None else None
 
@@ -715,7 +728,8 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
             "artist": artist,
             "thumbnail_url": artwork_url,
         },
-        "playlist_name": entry.title if scheduler.screens else None,
+        "playlist_id": playlist_id,
+        "playlist_name": playlist_name,
         "interval": interval,
         "seconds_elapsed": elapsed,
         "seconds_remaining": remaining,
@@ -730,9 +744,10 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
             for slide in queued
         ],
         "playlist": {
-            "name": entry.title if scheduler.screens else None,
+            "id": playlist_id,
+            "name": playlist_name,
             "interval": interval,
-            "shuffle": False,
+            "shuffle": scheduler.shuffle,
             "items": [
                 _slide_payload(slide, thumbnail_url=queue_thumbnail(slide))
                 for slide in upcoming

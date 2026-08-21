@@ -20,11 +20,12 @@ rotation.
 from __future__ import annotations
 
 import logging
+import random
 import time
 from collections import Counter
 from collections.abc import Callable
 from datetime import datetime, timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
@@ -42,6 +43,9 @@ from .render.schema import ScreenConfig
 from .screens import screens_from_entry
 from .services import FrameUploadError
 
+if TYPE_CHECKING:
+    from .playlists import PlaylistManager
+
 _LOGGER = logging.getLogger(__name__)
 
 TICK = timedelta(seconds=60)
@@ -51,10 +55,19 @@ STORE_VERSION = 1
 class FraimicScheduler:
     """Rotates a config entry's stored screens on its frame."""
 
-    def __init__(self, hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: FraimicConfigEntry,
+        playlists: PlaylistManager | None = None,
+    ) -> None:
         self.hass = hass
         self.entry = entry
-        self.screens: list[ScreenConfig] = screens_from_entry(entry)
+        self._playlists = playlists
+        self.playlist_id: str | None = None
+        self.shuffle = False
+        self.screens: list[ScreenConfig] = []
+        self._load_assigned_playlist()
         self.enabled = False
         self._stored_enabled = False
         self.current_id: str | None = None
@@ -80,6 +93,18 @@ class FraimicScheduler:
         self._unsub_coordinator: Callable[[], None] | None = None
         self._listeners: list[Callable[[], None]] = []
 
+    def _load_assigned_playlist(self) -> None:
+        """Refresh the assigned catalog playlist or use the legacy slide list."""
+        if self._playlists is None:
+            self.screens = screens_from_entry(self.entry)
+            return
+        playlist = self._playlists.assigned_to(self.entry.entry_id)
+        self.playlist_id = playlist.playlist_id if playlist is not None else None
+        self.shuffle = playlist.shuffle if playlist is not None else False
+        self.screens = self._playlists.render_slides(self.playlist_id)
+        if self.shuffle:
+            random.shuffle(self.screens)
+
     # -- lifecycle --------------------------------------------------------
 
     async def async_start(self) -> None:
@@ -100,10 +125,13 @@ class FraimicScheduler:
             for slide_id in data.get("playlist_order", [])
             if isinstance(slide_id, str)
         ]
-        self._apply_playlist_order()
+        if self._playlists is None:
+            self._apply_playlist_order()
         valid_ids = {screen.screen_id for screen in self.screens}
         self._queued_ids = [
-            slide_id for slide_id in self._queued_ids if slide_id in valid_ids
+            slide_id
+            for slide_id in self._queued_ids
+            if self._slide_by_id(slide_id) is not None
         ]
         if self._playlist_cursor_id not in valid_ids:
             self._playlist_cursor_id = (
@@ -184,10 +212,35 @@ class FraimicScheduler:
         return None
 
     @property
+    def playlist_name(self) -> str | None:
+        if self._playlists is None:
+            return self.entry.title if self.screens else None
+        playlist = self._playlists.get(self.playlist_id)
+        return playlist.name if playlist is not None else None
+
+    @property
+    def playlist_interval(self) -> int | None:
+        if self._playlists is not None:
+            playlist = self._playlists.get(self.playlist_id)
+            return playlist.interval if playlist is not None else None
+        return self.screens[0].interval if self.screens else None
+
+    @property
     def queued_slides(self) -> list[ScreenConfig]:
         """Hand-added, play-once slides in their persisted order."""
-        by_id = {screen.screen_id: screen for screen in self.screens}
-        return [by_id[slide_id] for slide_id in self._queued_ids if slide_id in by_id]
+        return [
+            screen
+            for slide_id in self._queued_ids
+            if (screen := self._slide_by_id(slide_id)) is not None
+        ]
+
+    def _slide_by_id(self, slide_id: str) -> ScreenConfig | None:
+        screen = next(
+            (item for item in self.screens if item.screen_id == slide_id), None
+        )
+        if screen is not None or self._playlists is None:
+            return screen
+        return self._playlists.render_slide_by_id(slide_id)
 
     def playlist_up_next(self, *, limit: int = 10) -> list[ScreenConfig]:
         """Return the next distinct eligible playlist slides after the current one."""
@@ -272,7 +325,7 @@ class FraimicScheduler:
         self, slide: ScreenConfig, *, play_next: bool = False
     ) -> None:
         """Add a stored slide to the hand-added, play-once queue."""
-        if not any(candidate.screen_id == slide.screen_id for candidate in self.screens):
+        if self._slide_by_id(slide.screen_id) is None:
             raise HomeAssistantError("That slide is no longer available")
         if play_next:
             self._queued_ids.insert(0, slide.screen_id)
@@ -336,8 +389,41 @@ class FraimicScheduler:
             reordered[positions[expected_id]] = by_id[ordered_id]
         self.screens = reordered
         self._playlist_order = [screen.screen_id for screen in self.screens]
+        if self._playlists is not None and self.playlist_id is not None:
+            await self._playlists.async_reorder(
+                self.playlist_id, self._playlist_order
+            )
         await self._async_save()
         self._notify()
+
+    async def async_refresh_playlist(
+        self, *, reset: bool = False, start: bool = False
+    ) -> None:
+        """Apply catalog assignment/settings changes to this frame scheduler."""
+        if self._playlists is None:
+            return
+        self._load_assigned_playlist()
+        valid_ids = {screen.screen_id for screen in self.screens}
+        self._queued_ids = [
+            slide_id
+            for slide_id in self._queued_ids
+            if self._slide_by_id(slide_id) is not None
+        ]
+        if reset or self.current_id not in valid_ids:
+            self.current_id = None
+            self._playlist_cursor_id = None
+            self._last_rotation = None
+            self.displayed_hash = None
+            self._pending = None
+            self._pending_from_queue = False
+        if start:
+            self.enabled = True
+            self._stored_enabled = True
+            self._hold_until = None
+        await self._async_save()
+        self._notify()
+        if start and self.screens:
+            await self._async_rotate(force=True)
 
     def _apply_playlist_order(self) -> None:
         """Apply the persisted order and append newly created slides."""
@@ -600,19 +686,17 @@ class FraimicScheduler:
             self._pending_from_queue = False
 
     async def _async_save(self) -> None:
-        await self._store.async_save(
-            {
-                "enabled": self._stored_enabled,
-                "current_screen_id": self.current_id,
-                "playlist_cursor_id": self._playlist_cursor_id,
-                "displayed_hash": self.displayed_hash,
-                "hold_until": (
-                    self._hold_until.isoformat() if self._hold_until else None
-                ),
-                "last_rotation": (
-                    self._last_rotation.isoformat() if self._last_rotation else None
-                ),
-                "queued_slide_ids": self._queued_ids,
-                "playlist_order": [screen.screen_id for screen in self.screens],
-            }
-        )
+        data = {
+            "enabled": self._stored_enabled,
+            "current_screen_id": self.current_id,
+            "playlist_cursor_id": self._playlist_cursor_id,
+            "displayed_hash": self.displayed_hash,
+            "hold_until": self._hold_until.isoformat() if self._hold_until else None,
+            "last_rotation": (
+                self._last_rotation.isoformat() if self._last_rotation else None
+            ),
+            "queued_slide_ids": self._queued_ids,
+        }
+        if self._playlists is None:
+            data["playlist_order"] = [screen.screen_id for screen in self.screens]
+        await self._store.async_save(data)
