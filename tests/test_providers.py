@@ -1092,6 +1092,8 @@ def test_browse_selection_survives_provider_cache_eviction(
     exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
     helpers = types.ModuleType("homeassistant.helpers")
     helpers.__path__ = []
+    aiohttp = types.ModuleType("aiohttp")
+    aiohttp.ClientError = OSError
     aiohttp_client = types.ModuleType("homeassistant.helpers.aiohttp_client")
     aiohttp_client.async_get_clientsession = lambda _hass: None
 
@@ -1099,6 +1101,7 @@ def test_browse_selection_survives_provider_cache_eviction(
     monkeypatch.setitem(sys.modules, "homeassistant.core", core)
     monkeypatch.setitem(sys.modules, "homeassistant.exceptions", exceptions)
     monkeypatch.setitem(sys.modules, "homeassistant.helpers", helpers)
+    monkeypatch.setitem(sys.modules, "aiohttp", aiohttp)
     monkeypatch.setitem(
         sys.modules, "homeassistant.helpers.aiohttp_client", aiohttp_client
     )
@@ -1115,7 +1118,13 @@ def test_browse_selection_survives_provider_cache_eviction(
 
         hass = types.SimpleNamespace(data={})
         entry = types.SimpleNamespace(entry_id="frame", options={})
-        candidate = _candidate("selected", "https://x/selected.png")
+        candidate = base.ArtCandidate(
+            provider="fake",
+            item_id="selected",
+            image_url="https://x/selected.png",
+            thumb_url="https://x/selected-thumb.png",
+            title="selected",
+        )
         provider_ha._stash_candidates(hass, entry, "fake", [candidate])
 
         provider_cache = provider_ha._cache(hass)
@@ -1124,6 +1133,9 @@ def test_browse_selection_survives_provider_cache_eviction(
 
         session = FakeSession()
         session.add("https://x/selected.png", FakeResponse(body=b"selected"))
+        session.add(
+            "https://x/selected-thumb.png", FakeResponse(body=b"selected-thumb")
+        )
         monkeypatch.setattr(
             provider_ha, "get_provider", lambda _key: SelectedProvider()
         )
@@ -1137,6 +1149,18 @@ def test_browse_selection_survives_provider_cache_eviction(
 
         assert image.candidate is candidate
         assert image.data == b"selected"
+
+        thumbnail = _run(
+            provider_ha.async_art_by_media_id(
+                hass,
+                entry,
+                "fake",
+                candidate.item_id,
+                thumbnail=True,
+            )
+        )
+        assert thumbnail.candidate.image_url == candidate.thumb_url
+        assert thumbnail.data == b"selected-thumb"
     finally:
         sys.modules.pop("fraimic.providers.ha", None)
         if previous_ha is not None:

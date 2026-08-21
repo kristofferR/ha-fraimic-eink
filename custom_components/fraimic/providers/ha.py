@@ -12,6 +12,7 @@ import asyncio
 import io
 import logging
 import random
+from dataclasses import replace
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -311,16 +312,26 @@ async def async_candidate_by_media_id(
 
 
 async def async_art_by_media_id(
-    hass: HomeAssistant, entry, provider_key: str, item_id: str
+    hass: HomeAssistant,
+    entry,
+    provider_key: str,
+    item_id: str,
+    *,
+    thumbnail: bool = False,
 ) -> ArtImage:
     """Download the item a user clicked in the media browser."""
     provider = get_provider(provider_key)
     if provider is None:
         raise ArtFetchError(f"Unknown image provider: {provider_key}")
     candidate = await async_candidate_by_media_id(hass, entry, provider_key, item_id)
+    download_candidate = (
+        replace(candidate, image_url=candidate.thumb_url)
+        if thumbnail and candidate.thumb_url
+        else candidate
+    )
     session = async_get_clientsession(hass)
     try:
-        return await async_download_candidate(provider, session, candidate)
+        return await async_download_candidate(provider, session, download_candidate)
     except _BaseArtFetchError as err:
         raise ArtFetchError(f"{provider.name}: {err}") from err
     except (aiohttp.ClientError, asyncio.TimeoutError) as err:

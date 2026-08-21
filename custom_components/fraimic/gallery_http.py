@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import re
 import uuid
@@ -111,14 +112,21 @@ def _candidate_payload(
     )
     width = candidate.width if isinstance(candidate.width, int) else 4
     height = candidate.height if isinstance(candidate.height, int) else 3
+    image_base = "/api/fraimic/gallery/image?" + urlencode(
+        {
+            "entry_id": entry.entry_id,
+            "source": candidate.provider,
+            "item_id": candidate.item_id,
+        }
+    )
     return {
         "id": candidate.item_id,
         "source": candidate.provider,
         "source_name": provider.name if provider is not None else candidate.provider,
         "title": candidate.title,
         "artist": candidate.artist,
-        "thumbnail_url": candidate.thumb_url or candidate.image_url,
-        "image_url": candidate.image_url,
+        "thumbnail_url": f"{image_base}&size=thumbnail",
+        "image_url": f"{image_base}&size=full",
         "width": width,
         "height": height,
         "dimensions_known": candidate.width is not None
@@ -276,6 +284,13 @@ def _viewed_size(entry) -> tuple[int, int]:
     return width, height
 
 
+def _image_content_type(data: bytes) -> str:
+    from PIL import Image
+
+    with Image.open(io.BytesIO(data)) as image:
+        return Image.MIME.get(image.format or "", "application/octet-stream")
+
+
 class GallerySourcesView(HomeAssistantView):
     url = "/api/fraimic/gallery/sources"
     name = "api:fraimic:gallery:sources"
@@ -427,6 +442,40 @@ class GalleryDetailView(HomeAssistantView):
         return self.json(item)
 
 
+class GalleryImageView(HomeAssistantView):
+    url = "/api/fraimic/gallery/image"
+    name = "api:fraimic:gallery:image"
+
+    async def get(self, request: web.Request) -> web.Response:
+        hass = request.app[KEY_HASS]
+        entry = require_loaded_entry(hass, request.query.get("entry_id"))
+        source = request.query.get("source")
+        item_id = request.query.get("item_id")
+        size = request.query.get("size", "full")
+        if not source or not item_id or size not in {"thumbnail", "full"}:
+            raise web.HTTPBadRequest(
+                text="source, item_id, and a valid size are required"
+            )
+        try:
+            art = await async_art_by_media_id(
+                hass,
+                entry,
+                source,
+                item_id,
+                thumbnail=size == "thumbnail",
+            )
+            content_type = await hass.async_add_executor_job(
+                _image_content_type, art.data
+            )
+        except (ArtFetchError, HomeAssistantError, OSError) as err:
+            raise web.HTTPBadGateway(text=str(err)) from err
+        return web.Response(
+            body=art.data,
+            content_type=content_type,
+            headers={"Cache-Control": "private, max-age=3600"},
+        )
+
+
 class GalleryPreviewView(HomeAssistantView):
     url = "/api/fraimic/gallery/preview"
     name = "api:fraimic:gallery:preview"
@@ -576,6 +625,7 @@ def gallery_views() -> tuple[HomeAssistantView, ...]:
         GallerySourcesView(),
         GalleryBrowseView(),
         GalleryDetailView(),
+        GalleryImageView(),
         GalleryPreviewView(),
         GalleryActionView(),
     )
