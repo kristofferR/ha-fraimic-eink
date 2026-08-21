@@ -46,6 +46,7 @@ from .const import (
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
     DOMAIN,
+    MAX_BIN_SIZE,
     frame_bin_size,
 )
 from .power import (
@@ -193,6 +194,13 @@ class FraimicSendQueue:
         content_hash: str,
         trigger: str,
     ) -> None:
+        expected_size = self._expected_payload_size()
+        if len(bin_data) > MAX_BIN_SIZE or len(bin_data) != expected_size:
+            raise FraimicApiError(
+                f"Invalid E-ink payload size: got {len(bin_data)} bytes, "
+                f"expected {expected_size}"
+            )
+
         def _write() -> None:
             import os
 
@@ -308,7 +316,7 @@ class FraimicSendQueue:
             def _read() -> tuple[bytes | None, bytes | None]:
                 try:
                     with open(self._bin_path, "rb") as file:
-                        bin_data = file.read()
+                        bin_data = file.read(MAX_BIN_SIZE + 1)
                 except OSError:
                     return None, None
                 preview = None

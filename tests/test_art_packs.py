@@ -136,3 +136,16 @@ def test_failed_replacement_keeps_stale_images_and_scene(
         "https://example.com/new-one.jpg": "new-image",
     }
     assert manager._active_install_progress == {}
+
+
+def test_reframed_refresh_without_loaded_frame_is_rate_limited(
+    art_packs_module, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    art_packs = art_packs_module
+    monkeypatch.setattr(art_packs.time, "time", lambda: 1_000.0)
+    manager = art_packs.ArtPackManager(object(), types.SimpleNamespace(), object())
+
+    asyncio.run(manager.async_refresh_reframed())
+
+    assert manager._reframed_fetched_at == 1_000.0
+    assert manager.reframed_refreshing is False

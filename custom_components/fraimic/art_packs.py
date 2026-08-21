@@ -205,6 +205,7 @@ class ArtPackManager:
             return
         entries = loaded_fraimic_entries(self.hass)
         if not entries:
+            self._reframed_fetched_at = time.time()
             return
         entry = entries[0]
         packs: dict[str, dict[str, Any]] = {}
