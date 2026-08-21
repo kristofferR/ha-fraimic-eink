@@ -8,10 +8,10 @@ the decision logic remains cheap to unit-test. Persistence is loaded lazily in
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import logging
 import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Any
 
 from .const import (
@@ -98,6 +98,54 @@ def power_mode(options: dict[str, Any]) -> str:
     """Return a valid configured power mode."""
     value = options.get(CONF_POWER_MODE, DEFAULT_POWER_MODE)
     return value if value in PROFILES else DEFAULT_POWER_MODE
+
+
+def _normalize_mac(value: Any) -> str:
+    """Return a lowercase MAC without separators."""
+    if not isinstance(value, str):
+        return ""
+    normalized = "".join(
+        character for character in value.lower() if character.isalnum()
+    )
+    return normalized if len(normalized) == 12 else ""
+
+
+def tracker_matches_frame(
+    frame_host: str,
+    frame_data: dict[str, Any] | None,
+    tracker_entity_id: str,
+    tracker_attributes: dict[str, Any],
+) -> bool:
+    """Return whether a network-presence tracker belongs to the frame."""
+    wifi = (frame_data or {}).get("wifi")
+    wifi = wifi if isinstance(wifi, dict) else {}
+
+    frame_addresses = {
+        str(value).strip().lower()
+        for value in (frame_host, wifi.get("ip"))
+        if value
+    }
+    tracker_addresses = {
+        str(value).strip().lower()
+        for value in (
+            tracker_attributes.get("ip"),
+            tracker_attributes.get("ip_address"),
+            tracker_attributes.get("host"),
+        )
+        if value
+    }
+    if frame_addresses & tracker_addresses:
+        return True
+
+    frame_mac = _normalize_mac(wifi.get("mac"))
+    tracker_mac = _normalize_mac(
+        tracker_attributes.get("mac") or tracker_attributes.get("mac_address")
+    )
+    if not tracker_mac:
+        tracker_mac = _normalize_mac(
+            tracker_entity_id.removeprefix("device_tracker.").replace("_", "")
+        )
+    return bool(frame_mac and tracker_mac == frame_mac)
 
 
 def effective_scan_interval(options: dict[str, Any]) -> int | None:
@@ -338,7 +386,7 @@ class FraimicPowerManager:
             await runtime.client.sleep()
         except asyncio.CancelledError:
             raise
-        except Exception as err:  # best-effort experimental feature
+        except Exception as err:  # noqa: BLE001 - best-effort experimental feature
             _LOGGER.debug("Automatic post-upload sleep failed: %s", err)
         finally:
             self._sleep_task = None

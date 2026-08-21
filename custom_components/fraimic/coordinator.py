@@ -12,7 +12,7 @@ from typing import Any
 import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -97,6 +97,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ),
         )
         self.client = client
+        # Separate current reachability from last_update_success: restoring a
+        # cached snapshot makes entities usable, but does not prove the frame
+        # is awake in this Home Assistant session.
+        self.frame_online = False
         # Parsed /info HTML diagnostics (panel size, battery health); empty
         # until the first successful scrape.
         self.info_page: dict[str, Any] = {}
@@ -132,6 +136,14 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             }
         )
 
+    @callback
+    def async_set_frame_online(self, online: bool) -> None:
+        """Record liveness observed outside the normal coordinator poll."""
+        if online:
+            self._consecutive_failures = 0
+        self.frame_online = online
+        self.async_update_listeners()
+
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             data = normalize_info(await self.client.get_info())
@@ -139,11 +151,14 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # The frame is unreachable — most likely in deep sleep. Surface this
             # as a (non-noisy) UpdateFailed so entities go unavailable cleanly.
             self._consecutive_failures += 1
+            self.frame_online = False
             self._async_maybe_rediscover()
             raise UpdateFailed(str(err)) from err
         except FraimicError as err:
+            self.frame_online = False
             raise UpdateFailed(str(err)) from err
         self._consecutive_failures = 0
+        self.frame_online = True
         # Newer firmware accepts the simpler (and structured-error) upload
         # path; the client stays on multipart /upload until confirmed.
         self.client.prefer_api_image = firmware_supports_api_image(

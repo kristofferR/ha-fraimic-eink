@@ -6,7 +6,6 @@ import asyncio
 from types import SimpleNamespace
 
 import pytest
-
 from conftest import load
 
 const = load("const")
@@ -44,6 +43,54 @@ def test_minimum_queue_is_passive_but_tracks_predicted_wake() -> None:
         now=1000,
         next_refresh="1970-01-01T00:18:20+00:00",
     ) == 130
+
+
+def test_tracker_matches_frame_by_host_or_reported_ip() -> None:
+    data = {"wifi": {"ip": "192.168.1.51", "mac": "AA:BB:CC:DD:EE:FF"}}
+
+    assert power.tracker_matches_frame(
+        "fraimic.local",
+        data,
+        "device_tracker.frame",
+        {"ip_address": "192.168.1.51"},
+    )
+    assert power.tracker_matches_frame(
+        "192.168.1.50",
+        data,
+        "device_tracker.frame",
+        {"host": "192.168.1.50"},
+    )
+
+
+def test_tracker_matches_frame_by_mac_attribute_or_entity_id() -> None:
+    data = {"wifi": {"mac": "aa:bb:cc:dd:ee:ff"}}
+
+    assert power.tracker_matches_frame(
+        "fraimic.local",
+        data,
+        "device_tracker.frame",
+        {"mac_address": "AA-BB-CC-DD-EE-FF"},
+    )
+    assert power.tracker_matches_frame(
+        "fraimic.local",
+        data,
+        "device_tracker.aa_bb_cc_dd_ee_ff",
+        {},
+    )
+
+
+def test_tracker_rejects_unrelated_or_incomplete_identity() -> None:
+    data = {"wifi": {"ip": "192.168.1.51", "mac": "aa:bb:cc:dd:ee:ff"}}
+
+    assert not power.tracker_matches_frame(
+        "fraimic.local",
+        data,
+        "device_tracker.phone",
+        {"ip": "192.168.1.20", "mac": "11:22:33:44:55:66"},
+    )
+    assert not power.tracker_matches_frame(
+        "fraimic.local", None, "device_tracker.frame", {}
+    )
 
 
 def test_balanced_queue_backoff() -> None:

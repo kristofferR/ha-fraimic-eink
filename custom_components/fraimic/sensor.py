@@ -49,6 +49,7 @@ class FraimicSensorDescription(SensorEntityDescription):
     """Describes a Fraimic sensor and how to read it from ``/api/info``."""
 
     value_fn: Callable[[dict[str, Any]], Any]
+    retain_when_offline: bool = False
 
 
 def _g(data: dict[str, Any], *path: str) -> Any:
@@ -68,6 +69,7 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: _g(d, "battery", "percent"),
+        retain_when_offline=True,
     ),
     FraimicSensorDescription(
         key="battery_voltage",
@@ -78,6 +80,7 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda d: _g(d, "battery", "voltage_mv"),
+        retain_when_offline=True,
     ),
     FraimicSensorDescription(
         key="battery_source",
@@ -87,6 +90,7 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda d: _g(d, "battery", "source"),
+        retain_when_offline=True,
     ),
     FraimicSensorDescription(
         key="wifi_rssi",
@@ -226,6 +230,19 @@ class FraimicSensor(FraimicEntity, SensorEntity):
         if not isinstance(data, dict):
             return None
         return self.entity_description.value_fn(data)
+
+    @property
+    def available(self) -> bool:
+        return super().available or (
+            self.entity_description.retain_when_offline
+            and self.native_value is not None
+        )
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not self.entity_description.retain_when_offline:
+            return None
+        return {"online": self.coordinator.frame_online}
 
 
 class FraimicInfoPageSensor(FraimicSensor):

@@ -26,7 +26,8 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import EVENT_STATE_CHANGED, STATE_HOME
+from homeassistant.core import Event, HomeAssistant, State, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
@@ -45,6 +46,7 @@ from .power import (
     TRIGGER_MANUAL,
     power_mode,
     queue_probe_delay,
+    tracker_matches_frame,
 )
 
 if TYPE_CHECKING:
@@ -82,6 +84,7 @@ class FraimicSendQueue:
         self._unsub_listener: Any = None
         self._unsub_probe: Any = None
         self._unsub_expiry: Any = None
+        self._unsub_tracker: Any = None
         self._probe_attempt = 0
         # Last human-readable status, mirrored by the send_status sensor.
         self.status: str = "Idle"
@@ -138,12 +141,14 @@ class FraimicSendQueue:
             self._dispatch(f"Sent {title} (unconfirmed — the frame's reply timed out)")
             return True
         except FraimicConnectionError:
+            runtime.coordinator.async_set_frame_online(False)
             await self._async_queue(
                 bin_data, preview_png, mode, title, content_hash, trigger
             )
             return False
         # FraimicApiError/FraimicError propagate: a real rejection (bad size
         # etc.) won't fix itself by waiting for a wake.
+        runtime.coordinator.async_set_frame_online(True)
         await self._async_drop_pending()
         self._dispatch(f"Sent {self._now_str()}")
         return True
@@ -208,6 +213,7 @@ class FraimicSendQueue:
         try:
             battery = await self._entry.runtime_data.client.get_battery()
         except FraimicError:
+            self._entry.runtime_data.coordinator.async_set_frame_online(False)
             self._dispatch("Frame is still asleep — tap it, then try again")
             return
         self._apply_battery(battery)
@@ -221,6 +227,7 @@ class FraimicSendQueue:
         try:
             battery = await self._entry.runtime_data.client.get_battery()
         except FraimicError:
+            self._entry.runtime_data.coordinator.async_set_frame_online(False)
             self._schedule_probe()
             return
         self._apply_battery(battery)
@@ -251,13 +258,14 @@ class FraimicSendQueue:
                 existing[key] = update[key]
         current["battery"] = existing
         runtime.coordinator.data = current
+        runtime.coordinator.async_set_frame_online(True)
 
     # ---------------------------------------------------------------- flush
 
     @callback
     def _on_coordinator_update(self) -> None:
         coordinator = self._entry.runtime_data.coordinator
-        if self._pending is None or not coordinator.last_update_success:
+        if self._pending is None or not coordinator.frame_online:
             return
         if self._flushing:
             return
@@ -341,6 +349,7 @@ class FraimicSendQueue:
                     return
                 except FraimicConnectionError:
                     # Fell asleep again before the upload; keep it queued.
+                    runtime.coordinator.async_set_frame_online(False)
                     self._dispatch(
                         f"Waiting to send {title} — tap the frame to wake it up"
                     )
@@ -350,6 +359,7 @@ class FraimicSendQueue:
                     await self._async_clear(f"Failed to send {title}: {err}")
                     return
 
+                runtime.coordinator.async_set_frame_online(True)
                 await runtime.power.async_record_upload(content_hash, trigger)
                 await self._async_clear(f"Sent {self._now_str()}")
                 if preview_png:
@@ -386,6 +396,7 @@ class FraimicSendQueue:
             self._unsub_listener = coordinator.async_add_listener(
                 self._on_coordinator_update
             )
+        self._start_tracker_watch()
         self._probe_attempt = 0
         if self._unsub_expiry is not None:
             self._unsub_expiry()
@@ -430,6 +441,62 @@ class FraimicSendQueue:
         if self._unsub_listener is not None:
             self._unsub_listener()
             self._unsub_listener = None
+        if self._unsub_tracker is not None:
+            self._unsub_tracker()
+            self._unsub_tracker = None
+
+    def _start_tracker_watch(self) -> None:
+        """Flush when a matching network tracker reports the frame home."""
+        if self._unsub_tracker is not None:
+            return
+        self._unsub_tracker = self._hass.bus.async_listen(
+            EVENT_STATE_CHANGED, self._on_tracker_state_changed
+        )
+        for state in self._hass.states.async_all("device_tracker"):
+            if state.state == STATE_HOME and self._matches_tracker(state):
+                self._schedule_tracker_flush(state.entity_id)
+                break
+
+    def _matches_tracker(self, state: State) -> bool:
+        runtime = self._entry.runtime_data
+        return tracker_matches_frame(
+            runtime.client.host,
+            runtime.coordinator.data,
+            state.entity_id,
+            dict(state.attributes),
+        )
+
+    @callback
+    def _on_tracker_state_changed(self, event: Event) -> None:
+        """React to a matching device_tracker entering the home state."""
+        if self._pending is None:
+            return
+        new_state = event.data.get("new_state")
+        old_state = event.data.get("old_state")
+        if not isinstance(new_state, State) or not new_state.entity_id.startswith(
+            "device_tracker."
+        ):
+            return
+        if new_state.state != STATE_HOME or (
+            isinstance(old_state, State) and old_state.state == STATE_HOME
+        ):
+            return
+        if self._matches_tracker(new_state):
+            self._schedule_tracker_flush(new_state.entity_id)
+
+    def _schedule_tracker_flush(self, entity_id: str) -> None:
+        if self._pending is None or self._flushing:
+            return
+        _LOGGER.debug(
+            "Frame %s appeared via %s; flushing queued image",
+            self._entry.title,
+            entity_id,
+        )
+        self._entry.async_create_background_task(
+            self._hass,
+            self._async_flush(),
+            name=f"fraimic-tracker-flush-{self._entry.entry_id}",
+        )
 
     def _dispatch(self, status: str) -> None:
         self.status = status
