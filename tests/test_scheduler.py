@@ -10,7 +10,6 @@ from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-
 from conftest import load
 
 
@@ -124,7 +123,10 @@ def _entry(created: list[tuple[object, str]] | None = None) -> object:
     class Entry:
         entry_id = "entry"
         runtime_data = SimpleNamespace(
-            coordinator=SimpleNamespace(last_update_success=True)
+            coordinator=SimpleNamespace(
+                last_update_success=True,
+                async_add_listener=lambda _listener: lambda: None,
+            )
         )
 
         def async_create_task(
@@ -505,3 +507,246 @@ def test_automatic_wake_retry_skips_closed_screen_window(
     asyncio.run(scheduler._async_retry_pending(screen))
 
     assert scheduler._pending is None
+
+
+def test_queue_and_playlist_order_restore_from_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="first", name="First")
+    second = SimpleNamespace(screen_id="second", name="Second")
+    third = SimpleNamespace(screen_id="third", name="Third")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second, third]
+
+    class Store:
+        async def async_load(self) -> dict:
+            return {
+                "queued_slide_ids": ["third", "missing", "third"],
+                "playlist_order": ["second", "first"],
+            }
+
+        async def async_save(self, _data: dict) -> None:
+            return None
+
+    scheduler._store = Store()
+    asyncio.run(scheduler.async_start())
+
+    assert [slide.screen_id for slide in scheduler.screens] == [
+        "second",
+        "first",
+        "third",
+    ]
+    assert [slide.screen_id for slide in scheduler.queued_slides] == [
+        "third",
+        "third",
+    ]
+
+
+def test_hand_queue_consumes_once_without_moving_playlist_cursor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="first", name="First", interval=1800)
+    second = SimpleNamespace(screen_id="second", name="Second", interval=1800)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+    saved: list[dict] = []
+
+    def next_screen(screens: list, current_id: str | None, *_args, **_kwargs):
+        ids = [slide.screen_id for slide in screens]
+        start = ids.index(current_id) if current_id in ids else -1
+        return screens[(start + 1) % len(screens)]
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {"uploaded": True, "content_hash": "shown"}
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.append(dict(data))
+
+    monkeypatch.setattr(scheduler_mod, "next_screen", next_screen)
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second, queued]
+    scheduler.current_id = first.screen_id
+    scheduler._playlist_cursor_id = first.screen_id
+    scheduler._queued_ids = [queued.screen_id]
+    scheduler._store = Store()
+
+    asyncio.run(scheduler.async_next())
+
+    assert scheduler.current_id == queued.screen_id
+    assert scheduler._playlist_cursor_id == first.screen_id
+    assert scheduler.queued_slides == []
+    assert [slide.screen_id for slide in scheduler.playlist_up_next()] == [
+        second.screen_id,
+        queued.screen_id,
+    ]
+    assert saved[-1]["playlist_cursor_id"] == first.screen_id
+    assert saved[-1]["queued_slide_ids"] == []
+
+
+def test_sleeping_queued_slide_is_consumed_only_after_wake(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, queued]
+    scheduler.current_id = current.screen_id
+    scheduler._playlist_cursor_id = current.screen_id
+    scheduler._queued_ids = [queued.screen_id]
+
+    asyncio.run(scheduler.async_next())
+
+    assert scheduler._pending is queued
+    assert scheduler._pending_from_queue is True
+    assert [slide.screen_id for slide in scheduler.queued_slides] == [queued.screen_id]
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {"uploaded": True, "content_hash": "shown"}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    asyncio.run(scheduler._async_retry_pending(queued))
+
+    assert scheduler._pending is None
+    assert scheduler.queued_slides == []
+    assert scheduler.current_id == queued.screen_id
+    assert scheduler._playlist_cursor_id == current.screen_id
+
+
+def test_invalid_queued_slide_is_dropped_without_moving_playlist_cursor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise scheduler_mod.HomeAssistantError("invalid slide")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, queued]
+    scheduler.current_id = current.screen_id
+    scheduler._playlist_cursor_id = current.screen_id
+    scheduler._queued_ids = [queued.screen_id]
+
+    displayed = asyncio.run(scheduler._async_show_queued(queued, manual=False))
+
+    assert displayed is False
+    assert scheduler.queued_slides == []
+    assert scheduler.current_id == current.screen_id
+    assert scheduler._playlist_cursor_id == current.screen_id
+
+
+def test_power_deferred_queued_slide_stays_at_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {
+            "uploaded": False,
+            "displayed": False,
+            "skip_reason": "low_battery",
+        }
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, queued]
+    scheduler.current_id = current.screen_id
+    scheduler._playlist_cursor_id = current.screen_id
+    scheduler._queued_ids = [queued.screen_id]
+
+    displayed = asyncio.run(scheduler._async_show_queued(queued, manual=False))
+
+    assert displayed is False
+    assert [slide.screen_id for slide in scheduler.queued_slides] == ["queued"]
+    assert scheduler.current_id == current.screen_id
+    assert scheduler._pending_from_queue is False
+
+
+def test_transient_art_fetch_failure_keeps_queued_slide(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise scheduler_mod.ArtFetchError("provider unavailable")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, queued]
+    scheduler.current_id = current.screen_id
+    scheduler._playlist_cursor_id = current.screen_id
+    scheduler._queued_ids = [queued.screen_id]
+
+    displayed = asyncio.run(scheduler._async_show_queued(queued, manual=False))
+
+    assert displayed is False
+    assert [slide.screen_id for slide in scheduler.queued_slides] == ["queued"]
+    assert scheduler.current_id == current.screen_id
+    assert scheduler._hold_until == datetime(2026, 7, 3, 12, 10)
+    assert scheduler._pending_from_queue is False
+
+
+def test_queue_mutations_reject_stale_input_and_clear_pending_item(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    queued = SimpleNamespace(screen_id="queued", name="Queued")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [queued]
+    scheduler._queued_ids = [queued.screen_id]
+    scheduler._pending = queued
+    scheduler._pending_from_queue = True
+
+    with pytest.raises(scheduler_mod.HomeAssistantError):
+        asyncio.run(scheduler.async_remove_from_queue(1, queued.screen_id))
+    with pytest.raises(scheduler_mod.HomeAssistantError):
+        asyncio.run(scheduler.async_reorder_queue(["stale"]))
+    with pytest.raises(scheduler_mod.HomeAssistantError):
+        asyncio.run(scheduler.async_remove_from_queue(0, "stale"))
+
+    asyncio.run(scheduler.async_remove_from_queue(0, queued.screen_id))
+
+    assert scheduler._pending is None
+    assert scheduler._pending_from_queue is False
+    assert scheduler.queued_slides == []
+
+
+def test_reorder_upcoming_changes_only_visible_playlist_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current")
+    first = SimpleNamespace(screen_id="first", name="First")
+    second = SimpleNamespace(screen_id="second", name="Second")
+    hidden = SimpleNamespace(screen_id="hidden", name="Hidden")
+
+    def next_screen(screens: list, current_id: str | None, *_args, **_kwargs):
+        visible = [slide for slide in screens if slide.screen_id != "hidden"]
+        ids = [slide.screen_id for slide in visible]
+        start = ids.index(current_id) if current_id in ids else -1
+        return visible[(start + 1) % len(visible)]
+
+    monkeypatch.setattr(scheduler_mod, "next_screen", next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second, hidden, current]
+    scheduler.current_id = current.screen_id
+    scheduler._playlist_cursor_id = current.screen_id
+
+    asyncio.run(scheduler.async_reorder_upcoming([second.screen_id, first.screen_id]))
+
+    assert [slide.screen_id for slide in scheduler.screens] == [
+        second.screen_id,
+        first.screen_id,
+        hidden.screen_id,
+        current.screen_id,
+    ]

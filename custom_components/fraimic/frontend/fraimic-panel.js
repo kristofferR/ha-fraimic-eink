@@ -23,6 +23,16 @@ class FraimicPanel extends HTMLElement {
     this._images = [];
     this._albums = [];
     this._frames = [];
+    this._selectedFrameId = this._readStoredFrame();
+    this._player = null;
+    this._queueOpen = false;
+    this._frameMenuOpen = false;
+    this._appMenuOpen = false;
+    this._rowMenu = null;
+    this._showPlaylistWarning = false;
+    this._drag = null;
+    this._touchDrag = null;
+    this._touchAutoScrollFrame = null;
     this._scenes = [];
     this._packs = [];
     this._packRefreshTimer = null;
@@ -66,6 +76,7 @@ class FraimicPanel extends HTMLElement {
     this._packProgressTimer = null;
     this._packProgressAttempts = 0;
     this._installingPacks.clear();
+    this._cancelTouchDrag();
   }
 
   set hass(hass) {
@@ -206,6 +217,30 @@ class FraimicPanel extends HTMLElement {
     return `${frame.title} (${frame.width}×${frame.height})`;
   }
 
+  _readStoredFrame() {
+    try {
+      return window.localStorage.getItem("fraimic:selected-frame");
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  _storeFrame(entryId) {
+    try {
+      window.localStorage.setItem("fraimic:selected-frame", entryId);
+    } catch (_err) {
+      /* localStorage may be unavailable in a hardened browser */
+    }
+  }
+
+  _activeFrame() {
+    return (
+      this._frames.find((frame) => frame.entry_id === this._selectedFrameId) ||
+      this._frames[0] ||
+      null
+    );
+  }
+
   /* ---------------------------------------------------------------- data */
 
   async _refreshAll() {
@@ -219,6 +254,7 @@ class FraimicPanel extends HTMLElement {
       this._loadFrames(),
       this._loadScenes(),
     ]).catch((err) => this._toast(err.message, true));
+    await this._loadPlayer().catch((err) => this._toast(err.message, true));
     this._renderTab();
     await packsPromise;
   }
@@ -231,6 +267,26 @@ class FraimicPanel extends HTMLElement {
 
   async _loadFrames() {
     this._frames = (await this._api("frames")).frames;
+    if (!this._frames.some((frame) => frame.entry_id === this._selectedFrameId)) {
+      this._selectedFrameId = this._frames[0]?.entry_id || null;
+    }
+    if (this._selectedFrameId) this._storeFrame(this._selectedFrameId);
+    this._renderFrameChips();
+  }
+
+  async _loadPlayer() {
+    const frame = this._activeFrame();
+    if (!frame) {
+      this._player = null;
+      this._renderPlayer();
+      this._renderQueue();
+      return;
+    }
+    this._player = await this._api(
+      `player?entry_id=${encodeURIComponent(frame.entry_id)}`
+    );
+    this._renderPlayer();
+    this._renderQueue();
   }
 
   async _loadScenes() {
@@ -284,7 +340,7 @@ class FraimicPanel extends HTMLElement {
           padding: 0 16px;
           height: 56px;
           background: var(--app-header-background-color, var(--primary-color));
-          color: var(--app-header-text-color, var(--text-primary-color, #fff));
+          color: var(--app-header-text-color, var(--primary-text-color));
         }
         header h1 { font-size: 20px; font-weight: 400; margin: 0; flex: 1; }
         nav {
@@ -326,7 +382,7 @@ class FraimicPanel extends HTMLElement {
         .card {
           background: var(--card-background-color);
           border-radius: var(--ha-card-border-radius, 12px);
-          box-shadow: var(--ha-card-box-shadow, 0 1px 4px rgba(0,0,0,0.2));
+          box-shadow: var(--ha-card-box-shadow);
           overflow: hidden;
           display: flex;
           flex-direction: column;
@@ -367,11 +423,11 @@ class FraimicPanel extends HTMLElement {
           border-radius: 4px;
           cursor: pointer;
         }
-        button.btn:hover { background: rgba(var(--rgb-primary-color, 33,150,243), 0.1); }
+        button.btn:hover { background: color-mix(in srgb, var(--primary-color) 10%, transparent); }
         button.btn.danger { color: var(--error-color); }
         button.btn.raised {
           background: var(--primary-color);
-          color: var(--text-primary-color, #fff);
+          color: var(--primary-background-color);
         }
         button.btn:disabled { opacity: 0.4; cursor: default; }
         select, input[type="text"] {
@@ -393,12 +449,12 @@ class FraimicPanel extends HTMLElement {
           margin: 2px 2px 0 0;
         }
         .chip.warn {
-          background: var(--warning-color, #ff9800);
-          color: var(--text-primary-color, #fff);
+          background: var(--warning-color, var(--primary-color));
+          color: var(--primary-background-color);
         }
         .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
-        .dot.on { background: var(--success-color, #4caf50); }
-        .dot.off { background: var(--error-color, #f44336); }
+        .dot.on { background: var(--success-color, var(--primary-color)); }
+        .dot.off { background: var(--error-color); }
         .empty {
           text-align: center;
           color: var(--secondary-text-color);
@@ -412,18 +468,18 @@ class FraimicPanel extends HTMLElement {
           background: var(--card-background-color);
           color: var(--primary-text-color);
           border-radius: 6px;
-          box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+          box-shadow: var(--ha-card-box-shadow);
           padding: 12px 20px;
           max-width: 80vw;
           transition: transform 0.2s ease;
           z-index: 20;
         }
         #toast.show { transform: translateX(-50%) translateY(0); }
-        #toast.error { border-left: 4px solid var(--error-color, #f44336); }
+        #toast.error { border-left: 4px solid var(--error-color); }
         .overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0,0,0,0.55);
+          background: color-mix(in srgb, var(--primary-background-color) 55%, transparent);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -433,7 +489,7 @@ class FraimicPanel extends HTMLElement {
         .dialog {
           background: var(--card-background-color);
           border-radius: 12px;
-          box-shadow: 0 6px 30px rgba(0,0,0,0.5);
+          box-shadow: var(--ha-card-box-shadow);
           max-width: min(920px, 96vw);
           max-height: 92vh;
           overflow: auto;
@@ -456,7 +512,7 @@ class FraimicPanel extends HTMLElement {
         #cropBox {
           position: absolute;
           border: 2px solid var(--primary-color);
-          box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+          box-shadow: 0 0 0 9999px color-mix(in srgb, var(--primary-background-color) 45%, transparent);
           cursor: move;
           box-sizing: border-box;
         }
@@ -484,7 +540,7 @@ class FraimicPanel extends HTMLElement {
           height: 22px;
           border-radius: 50%;
           background: var(--primary-color);
-          color: var(--text-primary-color, #fff);
+          color: var(--primary-background-color);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -506,7 +562,7 @@ class FraimicPanel extends HTMLElement {
           cursor: pointer;
           background: var(--card-background-color);
           border-radius: 8px;
-          box-shadow: var(--ha-card-box-shadow, 0 1px 4px rgba(0,0,0,0.2));
+          box-shadow: var(--ha-card-box-shadow);
           overflow: hidden;
         }
         .albumcard img { width: 120px; height: 80px; object-fit: cover; display: block; background: var(--secondary-background-color); }
@@ -531,7 +587,7 @@ class FraimicPanel extends HTMLElement {
         .chiprow .fchip.active {
           background: var(--primary-color);
           border-color: var(--primary-color);
-          color: var(--text-primary-color, #fff);
+          color: var(--primary-background-color);
         }
         .gallery { text-align: center; }
         .gallery img {
@@ -575,7 +631,7 @@ class FraimicPanel extends HTMLElement {
           width: 100%;
           border: 1px solid var(--divider-color);
           border-radius: 4px;
-          background: #fff;
+          background: var(--card-background-color);
           min-height: 120px;
         }
         .editor-preview .status { font-size: 12px; color: var(--secondary-text-color); margin-top: 6px; min-height: 16px; white-space: pre-wrap; }
@@ -608,12 +664,471 @@ class FraimicPanel extends HTMLElement {
         }
         .fieldrow textarea { min-height: 56px; resize: vertical; }
         .fieldrow .help { flex-basis: 100%; font-size: 11px; color: var(--secondary-text-color); margin-left: 138px; }
+
+        /* Phase 1 shell */
+        * { box-sizing: border-box; }
+        :host { overflow: hidden; font-size: 14px; }
+        button, input, select, textarea { font-family: inherit; }
+        button:focus-visible, input:focus-visible, select:focus-visible,
+        [tabindex]:focus-visible {
+          outline: 2px solid var(--primary-color);
+          outline-offset: 2px;
+        }
+        #appShell {
+          --frame-aspect: 4 / 3;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          height: 100%;
+          min-width: 0;
+          background: var(--primary-background-color);
+        }
+        .app-topbar {
+          position: relative;
+          z-index: 12;
+          flex: 0 0 56px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          height: 56px;
+          padding: 0 16px;
+          border-bottom: 1px solid var(--divider-color);
+          background: var(--card-background-color);
+          color: var(--primary-text-color);
+        }
+        .brand-button, .top-action, .menu-item, .text-button {
+          border: 0;
+          background: transparent;
+          color: var(--primary-text-color);
+          cursor: pointer;
+        }
+        .brand-button {
+          min-height: 44px;
+          padding: 0;
+          font-size: 15px;
+          font-weight: 600;
+          letter-spacing: -0.01em;
+        }
+        .frame-chips {
+          display: flex;
+          min-width: 0;
+          gap: 8px;
+          overflow-x: auto;
+          scrollbar-width: none;
+        }
+        .frame-chips::-webkit-scrollbar { display: none; }
+        .frame-chip {
+          display: inline-flex;
+          flex: none;
+          align-items: center;
+          gap: 6px;
+          min-height: 32px;
+          padding: 0 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 16px;
+          background: transparent;
+          color: var(--secondary-text-color);
+          font-size: 13px;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+        .frame-chip[aria-checked="true"] {
+          border-color: var(--primary-text-color);
+          background: var(--primary-text-color);
+          color: var(--primary-background-color);
+          font-weight: 600;
+        }
+        .frame-chip:disabled { cursor: default; opacity: 1; }
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          flex: none;
+          border-radius: 50%;
+          background: var(--divider-color);
+        }
+        .status-dot.online { background: var(--success-color, var(--primary-color)); }
+        .status-dot.charging { background: var(--warning-color, var(--primary-color)); }
+        .shell-spacer { flex: 1 1 auto; }
+        .top-action {
+          min-height: 44px;
+          padding: 0 8px;
+          color: var(--secondary-text-color);
+          font-size: 13px;
+        }
+        .top-action:hover, .brand-button:hover, .menu-item:hover, .text-button:hover {
+          color: var(--primary-color);
+        }
+        .icon-button {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 44px;
+          height: 44px;
+          flex: none;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--primary-text-color);
+          cursor: pointer;
+        }
+        .icon-button ha-icon {
+          width: 18px;
+          height: 18px;
+          padding: 6px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+        }
+        .icon-button.primary ha-icon {
+          border-color: var(--primary-text-color);
+          background: var(--primary-text-color);
+          color: var(--primary-background-color);
+        }
+        .icon-button:disabled { cursor: default; opacity: 0.4; }
+        .shell-menu {
+          position: absolute;
+          z-index: 16;
+          right: 12px;
+          min-width: 248px;
+          overflow: hidden;
+          border: 1px solid var(--divider-color);
+          border-radius: 8px;
+          background: var(--card-background-color);
+          box-shadow: var(--ha-card-box-shadow);
+        }
+        .app-menu { top: 50px; }
+        .frame-menu { right: 8px; bottom: 58px; }
+        .shell-menu[hidden] { display: none; }
+        .menu-heading {
+          padding: 8px 14px;
+          border-bottom: 1px solid var(--divider-color);
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .menu-item {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          min-height: 44px;
+          padding: 8px 14px;
+          border-bottom: 1px solid var(--divider-color);
+          text-align: left;
+          font-size: 13px;
+        }
+        .menu-item:last-child { border-bottom: 0; }
+        #legacyViewport {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow: auto;
+        }
+        #legacyViewport.queue-open {
+          overflow: hidden;
+          opacity: 0.35;
+          pointer-events: none;
+          user-select: none;
+        }
+        #legacyViewport nav { background: var(--primary-background-color); }
+        #legacyViewport main { min-height: 100%; }
+        .queue-backdrop {
+          position: absolute;
+          z-index: 7;
+          inset: 56px 0 64px;
+          border: 0;
+          background: transparent;
+        }
+        .queue-backdrop[hidden] { display: none; }
+        .queue-sheet {
+          position: absolute;
+          z-index: 10;
+          right: 0;
+          bottom: 64px;
+          left: 0;
+          max-height: 420px;
+          overflow-y: auto;
+          overscroll-behavior: contain;
+          border-top: 1px solid var(--divider-color);
+          background: var(--card-background-color);
+          transition: max-height 160ms ease;
+        }
+        .queue-sheet[hidden] { display: none; }
+        .queue-grab { display: none; }
+        .queue-section-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          min-height: 44px;
+          padding: 6px 16px;
+        }
+        .queue-section-title {
+          flex: 1 1 auto;
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          font-weight: 500;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        }
+        .queue-list { margin: 0; padding: 0; list-style: none; }
+        .queue-row {
+          position: relative;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          min-height: 72px;
+          padding: 8px 16px;
+          border-bottom: 1px solid var(--divider-color);
+          background: var(--card-background-color);
+        }
+        .queue-row.dragging { opacity: 0.7; }
+        .queue-row.insert-before { border-top: 2px solid var(--primary-color); }
+        .queue-row.insert-after { border-bottom: 2px solid var(--primary-color); }
+        .queue-row.insert-before::before, .queue-row.insert-after::after {
+          position: absolute;
+          left: 12px;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: var(--primary-color);
+          content: "";
+        }
+        .queue-row.insert-before::before { top: -5px; }
+        .queue-row.insert-after::after { bottom: -5px; }
+        .drag-grip {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 44px;
+          flex: none;
+          padding: 0;
+          border: 0;
+          background: transparent;
+          color: var(--secondary-text-color);
+          cursor: grab;
+          touch-action: pan-y;
+        }
+        .drag-grip:active { cursor: grabbing; }
+        .glass { aspect-ratio: var(--frame-aspect); }
+        .frame-art {
+          position: relative;
+          width: 56px;
+          flex: none;
+          overflow: hidden;
+          border-radius: 4px;
+          background: #0d0d0d;
+        }
+        .frame-art img {
+          display: block;
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+        .frame-art.loading::after {
+          position: absolute;
+          inset: 0;
+          background: var(--divider-color);
+          content: "";
+        }
+        .queue-copy { min-width: 0; flex: 1 1 auto; }
+        .queue-copy strong, .player-copy strong {
+          display: block;
+          overflow: hidden;
+          color: var(--primary-text-color);
+          font-size: 13px;
+          font-weight: 600;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .queue-copy span, .player-copy span {
+          display: block;
+          overflow: hidden;
+          color: var(--secondary-text-color);
+          font-size: 12px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        .row-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 4px;
+          padding: 4px 16px 8px 60px;
+          border-bottom: 1px solid var(--divider-color);
+          background: var(--card-background-color);
+        }
+        .text-button {
+          min-height: 44px;
+          padding: 0 8px;
+          color: var(--secondary-text-color);
+          font-size: 12px;
+        }
+        .text-button.danger { color: var(--error-color); }
+        .small-tag {
+          display: inline-flex;
+          align-items: center;
+          min-height: 26px;
+          padding: 0 8px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          white-space: nowrap;
+        }
+        .queue-note {
+          padding: 8px 16px;
+          border-bottom: 1px solid var(--divider-color);
+          color: var(--secondary-text-color);
+          font-size: 12px;
+        }
+        .queue-empty {
+          padding: 32px 16px;
+          color: var(--secondary-text-color);
+          text-align: center;
+          font-size: 13px;
+        }
+        .drag-ghost {
+          position: fixed;
+          z-index: 30;
+          width: 120px;
+          pointer-events: none;
+          opacity: 0.7;
+          transform: rotate(1.5deg);
+          box-shadow: var(--ha-card-box-shadow);
+        }
+        .playerbar {
+          position: relative;
+          z-index: 11;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          height: 64px;
+          flex: 0 0 64px;
+          padding: 0 16px;
+          border-top: 1px solid var(--divider-color);
+          background: var(--card-background-color);
+        }
+        .playerbar.unreachable { border-top-color: var(--error-color); }
+        .playerbar.asleep .frame-art { opacity: 0.45; }
+        .player-copy { min-width: 0; flex: 0 1 auto; }
+        .player-controls { display: flex; align-items: center; gap: 2px; }
+        .player-progress {
+          width: 160px;
+          height: 3px;
+          flex: none;
+          overflow: hidden;
+          border-radius: 2px;
+          background: var(--divider-color);
+        }
+        .player-progress > span {
+          display: block;
+          height: 100%;
+          background: var(--primary-text-color);
+        }
+        .player-progress.sending > span { background: var(--primary-color); }
+        .queue-toggle {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          min-height: 44px;
+          padding: 0 12px;
+          border: 0;
+          background: transparent;
+          color: var(--primary-text-color);
+          cursor: pointer;
+          font-size: 13px;
+          white-space: nowrap;
+        }
+        .queue-toggle::before {
+          position: absolute;
+          width: 100%;
+          height: 32px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          content: "";
+          pointer-events: none;
+        }
+        .queue-toggle { position: relative; }
+        .player-action {
+          display: inline-flex;
+          align-items: center;
+          min-height: 44px;
+          padding: 0 12px;
+          border: 0;
+          background: transparent;
+          color: var(--primary-text-color);
+          cursor: pointer;
+          font-size: 13px;
+        }
+        .player-action.primary {
+          min-height: 32px;
+          border: 1px solid var(--primary-text-color);
+          border-radius: 4px;
+          background: var(--primary-text-color);
+          color: var(--primary-background-color);
+          font-weight: 600;
+        }
+        #toast {
+          bottom: 80px;
+          left: 16px;
+          max-width: min(520px, calc(100vw - 32px));
+          border: 1px solid var(--divider-color);
+          box-shadow: var(--ha-card-box-shadow);
+          transform: translateY(96px);
+        }
+        #toast.show { transform: translateY(0); }
+        #toast.error { border-color: var(--error-color); }
+        @media (max-width: 899px) {
+          .player-progress, .overlay-tag { display: none; }
+        }
+        @media (max-width: 599px) {
+          .app-topbar { padding: 0 12px; }
+          .top-text-action { display: none; }
+          .frame-chips { flex: 1 1 auto; }
+          #legacyViewport main { padding: 12px; }
+          .playerbar { gap: 8px; padding: 0 12px; }
+          .playerbar .frame-art { width: 44px; }
+          /* Phase 1 mobile player: artwork, title, play, and queue only. */
+          .desktop-control, .frame-overflow { display: none; }
+          .player-copy { flex: 1 1 auto; }
+          .queue-toggle { padding: 0 10px; }
+          .queue-toggle .queue-label { display: none; }
+          .queue-sheet { top: 56px; bottom: 64px; max-height: none; }
+          .queue-grab {
+            display: block;
+            width: 40px;
+            height: 4px;
+            margin: 8px auto 4px;
+            border-radius: 2px;
+            background: var(--divider-color);
+          }
+          .queue-section-header, .queue-row { padding-right: 12px; padding-left: 12px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .queue-sheet, #toast { transition: none; }
+          .drag-ghost { transform: none; }
+        }
       </style>
-      <header><h1>Fraimic</h1></header>
-      <nav id="tabs"></nav>
-      <main id="content"></main>
-      <div id="toast"></div>
-      <div id="modal"></div>
+      <div id="appShell">
+        <header class="app-topbar">
+          <button class="brand-button" id="brandButton">Fraimic</button>
+          <div class="frame-chips" id="frameChips" role="radiogroup" aria-label="Frames"></div>
+          <span class="shell-spacer"></span>
+          <button class="top-action top-text-action" id="playlistsButton">Playlists</button>
+          <button class="top-action top-text-action" id="uploadButton">Upload</button>
+          <input id="shellUpload" type="file" accept="image/*" multiple hidden>
+          <button class="icon-button" id="appMenuButton" aria-label="Open app menu" aria-expanded="false"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button>
+          <div class="shell-menu app-menu" id="appMenu" hidden></div>
+        </header>
+        <div id="legacyViewport">
+          <nav id="tabs"></nav>
+          <main id="content"></main>
+        </div>
+        <button class="queue-backdrop" id="queueBackdrop" aria-label="Close queue" hidden></button>
+        <section class="queue-sheet" id="queueSheet" aria-label="Queue" hidden></section>
+        <footer class="playerbar" id="playerBar"></footer>
+        <div id="toast"></div>
+        <div id="modal"></div>
+      </div>
     `;
     const tabs = [
       ["library", "Library"],
@@ -634,6 +1149,883 @@ class FraimicPanel extends HTMLElement {
           },
         })
       );
+    }
+    this.shadowRoot.getElementById("brandButton").addEventListener("click", () => {
+      this._tab = "library";
+      this._renderTab();
+    });
+    this.shadowRoot.getElementById("playlistsButton").addEventListener("click", () => {
+      this._openLegacySlides();
+    });
+    const uploadInput = this.shadowRoot.getElementById("shellUpload");
+    this.shadowRoot.getElementById("uploadButton").addEventListener("click", () => {
+      uploadInput.click();
+    });
+    uploadInput.addEventListener("change", async () => {
+      await this._uploadFiles(uploadInput.files);
+      uploadInput.value = "";
+    });
+    this.shadowRoot.getElementById("appMenuButton").addEventListener("click", () => {
+      this._appMenuOpen = !this._appMenuOpen;
+      this._frameMenuOpen = false;
+      this._renderAppMenu();
+      this._renderPlayer();
+    });
+    this.shadowRoot.getElementById("queueBackdrop").addEventListener("click", () => {
+      this._setQueueOpen(false);
+    });
+    this.shadowRoot.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (this._queueOpen) this._setQueueOpen(false);
+      this._appMenuOpen = false;
+      this._frameMenuOpen = false;
+      this._renderAppMenu();
+      this._renderPlayer();
+    });
+    this._renderFrameChips();
+    this._renderAppMenu();
+    this._renderPlayer();
+    this._renderQueue();
+  }
+
+  _renderFrameChips() {
+    const root = this.shadowRoot.getElementById("frameChips");
+    const shell = this.shadowRoot.getElementById("appShell");
+    if (!root || !shell) return;
+    root.innerHTML = "";
+    const active = this._activeFrame();
+    for (const frame of this._frames) {
+      const selected = frame.entry_id === active?.entry_id;
+      const dotState = frame.charging ? "charging" : frame.online ? "online" : "offline";
+      const dot = this._el("span", { class: `status-dot ${dotState}` });
+      const chip = this._el(
+        "button",
+        {
+          class: "frame-chip",
+          role: "radio",
+          "aria-checked": String(selected),
+          title: this._frameChipTitle(frame),
+          onclick: () => this._selectFrame(frame.entry_id),
+        },
+        [dot, document.createTextNode(frame.title)]
+      );
+      if (this._frames.length === 1) chip.disabled = true;
+      root.appendChild(chip);
+    }
+    if (active) {
+      const size = this._effectiveSize(active);
+      const width = Number(size.width) || 4;
+      const height = Number(size.height) || 3;
+      shell.style.setProperty("--frame-aspect", `${width} / ${height}`);
+    } else {
+      shell.style.setProperty("--frame-aspect", "4 / 3");
+    }
+  }
+
+  _frameChipTitle(frame) {
+    const status = frame.charging
+      ? "charging"
+      : frame.online
+        ? "online"
+        : frame.asleep
+          ? "asleep"
+          : "unreachable";
+    const battery = frame.battery == null ? "" : `, ${frame.battery}% battery`;
+    return `${frame.title}, ${status}${battery}`;
+  }
+
+  async _selectFrame(entryId) {
+    if (entryId === this._selectedFrameId) return;
+    this._selectedFrameId = entryId;
+    this._storeFrame(entryId);
+    this._player = null;
+    this._queueOpen = false;
+    this._rowMenu = null;
+    this._screensEntry = entryId;
+    this._screensLoadedFor = null;
+    this._renderFrameChips();
+    this._renderPlayer();
+    this._setQueueOpen(false);
+    if (this._tab === "screens") this._renderTab();
+    try {
+      await this._loadPlayer();
+    } catch (err) {
+      this._toast(err.message, true);
+    }
+  }
+
+  _openLegacySlides() {
+    this._setQueueOpen(false);
+    const frame = this._activeFrame();
+    if (frame) {
+      this._screensEntry = frame.entry_id;
+      this._screensLoadedFor = null;
+    }
+    this._tab = "screens";
+    this._renderTab();
+  }
+
+  _navigate(path) {
+    window.history.pushState(null, "", path);
+    window.dispatchEvent(new CustomEvent("location-changed"));
+  }
+
+  _renderAppMenu() {
+    const root = this.shadowRoot.getElementById("appMenu");
+    const button = this.shadowRoot.getElementById("appMenuButton");
+    if (!root || !button) return;
+    root.hidden = !this._appMenuOpen;
+    button.setAttribute("aria-expanded", String(this._appMenuOpen));
+    root.innerHTML = "";
+    if (!this._appMenuOpen) return;
+    root.appendChild(this._el("div", { class: "menu-heading", text: "App menu" }));
+    const add = (label, action) => {
+      root.appendChild(
+        this._el("button", {
+          class: "menu-item",
+          text: label,
+          onclick: () => {
+            this._appMenuOpen = false;
+            this._renderAppMenu();
+            action();
+          },
+        })
+      );
+    };
+    add("Manage library", () => {
+      this._tab = "library";
+      this._renderTab();
+    });
+    add("Sources and API keys", () =>
+      this._navigate("/config/integrations/integration/fraimic")
+    );
+    add("Reload sources", async () => {
+      await this._refreshAll();
+    });
+    add("Add a frame", () =>
+      this._navigate("/config/integrations/integration/fraimic")
+    );
+    add("Documentation", () =>
+      window.open("https://github.com/kristofferR/ha-fraimic-eink", "_blank")
+    );
+  }
+
+  _iconButton(icon, label, onclick, { primary = false, disabled = false, className = "" } = {}) {
+    const button = this._el(
+      "button",
+      {
+        class: `icon-button${primary ? " primary" : ""}${className ? ` ${className}` : ""}`,
+        "aria-label": label,
+        title: label,
+        onclick,
+      },
+      [this._el("ha-icon", { icon })]
+    );
+    button.disabled = disabled;
+    return button;
+  }
+
+  _frameArtwork(url, alt = "") {
+    const root = this._el("div", { class: "frame-art glass loading" });
+    if (!url) return root;
+    const img = this._el("img", { alt });
+    img.addEventListener("load", () => root.classList.remove("loading"), { once: true });
+    root.appendChild(img);
+    if (/^https?:\/\//i.test(url)) img.src = url;
+    else this._setImgSrc(img, url);
+    return root;
+  }
+
+  _formatRemaining(seconds) {
+    if (seconds == null) return "";
+    if (seconds < 60) return `${Math.max(1, Math.ceil(seconds))} sec left`;
+    const minutes = Math.ceil(seconds / 60);
+    if (minutes < 60) return `${minutes} min left`;
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+    return rest ? `${hours} h ${rest} min left` : `${hours} h left`;
+  }
+
+  _formatInterval(seconds) {
+    if (!seconds) return "";
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `every ${minutes} min`;
+    if (minutes % 60 === 0) {
+      const hours = minutes / 60;
+      return `every ${hours} ${hours === 1 ? "hour" : "hours"}`;
+    }
+    return `every ${minutes} min`;
+  }
+
+  _lastSeen(frame) {
+    if (!frame?.last_seen) return "a few";
+    return String(Math.max(1, Math.round((Date.now() / 1000 - frame.last_seen) / 60)));
+  }
+
+  _renderPlayer() {
+    const root = this.shadowRoot.getElementById("playerBar");
+    if (!root) return;
+    root.innerHTML = "";
+    root.className = "playerbar";
+    const frame = this._activeFrame();
+    if (!frame) {
+      root.append(
+        this._frameArtwork(null),
+        this._el("div", { class: "player-copy" }, [
+          this._el("strong", { text: "No frames yet" }),
+        ]),
+        this._el("span", { class: "shell-spacer" }),
+        this._el("button", {
+          class: "player-action primary",
+          text: "Add a frame",
+          onclick: () => this._navigate("/config/integrations/integration/fraimic"),
+        })
+      );
+      return;
+    }
+    if (!this._player) {
+      root.append(
+        this._frameArtwork(null),
+        this._el("div", { class: "player-copy" }, [
+          this._el("strong", { text: frame.title }),
+        ])
+      );
+      return;
+    }
+
+    const player = this._player;
+    const state = player.state;
+    root.classList.add(state);
+    let title = player.current?.title || "Nothing playing";
+    let meta = "";
+    if (state === "sending") {
+      const seconds = Math.max(1, Math.ceil((100 - (player.sending_progress || 0)) * 0.3));
+      meta = `Sending · about ${seconds} seconds left`;
+    } else if (state === "asleep") {
+      meta = `${frame.title} is asleep · still showing this`;
+    } else if (state === "unreachable") {
+      title = `Could not reach ${frame.title}.`;
+      meta = `Last seen ${this._lastSeen(frame)} minutes ago, check power and wifi.`;
+    } else if (state === "idle") {
+      title = "Nothing playing";
+      meta = "Pick a playlist, or show a picture from the gallery";
+    } else {
+      const parts = [];
+      if (player.current?.artist) parts.push(player.current.artist);
+      if (player.playlist_name) parts.push(player.playlist_name);
+      parts.push(player.paused ? "Paused" : this._formatRemaining(player.seconds_remaining));
+      meta = parts.filter(Boolean).join(" · ");
+    }
+    root.appendChild(this._frameArtwork(player.current?.thumbnail_url, ""));
+    root.appendChild(
+      this._el("div", { class: "player-copy" }, [
+        this._el("strong", { text: title }),
+        this._el("span", { text: meta }),
+      ])
+    );
+
+    if (["playing", "sending", "asleep"].includes(state)) {
+      const disabled = state === "sending";
+      const controls = this._el("div", { class: "player-controls" }, [
+        this._iconButton(
+          "mdi:skip-previous",
+          "Previous",
+          () => this._playerControl("previous"),
+          { disabled, className: "desktop-control" }
+        ),
+        this._iconButton(
+          player.paused ? "mdi:play" : "mdi:pause",
+          player.paused ? "Play" : "Pause",
+          () => this._playerControl(player.paused ? "play" : "pause"),
+          { primary: !disabled, disabled }
+        ),
+        this._iconButton(
+          "mdi:skip-next",
+          "Next",
+          () => this._playerControl("next"),
+          { disabled, className: "desktop-control" }
+        ),
+      ]);
+      root.appendChild(controls);
+    }
+
+    const progress = state === "sending"
+      ? player.sending_progress
+      : state === "playing" && player.interval
+        ? Math.min(100, Math.round(((player.seconds_elapsed || 0) / player.interval) * 100))
+        : null;
+    if (progress != null && state !== "asleep") {
+      root.appendChild(
+        this._el(
+          "div",
+          {
+            class: `player-progress${state === "sending" ? " sending" : ""}`,
+            role: "progressbar",
+            "aria-label": state === "sending" ? "Sending progress" : "Playlist progress",
+            "aria-valuemin": "0",
+            "aria-valuemax": "100",
+            "aria-valuenow": String(progress),
+          },
+          [this._el("span", { style: `width:${progress}%` })]
+        )
+      );
+    }
+    root.appendChild(this._el("span", { class: "shell-spacer" }));
+
+    if (state === "unreachable") {
+      root.append(
+        this._el("button", {
+          class: "player-action",
+          text: "Retry",
+          onclick: () => this._playerControl("retry"),
+        }),
+        this._el("button", {
+          class: "player-action desktop-control",
+          text: "Device page",
+          onclick: () => window.open(`http://${frame.host}/`, "_blank"),
+        })
+      );
+    } else if (state === "idle") {
+      root.appendChild(
+        this._el("button", {
+          class: "player-action primary",
+          text: "Choose a playlist",
+          onclick: () => this._openLegacySlides(),
+        })
+      );
+    } else {
+      if (player.waiting_count) {
+        root.appendChild(
+          this._el("span", {
+            class: "small-tag desktop-control",
+            text: `${player.waiting_count} waiting`,
+          })
+        );
+      }
+      const queueButton = this._el(
+        "button",
+        {
+          class: "queue-toggle",
+          "aria-expanded": String(this._queueOpen),
+          "aria-controls": "queueSheet",
+          onclick: () => this._setQueueOpen(!this._queueOpen),
+        },
+        [
+          this._el("span", { class: "queue-label", text: "Queue" }),
+          document.createTextNode(String(player.queue_count)),
+          this._el("ha-icon", {
+            icon: this._queueOpen ? "mdi:chevron-down" : "mdi:chevron-up",
+          }),
+        ]
+      );
+      root.appendChild(queueButton);
+    }
+    root.appendChild(
+      this._iconButton(
+        "mdi:dots-horizontal",
+        "Open frame menu",
+        () => {
+          this._frameMenuOpen = !this._frameMenuOpen;
+          this._appMenuOpen = false;
+          this._renderAppMenu();
+          this._renderPlayer();
+        },
+        { className: "frame-overflow" }
+      )
+    );
+    if (this._frameMenuOpen) root.appendChild(this._frameMenu(frame));
+  }
+
+  _frameMenu(frame) {
+    const menu = this._el("div", { class: "shell-menu frame-menu" });
+    menu.appendChild(this._el("div", { class: "menu-heading", text: frame.title }));
+    const add = (label, action) => {
+      menu.appendChild(
+        this._el("button", {
+          class: "menu-item",
+          text: label,
+          onclick: () => {
+            this._frameMenuOpen = false;
+            this._renderPlayer();
+            action();
+          },
+        })
+      );
+    };
+    add("Refresh panel now", () => this._playerControl("refresh"));
+    if (!frame.charging) add("Put to sleep", () => this._playerControl("sleep"));
+    add("Device page", () => window.open(`http://${frame.host}/`, "_blank"));
+    return menu;
+  }
+
+  async _playerControl(action) {
+    const frame = this._activeFrame();
+    if (!frame) return;
+    const sending = ["previous", "next", "refresh"].includes(action);
+    if (sending) this._beginOptimisticSend(this._player?.current?.title, frame);
+    try {
+      this._player = await this._api("player/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entry_id: frame.entry_id, action }),
+      });
+      if (this._player.state === "asleep" && sending) {
+        this._toast(
+          `${frame.title} is asleep. It will show this when it wakes.`
+        );
+      }
+      await this._loadFrames();
+      this._renderPlayer();
+      this._renderQueue();
+    } catch (_err) {
+      await this._loadPlayer().catch(() => {});
+      this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+    }
+  }
+
+  _beginOptimisticSend(title, frame = this._activeFrame()) {
+    if (!frame) return;
+    if (this._player && frame.entry_id === this._selectedFrameId) {
+      this._player = {
+        ...this._player,
+        state: "sending",
+        sending: true,
+        sending_progress: 0,
+        current: {
+          ...this._player.current,
+          title: title || this._player.current?.title,
+        },
+      };
+      this._renderPlayer();
+    }
+    this._toast(`Sending to ${frame.title}. The panel takes about 30 seconds.`);
+  }
+
+  _setQueueOpen(open) {
+    this._queueOpen = Boolean(open && this._player);
+    this._rowMenu = null;
+    const sheet = this.shadowRoot.getElementById("queueSheet");
+    const backdrop = this.shadowRoot.getElementById("queueBackdrop");
+    const content = this.shadowRoot.getElementById("legacyViewport");
+    if (sheet) sheet.hidden = !this._queueOpen;
+    if (backdrop) backdrop.hidden = !this._queueOpen;
+    if (content) content.classList.toggle("queue-open", this._queueOpen);
+    this._renderQueue();
+    this._renderPlayer();
+  }
+
+  _renderQueue() {
+    const root = this.shadowRoot.getElementById("queueSheet");
+    if (!root) return;
+    root.hidden = !this._queueOpen;
+    root.innerHTML = "";
+    if (!this._queueOpen || !this._player) return;
+    root.appendChild(this._el("div", { class: "queue-grab", "aria-hidden": "true" }));
+    const player = this._player;
+
+    if (player.hand_queue.length) {
+      root.appendChild(
+        this._queueHeader("Next in queue · added by you, played once", [
+          this._el("button", {
+            class: "text-button",
+            text: "Clear",
+            onclick: () => this._safeQueueMutation({ action: "clear" }),
+          }),
+        ])
+      );
+      root.appendChild(this._queueList("queue", player.hand_queue, true));
+    }
+
+    const playlist = player.playlist;
+    if (playlist.name) {
+      const title = playlist.shuffle
+        ? `Next from ${playlist.name}, shuffled`
+        : `Next from ${playlist.name}`;
+      const actions = [];
+      if (playlist.interval) {
+        actions.push(
+          this._el("button", {
+            class: "text-button small-tag",
+            text: this._formatInterval(playlist.interval),
+            onclick: () => this._openLegacySlides(),
+          })
+        );
+      }
+      actions.push(
+        this._el("button", {
+          class: "text-button",
+          text: "Open playlist",
+          onclick: () => this._openLegacySlides(),
+        })
+      );
+      root.appendChild(this._queueHeader(title, actions));
+      if (this._showPlaylistWarning) {
+        root.appendChild(
+          this._el("div", {
+            class: "queue-note",
+            text: "Reordering here changes the playlist.",
+          })
+        );
+      }
+      if (playlist.items.length) {
+        root.appendChild(
+          this._queueList("playlist", playlist.items, !playlist.shuffle)
+        );
+      }
+    } else {
+      const empty = this._el("div", { class: "queue-empty" }, [
+        this._el("div", { text: "No playlist on this frame." }),
+        this._el("button", {
+          class: "player-action primary",
+          text: "Choose a playlist",
+          onclick: () => this._openLegacySlides(),
+        }),
+      ]);
+      root.appendChild(empty);
+    }
+  }
+
+  _queueHeader(title, actions = []) {
+    return this._el("div", { class: "queue-section-header" }, [
+      this._el("span", { class: "queue-section-title", text: title }),
+      ...actions,
+    ]);
+  }
+
+  _queueList(section, items, reorderable) {
+    const list = this._el("ol", {
+      class: "queue-list",
+      "aria-live": "polite",
+      "aria-label": section === "queue" ? "Next in queue" : "Next from playlist",
+    });
+    items.forEach((item, index) => {
+      list.appendChild(this._queueRow(section, item, index, items.length, reorderable));
+    });
+    return list;
+  }
+
+  _queueRow(section, item, index, count, reorderable) {
+    const grip = this._el("button", {
+      class: "drag-grip",
+      text: "⠿",
+      "aria-label": `Reorder ${item.title}`,
+      title: `Reorder ${item.title}`,
+    });
+    grip.disabled = !reorderable;
+    const row = this._el("div", {
+      class: "queue-row",
+      "data-section": section,
+      "data-index": String(index),
+    });
+    row.append(
+      grip,
+      this._frameArtwork(item.thumbnail_url, `${item.title}`),
+      this._el("div", { class: "queue-copy" }, [
+        this._el("strong", { text: item.title }),
+        this._el("span", { text: item.meta }),
+      ])
+    );
+    if (section === "queue") {
+      row.appendChild(
+        this._iconButton("mdi:close", `Remove ${item.title}`, () =>
+          this._safeQueueMutation({ action: "remove", index, slide_id: item.id })
+        )
+      );
+    }
+    row.appendChild(
+      this._iconButton("mdi:dots-horizontal", `Move ${item.title}`, () => {
+        const key = `${section}:${index}`;
+        this._rowMenu = this._rowMenu === key ? null : key;
+        this._renderQueue();
+      })
+    );
+    if (reorderable) this._wireQueueDrag(row, grip, section, index);
+
+    const children = [row];
+    if (this._rowMenu === `${section}:${index}`) {
+      const actions = this._el("div", { class: "row-actions" });
+      const add = (label, destination) => {
+        const button = this._el("button", {
+          class: "text-button",
+          text: label,
+          onclick: () => this._moveQueueItem(section, index, destination),
+        });
+        button.disabled = destination === index;
+        actions.appendChild(button);
+      };
+      add("Move up", Math.max(0, index - 1));
+      add("Move down", Math.min(count - 1, index + 1));
+      add("Move to top", 0);
+      add("Move to bottom", count - 1);
+      children.push(actions);
+    }
+    return this._el("li", {}, children);
+  }
+
+  _wireQueueDrag(row, grip, section, index) {
+    row.draggable = true;
+    row.addEventListener("dragstart", (event) => {
+      this._drag = { section, index };
+      row.classList.add("dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", `${section}:${index}`);
+      const ghost = row.cloneNode(true);
+      ghost.className = "queue-row drag-ghost";
+      ghost.style.left = "-1000px";
+      ghost.style.top = "-1000px";
+      this.shadowRoot.getElementById("appShell").appendChild(ghost);
+      event.dataTransfer.setDragImage(ghost, 60, 36);
+      window.setTimeout(() => ghost.remove(), 0);
+    });
+    row.addEventListener("dragover", (event) => {
+      if (!this._drag || this._drag.section !== section) return;
+      event.preventDefault();
+      const after = event.clientY > row.getBoundingClientRect().top + row.offsetHeight / 2;
+      this._markInsertion(row, after);
+    });
+    row.addEventListener("drop", (event) => {
+      if (!this._drag || this._drag.section !== section) return;
+      event.preventDefault();
+      const after = event.clientY > row.getBoundingClientRect().top + row.offsetHeight / 2;
+      let destination = index + (after ? 1 : 0);
+      if (destination > this._drag.index) destination -= 1;
+      const source = this._drag.index;
+      this._clearInsertion();
+      this._drag = null;
+      this._moveQueueItem(section, source, destination);
+    });
+    row.addEventListener("dragend", () => {
+      row.classList.remove("dragging");
+      this._clearInsertion();
+      this._drag = null;
+    });
+
+    grip.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse") return;
+      const touch = {
+        pointerId: event.pointerId,
+        section,
+        index,
+        row,
+        grip,
+        startX: event.clientX,
+        startY: event.clientY,
+        x: event.clientX,
+        y: event.clientY,
+        active: false,
+        destination: index,
+        scrollDirection: 0,
+        ghost: null,
+        timer: null,
+      };
+      this._cancelTouchDrag();
+      this._touchDrag = touch;
+      grip.setPointerCapture(event.pointerId);
+      touch.timer = window.setTimeout(() => this._startTouchDrag(), 400);
+    });
+    grip.addEventListener("pointermove", (event) => this._moveTouchDrag(event));
+    grip.addEventListener("pointerup", (event) => this._finishTouchDrag(event));
+    grip.addEventListener("pointercancel", () => this._cancelTouchDrag());
+  }
+
+  _startTouchDrag() {
+    const drag = this._touchDrag;
+    if (!drag) return;
+    drag.active = true;
+    drag.row.classList.add("dragging");
+    drag.ghost = drag.row.cloneNode(true);
+    drag.ghost.className = "queue-row drag-ghost";
+    this.shadowRoot.getElementById("appShell").appendChild(drag.ghost);
+    this._positionTouchGhost();
+    if (window.navigator.vibrate) window.navigator.vibrate(10);
+  }
+
+  _moveTouchDrag(event) {
+    const drag = this._touchDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+    if (!drag.active) {
+      if (Math.hypot(drag.x - drag.startX, drag.y - drag.startY) > 8) {
+        this._cancelTouchDrag();
+      }
+      return;
+    }
+    event.preventDefault();
+    this._positionTouchGhost();
+    const target = this.shadowRoot
+      .elementsFromPoint(drag.x, drag.y)
+      .find((element) => element.classList?.contains("queue-row"));
+    if (target && target.dataset.section === drag.section) {
+      const targetIndex = Number(target.dataset.index);
+      const after = drag.y > target.getBoundingClientRect().top + target.offsetHeight / 2;
+      let destination = targetIndex + (after ? 1 : 0);
+      if (destination > drag.index) destination -= 1;
+      drag.destination = destination;
+      this._markInsertion(target, after);
+    }
+    const sheet = this.shadowRoot.getElementById("queueSheet");
+    const rect = sheet.getBoundingClientRect();
+    drag.scrollDirection = drag.y < rect.top + 48 ? -1 : drag.y > rect.bottom - 48 ? 1 : 0;
+    this._runTouchAutoscroll();
+  }
+
+  _positionTouchGhost() {
+    const drag = this._touchDrag;
+    if (!drag?.ghost) return;
+    drag.ghost.style.left = `${drag.x - 60}px`;
+    drag.ghost.style.top = `${drag.y - 36}px`;
+  }
+
+  _runTouchAutoscroll() {
+    const drag = this._touchDrag;
+    if (!drag?.active || !drag.scrollDirection || this._touchAutoScrollFrame) return;
+    const tick = () => {
+      this._touchAutoScrollFrame = null;
+      const current = this._touchDrag;
+      if (!current?.active || !current.scrollDirection) return;
+      this.shadowRoot.getElementById("queueSheet").scrollTop +=
+        current.scrollDirection * 12;
+      this._touchAutoScrollFrame = window.requestAnimationFrame(tick);
+    };
+    this._touchAutoScrollFrame = window.requestAnimationFrame(tick);
+  }
+
+  _finishTouchDrag(event) {
+    const drag = this._touchDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const { active, section, index, destination } = drag;
+    this._cancelTouchDrag();
+    if (active) this._moveQueueItem(section, index, destination);
+  }
+
+  _cancelTouchDrag() {
+    const drag = this._touchDrag;
+    if (drag) {
+      window.clearTimeout(drag.timer);
+      drag.row?.classList.remove("dragging");
+      drag.ghost?.remove();
+    }
+    if (this._touchAutoScrollFrame) {
+      window.cancelAnimationFrame(this._touchAutoScrollFrame);
+      this._touchAutoScrollFrame = null;
+    }
+    this._touchDrag = null;
+    this._clearInsertion();
+  }
+
+  _markInsertion(row, after) {
+    this._clearInsertion();
+    row.classList.add(after ? "insert-after" : "insert-before");
+  }
+
+  _clearInsertion() {
+    for (const row of this.shadowRoot.querySelectorAll(
+      ".queue-row.insert-before, .queue-row.insert-after"
+    )) {
+      row.classList.remove("insert-before", "insert-after");
+    }
+  }
+
+  async _moveQueueItem(section, source, destination) {
+    const items = section === "queue"
+      ? this._player?.hand_queue
+      : this._player?.playlist?.items;
+    if (!items || source === destination || !items[source]) return;
+    destination = Math.max(0, Math.min(items.length - 1, destination));
+    const snapshot = JSON.parse(JSON.stringify(this._player));
+    const [moved] = items.splice(source, 1);
+    items.splice(destination, 0, moved);
+    this._rowMenu = null;
+    if (section === "playlist" && !this._playlistWarningSeen()) {
+      this._showPlaylistWarning = true;
+      this._markPlaylistWarningSeen();
+    }
+    this._renderQueue();
+    try {
+      const response = await this._queueMutation(
+        {
+          action: "reorder",
+          section,
+          ordered_ids: items.map((item) => item.id),
+        },
+        false
+      );
+      if (response) this._player = response;
+      this._renderPlayer();
+      this._renderQueue();
+    } catch (_err) {
+      this._player = snapshot;
+      this._renderPlayer();
+      this._renderQueue();
+      this._toast("The queue changed. Your previous order is restored.", true);
+    }
+  }
+
+  _playlistWarningSeen() {
+    const frame = this._activeFrame();
+    if (!frame) return true;
+    try {
+      return window.localStorage.getItem(`fraimic:queue-warning:${frame.entry_id}`) === "1";
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  _markPlaylistWarningSeen() {
+    const frame = this._activeFrame();
+    if (!frame) return;
+    try {
+      window.localStorage.setItem(`fraimic:queue-warning:${frame.entry_id}`, "1");
+    } catch (_err) {
+      /* localStorage may be unavailable */
+    }
+  }
+
+  async _queueMutation(payload, render = true) {
+    const frame = this._activeFrame();
+    if (!frame) return null;
+    const response = await this._api("player/queue", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_id: frame.entry_id, ...payload }),
+    });
+    if (render) {
+      this._player = response;
+      this._rowMenu = null;
+      this._renderPlayer();
+      this._renderQueue();
+    }
+    return response;
+  }
+
+  async _safeQueueMutation(payload) {
+    try {
+      await this._queueMutation(payload);
+    } catch (_err) {
+      this._toast("The queue changed. Try again.", true);
+      await this._loadPlayer().catch(() => {});
+    }
+  }
+
+  async _queueLegacySlide(slideId, playNext) {
+    const frame = this._activeFrame();
+    if (!frame) return;
+    try {
+      this._player = await this._queueMutation(
+        { action: "add", slide_id: slideId, play_next: playNext },
+        false
+      );
+      this._renderPlayer();
+      this._renderQueue();
+      if (playNext) {
+        this._toast(`Playing next on ${frame.title}.`);
+      } else {
+        const waiting = this._player.hand_queue.length;
+        this._toast(`Added to the queue, ${waiting} waiting.`);
+      }
+    } catch (_err) {
+      this._toast("The queue changed. Try again.", true);
     }
   }
 
@@ -1255,7 +2647,7 @@ class FraimicPanel extends HTMLElement {
       try {
         await saveCrop();
         this._closeDialog();
-        this._toast("Sending… the e-ink refresh takes ~30 s");
+        this._beginOptimisticSend(image.filename, frame);
         const result = await this._api("library/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1265,14 +2657,23 @@ class FraimicPanel extends HTMLElement {
           }),
         });
         const failed = Object.values(result.results).filter((r) => !r.ok);
-        this._toast(
-          failed.length ? `Send failed: ${failed[0].error}` : "Sent ✓",
-          Boolean(failed.length)
+        if (failed.length) {
+          this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+          await this._loadPlayer().catch(() => {});
+          return;
+        }
+        await Promise.all([this._loadPlayer(), this._loadFrames()]);
+        const updatedFrame = this._frames.find(
+          (candidate) => candidate.entry_id === frame.entry_id
         );
+        if (updatedFrame?.asleep) {
+          this._toast(`${frame.title} is asleep. It will show this when it wakes.`);
+        }
         await this._loadLibrary();
         this._renderTab();
-      } catch (err) {
-        this._toast(err.message, true);
+      } catch (_err) {
+        await this._loadPlayer().catch(() => {});
+        this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
         ev.target.disabled = false;
       }
     };
@@ -1866,7 +3267,7 @@ class FraimicPanel extends HTMLElement {
       return;
     }
     if (!this._screensEntry || !this._frames.some((f) => f.entry_id === this._screensEntry)) {
-      this._screensEntry = this._frames[0].entry_id;
+      this._screensEntry = this._activeFrame()?.entry_id || this._frames[0].entry_id;
     }
     if (!this._descriptors) {
       this._descriptors = await this._api("screens/descriptors");
@@ -1895,9 +3296,7 @@ class FraimicPanel extends HTMLElement {
     if (this._frames.length > 1) {
       const frameSelect = this._el("select", {
         onchange: () => {
-          this._screensEntry = frameSelect.value;
-          this._screensLoadedFor = null;
-          this._renderTab();
+          this._selectFrame(frameSelect.value);
         },
       });
       for (const frame of this._frames) {
@@ -1951,19 +3350,44 @@ class FraimicPanel extends HTMLElement {
         }),
         this._el("button", {
           class: "btn",
+          text: "Play next",
+          onclick: () => this._queueLegacySlide(screen.screen_id, true),
+        }),
+        this._el("button", {
+          class: "btn",
+          text: "Add to queue",
+          onclick: () => this._queueLegacySlide(screen.screen_id, false),
+        }),
+        this._el("button", {
+          class: "btn",
           text: "Send now",
           onclick: async (ev) => {
             ev.target.disabled = true;
-            this._toast("Rendering and sending — the e-ink refresh takes ~30 s");
+            const frame = this._frames.find(
+              (candidate) => candidate.entry_id === this._screensEntry
+            );
+            if (!frame) {
+              ev.target.disabled = false;
+              this._toast("That frame is no longer loaded.", true);
+              return;
+            }
+            this._beginOptimisticSend(screen.title, frame);
             try {
               await this._api("screens/send", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ entry_id: this._screensEntry, screen_id: screen.screen_id }),
+                body: JSON.stringify({ entry_id: frame.entry_id, screen_id: screen.screen_id }),
               });
-              this._toast("Screen sent ✓");
-            } catch (err) {
-              this._toast(err.message, true);
+              await Promise.all([this._loadPlayer(), this._loadFrames()]);
+              const updatedFrame = this._frames.find(
+                (candidate) => candidate.entry_id === frame.entry_id
+              );
+              if (updatedFrame?.asleep) {
+                this._toast(`${frame.title} is asleep. It will show this when it wakes.`);
+              }
+            } catch (_err) {
+              await this._loadPlayer().catch(() => {});
+              this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
             } finally {
               ev.target.disabled = false;
             }

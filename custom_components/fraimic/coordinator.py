@@ -110,6 +110,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass, CACHE_VERSION, f"{DOMAIN}_coordinator_{entry.entry_id}"
         )
         self._consecutive_failures = 0
+        self._last_seen: float | None = None
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
 
@@ -132,6 +133,9 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         albums = cached.get("albums")
         if isinstance(albums, list):
             self.albums = albums
+        last_seen = cached.get("last_seen")
+        if isinstance(last_seen, (int, float)):
+            self._last_seen = float(last_seen)
 
     async def _async_save_cache(self) -> None:
         await self._store.async_save(
@@ -139,14 +143,26 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "data": self.data,
                 "info_page": self.info_page,
                 "albums": self.albums,
+                "last_seen": self._last_seen,
             }
         )
+
+    @property
+    def consecutive_failures(self) -> int:
+        """Number of polls that have failed since the frame last answered."""
+        return self._consecutive_failures
+
+    @property
+    def last_seen(self) -> float | None:
+        """Epoch timestamp of the latest confirmed frame response."""
+        return self._last_seen
 
     @callback
     def async_set_frame_online(self, online: bool) -> None:
         """Record liveness observed outside the normal coordinator poll."""
         if online:
             self._consecutive_failures = 0
+            self._last_seen = time.time()
         self.frame_online = online
         self.async_update_listeners()
 
@@ -165,6 +181,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         self._consecutive_failures = 0
         self.frame_online = True
+        self._last_seen = time.time()
         # Newer firmware accepts the simpler (and structured-error) upload
         # path; the client stays on multipart /upload until confirmed.
         self.client.prefer_api_image = firmware_supports_api_image(
