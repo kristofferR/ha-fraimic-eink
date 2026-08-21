@@ -27,8 +27,10 @@ import mimetypes
 import shutil
 import time
 import uuid
+from collections.abc import Awaitable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Generic, TypeVar
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
@@ -61,6 +63,34 @@ from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
 _LOGGER = logging.getLogger(__name__)
 
 DATA_LIBRARY = "library"
+_T = TypeVar("_T")
+
+
+@dataclass(frozen=True)
+class _AsyncOutcome(Generic[_T]):
+    result: _T | None
+    error: BaseException | None
+    cancelled: bool
+
+
+async def _async_await_cancellation_safe(
+    awaitable: Awaitable[_T],
+) -> _AsyncOutcome[_T]:
+    """Settle an awaitable before propagating cancellation to its caller."""
+    task = asyncio.ensure_future(awaitable)
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            cancelled = True
+        except Exception:
+            break
+    try:
+        result = task.result()
+    except (Exception, asyncio.CancelledError) as err:
+        return _AsyncOutcome(None, err, cancelled)
+    return _AsyncOutcome(result, None, cancelled)
 
 
 @callback
@@ -205,6 +235,81 @@ class FraimicLibrary:
         if albums is not None:
             image.albums = [a for a in albums if a.strip()] or [LIBRARY_ALBUM_DEFAULT]
         await self._async_save_manifest()
+        return image
+
+    async def async_rename_image(
+        self, image_id: str, filename: str
+    ) -> LibraryImage:
+        """Rename an original while preserving its stable library id."""
+        image = self.get(image_id)
+        filename = safe_filename(filename)
+        if filename == image.filename:
+            return image
+
+        old_filename = image.filename
+        old_content_type = image.content_type
+        old_path = self.original_path(image)
+        new_path = self.originals_dir / f"{image.image_id}_{filename}"
+
+        staged = await _async_await_cancellation_safe(
+            self.hass.async_add_executor_job(shutil.copyfile, old_path, new_path)
+        )
+        if isinstance(staged.error, OSError):
+            err = staged.error
+            raise HomeAssistantError(f"Could not rename image: {err}") from err
+        if staged.error is not None:
+            raise staged.error
+        cancelled = staged.cancelled
+
+        image.filename = filename
+        image.content_type = (
+            mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        )
+
+        async def _rollback(save_error: BaseException) -> bool:
+            rollback = await _async_await_cancellation_safe(
+                self.hass.async_add_executor_job(new_path.unlink)
+            )
+            image.filename = old_filename
+            image.content_type = old_content_type
+            if isinstance(rollback.error, OSError):
+                rollback_err = rollback.error
+                raise HomeAssistantError(
+                    f"Image rename manifest save failed ({save_error}); "
+                    f"the staged copy could not be removed ({rollback_err})"
+                ) from rollback_err
+            if rollback.error is not None:
+                raise rollback.error
+            return rollback.cancelled
+
+        save_task = self.hass.async_create_task(self._async_save_manifest())
+        # Executor-backed manifest writes keep running after their waiter is
+        # cancelled. Wait until the commit boundary is known before choosing
+        # whether the filesystem rename must be rolled back.
+        save = await _async_await_cancellation_safe(save_task)
+        cancelled |= save.cancelled
+        if save.error is not None:
+            cancelled |= await _rollback(save.error)
+            if cancelled or isinstance(save.error, asyncio.CancelledError):
+                raise asyncio.CancelledError from save.error
+            if isinstance(save.error, OSError):
+                raise HomeAssistantError(
+                    f"Could not save image rename: {save.error}"
+                ) from save.error
+            raise save.error
+
+        cleanup = await _async_await_cancellation_safe(
+            self.hass.async_add_executor_job(old_path.unlink)
+        )
+        cancelled |= cleanup.cancelled
+        if cleanup.error is not None:
+            _LOGGER.warning(
+                "Could not remove old path after renaming library image %s: %s",
+                image_id,
+                cleanup.error,
+            )
+        if cancelled:
+            raise asyncio.CancelledError
         return image
 
     async def async_set_crop(

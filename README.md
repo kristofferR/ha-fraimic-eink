@@ -50,7 +50,7 @@ Make sure the frame is **awake** (tap it — it is unreachable in deep sleep), t
    Docker/VLAN setups). With multiple frames, use IP addresses to tell them apart.
 2. **Resolution is auto-detected** when the frame reports its size or model. If it can't be
    determined, you pick the model — **Standard Canvas** (13.3", 1600×1200) or **Large Canvas**
-   (31.5", 2560×1440) — or choose *Custom* and enter the pixels. Add each frame separately; they
+   (31.5", 1440×2560 native) — or choose *Custom* and enter the pixels. Add each frame separately; they
    can be different models.
 
 **Multiple frames:** add each one separately — they appear as independent devices with their
@@ -154,9 +154,9 @@ cards:
 
 **Multiple frames:** entity IDs are suffixed per device (e.g.
 `image.fraimic_e_ink_canvas_2_current_artwork`) — duplicate the stack per frame using each
-frame's IDs (check *Settings → Devices* for the exact names). The Large frame's preview comes out
-landscape (16:9) and the Standard's portrait (3:4) — or whatever orientation you set, so each card
-matches the real frame.
+frame's IDs (check *Settings → Devices* for the exact names). The integration renders the Large frame
+at 1440x2560 and the Standard at 1600x1200; the preview follows the mount rotation you set so each
+card matches the real frame.
 
 ## Uploading artwork
 
@@ -189,9 +189,9 @@ service with **one** image source:
 action: fraimic.upload_image
 data:
   url: https://example.com/poster.jpg
-  fit: cover            # cover (crop) | contain (pad) | stretch
+  fit: cover            # cover (crop) | contain (white) | contain_black (black) | stretch
   rotate: 0             # 0 | 90 | 180 | 270
-  mode: auto            # auto | floyd_steinberg | atkinson | bayer | none
+  mode: auto            # auto | official | floyd_steinberg | atkinson | bayer | none
   saturation: 1.15      # kept modest (real Spectra 6 owners push contrast, not saturation)
   contrast: 1.4         # pushed hard — the panel has no backlight
   sharpen: 80           # unsharp-mask strength 0-100
@@ -390,7 +390,9 @@ data:
 all 250+ Nordic museums with `query: Munch`) — public-domain masterpieces from each
 museum's open-access API, aggressively curated for the panel (highlights only, paintings
 preferred, resolution and aspect-ratio checked against your frame's mounted orientation).
-Plus `smithsonian` (Smithsonian Open Access — CC0 American Art paintings by default, or
+Plus `reframed` ([Reframed Gallery](https://www.reframed.gallery/) — a curated catalogue
+that can be browsed by collection, color, tag, artist, vertical artwork, or recency),
+`smithsonian` (Smithsonian Open Access — CC0 American Art paintings by default, or
 search the whole collection with `query`), `wellcome` (Wellcome Collection — open-access
 paintings, botanical and natural-history illustration, searchable), `wikimedia` (Commons
 picture of the day), `bing` (Bing's daily image — unofficial endpoint, personal use),
@@ -419,8 +421,14 @@ response (`title`, `artist`, `attribution`) and exposed as attributes on the pre
 entities and the media player.
 
 **Browse before you commit:** open the frame's media player → **Browse media** → **Online
-artwork** → pick a source → 20 fresh picks with thumbnails; click one to display it. Each visit
-reshuffles.
+artwork** → pick a source, then click an image to display it. Most sources show 20 fresh picks
+and reshuffle on each visit. Reframed preserves its catalogue folders: Collections, Colors,
+Tags, Artists, Vertical artworks, and Recently added.
+
+**Install as art packs:** the Fraimic sidebar's **Art Packs** tab also mirrors every Reframed
+collection, color, tag, and artist, plus Vertical and Recently Added. These live packs resolve
+when installed and add up to 24 current artworks to the library, with an album and scene, so
+the catalogue stays fresh without downloading hundreds of groups just to open the tab.
 
 **One-tap art:** every frame gets a **New artwork** button entity — press it (or automate it)
 for a fresh captioned piece from your default source (options → *Default online-art source*).
@@ -434,11 +442,10 @@ Unsplash/Pexels stay hidden until a key is set.
 
 ## How image conversion works
 
-Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw, header-less,
-uncompressed 4bpp — `1600 × 1200 / 2 = 960,000` bytes for the 13.3" frame — but the layout is
-**not** a row-major scan (see [Accuracy note](#accuracy-note)): the buffer holds the bottom half
-of the panel first, then the top half, each half column-major with columns scanned bottom-up and
-two vertically-adjacent pixels per byte. Pixel values are the E Ink standard Spectra 6 codes
+Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw and header-less,
+but its layout depends on the panel. The 13.3" buffer is 960,000 bytes in two column-major
+halves. The 31.5" EL315 is portrait-native 1440×2560 and uses eight padded controller blocks,
+for an exact 2,304,000-byte payload. Pixel values are the E Ink standard Spectra 6 codes
 (`0x4` is unused — the panel renders it as white):
 
 | Nibble | Colour | Calibrated RGB |
@@ -466,26 +473,34 @@ pre-processing as the dither, so the integration runs a full pipeline (all in an
    - **`auto`** (default) — looks at the image and chooses for you: **Floyd-Steinberg** for photos,
      **Bayer** for flat graphics/UI (lots of solid colour). The mode it picked is shown on the
      `Current artwork` image entity as the `dither_mode` attribute (and logged).
+   - `official` reproduces [Fraimic's published converter](https://github.com/Fraimic/fraimic_bin_converter):
+     its fixed brightness/contrast/saturation enhancements, EDGE_ENHANCE → SMOOTH → SHARPEN filters,
+     pure-primary RGB+luma matching, and left-to-right Atkinson diffusion. It intentionally ignores
+     the saturation, contrast, sharpen, and tone settings. Choose `contain_black` as the fit mode to
+     match the converter's default black letterboxing as well.
    - `floyd_steinberg` — best general error diffusion for photos.
    - `atkinson` — localised, preserves highlights; nice for portraits.
    - `bayer` — fast ordered dithering, best for flat graphics/dashboards/UI.
    - `none` — nearest colour, no dithering.
-   Error-diffusion modes use serpentine scanning in linear light.
-7. **Pack** into the frame's native half-panel/column layout and `POST` as multipart to
-   `/upload`. Error-diffusion targets are clamped to the panel's reachable gamut, so
+   The non-official error-diffusion modes use serpentine scanning in linear light;
+   `official` intentionally keeps Fraimic's left-to-right RGB diffusion.
+7. **Pack** into the frame's native controller layout and upload through the firmware-gated
+   `/api/image` path (multipart `/upload` on older firmware). Error-diffusion targets are
+   clamped to the panel's reachable gamut, so
    out-of-gamut colours degrade gracefully instead of smearing accumulated error across the
    image (yellow blobs trailing saturated patches — seen on real hardware before the clamp).
 
-**Which mode?** Just leave it on `auto` — it picks per image. Override only if you want a specific
-look (e.g. force `bayer` for a poster-style image, or `atkinson` for a portrait).
+**Which mode?** Just leave it on `auto` — it picks per image. Use `official` for compatibility with
+Fraimic's converter, or override with another mode for a specific look.
 
 The calibrated palette comes from community reverse engineering of real Spectra 6 panels
 ([Toon-nooT's converter](https://github.com/Toon-nooT/PhotoPainter-E-Ink-Spectra-6-image-converter),
 the [Pimoroni Inky community](https://forums.pimoroni.com/t/what-rgb-colors-are-you-using-for-the-colors-on-the-impression-spectra-6/27942)).
 
 **Speed:** `none`/`bayer` are vectorised (well under a second at 1600×1200); the error-diffusion
-modes are inherently sequential and take a few seconds (longer on a Pi Zero) — still far less than
-the panel's own 20–30 s refresh, and they run in the background.
+modes are inherently sequential. `official` is the slowest compatibility path and can take tens of
+seconds before upload, especially on low-power Home Assistant hardware. All conversion runs in the
+background.
 
 ## Accuracy note
 

@@ -7,7 +7,7 @@ from conftest import load
 
 layout = load("render.layout")
 
-SIZES = [(1600, 1200), (1200, 1600), (2560, 1440), (800, 480)]
+SIZES = [(1600, 1200), (1200, 1600), (1440, 2560), (800, 480)]
 
 
 def _overlap(a, b) -> bool:

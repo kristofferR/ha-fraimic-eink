@@ -120,6 +120,12 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if isinstance(data, dict):
             self.data = data
             self.last_update_success = True
+            # Power-saving modes can intentionally skip the startup poll. Keep
+            # using the firmware-gated upload path established by the last
+            # successful poll instead of falling back to legacy multipart.
+            self.client.prefer_api_image = firmware_supports_api_image(
+                data.get("firmware_version")
+            )
         info_page = cached.get("info_page")
         if isinstance(info_page, dict):
             self.info_page = info_page

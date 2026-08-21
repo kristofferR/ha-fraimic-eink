@@ -22,12 +22,20 @@ lm = load("library_model")
 
 def test_safe_filename():
     assert lm.safe_filename("hello.jpg") == "hello.jpg"
-    assert lm.safe_filename("my photo (1).png") == "my_photo_1_.png"
+    assert lm.safe_filename("my photo (1).png") == "my photo (1).png"
+    assert lm.safe_filename("Apollo’s Chariot.jpg") == "Apollo’s Chariot.jpg"
     # No path separators may survive (the id prefix already prevents collisions).
     assert "/" not in lm.safe_filename("../../etc/passwd")
     assert "\\" not in lm.safe_filename("..\\..\\etc\\passwd")
     assert lm.safe_filename("") == "image"
-    assert len(lm.safe_filename("x" * 300 + ".jpg")) <= 80
+    long_name = lm.safe_filename("Artist - " + "x" * 300 + ".jpg")
+    assert len(long_name) <= 80
+    assert long_name.startswith("Artist - ")
+    assert long_name.endswith(".jpg")
+
+    unicode_name = lm.safe_filename("𐐀" * 80 + ".jpg")
+    assert unicode_name.endswith(".jpg")
+    assert len(f"{'a' * 12}_{unicode_name}".encode()) <= 255
 
 
 def test_normalize_crop_valid():
@@ -53,6 +61,7 @@ def test_normalize_crop_invalid(box):
 
 
 def test_render_cache_key_stable_and_sensitive():
+    assert lm.RENDER_CACHE_VERSION == 2
     params = {
         "width": 1600,
         "height": 1200,

@@ -23,6 +23,7 @@ Delivery semantics (hardware-informed, see #28/#33):
 from __future__ import annotations
 
 import logging
+import os
 import time
 from typing import TYPE_CHECKING, Any
 
@@ -39,7 +40,15 @@ from .api import (
     FraimicError,
     FraimicTimeoutError,
 )
-from .const import DOMAIN
+from .const import (
+    CONF_HEIGHT,
+    CONF_WIDTH,
+    DEFAULT_HEIGHT,
+    DEFAULT_WIDTH,
+    DOMAIN,
+    MAX_BIN_SIZE,
+    frame_bin_size,
+)
 from .power import (
     DEFER_REASONS,
     SKIP_DUPLICATE,
@@ -96,6 +105,15 @@ class FraimicSendQueue:
         data = await self._store.async_load()
         if data and data.get("pending"):
             self._pending = data["pending"]
+            queued_size = await self._hass.async_add_executor_job(
+                self._queued_payload_size
+            )
+            if queued_size != self._expected_payload_size():
+                await self._async_clear(
+                    "Discarded queued artwork after the frame format changed; "
+                    "send it again"
+                )
+                return
             if time.time() - self._pending.get("queued_at", 0) > QUEUE_TTL:
                 await self._async_clear(
                     f"Gave up: frame never woke up for '{self._pending.get('title')}'"
@@ -176,6 +194,13 @@ class FraimicSendQueue:
         content_hash: str,
         trigger: str,
     ) -> None:
+        expected_size = self._expected_payload_size()
+        if len(bin_data) > MAX_BIN_SIZE or len(bin_data) != expected_size:
+            raise FraimicApiError(
+                f"Invalid E-ink payload size: got {len(bin_data)} bytes, "
+                f"expected {expected_size}"
+            )
+
         def _write() -> None:
             import os
 
@@ -291,7 +316,7 @@ class FraimicSendQueue:
             def _read() -> tuple[bytes | None, bytes | None]:
                 try:
                     with open(self._bin_path, "rb") as file:
-                        bin_data = file.read()
+                        bin_data = file.read(MAX_BIN_SIZE + 1)
                 except OSError:
                     return None, None
                 preview = None
@@ -306,6 +331,12 @@ class FraimicSendQueue:
             bin_data, preview_png = await self._hass.async_add_executor_job(_read)
             if bin_data is None:
                 await self._async_clear("Idle")
+                return
+            if len(bin_data) != self._expected_payload_size():
+                await self._async_clear(
+                    "Discarded queued artwork after the frame format changed; "
+                    "send it again"
+                )
                 return
 
             async with runtime.upload_lock:
@@ -377,6 +408,17 @@ class FraimicSendQueue:
             self._flushing = False
 
     # ------------------------------------------------------------- plumbing
+
+    def _expected_payload_size(self) -> int:
+        width = self._entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
+        height = self._entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+        return frame_bin_size(width, height)
+
+    def _queued_payload_size(self) -> int | None:
+        try:
+            return os.path.getsize(self._bin_path)
+        except OSError:
+            return None
 
     async def _async_clear(self, status: str) -> None:
         await self._async_drop_pending()

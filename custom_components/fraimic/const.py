@@ -58,26 +58,67 @@ UPLOAD_TIMEOUT: Final = 90
 #   - Standard Canvas (13.3"): 1200x1600 native (3:4). dsackr's working converter
 #     used 1600x1200 (same byte count, landscape layout); both frames auto-orient,
 #     so the exact layout is confirmed per frame via the real-frame test pattern.
-#   - Large Canvas (31.5"): 2560x1440 (16:9).
+#   - Large Canvas (31.5"): 1440x2560 portrait-native (9:16). Its EL315
+#     controller format includes padding, so the wire payload is 2,304,000
+#     bytes rather than width*height/2.
 # Known model presets, surfaced in the config flow for easy setup.
 FRAME_MODELS: Final = {
     "standard": (1600, 1200),  # 13.3" — 960,000-byte buffer
-    "large": (2560, 1440),     # 31.5" — 1,843,200-byte buffer
+    "large": (1440, 2560),     # 31.5" — 2,304,000-byte padded buffer
 }
 MODEL_CUSTOM: Final = "custom"
+
+# Marketing material and some firmware report the physical panel dimensions in
+# the opposite orientation to this integration's verified render layout.
+# Normalize those aliases before storing a config entry.
+FRAME_RESOLUTION_ALIASES: Final[dict[tuple[int, int], tuple[int, int]]] = {
+    (1200, 1600): FRAME_MODELS["standard"],
+    (2560, 1440): FRAME_MODELS["large"],
+}
+
+
+def canonical_frame_resolution(width: int, height: int) -> tuple[int, int]:
+    """Return the verified render resolution for a known Fraimic panel."""
+    resolution = (width, height)
+    return FRAME_RESOLUTION_ALIASES.get(resolution, resolution)
+
+
+def canonical_frame_settings(
+    width: int, height: int, rotation: int
+) -> tuple[int, int, int]:
+    """Canonicalize panel axes without changing its wall-visible orientation."""
+    canonical_width, canonical_height = canonical_frame_resolution(width, height)
+    if (canonical_width, canonical_height) == (height, width) and width != height:
+        rotation = (rotation + 90) % 360
+    return canonical_width, canonical_height, rotation
+
 
 # Friendly model name by resolution (both Standard orientations map to Standard).
 MODEL_NAMES: Final = {
     (1600, 1200): 'Standard Canvas (13.3")',
     (1200, 1600): 'Standard Canvas (13.3")',
+    # Keep the old marketing-orientation tuple recognizable while existing
+    # entries migrate to the panel's native dimensions.
     (2560, 1440): 'Large Canvas (31.5")',
+    (1440, 2560): 'Large Canvas (31.5")',
 }
 
 DEFAULT_WIDTH: Final = 1600
 DEFAULT_HEIGHT: Final = 1200
-# Generous client-side ceiling — the Large Canvas buffer alone is ~1.84 MB, well
+# Generous client-side ceiling — the Large Canvas buffer alone is ~2.30 MB, well
 # over the small frame's documented 1 MB limit. The frame still validates size.
 MAX_BIN_SIZE: Final = 4 * 1024 * 1024
+LARGE_FRAME_BIN_SIZE: Final = 2_304_000
+LARGE_FRAME_UPLOAD_TIMEOUT: Final = 600
+
+
+def frame_bin_size(width: int, height: int) -> int:
+    """Return the wire payload size for a canonical frame resolution."""
+    if (width, height) == FRAME_MODELS["large"]:
+        return LARGE_FRAME_BIN_SIZE
+    return width * height // 2
+
+
 # Source images are always scaled to the frame resolution, so this is just an
 # out-of-memory guard, not a resolution limit — generous enough for any photo.
 MAX_SOURCE_BYTES: Final = 64 * 1024 * 1024
@@ -115,8 +156,10 @@ MODE_NONE: Final = "none"  # nearest colour, no dithering
 MODE_BAYER: Final = "bayer"  # ordered dithering (fast, good for graphics)
 MODE_FLOYD_STEINBERG: Final = "floyd_steinberg"
 MODE_ATKINSON: Final = "atkinson"
+MODE_OFFICIAL: Final = "official"  # Fraimic's published converter recipe
 DITHER_MODES: Final = (
     MODE_AUTO,
+    MODE_OFFICIAL,
     MODE_NONE,
     MODE_BAYER,
     MODE_FLOYD_STEINBERG,
@@ -187,7 +230,7 @@ DEFAULT_SCREEN_INTERVAL: Final = 6 * 3600
 
 # Online image providers ("art frame" mode).
 # Keyless: five museums (CC0/public-domain masterpieces — dimu is
-# Nasjonalmuseet via the DigitaltMuseum API), Wellcome Collection
+# Nasjonalmuseet via the DigitaltMuseum API), Reframed Gallery, Wellcome Collection
 # (illustration/archive), Wikimedia picture of the day, Bing image of the day
 # (unofficial; personal use), NASA APOD and the NASA Image Library
 # (DEMO_KEY/keyless tiers suffice for daily use), Lorem Picsum (random demo
@@ -199,6 +242,7 @@ PROVIDER_KEYS: Final = (
     "cleveland",
     "smk",
     "dimu",
+    "reframed",
     "smithsonian",  # optional free api.data.gov key (frame options)
     "wellcome",
     "wikimedia",

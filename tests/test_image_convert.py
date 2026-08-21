@@ -8,6 +8,7 @@ can run standalone (deps cover the whole tests/ directory):
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import sys
@@ -39,7 +40,9 @@ def _load():
 const, ic = _load()
 
 LARGE = (1600, 1200)
-ALL_MODES = ["none", "bayer", "floyd_steinberg", "atkinson", "auto"]
+# Official uses the reference converter's intentionally slow sequential path;
+# its exact behavior is covered by a small golden fixture below.
+CORE_MODES = ["none", "bayer", "floyd_steinberg", "atkinson", "auto"]
 # No pre-processing, so a solid colour stays exactly that colour.
 RAW = {"saturation": 1.0, "contrast": 1.0, "sharpen": 0}
 
@@ -63,14 +66,14 @@ def _gradient(width: int, height: int) -> bytes:
     return buf.getvalue()
 
 
-@pytest.mark.parametrize("mode", ALL_MODES)
+@pytest.mark.parametrize("mode", CORE_MODES)
 def test_output_is_exact_size(mode: str) -> None:
     w, h = LARGE
     data = ic.image_to_bin(_gradient(w, h), width=w, height=h, mode=mode, **RAW)
     assert len(data) == w * h // 2 == 960000
 
 
-@pytest.mark.parametrize("mode", ALL_MODES)
+@pytest.mark.parametrize("mode", CORE_MODES)
 def test_only_valid_panel_nibbles(mode: str) -> None:
     """Every nibble must be a valid E Ink Spectra 6 panel code.
 
@@ -86,6 +89,294 @@ def test_only_valid_panel_nibbles(mode: str) -> None:
 def test_small_frame_size_scales() -> None:
     data = ic.image_to_bin(_solid(400, 300, (10, 10, 10)), width=800, height=480, **RAW)
     assert len(data) == 800 * 480 // 2
+
+
+def test_large_frame_uses_el315_padded_wire_layout() -> None:
+    """The 31.5" panel has eight fixed-size IC blocks, not plain 4bpp."""
+    import numpy as np
+
+    width, height = 1440, 2560
+    indices = np.zeros(width * height, dtype=np.uint8)
+    data = ic._pack_nibbles(indices, width, height)
+
+    assert len(data) == const.LARGE_FRAME_BIN_SIZE == 2_304_000
+    blocks = np.frombuffer(data, dtype=np.uint8).reshape(8, 720, 400)
+    assert np.all(blocks[[0, 1, 2, 4, 5, 6]] == 0x00)
+    assert np.all(blocks[[3, 7], :, :80] == 0x00)
+    assert np.all(blocks[[3, 7], :, 80:] == 0x11)
+
+
+def test_large_frame_el315_corner_mapping() -> None:
+    """Pin the official IC1/IC8 mapping for the bottom/top left corners."""
+    import numpy as np
+
+    width, height = 1440, 2560
+    indices = np.ones((height, width), dtype=np.uint8)
+    indices[height - 1, 0] = 3  # red bottom-left -> IC1 first high nibble
+    indices[0, 0] = 4  # blue top-left -> IC8 first high nibble
+
+    data = ic._pack_nibbles(indices.reshape(-1), width, height)
+
+    assert data[0] == 0x31
+    assert data[7 * 288_000 + 79] == 0x51
+
+
+def test_official_mode_matches_fraimic_converter() -> None:
+    """Match Fraimic/fraimic_bin_converter 1b794a3 end to end."""
+    import numpy as np
+    from PIL import Image, ImageEnhance, ImageFilter
+
+    source_width, source_height = 19, 13
+    ys, xs = np.indices((source_height, source_width))
+    rgb = np.dstack(
+        (
+            (xs * 31 + ys * 7) % 256,
+            (xs * 11 + ys * 29) % 256,
+            (xs * 17 + ys * 13) % 256,
+        )
+    ).astype(np.uint8)
+    source = Image.fromarray(rgb, "RGB")
+    prepared = ic._official_prepare_image(
+        source, 32, 24, const.FIT_CONTAIN_BLACK, preprocess=True
+    )
+    indices = ic._official_atkinson_indices(prepared)
+
+    # Independent, minimal copy of the published recipe. Keeping the comparison
+    # on one Pillow build avoids platform-specific resize/filter golden hashes.
+    expected = source.resize((32, 22), Image.Resampling.LANCZOS)
+    expected = ImageEnhance.Brightness(expected).enhance(1.1)
+    expected = ImageEnhance.Contrast(expected).enhance(1.2)
+    expected = ImageEnhance.Color(expected).enhance(1.2)
+    expected = expected.filter(ImageFilter.EDGE_ENHANCE)
+    expected = expected.filter(ImageFilter.SMOOTH)
+    expected = expected.filter(ImageFilter.SHARPEN)
+    framed = Image.new("RGB", (32, 24), (0, 0, 0))
+    framed.paste(expected, (0, 1))
+    assert prepared.tobytes() == framed.tobytes()
+
+    palette = np.array(ic._OFFICIAL_PALETTE_RGB, dtype=np.float32)
+    palette_luma = np.array(
+        [r * 250 + g * 350 + b * 400 for r, g, b in ic._OFFICIAL_PALETTE_RGB],
+        dtype=np.float32,
+    ) / (255.0 * 1000)
+    working = np.asarray(framed, dtype=np.float32).copy()
+    expected_indices = np.zeros((24, 32), dtype=np.uint8)
+    for y in range(24):
+        for x in range(32):
+            old_pixel = working[y, x].copy()
+            red, green, blue = np.clip(old_pixel, 0, 255).astype(int)
+            luma = (red * 250 + green * 350 + blue * 400) / (255.0 * 1000)
+            diff_r = red - palette[:, 0]
+            diff_g = green - palette[:, 1]
+            diff_b = blue - palette[:, 2]
+            rgb_distance = (
+                diff_r * diff_r * 0.250
+                + diff_g * diff_g * 0.350
+                + diff_b * diff_b * 0.400
+            ) * 0.75 / (255.0 * 255.0)
+            distance = 1.5 * rgb_distance + 0.60 * (luma - palette_luma) ** 2
+            index = int(np.argmin(distance))
+            new_pixel = palette[index]
+            working[y, x] = new_pixel
+            expected_indices[y, x] = index
+            error = old_pixel - new_pixel
+            if x + 1 < 32:
+                working[y, x + 1] += error * (1 / 8)
+            if y + 1 < 24:
+                if x > 0:
+                    working[y + 1, x - 1] += error * (1 / 8)
+                working[y + 1, x] += error * (1 / 4)
+                if x + 1 < 32:
+                    working[y + 1, x + 1] += error * (1 / 8)
+    assert np.array_equal(indices.reshape(24, 32), expected_indices)
+
+    raw = io.BytesIO()
+    source.save(raw, format="PNG")
+    packed, preview, mode = ic.convert_image(
+        raw.getvalue(),
+        width=32,
+        height=24,
+        fit=const.FIT_CONTAIN_BLACK,
+        mode=const.MODE_OFFICIAL,
+        saturation=0,
+        contrast=0,
+        sharpen=0,
+        tone=0,
+        preview=False,
+    )
+
+    assert packed == ic._pack_nibbles(indices, 32, 24)
+    assert preview is None
+    assert mode == const.MODE_OFFICIAL
+
+
+def test_official_palette_and_diffusion_match_golden_indices() -> None:
+    """Pin the published RGB+luma metric without Pillow resize variability."""
+    from PIL import Image
+
+    pixels = [
+        (0, 0, 0),
+        (255, 255, 255),
+        (255, 255, 0),
+        (255, 0, 0),
+        (0, 0, 255),
+        (0, 255, 0),
+        (128, 128, 128),
+        (220, 120, 40),
+        (40, 160, 210),
+        (170, 40, 170),
+        (100, 180, 80),
+        (230, 220, 210),
+        (75, 75, 40),
+        (45, 90, 160),
+        (210, 70, 80),
+        (180, 190, 30),
+    ]
+    image = Image.new("RGB", (4, 4))
+    image.putdata(pixels)
+
+    assert ic._official_atkinson_indices(image).tolist() == [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        2,
+        3,
+        4,
+        4,
+        5,
+        1,
+        5,
+        4,
+        3,
+        2,
+    ]
+    assert const.DITHER_MODES[0] == const.MODE_AUTO
+
+
+def test_official_standard_mode_uses_published_portrait_geometry(monkeypatch) -> None:
+    import numpy as np
+
+    portrait = np.zeros((1600, 1200), dtype=np.uint8)
+    portrait[0, 0] = 2
+    portrait[0, -1] = 3
+    portrait[-1, 0] = 4
+    portrait[-1, -1] = 5
+    prepared_size = None
+
+    def prepare(image, width, height, fit, *, preprocess):
+        nonlocal prepared_size
+        prepared_size = (width, height)
+        return image
+
+    monkeypatch.setattr(ic, "_official_prepare_image", prepare)
+    monkeypatch.setattr(
+        ic, "_official_atkinson_indices", lambda image: portrait.reshape(-1)
+    )
+
+    indices = ic._official_frame_indices(
+        object(), 1600, 1200, const.FIT_CONTAIN_BLACK, preprocess=True
+    )
+
+    assert prepared_size == (1200, 1600)
+    assert np.array_equal(indices.reshape(1200, 1600), np.rot90(portrait, k=1))
+
+
+@pytest.mark.parametrize(
+    ("width", "height", "expected_sha256"),
+    [
+        (
+            1600,
+            1200,
+            "180db78069be63ed5e9157265f89da7e1e986f2f6d25f7a4fa50364757dbac52",
+        ),
+        (
+            1440,
+            2560,
+            "9af7cdd7cf6e17b5fa4c065e869967f7adf0f819c255d42c54c74b0e794de660",
+        ),
+    ],
+)
+def test_known_panel_wire_layout_golden(
+    width: int, height: int, expected_sha256: str
+) -> None:
+    """Pin the complete official EL133UF1/EL315 coordinate mapping."""
+    import numpy as np
+
+    rows = np.arange(height, dtype=np.uint32)[:, None]
+    cols = np.arange(width, dtype=np.uint32)[None, :]
+    indices = ((rows * 3 + cols * 5 + rows // 37 + cols // 29) % 6).astype(
+        np.uint8
+    )
+
+    packed = ic._pack_nibbles(indices.reshape(-1), width, height)
+
+    # Generated independently with Fraimic/fraimic_bin_converter at 1b794a3.
+    assert hashlib.sha256(packed).hexdigest() == expected_sha256
+
+
+@pytest.mark.parametrize(
+    ("reported", "native"),
+    [
+        ((1200, 1600), (1600, 1200)),
+        ((2560, 1440), (1440, 2560)),
+    ],
+)
+def test_known_frame_orientations_are_canonicalized(
+    reported: tuple[int, int], native: tuple[int, int]
+) -> None:
+    assert const.canonical_frame_resolution(*reported) == native
+
+
+@pytest.mark.parametrize(
+    ("reported", "rotation"),
+    [
+        ((1200, 1600), 0),
+        ((1200, 1600), 90),
+        ((2560, 1440), 0),
+        ((2560, 1440), 270),
+    ],
+)
+def test_canonical_frame_settings_preserve_viewed_orientation(
+    reported: tuple[int, int], rotation: int
+) -> None:
+    width, height = reported
+    old_viewed = (height, width) if rotation in (90, 270) else (width, height)
+
+    native_width, native_height, native_rotation = const.canonical_frame_settings(
+        width, height, rotation
+    )
+    new_viewed = (
+        (native_height, native_width)
+        if native_rotation in (90, 270)
+        else (native_width, native_height)
+    )
+
+    assert native_rotation == (rotation + 90) % 360
+    assert new_viewed == old_viewed
+
+
+@pytest.mark.parametrize(("width", "height"), [(1200, 1600), (2560, 1440)])
+def test_legacy_panel_orientation_cannot_use_generic_packer(
+    width: int, height: int
+) -> None:
+    with pytest.raises(ValueError, match="verified render resolution"):
+        ic._pack_nibbles([0], width, height)
+
+
+def test_oversized_custom_buffer_is_rejected() -> None:
+    with pytest.raises(ValueError, match="buffer exceeds"):
+        ic._expected_bin_size(4096, 4096)
+
+
+@pytest.mark.parametrize(("width", "height"), [(0, 4), (4, 0), (-4, 4), (4, -4)])
+def test_non_positive_buffer_dimensions_are_rejected(
+    width: int, height: int
+) -> None:
+    with pytest.raises(ValueError, match="must be positive"):
+        ic._expected_bin_size(width, height)
 
 
 def test_odd_pixel_count_rejected() -> None:

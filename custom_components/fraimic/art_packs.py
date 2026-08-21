@@ -1,6 +1,6 @@
 """Curated art packs: one-click installs of public-domain artwork.
 
-Two catalog sources, merged in ``status()``:
+Three catalog sources, merged in ``status()``:
 
 - Bundled (``packs/catalog.json``): ships with the integration, always
   available, fails loudly on packaging bugs.
@@ -8,6 +8,9 @@ Two catalog sources, merged in ``status()``:
   images hosted on GitHub raw), fetched live with a TTL so new packs appear
   without an integration update. Failures fall back to whatever was cached —
   the tab degrades to bundled-only, never breaks.
+- Reframed Gallery: its live Collections, Colors, Tags, Artists, Vertical, and
+  Recently Added taxonomy. Rows are cheap lazy descriptors; installing one
+  resolves a bounded set of current artwork into the normal library + scene.
 
 Installing a pack downloads its images into the library under a pack-named
 album, then creates/updates a scene assigning an orientation-matched image to
@@ -45,7 +48,18 @@ from .const import (
 )
 from .helpers import loaded_fraimic_entries
 from .library import FraimicLibrary
-from .pack_model import map_remote_catalog, match_images_to_frames, validate_catalog
+from .pack_model import (
+    REFRAMED_FALLBACK_COVER,
+    REFRAMED_PACK_LIMIT,
+    make_reframed_pack,
+    map_remote_catalog,
+    match_images_to_frames,
+    materialize_reframed_pack,
+    reframed_filename,
+    validate_catalog,
+)
+from .providers.base import BrowseFolder
+from .providers.ha import ArtFetchError, async_browse_provider
 from .scene_model import SCENE_SOURCE_PACK, Scene
 from .scenes import SceneManager
 
@@ -69,6 +83,19 @@ REMOTE_PACK_RAW_BASE = "https://raw.githubusercontent.com/dsackr/frame-addons/ma
 REMOTE_PACK_INDEX_URL = f"{REMOTE_PACK_RAW_BASE}/scene_packs/index.json"
 REMOTE_PACK_TTL = 6 * 3600
 REMOTE_PACK_FAILURE_TTL = 300
+REFRAMED_PACK_TTL = 6 * 3600
+REFRAMED_PACK_FAILURE_TTL = 300
+REFRAMED_PACK_MAX_EXTRA_PAGES = 4
+
+REFRAMED_GROUPS = (
+    ("collections", "Reframed Collections"),
+    ("colors", "Reframed Colors"),
+    ("tags", "Reframed Tags"),
+)
+
+
+class ArtPackNotFoundError(HomeAssistantError):
+    """Raised when an art-pack id is not in any catalog."""
 
 
 @callback
@@ -88,8 +115,13 @@ class ArtPackManager:
         self.scenes = scenes
         self.packs: list[dict[str, Any]] = []
         self.remote_packs: list[dict[str, Any]] = []
+        self.reframed_packs: list[dict[str, Any]] = []
         self._remote_fetched_at: float = 0.0
-        # pack_id -> {"installed_at": ts, "images": {url: image_id}}
+        self._reframed_fetched_at: float = 0.0
+        self._reframed_last_refresh_succeeded = False
+        self._reframed_refresh_task: asyncio.Task[None] | None = None
+        self._active_install_progress: dict[str, tuple[int, int]] = {}
+        # pack_id -> installed image ids plus catalog metadata used after restart.
         self.installed: dict[str, dict[str, Any]] = {}
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._install_lock = asyncio.Lock()
@@ -106,6 +138,33 @@ class ArtPackManager:
             self.packs = []
         data = await self._store.async_load()
         self.installed = (data or {}).get("installed", {})
+        await self._async_migrate_reframed_filenames()
+
+    async def _async_migrate_reframed_filenames(self) -> None:
+        """Give already-installed Reframed artwork human-readable filenames."""
+        for image_id, library_image in self.library.images.items():
+            if not (
+                library_image.source_url
+                and library_image.source_url.startswith(
+                    "https://www.reframed.gallery/"
+                )
+                and library_image.attribution
+            ):
+                continue
+            title, separator, _credit = library_image.attribution.partition(" — ")
+            if not separator:
+                continue
+            filename = reframed_filename(
+                title, library_image.filename, library_image.attribution
+            )
+            try:
+                await self.library.async_rename_image(image_id, filename)
+            except HomeAssistantError as err:
+                _LOGGER.warning(
+                    "Could not migrate Reframed image %s filename: %s",
+                    image_id,
+                    err,
+                )
 
     async def async_refresh_remote(self) -> None:
         """Fetch the community catalog if the cached copy is stale.
@@ -141,17 +200,121 @@ class ArtPackManager:
         self.remote_packs = map_remote_catalog(data or {}, REMOTE_PACK_RAW_BASE)
         self._remote_fetched_at = time.time()
 
+    async def async_refresh_reframed(self) -> None:
+        """Refresh lazy art-pack rows from Reframed's live taxonomy."""
+        if not self._reframed_refresh_due():
+            return
+        entries = loaded_fraimic_entries(self.hass)
+        if not entries:
+            self._reframed_fetched_at = time.time()
+            self._reframed_last_refresh_succeeded = False
+            return
+        entry = entries[0]
+        packs: dict[str, dict[str, Any]] = {}
+        try:
+            for browse_id, category in REFRAMED_GROUPS:
+                page = await async_browse_provider(
+                    self.hass, entry, "reframed", browse_id
+                )
+                for folder in page.folders:
+                    pack = self._reframed_folder_pack(folder, category)
+                    packs[pack["id"]] = pack
+
+            artist_ranges = await async_browse_provider(
+                self.hass, entry, "reframed", "artists"
+            )
+            for artist_range in artist_ranges.folders:
+                page = await async_browse_provider(
+                    self.hass, entry, "reframed", artist_range.item_id
+                )
+                for folder in page.folders:
+                    pack = self._reframed_folder_pack(folder, "Reframed Artists")
+                    packs[pack["id"]] = pack
+
+            for folder in (
+                BrowseFolder("verticals", "Vertical artworks"),
+                BrowseFolder("recent", "Recently added"),
+            ):
+                pack = self._reframed_folder_pack(folder, "Reframed Gallery")
+                packs[pack["id"]] = pack
+        except ArtFetchError as err:
+            self._reframed_fetched_at = time.time()
+            self._reframed_last_refresh_succeeded = False
+            _LOGGER.warning("Could not fetch the Reframed pack catalog: %s", err)
+            return
+        except Exception:
+            self._reframed_fetched_at = time.time()
+            self._reframed_last_refresh_succeeded = False
+            _LOGGER.exception("Reframed pack catalog refresh failed")
+            return
+
+        self.reframed_packs = sorted(
+            packs.values(), key=lambda pack: (pack["category"], pack["name"].casefold())
+        )
+        self._reframed_fetched_at = time.time()
+        self._reframed_last_refresh_succeeded = True
+
+    def _reframed_refresh_due(self) -> bool:
+        ttl = (
+            REFRAMED_PACK_TTL
+            if self._reframed_last_refresh_succeeded
+            else REFRAMED_PACK_FAILURE_TTL
+        )
+        return not self._reframed_fetched_at or (
+            time.time() - self._reframed_fetched_at >= ttl
+        )
+
+    @property
+    def reframed_refreshing(self) -> bool:
+        """Whether the taxonomy is refreshing or still waiting to refresh."""
+        task_running = bool(
+            self._reframed_refresh_task
+            and not self._reframed_refresh_task.done()
+        )
+        return task_running or self._reframed_refresh_due()
+
+    @callback
+    def schedule_reframed_refresh(self) -> None:
+        """Start one background refresh when the cached taxonomy is stale."""
+        if not self._reframed_refresh_due() or (
+            self._reframed_refresh_task
+            and not self._reframed_refresh_task.done()
+        ):
+            return
+        task = self.hass.async_create_background_task(
+            self.async_refresh_reframed(), name="fraimic_reframed_pack_catalog"
+        )
+        self._reframed_refresh_task = task
+        task.add_done_callback(self._reframed_refresh_done)
+
+    @callback
+    def _reframed_refresh_done(self, task: asyncio.Task[None]) -> None:
+        if self._reframed_refresh_task is task:
+            self._reframed_refresh_task = None
+
+    @staticmethod
+    def _reframed_folder_pack(
+        folder: BrowseFolder, category: str
+    ) -> dict[str, Any]:
+        return make_reframed_pack(
+            folder.item_id,
+            folder.title,
+            category,
+            cover_url=folder.thumb_url,
+            source_count=folder.count,
+        )
+
     async def _async_save(self) -> None:
         await self._store.async_save({"installed": self.installed})
 
     def _all_packs(self) -> list[dict[str, Any]]:
-        return [*self.packs, *self.remote_packs]
+        return [*self.packs, *self.remote_packs, *self.reframed_packs]
 
     def _get_pack(self, pack_id: str) -> dict[str, Any]:
         for pack in self._all_packs():
             if pack["id"] == pack_id:
                 return pack
-        raise HomeAssistantError(f"No art pack with id {pack_id}")
+        raise ArtPackNotFoundError(f"No art pack with id {pack_id}")
 
     def _live_images(
         self, pack_id: str, current_urls: set[str] | None = None
@@ -171,13 +334,34 @@ class ArtPackManager:
         seen_ids = set()
         for pack in self._all_packs():
             seen_ids.add(pack["id"])
-            current_urls = {image["url"] for image in pack["images"]}
-            live = self._live_images(pack["id"], current_urls)
+            catalog_images = pack["images"]
+            current_urls = {image["url"] for image in catalog_images}
+            live = self._live_images(
+                pack["id"], current_urls if current_urls else None
+            )
+            record = self.installed.get(pack["id"]) or {}
+            total = (
+                len(current_urls)
+                or int(record.get("total") or 0)
+                or int(pack.get("image_count") or 0)
+            )
+            display_pack = pack
+            if not catalog_images and live:
+                installed_pack = self._installed_only_pack(pack["id"], record, live)
+                cover_url = pack.get("cover_url")
+                if cover_url == REFRAMED_FALLBACK_COVER:
+                    cover_url = installed_pack["cover_url"]
+                display_pack = {
+                    **pack,
+                    "images": installed_pack["images"],
+                    "cover_url": cover_url or installed_pack["cover_url"],
+                }
             result.append(
                 {
-                    **pack,
+                    **display_pack,
+                    "image_count": total,
                     "installed_count": len(live),
-                    "installed": bool(current_urls) and set(live) == current_urls,
+                    "installed": bool(total) and len(live) == total,
                 }
             )
         for pack_id, record in self.installed.items():
@@ -196,19 +380,47 @@ class ArtPackManager:
             )
         return result
 
+    def install_progress(self) -> dict[str, dict[str, int]]:
+        """Return lightweight installed counts without refreshing catalogs."""
+        progress = {}
+        for pack_id, record in self.installed.items():
+            live = self._live_images(pack_id)
+            progress[pack_id] = {
+                "installed_count": len(live),
+                "total": int(record.get("total") or len(live)),
+            }
+        for pack_id, (installed_count, total) in self._active_install_progress.items():
+            progress[pack_id] = {
+                "installed_count": installed_count,
+                "total": total,
+            }
+        return progress
+
     def _installed_only_pack(
         self, pack_id: str, record: dict[str, Any], live: dict[str, str]
     ) -> dict[str, Any]:
         """Build a catalog row for an installed pack missing from live catalogs."""
         images = []
+        metadata = record.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            metadata = {}
         for url, image_id in live.items():
+            library_image = self.library.images[image_id]
+            image_metadata = metadata.get(url) or {}
+            if not isinstance(image_metadata, dict):
+                image_metadata = {}
             filename = Path(urlparse(url).path).name or f"{image_id}.jpg"
             images.append(
                 {
-                    "title": self.library.images[image_id].filename,
+                    "title": image_metadata.get("title") or library_image.filename,
                     "url": url,
-                    "preview_url": url,
+                    "preview_url": image_metadata.get("preview_url") or url,
                     "filename": filename,
+                    "source_url": image_metadata.get("source_url")
+                    or library_image.source_url,
+                    "license": image_metadata.get("license") or library_image.license,
+                    "attribution": image_metadata.get("attribution")
+                    or library_image.attribution,
                 }
             )
         return {
@@ -228,13 +440,18 @@ class ArtPackManager:
         images: dict[str, str],
         *,
         scene_id: str | None = None,
+        total: int | None = None,
+        metadata: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
+        previous = self.installed.get(pack_id) or {}
         record: dict[str, Any] = {
             "installed_at": time.time(),
             "name": pack_name,
             "images": dict(images),
+            "total": total or previous.get("total") or len(images),
+            "metadata": metadata or previous.get("metadata") or {},
         }
-        previous_scene_id = (self.installed.get(pack_id) or {}).get("scene_id")
+        previous_scene_id = previous.get("scene_id")
         scene_id = scene_id or previous_scene_id
         if isinstance(scene_id, str) and scene_id:
             record["scene_id"] = scene_id
@@ -247,77 +464,185 @@ class ArtPackManager:
         a partially failed install just resumes on the next click."""
         async with self._install_lock:
             pack = self._get_pack(pack_id)
+            pack = await self._async_materialize_pack(pack)
             session = async_get_clientsession(self.hass)
             current_urls = {image["url"] for image in pack["images"]}
+            metadata = {
+                image["url"]: {
+                    key: image.get(key)
+                    for key in (
+                        "title",
+                        "preview_url",
+                        "source_url",
+                        "license",
+                        "attribution",
+                    )
+                    if image.get(key)
+                }
+                for image in pack["images"]
+            }
             all_live = self._live_images(pack_id)
             stale = {
                 url: image_id
                 for url, image_id in all_live.items()
                 if url not in current_urls
             }
-            if stale:
-                await self._async_delete_pack_images(stale.values())
             live = {
                 url: image_id
                 for url, image_id in all_live.items()
                 if url in current_urls
             }
+            previous_metadata = (self.installed.get(pack_id) or {}).get("metadata")
+            if not isinstance(previous_metadata, dict):
+                previous_metadata = {}
+            owned_metadata = {**previous_metadata, **metadata}
             failed: list[dict[str, str]] = []
             downloaded = 0
+            total = len(pack["images"])
+            self._active_install_progress[pack_id] = (len(live), total)
 
-            for image_def in pack["images"]:
-                url = image_def["url"]
-                if url in live:
-                    continue
-                try:
-                    data = await self._async_download(session, url)
-                    library_image = await self.library.async_add_image(
-                        data,
-                        image_def["filename"],
-                        albums=[pack["name"]],
-                        source_url=image_def.get("source_url"),
-                        license_text=image_def.get("license"),
-                        attribution=image_def.get("attribution"),
+            try:
+                for image_def in pack["images"]:
+                    url = image_def["url"]
+                    if url in live:
+                        continue
+                    try:
+                        data = await self._async_download(session, url)
+                        library_image = await self.library.async_add_image(
+                            data,
+                            image_def["filename"],
+                            albums=[pack["name"]],
+                            source_url=image_def.get("source_url"),
+                            license_text=image_def.get("license"),
+                            attribution=image_def.get("attribution"),
+                        )
+                    except (
+                        HomeAssistantError,
+                        aiohttp.ClientError,
+                        asyncio.TimeoutError,
+                    ) as err:
+                        _LOGGER.warning(
+                            "Art pack %s: could not fetch %s: %s",
+                            pack_id,
+                            image_def["title"],
+                            err,
+                        )
+                        failed.append(
+                            {"title": image_def["title"], "error": str(err)}
+                        )
+                    else:
+                        live[url] = library_image.image_id
+                        self._active_install_progress[pack_id] = (len(live), total)
+                        self.installed[pack_id] = self._installed_record(
+                            pack_id,
+                            pack["name"],
+                            {**stale, **live},
+                            total=total,
+                            metadata=owned_metadata,
+                        )
+                        await self._async_save()
+                        downloaded += 1
+                    delay = (
+                        DOWNLOAD_DELAY_COMMONS
+                        if "wikimedia.org" in url
+                        else DOWNLOAD_DELAY_DEFAULT
                     )
-                except (HomeAssistantError, aiohttp.ClientError, asyncio.TimeoutError) as err:
-                    _LOGGER.warning(
-                        "Art pack %s: could not fetch %s: %s", pack_id, image_def["title"], err
-                    )
-                    failed.append({"title": image_def["title"], "error": str(err)})
-                else:
-                    live[url] = library_image.image_id
-                    self.installed[pack_id] = self._installed_record(
-                        pack_id, pack["name"], live
-                    )
-                    await self._async_save()
-                    downloaded += 1
-                delay = (
-                    DOWNLOAD_DELAY_COMMONS
-                    if "wikimedia.org" in url
-                    else DOWNLOAD_DELAY_DEFAULT
-                )
-                await asyncio.sleep(delay)
+                    await asyncio.sleep(delay)
 
-            self.installed[pack_id] = self._installed_record(
-                pack_id, pack["name"], live
-            )
-            await self._async_save()
-
-            scene_id = None
-            if live:
-                scene_id = await self._async_sync_pack_scene(pack, list(live.values()))
+                keep_stale = bool(stale and failed)
+                committed = {**stale, **live} if stale else live
+                committed_metadata = owned_metadata if stale else metadata
                 self.installed[pack_id] = self._installed_record(
-                    pack_id, pack["name"], live, scene_id=scene_id
+                    pack_id,
+                    pack["name"],
+                    committed,
+                    total=total,
+                    metadata=committed_metadata,
                 )
                 await self._async_save()
-            return {
-                "pack_id": pack_id,
-                "downloaded": downloaded,
-                "installed_count": len(live),
-                "total": len(pack["images"]),
-                "failed": failed,
-                "scene_id": scene_id,
-            }
+
+                scene_id = self.installed[pack_id].get("scene_id")
+                if live and not keep_stale:
+                    scene_id = await self._async_sync_pack_scene(
+                        pack, list(live.values())
+                    )
+                    if stale:
+                        await self._async_delete_pack_images(stale.values())
+                    remaining_stale = {
+                        url: image_id
+                        for url, image_id in stale.items()
+                        if image_id in self.library.images
+                    }
+                    self.installed[pack_id] = self._installed_record(
+                        pack_id,
+                        pack["name"],
+                        {**remaining_stale, **live},
+                        scene_id=scene_id,
+                        total=total,
+                        metadata=owned_metadata if remaining_stale else metadata,
+                    )
+                    await self._async_save()
+                return {
+                    "pack_id": pack_id,
+                    "downloaded": downloaded,
+                    "installed_count": len(live),
+                    "total": total,
+                    "failed": failed,
+                    "scene_id": scene_id,
+                }
+            finally:
+                self._active_install_progress.pop(pack_id, None)
+
+    async def async_gallery(self, pack_id: str) -> dict[str, Any]:
+        """Return a pack with its lazy Reframed artwork resolved."""
+        return await self._async_materialize_pack(self._get_pack(pack_id))
+
+    async def _async_materialize_pack(
+        self, pack: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Resolve a lazy Reframed row into a bounded current image list."""
+        provider_path = pack.get("provider_path")
+        if not isinstance(provider_path, str) or not provider_path:
+            return pack
+        if pack["images"]:
+            return pack
+        entries = loaded_fraimic_entries(self.hass)
+        if not entries:
+            raise HomeAssistantError("No Fraimic frame is loaded")
+
+        entry = entries[0]
+        first_page = await async_browse_provider(
+            self.hass, entry, "reframed", provider_path
+        )
+        candidates = list(first_page.candidates)
+        seen = {candidate.item_id for candidate in candidates}
+        extra_pages = 0
+        for folder in first_page.folders:
+            if (
+                len(candidates) >= REFRAMED_PACK_LIMIT
+                or extra_pages >= REFRAMED_PACK_MAX_EXTRA_PAGES
+            ):
+                break
+            if not folder.item_id.startswith(f"{provider_path}/page/"):
+                continue
+            extra_pages += 1
+            page = await async_browse_provider(
+                self.hass, entry, "reframed", folder.item_id
+            )
+            for candidate in page.candidates:
+                if candidate.item_id in seen:
+                    continue
+                seen.add(candidate.item_id)
+                candidates.append(candidate)
+                if len(candidates) >= REFRAMED_PACK_LIMIT:
+                    break
+
+        materialized = materialize_reframed_pack(pack, candidates)
+        if not materialized["images"]:
+            raise HomeAssistantError(
+                f"Reframed pack {pack['name']} currently has no downloadable artwork"
+            )
+        return materialized
 
     async def _async_download(self, session: aiohttp.ClientSession, url: str) -> bytes:
         resp = await session.get(

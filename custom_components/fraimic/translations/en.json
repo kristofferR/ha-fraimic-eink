@@ -14,7 +14,7 @@
       },
       "resolution": {
         "title": "Which Fraimic model?",
-        "description": "Couldn't auto-detect the size of the frame at {host}, so pick the model: Standard Canvas = 13.3\" (1600x1200), Large Canvas = 31.5\" (2560x1440). Choose Custom only if you know the exact pixel size, and fill in Width + Height.",
+        "description": "Couldn't auto-detect the size of the frame at {host}, so pick the model: Standard Canvas = 13.3\" (1600x1200), Large Canvas = 31.5\" (1440x2560 native). Choose Custom only if you know the exact pixel size, and fill in Width + Height.",
         "data": {
           "frame_model": "Frame model",
           "width": "Width (px, Custom only)",
@@ -184,7 +184,7 @@
           "scan_interval": "Requested polling interval. Power mode may raise it; Minimum disables periodic polling entirely.",
           "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape).",
           "camera_refresh_interval": "How often a camera ‘playing’ on this frame takes a fresh snapshot. Each update is a full ~30 s E-Ink refresh and costs battery — minimum 60. 0 = show once, no auto-refresh.",
-          "mode": "auto/error-diffusion for photos, bayer for graphics, none for nearest-colour.",
+          "mode": "auto/error-diffusion for photos; official reproduces Fraimic's published converter recipe and ignores the processing sliders; bayer for graphics; none for nearest-colour.",
           "fit": "Fill (crop), Fit (keep aspect — white or black bars), or Stretch.",
           "saturation": "Saturation boost (default 1.15). 1.0 = no change.",
           "contrast": "Contrast boost (default 1.4 — pushed hard for the backlight-less panel). 1.0 = no change.",
@@ -359,7 +359,7 @@
         },
         "mode": {
           "name": "Dither mode",
-          "description": "How to map to the 6 Spectra colours: auto/error-diffusion for photos, bayer for graphics, none for nearest-colour."
+          "description": "How to map to the 6 Spectra colours: auto/error-diffusion for photos; official reproduces Fraimic's published converter recipe and ignores the processing sliders; bayer for graphics; none for nearest-colour."
         },
         "saturation": {
           "name": "Saturation",
@@ -389,7 +389,7 @@
         },
         "provider": {
           "name": "Source",
-          "description": "Where to get the image: shuffle (random museum), met, aic, cleveland, wikimedia, bing, apod, or picsum."
+          "description": "Where to get the image: shuffle (random museum), Reframed Gallery, museum collections, daily images, or photo sources."
         },
         "query": {
           "name": "Search query",
@@ -473,7 +473,7 @@
         },
         "mode": {
           "name": "Dither mode",
-          "description": "Override the frame's dither mode for this send."
+          "description": "Override the frame's image mode for this send. Official uses Fraimic's fixed processing and Atkinson recipe, ignoring other processing overrides."
         },
         "rotate": {
           "name": "Rotate",

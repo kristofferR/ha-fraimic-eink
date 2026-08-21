@@ -1,13 +1,12 @@
 """Convert ordinary images into the Fraimic Spectra 6 ``.bin`` display format.
 
-Fraimic frames use an **E Ink Spectra 6** colour panel. The buffer is a raw,
-header-less, uncompressed 4bpp image, ``width * height / 2`` bytes total
-(1600x1200 = 960,000 bytes for the 13.3" frame) — but the scan order is NOT
-row-major. Verified on real hardware (firmware 0.2.21): the buffer holds the
-*bottom* half of the panel first, then the top half, each half column-major
-with columns scanned bottom-up and two vertically-adjacent pixels per byte.
-Pixel values are the E Ink standard Spectra 6 codes (0x4 unused) — see
-``_pack_nibbles`` and ``SPECTRA6_PANEL_INDEX``.
+Fraimic frames use an **E Ink Spectra 6** colour panel. The buffer is raw,
+header-less and uncompressed, but its scan order depends on the panel. The
+13.3" format is 4bpp (960,000 bytes) with two column-major half-panels. The
+31.5" EL315 format is portrait-native 1440x2560 and carries eight controller
+blocks with fixed padding (2,304,000 bytes). Pixel values are the E Ink
+standard Spectra 6 codes (0x4 unused) — see ``_pack_nibbles`` and
+``SPECTRA6_PANEL_INDEX``.
 
 Getting good output from a tiny-gamut, low-contrast 6-colour panel is as much
 about *pre-processing* as it is about the dither, so this module runs a full
@@ -22,6 +21,7 @@ CPU-bound (Pillow / numpy) and must be run in an executor.
 from __future__ import annotations
 
 import io
+from functools import cache
 
 from .const import (
     AUTO_DOMINANCE_THRESHOLD,
@@ -37,17 +37,22 @@ from .const import (
     FIT_CONTAIN,
     FIT_CONTAIN_BLACK,
     FIT_STRETCH,
+    FRAME_MODELS,
+    MAX_BIN_SIZE,
     MAX_SOURCE_PIXELS,
     MODE_ATKINSON,
     MODE_AUTO,
     MODE_BAYER,
     MODE_FLOYD_STEINBERG,
     MODE_NONE,
+    MODE_OFFICIAL,
     NEUTRAL_CHROMA_T,
     NEUTRAL_WEIGHT,
     SPECTRA6_LEVELS,
     SPECTRA6_PANEL_INDEX,
     SPECTRA6_RGB,
+    canonical_frame_resolution,
+    frame_bin_size,
 )
 
 # Lazily register extra Pillow decoders (HEIC/HEIF/AVIF via pillow-heif) once.
@@ -130,6 +135,21 @@ _ATKINSON_KERNEL = (
     (0, 2, 1 / 8),
 )
 
+# Fraimic/fraimic_bin_converter's published compatibility recipe. These are
+# deliberately separate from the calibrated palette and processing defaults
+# used by every other mode.
+_OFFICIAL_PALETTE_RGB = (
+    (0, 0, 0),
+    (255, 255, 255),
+    (255, 255, 0),
+    (255, 0, 0),
+    (0, 0, 255),
+    (0, 255, 0),
+)
+_OFFICIAL_BRIGHTNESS = 1.1
+_OFFICIAL_CONTRAST = 1.2
+_OFFICIAL_SATURATION = 1.2
+
 
 def _srgb_to_linear(values):
     """sRGB [0,1] -> linear-light [0,1] (vectorised)."""
@@ -204,9 +224,142 @@ def _preprocess(
         image = ImageEnhance.Color(image).enhance(saturation)
     if sharpen > 0:
         image = image.filter(
-            ImageFilter.UnsharpMask(radius=1.0, percent=int(round(sharpen)), threshold=2)
+            ImageFilter.UnsharpMask(radius=1.0, percent=round(sharpen), threshold=2)
         )
     return image
+
+
+def _official_prepare_image(
+    image, width: int, height: int, fit: str, *, preprocess: bool
+):
+    """Fit and enhance an image exactly like Fraimic's published converter."""
+    from PIL import Image, ImageEnhance, ImageFilter
+
+    size = (width, height)
+    pad_color = None
+    if fit == FIT_STRETCH:
+        image = image.resize(size, Image.Resampling.LANCZOS)
+    elif fit in (FIT_CONTAIN, FIT_CONTAIN_BLACK):
+        scale = min(width / image.width, height / image.height)
+        scaled_size = (
+            max(1, round(image.width * scale)),
+            max(1, round(image.height * scale)),
+        )
+        image = image.resize(scaled_size, Image.Resampling.LANCZOS)
+        pad_color = (0, 0, 0) if fit == FIT_CONTAIN_BLACK else (255, 255, 255)
+    else:
+        scale = max(width / image.width, height / image.height)
+        scaled_size = (
+            max(1, round(image.width * scale)),
+            max(1, round(image.height * scale)),
+        )
+        image = image.resize(scaled_size, Image.Resampling.LANCZOS)
+        left = (image.width - width) // 2
+        top = (image.height - height) // 2
+        image = image.crop((left, top, left + width, top + height))
+
+    if preprocess:
+        image = ImageEnhance.Brightness(image).enhance(_OFFICIAL_BRIGHTNESS)
+        image = ImageEnhance.Contrast(image).enhance(_OFFICIAL_CONTRAST)
+        image = ImageEnhance.Color(image).enhance(_OFFICIAL_SATURATION)
+        image = image.filter(ImageFilter.EDGE_ENHANCE)
+        image = image.filter(ImageFilter.SMOOTH)
+        image = image.filter(ImageFilter.SHARPEN)
+
+    if pad_color is not None and image.size != size:
+        framed = Image.new("RGB", size, pad_color)
+        framed.paste(image, ((width - image.width) // 2, (height - image.height) // 2))
+        return framed
+    return image
+
+
+@cache
+def _official_palette_lut():
+    """Build Fraimic's exact RGB+luma nearest-colour metric as a 24-bit LUT."""
+    import numpy as np
+
+    palette = np.array(_OFFICIAL_PALETTE_RGB, dtype=np.float32)
+    palette_luma = np.array(
+        [r * 250 + g * 350 + b * 400 for r, g, b in _OFFICIAL_PALETTE_RGB],
+        dtype=np.float32,
+    ) / (255.0 * 1000)
+    values = np.arange(256, dtype=np.float64)
+    green = values[:, None]
+    blue = values[None, :]
+    lut = np.empty((256, 256, 256), dtype=np.uint8)
+
+    for red in range(256):
+        luma = (red * 250 + green * 350 + blue * 400) / (255.0 * 1000)
+        best_distance = np.full((256, 256), np.inf)
+        best_index = np.zeros((256, 256), dtype=np.uint8)
+        for index, color in enumerate(palette):
+            diff_r = red - color[0]
+            diff_g = green - color[1]
+            diff_b = blue - color[2]
+            rgb_distance = (
+                diff_r * diff_r * 0.250
+                + diff_g * diff_g * 0.350
+                + diff_b * diff_b * 0.400
+            ) * 0.75 / (255.0 * 255.0)
+            luma_diff = luma - palette_luma[index]
+            distance = 1.5 * rgb_distance + 0.60 * luma_diff * luma_diff
+            better = distance < best_distance
+            best_distance[better] = distance[better]
+            best_index[better] = index
+        lut[red] = best_index
+    return lut
+
+
+def _official_atkinson_indices(image):
+    """Apply Fraimic's tuned, left-to-right Atkinson implementation."""
+    import numpy as np
+
+    working = np.asarray(image.convert("RGB"), dtype=np.float32).copy()
+    height, width, _ = working.shape
+    indices = np.zeros((height, width), dtype=np.uint8)
+    palette = np.array(_OFFICIAL_PALETTE_RGB, dtype=np.float32)
+    lut = _official_palette_lut()
+
+    for y in range(height):
+        for x in range(width):
+            old_pixel = working[y, x].copy()
+            red, green, blue = np.clip(old_pixel, 0, 255).astype(int)
+            index = int(lut[red, green, blue])
+            new_pixel = palette[index]
+            working[y, x] = new_pixel
+            indices[y, x] = index
+            error = old_pixel - new_pixel
+
+            if x + 1 < width:
+                working[y, x + 1] += error * (1 / 8)
+            if y + 1 < height:
+                if x > 0:
+                    working[y + 1, x - 1] += error * (1 / 8)
+                working[y + 1, x] += error * (1 / 4)
+                if x + 1 < width:
+                    working[y + 1, x + 1] += error * (1 / 8)
+
+    return indices.reshape(-1)
+
+
+def _official_frame_indices(
+    image, width: int, height: int, fit: str, *, preprocess: bool
+):
+    """Render official indices in the integration's verified frame orientation."""
+    import numpy as np
+
+    if (width, height) == FRAME_MODELS["standard"]:
+        render_width, render_height = height, width
+    else:
+        render_width, render_height = width, height
+    image = _official_prepare_image(
+        image, render_width, render_height, fit, preprocess=preprocess
+    )
+    indices = _official_atkinson_indices(image)
+    if (render_width, render_height) != (width, height):
+        portrait = indices.reshape(render_height, render_width)
+        return np.rot90(portrait, k=1).reshape(-1)
+    return indices
 
 
 def _apply_crop(image, crop: tuple[float, float, float, float]):
@@ -263,7 +416,7 @@ def _palette_distances(flat, palette):
     """Squared OKLab distance to each palette colour + the neutral penalty.
 
     Returns an (N, P) float32 array. Computed one palette colour at a time to
-    avoid the huge (N, P, 3) broadcast temporary (~530 MB on the 2560x1440 frame).
+    avoid the huge (N, P, 3) broadcast temporary (~530 MB on the 1440x2560 frame).
     """
     import numpy as np
 
@@ -318,7 +471,7 @@ def _error_diffuse(oklab, palette, kernel, width: int, height: int):
 
     Only materialises the few rows the kernel touches (current + up to 2 ahead)
     as Python lists at a time, instead of list-converting the whole frame, so a
-    large frame (2560x1440) doesn't balloon memory.
+    large frame (1440x2560) doesn't balloon memory.
 
     The error-adjusted target is clamped to just beyond the palette's reach
     before matching, and the *clamped* value drives the diffused error. FS
@@ -448,12 +601,15 @@ def _render_indices(image, width: int, height: int, mode: str):
     """Return a flat numpy array of Spectra 6 palette indices for ``image``."""
     import numpy as np
 
+    mode = _resolve_mode(mode)
+    if mode == MODE_OFFICIAL:
+        return _official_atkinson_indices(image)
+
     palette = _palette_oklab()
     arr = np.asarray(image, dtype=np.float64) / 255.0  # (H, W, 3) sRGB
     oklab = _linear_to_oklab(_srgb_to_linear(arr))
     oklab = _gamut_soft_clamp(oklab, palette)
 
-    mode = _resolve_mode(mode)
     if mode == MODE_NONE:
         return _nearest(oklab.reshape(-1, 3), palette)
     if mode == MODE_BAYER:
@@ -462,6 +618,22 @@ def _render_indices(image, width: int, height: int, mode: str):
         return _error_diffuse(oklab, palette, _ATKINSON_KERNEL, width, height)
     # MODE_FLOYD_STEINBERG (and the resolved default)
     return _error_diffuse(oklab, palette, _FLOYD_STEINBERG_KERNEL, width, height)
+
+
+def _require_canonical_resolution(width: int, height: int) -> tuple[int, int]:
+    """Reject a known panel orientation that would select the wrong packer."""
+    if width < 1 or height < 1:
+        raise ValueError("Fraimic buffer dimensions must be positive")
+    if height % 4:
+        raise ValueError("Fraimic buffers require a height divisible by 4")
+    resolution = (width, height)
+    canonical = canonical_frame_resolution(width, height)
+    if resolution != canonical:
+        raise ValueError(
+            f"Fraimic panel {width}x{height} must use the verified render "
+            f"resolution {canonical[0]}x{canonical[1]}"
+        )
+    return resolution
 
 
 def _pack_nibbles(indices, width: int, height: int) -> bytes:
@@ -477,9 +649,14 @@ def _pack_nibbles(indices, width: int, height: int) -> bytes:
     """
     import numpy as np
 
+    resolution = _require_canonical_resolution(width, height)
+
     panel_nibble = np.array(SPECTRA6_PANEL_INDEX, dtype=np.uint8)
     arr = panel_nibble[np.asarray(indices, dtype=np.uint8) % SPECTRA6_LEVELS]
     arr = arr.reshape(height, width)
+
+    if resolution == (1440, 2560):
+        return _pack_el315(arr)
 
     half_h = height // 2
     parts = []
@@ -489,6 +666,53 @@ def _pack_nibbles(indices, width: int, height: int) -> bytes:
         pairs = cols.reshape(-1, 2)
         parts.append(((pairs[:, 0] << 4) | (pairs[:, 1] & 0x0F)).astype(np.uint8))
     return np.concatenate(parts).tobytes()
+
+
+def _pack_el315(arr) -> bytes:
+    """Pack native portrait pixels for the 31.5" EL315 controller layout.
+
+    The panel expects eight 288,000-byte IC blocks. IC1-4 cover the bottom
+    half and IC5-8 the top half; each block row walks a two-pixel-wide strip
+    bottom-to-top. IC4 and IC8 contain only 80 real gate lines and pad the
+    remaining 320 bytes of every row with white (0x11).
+    """
+    import numpy as np
+
+    block_rows = 720
+    block_pixels = 800
+    half_rows = 1280
+    flipped = np.flipud(arr)
+    white = SPECTRA6_PANEL_INDEX[1]
+    blocks = []
+
+    for half in range(2):
+        strip = flipped[half * half_rows : (half + 1) * half_rows]
+        band = (
+            strip.reshape(half_rows, block_rows, 2)
+            .transpose(1, 0, 2)
+            .reshape(block_rows, half_rows * 2)
+        )
+        for ic in range(4):
+            real_pixels = 160 if ic == 3 else block_pixels
+            start = ic * block_pixels
+            nibbles = np.full(
+                (block_rows, block_pixels), white, dtype=np.uint8
+            )
+            nibbles[:, :real_pixels] = band[:, start : start + real_pixels]
+            blocks.append(
+                ((nibbles[:, 0::2] << 4) | nibbles[:, 1::2]).reshape(-1)
+            )
+
+    return np.concatenate(blocks).tobytes()
+
+
+def _expected_bin_size(width: int, height: int) -> int:
+    """Return the exact wire payload size for a configured panel."""
+    resolution = _require_canonical_resolution(width, height)
+    size = frame_bin_size(*resolution)
+    if size > MAX_BIN_SIZE:
+        raise ValueError(f"Fraimic buffer exceeds {MAX_BIN_SIZE} bytes")
+    return size
 
 
 def _indices_to_png(indices, width: int, height: int, preview_rotate: int = 0) -> bytes:
@@ -552,9 +776,11 @@ def convert_image(
         crop: Optional normalized ``(x0, y0, x1, y1)`` box (0.0-1.0, relative to
             the EXIF-corrected source) applied before rotation/fit — this is how
             the library's saved manual crops are honoured.
-        mode: ``auto`` | ``none`` | ``bayer`` | ``floyd_steinberg`` | ``atkinson``.
+        mode: ``auto`` | ``official`` | ``none`` | ``bayer`` |
+            ``floyd_steinberg`` | ``atkinson``.
         saturation/contrast: enhancement factors (1.0 = no change).
-        sharpen: unsharp-mask strength 0-100 (0 disables).
+        sharpen: unsharp-mask strength 0-100 (0 disables). ``official`` uses
+            Fraimic's fixed recipe instead of these enhancement settings.
         preview: also return a downscaled colour PNG of the rendered result.
         preview_rotate: rotate only the preview (clockwise) to match how the frame
             is mounted — the ``.bin`` buffer stays native-orientation.
@@ -564,20 +790,19 @@ def convert_image(
             colours, which autocontrast would otherwise shift off-palette.
 
     Returns:
-        ``(bin_bytes, preview_png_or_none, resolved_mode)`` where ``bin_bytes`` is
-        exactly ``width * height / 2`` bytes and ``resolved_mode`` is the concrete
+        ``(bin_bytes, preview_png_or_none, resolved_mode)`` where ``bin_bytes``
+        has the panel's exact wire size and ``resolved_mode`` is the concrete
         mode used (``auto`` is resolved to the mode actually chosen).
     """
     from PIL import Image, ImageOps, UnidentifiedImageError
 
     _ensure_extra_decoders()
 
-    pixels = width * height
     # The native layout packs two vertically-adjacent pixels per byte within
     # each half-panel, so each half's height must itself be even.
     if height % 4:
         raise ValueError("Fraimic buffers require a height divisible by 4")
-    expected = pixels // 2
+    expected = _expected_bin_size(width, height)
     try:
         src_img = Image.open(io.BytesIO(raw))
     except UnidentifiedImageError as err:
@@ -610,10 +835,15 @@ def convert_image(
         # borders and sharpening adds edges, both of which would skew the
         # photo-vs-graphic decision toward graphics.
         resolved = _auto_mode(image) if mode == MODE_AUTO else mode
-        image = _fit_image(image, width, height, fit)
-        if preprocess:
-            image = _preprocess(image, saturation, contrast, sharpen, tone)
-        indices = _render_indices(image, width, height, resolved)
+        if resolved == MODE_OFFICIAL:
+            indices = _official_frame_indices(
+                image, width, height, fit, preprocess=preprocess
+            )
+        else:
+            image = _fit_image(image, width, height, fit)
+            if preprocess:
+                image = _preprocess(image, saturation, contrast, sharpen, tone)
+            indices = _render_indices(image, width, height, resolved)
 
     packed = _pack_nibbles(indices, width, height)
     if len(packed) != expected:  # pragma: no cover - guarded by fixed size
@@ -640,7 +870,7 @@ def image_to_bin(
     preprocess: bool = True,
 ) -> bytes:
     """Convenience wrapper returning only the ``.bin`` buffer."""
-    return convert_image(  # noqa: returns (bin, preview, mode); we want bin only
+    return convert_image(
         raw,
         width=width,
         height=height,

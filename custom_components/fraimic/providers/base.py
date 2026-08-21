@@ -16,7 +16,8 @@ from typing import Any
 # descriptive UA with contact info; the rest simply deserve politeness).
 USER_AGENT = (
     "ha-fraimic-eink/1.2 "
-    "(https://github.com/kristofferR/ha-fraimic-eink; kristoffer@risanger.no)"
+    "(https://github.com/kristofferR/ha-fraimic-eink; "
+    "481270+kristofferR@users.noreply.github.com)"
 )
 
 
@@ -64,6 +65,25 @@ class ArtImage:
     candidate: ArtCandidate
 
 
+@dataclass(frozen=True)
+class BrowseFolder:
+    """One directory in a provider-owned media-browser tree."""
+
+    item_id: str
+    title: str
+    thumb_url: str | None = None
+    count: int | None = None
+
+
+@dataclass(frozen=True)
+class BrowsePage:
+    """A provider-owned directory containing folders, artwork, or both."""
+
+    title: str
+    folders: tuple[BrowseFolder, ...] = ()
+    candidates: tuple[ArtCandidate, ...] = ()
+
+
 @dataclass
 class ProviderInfo:
     """Static provider facts used by UI surfaces."""
@@ -79,6 +99,7 @@ class ArtProvider:
     name: str = ""
     requires_key: bool = False
     key_option: str | None = None  # entry-options key holding the API key
+    hierarchical_browse: bool = False
     # Seconds between API calls (politeness / published limits).
     min_interval: float = 1.0
 
@@ -93,6 +114,12 @@ class ArtProvider:
     ) -> ArtCandidate:
         """A specific item (media-browser click). Default: unsupported."""
         raise ArtFetchError(f"{self.name} does not support fetching by id")
+
+    async def async_browse(
+        self, session: Any, cache: Any, browse_id: str, request: FetchRequest
+    ) -> BrowsePage:
+        """Browse a provider-owned directory tree. Default: unsupported."""
+        raise ArtFetchError(f"{self.name} does not provide browse folders")
 
     async def async_on_display(
         self, session: Any, candidate: ArtCandidate, request: FetchRequest

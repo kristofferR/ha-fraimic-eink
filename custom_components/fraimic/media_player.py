@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 from datetime import timedelta
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 import aiohttp
 from homeassistant.components import media_source
@@ -35,9 +35,14 @@ from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL, MEDIA_SCHEME
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
-from .providers import PROVIDERS, available_provider_keys, build_media_id, parse_media_id
-from .providers.engine import read_capped
 from .power import TRIGGER_CAMERA, TRIGGER_MANUAL
+from .providers import (
+    PROVIDERS,
+    available_provider_keys,
+    build_media_id,
+    parse_media_id,
+)
+from .providers.engine import read_capped
 from .services import (
     async_render_and_upload,
     begin_external_upload,
@@ -225,8 +230,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         return root
 
     async def _async_browse_online(self, media_id: str) -> BrowseMedia:
-        """The fraimic-online:// tree: providers, then 20 fresh picks each."""
-        from .providers.ha import async_browse_candidates
+        """Browse flat providers or a provider-owned directory tree."""
+        from .providers.ha import async_browse_candidates, async_browse_provider
 
         entry = self.coordinator.config_entry
         if media_id == ONLINE_ROOT:
@@ -252,10 +257,74 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 children_media_class=MediaClass.DIRECTORY,
             )
 
-        provider_key = media_id.removeprefix(ONLINE_ROOT).split("/", 1)[0]
+        provider_path = media_id.removeprefix(ONLINE_ROOT)
+        provider_key, _separator, child_id = provider_path.partition("/")
         provider = PROVIDERS.get(provider_key)
         if provider is None:
             raise HomeAssistantError(f"Unknown online source: {provider_key}")
+        if provider.hierarchical_browse:
+            browse_id = ""
+            if child_id:
+                prefix = "_browse/"
+                if not child_id.startswith(prefix):
+                    raise HomeAssistantError(f"Invalid {provider.name} browse id")
+                browse_id = unquote(child_id.removeprefix(prefix))
+            page = await async_browse_provider(
+                self.hass, entry, provider_key, browse_id
+            )
+            folders = [
+                BrowseMedia(
+                    media_class=MediaClass.DIRECTORY,
+                    media_content_id=(
+                        f"{ONLINE_ROOT}{provider_key}/_browse/"
+                        f"{quote(folder.item_id, safe='/')}"
+                    ),
+                    media_content_type="",
+                    title=(
+                        f"{folder.title} ({folder.count})"
+                        if folder.count is not None
+                        else folder.title
+                    ),
+                    can_play=False,
+                    can_expand=True,
+                    thumbnail=folder.thumb_url,
+                )
+                for folder in page.folders
+            ]
+            images = [
+                BrowseMedia(
+                    media_class=MediaClass.IMAGE,
+                    media_content_id=build_media_id(
+                        provider_key, candidate.item_id
+                    ),
+                    media_content_type="image/jpeg",
+                    title=(
+                        f"{candidate.title} — {candidate.artist}"
+                        if candidate.artist
+                        else candidate.title
+                    ),
+                    can_play=True,
+                    can_expand=False,
+                    thumbnail=candidate.thumb_url,
+                )
+                for candidate in page.candidates
+            ]
+            children_class = None
+            if folders and not images:
+                children_class = MediaClass.DIRECTORY
+            elif images and not folders:
+                children_class = MediaClass.IMAGE
+            return BrowseMedia(
+                media_class=MediaClass.DIRECTORY,
+                media_content_id=media_id,
+                media_content_type="",
+                title=page.title,
+                can_play=False,
+                can_expand=True,
+                children=[*images, *folders],
+                children_media_class=children_class,
+            )
+
         candidates = await async_browse_candidates(self.hass, entry, provider_key)
         children = [
             BrowseMedia(

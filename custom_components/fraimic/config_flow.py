@@ -64,6 +64,8 @@ from .const import (
     PROVIDER_SHUFFLE,
     POWER_MODES,
     ROTATION_OPTIONS,
+    canonical_frame_resolution,
+    frame_bin_size,
 )
 from .coordinator import normalize_info
 from .providers import PROVIDERS
@@ -84,7 +86,7 @@ async def _async_probe(hass, host: str) -> dict[str, Any] | None:
 class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle the UI config flow for Fraimic."""
 
-    VERSION = 2
+    VERSION = 3
 
     def __init__(self) -> None:
         self._host: str | None = None
@@ -218,18 +220,24 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
             height = user_input.get(CONF_HEIGHT)
             if not width or not height:
                 errors["base"] = "custom_resolution_required"
-            elif height % 4:
-                # The native layout packs two vertically-adjacent pixels per
-                # byte within each half-panel, so height must divide by 4.
-                errors["base"] = "odd_resolution"
-            elif width * height // 2 > MAX_BIN_SIZE:
-                # Buffer would be too big to render/upload — reject up front.
-                errors["base"] = "resolution_too_large"
             else:
-                return self.async_create_entry(
-                    title=_title(self._host),
-                    data={CONF_HOST: self._host, CONF_WIDTH: width, CONF_HEIGHT: height},
-                )
+                width, height = canonical_frame_resolution(width, height)
+                if height % 4:
+                    # The native layout packs two vertically-adjacent pixels per
+                    # byte within each half-panel, so height must divide by 4.
+                    errors["base"] = "odd_resolution"
+                elif frame_bin_size(width, height) > MAX_BIN_SIZE:
+                    # Buffer would be too big to render/upload — reject up front.
+                    errors["base"] = "resolution_too_large"
+                else:
+                    return self.async_create_entry(
+                        title=_title(self._host),
+                        data={
+                            CONF_HOST: self._host,
+                            CONF_WIDTH: width,
+                            CONF_HEIGHT: height,
+                        },
+                    )
 
         return self.async_show_form(
             step_id="resolution",
@@ -387,16 +395,25 @@ def _detect_resolution(info: dict[str, Any]) -> tuple[int, int] | None:
 
     Tries, in order: explicit display dimensions, then model/firmware hints
     matched against the two known Fraimic models (Standard 13.3" -> 1600x1200,
-    Large 31.5" -> 2560x1440). Returns ``None`` if it can't tell, so the config
+    Large 31.5" -> 1440x2560). Returns ``None`` if it can't tell, so the config
     flow asks the user.
     """
     display = info.get("display") or {}
     width, height = display.get("width"), display.get("height")
     if width and height:
         try:
-            return int(width), int(height)
+            resolution = canonical_frame_resolution(int(width), int(height))
         except (TypeError, ValueError):
             pass
+        else:
+            if (
+                resolution[0] < 1
+                or resolution[1] < 1
+                or resolution[1] % 4
+                or frame_bin_size(*resolution) > MAX_BIN_SIZE
+            ):
+                return None
+            return resolution
 
     hints = " ".join(
         str(info.get(key) or "")

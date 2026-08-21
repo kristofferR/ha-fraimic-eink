@@ -20,12 +20,16 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..const import DOMAIN, PROVIDER_SHUFFLE
 from . import MUSEUM_KEYS, available_provider_keys, get_provider
-from .base import ArtImage, FetchRequest
 from .base import ArtFetchError as _BaseArtFetchError
+from .base import ArtImage, BrowsePage, FetchRequest
 from .cache import ProviderCache
 from .engine import async_download_candidate, async_pick_and_download
 
 _LOGGER = logging.getLogger(__name__)
+
+BROWSE_STASH_TTL = 3600.0
+BROWSE_STASH_LIMIT = 256
+BROWSE_STASH_CACHE_LIMIT = 32
 
 
 class ArtFetchError(HomeAssistantError):
@@ -45,6 +49,16 @@ def _cache(hass: HomeAssistant) -> ProviderCache:
     if cache is None:
         cache = ProviderCache()
         domain_data["art_cache"] = cache
+    return cache
+
+
+def _browse_cache(hass: HomeAssistant) -> ProviderCache:
+    """Return the bounded cache for media-browser selections."""
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    cache = domain_data.get("art_browse_cache")
+    if cache is None:
+        cache = ProviderCache(max_entries=BROWSE_STASH_CACHE_LIMIT)
+        domain_data["art_browse_cache"] = cache
     return cache
 
 
@@ -126,6 +140,18 @@ def _browse_stash_key(entry, provider_key: str) -> str:
     return f"browse_{entry.entry_id}_{provider_key}"
 
 
+def _stash_candidates(hass, entry, provider_key: str, candidates) -> None:
+    cache = _browse_cache(hass)
+    stash = cache.get(_browse_stash_key(entry, provider_key), BROWSE_STASH_TTL) or {}
+    for candidate in candidates:
+        # Refreshing an existing id should make it one of the newest entries.
+        stash.pop(candidate.item_id, None)
+        stash[candidate.item_id] = candidate
+    if len(stash) > BROWSE_STASH_LIMIT:
+        stash = dict(list(stash.items())[-BROWSE_STASH_LIMIT:])
+    cache.set(_browse_stash_key(entry, provider_key), stash)
+
+
 async def async_browse_candidates(
     hass: HomeAssistant, entry, provider_key: str, count: int = 20
 ) -> list:
@@ -147,13 +173,31 @@ async def async_browse_candidates(
         raise ArtFetchError(f"{provider.name}: {err}") from err
     # Daily providers have no by-id lookup; the browse stash covers the gap
     # between browsing and clicking.
-    stash = cache.get(_browse_stash_key(entry, provider_key), BROWSE_STASH_TTL) or {}
-    stash = {**stash, **{candidate.item_id: candidate for candidate in candidates}}
-    cache.set(_browse_stash_key(entry, provider_key), stash)
+    _stash_candidates(hass, entry, provider_key, candidates)
     return candidates
 
 
-BROWSE_STASH_TTL = 3600.0
+async def async_browse_provider(
+    hass: HomeAssistant, entry, provider_key: str, browse_id: str
+) -> BrowsePage:
+    """Browse one directory from a hierarchical provider and stash its art."""
+    provider = get_provider(provider_key)
+    if provider is None or not provider.hierarchical_browse:
+        raise ArtFetchError(f"Unknown hierarchical image provider: {provider_key}")
+    session = async_get_clientsession(hass)
+    cache = _cache(hass)
+    try:
+        page = await provider.async_browse(
+            session, cache, browse_id, _request_for(hass, entry, provider)
+        )
+    except _BaseArtFetchError as err:
+        raise ArtFetchError(f"{provider.name}: {err}") from err
+    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
+    except Exception as err:  # noqa: BLE001 - provider parser failures vary
+        raise ArtFetchError(f"{provider.name}: {err}") from err
+    _stash_candidates(hass, entry, provider_key, page.candidates)
+    return page
 
 
 async def async_art_by_media_id(
@@ -165,7 +209,9 @@ async def async_art_by_media_id(
         raise ArtFetchError(f"Unknown image provider: {provider_key}")
     session = async_get_clientsession(hass)
     cache = _cache(hass)
-    stash = cache.get(_browse_stash_key(entry, provider_key), BROWSE_STASH_TTL) or {}
+    stash = _browse_cache(hass).get(
+        _browse_stash_key(entry, provider_key), BROWSE_STASH_TTL
+    ) or {}
     candidate = stash.get(item_id)
     try:
         if candidate is None:

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -29,6 +31,7 @@ nasa = load("providers.nasa")
 smithsonian = load("providers.smithsonian")
 dimu = load("providers.dimu")
 wellcome = load("providers.wellcome")
+reframed = load("providers.reframed")
 providers_pkg = load("providers")
 
 FIXTURES = Path(__file__).parent / "fixtures" / "providers"
@@ -258,6 +261,93 @@ def test_wikimedia_attribution_does_not_duplicate_license_without_artist() -> No
     assert candidate is not None
     assert candidate.attribution.endswith("(CC BY-SA 4.0)")
     assert "CC BY-SA 4.0 — CC BY-SA 4.0" not in candidate.attribution
+
+
+REFRAMED_ARTWORK_HTML = """
+<div class="Tile-module__hash__wrapper">
+  <div class="Tile-module__hash__tile">
+    <a class="Tile-module__hash__link" href="/albert-bierstadt/elk-in-oak-grove">
+      <img class="Tile-module__hash__image" src="https://images.test/thumb"
+           alt="Elk in Oak Grove" />
+    </a>
+    <button data-download-url="https://files.test/originals/Albert Bierstadt - Elk in Oak Grove - reframed.jpg"></button>
+  </div>
+</div>
+<a href="/recent/page/2">2</a><a href="/recent/page/8">8</a>
+"""
+
+
+def test_parse_reframed_artwork_tiles_and_pagination() -> None:
+    candidates = reframed.parse_artwork_tiles(REFRAMED_ARTWORK_HTML)
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.provider == "reframed"
+    assert candidate.item_id == "albert-bierstadt/elk-in-oak-grove"
+    assert candidate.title == "Elk in Oak Grove"
+    assert candidate.artist == "Albert Bierstadt"
+    assert candidate.thumb_url == "https://images.test/thumb"
+    assert candidate.extra == {
+        "source_url": (
+            "https://www.reframed.gallery/albert-bierstadt/elk-in-oak-grove"
+        )
+    }
+    assert reframed.parse_page_count(REFRAMED_ARTWORK_HTML, "recent") == 8
+
+
+def test_parse_reframed_group_tiles_and_color_tabs() -> None:
+    groups_html = """
+    <div class="Tile-module__hash__wrapper"><div>
+      <a class="Tile-module__hash__link" href="/collections/after-the-storm">
+        <img class="Tile-module__hash__image" src="https://images.test/storm"
+             alt="After the Storm" />
+      </a>
+      <span class="Tile-module__hash__name">After the Storm</span>
+      <span class="Tile-module__hash__count">22</span>
+    </div></div>
+    <a href="/colors/red"><span></span>Red</a>
+    <a href="/colors/blue"><span></span>Blue</a>
+    <a href="/colors/blue/page/2">2</a>
+    """
+
+    folders = reframed.parse_group_tiles(groups_html, "collections")
+    assert folders == [
+        base.BrowseFolder(
+            item_id="collections/after-the-storm",
+            title="After the Storm",
+            thumb_url="https://images.test/storm",
+            count=22,
+        )
+    ]
+    assert [folder.title for folder in reframed.parse_color_links(groups_html)] == [
+        "Red",
+        "Blue",
+    ]
+
+
+def test_parse_reframed_artwork_detail_json_ld() -> None:
+    artwork = {
+        "@type": "VisualArtwork",
+        "name": "Elk in Oak Grove",
+        "artist": {"name": "Albert Bierstadt"},
+        "contentUrl": "https://files.test/elk.jpg",
+        "thumbnailUrl": "https://images.test/elk",
+    }
+    for document in (artwork, [artwork], {"@graph": [artwork]}):
+        html = (
+            '<script type="application/ld+json">'
+            f"{json.dumps(document)}"
+            "</script>"
+        )
+
+        candidate = reframed.parse_artwork_page(
+            html, "albert-bierstadt/elk-in-oak-grove"
+        )
+
+        assert candidate is not None
+        assert candidate.image_url == "https://files.test/elk.jpg"
+        assert candidate.artist == "Albert Bierstadt"
+        assert candidate.attribution.endswith("Reframed Gallery")
 
 
 # --- curation ----------------------------------------------------------
@@ -546,6 +636,64 @@ def test_engine_raises_on_empty_candidates() -> None:
         )
 
 
+def test_reframed_provider_uses_recent_pages_for_random_candidates(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session = FakeSession()
+    session.add(
+        f"{reframed.BASE_URL}/recent",
+        FakeResponse(body=REFRAMED_ARTWORK_HTML.encode()),
+    )
+    monkeypatch.setattr(reframed.random, "randint", lambda start, end: 1)
+    monkeypatch.setattr(reframed.random, "shuffle", lambda candidates: None)
+    provider = reframed.ReframedProvider()
+    provider.min_interval = 0
+
+    candidates = _run(
+        provider.async_candidates(session, cache_mod.ProviderCache(), REQUEST, 20)
+    )
+
+    assert [candidate.item_id for candidate in candidates] == [
+        "albert-bierstadt/elk-in-oak-grove"
+    ]
+    assert session.requests == [f"{reframed.BASE_URL}/recent"]
+
+
+def test_reframed_provider_browse_root_preserves_site_taxonomy() -> None:
+    page = _run(
+        reframed.ReframedProvider().async_browse(None, None, "", REQUEST)
+    )
+
+    assert [folder.item_id for folder in page.folders] == [
+        "collections",
+        "colors",
+        "tags",
+        "artists",
+        "verticals",
+        "recent",
+    ]
+
+
+def test_reframed_provider_browse_artwork_listing_includes_page_folders() -> None:
+    path = "collections/after-the-storm"
+    html = REFRAMED_ARTWORK_HTML.replace("/recent/page/", f"/{path}/page/")
+    session = FakeSession()
+    session.add(f"{reframed.BASE_URL}/{path}", FakeResponse(body=html.encode()))
+    provider = reframed.ReframedProvider()
+    provider.min_interval = 0
+
+    page = _run(
+        provider.async_browse(session, cache_mod.ProviderCache(), path, REQUEST)
+    )
+
+    assert [candidate.item_id for candidate in page.candidates] == [
+        "albert-bierstadt/elk-in-oak-grove"
+    ]
+    assert [folder.item_id for folder in page.folders] == [
+        f"{path}/page/{number}" for number in range(2, 9)
+    ]
+
+
 def test_engine_wraps_body_read_failures() -> None:
     class BrokenResponse(FakeResponse):
         async def read(self, _n=-1):
@@ -748,6 +896,83 @@ def test_cache_ttl_with_fake_clock() -> None:
     assert cache.get("k", ttl=100) is None
 
 
+def test_cache_evicts_least_recently_used_entry_at_size_limit() -> None:
+    cache = cache_mod.ProviderCache(max_entries=2)
+    cache.set("old", 1)
+    cache.set("recent", 2)
+    assert cache.get("old", ttl=100) == 1
+
+    cache.set("new", 3)
+
+    assert cache.get("recent", ttl=100) is None
+    assert cache.get("old", ttl=100) == 1
+    assert cache.get("new", ttl=100) == 3
+
+
+def test_browse_selection_survives_provider_cache_eviction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    homeassistant = types.ModuleType("homeassistant")
+    homeassistant.__path__ = []
+    core = types.ModuleType("homeassistant.core")
+    core.HomeAssistant = object
+    exceptions = types.ModuleType("homeassistant.exceptions")
+    exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
+    helpers = types.ModuleType("homeassistant.helpers")
+    helpers.__path__ = []
+    aiohttp_client = types.ModuleType("homeassistant.helpers.aiohttp_client")
+    aiohttp_client.async_get_clientsession = lambda _hass: None
+
+    monkeypatch.setitem(sys.modules, "homeassistant", homeassistant)
+    monkeypatch.setitem(sys.modules, "homeassistant.core", core)
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", exceptions)
+    monkeypatch.setitem(sys.modules, "homeassistant.helpers", helpers)
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.helpers.aiohttp_client", aiohttp_client
+    )
+    previous_ha = sys.modules.pop("fraimic.providers.ha", None)
+    try:
+        provider_ha = load("providers.ha")
+
+        class SelectedProvider(base.ArtProvider):
+            key = "fake"
+            name = "Fake"
+
+            async def async_by_id(self, session, cache, item_id, request):
+                raise AssertionError("browse selection was evicted")
+
+        hass = types.SimpleNamespace(data={})
+        entry = types.SimpleNamespace(entry_id="frame", options={})
+        candidate = _candidate("selected", "https://x/selected.png")
+        provider_ha._stash_candidates(hass, entry, "fake", [candidate])
+
+        provider_cache = provider_ha._cache(hass)
+        for index in range(cache_mod.DEFAULT_MAX_ENTRIES + 1):
+            provider_cache.set(f"provider-{index}", index)
+
+        session = FakeSession()
+        session.add("https://x/selected.png", FakeResponse(body=b"selected"))
+        monkeypatch.setattr(
+            provider_ha, "get_provider", lambda _key: SelectedProvider()
+        )
+        monkeypatch.setattr(
+            provider_ha, "async_get_clientsession", lambda _hass: session
+        )
+
+        image = _run(
+            provider_ha.async_art_by_media_id(
+                hass, entry, "fake", candidate.item_id
+            )
+        )
+
+        assert image.candidate is candidate
+        assert image.data == b"selected"
+    finally:
+        sys.modules.pop("fraimic.providers.ha", None)
+        if previous_ha is not None:
+            sys.modules["fraimic.providers.ha"] = previous_ha
+
+
 # --- media ids + caption ------------------------------------------------
 
 
@@ -812,6 +1037,7 @@ def test_shuffle_and_availability() -> None:
     entry = SimpleNamespace(options={})
     keys = providers_pkg.available_provider_keys(entry)
     assert set(providers_pkg.MUSEUM_KEYS) <= set(keys)
+    assert "reframed" in keys
     # Keyed providers hidden without keys, shown with them.
     assert "unsplash" not in keys
     assert "pexels" not in keys

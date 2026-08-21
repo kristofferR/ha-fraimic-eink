@@ -21,6 +21,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `log_page.py` | Pure parser for the `/logs` ESP-IDF viewer (current + previous boot). |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
+| `providers/` | Keyless/keyed online artwork sources. Reframed provides hierarchical Collections/Colors/Tags/Artists/Vertical/Recent browsing. |
+| `art_packs.py` / `pack_model.py` | Bundled + community + live Reframed art-pack catalogs. Reframed rows are lazy and resolve at most 24 current images on install. |
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |
 | `tests/test_image_convert.py` | Standalone pipeline tests (no HA import). |
 
@@ -94,14 +96,19 @@ Pipeline:
 10. PNG preview
 
 Dither modes (`const.DITHER_MODES`): `auto` (picks FS for photos, Bayer for flat
-graphics), `floyd_steinberg`, `atkinson`, `bayer`, `none`.
+graphics), `floyd_steinberg`, `atkinson`, `bayer`, `none`, and opt-in `official`.
+The `official` compatibility path replaces steps 6-8 with Fraimic's published
+fit/enhancement, pure-primary RGB+luma matching, and left-to-right Atkinson
+recipe; it intentionally ignores the normal processing sliders.
 
 ### `.bin` format (reverse-engineered, NOT row-major)
 
-Raw headerless 4bpp, `width*height/2` bytes. Bottom half of panel first, then top
-half; each half column-major, columns left→right scanned **bottom-up**, two
-vertically-adjacent pixels per byte (high nibble first). Palette position →
-E Ink nibble via `SPECTRA6_PANEL_INDEX = (0x0, 0x1, 0x2, 0x3, 0x5, 0x6)` (0x4 unused).
+Raw headerless 4bpp. The 13.3" layout is `width*height/2` bytes: bottom half
+first, then top half; each half column-major, columns left→right scanned
+**bottom-up**, two vertically-adjacent pixels per byte (high nibble first).
+The 31.5" EL315 is portrait-native 1440x2560 and uses eight padded controller
+blocks for an exact 2,304,000-byte payload. Palette position → E Ink nibble
+via `SPECTRA6_PANEL_INDEX = (0x0, 0x1, 0x2, 0x3, 0x5, 0x6)` (0x4 unused).
 
 **height must be divisible by 4.** Buffer capped at `MAX_BIN_SIZE` (4 MB).
 
@@ -113,7 +120,7 @@ not primaries.
 
 - Config flow: host (default `fraimic.local`), zeroconf, or DHCP (Fraimic MAC
   OUIs `1CDBD4*`/`3CDC75*`); resolution auto-detect (`FRAME_MODELS`: standard
-  1600×1200, large 2560×1440) else user picks; resolution saved to `entry.data`.
+  1600×1200, large 1440×2560) else user picks; resolution saved to `entry.data`.
 - Entry unique_id is the frame's stable `device.device_key` (host as fallback);
   the coordinator backfills it on the first successful poll of older entries.
   A `reconfigure` step changes the host in place (aborts on device_key
