@@ -59,7 +59,9 @@ def render_calendar(
         doc.rect(rect.x, y + row_h // 6, accent_w, row_h - row_h // 3, theme.accent)
         x_time = rect.x + accent_w + round(theme.body * 0.5)
         time_label = event.get("time") or ""
-        doc.text(x_time, baseline, time_label, size=theme.body, fill=theme.ink, weight=600)
+        doc.text(
+            x_time, baseline, time_label, size=theme.body, fill=theme.ink, weight=600
+        )
         x_title = x_time + (time_w if time_label else 0)
         doc.text(
             x_title,
@@ -90,12 +92,29 @@ def render_todo(
         )
         return
 
+    y = rect.y
+    if options.get("show_title", True):
+        title = str(data.get("name") or "Todo")
+        doc.text(
+            rect.x,
+            y + theme.label,
+            truncate(title.upper(), rect.w, theme.label, 600),
+            size=theme.label,
+            fill=theme.ink,
+            weight=600,
+            letter_spacing=theme.label * 0.08,
+        )
+        y += round(theme.label * 1.8)
+
     row_h = round(theme.body * 2.0)
     box = round(theme.body * 0.85)
     stroke = max(2, theme.rule)
-    limit = min(len(items), options.get("max_items") or len(items), max(1, rect.h // row_h))
+    limit = min(
+        len(items),
+        options.get("max_items") or len(items),
+        max(0, (rect.bottom - y) // row_h),
+    )
 
-    y = rect.y
     for item in items[:limit]:
         baseline = y + row_h // 2 + round(theme.body * 0.36)
         box_y = y + (row_h - box) // 2

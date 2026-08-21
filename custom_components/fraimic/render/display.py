@@ -116,7 +116,12 @@ async def _async_picture_source(
 
         fit = source.get("fit") or entry.options.get(ATTR_FIT, FIT_COVER)
         art = await async_fetch_art(
-            hass, entry, provider_key, query=source.get("query"), fit=fit
+            hass,
+            entry,
+            provider_key,
+            query=source.get("query"),
+            item_id=source.get("provider_item"),
+            fit=fit,
         )
         raw = art.data
         if source.get("caption") and art.candidate.attribution:
@@ -151,6 +156,8 @@ def _picture_overrides(source: dict) -> dict:
         overrides[ATTR_MODE] = mode
     if (tone := source.get("tone")) in PLAYLIST_TONE_VALUES:
         overrides[ATTR_TONE] = PLAYLIST_TONE_VALUES[tone]
+    if crop := source.get("crop"):
+        overrides["crop"] = tuple(crop)
     return overrides
 
 
@@ -201,10 +208,10 @@ async def async_show_screen(
                 )
                 png = b""
             else:
-                png, overrides, art = await _async_picture_source(
-                    hass, entry, screen
-                )
+                png, overrides, art = await _async_picture_source(hass, entry, screen)
             art_info = _public_art_dict(art.candidate) if art is not None else None
+            if isinstance(source.get("metadata"), dict):
+                art_info = {**source["metadata"], **(art_info or {})}
             preprocess = True
         else:
             png, mode = await async_render_screen(hass, entry, screen)
@@ -213,6 +220,39 @@ async def async_show_screen(
             preprocess = False
         width, height = viewed_size(entry)
         runtime = entry.runtime_data
+        overlay_count = 0
+        overlay_manager = None
+        if getattr(hass, "data", None) is not None:
+            from ..overlays import get_overlay_manager
+
+            overlay_manager = get_overlay_manager(hass)
+        if (
+            screen.kind == KIND_PICTURE
+            and getattr(screen, "overlay_mode", "inherit") == "inherit"
+            and overlay_manager is not None
+        ):
+            from ..overlays import async_apply_frame_overlays
+
+            if rendered is None:
+                rendered = await async_convert_for_entry(
+                    hass, entry, png, overrides, preprocess=True
+                )
+            base_preview = rendered[1]
+            if base_preview is not None:
+                composed, overlay_count = await async_apply_frame_overlays(
+                    hass, entry, base_preview, art_info
+                )
+                if overlay_count:
+                    rendered = await async_convert_for_entry(
+                        hass,
+                        entry,
+                        composed,
+                        _NEUTRAL_OVERRIDES,
+                        preprocess=False,
+                    )
+                    png = b""
+                    overrides = dict(_NEUTRAL_OVERRIDES)
+                    preprocess = False
 
         if preview_only:
             if rendered is None:
@@ -221,6 +261,7 @@ async def async_show_screen(
                 )
             bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
+            runtime.last_overlay_count = overlay_count
             return {
                 "uploaded": False,
                 "content_hash": hashlib.sha256(bin_data).hexdigest(),
@@ -246,11 +287,12 @@ async def async_show_screen(
         displayed = result.get("displayed", uploaded)
         preview_png = result.pop("preview_png", None)
         _set_screen_preview(runtime, preview_png, result["mode"])
+        runtime.last_overlay_count = overlay_count
         if displayed or result.get("content_hash") == skip_if_hash:
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = art_info
-            runtime.media_title = art_info.get("title") if art_info else None
+            runtime.media_title = (art_info or {}).get("title") or screen.name
             # Entities read this lazily — poke coordinator listeners so their
             # attributes update now instead of at the next poll.
             runtime.coordinator.async_update_listeners()

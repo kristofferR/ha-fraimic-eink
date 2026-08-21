@@ -48,7 +48,10 @@ def _playing_frames(
     playing = []
     for entry in loaded_fraimic_entries(hass):
         scheduler = entry.runtime_data.scheduler
-        if manager.assignments.get(entry.entry_id) != playlist_id or not scheduler.enabled:
+        if (
+            manager.assignments.get(entry.entry_id) != playlist_id
+            or not scheduler.enabled
+        ):
             continue
         playing.append(
             {
@@ -67,7 +70,7 @@ def _playing_frames(
 def _slide_kind(slide: PlaylistSlide) -> str:
     if slide.data.get("kind") == KIND_DASHBOARD:
         return "blank"
-    if slide.data.get("provider"):
+    if slide.data.get("provider") and not slide.data.get("provider_item"):
         return "live"
     return "picture"
 
@@ -76,11 +79,13 @@ def _slide_thumbnail(slide: PlaylistSlide) -> str | None:
     data = slide.data
     if image_id := data.get("library_image"):
         return f"/api/fraimic/library/thumb/{image_id}"
-    return data.get("url")
+    metadata = data.get("metadata") or {}
+    return data.get("url") or metadata.get("thumbnail_url")
 
 
 def _slide_payload(slide: PlaylistSlide, *, on_frame: bool = False) -> dict[str, Any]:
     data = slide.data
+    metadata = data.get("metadata") or {}
     kind = _slide_kind(slide)
     if kind == "live":
         meta = "Fresh artwork each rotation, nothing stored"
@@ -95,7 +100,7 @@ def _slide_payload(slide: PlaylistSlide, *, on_frame: bool = False) -> dict[str,
         "id": slide.slide_id,
         "kind": kind,
         "title": data.get("name") or "Untitled",
-        "artist": None,
+        "artist": metadata.get("artist"),
         "meta": meta,
         "thumbnail_url": _slide_thumbnail(slide),
         "library_image": data.get("library_image"),
@@ -198,8 +203,7 @@ class PlaylistsView(_PlaylistView):
         return self.json(
             {
                 "playlists": [
-                    _playlist_payload(hass, manager, playlist)
-                    for playlist in ordered
+                    _playlist_payload(hass, manager, playlist) for playlist in ordered
                 ],
                 "selected_frame_id": request.query.get("entry_id"),
             }
@@ -433,9 +437,7 @@ class PlaylistSlidesView(_PlaylistView):
                 hold=manager.assignments.get(entry.entry_id) != playlist_id,
             )
         else:
-            await entry.runtime_data.scheduler.async_add_to_queue(
-                slide, play_next=True
-            )
+            await entry.runtime_data.scheduler.async_add_to_queue(slide, play_next=True)
         return {}
 
     async def post(self, request: web.Request, playlist_id: str) -> web.Response:
@@ -471,9 +473,7 @@ class PlaylistSlidesView(_PlaylistView):
         return self.json(
             {
                 **result,
-                "playlist": _playlist_payload(
-                    hass, manager, playlist, detail=True
-                ),
+                "playlist": _playlist_payload(hass, manager, playlist, detail=True),
             }
         )
 

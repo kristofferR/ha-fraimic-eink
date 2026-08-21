@@ -101,9 +101,7 @@ class PlaylistSlide:
             data=validated,
             tone=tone if tone in PLAYLIST_TONE_VALUES else "balanced",
             overlays=(
-                overlays
-                if overlays in {"inherit", "none", "custom"}
-                else "inherit"
+                overlays if overlays in {"inherit", "none", "custom"} else "inherit"
             ),
         )
 
@@ -232,9 +230,7 @@ class PlaylistManager:
                 playlist = Playlist(
                     playlist_id=uuid.uuid4().hex,
                     name=entry.title,
-                    interval=slides[0].data.get(
-                        "interval", DEFAULT_SCREEN_INTERVAL
-                    ),
+                    interval=slides[0].data.get("interval", DEFAULT_SCREEN_INTERVAL),
                     slides=slides,
                 )
                 self.playlists.append(playlist)
@@ -320,9 +316,7 @@ class PlaylistManager:
         return rendered
 
     @staticmethod
-    def _render_slide(
-        playlist: Playlist, slide: PlaylistSlide
-    ) -> ScreenConfig | None:
+    def _render_slide(playlist: Playlist, slide: PlaylistSlide) -> ScreenConfig | None:
         data = dict(slide.data)
         data["interval"] = playlist.interval
         try:
@@ -339,9 +333,7 @@ class PlaylistManager:
             overlay_mode=slide.overlays,
         )
 
-    def render_slide(
-        self, playlist_id: str, slide_id: str
-    ) -> ScreenConfig | None:
+    def render_slide(self, playlist_id: str, slide_id: str) -> ScreenConfig | None:
         playlist = self.get(playlist_id)
         if playlist is None:
             return None
@@ -446,9 +438,17 @@ class PlaylistManager:
             await self._async_save()
 
     async def async_add_slides(
-        self, playlist_id: str, raw_slides: list[dict[str, Any]]
+        self,
+        playlist_id: str,
+        raw_slides: list[dict[str, Any]],
+        *,
+        insert_at: int | None = None,
     ) -> Playlist:
-        """Validate and append slides supplied by the detail add menu."""
+        """Validate and append or position slides supplied by the add menu."""
+        if insert_at is not None and (
+            isinstance(insert_at, bool) or not isinstance(insert_at, int)
+        ):
+            raise ValueError("Playlist position must be a number")
         slides: list[PlaylistSlide] = []
         for raw in raw_slides:
             if not isinstance(raw, dict):
@@ -459,12 +459,23 @@ class PlaylistManager:
                 data = _validated_slide_data(raw)
             except (TypeError, vol.Invalid) as err:
                 raise ValueError(f"Invalid slide: {err}") from err
-            slides.append(PlaylistSlide(uuid.uuid4().hex, data))
+            tone = data.get("tone", "balanced")
+            slides.append(
+                PlaylistSlide(
+                    uuid.uuid4().hex,
+                    data,
+                    tone=tone if tone in PLAYLIST_TONE_VALUES else "balanced",
+                )
+            )
         if not slides:
             raise ValueError("Choose at least one slide")
         async with self._lock:
             playlist = self.require(playlist_id)
-            playlist.slides.extend(slides)
+            if insert_at is None:
+                playlist.slides.extend(slides)
+            else:
+                index = max(0, min(insert_at, len(playlist.slides)))
+                playlist.slides[index:index] = slides
             playlist.modified_at = time.time()
             await self._async_save()
             return playlist

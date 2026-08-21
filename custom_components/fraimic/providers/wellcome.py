@@ -72,6 +72,7 @@ def parse_wellcome_image(item: dict) -> ArtCandidate | None:
 class WellcomeProvider(ArtProvider):
     key = "wellcome"
     name = "Wellcome Collection"
+    supports_query = True
     min_interval = 1.0
 
     async def _search(
@@ -94,13 +95,15 @@ class WellcomeProvider(ArtProvider):
             timeout=API_TIMEOUT,
         )
 
-    async def _total(self, session: Any, cache: Any, query: str) -> int:
+    async def _total(
+        self, session: Any, cache: Any, query: str, *, allow_empty: bool = False
+    ) -> int:
         cache_key = f"wellcome_total_{query}"
         total = cache.get(cache_key, TOTAL_TTL)
         if total is None:
             payload = await self._search(session, cache, query, 1, 1)
             total = payload.get("totalResults") or 0
-            if not total:
+            if not total and not allow_empty:
                 raise ArtFetchError(f"Wellcome found no images for {query!r}")
             cache.set(cache_key, total)
         return total
@@ -109,7 +112,11 @@ class WellcomeProvider(ArtProvider):
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
         query = request.query or random.choice(DEFAULT_QUERIES)
-        total = await self._total(session, cache, query)
+        total = await self._total(
+            session, cache, query, allow_empty=request.query is not None
+        )
+        if total == 0:
+            return []
         page_size = min(max(count, 10), 100)
         max_page = max(1, min(total, MAX_RESULT_WINDOW) // page_size)
         payload = await self._search(

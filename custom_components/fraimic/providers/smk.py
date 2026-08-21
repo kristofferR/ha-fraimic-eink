@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import random
 from typing import Any
+from urllib.parse import quote_plus
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
 from .engine import async_fetch_json
@@ -37,7 +38,9 @@ def parse_smk_item(item: dict) -> ArtCandidate | None:
         surname = production.get("creator_surname")
         # "creator" is surname-first ("Ballin, Mogens") — prefer the parts.
         artist = (
-            f"{forename} {surname}" if forename and surname else production.get("creator")
+            f"{forename} {surname}"
+            if forename and surname
+            else production.get("creator")
         )
         if artist:
             break
@@ -48,9 +51,7 @@ def parse_smk_item(item: dict) -> ArtCandidate | None:
     else:
         width = height = None
     attribution = (
-        f"{title} — {artist}, SMK Copenhagen"
-        if artist
-        else f"{title}, SMK Copenhagen"
+        f"{title} — {artist}, SMK Copenhagen" if artist else f"{title}, SMK Copenhagen"
     )
     return ArtCandidate(
         provider="smk",
@@ -69,38 +70,52 @@ def parse_smk_item(item: dict) -> ArtCandidate | None:
 class SmkProvider(ArtProvider):
     key = "smk"
     name = "SMK (National Gallery of Denmark)"
+    supports_query = True
     min_interval = 1.0
 
-    async def _total(self, session: Any, cache: Any) -> int:
-        total = cache.get("smk_total", COUNT_TTL)
+    async def _total(self, session: Any, cache: Any, query: str | None = None) -> int:
+        url = (
+            SEARCH_URL.replace("keys=*", f"keys={quote_plus(query)}")
+            if query
+            else SEARCH_URL
+        )
+        cache_key = f"smk_total_{(query or '*').casefold()}"
+        total = cache.get(cache_key, COUNT_TTL)
         if total is None:
             payload = await async_fetch_json(
                 session,
                 cache,
                 key=self.key,
                 min_interval=self.min_interval,
-                url=f"{SEARCH_URL}&offset=0&rows=1",
+                url=f"{url}&offset=0&rows=1",
                 error_label="SMK search",
                 headers=api_headers(),
                 timeout=API_TIMEOUT,
             )
             total = payload.get("found") or 0
-            if not total:
+            if not total and not query:
                 raise ArtFetchError("SMK returned an empty painting pool")
-            cache.set("smk_total", total)
+            cache.set(cache_key, total)
         return total
 
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
-        total = await self._total(session, cache)
+        total = await self._total(session, cache, request.query)
+        if total == 0:
+            return []
         offset = random.randrange(max(1, total - count + 1))
+        url = (
+            SEARCH_URL.replace("keys=*", f"keys={quote_plus(request.query)}")
+            if request.query
+            else SEARCH_URL
+        )
         payload = await async_fetch_json(
             session,
             cache,
             key=self.key,
             min_interval=self.min_interval,
-            url=f"{SEARCH_URL}&offset={offset}&rows={count}",
+            url=f"{url}&offset={offset}&rows={count}",
             error_label="SMK search",
             headers=api_headers(),
             timeout=API_TIMEOUT,

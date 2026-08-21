@@ -26,8 +26,10 @@ def parse_unsplash_photo(item: dict, target_width: int) -> ArtCandidate | None:
         return None
     user = (item.get("user") or {}).get("name") or "Unknown"
     description = (
-        item.get("description") or item.get("alt_description") or "Photo"
-    ).strip().capitalize()
+        (item.get("description") or item.get("alt_description") or "Photo")
+        .strip()
+        .capitalize()
+    )
     separator = "&" if "?" in raw else "?"
     return ArtCandidate(
         provider="unsplash",
@@ -47,6 +49,7 @@ def parse_unsplash_photo(item: dict, target_width: int) -> ArtCandidate | None:
 class UnsplashProvider(ArtProvider):
     key = "unsplash"
     name = "Unsplash"
+    supports_query = True
     requires_key = True
     key_option = "unsplash_access_key"
     min_interval = 72.0  # demo tier: 50 req/hr

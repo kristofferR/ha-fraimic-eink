@@ -92,7 +92,9 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
             vol.Optional("name"): str,
             vol.Optional("icon"): str,
             vol.Optional("unit"): str,
-            vol.Optional("precision"): vol.All(vol.Coerce(int), vol.Range(min=0, max=3)),
+            vol.Optional("precision"): vol.All(
+                vol.Coerce(int), vol.Range(min=0, max=3)
+            ),
             vol.Optional("trend", default=False): bool,
             vol.Optional("trend_hours", default=1): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=48)
@@ -117,7 +119,9 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
                 ],
                 vol.Length(min=1, max=30),
             ),
-            vol.Optional("max_rows"): vol.All(vol.Coerce(int), vol.Range(min=1, max=30)),
+            vol.Optional("max_rows"): vol.All(
+                vol.Coerce(int), vol.Range(min=1, max=30)
+            ),
         }
     ),
     "template": vol.Schema(
@@ -144,9 +148,7 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
     ),
     "calendar": vol.Schema(
         {
-            vol.Required("entities"): vol.All(
-                [_ENTITY_ID], vol.Length(min=1, max=5)
-            ),
+            vol.Required("entities"): vol.All([_ENTITY_ID], vol.Length(min=1, max=5)),
             vol.Optional("days", default=7): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=14)
             ),
@@ -162,13 +164,12 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
                 vol.Coerce(int), vol.Range(min=1, max=20)
             ),
             vol.Optional("show_completed", default=False): bool,
+            vol.Optional("show_title", default=True): bool,
         }
     ),
     "chart": vol.Schema(
         {
-            vol.Required("entities"): vol.All(
-                [_ENTITY_ID], vol.Length(min=1, max=3)
-            ),
+            vol.Required("entities"): vol.All([_ENTITY_ID], vol.Length(min=1, max=3)),
             vol.Optional("hours", default=24): vol.All(
                 vol.Coerce(int), vol.Range(min=1, max=168)
             ),
@@ -188,7 +189,10 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
             vol.Optional("color"): _COLOR,
             vol.Optional("thresholds"): [
                 vol.Schema(
-                    {vol.Required("from"): vol.Coerce(float), vol.Required("color"): _COLOR}
+                    {
+                        vol.Required("from"): vol.Coerce(float),
+                        vol.Required("color"): _COLOR,
+                    }
                 )
             ],
         }
@@ -222,6 +226,7 @@ WINDOW_SCHEMA = vol.Schema(
     }
 )
 
+
 def _validate_screen(data: dict) -> dict:
     """Cross-field validation: kind-dependent requirements, slots fit layout."""
     if data["kind"] == KIND_PICTURE:
@@ -235,15 +240,32 @@ def _validate_screen(data: dict) -> dict:
                 "a picture screen needs exactly one of: url, entity, provider, "
                 "library_image"
             )
-        if (data.get("query") or data.get("caption")) and not data.get("provider"):
-            raise vol.Invalid("query/caption are only valid with a provider source")
+        if (
+            "query" in data or data.get("caption") or data.get("provider_item")
+        ) and not data.get("provider"):
+            raise vol.Invalid(
+                "query/caption/provider_item are only valid with a provider source"
+            )
+        if data.get("provider_item") and data.get("provider") == PROVIDER_SHUFFLE:
+            raise vol.Invalid("provider_item requires a specific provider")
         if data.get("widgets") or data.get("layout"):
             raise vol.Invalid("picture screens take no layout/widgets — just a source")
         return data
-    if any(data.get(key) for key in ("url", "entity", "provider", "library_image")):
-        raise vol.Invalid(
-            "image sources are only valid on kind: picture screens"
-        )
+    picture_fields = (
+        "url",
+        "entity",
+        "provider",
+        "provider_item",
+        "library_image",
+        "query",
+        "fit",
+        "tone",
+        "crop",
+        "mode",
+        "metadata",
+    )
+    if any(key in data for key in picture_fields) or data.get("caption"):
+        raise vol.Invalid("image sources are only valid on kind: picture screens")
     if not data.get("layout"):
         raise vol.Invalid("required key not provided: layout")
     if not data.get("widgets"):
@@ -295,11 +317,21 @@ SCREEN_SCHEMA = vol.All(
             vol.Optional("url"): _HTTP_URL,
             vol.Optional("entity"): _ENTITY_ID,
             vol.Optional("provider"): vol.In((*PROVIDER_KEYS, PROVIDER_SHUFFLE)),
+            # A concrete gallery selection. Unlike a live provider slide this
+            # resolves the same artwork again when it reaches the queue.
+            vol.Optional("provider_item"): vol.All(str, vol.Length(min=1)),
+            vol.Optional("metadata"): dict,
             # Stored media-library source; mutually exclusive with the fields above.
             vol.Optional("library_image"): vol.All(str, vol.Length(min=1)),
             vol.Optional("query"): str,  # photo providers only
             vol.Optional("caption", default=False): bool,  # attribution strip
-            vol.Optional("fit"): vol.In(("cover", "contain", "contain_black", "stretch")),
+            vol.Optional("fit"): vol.In(
+                ("cover", "contain", "contain_black", "stretch")
+            ),
+            vol.Optional("tone"): vol.In(("vivid", "balanced", "soft")),
+            vol.Optional("crop"): vol.All(
+                [vol.Coerce(float)], vol.Length(min=4, max=4)
+            ),
             vol.Optional("mode"): vol.In(DITHER_MODES),
             vol.Optional("background", default="white"): _COLOR,
             vol.Optional("accent", default="red"): _COLOR,
@@ -367,11 +399,15 @@ def screen_from_dict(data: dict, screen_id: str = "adhoc") -> ScreenConfig:
                 "url",
                 "entity",
                 "provider",
+                "provider_item",
                 "library_image",
                 "query",
                 "caption",
                 "fit",
+                "tone",
+                "crop",
                 "mode",
+                "metadata",
             )
             if key in data
         }

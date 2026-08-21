@@ -47,7 +47,9 @@ type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 class FraimicRuntimeData:
     """Objects shared across the integration's platforms."""
 
-    def __init__(self, coordinator: FraimicDataUpdateCoordinator, client: FraimicClient) -> None:
+    def __init__(
+        self, coordinator: FraimicDataUpdateCoordinator, client: FraimicClient
+    ) -> None:
         self.coordinator = coordinator
         self.client = client
         # Set by the image platform once its preview entity is created, so the
@@ -73,6 +75,8 @@ class FraimicRuntimeData:
         self.last_art: dict[str, Any] | None = None
         # Fallback media-player title for non-provider content currently on the frame.
         self.media_title: str | None = None
+        # Count of frame-owned overlays in the last composed picture.
+        self.last_overlay_count = 0
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -249,9 +253,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     other.title,
                 )
                 return
-        _LOGGER.debug(
-            "Backfilling unique_id %s for entry %s", device_key, entry.title
-        )
+        _LOGGER.debug("Backfilling unique_id %s for entry %s", device_key, entry.title)
         self.hass.config_entries.async_update_entry(entry, unique_id=device_key)
 
     def _async_maybe_rediscover(self) -> None:
@@ -363,7 +365,9 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
         },
         "battery": {
             "percent": pick(("battery", "percent"), "battery_pct", "battery_percent"),
-            "voltage_mv": pick(("battery", "voltage_mv"), "battery_voltage_mv", "voltage_mv"),
+            "voltage_mv": pick(
+                ("battery", "voltage_mv"), "battery_voltage_mv", "voltage_mv"
+            ),
             "charging": pick(("battery", "charging"), "charging", "battery_charging"),
             "cable_connected": pick(("battery", "cable_connected"), "cable_connected"),
             "source": pick(("battery", "source"), "battery_source"),

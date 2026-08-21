@@ -60,6 +60,7 @@ from .const import (
     MAX_BIN_SIZE,
     MODE_AUTO,
     MODE_NONE,
+    PLAYLIST_TONE_VALUES,
     PROVIDER_KEYS,
     PROVIDER_SHUFFLE,
     SERVICE_CANCEL_SCHEDULED_SEND,
@@ -219,7 +220,9 @@ SCHEDULE_SEND_SCHEMA = vol.All(
             vol.Exclusive(ATTR_IMAGE_ENTITY, "source"): cv.entity_id,
             vol.Exclusive(ATTR_LIBRARY_IMAGE, "source"): cv.string,
             vol.Optional(ATTR_FIT): vol.In(FIT_MODES),
-            vol.Optional(ATTR_ROTATE): vol.All(vol.Coerce(int), vol.In((0, 90, 180, 270))),
+            vol.Optional(ATTR_ROTATE): vol.All(
+                vol.Coerce(int), vol.In((0, 90, 180, 270))
+            ),
             vol.Optional(ATTR_MODE): vol.In(DITHER_MODES),
             vol.Optional(ATTR_SATURATION): vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=3.0)
@@ -390,7 +393,13 @@ async def _async_handle_update_album(call: ServiceCall) -> ServiceResponse:
         raise HomeAssistantError(f"Album update failed: {err}") from err
     entry.runtime_data.coordinator.expire_albums_cache()
     if call.return_response:
-        return {"album": {k: result.get(k) for k in ("id", "name", "active") if isinstance(result, dict) and k in result}}
+        return {
+            "album": {
+                k: result.get(k)
+                for k in ("id", "name", "active")
+                if isinstance(result, dict) and k in result
+            }
+        }
     return None
 
 
@@ -625,10 +634,17 @@ async def async_convert_for_entry(
             f"Frame resolution {width}x{height} is too large to render"
         )
     fit = overrides.get(ATTR_FIT, options.get(ATTR_FIT, FIT_COVER))
-    saturation = overrides.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
-    contrast = overrides.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))
+    saturation = overrides.get(
+        ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION)
+    )
+    contrast = overrides.get(
+        ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST)
+    )
     sharpen = overrides.get(ATTR_SHARPEN, options.get(ATTR_SHARPEN, DEFAULT_SHARPEN))
     tone = overrides.get(ATTR_TONE, options.get(ATTR_TONE, DEFAULT_TONE))
+    if (tone_name := overrides.get("tone_name")) in PLAYLIST_TONE_VALUES:
+        tone = PLAYLIST_TONE_VALUES[tone_name]
+    crop = overrides.get("crop", options.get("crop"))
     # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
     base_rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
     rotate = (base_rotation + overrides.get(ATTR_ROTATE, 0)) % 360
@@ -651,6 +667,7 @@ async def async_convert_for_entry(
             sharpen,
             tone,
             preview_rotate,
+            crop,
             preprocess,
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
@@ -816,6 +833,7 @@ def _convert(
     sharpen: float,
     tone: float,
     preview_rotate: int,
+    crop: tuple[float, float, float, float] | None,
     preprocess: bool = True,
 ) -> tuple[bytes, bytes | None, str]:
     return convert_image(
@@ -830,5 +848,6 @@ def _convert(
         contrast=contrast,
         sharpen=sharpen,
         tone=tone,
+        crop=crop,
         preprocess=preprocess,
     )

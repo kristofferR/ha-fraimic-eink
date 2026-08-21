@@ -40,6 +40,7 @@ def parse_pexels_photo(item: dict) -> ArtCandidate | None:
 class PexelsProvider(ArtProvider):
     key = "pexels"
     name = "Pexels"
+    supports_query = True
     requires_key = True
     key_option = "pexels_api_key"
     min_interval = 18.0  # 200 req/hr

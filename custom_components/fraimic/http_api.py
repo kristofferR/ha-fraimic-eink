@@ -31,9 +31,12 @@ from .const import (
     MAX_SOURCE_BYTES,
 )
 from .coordinator import REDISCOVERY_FAIL_THRESHOLD
+from .gallery_http import gallery_views
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
+from .overlays import get_overlay_manager
+from .overlays_http import overlay_views
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .playlists_http import playlist_views
 from .render.schema import ScreenConfig
@@ -80,6 +83,8 @@ def async_register_views(hass: HomeAssistant) -> None:
         PackInstallView(),
         PackUninstallView(),
         *playlist_views(),
+        *gallery_views(),
+        *overlay_views(),
         *screens_views(),
     ):
         hass.http.register_view(view)
@@ -187,7 +192,9 @@ class LibraryImageView(_FraimicView):
         if albums is not None and not (
             isinstance(albums, list) and all(isinstance(a, str) for a in albums)
         ):
-            return self.json_message("albums must be a list of strings", HTTPStatus.BAD_REQUEST)
+            return self.json_message(
+                "albums must be a list of strings", HTTPStatus.BAD_REQUEST
+            )
         try:
             image = await library.async_update_image(image_id, albums=albums)
         except HomeAssistantError as err:
@@ -265,7 +272,9 @@ class LibraryPreviewView(_FraimicView):
             (e for e in loaded_fraimic_entries(hass) if e.entry_id == entry_id), None
         )
         if entry is None:
-            return self.json_message("Unknown or unloaded entry_id", HTTPStatus.BAD_REQUEST)
+            return self.json_message(
+                "Unknown or unloaded entry_id", HTTPStatus.BAD_REQUEST
+            )
         rotate = body.get("rotate")
         if rotate is not None and rotate not in (0, 90, 180, 270):
             return self.json_message(
@@ -352,7 +361,9 @@ class LibrarySendView(_FraimicView):
             selected = set(entry_ids)
             entries = [entry for entry in entries if entry.entry_id in selected]
         if not entries:
-            return self.json_message("No matching loaded frames", HTTPStatus.BAD_REQUEST)
+            return self.json_message(
+                "No matching loaded frames", HTTPStatus.BAD_REQUEST
+            )
 
         async def _send(entry: ConfigEntry) -> str | None:
             scheduler = None
@@ -410,7 +421,9 @@ class ScenesView(_SceneViewMixin):
 
     async def get(self, request: web.Request) -> web.Response:
         manager = self._scenes(request)
-        scenes = sorted(manager.scenes.values(), key=lambda scene: scene.name.casefold())
+        scenes = sorted(
+            manager.scenes.values(), key=lambda scene: scene.name.casefold()
+        )
         return self.json({"scenes": [scene.to_dict() for scene in scenes]})
 
     async def post(self, request: web.Request) -> web.Response:
@@ -610,8 +623,16 @@ def _frame_payload(entry: ConfigEntry) -> dict[str, Any]:
 def _slide_meta(slide: ScreenConfig) -> str:
     """Concise queue metadata for one legacy scheduler slide."""
     source = slide.source or {}
-    if source.get("provider"):
+    metadata = source.get("metadata") or {}
+    if source.get("provider") and not source.get("provider_item"):
         return "Fresh artwork each rotation, nothing stored"
+    if source.get("provider_item"):
+        return (
+            " · ".join(
+                filter(None, (metadata.get("artist"), metadata.get("source_name")))
+            )
+            or "Picture"
+        )
     if entity_id := source.get("entity"):
         return str(entity_id)
     if source.get("url") or source.get("library_image"):
@@ -627,6 +648,7 @@ def _slide_payload(
     """Serialize one scheduler slide for a frame-shaped queue row."""
     source = slide.source or {}
     provider = source.get("provider")
+    metadata = source.get("metadata") or {}
     return {
         "id": slide.screen_id,
         "title": slide.name,
@@ -636,17 +658,17 @@ def _slide_payload(
             or (
                 f"/api/fraimic/library/thumb/{source['library_image']}"
                 if source.get("library_image")
-                else source.get("url")
+                else source.get("url") or metadata.get("thumbnail_url")
             )
         ),
         "library_image": source.get("library_image"),
-        "live": bool(provider),
+        "live": bool(provider and not source.get("provider_item")),
         "shuffle_album": provider == "shuffle",
         "blank": False,
     }
 
 
-def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
+def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     """Build the complete Phase 1 player and queue state for one frame."""
     runtime = entry.runtime_data
     scheduler = runtime.scheduler
@@ -655,7 +677,9 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
     frame = _frame_payload(entry)
     current = scheduler.current_screen
     art = runtime.last_art or {}
-    title = art.get("title") or runtime.media_title or (current.name if current else None)
+    title = (
+        art.get("title") or runtime.media_title or (current.name if current else None)
+    )
     artist = art.get("artist")
     interval = scheduler.playlist_interval
     if interval is None and current is not None:
@@ -718,6 +742,16 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
 
     send_queue = runtime.send_queue
     waiting = int(send_queue is not None and send_queue.pending is not None)
+    overlay_manager = get_overlay_manager(hass)
+    overlay_count = (
+        sum(
+            1
+            for overlay in overlay_manager.for_frame(entry.entry_id)
+            if overlay.get("enabled", True)
+        )
+        if overlay_manager is not None
+        else 0
+    )
     return {
         "frame": frame,
         "state": state,
@@ -736,7 +770,7 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
         "transport_available": current is not None,
         "sending": sending,
         "sending_progress": sending_progress,
-        "overlay_count": 0,
+        "overlay_count": overlay_count,
         "queue_count": len(queued) + playlist_queue_count,
         "waiting_count": waiting,
         "hand_queue": [
@@ -766,7 +800,7 @@ class PlayerStateView(_FraimicView):
         entry = require_loaded_entry(
             request.app[KEY_HASS], request.query.get("entry_id")
         )
-        return self.json(_player_payload(entry))
+        return self.json(_player_payload(request.app[KEY_HASS], entry))
 
 
 class PlayerArtworkView(_FraimicView):
@@ -818,10 +852,12 @@ class PlayerControlView(_FraimicView):
                 await runtime.client.sleep()
                 runtime.coordinator.async_set_frame_online(False)
             else:
-                return self.json_message("Unknown player action", HTTPStatus.BAD_REQUEST)
+                return self.json_message(
+                    "Unknown player action", HTTPStatus.BAD_REQUEST
+                )
         except (HomeAssistantError, FraimicError) as err:
             return self.json_message(str(err), HTTPStatus.BAD_GATEWAY)
-        return self.json(_player_payload(entry))
+        return self.json(_player_payload(request.app[KEY_HASS], entry))
 
 
 class PlayerQueueView(_FraimicView):
@@ -857,9 +893,13 @@ class PlayerQueueView(_FraimicView):
                 index = body.get("index")
                 slide_id = body.get("slide_id")
                 if not isinstance(index, int) or isinstance(index, bool):
-                    return self.json_message("index is required", HTTPStatus.BAD_REQUEST)
+                    return self.json_message(
+                        "index is required", HTTPStatus.BAD_REQUEST
+                    )
                 if not isinstance(slide_id, str):
-                    return self.json_message("slide_id is required", HTTPStatus.BAD_REQUEST)
+                    return self.json_message(
+                        "slide_id is required", HTTPStatus.BAD_REQUEST
+                    )
                 await scheduler.async_remove_from_queue(index, slide_id)
             elif action == "clear":
                 await scheduler.async_clear_queue()
@@ -899,4 +939,4 @@ class PlayerQueueView(_FraimicView):
                 return self.json_message("Unknown queue action", HTTPStatus.BAD_REQUEST)
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.CONFLICT)
-        return self.json(_player_payload(entry))
+        return self.json(_player_payload(request.app[KEY_HASS], entry))
