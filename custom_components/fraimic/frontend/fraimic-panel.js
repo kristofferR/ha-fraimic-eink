@@ -107,6 +107,7 @@ const css = String.raw`
   .art img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .glass { aspect-ratio: var(--frame-aspect); border-radius: 4px; background: #0d0d0d; overflow: hidden; }
   .glass img { width: 100%; height: 100%; object-fit: cover; }
+  img.image-failed { visibility: hidden; }
   .cap { padding-top: 7px; min-width: 0; line-height: 1.35; }
   .cap b, .cap span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cap b { font-size: 13px; font-weight: 600; }
@@ -1561,7 +1562,12 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _signImages() {
-    const nodes = [...this.shadowRoot.querySelectorAll("img[data-path]:not([data-signing])")];
+    const images = [...this.shadowRoot.querySelectorAll("img")];
+    for (const img of images) {
+      img.addEventListener("error", () => img.classList.add("image-failed"), { once: true });
+      if (img.complete && img.currentSrc && !img.naturalWidth) img.classList.add("image-failed");
+    }
+    const nodes = images.filter((img) => img.matches("[data-path]:not([data-signing])"));
     await Promise.all(nodes.map(async (img) => {
       const path = img.dataset.path; img.dataset.signing = "true";
       const cached = this._cachedSignedPath(path);
