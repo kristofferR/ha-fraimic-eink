@@ -358,7 +358,7 @@ def test_parse_wallhaven_listing_is_sfw_and_size_aware() -> None:
     candidate = candidates[0]
     assert candidate.provider == "wallhaven"
     assert candidate.item_id == "mlg7qm"
-    assert candidate.title == "General wallpaper mlg7qm"
+    assert candidate.title == "General Wallpaper mlg7qm"
     assert candidate.width == 3840 and candidate.height == 2160
     assert candidate.thumb_url == "https://th.wallhaven.cc/lg/ml/mlg7qm.jpg"
     assert candidate.extra == {"source_url": "https://wallhaven.cc/w/mlg7qm"}

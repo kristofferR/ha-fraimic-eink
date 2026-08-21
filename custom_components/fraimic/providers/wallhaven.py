@@ -33,11 +33,15 @@ MAX_BROWSE_PAGES = 20
 _WALLPAPER_ID = re.compile(r"[a-z0-9]{6}")
 _PAGE_SUFFIX = re.compile(r"/page/([1-9]\d*)$")
 
-ROOT_FOLDERS = (
+FEED_FOLDERS = (
     BrowseFolder("latest", "Latest"),
     BrowseFolder("random", "Random"),
     BrowseFolder("views", "Most viewed"),
     BrowseFolder("favorites", "Most favorited"),
+)
+
+ROOT_FOLDERS = (
+    *FEED_FOLDERS,
     BrowseFolder("top", "Top lists"),
     BrowseFolder("categories", "Categories"),
     BrowseFolder("colors", "Colors"),
@@ -140,9 +144,9 @@ def parse_wallhaven_wallpaper(item: Any) -> ArtCandidate | None:
 
     category = str(item.get("category") or "").strip()
     title = _tag_title(item) or (
-        f"{category.title()} wallpaper {item_id}"
+        f"{category.title()} Wallpaper {item_id}"
         if category
-        else f"Wallhaven wallpaper {item_id}"
+        else f"Wallhaven Wallpaper {item_id}"
     )
     uploader = item.get("uploader")
     artist = (

@@ -428,10 +428,11 @@ and reshuffle on each visit. Reframed preserves its catalogue folders: Collectio
 Tags, Artists, Vertical artworks, and Recently added. Wallhaven preserves its sorting and
 filtering too: Latest, Random, Most viewed, Most favorited, Top lists, Categories, and Colors.
 
-**Install as art packs:** the Fraimic sidebar's **Art Packs** tab also mirrors every Reframed
-collection, color, tag, and artist, plus Vertical and Recently Added. These live packs resolve
-when installed and add up to 24 current artworks to the library, with an album and scene, so
-the catalogue stays fresh without downloading hundreds of groups just to open the tab.
+**Install as art packs:** the Fraimic sidebar's **Art Packs** tab mirrors every Reframed
+collection, color, tag, and artist, plus Vertical and Recently Added. Wallhaven's SFW feeds,
+top-list ranges, categories, and colors are available there too. These live packs resolve when
+installed and add up to 24 current images to the library, with an album and scene, so the
+catalogue stays fresh without downloading every group just to open the tab.
 
 **One-tap art:** every frame gets a **New artwork** button entity — press it (or automate it)
 for a fresh captioned piece from your default source (options → *Default online-art source*).

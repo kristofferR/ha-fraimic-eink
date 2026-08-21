@@ -1,6 +1,6 @@
-"""Curated art packs: one-click installs of public-domain artwork.
+"""Curated art packs: one-click installs of artwork.
 
-Three catalog sources, merged in ``status()``:
+Four catalog sources, merged in ``status()``:
 
 - Bundled (``packs/catalog.json``): ships with the integration, always
   available, fails loudly on packaging bugs.
@@ -11,6 +11,9 @@ Three catalog sources, merged in ``status()``:
 - Reframed Gallery: its live Collections, Colors, Tags, Artists, Vertical, and
   Recently Added taxonomy. Rows are cheap lazy descriptors; installing one
   resolves a bounded set of current artwork into the normal library + scene.
+- Wallhaven: static lazy rows for its SFW feeds, top ranges, categories, and
+  colors. Installing resolves the current wallpapers for the frame's viewed
+  orientation into the same library + scene flow.
 
 Installing a pack downloads its images into the library under a pack-named
 album, then creates/updates a scene assigning an orientation-matched image to
@@ -51,15 +54,25 @@ from .library import FraimicLibrary
 from .pack_model import (
     REFRAMED_FALLBACK_COVER,
     REFRAMED_PACK_LIMIT,
+    WALLHAVEN_FALLBACK_COVER,
+    WALLHAVEN_PACK_LIMIT,
     make_reframed_pack,
+    make_wallhaven_pack,
     map_remote_catalog,
     match_images_to_frames,
     materialize_reframed_pack,
+    materialize_wallhaven_pack,
     reframed_filename,
     validate_catalog,
 )
 from .providers.base import BrowseFolder
 from .providers.ha import ArtFetchError, async_browse_provider
+from .providers.wallhaven import (
+    CATEGORY_FOLDERS,
+    COLOR_FOLDERS,
+    FEED_FOLDERS,
+    TOP_FOLDERS,
+)
 from .scene_model import SCENE_SOURCE_PACK, Scene
 from .scenes import SceneManager
 
@@ -93,6 +106,13 @@ REFRAMED_GROUPS = (
     ("tags", "Reframed Tags"),
 )
 
+WALLHAVEN_GROUPS = (
+    ("Wallhaven Feeds", FEED_FOLDERS),
+    ("Wallhaven Top", TOP_FOLDERS),
+    ("Wallhaven Categories", CATEGORY_FOLDERS),
+    ("Wallhaven Colors", COLOR_FOLDERS),
+)
+
 
 class ArtPackNotFoundError(HomeAssistantError):
     """Raised when an art-pack id is not in any catalog."""
@@ -116,6 +136,11 @@ class ArtPackManager:
         self.packs: list[dict[str, Any]] = []
         self.remote_packs: list[dict[str, Any]] = []
         self.reframed_packs: list[dict[str, Any]] = []
+        self.wallhaven_packs = [
+            make_wallhaven_pack(folder.item_id, folder.title, category)
+            for category, folders in WALLHAVEN_GROUPS
+            for folder in folders
+        ]
         self._remote_fetched_at: float = 0.0
         self._reframed_fetched_at: float = 0.0
         self._reframed_last_refresh_succeeded = False
@@ -308,7 +333,12 @@ class ArtPackManager:
         await self._store.async_save({"installed": self.installed})
 
     def _all_packs(self) -> list[dict[str, Any]]:
-        return [*self.packs, *self.remote_packs, *self.reframed_packs]
+        return [
+            *self.packs,
+            *self.remote_packs,
+            *self.reframed_packs,
+            *self.wallhaven_packs,
+        ]
 
     def _get_pack(self, pack_id: str) -> dict[str, Any]:
         for pack in self._all_packs():
@@ -349,7 +379,10 @@ class ArtPackManager:
             if not catalog_images and live:
                 installed_pack = self._installed_only_pack(pack["id"], record, live)
                 cover_url = pack.get("cover_url")
-                if cover_url == REFRAMED_FALLBACK_COVER:
+                if cover_url in (
+                    REFRAMED_FALLBACK_COVER,
+                    WALLHAVEN_FALLBACK_COVER,
+                ):
                     cover_url = installed_pack["cover_url"]
                 display_pack = {
                     **pack,
@@ -594,32 +627,43 @@ class ArtPackManager:
                 self._active_install_progress.pop(pack_id, None)
 
     async def async_gallery(self, pack_id: str) -> dict[str, Any]:
-        """Return a pack with its lazy Reframed artwork resolved."""
+        """Return a pack with its lazy provider artwork resolved."""
         return await self._async_materialize_pack(self._get_pack(pack_id))
 
     async def _async_materialize_pack(
         self, pack: dict[str, Any]
     ) -> dict[str, Any]:
-        """Resolve a lazy Reframed row into a bounded current image list."""
+        """Resolve a lazy provider row into a bounded current image list."""
         provider_path = pack.get("provider_path")
         if not isinstance(provider_path, str) or not provider_path:
             return pack
         if pack["images"]:
             return pack
+        provider_key = pack.get("provider_key", "reframed")
+        if provider_key == "reframed":
+            pack_limit = REFRAMED_PACK_LIMIT
+            materialize = materialize_reframed_pack
+            provider_name = "Reframed"
+        elif provider_key == "wallhaven":
+            pack_limit = WALLHAVEN_PACK_LIMIT
+            materialize = materialize_wallhaven_pack
+            provider_name = "Wallhaven"
+        else:
+            raise HomeAssistantError(f"Unknown art-pack provider {provider_key}")
         entries = loaded_fraimic_entries(self.hass)
         if not entries:
             raise HomeAssistantError("No Fraimic frame is loaded")
 
         entry = entries[0]
         first_page = await async_browse_provider(
-            self.hass, entry, "reframed", provider_path
+            self.hass, entry, provider_key, provider_path
         )
         candidates = list(first_page.candidates)
         seen = {candidate.item_id for candidate in candidates}
         extra_pages = 0
         for folder in first_page.folders:
             if (
-                len(candidates) >= REFRAMED_PACK_LIMIT
+                len(candidates) >= pack_limit
                 or extra_pages >= REFRAMED_PACK_MAX_EXTRA_PAGES
             ):
                 break
@@ -627,20 +671,20 @@ class ArtPackManager:
                 continue
             extra_pages += 1
             page = await async_browse_provider(
-                self.hass, entry, "reframed", folder.item_id
+                self.hass, entry, provider_key, folder.item_id
             )
             for candidate in page.candidates:
                 if candidate.item_id in seen:
                     continue
                 seen.add(candidate.item_id)
                 candidates.append(candidate)
-                if len(candidates) >= REFRAMED_PACK_LIMIT:
+                if len(candidates) >= pack_limit:
                     break
 
-        materialized = materialize_reframed_pack(pack, candidates)
+        materialized = materialize(pack, candidates)
         if not materialized["images"]:
             raise HomeAssistantError(
-                f"Reframed pack {pack['name']} currently has no downloadable artwork"
+                f"{provider_name} pack {pack['name']} currently has no downloadable artwork"
             )
         return materialized
 
