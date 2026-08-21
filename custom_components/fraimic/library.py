@@ -251,15 +251,15 @@ class FraimicLibrary:
         old_path = self.original_path(image)
         new_path = self.originals_dir / f"{image.image_id}_{filename}"
 
-        rename = await _async_await_cancellation_safe(
-            self.hass.async_add_executor_job(old_path.replace, new_path)
+        staged = await _async_await_cancellation_safe(
+            self.hass.async_add_executor_job(shutil.copyfile, old_path, new_path)
         )
-        if isinstance(rename.error, OSError):
-            err = rename.error
+        if isinstance(staged.error, OSError):
+            err = staged.error
             raise HomeAssistantError(f"Could not rename image: {err}") from err
-        if rename.error is not None:
-            raise rename.error
-        cancelled = rename.cancelled
+        if staged.error is not None:
+            raise staged.error
+        cancelled = staged.cancelled
 
         image.filename = filename
         image.content_type = (
@@ -268,18 +268,18 @@ class FraimicLibrary:
 
         async def _rollback(save_error: BaseException) -> bool:
             rollback = await _async_await_cancellation_safe(
-                self.hass.async_add_executor_job(new_path.replace, old_path)
+                self.hass.async_add_executor_job(new_path.unlink)
             )
+            image.filename = old_filename
+            image.content_type = old_content_type
             if isinstance(rollback.error, OSError):
                 rollback_err = rollback.error
                 raise HomeAssistantError(
                     f"Image rename manifest save failed ({save_error}); "
-                    f"the original path could not be restored ({rollback_err})"
+                    f"the staged copy could not be removed ({rollback_err})"
                 ) from rollback_err
             if rollback.error is not None:
                 raise rollback.error
-            image.filename = old_filename
-            image.content_type = old_content_type
             return rollback.cancelled
 
         save_task = self.hass.async_create_task(self._async_save_manifest())
@@ -292,7 +292,22 @@ class FraimicLibrary:
             cancelled |= await _rollback(save.error)
             if cancelled or isinstance(save.error, asyncio.CancelledError):
                 raise asyncio.CancelledError from save.error
+            if isinstance(save.error, OSError):
+                raise HomeAssistantError(
+                    f"Could not save image rename: {save.error}"
+                ) from save.error
             raise save.error
+
+        cleanup = await _async_await_cancellation_safe(
+            self.hass.async_add_executor_job(old_path.unlink)
+        )
+        cancelled |= cleanup.cancelled
+        if cleanup.error is not None:
+            _LOGGER.warning(
+                "Could not remove old path after renaming library image %s: %s",
+                image_id,
+                cleanup.error,
+            )
         if cancelled:
             raise asyncio.CancelledError
         return image

@@ -74,7 +74,7 @@ def test_rename_rolls_back_file_and_metadata_when_manifest_save_fails(
 
     manager._async_save_manifest = fail_save
 
-    with pytest.raises(OSError, match="disk full"):
+    with pytest.raises(library.HomeAssistantError, match="disk full"):
         asyncio.run(manager.async_rename_image(image.image_id, "New Name.png"))
 
     assert image.filename == "Old Name.jpg"
@@ -118,13 +118,13 @@ def test_rename_keeps_new_metadata_when_failed_manifest_cannot_roll_back(
 
     with pytest.raises(
         library.HomeAssistantError,
-        match="disk full.*original path could not be restored.*restore failed",
+        match="disk full.*staged copy could not be removed.*restore failed",
     ):
         asyncio.run(manager.async_rename_image(image.image_id, "New Name.png"))
 
-    assert image.filename == "New Name.png"
-    assert image.content_type == "image/png"
-    assert not old_path.exists()
+    assert image.filename == "Old Name.jpg"
+    assert image.content_type == "image/jpeg"
+    assert old_path.read_bytes() == b"original"
     assert new_path.read_bytes() == b"original"
 
 
@@ -159,6 +159,7 @@ def test_rename_waits_for_manifest_commit_before_propagating_cancellation(
             await release.wait()
             committed["filename"] = image.filename
             committed["path_exists"] = manager.original_path(image).exists()
+            committed["old_path_exists"] = old_path.exists()
 
         manager._async_save_manifest = controlled_save
         rename_task = asyncio.create_task(
@@ -173,7 +174,11 @@ def test_rename_waits_for_manifest_commit_before_propagating_cancellation(
         with pytest.raises(asyncio.CancelledError):
             await rename_task
 
-        assert committed == {"filename": "New Name.png", "path_exists": True}
+        assert committed == {
+            "filename": "New Name.png",
+            "path_exists": True,
+            "old_path_exists": True,
+        }
         assert image.filename == "New Name.png"
         assert image.content_type == "image/png"
         assert not old_path.exists()
