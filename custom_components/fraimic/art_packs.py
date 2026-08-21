@@ -101,6 +101,7 @@ REMOTE_PACK_FAILURE_TTL = 300
 REFRAMED_PACK_TTL = 6 * 3600
 REFRAMED_PACK_FAILURE_TTL = 300
 LAZY_PACK_MAX_EXTRA_PAGES = 4
+WALLHAVEN_RANDOM_PACK_TTL = 300
 
 REFRAMED_GROUPS = (
     ("collections", "Reframed Collections"),
@@ -147,6 +148,9 @@ class ArtPackManager:
         self._reframed_fetched_at: float = 0.0
         self._reframed_last_refresh_succeeded = False
         self._reframed_refresh_task: asyncio.Task[None] | None = None
+        self._materialized_random_packs: dict[
+            str, tuple[float, dict[str, Any]]
+        ] = {}
         self._active_install_progress: dict[str, tuple[int, int]] = {}
         # pack_id -> installed image ids plus catalog metadata used after restart.
         self.installed: dict[str, dict[str, Any]] = {}
@@ -642,6 +646,15 @@ class ArtPackManager:
         if pack["images"]:
             return pack
         provider_key = pack.get("provider_key", "reframed")
+        random_cache_key = (
+            pack["id"]
+            if provider_key == "wallhaven" and provider_path == "random"
+            else None
+        )
+        if random_cache_key:
+            cached = self._materialized_random_packs.get(random_cache_key)
+            if cached and time.time() - cached[0] < WALLHAVEN_RANDOM_PACK_TTL:
+                return cached[1]
         if provider_key == "reframed":
             pack_limit = REFRAMED_PACK_LIMIT
             materialize = materialize_reframed_pack
@@ -682,6 +695,11 @@ class ArtPackManager:
         if not materialized["images"]:
             raise HomeAssistantError(
                 f"{provider_name} pack {pack['name']} currently has no downloadable artwork"
+            )
+        if random_cache_key:
+            self._materialized_random_packs[random_cache_key] = (
+                time.time(),
+                materialized,
             )
         return materialized
 

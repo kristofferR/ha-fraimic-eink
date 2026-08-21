@@ -71,7 +71,9 @@ def test_failed_replacement_keeps_stale_images_and_scene(
             self.images = {"old-image": types.SimpleNamespace()}
             self.deleted: list[str] = []
 
-        async def async_add_image(self, _data, _filename, **_kwargs):
+        async def async_add_image(
+            self, _data, _filename, **_kwargs
+        ) -> types.SimpleNamespace:
             image = types.SimpleNamespace(image_id="new-image")
             self.images[image.image_id] = image
             return image
@@ -330,3 +332,78 @@ def test_wallhaven_pack_balances_loaded_frame_orientations(
         "Landscape",
         "Portrait",
     ]
+
+
+def test_wallhaven_random_gallery_reuses_selection_for_install_window(
+    art_packs_module, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    art_packs = art_packs_module
+    entry = types.SimpleNamespace(
+        data={art_packs.CONF_WIDTH: 1600, art_packs.CONF_HEIGHT: 1200},
+        options={},
+    )
+    monkeypatch.setattr(art_packs, "loaded_fraimic_entries", lambda _hass: [entry])
+    now = 1_000.0
+    monkeypatch.setattr(art_packs.time, "time", lambda: now)
+    calls = 0
+
+    async def browse(
+        _hass, _entry, provider_key, provider_path
+    ) -> types.SimpleNamespace:
+        nonlocal calls
+        calls += 1
+        item_id = "aaaaaa" if calls == 1 else "bbbbbb"
+        assert provider_key == "wallhaven"
+        assert provider_path == "random"
+        candidate = types.SimpleNamespace(
+            item_id=item_id,
+            image_url=f"https://w.wallhaven.cc/full/aa/wallhaven-{item_id}.jpg",
+            thumb_url=None,
+            title=f"Wallpaper {item_id}",
+            artist=None,
+            license=None,
+            attribution="Wallhaven",
+            width=2400,
+            height=1600,
+            extra={"source_url": f"https://wallhaven.cc/w/{item_id}"},
+        )
+        return types.SimpleNamespace(candidates=(candidate,), folders=())
+
+    monkeypatch.setattr(art_packs, "async_browse_provider", browse)
+    monkeypatch.setattr(art_packs, "DOWNLOAD_DELAY_DEFAULT", 0)
+
+    class Library:
+        def __init__(self) -> None:
+            self.images: dict[str, object] = {}
+
+        async def async_add_image(
+            self, _data, _filename, **_kwargs
+        ) -> types.SimpleNamespace:
+            image = types.SimpleNamespace(image_id="installed-image")
+            self.images[image.image_id] = image
+            return image
+
+    manager = art_packs.ArtPackManager(object(), Library(), object())
+
+    async def download(_session, _url: str) -> bytes:
+        return b"image"
+
+    async def save() -> None:
+        return None
+
+    async def sync_scene(_pack, _image_ids) -> str:
+        return "random-scene"
+
+    manager._async_download = download
+    manager._async_save = save
+    manager._async_sync_pack_scene = sync_scene
+
+    previewed = asyncio.run(manager.async_gallery("wh-random"))
+    install_result = asyncio.run(manager.async_install("wh-random"))
+
+    assert calls == 1
+    assert install_result["installed_count"] == len(previewed["images"]) == 1
+    now += art_packs.WALLHAVEN_RANDOM_PACK_TTL + 1
+    refreshed = asyncio.run(manager.async_gallery("wh-random"))
+    assert calls == 2
+    assert refreshed["images"][0]["title"] == "Wallpaper bbbbbb"
