@@ -1577,4 +1577,4 @@ class FraimicPanel extends HTMLElement {
   }
 }
 
-customElements.define("fraimic-panel", FraimicPanel);
+customElements.define("fraimic-panel-v2", FraimicPanel);

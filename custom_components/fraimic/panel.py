@@ -7,8 +7,8 @@ the integration version as a cache-buster so browsers pick up new releases.
 
 from __future__ import annotations
 
+import hashlib
 import logging
-
 from pathlib import Path
 
 from homeassistant.components.frontend import (
@@ -27,6 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 URL_BASE = "/fraimic_static"
 PANEL_URL_PATH = "fraimic"
 PANEL_FALLBACK_URL_PATH = "fraimic_panel"
+PANEL_ELEMENT_NAME = "fraimic-panel-v2"
 
 DATA_STATIC_REGISTERED = "static_registered"
 DATA_PANEL_REGISTERED = "panel_registered"
@@ -37,23 +38,23 @@ async def async_register_panel(hass: HomeAssistant) -> None:
     domain_data = hass.data.setdefault(DOMAIN, {})
     integration = await async_get_integration(hass, DOMAIN)
     version = integration.version or "0"
+    frontend_dir = Path(__file__).parent / "frontend"
+    panel_version, card_version = await hass.async_add_executor_job(
+        _asset_versions, frontend_dir, version
+    )
 
     if not domain_data.get(DATA_STATIC_REGISTERED):
         domain_data[DATA_STATIC_REGISTERED] = True
         await hass.http.async_register_static_paths(
-            [
-                StaticPathConfig(
-                    URL_BASE, str(Path(__file__).parent / "frontend"), cache_headers=True
-                )
-            ]
+            [StaticPathConfig(URL_BASE, str(frontend_dir), cache_headers=True)]
         )
         # Auto-loads the Lovelace card for every dashboard — no manual
         # resource registration step for users.
-        add_extra_js_url(hass, f"{URL_BASE}/fraimic-card.js?v={version}")
+        add_extra_js_url(hass, f"{URL_BASE}/fraimic-card.js?v={card_version}")
 
     if not domain_data.get(DATA_PANEL_REGISTERED):
         try:
-            _register_panel(hass, version, PANEL_URL_PATH)
+            _register_panel(hass, panel_version, PANEL_URL_PATH)
             domain_data[DATA_PANEL_REGISTERED] = PANEL_URL_PATH
         except ValueError:
             _LOGGER.warning(
@@ -62,11 +63,23 @@ async def async_register_panel(hass: HomeAssistant) -> None:
                 PANEL_FALLBACK_URL_PATH,
             )
             try:
-                _register_panel(hass, version, PANEL_FALLBACK_URL_PATH)
+                _register_panel(hass, panel_version, PANEL_FALLBACK_URL_PATH)
             except ValueError:
                 _LOGGER.exception("Could not register the Fraimic sidebar panel")
             else:
                 domain_data[DATA_PANEL_REGISTERED] = PANEL_FALLBACK_URL_PATH
+
+
+def _asset_versions(frontend_dir: Path, version: str) -> tuple[str, str]:
+    """Content-address frontend URLs so development deploys cannot stay stale."""
+
+    def digest(name: str) -> str:
+        return hashlib.sha256((frontend_dir / name).read_bytes()).hexdigest()[:12]
+
+    return (
+        f"{version}-{digest('fraimic-panel.js')}",
+        f"{version}-{digest('fraimic-card.js')}",
+    )
 
 
 def _register_panel(hass: HomeAssistant, version: str, url_path: str) -> None:
@@ -79,7 +92,7 @@ def _register_panel(hass: HomeAssistant, version: str, url_path: str) -> None:
         require_admin=False,
         config={
             "_panel_custom": {
-                "name": "fraimic-panel",
+                "name": PANEL_ELEMENT_NAME,
                 "module_url": f"{URL_BASE}/fraimic-panel.js?v={version}",
                 "embed_iframe": False,
                 "trust_external": False,
