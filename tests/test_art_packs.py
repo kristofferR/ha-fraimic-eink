@@ -159,12 +159,13 @@ def test_failed_reframed_refresh_uses_failure_ttl_with_cached_packs(
     monkeypatch.setattr(art_packs.time, "time", lambda: now)
     monkeypatch.setattr(art_packs, "loaded_fraimic_entries", lambda _hass: [object()])
 
-    async def fail_refresh(*_args):
+    async def fail_refresh(*_args: object) -> None:
         raise art_packs.ArtFetchError("offline")
 
     monkeypatch.setattr(art_packs, "async_browse_provider", fail_refresh)
     manager = art_packs.ArtPackManager(object(), types.SimpleNamespace(), object())
     manager.reframed_packs = [{"id": "cached-pack"}]
+    manager._reframed_last_refresh_succeeded = True
 
     asyncio.run(manager.async_refresh_reframed())
 
