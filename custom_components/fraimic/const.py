@@ -82,6 +82,17 @@ def canonical_frame_resolution(width: int, height: int) -> tuple[int, int]:
     resolution = (width, height)
     return FRAME_RESOLUTION_ALIASES.get(resolution, resolution)
 
+
+def canonical_frame_settings(
+    width: int, height: int, rotation: int
+) -> tuple[int, int, int]:
+    """Canonicalize panel axes without changing its wall-visible orientation."""
+    canonical_width, canonical_height = canonical_frame_resolution(width, height)
+    if (canonical_width, canonical_height) == (height, width) and width != height:
+        rotation = (rotation + 90) % 360
+    return canonical_width, canonical_height, rotation
+
+
 # Friendly model name by resolution (both Standard orientations map to Standard).
 MODEL_NAMES: Final = {
     (1600, 1200): 'Standard Canvas (13.3")',

@@ -14,11 +14,14 @@ from .const import (
     CONF_CAMERA_INTERVAL,
     CONF_HEIGHT,
     CONF_POWER_MODE,
+    CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
+    DEFAULT_ROTATION,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
-    canonical_frame_resolution,
+    ROTATION_OPTIONS,
+    canonical_frame_settings,
 )
 from .coordinator import (
     FraimicConfigEntry,
@@ -139,8 +142,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> bool:
     """Keep existing installations responsive while new entries save battery."""
+    options = dict(entry.options)
     if entry.version < 2:
-        options = dict(entry.options)
         options.setdefault(CONF_POWER_MODE, POWER_MODE_RESPONSIVE)
         options.setdefault(CONF_SCAN_INTERVAL, 300)
         options.setdefault(CONF_CAMERA_INTERVAL, 1800)
@@ -149,10 +152,20 @@ async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) ->
         data = dict(entry.data)
         width, height = data.get(CONF_WIDTH), data.get(CONF_HEIGHT)
         if isinstance(width, int) and isinstance(height, int):
-            data[CONF_WIDTH], data[CONF_HEIGHT] = canonical_frame_resolution(
-                width, height
+            stored_rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
+            valid_rotation = (
+                type(stored_rotation) is int and stored_rotation in ROTATION_OPTIONS
             )
-        hass.config_entries.async_update_entry(entry, data=data, version=3)
+            rotation = stored_rotation if valid_rotation else DEFAULT_ROTATION
+            canonical_width, canonical_height, canonical_rotation = (
+                canonical_frame_settings(width, height, rotation)
+            )
+            data[CONF_WIDTH], data[CONF_HEIGHT] = canonical_width, canonical_height
+            if not valid_rotation or canonical_rotation != stored_rotation:
+                options[CONF_ROTATION] = canonical_rotation
+        hass.config_entries.async_update_entry(
+            entry, data=data, options=options, version=3
+        )
     return True
 
 

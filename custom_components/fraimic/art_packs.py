@@ -237,9 +237,9 @@ class ArtPackManager:
             self._reframed_fetched_at = time.time()
             _LOGGER.warning("Could not fetch the Reframed pack catalog: %s", err)
             return
-        except Exception as err:  # noqa: BLE001 - isolate background provider bugs
+        except Exception:
             self._reframed_fetched_at = time.time()
-            _LOGGER.exception("Reframed pack catalog refresh failed: %s", err)
+            _LOGGER.exception("Reframed pack catalog refresh failed")
             return
 
         self.reframed_packs = sorted(
@@ -255,16 +255,20 @@ class ArtPackManager:
 
     @property
     def reframed_refreshing(self) -> bool:
-        """Whether the Reframed taxonomy is refreshing in the background."""
-        return bool(
+        """Whether the taxonomy is refreshing or still waiting to refresh."""
+        task_running = bool(
             self._reframed_refresh_task
             and not self._reframed_refresh_task.done()
         )
+        return task_running or self._reframed_refresh_due()
 
     @callback
     def schedule_reframed_refresh(self) -> None:
         """Start one background refresh when the cached taxonomy is stale."""
-        if not self._reframed_refresh_due() or self.reframed_refreshing:
+        if not self._reframed_refresh_due() or (
+            self._reframed_refresh_task
+            and not self._reframed_refresh_task.done()
+        ):
             return
         task = self.hass.async_create_background_task(
             self.async_refresh_reframed(), name="fraimic_reframed_pack_catalog"

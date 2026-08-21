@@ -33,6 +33,10 @@ def test_safe_filename():
     assert long_name.startswith("Artist - ")
     assert long_name.endswith(".jpg")
 
+    unicode_name = lm.safe_filename("𐐀" * 80 + ".jpg")
+    assert unicode_name.endswith(".jpg")
+    assert len(f"{'a' * 12}_{unicode_name}".encode()) <= 255
+
 
 def test_normalize_crop_valid():
     assert lm.normalize_crop([0, 0, 1, 1]) == (0.0, 0.0, 1.0, 1.0)

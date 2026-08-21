@@ -285,6 +285,34 @@ def test_known_frame_orientations_are_canonicalized(
     assert const.canonical_frame_resolution(*reported) == native
 
 
+@pytest.mark.parametrize(
+    ("reported", "rotation"),
+    [
+        ((1200, 1600), 0),
+        ((1200, 1600), 90),
+        ((2560, 1440), 0),
+        ((2560, 1440), 270),
+    ],
+)
+def test_canonical_frame_settings_preserve_viewed_orientation(
+    reported: tuple[int, int], rotation: int
+) -> None:
+    width, height = reported
+    old_viewed = (height, width) if rotation in (90, 270) else (width, height)
+
+    native_width, native_height, native_rotation = const.canonical_frame_settings(
+        width, height, rotation
+    )
+    new_viewed = (
+        (native_height, native_width)
+        if native_rotation in (90, 270)
+        else (native_width, native_height)
+    )
+
+    assert native_rotation == (rotation + 90) % 360
+    assert new_viewed == old_viewed
+
+
 @pytest.mark.parametrize(("width", "height"), [(1200, 1600), (2560, 1440)])
 def test_legacy_panel_orientation_cannot_use_generic_packer(
     width: int, height: int

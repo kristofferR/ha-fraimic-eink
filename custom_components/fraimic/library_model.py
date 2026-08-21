@@ -22,17 +22,33 @@ RENDER_CACHE_VERSION = 1
 MANIFEST_VERSION = 1
 
 _SAFE_FILENAME = re.compile(r"[^\w .(),'’\-]+", re.UNICODE)
+_MAX_FILENAME_CHARS = 80
+_MAX_FILENAME_BYTES = 255 - 13  # 12-character image id plus underscore
+
+
+def _truncate_utf8(value: str, max_bytes: int) -> str:
+    encoded = value.encode("utf-8")
+    if len(encoded) <= max_bytes:
+        return value
+    return encoded[:max_bytes].decode("utf-8", errors="ignore")
 
 
 def safe_filename(name: str) -> str:
     """Reduce an arbitrary upload filename to a filesystem-safe form."""
     name = _SAFE_FILENAME.sub(" ", name.strip().strip("."))
     name = re.sub(r"\s+", " ", name).strip().strip(".")
-    if len(name) <= 80:
+    if (
+        len(name) <= _MAX_FILENAME_CHARS
+        and len(name.encode("utf-8")) <= _MAX_FILENAME_BYTES
+    ):
         return name or "image"
     stem, separator, extension = name.rpartition(".")
     suffix = f".{extension}" if separator and len(extension) <= 10 else ""
-    return f"{(stem if suffix else name)[: 80 - len(suffix)].rstrip()}{suffix}"
+    base = (stem if suffix else name)[: _MAX_FILENAME_CHARS - len(suffix)]
+    base = _truncate_utf8(
+        base.rstrip(), _MAX_FILENAME_BYTES - len(suffix.encode("utf-8"))
+    ).rstrip()
+    return f"{base or 'image'}{suffix}"
 
 
 def resolution_key(width: int, height: int) -> str:
