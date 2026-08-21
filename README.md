@@ -154,9 +154,9 @@ cards:
 
 **Multiple frames:** entity IDs are suffixed per device (e.g.
 `image.fraimic_e_ink_canvas_2_current_artwork`) — duplicate the stack per frame using each
-frame's IDs (check *Settings → Devices* for the exact names). The Large frame's preview comes out
-landscape (16:9) and the Standard's portrait (3:4) — or whatever orientation you set, so each card
-matches the real frame.
+frame's IDs (check *Settings → Devices* for the exact names). The integration renders the Large frame
+at 1440x2560 and the Standard at 1600x1200; the preview follows the mount rotation you set so each
+card matches the real frame.
 
 ## Uploading artwork
 

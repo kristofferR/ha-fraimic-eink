@@ -8,6 +8,7 @@ can run standalone (deps cover the whole tests/ directory):
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import sys
@@ -116,6 +117,73 @@ def test_large_frame_el315_corner_mapping() -> None:
 
     assert data[0] == 0x31
     assert data[7 * 288_000 + 79] == 0x51
+
+
+@pytest.mark.parametrize(
+    ("width", "height", "expected_sha256"),
+    [
+        (
+            1600,
+            1200,
+            "180db78069be63ed5e9157265f89da7e1e986f2f6d25f7a4fa50364757dbac52",
+        ),
+        (
+            1440,
+            2560,
+            "9af7cdd7cf6e17b5fa4c065e869967f7adf0f819c255d42c54c74b0e794de660",
+        ),
+    ],
+)
+def test_known_panel_wire_layout_golden(
+    width: int, height: int, expected_sha256: str
+) -> None:
+    """Pin the complete official EL133UF1/EL315 coordinate mapping."""
+    import numpy as np
+
+    rows = np.arange(height, dtype=np.uint32)[:, None]
+    cols = np.arange(width, dtype=np.uint32)[None, :]
+    indices = ((rows * 3 + cols * 5 + rows // 37 + cols // 29) % 6).astype(
+        np.uint8
+    )
+
+    packed = ic._pack_nibbles(indices.reshape(-1), width, height)
+
+    # Generated independently with Fraimic/fraimic_bin_converter at 1b794a3.
+    assert hashlib.sha256(packed).hexdigest() == expected_sha256
+
+
+@pytest.mark.parametrize(
+    ("reported", "native"),
+    [
+        ((1200, 1600), (1600, 1200)),
+        ((2560, 1440), (1440, 2560)),
+    ],
+)
+def test_known_frame_orientations_are_canonicalized(
+    reported: tuple[int, int], native: tuple[int, int]
+) -> None:
+    assert const.canonical_frame_resolution(*reported) == native
+
+
+@pytest.mark.parametrize("width,height", [(1200, 1600), (2560, 1440)])
+def test_legacy_panel_orientation_cannot_use_generic_packer(
+    width: int, height: int
+) -> None:
+    with pytest.raises(ValueError, match="verified render resolution"):
+        ic._pack_nibbles([0], width, height)
+
+
+def test_oversized_custom_buffer_is_rejected() -> None:
+    with pytest.raises(ValueError, match="buffer exceeds"):
+        ic._expected_bin_size(4096, 4096)
+
+
+@pytest.mark.parametrize("width,height", [(0, 4), (4, 0), (-4, 4), (4, -4)])
+def test_non_positive_buffer_dimensions_are_rejected(
+    width: int, height: int
+) -> None:
+    with pytest.raises(ValueError, match="must be positive"):
+        ic._expected_bin_size(width, height)
 
 
 def test_odd_pixel_count_rejected() -> None:

@@ -68,6 +68,20 @@ FRAME_MODELS: Final = {
 }
 MODEL_CUSTOM: Final = "custom"
 
+# Marketing material and some firmware report the physical panel dimensions in
+# the opposite orientation to this integration's verified render layout.
+# Normalize those aliases before storing a config entry.
+FRAME_RESOLUTION_ALIASES: Final[dict[tuple[int, int], tuple[int, int]]] = {
+    (1200, 1600): FRAME_MODELS["standard"],
+    (2560, 1440): FRAME_MODELS["large"],
+}
+
+
+def canonical_frame_resolution(width: int, height: int) -> tuple[int, int]:
+    """Return the verified render resolution for a known Fraimic panel."""
+    resolution = (width, height)
+    return FRAME_RESOLUTION_ALIASES.get(resolution, resolution)
+
 # Friendly model name by resolution (both Standard orientations map to Standard).
 MODEL_NAMES: Final = {
     (1600, 1200): 'Standard Canvas (13.3")',
@@ -85,6 +99,15 @@ DEFAULT_HEIGHT: Final = 1200
 MAX_BIN_SIZE: Final = 4 * 1024 * 1024
 LARGE_FRAME_BIN_SIZE: Final = 2_304_000
 LARGE_FRAME_UPLOAD_TIMEOUT: Final = 600
+
+
+def frame_bin_size(width: int, height: int) -> int:
+    """Return the wire payload size for a canonical frame resolution."""
+    if (width, height) == FRAME_MODELS["large"]:
+        return LARGE_FRAME_BIN_SIZE
+    return width * height // 2
+
+
 # Source images are always scaled to the frame resolution, so this is just an
 # out-of-memory guard, not a resolution limit — generous enough for any photo.
 MAX_SOURCE_BYTES: Final = 64 * 1024 * 1024

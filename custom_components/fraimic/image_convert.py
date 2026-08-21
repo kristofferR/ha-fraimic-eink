@@ -36,7 +36,7 @@ from .const import (
     FIT_CONTAIN,
     FIT_CONTAIN_BLACK,
     FIT_STRETCH,
-    LARGE_FRAME_BIN_SIZE,
+    MAX_BIN_SIZE,
     MAX_SOURCE_PIXELS,
     MODE_ATKINSON,
     MODE_AUTO,
@@ -48,6 +48,8 @@ from .const import (
     SPECTRA6_LEVELS,
     SPECTRA6_PANEL_INDEX,
     SPECTRA6_RGB,
+    canonical_frame_resolution,
+    frame_bin_size,
 )
 
 # Lazily register extra Pillow decoders (HEIC/HEIF/AVIF via pillow-heif) once.
@@ -464,6 +466,22 @@ def _render_indices(image, width: int, height: int, mode: str):
     return _error_diffuse(oklab, palette, _FLOYD_STEINBERG_KERNEL, width, height)
 
 
+def _require_canonical_resolution(width: int, height: int) -> tuple[int, int]:
+    """Reject a known panel orientation that would select the wrong packer."""
+    if width < 1 or height < 1:
+        raise ValueError("Fraimic buffer dimensions must be positive")
+    if height % 4:
+        raise ValueError("Fraimic buffers require a height divisible by 4")
+    resolution = (width, height)
+    canonical = canonical_frame_resolution(width, height)
+    if resolution != canonical:
+        raise ValueError(
+            f"Fraimic panel {width}x{height} must use the verified render "
+            f"resolution {canonical[0]}x{canonical[1]}"
+        )
+    return resolution
+
+
 def _pack_nibbles(indices, width: int, height: int) -> bytes:
     """Pack per-pixel palette positions into the frame's native buffer layout.
 
@@ -477,11 +495,13 @@ def _pack_nibbles(indices, width: int, height: int) -> bytes:
     """
     import numpy as np
 
+    resolution = _require_canonical_resolution(width, height)
+
     panel_nibble = np.array(SPECTRA6_PANEL_INDEX, dtype=np.uint8)
     arr = panel_nibble[np.asarray(indices, dtype=np.uint8) % SPECTRA6_LEVELS]
     arr = arr.reshape(height, width)
 
-    if (width, height) == (1440, 2560):
+    if resolution == (1440, 2560):
         return _pack_el315(arr)
 
     half_h = height // 2
@@ -534,9 +554,11 @@ def _pack_el315(arr) -> bytes:
 
 def _expected_bin_size(width: int, height: int) -> int:
     """Return the exact wire payload size for a configured panel."""
-    if (width, height) == (1440, 2560):
-        return LARGE_FRAME_BIN_SIZE
-    return width * height // 2
+    resolution = _require_canonical_resolution(width, height)
+    size = frame_bin_size(*resolution)
+    if size > MAX_BIN_SIZE:
+        raise ValueError(f"Fraimic buffer exceeds {MAX_BIN_SIZE} bytes")
+    return size
 
 
 def _indices_to_png(indices, width: int, height: int, preview_rotate: int = 0) -> bytes:

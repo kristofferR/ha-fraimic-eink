@@ -18,6 +18,7 @@ from .const import (
     CONF_WIDTH,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
+    canonical_frame_resolution,
 )
 from .coordinator import (
     FraimicConfigEntry,
@@ -146,9 +147,11 @@ async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) ->
         hass.config_entries.async_update_entry(entry, options=options, version=2)
     if entry.version < 3:
         data = dict(entry.data)
-        if (data.get(CONF_WIDTH), data.get(CONF_HEIGHT)) == (2560, 1440):
-            data[CONF_WIDTH] = 1440
-            data[CONF_HEIGHT] = 2560
+        width, height = data.get(CONF_WIDTH), data.get(CONF_HEIGHT)
+        if isinstance(width, int) and isinstance(height, int):
+            data[CONF_WIDTH], data[CONF_HEIGHT] = canonical_frame_resolution(
+                width, height
+            )
         hass.config_entries.async_update_entry(entry, data=data, version=3)
     return True
 
