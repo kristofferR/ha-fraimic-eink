@@ -145,8 +145,10 @@ MODE_NONE: Final = "none"  # nearest colour, no dithering
 MODE_BAYER: Final = "bayer"  # ordered dithering (fast, good for graphics)
 MODE_FLOYD_STEINBERG: Final = "floyd_steinberg"
 MODE_ATKINSON: Final = "atkinson"
+MODE_OFFICIAL: Final = "official"  # Fraimic's published converter recipe
 DITHER_MODES: Final = (
     MODE_AUTO,
+    MODE_OFFICIAL,
     MODE_NONE,
     MODE_BAYER,
     MODE_FLOYD_STEINBERG,

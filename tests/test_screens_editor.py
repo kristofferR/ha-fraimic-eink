@@ -9,6 +9,7 @@ from conftest import load
 
 editor = load("screens_editor")
 schema = load("render.schema")
+const = load("const")
 
 FIELD_TYPES = {"text", "textarea", "number", "bool", "select", "entity", "entity_list"}
 
@@ -97,6 +98,11 @@ def test_picture_field_keys_are_valid_picture_options() -> None:
         elif field["key"] != "url":
             payload[field["key"]] = _field_sample(field)
         schema.SCREEN_SCHEMA(payload)
+
+
+def test_picture_editor_lists_every_dither_mode() -> None:
+    mode = next(field for field in editor.PICTURE_FIELDS if field["key"] == "mode")
+    assert mode["options"] == list(const.DITHER_MODES)
 
 
 def _assert_field_shape(field: dict, owner: str) -> None:

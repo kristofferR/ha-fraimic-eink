@@ -94,6 +94,13 @@ def test_interval_floor_enforced() -> None:
         schema.SCREEN_SCHEMA(_minimal(interval=60))
 
 
+def test_picture_screen_accepts_official_mode() -> None:
+    result = schema.SCREEN_SCHEMA(
+        {"kind": "picture", "url": "https://example.com/art.jpg", "mode": "official"}
+    )
+    assert result["mode"] == "official"
+
+
 def test_screen_from_dict_parses_windows() -> None:
     data = schema.SCREEN_SCHEMA(
         _minimal(windows=[{"after": "07:30", "before": "22:00", "days": ["mon", "sun"]}])

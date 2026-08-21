@@ -24,6 +24,7 @@ import voluptuous as vol
 
 from ..const import (
     DEFAULT_SCREEN_INTERVAL,
+    DITHER_MODES,
     MIN_SCREEN_INTERVAL,
     PALETTE_NAMES,
     PROVIDER_KEYS,
@@ -292,9 +293,7 @@ SCREEN_SCHEMA = vol.All(
             vol.Optional("query"): str,  # photo providers only
             vol.Optional("caption", default=False): bool,  # attribution strip
             vol.Optional("fit"): vol.In(("cover", "contain", "contain_black", "stretch")),
-            vol.Optional("mode"): vol.In(
-                ("auto", "none", "bayer", "floyd_steinberg", "atkinson")
-            ),
+            vol.Optional("mode"): vol.In(DITHER_MODES),
             vol.Optional("background", default="white"): _COLOR,
             vol.Optional("accent", default="red"): _COLOR,
             vol.Optional("padding", default=32): vol.All(

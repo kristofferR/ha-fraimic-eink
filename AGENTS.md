@@ -96,7 +96,10 @@ Pipeline:
 10. PNG preview
 
 Dither modes (`const.DITHER_MODES`): `auto` (picks FS for photos, Bayer for flat
-graphics), `floyd_steinberg`, `atkinson`, `bayer`, `none`.
+graphics), `floyd_steinberg`, `atkinson`, `bayer`, `none`, and opt-in `official`.
+The `official` compatibility path replaces steps 6-8 with Fraimic's published
+fit/enhancement, pure-primary RGB+luma matching, and left-to-right Atkinson
+recipe; it intentionally ignores the normal processing sliders.
 
 ### `.bin` format (reverse-engineered, NOT row-major)
 

@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from typing import Any, Final
 
+from .const import DITHER_MODES
+
 _COLOR_OPTIONS = ["black", "white", "yellow", "red", "blue", "green"]
 
 
@@ -159,6 +161,6 @@ PICTURE_FIELDS: Final[list[dict[str, Any]]] = [
         "mode",
         "select",
         "Dither mode",
-        options=["auto", "none", "bayer", "floyd_steinberg", "atkinson"],
+        options=list(DITHER_MODES),
     ),
 ]

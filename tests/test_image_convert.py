@@ -40,7 +40,9 @@ def _load():
 const, ic = _load()
 
 LARGE = (1600, 1200)
-ALL_MODES = ["none", "bayer", "floyd_steinberg", "atkinson", "auto"]
+# Official uses the reference converter's intentionally slow sequential path;
+# its exact behavior is covered by a small golden fixture below.
+CORE_MODES = ["none", "bayer", "floyd_steinberg", "atkinson", "auto"]
 # No pre-processing, so a solid colour stays exactly that colour.
 RAW = {"saturation": 1.0, "contrast": 1.0, "sharpen": 0}
 
@@ -64,14 +66,14 @@ def _gradient(width: int, height: int) -> bytes:
     return buf.getvalue()
 
 
-@pytest.mark.parametrize("mode", ALL_MODES)
+@pytest.mark.parametrize("mode", CORE_MODES)
 def test_output_is_exact_size(mode: str) -> None:
     w, h = LARGE
     data = ic.image_to_bin(_gradient(w, h), width=w, height=h, mode=mode, **RAW)
     assert len(data) == w * h // 2 == 960000
 
 
-@pytest.mark.parametrize("mode", ALL_MODES)
+@pytest.mark.parametrize("mode", CORE_MODES)
 def test_only_valid_panel_nibbles(mode: str) -> None:
     """Every nibble must be a valid E Ink Spectra 6 panel code.
 
@@ -117,6 +119,82 @@ def test_large_frame_el315_corner_mapping() -> None:
 
     assert data[0] == 0x31
     assert data[7 * 288_000 + 79] == 0x51
+
+
+def test_official_mode_matches_fraimic_converter() -> None:
+    """Match Fraimic/fraimic_bin_converter 1b794a3 end to end."""
+    import numpy as np
+    from PIL import Image
+
+    source_width, source_height = 19, 13
+    ys, xs = np.indices((source_height, source_width))
+    rgb = np.dstack(
+        (
+            (xs * 31 + ys * 7) % 256,
+            (xs * 11 + ys * 29) % 256,
+            (xs * 17 + ys * 13) % 256,
+        )
+    ).astype(np.uint8)
+    source = Image.fromarray(rgb, "RGB")
+    prepared = ic._official_prepare_image(
+        source, 32, 24, const.FIT_CONTAIN_BLACK, preprocess=True
+    )
+    indices = ic._official_atkinson_indices(prepared)
+
+    assert hashlib.sha256(prepared.tobytes()).hexdigest() == (
+        "9161abf6c29df1f7ec874b1b4606e659e57497105c3f8ee3c5b327fa369f335c"
+    )
+    assert hashlib.sha256(indices.tobytes()).hexdigest() == (
+        "dd27e17d19f6f63a20f52dc1ceac4d9efedad3c6721ae708ce9b2c5bf3efd966"
+    )
+
+    raw = io.BytesIO()
+    source.save(raw, format="PNG")
+    packed, preview, mode = ic.convert_image(
+        raw.getvalue(),
+        width=32,
+        height=24,
+        fit=const.FIT_CONTAIN_BLACK,
+        mode=const.MODE_OFFICIAL,
+        saturation=0,
+        contrast=0,
+        sharpen=0,
+        tone=0,
+        preview=False,
+    )
+
+    assert packed == ic._pack_nibbles(indices, 32, 24)
+    assert preview is None
+    assert mode == const.MODE_OFFICIAL
+    assert const.DITHER_MODES[0] == const.MODE_AUTO
+
+
+def test_official_standard_mode_uses_published_portrait_geometry(monkeypatch) -> None:
+    import numpy as np
+
+    portrait = np.zeros((1600, 1200), dtype=np.uint8)
+    portrait[0, 0] = 2
+    portrait[0, -1] = 3
+    portrait[-1, 0] = 4
+    portrait[-1, -1] = 5
+    prepared_size = None
+
+    def prepare(image, width, height, fit, *, preprocess):
+        nonlocal prepared_size
+        prepared_size = (width, height)
+        return image
+
+    monkeypatch.setattr(ic, "_official_prepare_image", prepare)
+    monkeypatch.setattr(
+        ic, "_official_atkinson_indices", lambda image: portrait.reshape(-1)
+    )
+
+    indices = ic._official_frame_indices(
+        object(), 1600, 1200, const.FIT_CONTAIN_BLACK, preprocess=True
+    )
+
+    assert prepared_size == (1200, 1600)
+    assert np.array_equal(indices.reshape(1200, 1600), np.rot90(portrait, k=1))
 
 
 @pytest.mark.parametrize(

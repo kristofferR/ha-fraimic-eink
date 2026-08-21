@@ -191,7 +191,7 @@ data:
   url: https://example.com/poster.jpg
   fit: cover            # cover (crop) | contain (pad) | stretch
   rotate: 0             # 0 | 90 | 180 | 270
-  mode: auto            # auto | floyd_steinberg | atkinson | bayer | none
+  mode: auto            # auto | official | floyd_steinberg | atkinson | bayer | none
   saturation: 1.15      # kept modest (real Spectra 6 owners push contrast, not saturation)
   contrast: 1.4         # pushed hard — the panel has no backlight
   sharpen: 80           # unsharp-mask strength 0-100
@@ -473,27 +473,34 @@ pre-processing as the dither, so the integration runs a full pipeline (all in an
    - **`auto`** (default) — looks at the image and chooses for you: **Floyd-Steinberg** for photos,
      **Bayer** for flat graphics/UI (lots of solid colour). The mode it picked is shown on the
      `Current artwork` image entity as the `dither_mode` attribute (and logged).
+   - `official` reproduces [Fraimic's published converter](https://github.com/Fraimic/fraimic_bin_converter):
+     its fixed brightness/contrast/saturation enhancements, EDGE_ENHANCE → SMOOTH → SHARPEN filters,
+     pure-primary RGB+luma matching, and left-to-right Atkinson diffusion. It intentionally ignores
+     the saturation, contrast, sharpen, and tone settings. Choose `contain_black` as the fit mode to
+     match the converter's default black letterboxing as well.
    - `floyd_steinberg` — best general error diffusion for photos.
    - `atkinson` — localised, preserves highlights; nice for portraits.
    - `bayer` — fast ordered dithering, best for flat graphics/dashboards/UI.
    - `none` — nearest colour, no dithering.
-   Error-diffusion modes use serpentine scanning in linear light.
+   The non-official error-diffusion modes use serpentine scanning in linear light;
+   `official` intentionally keeps Fraimic's left-to-right RGB diffusion.
 7. **Pack** into the frame's native controller layout and upload through the firmware-gated
    `/api/image` path (multipart `/upload` on older firmware). Error-diffusion targets are
    clamped to the panel's reachable gamut, so
    out-of-gamut colours degrade gracefully instead of smearing accumulated error across the
    image (yellow blobs trailing saturated patches — seen on real hardware before the clamp).
 
-**Which mode?** Just leave it on `auto` — it picks per image. Override only if you want a specific
-look (e.g. force `bayer` for a poster-style image, or `atkinson` for a portrait).
+**Which mode?** Just leave it on `auto` — it picks per image. Use `official` for compatibility with
+Fraimic's converter, or override with another mode for a specific look.
 
 The calibrated palette comes from community reverse engineering of real Spectra 6 panels
 ([Toon-nooT's converter](https://github.com/Toon-nooT/PhotoPainter-E-Ink-Spectra-6-image-converter),
 the [Pimoroni Inky community](https://forums.pimoroni.com/t/what-rgb-colors-are-you-using-for-the-colors-on-the-impression-spectra-6/27942)).
 
 **Speed:** `none`/`bayer` are vectorised (well under a second at 1600×1200); the error-diffusion
-modes are inherently sequential and take a few seconds (longer on a Pi Zero) — still far less than
-the panel's own 20–30 s refresh, and they run in the background.
+modes are inherently sequential. `official` is the slowest compatibility path and can take tens of
+seconds before upload, especially on low-power Home Assistant hardware. All conversion runs in the
+background.
 
 ## Accuracy note
 
