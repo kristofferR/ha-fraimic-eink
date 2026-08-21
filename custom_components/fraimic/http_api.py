@@ -18,7 +18,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from .art_packs import ArtPackManager, get_pack_manager
+from .art_packs import ArtPackManager, ArtPackNotFoundError, get_pack_manager
 from .const import (
     CONF_HEIGHT,
     CONF_ROTATION,
@@ -476,11 +476,17 @@ class PacksView(_PackViewMixin):
 
     async def get(self, request: web.Request) -> web.Response:
         manager = self._packs(request)
-        # TTL-cached; a failed fetch degrades to bundled-only, never errors.
-        await asyncio.gather(
-            manager.async_refresh_remote(), manager.async_refresh_reframed()
+        # Reframed's taxonomy takes several throttled requests. Never hold the
+        # request open for it; the panel polls while the single-flight task runs.
+        manager.schedule_reframed_refresh()
+        await manager.async_refresh_remote()
+        reframed_refreshing = manager.reframed_refreshing
+        return self.json(
+            {
+                "packs": manager.status(),
+                "reframed_refreshing": reframed_refreshing,
+            }
         )
-        return self.json({"packs": manager.status()})
 
 
 class PackView(_PackViewMixin):
@@ -492,8 +498,10 @@ class PackView(_PackViewMixin):
     async def get(self, request: web.Request, pack_id: str) -> web.Response:
         try:
             pack = await self._packs(request).async_gallery(pack_id)
-        except HomeAssistantError as err:
+        except ArtPackNotFoundError as err:
             return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.SERVICE_UNAVAILABLE)
         return self.json({"pack": pack})
 
 
@@ -506,8 +514,10 @@ class PackInstallView(_PackViewMixin):
     async def post(self, request: web.Request, pack_id: str) -> web.Response:
         try:
             result = await self._packs(request).async_install(pack_id)
-        except HomeAssistantError as err:
+        except ArtPackNotFoundError as err:
             return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_GATEWAY)
         return self.json(result)
 
 

@@ -870,7 +870,7 @@ def image_to_bin(
     preprocess: bool = True,
 ) -> bytes:
     """Convenience wrapper returning only the ``.bin`` buffer."""
-    return convert_image(  # noqa: returns (bin, preview, mode); we want bin only
+    return convert_image(
         raw,
         width=width,
         height=height,

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -672,6 +674,26 @@ def test_reframed_provider_browse_root_preserves_site_taxonomy() -> None:
     ]
 
 
+def test_reframed_provider_browse_artwork_listing_includes_page_folders() -> None:
+    path = "collections/after-the-storm"
+    html = REFRAMED_ARTWORK_HTML.replace("/recent/page/", f"/{path}/page/")
+    session = FakeSession()
+    session.add(f"{reframed.BASE_URL}/{path}", FakeResponse(body=html.encode()))
+    provider = reframed.ReframedProvider()
+    provider.min_interval = 0
+
+    page = _run(
+        provider.async_browse(session, cache_mod.ProviderCache(), path, REQUEST)
+    )
+
+    assert [candidate.item_id for candidate in page.candidates] == [
+        "albert-bierstadt/elk-in-oak-grove"
+    ]
+    assert [folder.item_id for folder in page.folders] == [
+        f"{path}/page/{number}" for number in range(2, 9)
+    ]
+
+
 def test_engine_wraps_body_read_failures() -> None:
     class BrokenResponse(FakeResponse):
         async def read(self, _n=-1):
@@ -872,6 +894,83 @@ def test_cache_ttl_with_fake_clock() -> None:
     assert cache.get("k", ttl=100) == [1, 2, 3]
     clock["t"] = 101
     assert cache.get("k", ttl=100) is None
+
+
+def test_cache_evicts_least_recently_used_entry_at_size_limit() -> None:
+    cache = cache_mod.ProviderCache(max_entries=2)
+    cache.set("old", 1)
+    cache.set("recent", 2)
+    assert cache.get("old", ttl=100) == 1
+
+    cache.set("new", 3)
+
+    assert cache.get("recent", ttl=100) is None
+    assert cache.get("old", ttl=100) == 1
+    assert cache.get("new", ttl=100) == 3
+
+
+def test_browse_selection_survives_provider_cache_eviction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    homeassistant = types.ModuleType("homeassistant")
+    homeassistant.__path__ = []
+    core = types.ModuleType("homeassistant.core")
+    core.HomeAssistant = object
+    exceptions = types.ModuleType("homeassistant.exceptions")
+    exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
+    helpers = types.ModuleType("homeassistant.helpers")
+    helpers.__path__ = []
+    aiohttp_client = types.ModuleType("homeassistant.helpers.aiohttp_client")
+    aiohttp_client.async_get_clientsession = lambda _hass: None
+
+    monkeypatch.setitem(sys.modules, "homeassistant", homeassistant)
+    monkeypatch.setitem(sys.modules, "homeassistant.core", core)
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", exceptions)
+    monkeypatch.setitem(sys.modules, "homeassistant.helpers", helpers)
+    monkeypatch.setitem(
+        sys.modules, "homeassistant.helpers.aiohttp_client", aiohttp_client
+    )
+    previous_ha = sys.modules.pop("fraimic.providers.ha", None)
+    try:
+        provider_ha = load("providers.ha")
+
+        class SelectedProvider(base.ArtProvider):
+            key = "fake"
+            name = "Fake"
+
+            async def async_by_id(self, session, cache, item_id, request):
+                raise AssertionError("browse selection was evicted")
+
+        hass = types.SimpleNamespace(data={})
+        entry = types.SimpleNamespace(entry_id="frame", options={})
+        candidate = _candidate("selected", "https://x/selected.png")
+        provider_ha._stash_candidates(hass, entry, "fake", [candidate])
+
+        provider_cache = provider_ha._cache(hass)
+        for index in range(cache_mod.DEFAULT_MAX_ENTRIES + 1):
+            provider_cache.set(f"provider-{index}", index)
+
+        session = FakeSession()
+        session.add("https://x/selected.png", FakeResponse(body=b"selected"))
+        monkeypatch.setattr(
+            provider_ha, "get_provider", lambda _key: SelectedProvider()
+        )
+        monkeypatch.setattr(
+            provider_ha, "async_get_clientsession", lambda _hass: session
+        )
+
+        image = _run(
+            provider_ha.async_art_by_media_id(
+                hass, entry, "fake", candidate.item_id
+            )
+        )
+
+        assert image.candidate is candidate
+        assert image.data == b"selected"
+    finally:
+        sys.modules.pop("fraimic.providers.ha", None)
+        if previous_ha is not None:
+            sys.modules["fraimic.providers.ha"] = previous_ha
 
 
 # --- media ids + caption ------------------------------------------------

@@ -173,6 +173,40 @@ def test_materialize_reframed_pack_maps_metadata_and_deduplicates():
     assert image["source_url"].startswith("https://www.reframed.gallery/")
 
 
+def test_materialize_reframed_pack_filters_insecure_urls_and_caps_images():
+    invalid = types.SimpleNamespace(
+        item_id="artist/insecure",
+        image_url="http://files.test/insecure.jpg",
+        thumb_url=None,
+        title="Insecure",
+        license=None,
+        attribution=None,
+        extra={},
+    )
+    candidates = [invalid]
+    candidates.extend(
+        types.SimpleNamespace(
+            item_id=f"artist/work-{index}",
+            image_url=f"https://files.test/work-{index}.jpg",
+            thumb_url=None,
+            title=f"Work {index}",
+            license=None,
+            attribution=None,
+            extra={},
+        )
+        for index in range(pm.REFRAMED_PACK_LIMIT + 5)
+    )
+    pack = pm.make_reframed_pack(
+        "collections/large", "Large", "Reframed Collections"
+    )
+
+    materialized = pm.materialize_reframed_pack(pack, candidates)
+
+    assert materialized["image_count"] == pm.REFRAMED_PACK_LIMIT
+    assert len(materialized["images"]) == pm.REFRAMED_PACK_LIMIT
+    assert all(image["url"].startswith("https://") for image in materialized["images"])
+
+
 @pytest.mark.parametrize(
     "broken",
     [

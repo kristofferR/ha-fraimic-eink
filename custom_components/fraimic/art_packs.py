@@ -85,12 +85,17 @@ REMOTE_PACK_TTL = 6 * 3600
 REMOTE_PACK_FAILURE_TTL = 300
 REFRAMED_PACK_TTL = 6 * 3600
 REFRAMED_PACK_FAILURE_TTL = 300
+REFRAMED_PACK_MAX_EXTRA_PAGES = 4
 
 REFRAMED_GROUPS = (
     ("collections", "Reframed Collections"),
     ("colors", "Reframed Colors"),
     ("tags", "Reframed Tags"),
 )
+
+
+class ArtPackNotFoundError(HomeAssistantError):
+    """Raised when an art-pack id is not in any catalog."""
 
 
 @callback
@@ -113,6 +118,7 @@ class ArtPackManager:
         self.reframed_packs: list[dict[str, Any]] = []
         self._remote_fetched_at: float = 0.0
         self._reframed_fetched_at: float = 0.0
+        self._reframed_refresh_task: asyncio.Task[None] | None = None
         # pack_id -> installed image ids plus catalog metadata used after restart.
         self.installed: dict[str, dict[str, Any]] = {}
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
@@ -194,9 +200,7 @@ class ArtPackManager:
 
     async def async_refresh_reframed(self) -> None:
         """Refresh lazy art-pack rows from Reframed's live taxonomy."""
-        now = time.time()
-        ttl = REFRAMED_PACK_TTL if self.reframed_packs else REFRAMED_PACK_FAILURE_TTL
-        if self._reframed_fetched_at and now - self._reframed_fetched_at < ttl:
+        if not self._reframed_refresh_due():
             return
         entries = loaded_fraimic_entries(self.hass)
         if not entries:
@@ -233,11 +237,45 @@ class ArtPackManager:
             self._reframed_fetched_at = time.time()
             _LOGGER.warning("Could not fetch the Reframed pack catalog: %s", err)
             return
+        except Exception as err:  # noqa: BLE001 - isolate background provider bugs
+            self._reframed_fetched_at = time.time()
+            _LOGGER.exception("Reframed pack catalog refresh failed: %s", err)
+            return
 
         self.reframed_packs = sorted(
             packs.values(), key=lambda pack: (pack["category"], pack["name"].casefold())
         )
         self._reframed_fetched_at = time.time()
+
+    def _reframed_refresh_due(self) -> bool:
+        ttl = REFRAMED_PACK_TTL if self.reframed_packs else REFRAMED_PACK_FAILURE_TTL
+        return not self._reframed_fetched_at or (
+            time.time() - self._reframed_fetched_at >= ttl
+        )
+
+    @property
+    def reframed_refreshing(self) -> bool:
+        """Whether the Reframed taxonomy is refreshing in the background."""
+        return bool(
+            self._reframed_refresh_task
+            and not self._reframed_refresh_task.done()
+        )
+
+    @callback
+    def schedule_reframed_refresh(self) -> None:
+        """Start one background refresh when the cached taxonomy is stale."""
+        if not self._reframed_refresh_due() or self.reframed_refreshing:
+            return
+        task = self.hass.async_create_background_task(
+            self.async_refresh_reframed(), name="fraimic_reframed_pack_catalog"
+        )
+        self._reframed_refresh_task = task
+        task.add_done_callback(self._reframed_refresh_done)
+
+    @callback
+    def _reframed_refresh_done(self, task: asyncio.Task[None]) -> None:
+        if self._reframed_refresh_task is task:
+            self._reframed_refresh_task = None
 
     @staticmethod
     def _reframed_folder_pack(
@@ -261,7 +299,7 @@ class ArtPackManager:
         for pack in self._all_packs():
             if pack["id"] == pack_id:
                 return pack
-        raise HomeAssistantError(f"No art pack with id {pack_id}")
+        raise ArtPackNotFoundError(f"No art pack with id {pack_id}")
 
     def _live_images(
         self, pack_id: str, current_urls: set[str] | None = None
@@ -518,11 +556,16 @@ class ArtPackManager:
         )
         candidates = list(first_page.candidates)
         seen = {candidate.item_id for candidate in candidates}
+        extra_pages = 0
         for folder in first_page.folders:
-            if len(candidates) >= REFRAMED_PACK_LIMIT:
+            if (
+                len(candidates) >= REFRAMED_PACK_LIMIT
+                or extra_pages >= REFRAMED_PACK_MAX_EXTRA_PAGES
+            ):
                 break
             if not folder.item_id.startswith(f"{provider_path}/page/"):
                 continue
+            extra_pages += 1
             page = await async_browse_provider(
                 self.hass, entry, "reframed", folder.item_id
             )
@@ -539,9 +582,7 @@ class ArtPackManager:
             raise HomeAssistantError(
                 f"Reframed pack {pack['name']} currently has no downloadable artwork"
             )
-        pack.clear()
-        pack.update(materialized)
-        return pack
+        return materialized
 
     async def _async_download(self, session: aiohttp.ClientSession, url: str) -> bytes:
         resp = await session.get(

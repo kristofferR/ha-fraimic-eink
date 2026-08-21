@@ -285,7 +285,7 @@ def test_known_frame_orientations_are_canonicalized(
     assert const.canonical_frame_resolution(*reported) == native
 
 
-@pytest.mark.parametrize("width,height", [(1200, 1600), (2560, 1440)])
+@pytest.mark.parametrize(("width", "height"), [(1200, 1600), (2560, 1440)])
 def test_legacy_panel_orientation_cannot_use_generic_packer(
     width: int, height: int
 ) -> None:
@@ -298,7 +298,7 @@ def test_oversized_custom_buffer_is_rejected() -> None:
         ic._expected_bin_size(4096, 4096)
 
 
-@pytest.mark.parametrize("width,height", [(0, 4), (4, 0), (-4, 4), (4, -4)])
+@pytest.mark.parametrize(("width", "height"), [(0, 4), (4, 0), (-4, 4), (4, -4)])
 def test_non_positive_buffer_dimensions_are_rejected(
     width: int, height: int
 ) -> None:

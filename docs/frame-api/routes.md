@@ -4,7 +4,7 @@ The frame runs an **unauthenticated** HTTP server on the local network at
 `http://{host}` (default host `fraimic.local`, or the frame's LAN IP). This is
 the API the Home Assistant integration talks to via `custom_components/fraimic/api.py`.
 
-Verified on **firmware 0.2.21 and 0.2.28** (physical frame). Firmware is
+Verified on **firmware 0.2.21, 0.2.28, and 0.2.29** (physical frames). Firmware is
 battery-powered: in deep sleep the frame is completely unreachable until
 tapped awake.
 

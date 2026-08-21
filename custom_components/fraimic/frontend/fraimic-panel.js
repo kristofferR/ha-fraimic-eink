@@ -11,6 +11,8 @@ const API = "/api/fraimic";
 // Mirrors MIN_ART_SHORT_EDGE in const.py: anything with a shorter short edge
 // upscales visibly soft on the ~150 PPI panel.
 const LOW_RES_SHORT_EDGE = 1000;
+const PACK_REFRESH_MAX_ATTEMPTS = 30;
+const PACK_REFRESH_MAX_DELAY = 15000;
 
 class FraimicPanel extends HTMLElement {
   constructor() {
@@ -22,6 +24,9 @@ class FraimicPanel extends HTMLElement {
     this._frames = [];
     this._scenes = [];
     this._packs = [];
+    this._packRefreshTimer = null;
+    this._packProgressTimer = null;
+    this._installingPacks = new Set();
     this._albumFilter = "";
     this._packCategory = "";
     this._screens = [];
@@ -50,6 +55,14 @@ class FraimicPanel extends HTMLElement {
           )
         : null;
     this._initialized = false;
+  }
+
+  disconnectedCallback() {
+    clearTimeout(this._packRefreshTimer);
+    clearTimeout(this._packProgressTimer);
+    this._packRefreshTimer = null;
+    this._packProgressTimer = null;
+    this._installingPacks.clear();
   }
 
   set hass(hass) {
@@ -221,8 +234,31 @@ class FraimicPanel extends HTMLElement {
     this._scenes = (await this._api("scenes")).scenes;
   }
 
-  async _loadPacks() {
-    this._packs = (await this._api("packs")).packs;
+  async _loadPacks(attempt = 0) {
+    const data = await this._api("packs");
+    this._packs = data.packs;
+    if (this._packRefreshTimer) clearTimeout(this._packRefreshTimer);
+    this._packRefreshTimer = null;
+    if (
+      data.reframed_refreshing &&
+      this.isConnected &&
+      attempt < PACK_REFRESH_MAX_ATTEMPTS
+    ) {
+      const delay = Math.min(
+        1000 * 2 ** Math.floor(attempt / 5),
+        PACK_REFRESH_MAX_DELAY
+      );
+      this._packRefreshTimer = setTimeout(async () => {
+        this._packRefreshTimer = null;
+        if (!this.isConnected) return;
+        try {
+          await this._loadPacks(attempt + 1);
+          if (this._tab === "packs") this._renderTab();
+        } catch (err) {
+          this._toast(err.message, true);
+        }
+      }, delay);
+    }
   }
 
   /* --------------------------------------------------------------- shell */
@@ -504,6 +540,29 @@ class FraimicPanel extends HTMLElement {
         .gallery .caption { margin-top: 8px; font-size: 14px; }
         .gallery .caption span { color: var(--secondary-text-color); font-size: 12px; }
         .gallery .navrow { display: flex; justify-content: center; gap: 16px; margin-top: 8px; align-items: center; }
+        .pack-progress { margin-top: 10px; }
+        .pack-progress-meta {
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 5px;
+          color: var(--secondary-text-color);
+          font-size: 11px;
+          font-variant-numeric: tabular-nums;
+        }
+        .pack-progress-track {
+          height: 4px;
+          overflow: hidden;
+          background: var(--divider-color);
+        }
+        .pack-progress-fill {
+          height: 100%;
+          background: var(--primary-color);
+          transition: width 180ms ease-out;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .pack-progress-fill { transition: none; }
+        }
         /* Screen editor */
         .dialog.wide { max-width: min(1280px, 96vw); width: 96vw; }
         .editor-grid { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
@@ -1537,6 +1596,7 @@ class FraimicPanel extends HTMLElement {
     const grid = this._el("div", { class: "grid" });
     for (const pack of packs) {
       const imageCount = pack.image_count ?? pack.images.length;
+      const installing = this._installingPacks.has(pack.id);
       const cover = this._el("img", { loading: "lazy", alt: pack.name });
       // Pack art is hot-linkable (GitHub raw / Commons thumb): no signing.
       cover.src = pack.cover_url || (pack.images[0] && pack.images[0].preview_url) || "";
@@ -1556,6 +1616,39 @@ class FraimicPanel extends HTMLElement {
           text: `${pack.installed_count}/${imageCount} installed · ${pack.attribution}`,
         }),
       ]);
+      if (installing) {
+        const progress = Math.min(pack.installed_count, imageCount);
+        const percent = imageCount ? (progress / imageCount) * 100 : 0;
+        body.appendChild(
+          this._el(
+            "div",
+            {
+              class: "pack-progress",
+              "data-pack-progress": pack.id,
+              role: "progressbar",
+              "aria-label": `Installing ${pack.name}`,
+              "aria-valuemin": "0",
+              "aria-valuemax": String(imageCount),
+              "aria-valuenow": String(progress),
+            },
+            [
+              this._el("div", { class: "pack-progress-meta" }, [
+                this._el("span", { text: "Downloading" }),
+                this._el("span", {
+                  class: "pack-progress-count",
+                  text: `${progress} / ${imageCount}`,
+                }),
+              ]),
+              this._el("div", { class: "pack-progress-track" }, [
+                this._el("div", {
+                  class: "pack-progress-fill",
+                  style: `width:${percent}%`,
+                }),
+              ]),
+            ]
+          )
+        );
+      }
       // Remote-catalog covers hot-link the actual pack image, so the loaded
       // cover reveals the pack's true resolution for free. Some community
       // packs are thumbnail-sized (TV title cards ~300 px) and upscale badly
@@ -1575,24 +1668,16 @@ class FraimicPanel extends HTMLElement {
       }
       const installBtn = this._el("button", {
         class: "btn raised",
-        text: pack.installed ? "Reinstall missing" : pack.installed_count ? "Resume install" : "Install",
-        onclick: async (ev) => {
-          ev.target.disabled = true;
-          ev.target.textContent = "Installing…";
-          this._toast(`Installing ${pack.name} — downloads are throttled, this can take a minute`);
-          try {
-            const result = await this._api(`packs/${pack.id}/install`, { method: "POST" });
-            const failures = result.failed.length ? `, ${result.failed.length} failed` : "";
-            this._toast(`${pack.name}: ${result.installed_count}/${result.total} installed${failures}`, Boolean(result.failed.length));
-            await Promise.all([this._loadLibrary(), this._loadScenes(), this._loadPacks()]);
-            this._renderTab();
-          } catch (err) {
-            this._toast(err.message, true);
-            ev.target.disabled = false;
-          }
-        },
+        text: installing
+          ? "Installing…"
+          : pack.installed
+            ? "Reinstall missing"
+            : pack.installed_count
+              ? "Resume install"
+              : "Install",
+        onclick: () => this._installPack(pack),
       });
-      if (pack.installed) installBtn.disabled = true;
+      installBtn.disabled = installing;
       const actions = this._el("div", { class: "actions" }, [installBtn]);
       if (pack.installed_count) {
         actions.appendChild(
@@ -1623,6 +1708,76 @@ class FraimicPanel extends HTMLElement {
       grid.appendChild(this._el("div", { class: "card" }, [thumbwrap, body, actions]));
     }
     root.appendChild(grid);
+  }
+
+  async _installPack(pack) {
+    if (this._installingPacks.has(pack.id)) return;
+    this._installingPacks.add(pack.id);
+    this._renderTab();
+    this._schedulePackProgressPoll();
+    this._toast(`Installing ${pack.name} — downloads are throttled, this can take a minute`);
+    try {
+      const result = await this._api(`packs/${pack.id}/install`, { method: "POST" });
+      const failures = result.failed.length ? `, ${result.failed.length} failed` : "";
+      this._toast(
+        `${pack.name}: ${result.installed_count}/${result.total} installed${failures}`,
+        Boolean(result.failed.length)
+      );
+    } catch (err) {
+      this._toast(err.message, true);
+    } finally {
+      this._installingPacks.delete(pack.id);
+      if (!this._installingPacks.size) {
+        clearTimeout(this._packProgressTimer);
+        this._packProgressTimer = null;
+      }
+      if (this.isConnected) {
+        try {
+          await Promise.all([this._loadLibrary(), this._loadScenes(), this._loadPacks()]);
+        } catch (err) {
+          this._toast(err.message, true);
+        }
+        if (this._tab === "packs") this._renderTab();
+      }
+    }
+  }
+
+  _schedulePackProgressPoll() {
+    if (
+      !this.isConnected ||
+      this._packProgressTimer ||
+      !this._installingPacks.size
+    ) {
+      return;
+    }
+    this._packProgressTimer = setTimeout(async () => {
+      this._packProgressTimer = null;
+      if (!this.isConnected) return;
+      try {
+        const data = await this._api("packs");
+        if (!this.isConnected || !this._installingPacks.size) return;
+        this._packs = data.packs;
+        const packsById = new Map(this._packs.map((pack) => [pack.id, pack]));
+        for (const progressNode of this.shadowRoot.querySelectorAll(
+          "[data-pack-progress]"
+        )) {
+          const current = packsById.get(progressNode.dataset.packProgress);
+          if (!current) continue;
+          const total = current.image_count ?? current.images.length;
+          const completed = Math.min(current.installed_count, total);
+          const percent = total ? (completed / total) * 100 : 0;
+          progressNode.setAttribute("aria-valuemax", String(total));
+          progressNode.setAttribute("aria-valuenow", String(completed));
+          progressNode.querySelector(".pack-progress-count").textContent =
+            `${completed} / ${total}`;
+          progressNode.querySelector(".pack-progress-fill").style.width = `${percent}%`;
+        }
+      } catch (_err) {
+        // The install request owns error reporting; a missed poll is harmless.
+      } finally {
+        if (this.isConnected) this._schedulePackProgressPoll();
+      }
+    }, 1000);
   }
 
   /* Pre-install browsing: a simple prev/next carousel over the pack's

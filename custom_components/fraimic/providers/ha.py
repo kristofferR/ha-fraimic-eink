@@ -27,6 +27,10 @@ from .engine import async_download_candidate, async_pick_and_download
 
 _LOGGER = logging.getLogger(__name__)
 
+BROWSE_STASH_TTL = 3600.0
+BROWSE_STASH_LIMIT = 256
+BROWSE_STASH_CACHE_LIMIT = 32
+
 
 class ArtFetchError(HomeAssistantError):
     """An online image source failed — the frame itself is fine."""
@@ -45,6 +49,16 @@ def _cache(hass: HomeAssistant) -> ProviderCache:
     if cache is None:
         cache = ProviderCache()
         domain_data["art_cache"] = cache
+    return cache
+
+
+def _browse_cache(hass: HomeAssistant) -> ProviderCache:
+    """Return the bounded cache for media-browser selections."""
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    cache = domain_data.get("art_browse_cache")
+    if cache is None:
+        cache = ProviderCache(max_entries=BROWSE_STASH_CACHE_LIMIT)
+        domain_data["art_browse_cache"] = cache
     return cache
 
 
@@ -127,9 +141,14 @@ def _browse_stash_key(entry, provider_key: str) -> str:
 
 
 def _stash_candidates(hass, entry, provider_key: str, candidates) -> None:
-    cache = _cache(hass)
+    cache = _browse_cache(hass)
     stash = cache.get(_browse_stash_key(entry, provider_key), BROWSE_STASH_TTL) or {}
-    stash = {**stash, **{candidate.item_id: candidate for candidate in candidates}}
+    for candidate in candidates:
+        # Refreshing an existing id should make it one of the newest entries.
+        stash.pop(candidate.item_id, None)
+        stash[candidate.item_id] = candidate
+    if len(stash) > BROWSE_STASH_LIMIT:
+        stash = dict(list(stash.items())[-BROWSE_STASH_LIMIT:])
     cache.set(_browse_stash_key(entry, provider_key), stash)
 
 
@@ -156,9 +175,6 @@ async def async_browse_candidates(
     # between browsing and clicking.
     _stash_candidates(hass, entry, provider_key, candidates)
     return candidates
-
-
-BROWSE_STASH_TTL = 3600.0
 
 
 async def async_browse_provider(
@@ -193,7 +209,9 @@ async def async_art_by_media_id(
         raise ArtFetchError(f"Unknown image provider: {provider_key}")
     session = async_get_clientsession(hass)
     cache = _cache(hass)
-    stash = cache.get(_browse_stash_key(entry, provider_key), BROWSE_STASH_TTL) or {}
+    stash = _browse_cache(hass).get(
+        _browse_stash_key(entry, provider_key), BROWSE_STASH_TTL
+    ) or {}
     candidate = stash.get(item_id)
     try:
         if candidate is None:
