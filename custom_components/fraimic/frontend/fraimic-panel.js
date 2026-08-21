@@ -1536,26 +1536,24 @@ class FraimicPanel extends HTMLElement {
 
     const grid = this._el("div", { class: "grid" });
     for (const pack of packs) {
+      const imageCount = pack.image_count ?? pack.images.length;
       const cover = this._el("img", { loading: "lazy", alt: pack.name });
       // Pack art is hot-linkable (GitHub raw / Commons thumb): no signing.
       cover.src = pack.cover_url || (pack.images[0] && pack.images[0].preview_url) || "";
-      const thumbwrap = this._el(
-        "div",
-        {
-          class: "thumbwrap",
-          style: "cursor: zoom-in",
-          onclick: () => this._openPackGallery(pack),
-        },
-        [cover]
-      );
+      const thumbAttrs = {
+        class: "thumbwrap",
+        style: "cursor: zoom-in",
+        onclick: () => this._openPackGallery(pack),
+      };
+      const thumbwrap = this._el("div", thumbAttrs, [cover]);
       const body = this._el("div", { class: "body" }, [
         this._el("div", { class: "title", text: pack.name }),
         this._el("span", { class: "chip", text: pack.category }),
-        this._el("span", { class: "chip", text: `${pack.images.length} images` }),
+        this._el("span", { class: "chip", text: `${imageCount} images` }),
         this._el("div", { class: "sub", text: pack.description || "" }),
         this._el("div", {
           class: "sub",
-          text: `${pack.installed_count}/${pack.images.length} installed · ${pack.attribution}`,
+          text: `${pack.installed_count}/${imageCount} installed · ${pack.attribution}`,
         }),
       ]);
       // Remote-catalog covers hot-link the actual pack image, so the loaded
@@ -1629,7 +1627,21 @@ class FraimicPanel extends HTMLElement {
 
   /* Pre-install browsing: a simple prev/next carousel over the pack's
    * hot-linkable preview URLs, with per-image source attribution. */
-  _openPackGallery(pack) {
+  async _openPackGallery(pack) {
+    if (!pack.images.length) {
+      this._toast(`Loading ${pack.name} gallery…`);
+      try {
+        const result = await this._api(`packs/${pack.id}`);
+        Object.assign(pack, result.pack);
+      } catch (err) {
+        this._toast(err.message, true);
+        return;
+      }
+    }
+    if (!pack.images.length) {
+      this._toast(`${pack.name} currently has no artwork`, true);
+      return;
+    }
     let index = 0;
     const img = this._el("img", { alt: pack.name });
     const caption = this._el("div", { class: "caption" });

@@ -6,7 +6,11 @@ frames when the installer auto-creates a scene.
 
 from __future__ import annotations
 
+import hashlib
+import re
+from pathlib import PurePosixPath
 from typing import Any
+from urllib.parse import urlsplit
 
 
 def validate_catalog(data: dict[str, Any]) -> list[dict[str, Any]]:
@@ -55,6 +59,13 @@ _REMOTE_CATEGORIES = {
 
 # Prefix for remote pack ids so they can never collide with bundled ones.
 REMOTE_PACK_PREFIX = "fa-"
+
+# Reframed exposes hundreds of live collections/tags/artists. Catalog rows are
+# deliberately lazy; the installer resolves at most this many current images
+# from the selected page so one pack cannot unexpectedly consume the library.
+REFRAMED_PACK_PREFIX = "rg-"
+REFRAMED_PACK_LIMIT = 24
+REFRAMED_FALLBACK_COVER = "https://www.reframed.gallery/favicon.ico"
 
 
 def _remote_category(pack: dict[str, Any]) -> str:
@@ -136,6 +147,84 @@ def map_remote_catalog(data: dict[str, Any], raw_base: str) -> list[dict[str, An
             }
         )
     return packs
+
+
+def make_reframed_pack(
+    provider_path: str,
+    name: str,
+    category: str,
+    *,
+    cover_url: str | None = None,
+    source_count: int | None = None,
+) -> dict[str, Any]:
+    """Build a lazy catalog row for one Reframed browse folder."""
+    normalized = provider_path.strip("/")
+    pack_id = f"{REFRAMED_PACK_PREFIX}{normalized.replace('/', '-')}"
+    if source_count is None:
+        image_count = REFRAMED_PACK_LIMIT
+        description = (
+            "Current artwork from Reframed Gallery. "
+            f"Installs up to {REFRAMED_PACK_LIMIT}."
+        )
+    else:
+        image_count = min(source_count, REFRAMED_PACK_LIMIT)
+        description = (
+            f"{source_count} artworks from Reframed Gallery. "
+            f"Installs up to {REFRAMED_PACK_LIMIT}."
+        )
+    return {
+        "id": pack_id,
+        "name": name,
+        "category": category,
+        "description": description,
+        "attribution": "Artwork via Reframed Gallery; see each image source",
+        "cover_url": cover_url or REFRAMED_FALLBACK_COVER,
+        "images": [],
+        "image_count": image_count,
+        "provider_path": normalized,
+    }
+
+
+def materialize_reframed_pack(
+    pack: dict[str, Any], candidates: list[Any]
+) -> dict[str, Any]:
+    """Fill a lazy Reframed pack from current provider candidates."""
+    images: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
+    for candidate in candidates:
+        item_id = str(getattr(candidate, "item_id", ""))
+        image_url = str(getattr(candidate, "image_url", ""))
+        if not item_id or item_id in seen_ids or not image_url.startswith("https://"):
+            continue
+        seen_ids.add(item_id)
+        path = PurePosixPath(urlsplit(image_url).path)
+        suffix = path.suffix.lower()
+        if suffix not in (".avif", ".heic", ".heif", ".jpeg", ".jpg", ".png", ".webp"):
+            suffix = ".jpg"
+        slug = re.sub(r"[^a-z0-9]+", "_", item_id.casefold()).strip("_")[-64:]
+        digest = hashlib.sha256(item_id.encode()).hexdigest()[:10]
+        extra = getattr(candidate, "extra", None)
+        source_url = extra.get("source_url") if isinstance(extra, dict) else None
+        images.append(
+            {
+                "title": str(getattr(candidate, "title", "") or "Untitled"),
+                "url": image_url,
+                "preview_url": str(getattr(candidate, "thumb_url", "") or image_url),
+                "filename": f"reframed_{slug}_{digest}{suffix}",
+                "source_url": _optional_string(source_url),
+                "license": _optional_string(getattr(candidate, "license", None)),
+                "attribution": _optional_string(
+                    getattr(candidate, "attribution", None)
+                ),
+            }
+        )
+        if len(images) >= REFRAMED_PACK_LIMIT:
+            break
+
+    materialized = {**pack, "images": images, "image_count": len(images)}
+    if images and pack.get("cover_url") == REFRAMED_FALLBACK_COVER:
+        materialized["cover_url"] = images[0]["preview_url"]
+    return materialized
 
 
 def _optional_string(value: Any) -> str | None:

@@ -425,6 +425,11 @@ artwork** → pick a source, then click an image to display it. Most sources sho
 and reshuffle on each visit. Reframed preserves its catalogue folders: Collections, Colors,
 Tags, Artists, Vertical artworks, and Recently added.
 
+**Install as art packs:** the Fraimic sidebar's **Art Packs** tab also mirrors every Reframed
+collection, color, tag, and artist, plus Vertical and Recently Added. These live packs resolve
+when installed and add up to 24 current artworks to the library, with an album and scene, so
+the catalogue stays fresh without downloading hundreds of groups just to open the tab.
+
 **One-tap art:** every frame gets a **New artwork** button entity — press it (or automate it)
 for a fresh captioned piece from your default source (options → *Default online-art source*).
 
@@ -437,11 +442,10 @@ Unsplash/Pexels stay hidden until a key is set.
 
 ## How image conversion works
 
-Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw, header-less,
-uncompressed 4bpp — `1600 × 1200 / 2 = 960,000` bytes for the 13.3" frame — but the layout is
-**not** a row-major scan (see [Accuracy note](#accuracy-note)): the buffer holds the bottom half
-of the panel first, then the top half, each half column-major with columns scanned bottom-up and
-two vertically-adjacent pixels per byte. Pixel values are the E Ink standard Spectra 6 codes
+Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw and header-less,
+but its layout depends on the panel. The 13.3" buffer is 960,000 bytes in two column-major
+halves. The 31.5" EL315 is portrait-native 1440×2560 and uses eight padded controller blocks,
+for an exact 2,304,000-byte payload. Pixel values are the E Ink standard Spectra 6 codes
 (`0x4` is unused — the panel renders it as white):
 
 | Nibble | Colour | Calibrated RGB |
@@ -474,8 +478,9 @@ pre-processing as the dither, so the integration runs a full pipeline (all in an
    - `bayer` — fast ordered dithering, best for flat graphics/dashboards/UI.
    - `none` — nearest colour, no dithering.
    Error-diffusion modes use serpentine scanning in linear light.
-7. **Pack** into the frame's native half-panel/column layout and `POST` as multipart to
-   `/upload`. Error-diffusion targets are clamped to the panel's reachable gamut, so
+7. **Pack** into the frame's native controller layout and upload through the firmware-gated
+   `/api/image` path (multipart `/upload` on older firmware). Error-diffusion targets are
+   clamped to the panel's reachable gamut, so
    out-of-gamut colours degrade gracefully instead of smearing accumulated error across the
    image (yellow blobs trailing saturated patches — seen on real hardware before the clamp).
 

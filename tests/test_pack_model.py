@@ -119,6 +119,61 @@ def test_map_remote_catalog_ignores_malformed_categories():
     assert packs[0]["category"] == "Art"
 
 
+def test_make_reframed_pack_is_lazy_and_bounded():
+    pack = pm.make_reframed_pack(
+        "collections/after-the-storm",
+        "After the Storm",
+        "Reframed Collections",
+        cover_url="https://images.test/storm",
+        source_count=82,
+    )
+
+    assert pack["id"] == "rg-collections-after-the-storm"
+    assert pack["provider_path"] == "collections/after-the-storm"
+    assert pack["images"] == []
+    assert pack["image_count"] == pm.REFRAMED_PACK_LIMIT == 24
+    assert "82 artworks" in pack["description"]
+
+
+def test_make_reframed_pack_preserves_known_empty_count():
+    pack = pm.make_reframed_pack(
+        "collections/empty", "Empty", "Reframed Collections", source_count=0
+    )
+
+    assert pack["image_count"] == 0
+    assert "0 artworks" in pack["description"]
+
+
+def test_materialize_reframed_pack_maps_metadata_and_deduplicates():
+    candidate = types.SimpleNamespace(
+        item_id="albert-bierstadt/elk-in-oak-grove",
+        image_url="https://files.test/elk/original",
+        thumb_url="https://images.test/elk",
+        title="Elk in Oak Grove",
+        license=None,
+        attribution="Elk in Oak Grove — Albert Bierstadt, Reframed Gallery",
+        extra={
+            "source_url": "https://www.reframed.gallery/albert-bierstadt/elk-in-oak-grove"
+        },
+    )
+    pack = pm.make_reframed_pack(
+        "collections/after-the-storm", "After the Storm", "Reframed Collections"
+    )
+
+    materialized = pm.materialize_reframed_pack(pack, [candidate, candidate])
+
+    assert materialized["image_count"] == 1
+    assert materialized["cover_url"] == "https://images.test/elk"
+    assert len(materialized["images"]) == 1
+    image = materialized["images"][0]
+    assert image["title"] == "Elk in Oak Grove"
+    assert image["url"] == "https://files.test/elk/original"
+    assert image["preview_url"] == "https://images.test/elk"
+    assert image["filename"].startswith("reframed_albert_bierstadt_elk_in_oak_grove_")
+    assert image["filename"].endswith(".jpg")
+    assert image["source_url"].startswith("https://www.reframed.gallery/")
+
+
 @pytest.mark.parametrize(
     "broken",
     [

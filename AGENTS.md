@@ -21,6 +21,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `log_page.py` | Pure parser for the `/logs` ESP-IDF viewer (current + previous boot). |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
+| `providers/` | Keyless/keyed online artwork sources. Reframed provides hierarchical Collections/Colors/Tags/Artists/Vertical/Recent browsing. |
+| `art_packs.py` / `pack_model.py` | Bundled + community + live Reframed art-pack catalogs. Reframed rows are lazy and resolve at most 24 current images on install. |
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |
 | `tests/test_image_convert.py` | Standalone pipeline tests (no HA import). |
 

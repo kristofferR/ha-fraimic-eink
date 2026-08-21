@@ -63,6 +63,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         SceneView(),
         SceneSendView(),
         PacksView(),
+        PackView(),
         PackInstallView(),
         PackUninstallView(),
         *screens_views(),
@@ -476,8 +477,24 @@ class PacksView(_PackViewMixin):
     async def get(self, request: web.Request) -> web.Response:
         manager = self._packs(request)
         # TTL-cached; a failed fetch degrades to bundled-only, never errors.
-        await manager.async_refresh_remote()
+        await asyncio.gather(
+            manager.async_refresh_remote(), manager.async_refresh_reframed()
+        )
         return self.json({"packs": manager.status()})
+
+
+class PackView(_PackViewMixin):
+    """Resolve one lazy pack for gallery browsing."""
+
+    url = "/api/fraimic/packs/{pack_id}"
+    name = "api:fraimic:packs:item"
+
+    async def get(self, request: web.Request, pack_id: str) -> web.Response:
+        try:
+            pack = await self._packs(request).async_gallery(pack_id)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.NOT_FOUND)
+        return self.json({"pack": pack})
 
 
 class PackInstallView(_PackViewMixin):
