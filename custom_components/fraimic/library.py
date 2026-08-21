@@ -266,14 +266,15 @@ class FraimicLibrary:
             mimetypes.guess_type(filename)[0] or "application/octet-stream"
         )
 
-        async def _rollback() -> bool:
+        async def _rollback(save_error: BaseException) -> bool:
             rollback = await _async_await_cancellation_safe(
                 self.hass.async_add_executor_job(new_path.replace, old_path)
             )
             if isinstance(rollback.error, OSError):
                 rollback_err = rollback.error
                 raise HomeAssistantError(
-                    "Image rename failed and the original path could not be restored"
+                    f"Image rename manifest save failed ({save_error}); "
+                    f"the original path could not be restored ({rollback_err})"
                 ) from rollback_err
             if rollback.error is not None:
                 raise rollback.error
@@ -288,7 +289,7 @@ class FraimicLibrary:
         save = await _async_await_cancellation_safe(save_task)
         cancelled |= save.cancelled
         if save.error is not None:
-            cancelled |= await _rollback()
+            cancelled |= await _rollback(save.error)
             if cancelled or isinstance(save.error, asyncio.CancelledError):
                 raise asyncio.CancelledError from save.error
             raise save.error

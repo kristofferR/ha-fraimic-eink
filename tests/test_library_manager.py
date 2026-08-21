@@ -118,7 +118,7 @@ def test_rename_keeps_new_metadata_when_failed_manifest_cannot_roll_back(
 
     with pytest.raises(
         library.HomeAssistantError,
-        match="original path could not be restored",
+        match="disk full.*original path could not be restored.*restore failed",
     ):
         asyncio.run(manager.async_rename_image(image.image_id, "New Name.png"))
 

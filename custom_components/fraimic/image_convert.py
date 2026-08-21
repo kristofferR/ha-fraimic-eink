@@ -224,7 +224,7 @@ def _preprocess(
         image = ImageEnhance.Color(image).enhance(saturation)
     if sharpen > 0:
         image = image.filter(
-            ImageFilter.UnsharpMask(radius=1.0, percent=int(round(sharpen)), threshold=2)
+            ImageFilter.UnsharpMask(radius=1.0, percent=round(sharpen), threshold=2)
         )
     return image
 
@@ -242,16 +242,16 @@ def _official_prepare_image(
     elif fit in (FIT_CONTAIN, FIT_CONTAIN_BLACK):
         scale = min(width / image.width, height / image.height)
         scaled_size = (
-            max(1, int(round(image.width * scale))),
-            max(1, int(round(image.height * scale))),
+            max(1, round(image.width * scale)),
+            max(1, round(image.height * scale)),
         )
         image = image.resize(scaled_size, Image.Resampling.LANCZOS)
         pad_color = (0, 0, 0) if fit == FIT_CONTAIN_BLACK else (255, 255, 255)
     else:
         scale = max(width / image.width, height / image.height)
         scaled_size = (
-            max(1, int(round(image.width * scale))),
-            max(1, int(round(image.height * scale))),
+            max(1, round(image.width * scale)),
+            max(1, round(image.height * scale)),
         )
         image = image.resize(scaled_size, Image.Resampling.LANCZOS)
         left = (image.width - width) // 2

@@ -63,6 +63,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         SceneView(),
         SceneSendView(),
         PacksView(),
+        PackProgressView(),
         PackView(),
         PackInstallView(),
         PackUninstallView(),
@@ -487,6 +488,16 @@ class PacksView(_PackViewMixin):
                 "reframed_refreshing": reframed_refreshing,
             }
         )
+
+
+class PackProgressView(_PackViewMixin):
+    """Return pack install counts without touching remote catalogs."""
+
+    url = "/api/fraimic/packs/progress"
+    name = "api:fraimic:packs:progress"
+
+    async def get(self, request: web.Request) -> web.Response:
+        return self.json({"packs": self._packs(request).install_progress()})
 
 
 class PackView(_PackViewMixin):

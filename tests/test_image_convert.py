@@ -208,6 +208,51 @@ def test_official_mode_matches_fraimic_converter() -> None:
     assert packed == ic._pack_nibbles(indices, 32, 24)
     assert preview is None
     assert mode == const.MODE_OFFICIAL
+
+
+def test_official_palette_and_diffusion_match_golden_indices() -> None:
+    """Pin the published RGB+luma metric without Pillow resize variability."""
+    from PIL import Image
+
+    pixels = [
+        (0, 0, 0),
+        (255, 255, 255),
+        (255, 255, 0),
+        (255, 0, 0),
+        (0, 0, 255),
+        (0, 255, 0),
+        (128, 128, 128),
+        (220, 120, 40),
+        (40, 160, 210),
+        (170, 40, 170),
+        (100, 180, 80),
+        (230, 220, 210),
+        (75, 75, 40),
+        (45, 90, 160),
+        (210, 70, 80),
+        (180, 190, 30),
+    ]
+    image = Image.new("RGB", (4, 4))
+    image.putdata(pixels)
+
+    assert ic._official_atkinson_indices(image).tolist() == [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        2,
+        3,
+        4,
+        4,
+        5,
+        1,
+        5,
+        4,
+        3,
+        2,
+    ]
     assert const.DITHER_MODES[0] == const.MODE_AUTO
 
 

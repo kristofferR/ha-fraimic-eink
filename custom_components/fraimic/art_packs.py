@@ -119,6 +119,7 @@ class ArtPackManager:
         self._remote_fetched_at: float = 0.0
         self._reframed_fetched_at: float = 0.0
         self._reframed_refresh_task: asyncio.Task[None] | None = None
+        self._active_install_progress: dict[str, tuple[int, int]] = {}
         # pack_id -> installed image ids plus catalog metadata used after restart.
         self.installed: dict[str, dict[str, Any]] = {}
         self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
@@ -369,6 +370,22 @@ class ArtPackManager:
             )
         return result
 
+    def install_progress(self) -> dict[str, dict[str, int]]:
+        """Return lightweight installed counts without refreshing catalogs."""
+        progress = {}
+        for pack_id, record in self.installed.items():
+            live = self._live_images(pack_id)
+            progress[pack_id] = {
+                "installed_count": len(live),
+                "total": int(record.get("total") or len(live)),
+            }
+        for pack_id, (installed_count, total) in self._active_install_progress.items():
+            progress[pack_id] = {
+                "installed_count": installed_count,
+                "total": total,
+            }
+        return progress
+
     def _installed_only_pack(
         self, pack_id: str, record: dict[str, Any], live: dict[str, str]
     ) -> dict[str, Any]:
@@ -460,82 +477,111 @@ class ArtPackManager:
                 for url, image_id in all_live.items()
                 if url not in current_urls
             }
-            if stale:
-                await self._async_delete_pack_images(stale.values())
             live = {
                 url: image_id
                 for url, image_id in all_live.items()
                 if url in current_urls
             }
+            previous_metadata = (self.installed.get(pack_id) or {}).get("metadata")
+            if not isinstance(previous_metadata, dict):
+                previous_metadata = {}
+            owned_metadata = {**previous_metadata, **metadata}
             failed: list[dict[str, str]] = []
             downloaded = 0
+            total = len(pack["images"])
+            self._active_install_progress[pack_id] = (len(live), total)
 
-            for image_def in pack["images"]:
-                url = image_def["url"]
-                if url in live:
-                    continue
-                try:
-                    data = await self._async_download(session, url)
-                    library_image = await self.library.async_add_image(
-                        data,
-                        image_def["filename"],
-                        albums=[pack["name"]],
-                        source_url=image_def.get("source_url"),
-                        license_text=image_def.get("license"),
-                        attribution=image_def.get("attribution"),
+            try:
+                for image_def in pack["images"]:
+                    url = image_def["url"]
+                    if url in live:
+                        continue
+                    try:
+                        data = await self._async_download(session, url)
+                        library_image = await self.library.async_add_image(
+                            data,
+                            image_def["filename"],
+                            albums=[pack["name"]],
+                            source_url=image_def.get("source_url"),
+                            license_text=image_def.get("license"),
+                            attribution=image_def.get("attribution"),
+                        )
+                    except (
+                        HomeAssistantError,
+                        aiohttp.ClientError,
+                        asyncio.TimeoutError,
+                    ) as err:
+                        _LOGGER.warning(
+                            "Art pack %s: could not fetch %s: %s",
+                            pack_id,
+                            image_def["title"],
+                            err,
+                        )
+                        failed.append(
+                            {"title": image_def["title"], "error": str(err)}
+                        )
+                    else:
+                        live[url] = library_image.image_id
+                        self._active_install_progress[pack_id] = (len(live), total)
+                        self.installed[pack_id] = self._installed_record(
+                            pack_id,
+                            pack["name"],
+                            {**stale, **live},
+                            total=total,
+                            metadata=owned_metadata,
+                        )
+                        await self._async_save()
+                        downloaded += 1
+                    delay = (
+                        DOWNLOAD_DELAY_COMMONS
+                        if "wikimedia.org" in url
+                        else DOWNLOAD_DELAY_DEFAULT
                     )
-                except (HomeAssistantError, aiohttp.ClientError, asyncio.TimeoutError) as err:
-                    _LOGGER.warning(
-                        "Art pack %s: could not fetch %s: %s", pack_id, image_def["title"], err
-                    )
-                    failed.append({"title": image_def["title"], "error": str(err)})
-                else:
-                    live[url] = library_image.image_id
-                    self.installed[pack_id] = self._installed_record(
-                        pack_id,
-                        pack["name"],
-                        live,
-                        total=len(pack["images"]),
-                        metadata=metadata,
-                    )
-                    await self._async_save()
-                    downloaded += 1
-                delay = (
-                    DOWNLOAD_DELAY_COMMONS
-                    if "wikimedia.org" in url
-                    else DOWNLOAD_DELAY_DEFAULT
-                )
-                await asyncio.sleep(delay)
+                    await asyncio.sleep(delay)
 
-            self.installed[pack_id] = self._installed_record(
-                pack_id,
-                pack["name"],
-                live,
-                total=len(pack["images"]),
-                metadata=metadata,
-            )
-            await self._async_save()
-
-            scene_id = None
-            if live:
-                scene_id = await self._async_sync_pack_scene(pack, list(live.values()))
+                keep_stale = bool(stale and failed)
+                committed = {**stale, **live} if stale else live
+                committed_metadata = owned_metadata if stale else metadata
                 self.installed[pack_id] = self._installed_record(
                     pack_id,
                     pack["name"],
-                    live,
-                    scene_id=scene_id,
-                    total=len(pack["images"]),
-                    metadata=metadata,
+                    committed,
+                    total=total,
+                    metadata=committed_metadata,
                 )
                 await self._async_save()
-            return {
-                "pack_id": pack_id,
-                "downloaded": downloaded,
-                "installed_count": len(live),
-                "total": len(pack["images"]),
-                "failed": failed,
-                "scene_id": scene_id,
-            }
+
+                scene_id = self.installed[pack_id].get("scene_id")
+                if live and not keep_stale:
+                    scene_id = await self._async_sync_pack_scene(
+                        pack, list(live.values())
+                    )
+                    if stale:
+                        await self._async_delete_pack_images(stale.values())
+                    remaining_stale = {
+                        url: image_id
+                        for url, image_id in stale.items()
+                        if image_id in self.library.images
+                    }
+                    self.installed[pack_id] = self._installed_record(
+                        pack_id,
+                        pack["name"],
+                        {**remaining_stale, **live},
+                        scene_id=scene_id,
+                        total=total,
+                        metadata=owned_metadata if remaining_stale else metadata,
+                    )
+                    await self._async_save()
+                return {
+                    "pack_id": pack_id,
+                    "downloaded": downloaded,
+                    "installed_count": len(live),
+                    "total": total,
+                    "failed": failed,
+                    "scene_id": scene_id,
+                }
+            finally:
+                self._active_install_progress.pop(pack_id, None)
 
     async def async_gallery(self, pack_id: str) -> dict[str, Any]:
         """Return a pack with its lazy Reframed artwork resolved."""

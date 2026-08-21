@@ -13,6 +13,7 @@ const API = "/api/fraimic";
 const LOW_RES_SHORT_EDGE = 1000;
 const PACK_REFRESH_MAX_ATTEMPTS = 30;
 const PACK_REFRESH_MAX_DELAY = 15000;
+const PACK_PROGRESS_MAX_ATTEMPTS = 600;
 
 class FraimicPanel extends HTMLElement {
   constructor() {
@@ -26,6 +27,7 @@ class FraimicPanel extends HTMLElement {
     this._packs = [];
     this._packRefreshTimer = null;
     this._packProgressTimer = null;
+    this._packProgressAttempts = 0;
     this._installingPacks = new Set();
     this._albumFilter = "";
     this._packCategory = "";
@@ -62,6 +64,7 @@ class FraimicPanel extends HTMLElement {
     clearTimeout(this._packProgressTimer);
     this._packRefreshTimer = null;
     this._packProgressTimer = null;
+    this._packProgressAttempts = 0;
     this._installingPacks.clear();
   }
 
@@ -1612,7 +1615,7 @@ class FraimicPanel extends HTMLElement {
         this._el("span", { class: "chip", text: `${imageCount} images` }),
         this._el("div", { class: "sub", text: pack.description || "" }),
         this._el("div", {
-          class: "sub",
+          class: "sub pack-installed-count",
           text: `${pack.installed_count}/${imageCount} installed · ${pack.attribution}`,
         }),
       ]);
@@ -1712,6 +1715,7 @@ class FraimicPanel extends HTMLElement {
 
   async _installPack(pack) {
     if (this._installingPacks.has(pack.id)) return;
+    this._packProgressAttempts = 0;
     this._installingPacks.add(pack.id);
     this._renderTab();
     this._schedulePackProgressPoll();
@@ -1730,6 +1734,7 @@ class FraimicPanel extends HTMLElement {
       if (!this._installingPacks.size) {
         clearTimeout(this._packProgressTimer);
         this._packProgressTimer = null;
+        this._packProgressAttempts = 0;
       }
       if (this.isConnected) {
         try {
@@ -1746,31 +1751,40 @@ class FraimicPanel extends HTMLElement {
     if (
       !this.isConnected ||
       this._packProgressTimer ||
-      !this._installingPacks.size
+      !this._installingPacks.size ||
+      this._packProgressAttempts >= PACK_PROGRESS_MAX_ATTEMPTS
     ) {
       return;
     }
     this._packProgressTimer = setTimeout(async () => {
       this._packProgressTimer = null;
       if (!this.isConnected) return;
+      this._packProgressAttempts += 1;
       try {
-        const data = await this._api("packs");
+        const data = await this._api("packs/progress");
         if (!this.isConnected || !this._installingPacks.size) return;
-        this._packs = data.packs;
+        const progressById = data.packs || {};
         const packsById = new Map(this._packs.map((pack) => [pack.id, pack]));
         for (const progressNode of this.shadowRoot.querySelectorAll(
           "[data-pack-progress]"
         )) {
           const current = packsById.get(progressNode.dataset.packProgress);
           if (!current) continue;
-          const total = current.image_count ?? current.images.length;
-          const completed = Math.min(current.installed_count, total);
+          const update = progressById[current.id];
+          const total = update?.total ?? current.image_count ?? current.images.length;
+          const completed = Math.min(
+            update?.installed_count ?? current.installed_count,
+            total
+          );
           const percent = total ? (completed / total) * 100 : 0;
+          current.installed_count = completed;
           progressNode.setAttribute("aria-valuemax", String(total));
           progressNode.setAttribute("aria-valuenow", String(completed));
           progressNode.querySelector(".pack-progress-count").textContent =
             `${completed} / ${total}`;
           progressNode.querySelector(".pack-progress-fill").style.width = `${percent}%`;
+          progressNode.parentElement.querySelector(".pack-installed-count").textContent =
+            `${completed}/${total} installed · ${current.attribution}`;
         }
       } catch (_err) {
         // The install request owns error reporting; a missed poll is harmless.

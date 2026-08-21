@@ -189,7 +189,7 @@ service with **one** image source:
 action: fraimic.upload_image
 data:
   url: https://example.com/poster.jpg
-  fit: cover            # cover (crop) | contain (pad) | stretch
+  fit: cover            # cover (crop) | contain (white) | contain_black (black) | stretch
   rotate: 0             # 0 | 90 | 180 | 270
   mode: auto            # auto | official | floyd_steinberg | atkinson | bayer | none
   saturation: 1.15      # kept modest (real Spectra 6 owners push contrast, not saturation)
