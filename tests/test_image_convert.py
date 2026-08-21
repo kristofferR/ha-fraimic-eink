@@ -124,7 +124,7 @@ def test_large_frame_el315_corner_mapping() -> None:
 def test_official_mode_matches_fraimic_converter() -> None:
     """Match Fraimic/fraimic_bin_converter 1b794a3 end to end."""
     import numpy as np
-    from PIL import Image
+    from PIL import Image, ImageEnhance, ImageFilter
 
     source_width, source_height = 19, 13
     ys, xs = np.indices((source_height, source_width))
@@ -141,12 +141,54 @@ def test_official_mode_matches_fraimic_converter() -> None:
     )
     indices = ic._official_atkinson_indices(prepared)
 
-    assert hashlib.sha256(prepared.tobytes()).hexdigest() == (
-        "9161abf6c29df1f7ec874b1b4606e659e57497105c3f8ee3c5b327fa369f335c"
-    )
-    assert hashlib.sha256(indices.tobytes()).hexdigest() == (
-        "dd27e17d19f6f63a20f52dc1ceac4d9efedad3c6721ae708ce9b2c5bf3efd966"
-    )
+    # Independent, minimal copy of the published recipe. Keeping the comparison
+    # on one Pillow build avoids platform-specific resize/filter golden hashes.
+    expected = source.resize((32, 22), Image.Resampling.LANCZOS)
+    expected = ImageEnhance.Brightness(expected).enhance(1.1)
+    expected = ImageEnhance.Contrast(expected).enhance(1.2)
+    expected = ImageEnhance.Color(expected).enhance(1.2)
+    expected = expected.filter(ImageFilter.EDGE_ENHANCE)
+    expected = expected.filter(ImageFilter.SMOOTH)
+    expected = expected.filter(ImageFilter.SHARPEN)
+    framed = Image.new("RGB", (32, 24), (0, 0, 0))
+    framed.paste(expected, (0, 1))
+    assert prepared.tobytes() == framed.tobytes()
+
+    palette = np.array(ic._OFFICIAL_PALETTE_RGB, dtype=np.float32)
+    palette_luma = np.array(
+        [r * 250 + g * 350 + b * 400 for r, g, b in ic._OFFICIAL_PALETTE_RGB],
+        dtype=np.float32,
+    ) / (255.0 * 1000)
+    working = np.asarray(framed, dtype=np.float32).copy()
+    expected_indices = np.zeros((24, 32), dtype=np.uint8)
+    for y in range(24):
+        for x in range(32):
+            old_pixel = working[y, x].copy()
+            red, green, blue = np.clip(old_pixel, 0, 255).astype(int)
+            luma = (red * 250 + green * 350 + blue * 400) / (255.0 * 1000)
+            diff_r = red - palette[:, 0]
+            diff_g = green - palette[:, 1]
+            diff_b = blue - palette[:, 2]
+            rgb_distance = (
+                diff_r * diff_r * 0.250
+                + diff_g * diff_g * 0.350
+                + diff_b * diff_b * 0.400
+            ) * 0.75 / (255.0 * 255.0)
+            distance = 1.5 * rgb_distance + 0.60 * (luma - palette_luma) ** 2
+            index = int(np.argmin(distance))
+            new_pixel = palette[index]
+            working[y, x] = new_pixel
+            expected_indices[y, x] = index
+            error = old_pixel - new_pixel
+            if x + 1 < 32:
+                working[y, x + 1] += error * (1 / 8)
+            if y + 1 < 24:
+                if x > 0:
+                    working[y + 1, x - 1] += error * (1 / 8)
+                working[y + 1, x] += error * (1 / 4)
+                if x + 1 < 32:
+                    working[y + 1, x + 1] += error * (1 / 8)
+    assert np.array_equal(indices.reshape(24, 32), expected_indices)
 
     raw = io.BytesIO()
     source.save(raw, format="PNG")
