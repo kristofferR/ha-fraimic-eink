@@ -775,6 +775,29 @@ def test_queue_mutations_reject_stale_input_and_clear_pending_item(
     assert scheduler.queued_slides == []
 
 
+def test_queue_mutations_replace_sleeping_pending_item_with_new_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="first", name="First")
+    second = SimpleNamespace(screen_id="second", name="Second")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second]
+    scheduler._queued_ids = [first.screen_id]
+    scheduler._pending = first
+    scheduler._pending_from_queue = True
+    scheduler._pending_requires_enabled = False
+
+    asyncio.run(scheduler.async_add_to_queue(second, play_next=True))
+
+    assert scheduler._pending is second
+    assert scheduler._pending_requires_enabled is False
+
+    asyncio.run(scheduler.async_reorder_queue([first.screen_id, second.screen_id]))
+
+    assert scheduler._pending is first
+
+
 def test_reorder_upcoming_changes_only_visible_playlist_window(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

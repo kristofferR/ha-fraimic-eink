@@ -734,6 +734,7 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
         "seconds_elapsed": elapsed,
         "seconds_remaining": remaining,
         "paused": bool(current is not None and not scheduler.enabled),
+        "transport_available": current is not None,
         "sending": sending,
         "sending_progress": sending_progress,
         "overlay_count": 0,
