@@ -61,6 +61,7 @@ def test_normalize_crop_invalid(box):
 
 
 def test_render_cache_key_stable_and_sensitive():
+    assert lm.RENDER_CACHE_VERSION == 2
     params = {
         "width": 1600,
         "height": 1200,

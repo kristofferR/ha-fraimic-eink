@@ -17,7 +17,7 @@ from .const import LIBRARY_ALBUM_DEFAULT
 
 # Bump when the render pipeline changes output for identical params (palette
 # tweaks, dither fixes, ...) so every cached .bin is invalidated at once.
-RENDER_CACHE_VERSION = 1
+RENDER_CACHE_VERSION = 2
 
 MANIFEST_VERSION = 1
 
