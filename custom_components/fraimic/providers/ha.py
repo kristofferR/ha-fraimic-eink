@@ -157,8 +157,9 @@ def _request_for(
     )
 
 
-def _browse_stash_key(entry, provider_key: str) -> str:
-    return f"browse_{entry.entry_id}_{provider_key}"
+def _browse_stash_key(_entry, provider_key: str) -> str:
+    """Share browsed candidates across frames in the same HA instance."""
+    return f"browse_{provider_key}"
 
 
 def _stash_candidates(hass, entry, provider_key: str, candidates) -> None:

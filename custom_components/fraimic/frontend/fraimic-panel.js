@@ -316,6 +316,8 @@ class FraimicPanel extends HTMLElement {
     this._rendersWell = false;
     this._galleryLoading = false;
     this._galleryGeneration = 0;
+    this._playerGeneration = 0;
+    this._detailGeneration = 0;
     this._galleryRenderTimer = null;
     this._renderLimit = INITIAL_RENDER_LIMIT;
     this._route = "browse";
@@ -496,8 +498,11 @@ class FraimicPanel extends HTMLElement {
 
   async _loadPlayer(render = true) {
     if (!this._selectedFrameId) { this._player = null; if (render) this._render(); return; }
+    const entryId = this._selectedFrameId;
+    const generation = ++this._playerGeneration;
     try {
-      const player = await this._api(`player?entry_id=${encodeURIComponent(this._selectedFrameId)}`);
+      const player = await this._api(`player?entry_id=${encodeURIComponent(entryId)}`);
+      if (generation !== this._playerGeneration || entryId !== this._selectedFrameId) return;
       const signature = this._playerRenderSignature(player);
       const changed = signature !== this._playerSignature;
       this._player = player;
@@ -509,8 +514,8 @@ class FraimicPanel extends HTMLElement {
   _playerRenderSignature(player) {
     const copy = structuredClone(player);
     if (copy?.state !== "sending") {
-      if (copy?.timing?.seconds_elapsed != null) copy.timing.seconds_elapsed = Math.floor(copy.timing.seconds_elapsed / 60);
-      if (copy?.timing?.seconds_remaining != null) copy.timing.seconds_remaining = Math.ceil(copy.timing.seconds_remaining / 60);
+      if (copy?.seconds_elapsed != null) copy.seconds_elapsed = Math.floor(copy.seconds_elapsed / 60);
+      if (copy?.seconds_remaining != null) copy.seconds_remaining = Math.ceil(copy.seconds_remaining / 60);
     }
     return JSON.stringify(copy);
   }
@@ -878,7 +883,7 @@ class FraimicPanel extends HTMLElement {
       ? Number(player.sending_progress || 0)
       : player?.interval ? Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / player.interval * 100)) : 0;
     const transport = player?.transport_available && !["idle", "unreachable"].includes(state)
-      ? `<div class="transport"><button class="icon-btn previous" data-player-action="previous" aria-label="Previous" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-previous"></ha-icon></button><button class="btn primary" data-player-action="toggle" aria-label="${player?.paused ? "Play" : "Pause"}" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:${player?.paused ? "play" : "pause"}"></ha-icon></button><button class="icon-btn next" data-player-action="next" aria-label="Next" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-next"></ha-icon></button></div>`
+      ? `<div class="transport"><button class="icon-btn previous" data-player-action="previous" aria-label="Previous" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-previous"></ha-icon></button><button class="btn primary" data-player-action="${player?.paused ? "play" : "pause"}" aria-label="${player?.paused ? "Play" : "Pause"}" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:${player?.paused ? "play" : "pause"}"></ha-icon></button><button class="icon-btn next" data-player-action="next" aria-label="Next" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-next"></ha-icon></button></div>`
       : "";
     const stateActions = state === "idle"
       ? `<button class="btn primary" data-change-playlist>Choose a playlist</button>`
@@ -914,7 +919,7 @@ class FraimicPanel extends HTMLElement {
 
   _menuTemplate() {
     if (!this._menu) return "";
-    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-select-multiple>Select multiple</button><button data-options>Sources and API keys</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
+    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources and API keys</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
     if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Change playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.playlist?.shuffle ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image defaults <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       const values = [[900,"15 minutes"],[1800,"30 minutes"],[2700,"45 minutes"],[3600,"1 hour"],[7200,"2 hours"],[14400,"4 hours"],[43200,"12 hours"],[86400,"Once a day"]];
@@ -1248,12 +1253,14 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _openDetail(source, itemId, trigger) {
+    const generation = ++this._detailGeneration;
     const item = this._findItem(source, itemId);
     this._modalTrigger = trigger;
     this._openModal(item?.title || "Picture", this._loadingTemplate());
     try {
       const params = new URLSearchParams({ entry_id: this._selectedFrameId, source, item_id: itemId });
       const detail = await this._api(`gallery/detail?${params}`);
+      if (generation !== this._detailGeneration || !this._modal) return;
       this._detail = { ...detail, source, itemId };
       const key = this._cropKey(source, itemId, this._selectedFrameId);
       const crop = this._cropDrafts.get(key) || detail.saved_crop || this._defaultCrop(detail, this._frame);
@@ -1331,8 +1338,9 @@ class FraimicPanel extends HTMLElement {
     if (command === "reset") return this._setDetailCrop(this._defaultCrop(this._detail, this._frame));
     const [x0,y0,x1,y1] = this._detailOptions.crop;
     if (command === "centre") return this._setDetailCrop([(1 - (x1 - x0)) / 2, (1 - (y1 - y0)) / 2, (1 + (x1 - x0)) / 2, (1 + (y1 - y0)) / 2]);
-    const scale = command === "in" ? .88 : 1.12;
-    const width = Math.min(1, (x1 - x0) * scale), height = Math.min(1, (y1 - y0) * scale);
+    const currentWidth = x1 - x0, currentHeight = y1 - y0;
+    const scale = command === "in" ? .88 : Math.min(1.12, 1 / currentWidth, 1 / currentHeight);
+    const width = currentWidth * scale, height = currentHeight * scale;
     this._setDetailCrop([.5 - width / 2, .5 - height / 2, .5 + width / 2, .5 + height / 2]);
   }
 
@@ -1473,6 +1481,7 @@ class FraimicPanel extends HTMLElement {
     try {
       if (action === "delete") { if (!confirm("Delete this playlist?")) return; await this._api(`playlists/${encodeURIComponent(id)}`, { method: "DELETE" }); this._navigate("/playlists"); return; }
       const name = action === "rename" ? prompt("Playlist name", this._playlist?.name || "") : null;
+      if (action === "rename" && name === null) return;
       const playlist = await this._api(`playlists/${encodeURIComponent(id)}`, this._json(action === "rename" ? { action, name } : { action }));
       await this._loadPlaylists(); this._navigate(`/playlists/${encodeURIComponent(playlist.id)}`);
     } catch (error) { this._notify(this._friendlyError(error), { error: true }); }
@@ -1567,7 +1576,7 @@ class FraimicPanel extends HTMLElement {
   async _copyOverlays() { const target = this._frames.find((frame) => frame.id !== this._selectedFrameId); if (!target) return; if (!confirm(`Replace overlays on ${target.name}?`)) return; try { await this._api("overlays", this._json({ action: "copy", entry_id: this._selectedFrameId, target_entry_id: target.id })); this._notify(`Copied overlays to ${target.name}.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
 
   _openModal(title, body, actions = "") { this._modal = { title, body, actions }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
-  _closeModal() { this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
+  _closeModal() { this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
 
   _trapModalFocus(event) {
     const focusable = [...this.shadowRoot.querySelectorAll(".dialog button:not([disabled]), .dialog input:not([disabled]), .dialog select:not([disabled]), .dialog textarea:not([disabled]), .dialog a[href]")];

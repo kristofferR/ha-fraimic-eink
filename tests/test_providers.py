@@ -1171,9 +1171,12 @@ def test_browse_selection_survives_provider_cache_eviction(
         monkeypatch.setattr(
             provider_ha, "async_get_clientsession", lambda _hass: session
         )
+        target_entry = types.SimpleNamespace(entry_id="other-frame", options={})
 
         image = _run(
-            provider_ha.async_art_by_media_id(hass, entry, "fake", candidate.item_id)
+            provider_ha.async_art_by_media_id(
+                hass, target_entry, "fake", candidate.item_id
+            )
         )
 
         assert image.candidate is candidate
@@ -1181,10 +1184,7 @@ def test_browse_selection_survives_provider_cache_eviction(
 
         thumbnail = _run(
             provider_ha.async_art_by_media_id(
-                hass,
-                entry,
-                "fake",
-                candidate.item_id,
+                hass, target_entry, "fake", candidate.item_id,
                 thumbnail=True,
             )
         )

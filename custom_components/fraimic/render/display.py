@@ -120,7 +120,19 @@ async def _async_picture_source(
 
         fit = source.get("fit") or entry.options.get(ATTR_FIT, FIT_COVER)
         if item_id := source.get("provider_item"):
-            art = await async_art_by_media_id(hass, entry, provider_key, item_id)
+            try:
+                art = await async_art_by_media_id(
+                    hass, entry, provider_key, item_id
+                )
+                raw = art.data
+            except ArtFetchError:
+                metadata = source.get("metadata") or {}
+                download_url = metadata.get("download_url")
+                if not isinstance(download_url, str) or not download_url:
+                    raise
+                raw = await async_get_source_bytes(
+                    hass, url=download_url, redact_url=True
+                )
         else:
             art = await async_fetch_art(
                 hass,
@@ -129,14 +141,19 @@ async def _async_picture_source(
                 query=source.get("query"),
                 fit=fit,
             )
-        raw = art.data
-        if source.get("caption") and art.candidate.attribution:
+            raw = art.data
+        attribution = (
+            art.candidate.attribution
+            if art is not None
+            else (source.get("metadata") or {}).get("attribution")
+        )
+        if source.get("caption") and attribution:
             width, height = viewed_size(entry)
             try:
                 raw = await hass.async_add_executor_job(
                     composite_with_caption,
                     raw,
-                    art.candidate.attribution,
+                    attribution,
                     width,
                     height,
                     fit,

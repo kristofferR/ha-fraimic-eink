@@ -446,17 +446,21 @@ class FraimicLibrary:
         crop_width, crop_height = _crop_key_size(params)
         # A per-call rotate override changes the wall aspect, so the saved
         # crop/rotation pair (drawn for the mount orientation) no longer fits.
-        if overrides and (
+        if overrides and overrides.get("crop") is not None:
+            crop = normalize_crop(overrides["crop"])
+        elif overrides and (
             overrides.get(ATTR_ROTATE)
             or overrides.get(ATTR_FIT) in {"contain", "contain_black"}
         ):
             crop = None
         else:
             crop = image.crop_for(crop_width, crop_height)
-            if saved_rotate := image.rotation_for(crop_width, crop_height):
-                # Crop first (original space), then rotate — matching the
-                # pipeline order, so the pair stays consistent.
-                params["rotate"] = (params["rotate"] + saved_rotate) % 360
+        if not (overrides and overrides.get(ATTR_ROTATE)) and (
+            saved_rotate := image.rotation_for(crop_width, crop_height)
+        ):
+            # Crop first (original space), then rotate — matching the
+            # pipeline order, so the pair stays consistent.
+            params["rotate"] = (params["rotate"] + saved_rotate) % 360
         cache_params = dict(params)
         cache_params["crop"] = list(crop) if crop else None
         key = render_cache_key(cache_params)

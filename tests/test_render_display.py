@@ -505,6 +505,58 @@ def test_picture_source_uses_stashed_provider_item(
     assert calls == [("unsplash", "photo-1")]
 
 
+def test_picture_source_falls_back_to_persisted_provider_url(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+    caption = types.ModuleType("fraimic.providers.caption")
+    caption.composite_with_caption = None
+    providers_ha = types.ModuleType("fraimic.providers.ha")
+
+    class ArtFetchError(Exception):
+        pass
+
+    providers_ha.ArtFetchError = ArtFetchError
+
+    async def by_media_id(*_args: object, **_kwargs: object) -> object:
+        raise ArtFetchError("browse selection expired")
+
+    async def fetch_art(*_args: object, **_kwargs: object) -> object:
+        pytest.fail("a concrete gallery item must not become a random selection")
+
+    providers_ha.async_art_by_media_id = by_media_id
+    providers_ha.async_fetch_art = fetch_art
+    source_module = types.ModuleType("fraimic.source")
+    calls: list[str] = []
+
+    async def source_bytes(
+        _hass: object, *, url: str, redact_url: bool, **_kwargs: object
+    ) -> bytes:
+        assert redact_url is True
+        calls.append(url)
+        return b"persisted-art"
+
+    source_module.async_get_source_bytes = source_bytes
+    monkeypatch.setitem(sys.modules, "fraimic.providers.caption", caption)
+    monkeypatch.setitem(sys.modules, "fraimic.providers.ha", providers_ha)
+    monkeypatch.setitem(sys.modules, "fraimic.source", source_module)
+    screen = types.SimpleNamespace(
+        source={
+            "provider": "unsplash",
+            "provider_item": "photo-1",
+            "metadata": {"download_url": "https://example.test/photo-1.jpg"},
+        }
+    )
+
+    raw, _overrides, art = asyncio.run(
+        display._async_picture_source(_Hass(), _entry(), screen)
+    )
+
+    assert raw == b"persisted-art"
+    assert art is None
+    assert calls == ["https://example.test/photo-1.jpg"]
+
+
 def test_library_picture_uses_cached_render(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

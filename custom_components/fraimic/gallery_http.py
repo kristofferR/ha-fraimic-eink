@@ -201,6 +201,7 @@ def _candidate_payload(
         "year": _extra(candidate, "year", "date", "created"),
         "description": _extra(candidate, "description", "caption"),
         "source_page_url": _source_page(candidate),
+        "download_url": candidate.image_url,
     }
 
 
@@ -305,6 +306,7 @@ def _slide_data(
             "year",
             "description",
             "source_page_url",
+            "download_url",
             "thumbnail_url",
             "image_url",
         )

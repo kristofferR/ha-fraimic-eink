@@ -132,11 +132,13 @@ class FrameOverlaysView(HomeAssistantView):
                 await _manager(hass).async_copy(entry.entry_id, target.entry_id)
             else:
                 raise ValueError("Unknown overlay action")
-            if body.get("apply_now") and entry.runtime_data.scheduler.current_screen:
-                await entry.runtime_data.scheduler.async_select(
-                    entry.runtime_data.scheduler.current_screen,
-                    hold=True,
-                )
+            if body.get("apply_now"):
+                scheduler = entry.runtime_data.scheduler
+                if scheduler.current_screen is None or scheduler.displayed_hash is None:
+                    raise HomeAssistantError(
+                        "Apply now is unavailable for the picture currently on the frame"
+                    )
+                await scheduler.async_select(scheduler.current_screen, hold=True)
         except (TypeError, ValueError, HomeAssistantError) as err:
             return self.json_message(str(err), HTTPStatus.CONFLICT)
         return self.json(_payload(hass, entry))
