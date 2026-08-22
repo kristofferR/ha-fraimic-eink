@@ -3418,7 +3418,8 @@ class FraimicPanel extends HTMLElement {
       if (this._playlist?.id === playlist.id) this._playlist = response;
       await Promise.all([this._loadPlayer(), this._loadFrames(), this._loadPlaylists()]);
       this._renderCurrentView();
-      if (this._player?.state === "asleep") {
+      const updatedFrame = this._frames.find((candidate) => candidate.entry_id === frame.entry_id);
+      if (updatedFrame?.asleep) {
         this._toast(`${frame.title} is asleep. It will show this when it wakes.`);
       }
     } catch (_err) {

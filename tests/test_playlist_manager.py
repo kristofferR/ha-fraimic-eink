@@ -253,6 +253,40 @@ def test_migration_refreshes_edited_legacy_slide(
     assert manager.playlists[0].slides[0].data["url"].endswith("two.jpg")
 
 
+def test_migration_appends_new_legacy_slide(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    playlists, _store = _load_playlists(monkeypatch)
+    manager = playlists.PlaylistManager(SimpleNamespace())
+    first = _subentry(
+        "first",
+        "First",
+        {"kind": "picture", "url": "https://example.com/one.jpg"},
+    )
+    entry = SimpleNamespace(
+        entry_id="frame-1",
+        title="Living room",
+        subentries={"first": first},
+    )
+    asyncio.run(manager.async_migrate_entry(entry))
+    entry.subentries["second"] = _subentry(
+        "second",
+        "Second",
+        {"kind": "picture", "url": "https://example.com/two.jpg"},
+    )
+
+    asyncio.run(manager.async_sync_legacy_slide(entry, "second"))
+
+    assert [slide.slide_id for slide in manager.playlists[0].slides] == [
+        "first",
+        "second",
+    ]
+
+    asyncio.run(manager.async_remove_legacy_slide(entry, "first"))
+
+    assert [slide.slide_id for slide in manager.playlists[0].slides] == ["second"]
+
+
 def test_corrupt_store_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
     playlists, store = _load_playlists(monkeypatch)
     store.loaded = ["not", "a", "mapping"]

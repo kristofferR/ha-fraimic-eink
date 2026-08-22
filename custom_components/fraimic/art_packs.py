@@ -66,6 +66,7 @@ from .pack_model import (
     reframed_filename,
     validate_catalog,
 )
+from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .providers.base import BrowseFolder
 from .providers.curation import acceptable_for_fit
 from .providers.ha import ArtFetchError, async_browse_provider
@@ -936,10 +937,17 @@ class ArtPackManager:
         return scene_ids
 
     async def _async_delete_pack_images(self, image_ids: Iterable[str]) -> None:
-        """Delete pack-owned images and prune references from scenes."""
+        """Delete pack-owned images and prune every stored reference."""
         for image_id in image_ids:
             try:
                 await self.library.async_delete_image(image_id)
             except HomeAssistantError:
                 continue
             await self.scenes.async_prune_image(image_id)
+            domain_data = getattr(self.hass, "data", {}).get(DOMAIN, {})
+            playlists = domain_data.get(DATA_PLAYLISTS)
+            if isinstance(playlists, PlaylistManager):
+                affected = await playlists.async_prune_image(image_id)
+                for entry in loaded_fraimic_entries(self.hass):
+                    if playlists.assignments.get(entry.entry_id) in affected:
+                        await entry.runtime_data.scheduler.async_refresh_playlist()

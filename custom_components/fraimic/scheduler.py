@@ -425,16 +425,14 @@ class FraimicScheduler:
         positions = {
             screen.screen_id: index for index, screen in enumerate(self.screens)
         }
+        if self._playlists is not None and self.playlist_id is not None:
+            await self._playlists.async_reorder(self.playlist_id, ordered_ids)
         reordered = list(self.screens)
         for expected_id, ordered_id in zip(expected, ordered_ids, strict=True):
             reordered[positions[expected_id]] = by_id[ordered_id]
         self.screens = reordered
         self._playback_order = [screen.screen_id for screen in self.screens]
         self._playlist_order = [screen.screen_id for screen in self.screens]
-        if self._playlists is not None and self.playlist_id is not None:
-            await self._playlists.async_reorder(
-                self.playlist_id, self._playlist_order
-            )
         await self._async_save()
         self._notify()
 

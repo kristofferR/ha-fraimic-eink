@@ -1007,3 +1007,32 @@ def test_reorder_upcoming_changes_only_visible_playlist_window(
         hidden.screen_id,
         current.screen_id,
     ]
+
+
+def test_reorder_upcoming_keeps_local_order_when_persistence_conflicts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="first", name="First")
+    second = SimpleNamespace(screen_id="second", name="Second")
+
+    def next_screen(screens: list, current_id: str | None, *_args, **_kwargs):
+        ids = [slide.screen_id for slide in screens]
+        start = ids.index(current_id) if current_id in ids else -1
+        return screens[(start + 1) % len(screens)]
+
+    async def reject_reorder(_playlist_id: str, _ordered_ids: list[str]) -> None:
+        raise scheduler_mod.HomeAssistantError("playlist changed")
+
+    monkeypatch.setattr(scheduler_mod, "next_screen", next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second]
+    scheduler._playlists = SimpleNamespace(async_reorder=reject_reorder)
+    scheduler.playlist_id = "playlist-1"
+
+    with pytest.raises(scheduler_mod.HomeAssistantError, match="changed"):
+        asyncio.run(
+            scheduler.async_reorder_upcoming([second.screen_id, first.screen_id])
+        )
+
+    assert scheduler.screens == [first, second]
