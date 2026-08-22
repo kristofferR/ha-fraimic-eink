@@ -363,15 +363,13 @@ class FraimicSendQueue:
                 runtime.power.finish(power_token)
                 if reason == SKIP_DUPLICATE:
                     if preview_png:
-                        runtime.last_preview = preview_png
-                        runtime.displayed_preview = preview_png
-                        if runtime.preview_image is not None:
-                            runtime.preview_image.set_preview(
-                                preview_png, pending.get("mode") or ""
-                            )
+                        runtime.set_displayed_preview(
+                            preview_png, pending.get("mode") or ""
+                        )
                     runtime.last_art = None
                     runtime.media_title = title
                     await runtime.scheduler.async_notify_external_upload()
+                    runtime.coordinator.async_update_listeners()
                     await self._async_clear(f"Already displaying {title}")
                     return
                 if reason in DEFER_REASONS:
@@ -383,16 +381,14 @@ class FraimicSendQueue:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:
                     if preview_png:
-                        runtime.last_preview = preview_png
-                        runtime.displayed_preview = preview_png
-                        if runtime.preview_image is not None:
-                            runtime.preview_image.set_preview(
-                                preview_png, pending.get("mode") or ""
-                            )
+                        runtime.set_displayed_preview(
+                            preview_png, pending.get("mode") or ""
+                        )
                     runtime.last_art = None
                     runtime.media_title = title
                     await runtime.power.async_record_upload(content_hash, trigger)
                     await runtime.scheduler.async_notify_external_upload()
+                    runtime.coordinator.async_update_listeners()
                     await self._async_clear(
                         f"Sent {title} (unconfirmed — the frame's reply timed out)"
                     )
@@ -412,17 +408,15 @@ class FraimicSendQueue:
 
                 runtime.coordinator.async_set_frame_online(True)
                 await runtime.power.async_record_upload(content_hash, trigger)
-                await self._async_clear(f"Sent {self._now_str()}")
                 if preview_png:
-                    runtime.last_preview = preview_png
-                    runtime.displayed_preview = preview_png
-                    if runtime.preview_image is not None:
-                        runtime.preview_image.set_preview(
-                            preview_png, pending.get("mode") or ""
-                        )
+                    runtime.set_displayed_preview(
+                        preview_png, pending.get("mode") or ""
+                    )
                 runtime.last_art = None
                 runtime.media_title = title
                 await runtime.scheduler.async_notify_external_upload()
+                runtime.coordinator.async_update_listeners()
+                await self._async_clear(f"Sent {self._now_str()}")
                 _LOGGER.info(
                     "Delivered queued image '%s' to %s", title, self._entry.title
                 )
