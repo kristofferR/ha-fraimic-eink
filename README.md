@@ -373,6 +373,25 @@ rotates through its screens by itself:
 - Selecting a screen in the **Screen** select (or pressing Next/Previous) shows it immediately
   and rotation continues from there. Playlist state survives restarts.
 
+### Artwork cache and playlist preparation
+
+Frame options include a persistent cache for online artwork and a configurable look-ahead
+window:
+
+- **Downloaded artwork cache** defaults to `30_days`, with a 2 GB least-recently-used disk
+  limit. It stores provider thumbnails, originals, and finished `.bin`/preview conversions
+  under `<config>/fraimic_cache/`, shared by every frame.
+- Select `forever` to disable both expiry and size eviction. A concrete gallery picture is then
+  downloaded and dithered only once for each frame/settings combination, including across Home
+  Assistant restarts. `off` keeps only the existing short-lived RAM caches.
+- **Playlist items to prepare ahead** defaults to 3 (0-12). While the frame is idle, fixed
+  library/gallery pictures coming up next are downloaded and dithered serially. Dynamic
+  dashboards, camera/URL snapshots, and random-provider slides still render at display time so
+  their data stays fresh.
+
+Changing crop, rotation, fit, tone, dither mode, resolution, or processing defaults creates a
+new content-addressed render; it never reuses a conversion made with different settings.
+
 ## Online artwork
 
 The frame can fetch art **by itself** — no keys, no accounts:

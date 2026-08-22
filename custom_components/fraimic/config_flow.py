@@ -21,6 +21,7 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .api import FraimicClient, FraimicError, normalize_host
 from .const import (
+    ARTWORK_CACHE_MODES,
     ATTR_CONTRAST,
     ATTR_FIT,
     ATTR_MODE,
@@ -29,11 +30,14 @@ from .const import (
     ATTR_TONE,
     CONF_CAMERA_INTERVAL,
     CONF_AUTO_SLEEP,
+    CONF_ARTWORK_CACHE,
+    CONF_ARTWORK_CACHE_MAX_MB,
     CONF_DEFAULT_PROVIDER,
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
     CONF_NASA_API_KEY,
     CONF_PEXELS_KEY,
+    CONF_PLAYLIST_PREFETCH,
     CONF_ROTATION,
     CONF_POWER_MODE,
     CONF_SCAN_INTERVAL,
@@ -42,9 +46,12 @@ from .const import (
     CONF_WIDTH,
     DEFAULT_CAMERA_INTERVAL,
     DEFAULT_AUTO_SLEEP,
+    DEFAULT_ARTWORK_CACHE,
+    DEFAULT_ARTWORK_CACHE_MAX_MB,
     DEFAULT_CONTRAST,
     DEFAULT_HOST,
     DEFAULT_ROTATION,
+    DEFAULT_PLAYLIST_PREFETCH,
     DEFAULT_POWER_MODE,
     DEFAULT_SATURATION,
     DEFAULT_SCAN_INTERVAL,
@@ -56,7 +63,10 @@ from .const import (
     FIT_MODES,
     FRAME_MODELS,
     MAX_BIN_SIZE,
+    MAX_ARTWORK_CACHE_MAX_MB,
+    MAX_PLAYLIST_PREFETCH,
     MIN_CAMERA_INTERVAL,
+    MIN_ARTWORK_CACHE_MAX_MB,
     MIN_SCAN_INTERVAL,
     MODE_AUTO,
     MODEL_CUSTOM,
@@ -341,6 +351,31 @@ class FraimicOptionsFlow(OptionsFlow):
                         CONF_CAMERA_INTERVAL,
                         default=o.get(CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL),
                     ): vol.All(vol.Coerce(int), vol.Range(min=0)),
+                    vol.Required(
+                        CONF_ARTWORK_CACHE,
+                        default=o.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE),
+                    ): vol.In(ARTWORK_CACHE_MODES),
+                    vol.Required(
+                        CONF_ARTWORK_CACHE_MAX_MB,
+                        default=o.get(
+                            CONF_ARTWORK_CACHE_MAX_MB,
+                            DEFAULT_ARTWORK_CACHE_MAX_MB,
+                        ),
+                    ): vol.All(
+                        vol.Coerce(int),
+                        vol.Range(
+                            min=MIN_ARTWORK_CACHE_MAX_MB,
+                            max=MAX_ARTWORK_CACHE_MAX_MB,
+                        ),
+                    ),
+                    vol.Required(
+                        CONF_PLAYLIST_PREFETCH,
+                        default=o.get(
+                            CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH
+                        ),
+                    ): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=MAX_PLAYLIST_PREFETCH)
+                    ),
                     # Per-frame image-processing defaults (overridable per upload).
                     vol.Required(
                         ATTR_MODE, default=o.get(ATTR_MODE, MODE_AUTO)

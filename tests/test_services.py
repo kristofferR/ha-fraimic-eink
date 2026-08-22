@@ -304,3 +304,69 @@ def test_deferred_render_does_not_replace_displayed_preview(
     assert result["displayed"] is False
     assert entry.runtime_data.last_preview == b"deferred-preview"
     assert entry.runtime_data.displayed_preview == b"current-preview"
+
+
+def test_duplicate_render_refreshes_versioned_displayed_preview(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+
+    async def convert(*_args: object, **_kwargs: object) -> tuple[bytes, bytes, str]:
+        return b"packed", b"fresh-preview", "none"
+
+    class Power:
+        def begin(self, _trigger: str) -> object:
+            return object()
+
+        def skip_reason(self, *_args: object) -> str:
+            return services.SKIP_DUPLICATE
+
+        def finish(self, _token: object) -> None:
+            return None
+
+    refreshed: list[tuple[bytes, str]] = []
+    runtime = SimpleNamespace(
+        scheduler=None,
+        power=Power(),
+        upload_lock=asyncio.Lock(),
+        client=SimpleNamespace(),
+        coordinator=SimpleNamespace(data={}),
+        send_queue=None,
+        last_preview=b"old-preview",
+        displayed_preview=b"old-preview",
+        preview_image=None,
+    )
+
+    def set_displayed_preview(preview: bytes, mode: str) -> None:
+        refreshed.append((preview, mode))
+        runtime.last_preview = preview
+        runtime.displayed_preview = preview
+
+    runtime.set_displayed_preview = set_displayed_preview
+    entry = SimpleNamespace(data={}, runtime_data=runtime)
+    monkeypatch.setattr(services, "async_convert_for_entry", convert)
+
+    result = asyncio.run(
+        services.async_render_and_upload(
+            SimpleNamespace(), entry, b"source", hold_playlist=False
+        )
+    )
+
+    assert result["displayed"] is True
+    assert result["uploaded"] is False
+    assert refreshed == [(b"fresh-preview", "none")]
+
+
+def test_convert_rejects_invalid_height_before_rendering(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+    entry = SimpleNamespace(
+        data={services.CONF_WIDTH: 1600, services.CONF_HEIGHT: 1201},
+        options={},
+    )
+
+    with pytest.raises(services.HomeAssistantError, match="not divisible by 4"):
+        asyncio.run(
+            services.async_convert_for_entry(SimpleNamespace(), entry, b"source")
+        )

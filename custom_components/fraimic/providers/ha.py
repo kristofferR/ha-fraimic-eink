@@ -12,17 +12,18 @@ import asyncio
 import io
 import logging
 import random
-from dataclasses import replace
+from dataclasses import asdict, replace
 
 import aiohttp
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from ..artwork_cache import get_artwork_cache
 from ..const import DOMAIN, PROVIDER_SHUFFLE
 from . import MUSEUM_KEYS, available_provider_keys, get_provider
 from .base import ArtFetchError as _BaseArtFetchError
-from .base import ArtImage, BrowsePage, FetchRequest
+from .base import ArtCandidate, ArtImage, BrowsePage, FetchRequest
 from .cache import ProviderCache
 from .engine import async_download_candidate, async_pick_and_download
 
@@ -32,8 +33,38 @@ BROWSE_STASH_TTL = 3600.0
 BROWSE_STASH_LIMIT = 256
 BROWSE_STASH_CACHE_LIMIT = 32
 GALLERY_CACHE_TTL = 10 * 60.0
+GALLERY_DISK_CACHE_TTL = 24 * 60 * 60.0
 GALLERY_CACHE_LIMIT = 128
 PROVIDER_CACHE_LIMIT = 128
+
+
+def artwork_source_cache_id(
+    provider_key: str, item_id: str, *, thumbnail: bool = False
+) -> str:
+    """Stable cache id for a concrete provider item and rendition."""
+    rendition = "thumbnail" if thumbnail else "original"
+    return f"provider:{provider_key}:{item_id}:{rendition}"
+
+
+def _candidate_cache_id(provider_key: str, item_id: str) -> str:
+    return f"candidate:{provider_key}:{item_id}"
+
+
+def _candidate_result_to_dict(candidates: list, exhausted: bool) -> dict:
+    return {
+        "candidates": [asdict(candidate) for candidate in candidates],
+        "exhausted": exhausted,
+    }
+
+
+def _candidate_result_from_dict(value: object) -> dict | None:
+    if not isinstance(value, dict) or not isinstance(value.get("candidates"), list):
+        return None
+    try:
+        candidates = [ArtCandidate(**raw) for raw in value["candidates"]]
+    except (TypeError, ValueError):
+        return None
+    return {"candidates": candidates, "exhausted": value.get("exhausted") is True}
 
 
 class ArtFetchError(HomeAssistantError):
@@ -136,6 +167,10 @@ async def async_fetch_art(
         raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
     except Exception as err:  # noqa: BLE001 - provider parser/decoder failures vary
         raise ArtFetchError(f"{provider.name}: {err}") from err
+    if disk_cache := get_artwork_cache(hass):
+        await disk_cache.async_store_source(
+            artwork_source_cache_id(key, image.candidate.item_id), entry, image.data
+        )
     return image
 
 
@@ -181,6 +216,7 @@ async def async_browse_candidates(
     count: int = 20,
     *,
     query: str | None = None,
+    refresh: bool = False,
 ) -> list:
     """Fresh candidates for the media browser; stashed for later play-by-id."""
     provider = get_provider(provider_key)
@@ -191,7 +227,20 @@ async def async_browse_candidates(
         f"gallery_{entry.entry_id}_{provider_key}_{normalized_query.casefold()}"
     )
     result_cache = _gallery_cache(hass)
-    cached_result = result_cache.get(result_key, GALLERY_CACHE_TTL)
+    cached_result = (
+        None if refresh else result_cache.get(result_key, GALLERY_CACHE_TTL)
+    )
+    disk_cache = get_artwork_cache(hass)
+    if disk_cache is not None and not disk_cache.policy_for(entry).enabled:
+        disk_cache = None
+    if cached_result is None and not refresh and disk_cache is not None:
+        cached_result = _candidate_result_from_dict(
+            await disk_cache.async_get_metadata(
+                result_key, entry, max_age=GALLERY_DISK_CACHE_TTL
+            )
+        )
+        if cached_result is not None:
+            result_cache.set(result_key, cached_result)
     if isinstance(cached_result, dict):
         candidates = cached_result["candidates"]
         exhausted = cached_result["exhausted"]
@@ -208,7 +257,9 @@ async def async_browse_candidates(
             lock = asyncio.Lock()
             locks[lock_key] = lock
         async with lock:
-            cached_result = result_cache.get(result_key, GALLERY_CACHE_TTL)
+            cached_result = (
+                None if refresh else result_cache.get(result_key, GALLERY_CACHE_TTL)
+            )
             if isinstance(cached_result, dict):
                 candidates = cached_result["candidates"]
                 exhausted = cached_result["exhausted"]
@@ -266,6 +317,12 @@ async def async_browse_candidates(
                     result_key,
                     {"candidates": candidates, "exhausted": exhausted},
                 )
+                if disk_cache is not None:
+                    await disk_cache.async_store_metadata(
+                        result_key,
+                        _candidate_result_to_dict(candidates, exhausted),
+                        entry,
+                    )
     # Daily providers have no by-id lookup; the browse stash covers the gap
     # between browsing and clicking.
     _stash_candidates(hass, entry, provider_key, candidates)
@@ -311,6 +368,19 @@ async def async_candidate_by_media_id(
         or {}
     )
     candidate = stash.get(item_id)
+    disk_cache = get_artwork_cache(hass)
+    policy = disk_cache.policy_for(entry) if disk_cache is not None else None
+    if candidate is None and policy is not None and policy.enabled:
+        cached_candidate = await disk_cache.async_get_metadata(
+            _candidate_cache_id(provider_key, item_id),
+            entry,
+            max_age=policy.retention,
+        )
+        if isinstance(cached_candidate, dict):
+            try:
+                candidate = ArtCandidate(**cached_candidate)
+            except (TypeError, ValueError):
+                candidate = None
     try:
         if candidate is None:
             candidate = await provider.async_by_id(
@@ -323,6 +393,10 @@ async def async_candidate_by_media_id(
     except Exception as err:  # noqa: BLE001 - provider parser/decoder failures vary
         raise ArtFetchError(f"{provider.name}: {err}") from err
     _stash_candidates(hass, entry, provider_key, [candidate])
+    if disk_cache is not None and policy is not None and policy.enabled:
+        await disk_cache.async_store_metadata(
+            _candidate_cache_id(provider_key, item_id), asdict(candidate), entry
+        )
     return candidate
 
 
@@ -345,8 +419,23 @@ async def async_art_by_media_id(
         else candidate
     )
     session = async_get_clientsession(hass)
+    disk_cache = get_artwork_cache(hass)
+    cache_id = artwork_source_cache_id(
+        provider_key, item_id, thumbnail=thumbnail
+    )
+
+    async def _download() -> bytes:
+        return (
+            await async_download_candidate(provider, session, download_candidate)
+        ).data
+
     try:
-        return await async_download_candidate(provider, session, download_candidate)
+        data = (
+            await disk_cache.async_get_or_fetch_source(cache_id, entry, _download)
+            if disk_cache is not None
+            else await _download()
+        )
+        return ArtImage(data=data, candidate=download_candidate)
     except _BaseArtFetchError as err:
         raise ArtFetchError(f"{provider.name}: {err}") from err
     except (aiohttp.ClientError, asyncio.TimeoutError) as err:

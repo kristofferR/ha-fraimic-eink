@@ -16,15 +16,19 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from ..const import (
+    ARTWORK_CACHE_30_DAYS,
+    ARTWORK_CACHE_FOREVER,
     ATTR_CONTRAST,
     ATTR_FIT,
     ATTR_MODE,
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
+    CONF_ARTWORK_CACHE,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
+    DEFAULT_ARTWORK_CACHE,
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
@@ -130,8 +134,23 @@ async def _async_picture_source(
                 download_url = metadata.get("download_url")
                 if not isinstance(download_url, str) or not download_url:
                     raise
-                raw = await async_get_source_bytes(
-                    hass, url=download_url, redact_url=True
+
+                async def _download_fallback() -> bytes:
+                    return await async_get_source_bytes(
+                        hass, url=download_url, redact_url=True
+                    )
+
+                from ..artwork_cache import get_artwork_cache
+
+                disk_cache = get_artwork_cache(hass)
+                raw = (
+                    await disk_cache.async_get_or_fetch_source(
+                        f"provider:{provider_key}:{item_id}:original",
+                        entry,
+                        _download_fallback,
+                    )
+                    if disk_cache is not None
+                    else await _download_fallback()
                 )
         else:
             art = await async_fetch_art(
@@ -184,6 +203,59 @@ def _picture_overrides(source: dict) -> dict:
     return overrides
 
 
+def _picture_cache_id(screen: ScreenConfig) -> str | None:
+    """Stable cache identity for a fixed online picture slide."""
+    source = screen.source or {}
+    provider = source.get("provider")
+    item_id = source.get("provider_item")
+    if not provider or not item_id:
+        return None
+    return f"provider:{provider}:{item_id}:original"
+
+
+async def async_prepare_screen(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> bool:
+    """Download and convert one cacheable picture without changing the display.
+
+    Dynamic dashboards, entity/URL pictures, and random-provider slides are
+    intentionally skipped: preparing those early would freeze data that is
+    expected to be fresh at display time.
+    """
+    if screen.kind != KIND_PICTURE:
+        return False
+    source = screen.source or {}
+    overrides = _picture_overrides(source)
+    if image_id := source.get("library_image"):
+        from ..library import get_library
+
+        library = get_library(hass)
+        if library is None:
+            return False
+        await library.async_render_for_entry(image_id, entry, overrides)
+        return True
+    if entry.options.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE) not in {
+        ARTWORK_CACHE_30_DAYS,
+        ARTWORK_CACHE_FOREVER,
+    }:
+        return False
+    cache_id = _picture_cache_id(screen)
+    if cache_id is None:
+        return False
+    from ..services import async_convert_for_entry
+
+    raw, overrides, _art = await _async_picture_source(hass, entry, screen)
+    await async_convert_for_entry(
+        hass,
+        entry,
+        raw,
+        overrides,
+        preprocess=True,
+        cache_id=cache_id,
+    )
+    return True
+
+
 async def async_show_screen(
     hass: HomeAssistant,
     entry,
@@ -217,6 +289,7 @@ async def async_show_screen(
         art = None
         art_info: dict | None = None
         rendered = None
+        picture_cache_id = None
         if screen.kind == KIND_PICTURE:
             source = screen.source or {}
             if image_id := source.get("library_image"):
@@ -232,6 +305,7 @@ async def async_show_screen(
                 png = b""
             else:
                 png, overrides, art = await _async_picture_source(hass, entry, screen)
+                picture_cache_id = _picture_cache_id(screen)
             art_info = _public_art_dict(art.candidate) if art is not None else None
             if isinstance(source.get("metadata"), dict):
                 art_info = {**source["metadata"], **(art_info or {})}
@@ -257,8 +331,11 @@ async def async_show_screen(
             from ..overlays import async_apply_frame_overlays
 
             if rendered is None:
+                convert_kwargs = {"preprocess": True}
+                if picture_cache_id is not None:
+                    convert_kwargs["cache_id"] = picture_cache_id
                 rendered = await async_convert_for_entry(
-                    hass, entry, png, overrides, preprocess=True
+                    hass, entry, png, overrides, **convert_kwargs
                 )
             base_preview = rendered[1]
             if base_preview is not None:
@@ -279,8 +356,11 @@ async def async_show_screen(
 
         if preview_only:
             if rendered is None:
+                convert_kwargs = {"preprocess": preprocess}
+                if picture_cache_id is not None:
+                    convert_kwargs["cache_id"] = picture_cache_id
                 rendered = await async_convert_for_entry(
-                    hass, entry, png, overrides, preprocess=preprocess
+                    hass, entry, png, overrides, **convert_kwargs
                 )
             bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
@@ -300,6 +380,8 @@ async def async_show_screen(
         }
         if rendered is not None:
             upload_kwargs["rendered"] = rendered
+        elif picture_cache_id is not None:
+            upload_kwargs["cache_id"] = picture_cache_id
         if trigger != TRIGGER_MANUAL:
             upload_kwargs["trigger"] = trigger
         result = await async_render_and_upload(

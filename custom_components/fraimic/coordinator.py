@@ -63,6 +63,10 @@ class FraimicRuntimeData:
         # Preview known (or accepted-with-timeout) to be on the frame. Player
         # artwork must use this so deferred renders never replace the glass.
         self.displayed_preview: bytes | None = None
+        # Cache-buster for the fixed player-artwork URL. Incrementing on every
+        # accepted preview keeps the now-playing thumbnail in lockstep with the
+        # panel even when the browser retains an older signed URL in memory.
+        self.displayed_preview_version = 0
         # Playlist scheduler (set during entry setup; None until then).
         self.scheduler: Any = None
         # Queued-send manager (send_queue.FraimicSendQueue; set during setup).
@@ -87,6 +91,7 @@ class FraimicRuntimeData:
         """Keep every representation of the preview on the glass in sync."""
         self.last_preview = preview_png
         self.displayed_preview = preview_png
+        self.displayed_preview_version += 1
         self.last_overlay_count = overlay_count
         if self.preview_image is not None:
             self.preview_image.set_preview(preview_png, mode)

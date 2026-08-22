@@ -19,6 +19,7 @@ rotation.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 import time
@@ -33,13 +34,13 @@ from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH, DOMAIN
 from .coordinator import FraimicConfigEntry
 from .power import TRIGGER_MANUAL, TRIGGER_PLAYLIST
 from .providers.ha import ArtFetchError
 from .render.display import async_show_screen
 from .render.playlist import eligible, next_screen
-from .render.schema import ScreenConfig
+from .render.schema import KIND_PICTURE, ScreenConfig
 from .screens import screens_from_entry
 from .services import FrameUploadError
 
@@ -97,6 +98,8 @@ class FraimicScheduler:
         self._unsub_timer: Callable[[], None] | None = None
         self._unsub_coordinator: Callable[[], None] | None = None
         self._listeners: list[Callable[[], None]] = []
+        self._prefetch_task: asyncio.Task | None = None
+        self._prefetch_again = False
 
     def _load_assigned_playlist(self) -> None:
         """Refresh the assigned catalog playlist or use the legacy slide list."""
@@ -190,6 +193,7 @@ class FraimicScheduler:
                 self._coordinator_updated
             )
         )
+        self._schedule_prefetch()
 
     @callback
     def async_stop(self) -> None:
@@ -199,6 +203,9 @@ class FraimicScheduler:
         if self._unsub_coordinator is not None:
             self._unsub_coordinator()
             self._unsub_coordinator = None
+        if self._prefetch_task is not None:
+            self._prefetch_task.cancel()
+            self._prefetch_task = None
 
     # -- entity plumbing ---------------------------------------------------
 
@@ -438,6 +445,7 @@ class FraimicScheduler:
             self._queued_ids.append(slide.screen_id)
         await self._async_save()
         self._notify()
+        self._schedule_prefetch()
 
     async def async_remove_from_queue(self, index: int, slide_id: str) -> None:
         """Remove one hand-added queue item by its visible position."""
@@ -451,6 +459,7 @@ class FraimicScheduler:
         self._sync_pending_queue_head()
         await self._async_save()
         self._notify()
+        self._schedule_prefetch()
 
     async def async_play_queue_item(
         self, section: str, index: int, slide_id: str
@@ -495,6 +504,67 @@ class FraimicScheduler:
         self._sync_pending_queue_head()
         await self._async_save()
         self._notify()
+        self._schedule_prefetch()
+
+    async def async_prune_library_image(self, image_id: str) -> bool:
+        """Remove scheduler-owned references to a deleted library image."""
+
+        def uses_image(screen: ScreenConfig | None) -> bool:
+            source = getattr(screen, "source", None) or {}
+            return source.get("library_image") == image_id
+
+        screen_ids = {
+            screen.screen_id for screen in self.screens if uses_image(screen)
+        }
+        matching_ids = screen_ids | {
+            slide_id
+            for slide_id in {
+                *self._queued_ids,
+                *self._external_queue,
+                self.current_id,
+                self._pending.screen_id if self._pending is not None else None,
+            }
+            if slide_id is not None and uses_image(self._slide_by_id(slide_id))
+        }
+        if not matching_ids and not uses_image(self._pending):
+            return False
+
+        subentries = getattr(self.entry, "subentries", {})
+        for screen_id in screen_ids:
+            if screen_id in subentries:
+                self.hass.config_entries.async_remove_subentry(
+                    self.entry, screen_id
+                )
+        self.screens = [screen for screen in self.screens if not uses_image(screen)]
+        self._playback_order = [
+            slide_id
+            for slide_id in self._playback_order
+            if slide_id not in screen_ids
+        ]
+        self._playlist_order = [
+            slide_id
+            for slide_id in self._playlist_order
+            if slide_id not in screen_ids
+        ]
+        self._queued_ids = [
+            slide_id for slide_id in self._queued_ids if slide_id not in matching_ids
+        ]
+        if self.current_id in matching_ids:
+            self.current_id = None
+        if self._playlist_cursor_id in matching_ids:
+            self._playlist_cursor_id = None
+        if uses_image(self._pending):
+            self._pending = None
+            self._pending_requires_enabled = True
+            self._pending_from_queue = False
+            self._pending_hold_on_success = False
+        for slide_id in matching_ids:
+            self._external_queue.pop(slide_id, None)
+            self._external_queue_data.pop(slide_id, None)
+        await self._async_save()
+        self._notify()
+        self._schedule_prefetch()
+        return True
 
     async def async_reorder_queue(self, ordered_ids: list[str]) -> None:
         """Replace the hand-added order after validating an optimistic reorder."""
@@ -504,6 +574,7 @@ class FraimicScheduler:
         self._sync_pending_queue_head()
         await self._async_save()
         self._notify()
+        self._schedule_prefetch()
 
     def _sync_pending_queue_head(self) -> None:
         """Keep a sleeping frame's pending retry aligned with the queue head."""
@@ -547,6 +618,7 @@ class FraimicScheduler:
         self._playlist_order = [screen.screen_id for screen in self.screens]
         await self._async_save()
         self._notify()
+        self._schedule_prefetch()
 
     async def async_refresh_playlist(
         self, *, reset: bool = False, start: bool = False
@@ -586,6 +658,7 @@ class FraimicScheduler:
             self._hold_until = None
         await self._async_save()
         self._notify()
+        self._schedule_prefetch()
         if start and (self.screens or self.queued_slides):
             await self._async_rotate(force=True)
 
@@ -612,12 +685,15 @@ class FraimicScheduler:
     @callback
     def finish_external_upload(self, *, uploaded: bool, hold: bool = True) -> None:
         self._external_upload_count = max(0, self._external_upload_count - 1)
-        if self._external_upload_count == 0:
+        became_idle = self._external_upload_count == 0
+        if became_idle:
             self._external_upload_started_at = None
         if uploaded:
             self.notify_external_upload(hold=hold)
         else:
             self._notify()
+        if became_idle:
+            self._schedule_prefetch()
 
     @callback
     def notify_external_upload(self, *, hold: bool = True) -> None:
@@ -875,6 +951,92 @@ class FraimicScheduler:
             self._busy_started_at = None
             self._sending_slide_name = None
             self._notify()
+            self._schedule_prefetch()
+
+    # -- background preparation -------------------------------------------
+
+    def _prefetch_screens(self) -> list[ScreenConfig]:
+        """Upcoming hand-queue and playlist pictures in actual play order."""
+        options = getattr(self.entry, "options", {})
+        try:
+            limit = int(
+                options.get(CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH)
+            )
+        except (TypeError, ValueError):
+            limit = DEFAULT_PLAYLIST_PREFETCH
+        if limit <= 0:
+            return []
+        queued = self.queued_slides
+        if not self.enabled and not queued:
+            return []
+        result: list[ScreenConfig] = []
+        seen: set[str] = set()
+        candidates = [
+            *queued,
+            *(
+                self.playlist_up_next(limit=len(self.screens))
+                if self.enabled
+                else []
+            ),
+        ]
+        for screen in candidates:
+            source = getattr(screen, "source", None) or {}
+            preparable = getattr(screen, "kind", None) == KIND_PICTURE and bool(
+                source.get("library_image")
+                or (source.get("provider") and source.get("provider_item"))
+            )
+            if screen.screen_id in seen or not preparable:
+                continue
+            result.append(screen)
+            seen.add(screen.screen_id)
+            if len(result) >= limit:
+                break
+        return result
+
+    def _schedule_prefetch(self) -> None:
+        """Start or refresh the single serial preparation worker."""
+        if not self._prefetch_screens():
+            return
+        if self._prefetch_task is not None and not self._prefetch_task.done():
+            self._prefetch_again = True
+            return
+        create = getattr(self.hass, "async_create_background_task", None)
+        if create is None:
+            return
+        self._prefetch_task = create(
+            self._async_prefetch(), name=f"fraimic_prefetch_{self.entry.entry_id}"
+        )
+
+    async def _async_prefetch(self) -> None:
+        """Prepare fixed upcoming art serially and without touching runtime state."""
+        try:
+            while True:
+                self._prefetch_again = False
+                for screen in self._prefetch_screens():
+                    if self._busy or self.external_upload_active:
+                        return
+                    try:
+                        from .render.display import async_prepare_screen
+
+                        await async_prepare_screen(self.hass, self.entry, screen)
+                    except asyncio.CancelledError:
+                        raise
+                    except HomeAssistantError as err:
+                        _LOGGER.debug(
+                            "Could not prepare playlist picture %r: %s",
+                            screen.name,
+                            err,
+                        )
+                    except Exception as err:  # noqa: BLE001 - best-effort worker
+                        _LOGGER.warning(
+                            "Preparing playlist picture %r failed unexpectedly: %s",
+                            screen.name,
+                            err,
+                        )
+                if not self._prefetch_again:
+                    return
+        finally:
+            self._prefetch_task = None
 
     @callback
     def _coordinator_updated(self) -> None:

@@ -18,6 +18,26 @@ CONF_FRAME_MODEL: Final = "frame_model"
 CONF_ROTATION: Final = "rotation"
 CONF_POWER_MODE: Final = "power_mode"
 CONF_AUTO_SLEEP: Final = "auto_sleep_after_upload"
+CONF_ARTWORK_CACHE: Final = "artwork_cache"
+CONF_ARTWORK_CACHE_MAX_MB: Final = "artwork_cache_max_mb"
+CONF_PLAYLIST_PREFETCH: Final = "playlist_prefetch_items"
+
+ARTWORK_CACHE_OFF: Final = "off"
+ARTWORK_CACHE_30_DAYS: Final = "30_days"
+ARTWORK_CACHE_FOREVER: Final = "forever"
+ARTWORK_CACHE_MODES: Final = (
+    ARTWORK_CACHE_OFF,
+    ARTWORK_CACHE_30_DAYS,
+    ARTWORK_CACHE_FOREVER,
+)
+DEFAULT_ARTWORK_CACHE: Final = ARTWORK_CACHE_30_DAYS
+# The size limit applies to the bounded 30-day mode. ``forever`` is explicitly
+# unlimited: users selecting it are opting into keeping every source/render.
+DEFAULT_ARTWORK_CACHE_MAX_MB: Final = 2048
+MIN_ARTWORK_CACHE_MAX_MB: Final = 128
+MAX_ARTWORK_CACHE_MAX_MB: Final = 1_000_000
+DEFAULT_PLAYLIST_PREFETCH: Final = 3
+MAX_PLAYLIST_PREFETCH: Final = 12
 
 POWER_MODE_MINIMUM: Final = "minimum"
 POWER_MODE_BALANCED: Final = "balanced"
@@ -208,6 +228,7 @@ AUTO_DOMINANCE_THRESHOLD: Final = 0.7
 # rendered .bin/.png pairs are cached per (resolution + conversion params) so a
 # playlist/scene can re-send an image without paying the dither cost again.
 LIBRARY_DIR: Final = "fraimic_library"
+ARTWORK_CACHE_DIR: Final = "fraimic_cache"
 LIBRARY_ALBUM_DEFAULT: Final = "Images"
 # Longest edge of the JPEG thumbnails served to the panel grid.
 LIBRARY_THUMB_SIZE: Final = 480

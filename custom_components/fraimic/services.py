@@ -614,6 +614,7 @@ async def async_convert_for_entry(
     overrides: dict | None = None,
     *,
     preprocess: bool = True,
+    cache_id: str | None = None,
 ) -> tuple[bytes, bytes | None, str]:
     """Convert ``raw`` image bytes for ``entry``'s frame, without uploading.
 
@@ -627,6 +628,10 @@ async def async_convert_for_entry(
 
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    if height % 4:
+        raise HomeAssistantError(
+            f"Frame resolution {width}x{height} has a height that is not divisible by 4"
+        )
     # Guard before the (memory-heavy) conversion so an absurd custom resolution
     # can't OOM Home Assistant; the frame would reject it post-conversion anyway.
     if width * height // 2 > MAX_BIN_SIZE:
@@ -653,25 +658,57 @@ async def async_convert_for_entry(
     preview_rotate = (-base_rotation) % 360
 
     requested_mode = _resolve_mode(overrides, options)
-    try:
-        bin_data, preview_png, used_mode = await hass.async_add_executor_job(
-            _convert,
-            raw,
-            width,
-            height,
-            fit,
-            rotate,
-            requested_mode,
-            saturation,
-            contrast,
-            sharpen,
-            tone,
-            preview_rotate,
-            crop,
-            preprocess,
-        )
-    except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
-        raise HomeAssistantError(f"Could not convert the image: {err}") from err
+    async def _create() -> tuple[bytes, bytes | None, str]:
+        try:
+            return await hass.async_add_executor_job(
+                _convert,
+                raw,
+                width,
+                height,
+                fit,
+                rotate,
+                requested_mode,
+                saturation,
+                contrast,
+                sharpen,
+                tone,
+                preview_rotate,
+                crop,
+                preprocess,
+            )
+        except Exception as err:  # noqa: BLE001 - Pillow decoder errors vary
+            raise HomeAssistantError(f"Could not convert the image: {err}") from err
+
+    rendered = None
+    if cache_id:
+        from .artwork_cache import get_artwork_cache, raw_digest
+        from .library_model import render_cache_key
+
+        if artwork_cache := get_artwork_cache(hass):
+            cache_params = {
+                "width": width,
+                "height": height,
+                "fit": fit,
+                "rotate": rotate,
+                "preview_rotate": preview_rotate,
+                "mode": requested_mode,
+                "saturation": saturation,
+                "contrast": contrast,
+                "sharpen": sharpen,
+                "tone": tone,
+                "crop": crop,
+                "preprocess": preprocess,
+            }
+            rendered = await artwork_cache.async_get_or_create_render(
+                cache_id,
+                raw_digest(raw),
+                render_cache_key(cache_params),
+                entry,
+                _create,
+            )
+    if rendered is None:
+        rendered = await _create()
+    bin_data, preview_png, used_mode = rendered
 
     if requested_mode == MODE_AUTO:
         _LOGGER.info("Fraimic auto-selected dither mode '%s' for this image", used_mode)
@@ -691,6 +728,7 @@ async def async_render_and_upload(
     title: str | None = None,
     trigger: str = TRIGGER_MANUAL,
     rendered: tuple[bytes, bytes | None, str] | None = None,
+    cache_id: str | None = None,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
@@ -709,10 +747,15 @@ async def async_render_and_upload(
     content on the next cycle anyway. ``title`` labels the send in the
     ``send_status`` sensor.
     ``rendered`` supplies an existing cached conversion for library pictures.
+    ``cache_id`` enables the persistent cache for a fixed online picture.
     """
     runtime = entry.runtime_data
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
     height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    if height % 4:
+        raise HomeAssistantError(
+            f"Frame resolution {width}x{height} has a height that is not divisible by 4"
+        )
     if width * height // 2 > MAX_BIN_SIZE:
         raise HomeAssistantError(
             f"Frame resolution {width}x{height} is too large to render"
@@ -724,7 +767,12 @@ async def async_render_and_upload(
         async with runtime.upload_lock:
             if rendered is None:
                 rendered = await async_convert_for_entry(
-                    hass, entry, raw, overrides, preprocess=preprocess
+                    hass,
+                    entry,
+                    raw,
+                    overrides,
+                    preprocess=preprocess,
+                    cache_id=cache_id,
                 )
             bin_data, preview_png, used_mode = rendered
             if len(bin_data) > MAX_BIN_SIZE:
@@ -744,11 +792,16 @@ async def async_render_and_upload(
             )
             if reason is not None:
                 if preview_png:
-                    runtime.last_preview = preview_png
-                    if runtime.preview_image is not None:
-                        runtime.preview_image.set_preview(preview_png, used_mode)
                     if reason == SKIP_DUPLICATE:
-                        runtime.displayed_preview = preview_png
+                        # The packed content is already on the frame, but the
+                        # browser may still be showing the previous player
+                        # artwork URL. Use the shared setter so its version is
+                        # advanced just like a real upload.
+                        runtime.set_displayed_preview(preview_png, used_mode)
+                    else:
+                        runtime.last_preview = preview_png
+                        if runtime.preview_image is not None:
+                            runtime.preview_image.set_preview(preview_png, used_mode)
                 queue = runtime.send_queue if queue_if_asleep else None
                 queued = False
                 if reason in DEFER_REASONS and queue is not None:

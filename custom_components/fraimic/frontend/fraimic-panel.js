@@ -4,8 +4,8 @@ const API = "/api/fraimic";
 const SEARCH_DELAY = 350;
 const SOURCE_LIMIT = 40;
 const ALL_SOURCES_LIMIT = 8;
-const INITIAL_RENDER_LIMIT = 80;
-const RENDER_PAGE_SIZE = 80;
+const INITIAL_RENDER_LIMIT = 60;
+const RENDER_PAGE_SIZE = 60;
 const SIGNED_PATH_LIMIT = 512;
 const QUEUE_SNAPS = [220, 320, 420];
 const PALETTE = ["black", "white", "yellow", "red", "blue", "green", "neutral"];
@@ -32,6 +32,17 @@ const h = (value) => String(value ?? "")
   .replaceAll(">", "&gt;")
   .replaceAll('"', "&quot;")
   .replaceAll("'", "&#039;");
+
+const storedArray = (key, fallback = []) => {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "null");
+    return Array.isArray(value) ? value.filter((item) => typeof item === "string") : fallback;
+  } catch (_error) { return fallback; }
+};
+
+const storeValue = (key, value) => {
+  try { localStorage.setItem(key, value); } catch (_error) { /* storage is optional */ }
+};
 
 const css = String.raw`
   :host {
@@ -104,7 +115,7 @@ const css = String.raw`
   .search input { height: 34px; min-height: 34px; padding-left: 36px; }
   .counter { color: var(--muted); font-size: 12px; white-space: nowrap; }
   main { min-height: calc(100vh - var(--top-h) - var(--player-h)); }
-  .browse-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: calc(100vh - var(--top-h) - var(--filter-h) - var(--player-h)); }
+  .browse-layout { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: calc(100vh - var(--top-h) - var(--filter-h) - var(--player-h)); }
   .browse-results { min-width: 0; }
   .source-rail {
     position: sticky; top: calc(var(--top-h) + var(--filter-h)); align-self: start;
@@ -116,9 +127,18 @@ const css = String.raw`
     padding: 11px 9px 5px; color: var(--muted); font-size: 10px;
     font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
   }
+  .source-tree { position: relative; }
+  .source-tree.drag-over::before { content: ""; position: absolute; z-index: 2; left: 6px; right: 6px; top: 0; height: 2px; background: var(--accent); }
+  .source-tree-row { display: flex; align-items: center; min-width: 0; }
+  .source-grip { width: 22px; min-height: 36px; display: grid; place-items: center; color: var(--muted); cursor: grab; opacity: .45; }
+  .source-tree:hover > .source-tree-row > .source-grip, .source-grip:focus-visible { opacity: 1; }
+  .source-expand { width: 26px; min-height: 36px; display: grid; place-items: center; color: var(--muted); }
+  .source-expand ha-icon { transition: transform 140ms ease; }
+  .source-expand[aria-expanded="true"] ha-icon { transform: rotate(90deg); }
+  .source-expand-placeholder { width: 26px; flex: none; }
   .source-option {
-    width: 100%; min-height: 38px; display: flex; align-items: center; gap: 7px;
-    padding: 5px 9px; border-left: 2px solid transparent; color: var(--muted);
+    min-width: 0; min-height: 38px; flex: 1; display: flex; align-items: center; gap: 7px;
+    padding: 5px 7px; border-left: 2px solid transparent; color: var(--muted);
     text-align: left;
   }
   .source-option:hover { color: var(--text); background: var(--secondary-background-color); }
@@ -127,6 +147,14 @@ const css = String.raw`
   .source-option span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .source-option .source-meta { margin-left: auto; color: var(--muted); font-size: 10px; }
   .source-option ha-icon { --mdc-icon-size: 16px; flex: none; }
+  .source-children { display: none; padding-left: 32px; }
+  .source-children.open { display: block; }
+  .source-child-row { display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; min-width: 0; }
+  .source-child-row .source-expand { width: 22px; }
+  .source-child-row .source-expand-placeholder { width: 22px; }
+  .source-child-row .source-option { min-height: 34px; padding-top: 3px; padding-bottom: 3px; font-size: 12px; }
+  .source-child-row > .source-children { grid-column: 2; width: 100%; padding-left: 12px; }
+  .source-divider { height: 1px; margin: 10px 7px 3px; background: var(--line); }
   .content { padding: 18px 16px 28px; }
   .failure {
     display: flex; align-items: center; gap: 8px; padding: 10px 16px;
@@ -137,7 +165,14 @@ const css = String.raw`
   .row-head .sub { color: var(--muted); font-size: 12px; }
   .strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 190px); gap: 12px; overflow-x: auto; padding: 2px 2px 8px; }
   .masonry { columns: 180px; column-gap: 14px; }
-  .tile { display: inline-block; width: 100%; margin: 0 0 17px; break-inside: avoid; border-radius: 8px; }
+  .tile {
+    display: inline-block; width: 100%; margin: 0 0 17px;
+    break-inside: avoid; border-radius: 8px; contain: paint;
+  }
+  .tile:focus-visible {
+    outline: 0;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
   .strip .tile { display: block; margin: 0; }
   .art {
     position: relative; width: 100%; aspect-ratio: var(--art-aspect, 4 / 3);
@@ -239,22 +274,46 @@ const css = String.raw`
   .slide-row .row-art { width: 64px; }
   .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--primary-background-color) 72%, transparent); }
   .dialog { width: min(880px, 92vw); max-height: 90vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
-  .dialog-title { height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--line); }
+  .dialog-title { min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
+  .dialog-heading { min-width: 0; }
   .dialog-title h2 { margin: 0; font-size: 16px; }
+  .dialog-subtitle { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: var(--muted); font-size: 12px; }
+  .dialog-header-actions { display: flex; align-items: center; gap: 2px; }
   .dialog-body { padding: 16px; }
   .dialog-actions { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
-  .detail-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr); gap: 22px; }
-  .detail-art { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 8px; background: #0d0d0d; }
+  .dialog.detail-dialog { width: min(1120px, 94vw); }
+  .detail-dialog .dialog-body { padding: 0; }
+  .detail-grid { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(280px, .62fr); }
+  .detail-workspace { min-width: 0; padding: 20px; border-right: 1px solid var(--line); }
+  .detail-inspector { min-width: 0; padding: 20px; background: var(--secondary-background-color); }
+  .detail-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .detail-section-head h3 { margin: 0; font-size: 13px; }
   .crop-stage { position: relative; width: 100%; aspect-ratio: var(--art-aspect, 4 / 3); border-radius: 8px; overflow: hidden; background: #0d0d0d; }
   .crop-stage > img { width: 100%; height: 100%; object-fit: fill; display: block; }
-  .crop-window { position: absolute; border: 2px solid var(--primary-text-color); box-shadow: 0 0 0 9999px color-mix(in srgb, #0d0d0d 66%, transparent); cursor: move; touch-action: none; }
-  .crop-window::after { content: attr(data-label); position: absolute; left: -2px; bottom: -23px; padding: 2px 4px; color: var(--primary-text-color); background: #0d0d0d; font-size: 10px; white-space: nowrap; }
+  .crop-window { position: absolute; border: 2px solid var(--primary-text-color); box-shadow: 0 3px 16px color-mix(in srgb, #0d0d0d 35%, transparent); cursor: move; touch-action: none; }
+  .crop-window::after { content: attr(data-label); position: absolute; left: 0; bottom: 0; padding: 3px 5px; color: #fff; background: color-mix(in srgb, #0d0d0d 78%, transparent); font-size: 10px; white-space: nowrap; pointer-events: none; }
   .crop-resize { position: absolute; right: -8px; bottom: -8px; width: 18px; height: 18px; border: 2px solid var(--primary-text-color); background: var(--accent); cursor: nwse-resize; touch-action: none; }
   .crop-tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 26px 0 8px; }
-  .detail-meta { color: var(--muted); font-size: 12px; line-height: 1.5; }
-  .preview-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 16px; }
-  .preview-pair .glass { width: 100%; }
-  .preview-pair img { object-fit: contain; }
+  .crop-hint { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
+  .detail-setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 0; border-bottom: 1px solid var(--line); }
+  .detail-setting-copy { min-width: 0; }
+  .detail-setting h3, .artwork-details h3 { margin: 0; font-size: 13px; }
+  .detail-setting p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+  .detail-select { width: 116px; min-height: 36px; height: 36px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); flex: none; }
+  .artwork-details { padding-top: 18px; }
+  .detail-meta-list { margin: 10px 0 0; }
+  .detail-meta-row { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 10px; padding: 4px 0; font-size: 12px; line-height: 1.4; }
+  .detail-meta-row dt { color: var(--muted); }
+  .detail-meta-row dd { margin: 0; min-width: 0; }
+  .detail-text-link { min-height: auto; padding: 0; color: var(--accent); text-align: left; }
+  .detail-text-link:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .dialog-subtitle .detail-text-link { color: inherit; }
+  .detail-description { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+  .detail-links { display: flex; align-items: flex-start; gap: 5px; flex-direction: column; margin-top: 12px; }
+  .detail-links .btn { justify-content: flex-start; padding-left: 0; }
+  .favorite-btn[aria-pressed="true"] { color: var(--warning-color); }
+  .favorite-btn[aria-pressed="true"] ha-icon { --mdc-icon-size: 22px; }
+  .detail-ready { color: var(--muted); font-size: 12px; }
   .field { margin-bottom: 14px; }
   .field label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
   .field textarea { min-height: 82px; padding-top: 8px; }
@@ -305,8 +364,9 @@ const css = String.raw`
   @media (hover: none) { .actions { opacity: 1; } }
   @media (max-width: 900px) {
     .progress, .overlay-tag { display: none; }
-    .browse-layout { grid-template-columns: 150px minmax(0, 1fr); }
+    .browse-layout { grid-template-columns: 190px minmax(0, 1fr); }
     .editor-grid { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: minmax(0, 1.45fr) minmax(260px, .7fr); }
     .inspector { border-left: 0; border-top: 1px solid var(--line); }
   }
   @media (max-width: 599px) {
@@ -321,8 +381,14 @@ const css = String.raw`
       border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: none;
     }
     .source-rail::-webkit-scrollbar { display: none; }
-    .source-group { display: contents; }
+    .source-group, .source-tree, .source-tree-row, .source-child-row, .source-children.open { display: contents; }
     .source-group-label { display: none; }
+    .source-grip, .source-expand-placeholder, .source-children:not(.open), .source-divider { display: none; }
+    .source-expand {
+      width: 34px; min-width: 34px; min-height: 38px; flex: none;
+      border-bottom: 2px solid transparent;
+    }
+    .source-expand[aria-expanded="true"] { color: var(--text); border-bottom-color: var(--accent); }
     .source-option { width: auto; min-width: max-content; border-left: 0; border-bottom: 2px solid transparent; }
     .source-option.selected { border-bottom-color: var(--accent); }
     .search { min-width: 44px; width: 44px; }
@@ -335,6 +401,7 @@ const css = String.raw`
     .player-copy { max-width: 42vw; }
     .queue-sheet { height: calc(100vh - var(--player-h)) !important; max-height: calc(100vh - var(--player-h)); }
     .detail-grid { grid-template-columns: 1fr; }
+    .detail-workspace { border-right: 0; border-bottom: 1px solid var(--line); }
     .modal-backdrop { padding: 0; align-items: end; }
     .dialog { width: 100%; max-height: calc(100vh - 12px); border-radius: 9px 9px 0 0; }
     .playlist-head { flex-direction: column; }
@@ -355,6 +422,11 @@ class FraimicPanel extends HTMLElement {
     this._frames = [];
     this._selectedFrameId = localStorage.getItem("fraimic-frame") || null;
     this._sources = [];
+    this._sourceOrder = storedArray("fraimic-source-order");
+    this._expandedSources = new Set(storedArray("fraimic-expanded-sources", ["saved", "reframed", "@playlists"]));
+    this._sourceChildren = new Map();
+    this._sourceNodeMeta = new Map();
+    this._sourceTreeLoading = new Set();
     this._galleryBySource = new Map();
     this._galleryCursorBySource = new Map();
     this._galleryTotalBySource = new Map();
@@ -362,6 +434,8 @@ class FraimicPanel extends HTMLElement {
     this._facets = { artists: [], colours: [], collections: [], eras: [] };
     this._query = "";
     this._selectedSource = "all";
+    this._selectedBrowseId = "";
+    this._galleryTitle = "";
     this._colours = new Set();
     this._artist = "";
     this._era = "";
@@ -369,10 +443,11 @@ class FraimicPanel extends HTMLElement {
     this._rendersWell = false;
     this._galleryLoading = false;
     this._galleryGeneration = 0;
+    this._galleryRequestKey = null;
+    this._galleryLoadedAt = 0;
     this._sourcesGeneration = 0;
     this._playerGeneration = 0;
     this._detailGeneration = 0;
-    this._galleryRenderTimer = null;
     this._renderLimit = INITIAL_RENDER_LIMIT;
     this._route = "browse";
     this._playlistId = null;
@@ -388,6 +463,7 @@ class FraimicPanel extends HTMLElement {
     this._toastTimer = null;
     this._detail = null;
     this._detailOptions = null;
+    this._favoriteBusy = false;
     this._cropDrafts = new Map();
     this._uploads = [];
     this._addingToPlaylist = null;
@@ -432,7 +508,6 @@ class FraimicPanel extends HTMLElement {
     clearInterval(this._refreshTimer);
     clearTimeout(this._searchTimer);
     clearTimeout(this._toastTimer);
-    clearTimeout(this._galleryRenderTimer);
     this._imageObserver?.disconnect();
     this._boundsObserver?.disconnect();
   }
@@ -523,7 +598,7 @@ class FraimicPanel extends HTMLElement {
         this._player = null;
       }
       if (this._selectedFrameId) localStorage.setItem("fraimic-frame", this._selectedFrameId);
-      await Promise.all([this._loadPlayer(), this._loadPlaylists(), this._loadSources()]);
+      await Promise.all([this._loadPlayer(false), this._loadPlaylists(), this._loadSources()]);
       await this._loadRoute();
     } catch (error) {
       this._notify(this._friendlyError(error), { error: true });
@@ -532,7 +607,7 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _loadRoute() {
-    if (this._route === "browse") await this._loadGallery();
+    if (this._route === "browse") return this._loadGallery();
     if (this._route === "playlists") await this._loadPlaylists();
     if (this._route === "playlist" && this._playlistId) await this._loadPlaylist(this._playlistId);
     this._render();
@@ -545,6 +620,23 @@ class FraimicPanel extends HTMLElement {
     const data = await this._api(`gallery/sources?entry_id=${encodeURIComponent(entryId)}`);
     if (generation !== this._sourcesGeneration || entryId !== this._selectedFrameId) return;
     this._sources = data.sources || [];
+    for (const source of this._sources) {
+      if (!Array.isArray(source.children)) continue;
+      const key = this._sourceNodeKey(source.key, "");
+      this._sourceChildren.set(key, source.children);
+      this._sourceNodeMeta.set(key, { hasItems: Boolean(source.count), hasChildren: source.children.length > 0, loaded: true, title: source.name });
+    }
+    const current = new Set(this._sources.map((source) => source.key));
+    this._sourceOrder = [
+      ...this._sourceOrder.filter((key) => current.has(key)),
+      ...this._sources.map((source) => source.key).filter((key) => !this._sourceOrder.includes(key)),
+    ];
+    const preload = this._sources
+      .filter((source) => source.hierarchical && this._expandedSources.has(source.key) && !this._sourceChildren.has(this._sourceNodeKey(source.key, "")))
+      .map((source) => this._loadSourceNode(source.key, "", false));
+    if (preload.length) void Promise.all(preload).then(() => {
+      if (generation === this._sourcesGeneration && entryId === this._selectedFrameId) this._renderPreservingFocus();
+    });
   }
 
   async _loadPlaylists() {
@@ -575,17 +667,40 @@ class FraimicPanel extends HTMLElement {
       const changed = signature !== this._playerSignature;
       this._player = player;
       this._playerSignature = signature;
-      if (render && changed && !this._modal && !this._overlaysOpen && !this._queueDragging) this._renderPreservingFocus();
+      if (render && changed && !this._modal && !this._overlaysOpen && !this._queueDragging) {
+        this._renderPreservingFocus();
+      } else if (render && !changed) {
+        this._updatePlayerTiming();
+      }
     } catch (_error) { /* a frame may be reloading */ }
   }
 
   _playerRenderSignature(player) {
     const copy = structuredClone(player);
-    if (copy?.state !== "sending") {
-      if (copy?.seconds_elapsed != null) copy.seconds_elapsed = Math.floor(copy.seconds_elapsed / 60);
-      if (copy?.seconds_remaining != null) copy.seconds_remaining = Math.ceil(copy.seconds_remaining / 60);
-    }
+    // The fixed player bar does not justify rebuilding every gallery image
+    // whenever its five-second poll advances a timer.
+    if (copy?.seconds_elapsed != null) delete copy.seconds_elapsed;
+    if (copy?.seconds_remaining != null) delete copy.seconds_remaining;
     return JSON.stringify(copy);
+  }
+
+  _updatePlayerTiming() {
+    const player = this._player;
+    const current = player?.current || {};
+    const state = player?.state || "idle";
+    const meta = this.shadowRoot?.querySelector("[data-player-meta]");
+    if (meta && current.title && !["sending", "asleep", "unreachable"].includes(state)) {
+      meta.textContent = [
+        current.artist,
+        player.playlist_name,
+        player.paused ? "Paused" : this._timeLeft(player.seconds_remaining),
+      ].filter(Boolean).join(" · ");
+    }
+    const progress = this.shadowRoot?.querySelector("[data-player-progress]");
+    if (progress && player?.interval && state !== "sending") {
+      const percent = Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / player.interval * 100));
+      progress.style.width = `${percent}%`;
+    }
   }
 
   _startRefresh() {
@@ -593,45 +708,71 @@ class FraimicPanel extends HTMLElement {
     this._refreshTimer = setInterval(() => this._loadPlayer(), 5000);
   }
 
-  async _loadGallery() {
+  async _loadGallery(force = false) {
     if (!this._selectedFrameId) return;
+    const entryId = this._selectedFrameId;
     const generation = ++this._galleryGeneration;
-    this._loadingMore = false;
-    this._renderLimit = INITIAL_RENDER_LIMIT;
-    this._galleryBySource = new Map();
-    this._galleryCursorBySource = new Map();
-    this._galleryTotalBySource = new Map();
-    this._sourceStatus = new Map();
-    this._facets = { artists: [], colours: [], collections: [], eras: [] };
     const sources = this._selectedSource === "all"
       ? this._sources.filter((source) => source.available)
       : this._sources.filter((source) => source.key === this._selectedSource);
-    this._galleryLoading = true;
-    this._renderPreservingFocus();
     const query = this._query.trim();
+    const requestKey = `${entryId}\u0000${this._selectedSource}\u0000${this._selectedBrowseId}\u0000${query}`;
+    const replacesVisibleQuery = requestKey !== this._galleryRequestKey;
+    if (!force && !replacesVisibleQuery && this._galleryBySource.size
+      && Date.now() - this._galleryLoadedAt < 5 * 60 * 1000) {
+      this._galleryLoading = false;
+      this._renderPreservingFocus();
+      return;
+    }
+    this._loadingMore = false;
+    this._renderLimit = INITIAL_RENDER_LIMIT;
+    this._galleryRequestKey = requestKey;
+    this._galleryLoading = true;
+    // A manual refresh keeps the existing grid in place. A different query or
+    // source gets one stable skeleton and one atomic result swap; individual
+    // provider responses no longer repeatedly reorder the masonry.
+    if (replacesVisibleQuery) {
+      this._galleryBySource = new Map();
+      this._galleryCursorBySource = new Map();
+      this._galleryTotalBySource = new Map();
+      this._sourceStatus = new Map();
+      this._facets = { artists: [], colours: [], collections: [], eras: [] };
+      this._galleryTitle = this._selectedBrowseId ? this._galleryTitle : "";
+      this._renderPreservingFocus();
+    }
+    const nextBySource = new Map();
+    const nextCursorBySource = new Map();
+    const nextTotalBySource = new Map();
+    const nextStatus = new Map();
+    const nextFacets = { artists: [], colours: [], collections: [], eras: [] };
     const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
     await Promise.all(sources.map(async (source) => {
       try {
-        const params = new URLSearchParams({ entry_id: this._selectedFrameId, source: source.key, limit: String(limit) });
+        const params = new URLSearchParams({ entry_id: entryId, source: source.key, limit: String(limit) });
+        if (this._selectedSource !== "all" && this._selectedBrowseId) params.set("browse_id", this._selectedBrowseId);
         if (query) params.set("q", query);
+        if (force) params.set("refresh", "1");
         const data = await this._api(`gallery?${params}`);
-        if (generation !== this._galleryGeneration) return;
-        this._galleryBySource.set(source.key, data.results || []);
-        this._galleryCursorBySource.set(source.key, data.next_cursor ?? null);
-        this._galleryTotalBySource.set(source.key, data.total ?? (data.results || []).length);
-        this._sourceStatus.set(source.key, data.source_status?.[0] || { source: source.key, status: "ready" });
-        this._mergeFacets(data.facets || {});
-        this._scheduleGalleryRender();
+        if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
+        nextBySource.set(source.key, data.results || []);
+        nextCursorBySource.set(source.key, data.next_cursor ?? null);
+        nextTotalBySource.set(source.key, data.total ?? (data.results || []).length);
+        nextStatus.set(source.key, data.source_status?.[0] || { source: source.key, status: "ready" });
+        if (this._selectedSource !== "all" && data.title) this._galleryTitle = data.title;
+        this._mergeFacetsInto(nextFacets, data.facets || {});
       } catch (error) {
         if (generation !== this._galleryGeneration) return;
-        this._sourceStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
-        this._scheduleGalleryRender();
+        nextStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
       }
     }));
-    if (generation !== this._galleryGeneration) return;
-    clearTimeout(this._galleryRenderTimer);
-    this._galleryRenderTimer = null;
+    if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
+    this._galleryBySource = nextBySource;
+    this._galleryCursorBySource = nextCursorBySource;
+    this._galleryTotalBySource = nextTotalBySource;
+    this._sourceStatus = nextStatus;
+    this._facets = nextFacets;
     this._galleryLoading = false;
+    this._galleryLoadedAt = Date.now();
     if (query) localStorage.setItem("fraimic-last-search", query);
     this._renderPreservingFocus();
   }
@@ -652,6 +793,7 @@ class FraimicPanel extends HTMLElement {
       try {
         const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
         const params = new URLSearchParams({ entry_id: this._selectedFrameId, source, limit: String(limit), cursor: String(cursor) });
+        if (this._selectedSource !== "all" && this._selectedBrowseId) params.set("browse_id", this._selectedBrowseId);
         if (this._query.trim()) params.set("q", this._query.trim());
         const data = await this._api(`gallery?${params}`);
         if (generation !== this._galleryGeneration) return;
@@ -671,19 +813,15 @@ class FraimicPanel extends HTMLElement {
     this._renderPreservingFocus();
   }
 
-  _scheduleGalleryRender() {
-    clearTimeout(this._galleryRenderTimer);
-    this._galleryRenderTimer = setTimeout(() => {
-      this._galleryRenderTimer = null;
-      this._renderPreservingFocus();
-    }, 80);
+  _mergeFacets(next) {
+    this._mergeFacetsInto(this._facets, next);
   }
 
-  _mergeFacets(next) {
-    for (const key of Object.keys(this._facets)) {
-      const values = new Map(this._facets[key].map((item) => [item.value, item.count]));
+  _mergeFacetsInto(target, next) {
+    for (const key of Object.keys(target)) {
+      const values = new Map(target[key].map((item) => [item.value, item.count]));
       for (const item of next[key] || []) values.set(item.value, (values.get(item.value) || 0) + item.count);
-      this._facets[key] = [...values].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
+      target[key] = [...values].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
     }
   }
 
@@ -813,29 +951,136 @@ class FraimicPanel extends HTMLElement {
     </div>`;
   }
 
+  _sourceNodeKey(source, browseId = "") { return `${this._selectedFrameId || ""}\u0000${source}\u0000${browseId}`; }
+
+  _orderedSources() {
+    const order = new Map(this._sourceOrder.map((key, index) => [key, index]));
+    return [...this._sources].sort((a, b) =>
+      (order.get(a.key) ?? Number.MAX_SAFE_INTEGER) - (order.get(b.key) ?? Number.MAX_SAFE_INTEGER));
+  }
+
+  _sourceChildrenTemplate(source, browseId = "", depth = 0) {
+    if (depth > 4) return "";
+    const parentKey = this._sourceNodeKey(source.key, browseId);
+    const children = this._sourceChildren.get(parentKey);
+    if (!children) return this._sourceTreeLoading.has(parentKey)
+      ? `<div class="source-option" aria-live="polite"><span>Loading…</span></div>` : "";
+    return children.map((child) => {
+      const childId = child.id || "";
+      const childKey = this._sourceNodeKey(source.key, childId);
+      const childMeta = this._sourceNodeMeta.get(childKey);
+      const canExpand = source.key !== "saved" && !(childMeta?.loaded && !childMeta.hasChildren);
+      const expanded = this._expandedSources.has(childKey);
+      const selected = this._selectedSource === source.key && this._selectedBrowseId === childId;
+      return `<div class="source-child-row">
+        ${canExpand ? `<button class="source-expand" data-source-expand="${h(source.key)}" data-browse-id="${h(childId)}" aria-label="${expanded ? "Collapse" : "Expand"} ${h(child.title)}" aria-expanded="${expanded}"><ha-icon icon="mdi:chevron-right"></ha-icon></button>` : `<span class="source-expand-placeholder"></span>`}
+        <button class="source-option${selected ? " selected" : ""}" data-source-node="${h(source.key)}" data-browse-id="${h(childId)}" data-source-title="${h(child.title)}" aria-current="${selected ? "true" : "false"}"><span>${h(child.title)}</span>${child.count == null ? "" : `<span class="source-meta">${child.count}</span>`}</button>
+        ${expanded ? `<div class="source-children open">${this._sourceChildrenTemplate(source, childId, depth + 1)}</div>` : ""}
+      </div>`;
+    }).join("");
+  }
+
   _sourceRailTemplate() {
-    const selected = (key) => this._selectedSource === key ? " selected" : "";
-    const option = (source) => {
+    const available = this._sources.filter((source) => source.available).length;
+    const trees = this._orderedSources().map((source) => {
       const status = this._sourceStatus.get(source.key)?.status;
       const warning = status === "error" ? `<ha-icon icon="mdi:alert-circle-outline" title="Source unavailable"></ha-icon>` : "";
-      const meta = source.requires_key ? "key" : "";
-      return `<button class="source-option${selected(source.key)}" data-source="${h(source.key)}" ${source.available ? "" : "disabled"} aria-current="${this._selectedSource === source.key ? "true" : "false"}"><span>${h(source.name)}</span><span class="source-meta">${warning}${h(meta)}</span></button>`;
-    };
-    const available = this._sources.filter((source) => source.available).length;
-    const saved = this._sources.filter((source) => source.group === "library");
-    const groups = [
-      ["collections", "Collections"],
-      ["daily", "Daily picks"],
-      ["photography", "Photography"],
-      ["other", "Other"],
-    ];
-    return `<nav class="source-rail" aria-label="Sources">
-      <div class="source-group"><div class="source-group-label">Sources</div><button class="source-option${selected("all")}" data-source="all" aria-current="${this._selectedSource === "all" ? "true" : "false"}"><span>All sources</span><span class="source-meta">${available}</span></button>${saved.map(option).join("")}</div>
-      ${groups.map(([key, label]) => {
-        const sources = this._sources.filter((source) => source.group === key);
-        return sources.length ? `<div class="source-group"><div class="source-group-label">${label}</div>${sources.map(option).join("")}</div>` : "";
-      }).join("")}
+      const expanded = this._expandedSources.has(source.key);
+      const selected = this._selectedSource === source.key && !this._selectedBrowseId;
+      const icon = source.group === "library" ? "image-multiple-outline" : source.group === "photography" ? "camera-outline" : source.group === "daily" ? "calendar-star" : source.group === "collections" ? "palette-outline" : "image-outline";
+      const meta = source.requires_key ? "key" : source.count;
+      return `<div class="source-tree" data-source-tree="${h(source.key)}">
+        <div class="source-tree-row">
+          <button class="source-grip" draggable="true" data-source-move-handle="${h(source.key)}" aria-label="Reorder ${h(source.name)}"><ha-icon icon="mdi:drag-vertical"></ha-icon></button>
+          ${source.hierarchical ? `<button class="source-expand" data-source-expand="${h(source.key)}" data-browse-id="" aria-label="${expanded ? "Collapse" : "Expand"} ${h(source.name)}" aria-expanded="${expanded}"><ha-icon icon="mdi:chevron-right"></ha-icon></button>` : `<span class="source-expand-placeholder"></span>`}
+          <button class="source-option${selected ? " selected" : ""}" data-source="${h(source.key)}" ${source.available ? "" : "disabled"} aria-current="${selected ? "true" : "false"}"><ha-icon icon="mdi:${icon}"></ha-icon><span>${h(source.name)}</span><span class="source-meta">${warning}${meta == null ? "" : h(meta)}</span></button>
+        </div>
+        ${source.hierarchical && expanded ? `<div class="source-children open">${this._sourceChildrenTemplate(source)}</div>` : ""}
+      </div>`;
+    }).join("");
+    const playlistsExpanded = this._expandedSources.has("@playlists");
+    return `<nav class="source-rail" aria-label="Artwork navigation">
+      <div class="source-group"><div class="source-group-label">Sources</div>
+        <div class="source-tree-row"><span class="source-grip"></span><span class="source-expand-placeholder"></span><button class="source-option${this._selectedSource === "all" ? " selected" : ""}" data-source="all" aria-current="${this._selectedSource === "all" ? "true" : "false"}"><ha-icon icon="mdi:view-grid-outline"></ha-icon><span>All sources</span><span class="source-meta">${available}</span></button></div>
+        ${trees}
+      </div>
+      <div class="source-divider"></div>
+      <div class="source-group"><div class="source-group-label">Playlists</div>
+        <div class="source-tree-row"><span class="source-grip"></span><button class="source-expand" data-static-expand="@playlists" aria-label="${playlistsExpanded ? "Collapse" : "Expand"} saved playlists" aria-expanded="${playlistsExpanded}"><ha-icon icon="mdi:chevron-right"></ha-icon></button><button class="source-option" data-nav="/playlists"><ha-icon icon="mdi:playlist-music-outline"></ha-icon><span>Saved playlists</span><span class="source-meta">${this._playlists.length}</span></button></div>
+        ${playlistsExpanded ? `<div class="source-children open">${this._playlists.map((playlist) => `<div class="source-child-row"><span class="source-expand-placeholder"></span><button class="source-option" data-nav="/playlists/${encodeURIComponent(playlist.id)}"><span>${h(playlist.name)}</span><span class="source-meta">${playlist.slide_count}</span></button></div>`).join("")}</div>` : ""}
+      </div>
     </nav>`;
+  }
+
+  async _loadSourceNode(source, browseId = "", renderLoading = true) {
+    const key = this._sourceNodeKey(source, browseId);
+    const existing = this._sourceNodeMeta.get(key);
+    if (existing?.loaded) return existing;
+    if (this._sourceTreeLoading.has(key)) return existing || null;
+    this._sourceTreeLoading.add(key);
+    if (renderLoading) this._renderPreservingFocus();
+    try {
+      const params = new URLSearchParams({ entry_id: this._selectedFrameId, source });
+      if (browseId) params.set("browse_id", browseId);
+      const data = await this._api(`gallery/tree?${params}`);
+      const folders = data.folders || [];
+      const meta = { hasItems: Boolean(data.has_items), hasChildren: folders.length > 0, loaded: true, title: data.title || "" };
+      this._sourceChildren.set(key, folders);
+      this._sourceNodeMeta.set(key, meta);
+      return meta;
+    } catch (error) {
+      this._notify(this._friendlyError(error), { error: true });
+      return null;
+    } finally {
+      this._sourceTreeLoading.delete(key);
+    }
+  }
+
+  _persistExpandedSources() {
+    storeValue("fraimic-expanded-sources", JSON.stringify([...this._expandedSources]));
+  }
+
+  async _toggleSourceNode(source, browseId = "") {
+    const expansionKey = browseId ? this._sourceNodeKey(source, browseId) : source;
+    if (this._expandedSources.has(expansionKey)) {
+      this._expandedSources.delete(expansionKey);
+      this._persistExpandedSources();
+      this._renderPreservingFocus();
+      return;
+    }
+    const meta = await this._loadSourceNode(source, browseId);
+    if (!meta) return;
+    this._expandedSources.add(expansionKey);
+    this._persistExpandedSources();
+    this._renderPreservingFocus();
+  }
+
+  async _activateSourceNode(source, browseId, title) {
+    if (source === "saved") return this._setSource(source, browseId, title);
+    const meta = await this._loadSourceNode(source, browseId);
+    if (!meta) return;
+    if (meta.hasItems || !meta.hasChildren) return this._setSource(source, browseId, meta.title || title);
+    const expansionKey = this._sourceNodeKey(source, browseId);
+    this._expandedSources.add(expansionKey);
+    this._persistExpandedSources();
+    this._renderPreservingFocus();
+  }
+
+  _toggleStaticSource(key) {
+    this._expandedSources.has(key) ? this._expandedSources.delete(key) : this._expandedSources.add(key);
+    this._persistExpandedSources();
+    this._renderPreservingFocus();
+  }
+
+  _reorderSource(sourceKey, targetKey) {
+    if (sourceKey === targetKey) return;
+    const order = [...this._sourceOrder];
+    const from = order.indexOf(sourceKey), to = order.indexOf(targetKey);
+    if (from < 0 || to < 0) return;
+    order.splice(to, 0, order.splice(from, 1)[0]);
+    this._sourceOrder = order;
+    storeValue("fraimic-source-order", JSON.stringify(order));
+    this._renderPreservingFocus();
   }
 
   _galleryCounter() {
@@ -880,7 +1125,7 @@ class FraimicPanel extends HTMLElement {
     const firstRun = this._player?.state === "idle" && !localStorage.getItem(`fraimic-shown-${this._selectedFrameId}`)
       ? `<div class="empty" style="padding:44px 24px 20px"><h2>${h(this._frame.name)} is showing nothing yet</h2><p>Tap any picture below to put it on the wall, or start a playlist so it changes through the day.</p></div>` : "";
     return layout(`${adding ? `<div class="adding-bar"><b>Adding to ${h(adding.name)}</b><span class="spacer"></span><button class="btn quiet small" data-stop-adding>Done</button></div>` : ""}${firstRun}<div class="content">${rows}
-      <div class="row-head"><h2>${discovering ? "Everything, newest first" : this._query ? this._query : "Results"}</h2><span class="spacer"></span><button class="btn quiet small" data-save-results>Save as playlist</button></div>
+      <div class="row-head"><h2>${discovering ? (this._galleryTitle || "Everything, newest first") : this._query ? this._query : (this._galleryTitle || "Results")}</h2><span class="spacer"></span><button class="btn quiet small" data-save-results>Save as playlist</button></div>
       <div class="masonry">${visibleItems.map((item) => this._tileTemplate(item)).join("")}</div>
       ${visibleItems.length < items.length || [...this._galleryCursorBySource.values()].some((cursor) => cursor != null) ? `<div class="load-more"><button class="btn" data-load-more ${this._loadingMore ? "disabled" : ""}>${this._loadingMore ? "Loading more" : "Load more"}</button></div>` : ""}
     </div>`);
@@ -916,7 +1161,7 @@ class FraimicPanel extends HTMLElement {
     const src = this._imageAttrs(item.thumbnail_url, `${item.title}${item.artist ? `, ${item.artist}` : ""}`);
     return `<article class="tile" tabindex="0" draggable="true" data-item="${h(item.source)}:${h(item.id)}" data-keyboard-item>
       <div class="art" style="--art-aspect:${aspect}" data-detail="${h(item.source)}:${h(item.id)}">
-        <img ${src} loading="lazy" decoding="async">
+        <img ${src} width="${Math.max(1, item.width || 4)}" height="${Math.max(1, item.height || 3)}" loading="lazy" decoding="async">
         ${item.queued ? `<span class="badge right">queued</span>` : ""}
         <div class="actions">
           <button class="btn primary" data-art-action="show_now" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">Show now</button>
@@ -992,8 +1237,8 @@ class FraimicPanel extends HTMLElement {
         : "";
     return `<footer class="player ${h(state)}" tabindex="0" data-player>
       <div class="player-art glass">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</div>
-      <div class="player-copy"><b>${h(title)}</b><span>${h(meta)}</span></div>
-      ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i style="width:${progress}%"></i></div>` : ""}
+      <div class="player-copy"><b>${h(title)}</b><span data-player-meta>${h(meta)}</span></div>
+      ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i data-player-progress style="width:${progress}%"></i></div>` : ""}
       ${transport}${state === "asleep" && player?.waiting_count ? `<span class="counter">${player.waiting_count} waiting</span>` : ""}
       <span class="spacer"></span>${stateActions}${player?.overlay_count && state !== "unreachable" ? `<button class="chip overlay-tag" data-overlays>${player.overlay_count} overlays</button>` : ""}<button class="btn" data-queue-toggle>Queue ${player?.queue_count || 0} <ha-icon icon="mdi:chevron-${this._queueOpen ? "down" : "up"}"></ha-icon></button><button class="icon-btn frame-more" data-menu="frame" aria-label="Frame menu"><ha-icon icon="mdi:dots-vertical"></ha-icon></button>
     </footer>`;
@@ -1022,8 +1267,8 @@ class FraimicPanel extends HTMLElement {
 
   _menuTemplate() {
     if (!this._menu) return "";
-    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources and API keys</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
-    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Change playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.playlist?.shuffle ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image defaults <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
+    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
+    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Change playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.playlist?.shuffle ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
@@ -1047,8 +1292,8 @@ class FraimicPanel extends HTMLElement {
 
   _modalTemplate() {
     if (!this._modal) return "";
-    const { title, body, actions = "" } = this._modal;
-    return `<div class="modal-backdrop" data-modal-backdrop><section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="dialog-title"><h2 id="dialog-title">${h(title)}</h2><span class="spacer"></span><button class="icon-btn" data-close-modal aria-label="Close"><ha-icon icon="mdi:close"></ha-icon></button></div><div class="dialog-body">${body}</div>${actions ? `<div class="dialog-actions">${actions}</div>` : ""}</section></div>`;
+    const { title, body, actions = "", subtitle = "", headerActions = "", className = "" } = this._modal;
+    return `<div class="modal-backdrop" data-modal-backdrop><section class="dialog${className ? ` ${h(className)}` : ""}" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><div class="dialog-title"><div class="dialog-heading"><h2 id="dialog-title">${h(title)}</h2>${subtitle ? `<div class="dialog-subtitle">${subtitle}</div>` : ""}</div><span class="spacer"></span><div class="dialog-header-actions">${headerActions}<button class="icon-btn" data-close-modal aria-label="Close"><ha-icon icon="mdi:close"></ha-icon></button></div></div><div class="dialog-body">${body}</div>${actions ? `<div class="dialog-actions">${actions}</div>` : ""}</section></div>`;
   }
 
   _overlayEditorTemplate() {
@@ -1113,6 +1358,9 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-nav]").forEach((node) => node.onclick = () => this._navigate(node.dataset.nav));
     root.querySelectorAll("[data-frame]").forEach((node) => node.onclick = () => this._selectFrame(node.dataset.frame));
     root.querySelectorAll("[data-source]").forEach((node) => node.onclick = () => this._setSource(node.dataset.source));
+    root.querySelectorAll("[data-source-node]").forEach((node) => node.onclick = () => this._activateSourceNode(node.dataset.sourceNode, node.dataset.browseId || "", node.dataset.sourceTitle || ""));
+    root.querySelectorAll("[data-source-expand]").forEach((node) => node.onclick = () => this._toggleSourceNode(node.dataset.sourceExpand, node.dataset.browseId || ""));
+    root.querySelectorAll("[data-static-expand]").forEach((node) => node.onclick = () => this._toggleStaticSource(node.dataset.staticExpand));
     root.querySelectorAll("[data-menu]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._menu = this._menu === node.dataset.menu ? null : node.dataset.menu; this._renderPreservingFocus(); });
     root.querySelector("#gallery-search")?.addEventListener("input", (event) => this._search(event.target.value));
     root.querySelector("[data-toggle='fits']")?.addEventListener("click", () => { this._fits = !this._fits; this._render(); });
@@ -1151,7 +1399,7 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-interval]").forEach((node) => node.onclick = () => this._setInterval(Number(node.dataset.interval)));
     root.querySelectorAll("[data-options]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/integration/fraimic"));
     root.querySelectorAll("[data-add-frame]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/dashboard/add?domain=fraimic"));
-    root.querySelectorAll("[data-reload], [data-retry]").forEach((node) => node.onclick = () => this._loadGallery());
+    root.querySelectorAll("[data-reload], [data-retry]").forEach((node) => node.onclick = () => this._loadGallery(true));
     root.querySelector("[data-reload-frames]")?.addEventListener("click", () => this._loadAll());
     root.querySelector("[data-dismiss-failures]")?.addEventListener("click", () => { for (const [key, status] of this._sourceStatus) if (status.status === "error") this._sourceStatus.delete(key); this._render(); });
     root.querySelector("[data-docs]")?.addEventListener("click", () => window.open("https://github.com/kristofferR/ha-fraimic-eink", "_blank", "noopener"));
@@ -1162,6 +1410,8 @@ class FraimicPanel extends HTMLElement {
     root.querySelector("[data-toast-action]")?.addEventListener("click", () => { const action = this._toast?.callback; this._toast = null; action?.(); this._render(); });
     this._bindKeyboard();
     this._bindDnD();
+    this._bindSourceReorder();
+    this._bindDetailModal();
     this._bindOverlayEditor();
     root.host.onclick = (event) => { if (this._menu && !event.composedPath().some((node) => node?.classList?.contains("menu")) && !event.composedPath().some((node) => node?.dataset?.menu)) { this._menu = null; this._renderPreservingFocus(); } };
   }
@@ -1220,6 +1470,44 @@ class FraimicPanel extends HTMLElement {
       this._reorderQueue(source.dataset.queueSection, Number(source.dataset.queueIndex), Number(target.dataset.queueIndex));
     });
     this._bindReorder("[data-slide-id]", (source, target) => this._reorderSlides(Number(source.dataset.slideIndex), Number(target.dataset.slideIndex)));
+  }
+
+  _bindSourceReorder() {
+    let dragged = null;
+    const trees = [...this.shadowRoot.querySelectorAll("[data-source-tree]")];
+    for (const tree of trees) {
+      tree.ondragstart = (event) => {
+        dragged = tree;
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", tree.dataset.sourceTree);
+      };
+      tree.ondragover = (event) => {
+        if (!dragged || dragged === tree) return;
+        event.preventDefault();
+        tree.classList.add("drag-over");
+      };
+      tree.ondragleave = () => tree.classList.remove("drag-over");
+      tree.ondrop = (event) => {
+        event.preventDefault();
+        tree.classList.remove("drag-over");
+        if (dragged) this._reorderSource(dragged.dataset.sourceTree, tree.dataset.sourceTree);
+        dragged = null;
+      };
+      tree.ondragend = () => {
+        dragged = null;
+        this.shadowRoot.querySelectorAll(".source-tree.drag-over").forEach((node) => node.classList.remove("drag-over"));
+      };
+    }
+    this.shadowRoot.querySelectorAll("[data-source-move-handle]").forEach((handle) => {
+      handle.onkeydown = (event) => {
+        if (!event.altKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+        const index = this._sourceOrder.indexOf(handle.dataset.sourceMoveHandle);
+        const target = this._sourceOrder[index + (event.key === "ArrowUp" ? -1 : 1)];
+        if (!target) return;
+        event.preventDefault();
+        this._reorderSource(handle.dataset.sourceMoveHandle, target);
+      };
+    });
   }
 
   _dropArt(section, index, playlistId = null) {
@@ -1286,8 +1574,10 @@ class FraimicPanel extends HTMLElement {
     await this._loadRoute();
   }
 
-  _setSource(source) {
+  _setSource(source, browseId = "", title = "") {
     this._selectedSource = source;
+    this._selectedBrowseId = source === "all" ? "" : browseId;
+    this._galleryTitle = source === "all" ? "" : title;
     this._menu = null;
     if (this._route !== "browse") this._navigate("/");
     else this._loadGallery();
@@ -1300,7 +1590,7 @@ class FraimicPanel extends HTMLElement {
   }
 
   _clearFilters() {
-    this._selectedSource = "all"; this._colours.clear(); this._artist = ""; this._era = ""; this._fits = false; this._rendersWell = false; this._menu = null; this._loadGallery();
+    this._selectedSource = "all"; this._selectedBrowseId = ""; this._galleryTitle = ""; this._colours.clear(); this._artist = ""; this._era = ""; this._fits = false; this._rendersWell = false; this._menu = null; this._loadGallery();
   }
 
   _setFacet(kind, value) {
@@ -1313,8 +1603,9 @@ class FraimicPanel extends HTMLElement {
     if (action === "queue" && this._findItem(source, itemId)?.queued) return;
     try {
       const entryId = targetEntryId || this._selectedFrameId;
-      const crop = options.fit === "contain" ? null : options.crop;
-      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit: options.fit || "cover", tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_before_id: options.beforeSlideId }));
+      const fit = options.fit || "cover";
+      const crop = fit === "cover" ? options.crop : null;
+      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit, tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_before_id: options.beforeSlideId }));
       const item = this._findItem(source, itemId);
       if (item && data.item) Object.assign(item, data.item);
       const targetFrame = this._frames.find((frame) => frame.id === entryId) || this._frame;
@@ -1323,9 +1614,12 @@ class FraimicPanel extends HTMLElement {
         if (action === "queue") this._notify(`Added to the queue, ${(this._player?.waiting_count || 0) + 1} waiting.`, { action: "Open queue", callback: () => { this._queueOpen = true; } });
         if (action === "add_playlist") this._notify(`Added to ${this._playlists.find((playlist) => playlist.id === playlistId)?.name}.`, { action: "Open", callback: () => this._navigate(`/playlists/${encodeURIComponent(playlistId)}`) });
         if (action === "save") this._notify("Saved to your library.");
+        if (action === "favorite") this._notify("Added to favorites.");
+        if (action === "unfavorite") this._notify("Removed from favorites.");
         await Promise.all([this._loadPlayer(false), this._loadPlaylists()]);
         this._render();
       }
+      return data;
     } catch (error) {
       if (options.quiet) throw error;
       this._notify(this._friendlyError(error), { error: true });
@@ -1386,15 +1680,45 @@ class FraimicPanel extends HTMLElement {
     const detail = this._detail;
     if (!detail) return;
     const options = this._detailOptions;
-    const meta = [detail.artist, detail.source_name, detail.year, detail.license, `${detail.width} × ${detail.height}`].filter(Boolean).join(" · ");
     const crop = options.crop;
-    const cropWindow = options.fit === "cover" ? `<div class="crop-window" data-crop-window data-label="${h(this._frame.name)}, ${this._frameAspect.replace(" / ", ":")}" style="${this._cropStyle(crop)}"><span class="crop-resize" data-crop-resize></span></div>` : "";
+    const cropWindow = options.fit === "cover" ? `<div class="crop-window" data-crop-window data-label="Visible on ${h(this._frame.name)}" style="${this._cropStyle(crop)}"><span class="crop-resize" data-crop-resize></span></div>` : "";
     const relatedFrame = this._frames.filter((frame) => frame.id !== this._selectedFrameId).sort((a, b) => this._fitDifference(detail, a) - this._fitDifference(detail, b))[0];
     const sourceHref = this._safeHref(detail.source_page_url);
     const artAspect = `${Math.max(1, Number(detail.width) || 4)} / ${Math.max(1, Number(detail.height) || 3)}`;
-    const body = `<div class="detail-grid"><div><div class="crop-stage" style="--art-aspect:${artAspect}"><img ${this._imageAttrs(detail.image_url, `${detail.title}${detail.artist ? `, ${detail.artist}` : ""}`)}>${cropWindow}</div>${options.fit === "cover" ? `<div class="crop-tools"><button class="btn small" data-crop-command="reset">Reset crop</button><button class="btn small" data-crop-command="centre">Centre</button><button class="btn small" data-crop-command="in">Zoom in</button><button class="btn small" data-crop-command="out">Zoom out</button></div><p class="counter">Drag the window. Saved for ${h(this._frame.name)} only.</p>` : ""}</div><div><p class="detail-meta">${h(meta)}</p>${detail.description ? `<p>${h(detail.description)}</p>` : ""}<div class="field"><label>Result on ${h(this._frame.name)}</label><div class="preview-pair"><div><div class="glass"><img ${this._imageAttrs(this._detailPreviewUrl("cover"), "Cover preview")}></div><span class="counter">Cover, cropped</span></div><div><div class="glass"><img ${this._imageAttrs(this._detailPreviewUrl("contain"), "Contain preview")}></div><span class="counter">Contain, bordered</span></div></div></div><div class="field"><label>Fit</label><div class="seg"><button class="${options.fit === "cover" ? "selected" : ""}" data-detail-fit="cover">Cover</button><button class="${options.fit === "contain" ? "selected" : ""}" data-detail-fit="contain">Contain</button></div><p class="counter">A tall picture on a landscape frame loses the top and bottom under Cover. Contain keeps all of it and fills the sides with a palette colour.</p></div><div class="field"><label>Tone</label><div class="seg">${["vivid","balanced","soft"].map((tone) => `<button class="${options.tone === tone ? "selected" : ""}" data-detail-tone="${tone}">${tone[0].toUpperCase() + tone.slice(1)}</button>`).join("")}</div></div><div class="field"><label>Related</label>${relatedFrame && this._fitDifference(detail, relatedFrame) < this._fitDifference(detail, this._frame) ? `<button class="btn quiet" data-related-frame="${h(relatedFrame.id)}">Better on ${h(relatedFrame.name)}, which is ${this._frameShape(relatedFrame)}</button>` : ""}${detail.artist ? `<button class="btn quiet" data-related-query="${h(detail.artist)}">More by ${h(detail.artist)}</button>` : ""}<button class="btn quiet" data-related-source="${h(detail.source)}">More from ${h(detail.source_name)}</button>${sourceHref ? `<a class="btn quiet" href="${h(sourceHref)}" target="_blank" rel="noopener">Open source page</a>` : ""}</div></div></div>`;
-    const actions = `<button class="btn primary" data-detail-action="show_now">Show now</button><button class="btn" data-detail-action="play_next">Play next</button><button class="btn" data-detail-action="queue">Add to queue</button><button class="btn" data-detail-action="playlist">Add to playlist</button>${detail.saved ? "" : `<button class="btn" data-detail-action="save">Save</button>`}<span class="spacer"></span>${detail.source === "saved" ? `<button class="btn danger" data-detail-action="delete">Remove from library</button>` : ""}`;
-    this._openModal(detail.title, body, actions);
+    const fitNotes = { cover: "Fills the whole frame", contain: "Shows the complete artwork", stretch: "Fills without cropping" };
+    const toneNotes = { vivid: "More colour and contrast", balanced: "Natural colour and contrast", soft: "Gentler, paper-like result" };
+    const artistLink = detail.artist ? `<button class="detail-text-link" data-related-query="${h(detail.artist)}">${h(detail.artist)}</button>` : "Unknown";
+    const sourceLink = `<button class="detail-text-link" data-related-source="${h(detail.source)}">${h(detail.source_name || detail.source)}</button>`;
+    const body = `<div class="detail-grid">
+      <div class="detail-workspace">
+        <div class="detail-section-head"><h3>Position artwork</h3><span class="spacer"></span><span class="counter">${h(this._frame.name)} · ${h(this._frame.width)} × ${h(this._frame.height)}</span></div>
+        <div class="crop-stage" style="--art-aspect:${artAspect}"><img ${this._imageAttrs(detail.image_url, `${detail.title}${detail.artist ? `, ${detail.artist}` : ""}`)}>${cropWindow}</div>
+        ${options.fit === "cover" ? `<div class="crop-tools"><button class="btn small" data-crop-command="reset"><ha-icon icon="mdi:restore"></ha-icon> Reset</button><button class="btn small" data-crop-command="centre"><ha-icon icon="mdi:image-filter-center-focus"></ha-icon> Centre</button><button class="btn small" data-crop-command="in"><ha-icon icon="mdi:magnify-plus-outline"></ha-icon> Zoom in</button><button class="btn small" data-crop-command="out"><ha-icon icon="mdi:magnify-minus-outline"></ha-icon> Zoom out</button></div><p class="crop-hint"><ha-icon icon="mdi:cursor-move"></ha-icon> Drag the crop to choose what stays inside the frame.</p>` : `<p class="crop-hint">${h(fitNotes[options.fit])}.</p>`}
+      </div>
+      <aside class="detail-inspector" aria-label="Display settings">
+        <div class="detail-section-head"><h3>Display settings</h3><span class="spacer"></span><span class="counter">Spectra 6</span></div>
+        <div class="detail-setting"><div class="detail-setting-copy"><h3>Fit</h3><p>${h(fitNotes[options.fit])}</p></div><select class="detail-select" data-detail-fit aria-label="Artwork fit"><option value="cover" ${options.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${options.fit === "contain" ? "selected" : ""}>Contain</option><option value="stretch" ${options.fit === "stretch" ? "selected" : ""}>Stretch</option></select></div>
+        <div class="detail-setting"><div class="detail-setting-copy"><h3>Tone</h3><p>${h(toneNotes[options.tone])}</p></div><select class="detail-select" data-detail-tone aria-label="Artwork tone"><option value="vivid" ${options.tone === "vivid" ? "selected" : ""}>Vivid</option><option value="balanced" ${options.tone === "balanced" ? "selected" : ""}>Balanced</option><option value="soft" ${options.tone === "soft" ? "selected" : ""}>Soft</option></select></div>
+        <section class="artwork-details"><h3>Artwork details</h3><dl class="detail-meta-list">
+          <div class="detail-meta-row"><dt>Artist</dt><dd>${artistLink}</dd></div>
+          <div class="detail-meta-row"><dt>Source</dt><dd>${sourceLink}</dd></div>
+          <div class="detail-meta-row"><dt>Original</dt><dd>${h(detail.width)} × ${h(detail.height)}</dd></div>
+          ${detail.year ? `<div class="detail-meta-row"><dt>Year</dt><dd>${h(detail.year)}</dd></div>` : ""}
+          ${detail.license ? `<div class="detail-meta-row"><dt>License</dt><dd>${h(detail.license)}</dd></div>` : ""}
+        </dl>${detail.description ? `<p class="detail-description">${h(detail.description)}</p>` : ""}
+        <div class="detail-links">${relatedFrame && this._fitDifference(detail, relatedFrame) < this._fitDifference(detail, this._frame) ? `<button class="btn quiet small" data-related-frame="${h(relatedFrame.id)}">Better on ${h(relatedFrame.name)}</button>` : ""}${sourceHref ? `<a class="btn quiet small" href="${h(sourceHref)}" target="_blank" rel="noopener"><ha-icon icon="mdi:open-in-new"></ha-icon> Open original artwork</a>` : ""}${detail.source === "saved" ? `<button class="btn quiet small danger" data-detail-action="delete">Remove from library</button>` : ""}</div></section>
+      </aside>
+    </div>`;
+    const actions = `<span class="detail-ready">Ready for ${h(this._frame.name)} · ${h(options.fit[0].toUpperCase() + options.fit.slice(1))} · ${h(options.tone[0].toUpperCase() + options.tone.slice(1))}</span><span class="spacer"></span><button class="btn primary" data-detail-action="show_now"><ha-icon icon="mdi:send"></ha-icon> Show now</button><button class="btn" data-detail-action="play_next">Play next</button><button class="btn" data-detail-action="queue">Add to queue</button><button class="btn" data-detail-action="playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon> Add to playlist</button>`;
+    const subtitle = `${artistLink}<span>·</span>${sourceLink}`;
+    const headerActions = `<button class="icon-btn favorite-btn" data-detail-favorite aria-label="${detail.favorite ? "Remove from favorites" : "Add to favorites"}" aria-pressed="${Boolean(detail.favorite)}" ${this._favoriteBusy ? "disabled" : ""}><ha-icon icon="mdi:star${detail.favorite ? "" : "-outline"}"></ha-icon></button>`;
+    this._openModal(detail.title, body, actions, { className: "detail-dialog", subtitle, headerActions });
+  }
+
+  _bindDetailModal() {
+    const detail = this._detail;
+    const options = this._detailOptions;
+    if (!detail || !options || !this._modal?.className?.includes("detail-dialog")) return;
     this.shadowRoot.querySelectorAll("[data-detail-action]").forEach((node) => node.onclick = () => {
       const action = node.dataset.detailAction;
       if (action === "playlist") this._choosePlaylist(detail.source, detail.itemId, options);
@@ -1402,15 +1726,42 @@ class FraimicPanel extends HTMLElement {
       else if (action === "delete") this._deleteSavedPicture(detail);
       else { this._closeModal(); this._artAction(action, detail.source, detail.itemId, null, options); }
     });
-    this.shadowRoot.querySelectorAll("[data-detail-fit]").forEach((node) => node.onclick = () => { options.fit = node.dataset.detailFit; this._renderDetailModal(); });
-    this.shadowRoot.querySelectorAll("[data-detail-tone]").forEach((node) => node.onclick = () => { options.tone = node.dataset.detailTone; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-detail-favorite]")?.addEventListener("click", () => this._toggleDetailFavorite());
+    this.shadowRoot.querySelector("[data-detail-fit]")?.addEventListener("change", (event) => { options.fit = event.target.value; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-detail-tone]")?.addEventListener("change", (event) => { options.tone = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelectorAll("[data-crop-command]").forEach((node) => node.onclick = () => this._adjustCrop(node.dataset.cropCommand));
     this.shadowRoot.querySelector("[data-crop-window]")?.addEventListener("pointerdown", (event) => { if (!event.target.dataset.cropResize) this._dragCrop(event, false); });
     this.shadowRoot.querySelector("[data-crop-resize]")?.addEventListener("pointerdown", (event) => { event.stopPropagation(); this._dragCrop(event, true); });
     this.shadowRoot.querySelectorAll("[data-related-query]").forEach((node) => node.onclick = () => { this._query = node.dataset.relatedQuery; this._closeModal(); this._loadGallery(); });
-    this.shadowRoot.querySelectorAll("[data-related-source]").forEach((node) => node.onclick = () => { this._selectedSource = node.dataset.relatedSource; this._closeModal(); this._loadGallery(); });
+    this.shadowRoot.querySelectorAll("[data-related-source]").forEach((node) => node.onclick = () => { this._closeModal(); this._setSource(node.dataset.relatedSource); });
     this.shadowRoot.querySelectorAll("[data-related-frame]").forEach((node) => node.onclick = async () => { this._closeModal(); await this._selectFrame(node.dataset.relatedFrame); this._openDetail(detail.source, detail.itemId, null); });
-    this._signImages();
+  }
+
+  async _toggleDetailFavorite() {
+    const detail = this._detail;
+    if (!detail || this._favoriteBusy) return;
+    this._favoriteBusy = true;
+    this._renderDetailModal();
+    try {
+      const action = detail.favorite ? "unfavorite" : "favorite";
+      const data = await this._artAction(action, detail.source, detail.itemId, null, { ...this._detailOptions, quiet: true });
+      if (data?.deleted) {
+        this._closeModal();
+        await Promise.all([this._loadSources(), this._loadGallery(true), this._loadPlaylists()]);
+        this._notify("Removed from favorites.");
+        return;
+      }
+      if (data?.item) Object.assign(detail, data.item);
+      detail.favorite = action === "favorite";
+      this._galleryLoadedAt = 0;
+      await this._loadSources();
+      if (this._selectedSource === "saved" && this._selectedBrowseId === "favorites") await this._loadGallery(true);
+    } catch (error) {
+      this._notify(this._friendlyError(error), { error: true });
+    } finally {
+      this._favoriteBusy = false;
+      if (this._detail) this._renderDetailModal();
+    }
   }
 
   async _deleteSavedPicture(detail) {
@@ -1418,6 +1769,7 @@ class FraimicPanel extends HTMLElement {
     try {
       await this._api(`library/image/${encodeURIComponent(detail.itemId)}`, { method: "DELETE" });
       this._closeModal();
+      this._galleryLoadedAt = 0;
       await Promise.all([this._loadGallery(), this._loadPlaylists(), this._loadPlayer(false)]);
       this._notify("Removed from your library.");
     } catch (error) {
@@ -1445,13 +1797,6 @@ class FraimicPanel extends HTMLElement {
   }
 
   _cropStyle(crop) { return `left:${crop[0] * 100}%;top:${crop[1] * 100}%;width:${(crop[2] - crop[0]) * 100}%;height:${(crop[3] - crop[1]) * 100}%`; }
-
-  _detailPreviewUrl(fit) {
-    const detail = this._detail;
-    const params = new URLSearchParams({ entry_id: this._selectedFrameId, source: detail.source, item_id: detail.itemId, fit, tone: this._detailOptions.tone });
-    if (fit === "cover") params.set("crop", JSON.stringify(this._detailOptions.crop));
-    return `${API}/gallery/preview?${params}`;
-  }
 
   _setDetailCrop(crop, render = true) {
     this._detailOptions.crop = crop.map((value) => Math.max(0, Math.min(1, value)));
@@ -1534,6 +1879,8 @@ class FraimicPanel extends HTMLElement {
       } catch (error) { upload.status = this._friendlyError(error); upload.error = true; }
       this._showUploads();
     }
+    this._galleryLoadedAt = 0;
+    await this._loadSources();
     await this._loadGallery();
   }
 
@@ -1712,8 +2059,8 @@ class FraimicPanel extends HTMLElement {
   _requestCloseOverlays() { if (this._overlaysDirty() && !confirm("Discard unsaved overlay changes?")) return; this._discardOverlays(); }
   async _copyOverlays() { const target = this._frames.find((frame) => frame.id !== this._selectedFrameId); if (!target) return; if (!confirm(`Replace overlays on ${target.name}?`)) return; try { await this._api("overlays", this._json({ action: "copy", entry_id: this._selectedFrameId, target_entry_id: target.id })); this._notify(`Copied overlays to ${target.name}.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
 
-  _openModal(title, body, actions = "") { this._modal = { title, body, actions }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
-  _closeModal() { this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
+  _openModal(title, body, actions = "", options = {}) { this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
+  _closeModal() { this._detailGeneration += 1; this._modal = null; this._detail = null; this._favoriteBusy = false; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
 
   _trapModalFocus(event) {
     const focusable = [...this.shadowRoot.querySelectorAll(".dialog button:not([disabled]), .dialog input:not([disabled]), .dialog select:not([disabled]), .dialog textarea:not([disabled]), .dialog a[href]")];
