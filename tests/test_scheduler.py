@@ -278,6 +278,34 @@ def test_external_one_off_holds_without_advancing_playlist_cursor(
     assert scheduler._hold_until == datetime(2026, 7, 3, 12, 20)
 
 
+def test_external_one_off_remains_current_during_hold(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    catalog = SimpleNamespace(screen_id="catalog", name="Catalog", interval=1800)
+    external = SimpleNamespace(screen_id="external", name="External", interval=900)
+    playlists = SimpleNamespace(
+        assigned_to=lambda _entry_id: None,
+        render_slides=lambda _playlist_id: [],
+        render_slide_by_id=lambda slide_id: external if slide_id == "external" else None,
+        get=lambda _playlist_id: None,
+    )
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {"uploaded": True, "content_hash": "external-hash"}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(
+        SimpleNamespace(), _entry(), playlists=playlists
+    )
+    scheduler.screens = [catalog]
+    scheduler._playlist_cursor_id = catalog.screen_id
+
+    asyncio.run(scheduler.async_select(external, hold=True))
+
+    assert scheduler.current_screen is external
+
+
 def test_playlist_refresh_replaces_or_clears_pending_slide(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

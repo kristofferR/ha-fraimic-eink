@@ -190,3 +190,61 @@ def test_upload_image_library_branch_releases_hold_when_library_missing(
         )
 
     assert entry.scheduler.events == [("begin", None), ("finish", False)]
+
+
+def test_timed_out_upload_is_not_reported_for_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+
+    async def convert(*_args: object, **_kwargs: object) -> tuple[bytes, bytes, str]:
+        return b"packed", b"preview", "none"
+
+    class Client:
+        async def upload_image(self, _data: bytes) -> None:
+            raise services.FraimicTimeoutError("redraw response timed out")
+
+    class Power:
+        recorded: list[tuple[str, str]] = []
+
+        def begin(self, _trigger: str) -> object:
+            return object()
+
+        def skip_reason(self, *_args: object) -> None:
+            return None
+
+        async def async_record_upload(self, content_hash: str, trigger: str) -> None:
+            self.recorded.append((content_hash, trigger))
+
+        def schedule_sleep(self) -> None:
+            return None
+
+        def finish(self, _token: object) -> None:
+            return None
+
+    power = Power()
+    entry = SimpleNamespace(
+        data={},
+        runtime_data=SimpleNamespace(
+            scheduler=None,
+            power=power,
+            upload_lock=asyncio.Lock(),
+            client=Client(),
+            coordinator=SimpleNamespace(data={}),
+            send_queue=None,
+            last_preview=None,
+            preview_image=None,
+        )
+    )
+    monkeypatch.setattr(services, "async_convert_for_entry", convert)
+
+    result = asyncio.run(
+        services.async_render_and_upload(
+            SimpleNamespace(), entry, b"source", hold_playlist=False
+        )
+    )
+
+    assert result["uploaded"] is True
+    assert result["displayed"] is True
+    assert entry.runtime_data.last_preview == b"preview"
+    assert power.recorded == [(result["content_hash"], services.TRIGGER_MANUAL)]
