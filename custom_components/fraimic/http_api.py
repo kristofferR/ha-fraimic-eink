@@ -903,6 +903,23 @@ class PlayerQueueView(_FraimicView):
                 await scheduler.async_remove_from_queue(index, slide_id)
             elif action == "clear":
                 await scheduler.async_clear_queue()
+            elif action == "play":
+                section = body.get("section")
+                index = body.get("index")
+                slide_id = body.get("slide_id")
+                if section not in {"queue", "playlist"}:
+                    return self.json_message(
+                        "section must be queue or playlist", HTTPStatus.BAD_REQUEST
+                    )
+                if not isinstance(index, int) or isinstance(index, bool):
+                    return self.json_message(
+                        "index is required", HTTPStatus.BAD_REQUEST
+                    )
+                if not isinstance(slide_id, str):
+                    return self.json_message(
+                        "slide_id is required", HTTPStatus.BAD_REQUEST
+                    )
+                await scheduler.async_play_queue_item(section, index, slide_id)
             elif action == "reorder":
                 section = body.get("section")
                 ordered_ids = body.get("ordered_ids")

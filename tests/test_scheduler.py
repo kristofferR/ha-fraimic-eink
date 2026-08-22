@@ -850,6 +850,152 @@ def test_queue_mutations_reject_stale_input_and_clear_pending_item(
     assert scheduler.queued_slides == []
 
 
+def test_play_queue_item_targets_selected_hand_or_playlist_row(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="first", name="First")
+    second = SimpleNamespace(screen_id="second", name="Second")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second]
+    scheduler._queued_ids = [first.screen_id, second.screen_id]
+    played: list[tuple[str, str]] = []
+
+    async def show_queued(slide: object, *, manual: bool) -> bool:
+        assert manual is True
+        played.append(("queue", slide.screen_id))
+        return True
+
+    async def select(slide: object, *, hold: bool = False) -> None:
+        assert hold is False
+        played.append(("playlist", slide.screen_id))
+
+    monkeypatch.setattr(scheduler, "_async_show_queued", show_queued)
+    monkeypatch.setattr(
+        scheduler, "playlist_up_next", lambda *, limit: [first, second][:limit]
+    )
+    monkeypatch.setattr(scheduler, "async_select", select)
+
+    asyncio.run(scheduler.async_play_queue_item("queue", 1, "second"))
+    asyncio.run(scheduler.async_play_queue_item("playlist", 0, "first"))
+
+    assert played == [("queue", "second"), ("playlist", "first")]
+
+
+def test_play_queue_item_rejects_stale_selection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    slide = SimpleNamespace(screen_id="current", name="Current")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [slide]
+    scheduler._queued_ids = [slide.screen_id]
+
+    with pytest.raises(scheduler_mod.HomeAssistantError):
+        asyncio.run(scheduler.async_play_queue_item("queue", 0, "stale"))
+    with pytest.raises(scheduler_mod.HomeAssistantError):
+        asyncio.run(scheduler.async_play_queue_item("other", 0, slide.screen_id))
+
+
+def test_play_later_duplicate_consumes_selected_occurrence_after_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    duplicate = SimpleNamespace(screen_id="duplicate", name="Duplicate", interval=1800)
+    other = SimpleNamespace(screen_id="other", name="Other", interval=1800)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [duplicate, other]
+    scheduler._queued_ids = [duplicate.screen_id, other.screen_id, duplicate.screen_id]
+
+    displayed = asyncio.run(
+        scheduler.async_play_queue_item("queue", 2, duplicate.screen_id)
+    )
+
+    assert displayed is None
+    assert scheduler._queued_ids == ["duplicate", "duplicate", "other"]
+    assert scheduler._pending is duplicate
+    assert scheduler._pending_from_queue is True
+
+    async def show_success(*_args: object, **_kwargs: object) -> dict:
+        return {}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", show_success)
+    asyncio.run(scheduler._async_retry_pending(duplicate))
+
+    assert scheduler._queued_ids == ["duplicate", "other"]
+    assert scheduler._pending_from_queue is False
+
+
+def test_play_playlist_item_clears_queue_retry_without_consuming_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+    playlist = SimpleNamespace(screen_id="playlist", name="Playlist", interval=1800)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [queued, playlist]
+    scheduler._queued_ids = [queued.screen_id]
+    scheduler._pending = queued
+    scheduler._pending_from_queue = True
+    scheduler._pending_hold_on_success = True
+    played: list[str] = []
+
+    monkeypatch.setattr(
+        scheduler, "playlist_up_next", lambda *, limit: [playlist][:limit]
+    )
+
+    async def select(slide: object, *, hold: bool = False) -> None:
+        assert hold is False
+        assert scheduler._pending is None
+        assert scheduler._pending_from_queue is False
+        assert scheduler._pending_hold_on_success is False
+        played.append(slide.screen_id)
+
+    monkeypatch.setattr(scheduler, "async_select", select)
+
+    asyncio.run(scheduler.async_play_queue_item("playlist", 0, playlist.screen_id))
+
+    assert played == ["playlist"]
+    assert scheduler._queued_ids == ["queued"]
+
+
+def test_play_queue_item_rejects_active_upload_without_mutating_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="first", name="First", interval=1800)
+    second = SimpleNamespace(screen_id="second", name="Second", interval=1800)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second]
+    scheduler._queued_ids = [first.screen_id, second.screen_id]
+    scheduler._pending = first
+    scheduler._pending_from_queue = True
+    scheduler._pending_hold_on_success = True
+    scheduler._busy = True
+    monkeypatch.setattr(
+        scheduler, "playlist_up_next", lambda *, limit: [second][:limit]
+    )
+    before = (
+        list(scheduler._queued_ids),
+        scheduler._pending,
+        scheduler._pending_from_queue,
+        scheduler._pending_hold_on_success,
+    )
+
+    for section, index, slide_id in (
+        ("queue", 1, second.screen_id),
+        ("playlist", 0, second.screen_id),
+    ):
+        with pytest.raises(scheduler_mod.HomeAssistantError):
+            asyncio.run(scheduler.async_play_queue_item(section, index, slide_id))
+        assert (
+            list(scheduler._queued_ids),
+            scheduler._pending,
+            scheduler._pending_from_queue,
+            scheduler._pending_hold_on_success,
+        ) == before
+
+
 def test_queue_mutations_replace_sleeping_pending_item_with_new_head(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

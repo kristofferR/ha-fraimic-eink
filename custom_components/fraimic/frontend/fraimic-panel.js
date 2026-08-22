@@ -31,6 +31,8 @@ const css = String.raw`
     --top-h: 56px;
     --filter-h: 48px;
     --player-h: 64px;
+    --panel-left: 0px;
+    --panel-right: 0px;
     --chrome: var(--app-header-background-color, var(--card-background-color));
     --surface: var(--card-background-color, var(--secondary-background-color));
     --text: var(--primary-text-color);
@@ -138,7 +140,7 @@ const css = String.raw`
   .load-more { display: flex; justify-content: center; padding: 12px 0 4px; }
   .shell.queue-open main { opacity: .35; pointer-events: none; }
   .player {
-    position: fixed; z-index: 50; left: 0; right: 0; bottom: 0; height: var(--player-h);
+    position: fixed; z-index: 50; left: var(--panel-left); right: var(--panel-right); bottom: 0; height: var(--player-h);
     display: flex; align-items: center; gap: 10px; padding: 0 16px;
     background: var(--chrome); border-top: 1px solid var(--line);
   }
@@ -163,7 +165,7 @@ const css = String.raw`
   .menu button:hover { background: var(--secondary-background-color); }
   .menu button span:last-child { margin-left: auto; color: var(--muted); font-size: 12px; }
   .queue-sheet {
-    position: fixed; z-index: 45; left: 0; right: 0; bottom: var(--player-h);
+    position: fixed; z-index: 45; left: var(--panel-left); right: var(--panel-right); bottom: var(--player-h);
     height: var(--queue-height, 420px); max-height: min(420px, calc(100vh - var(--top-h) - var(--player-h)));
     background: var(--surface); border-top: 1px solid var(--line); overflow: auto;
     transition: height 180ms ease-out;
@@ -348,25 +350,35 @@ class FraimicPanel extends HTMLElement {
     this._signedPaths = new Map();
     this._signedPathPromises = new Map();
     this._imageObserver = null;
+    this._boundsObserver = null;
     this._playerSignature = null;
     this._onPop = () => { this._syncRoute(); this._loadRoute(); };
     this._onShadowKeyDown = (event) => this._handleKeyDown(event);
+    this._onWindowResize = () => this._syncPanelBounds();
   }
 
   connectedCallback() {
     window.addEventListener("popstate", this._onPop);
+    window.addEventListener("resize", this._onWindowResize);
     this.shadowRoot.addEventListener("keydown", this._onShadowKeyDown);
+    this._syncPanelBounds();
+    if ("ResizeObserver" in window) {
+      this._boundsObserver ||= new ResizeObserver(() => this._syncPanelBounds());
+      this._boundsObserver.observe(this);
+    }
     if (this._initialized) this._startRefresh();
   }
 
   disconnectedCallback() {
     window.removeEventListener("popstate", this._onPop);
+    window.removeEventListener("resize", this._onWindowResize);
     this.shadowRoot.removeEventListener("keydown", this._onShadowKeyDown);
     clearInterval(this._refreshTimer);
     clearTimeout(this._searchTimer);
     clearTimeout(this._toastTimer);
     clearTimeout(this._galleryRenderTimer);
     this._imageObserver?.disconnect();
+    this._boundsObserver?.disconnect();
   }
 
   set hass(value) {
@@ -383,6 +395,12 @@ class FraimicPanel extends HTMLElement {
 
   get _frame() {
     return this._frames.find((frame) => frame.id === this._selectedFrameId) || this._frames[0] || null;
+  }
+
+  _syncPanelBounds() {
+    const bounds = this.getBoundingClientRect();
+    this.style.setProperty("--panel-left", `${Math.max(0, bounds.left)}px`);
+    this.style.setProperty("--panel-right", `${Math.max(0, window.innerWidth - bounds.right)}px`);
   }
 
   get _basePath() {
@@ -891,7 +909,7 @@ class FraimicPanel extends HTMLElement {
 
   _queueRow(item, index, section, count, reorderable) {
     const movement = reorderable ? `<button class="icon-btn" data-move-queue="top" data-section="${section}" data-index="${index}" aria-label="Move to top" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-up"></ha-icon></button><button class="icon-btn" data-move-queue="up" data-section="${section}" data-index="${index}" aria-label="Move up" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-move-queue="down" data-section="${section}" data-index="${index}" aria-label="Move down" ${index === count - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-move-queue="bottom" data-section="${section}" data-index="${index}" aria-label="Move to bottom" ${index === count - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-down"></ha-icon></button>` : "";
-    return `<li class="queue-row" ${reorderable ? `draggable="true" data-queue-section="${section}"` : ""} data-queue-index="${index}" data-queue-id="${h(item.id)}"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span><div class="row-art glass">${item.thumbnail_url ? `<img ${this._imageAttrs(item.thumbnail_url, "")}>` : ""}</div><div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions">${movement}${section === "queue" ? `<button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove"><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</div></li>`;
+    return `<li class="queue-row" ${reorderable ? `draggable="true" data-queue-section="${section}"` : ""} data-queue-index="${index}" data-queue-id="${h(item.id)}"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span><div class="row-art glass">${item.thumbnail_url ? `<img ${this._imageAttrs(item.thumbnail_url, "")}>` : ""}</div><div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions"><button class="icon-btn" data-play-queue data-section="${section}" data-index="${index}" data-slide-id="${h(item.id)}" aria-label="Play now" ${this._player?.sending ? "disabled" : ""}><ha-icon icon="mdi:play"></ha-icon></button>${movement}${section === "queue" ? `<button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove"><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</div></li>`;
   }
 
   _menuTemplate() {
@@ -1003,6 +1021,7 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-queue-size]").forEach((node) => node.onclick = () => this._stepQueueSize(node.dataset.queueSize));
     root.querySelector("[data-queue-handle]")?.addEventListener("pointerdown", (event) => this._dragQueueSheet(event));
     root.querySelector("[data-clear-queue]")?.addEventListener("click", () => this._queueAction({ action: "clear" }));
+    root.querySelectorAll("[data-play-queue]").forEach((node) => node.onclick = () => this._queueAction({ action: "play", section: node.dataset.section, index: Number(node.dataset.index), slide_id: node.dataset.slideId }));
     root.querySelectorAll("[data-remove-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.removeQueue.split(":"); this._queueAction({ action: "remove", index: Number(index), slide_id: id.join(":") }); });
     root.querySelectorAll("[data-move-queue]").forEach((node) => node.onclick = () => this._moveQueue(node.dataset.section, Number(node.dataset.index), node.dataset.moveQueue));
     root.querySelectorAll("[data-create-playlist]").forEach((node) => node.onclick = () => this._createPlaylist());

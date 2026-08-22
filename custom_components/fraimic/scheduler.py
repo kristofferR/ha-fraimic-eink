@@ -411,6 +411,40 @@ class FraimicScheduler:
         await self._async_save()
         self._notify()
 
+    async def async_play_queue_item(
+        self, section: str, index: int, slide_id: str
+    ) -> None:
+        """Play one visible hand-queue or upcoming playlist item now."""
+        self.raise_if_upload_active()
+        if section == "queue":
+            if (
+                not 0 <= index < len(self._queued_ids)
+                or self._queued_ids[index] != slide_id
+            ):
+                raise HomeAssistantError("That queue item is no longer available")
+            slide = self._slide_by_id(slide_id)
+            if slide is None:
+                raise HomeAssistantError("That queue item is no longer available")
+            if index:
+                # Moving only the chosen occurrence to the head lets the existing
+                # display/retry path consume that exact row. Surviving rows keep
+                # their relative order, including duplicate slide ids.
+                self._queued_ids.insert(0, self._queued_ids.pop(index))
+                await self._async_save()
+                self._notify()
+            await self._async_show_queued(slide, manual=True)
+            return
+        if section != "playlist":
+            raise HomeAssistantError("section must be queue or playlist")
+        items = self.playlist_up_next(limit=3 if self.shuffle else 10)
+        if not 0 <= index < len(items) or items[index].screen_id != slide_id:
+            raise HomeAssistantError("That queue item is no longer available")
+        if self._pending_from_queue:
+            self._pending = None
+            self._pending_from_queue = False
+            self._pending_hold_on_success = False
+        await self.async_select(items[index])
+
     async def async_clear_queue(self) -> None:
         """Clear every hand-added queue item."""
         if not self._queued_ids:
