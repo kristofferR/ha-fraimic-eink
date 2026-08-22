@@ -580,6 +580,11 @@ def test_library_picture_uses_cached_render(
     rendered = (b"cached-bin", b"cached-preview", "none")
 
     class Library:
+        image = types.SimpleNamespace(crops={}, rotations={})
+
+        def get(self, _image_id: str) -> object:
+            return self.image
+
         async def async_render_for_entry(
             self, image_id: str, entry: object, overrides: dict
         ) -> tuple[bytes, bytes, str]:
@@ -705,6 +710,11 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
     Image.new("RGB", (1600, 1200), (160, 32, 32)).save(source, format="PNG")
 
     class Library:
+        image = types.SimpleNamespace(crops={}, rotations={})
+
+        def get(self, _image_id: str) -> object:
+            return self.image
+
         async def async_render_for_entry(
             self, _image_id: str, _entry: object, _overrides: dict
         ) -> tuple[bytes, bytes, str]:
@@ -730,6 +740,9 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
         assert image.size == (320, 240)
         assert image.getpixel((0, 0)) == (160, 32, 32)
 
+    Library.image.crops = {"800x480": [0.0, 0.0, 0.5, 1.0]}
+    assert display.cached_prepared_thumbnail(hass, entry, screen) is None
+    Library.image.crops = {}
     screen.source["mode"] = "atkinson"
     assert display.cached_prepared_thumbnail(hass, entry, screen) is None
 

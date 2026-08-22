@@ -40,6 +40,7 @@ from ..const import (
     PLAYLIST_TONE_VALUES,
 )
 from ..power import TRIGGER_MANUAL
+from ..providers.cache import ByteCache
 from .compose import render_screen
 from .fetch import async_build_context
 from .schema import KIND_PICTURE, ScreenConfig
@@ -56,6 +57,8 @@ _NEUTRAL_OVERRIDES = {
     ATTR_SHARPEN: 0.0,
     ATTR_TONE: 0.0,
 }
+
+PREPARED_THUMBNAIL_CACHE_BYTES = 16 * 1024 * 1024
 
 
 def _public_art_dict(candidate) -> dict:
@@ -216,21 +219,49 @@ def _picture_cache_id(screen: ScreenConfig) -> str | None:
     return f"provider:{provider}:{item_id}:original"
 
 
-def _prepared_thumbnail_fingerprint(entry, screen: ScreenConfig) -> str:
+def prepared_thumbnail_fingerprint(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> str:
     """Identify the slide and frame settings that determine a preview."""
+    source = screen.source or {}
     payload = {
-        "source": screen.source,
+        "source": source,
         "entry_data": dict(entry.data),
         "entry_options": dict(entry.options),
     }
+    if image_id := source.get("library_image"):
+        from ..library import get_library
+
+        library = get_library(hass)
+        if library is not None:
+            image = library.get(image_id)
+            payload["library_transform"] = {
+                "crops": image.crops,
+                "rotations": image.rotations,
+            }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
     ).hexdigest()
 
 
-def _prepared_thumbnail_cache(hass: HomeAssistant) -> dict:
-    return hass.data.setdefault(DOMAIN, {}).setdefault(
-        "playlist_prepared_thumbnails", {}
+def _prepared_thumbnail_cache(hass: HomeAssistant) -> ByteCache:
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    cache = domain_data.get("playlist_prepared_thumbnails")
+    if not isinstance(cache, ByteCache):
+        cache = ByteCache(PREPARED_THUMBNAIL_CACHE_BYTES)
+        domain_data["playlist_prepared_thumbnails"] = cache
+    return cache
+
+
+def _prepared_thumbnail_key(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> tuple[str, str, str, str]:
+    source = screen.source or {}
+    return (
+        entry.entry_id,
+        screen.screen_id,
+        str(source.get("library_image") or ""),
+        prepared_thumbnail_fingerprint(hass, entry, screen),
     )
 
 
@@ -238,12 +269,35 @@ def cached_prepared_thumbnail(
     hass: HomeAssistant, entry, screen: ScreenConfig
 ) -> bytes | None:
     """Return a serially prepared thumbnail without doing render work."""
-    key = (entry.entry_id, screen.screen_id)
-    cached = _prepared_thumbnail_cache(hass).get(key)
-    fingerprint = _prepared_thumbnail_fingerprint(entry, screen)
-    if cached is None or cached[0] != fingerprint:
-        return None
-    return cached[1]
+    cached = _prepared_thumbnail_cache(hass).get(
+        _prepared_thumbnail_key(hass, entry, screen), float("inf")
+    )
+    return cached[0] if cached is not None else None
+
+
+def discard_prepared_thumbnails(
+    hass: HomeAssistant,
+    *,
+    entry_id: str | None = None,
+    screen_id: str | None = None,
+    image_id: str | None = None,
+) -> None:
+    """Evict matching derived thumbnails after their owner or crop changes."""
+    cache = hass.data.get(DOMAIN, {}).get("playlist_prepared_thumbnails")
+    if not isinstance(cache, ByteCache):
+        return
+
+    def matches(key) -> bool:
+        if not isinstance(key, tuple) or len(key) != 4:
+            return False
+        cached_entry, cached_screen, cached_image, _fingerprint = key
+        return (
+            (entry_id is None or cached_entry == entry_id)
+            and (screen_id is None or cached_screen == screen_id)
+            and (image_id is None or cached_image == image_id)
+        )
+
+    cache.discard_where(matches)
 
 
 def _small_preview(preview: bytes) -> bytes:
@@ -310,10 +364,10 @@ async def async_prepare_screen(
     if preview is None:
         return False
     thumbnail = await hass.async_add_executor_job(_small_preview, preview)
-    key = (entry.entry_id, screen.screen_id)
-    _prepared_thumbnail_cache(hass)[key] = (
-        _prepared_thumbnail_fingerprint(entry, screen),
+    _prepared_thumbnail_cache(hass).set(
+        _prepared_thumbnail_key(hass, entry, screen),
         thumbnail,
+        "image/png",
     )
     return True
 

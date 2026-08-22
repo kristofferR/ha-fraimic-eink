@@ -39,7 +39,7 @@ from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, async_delete_library_image, get_library
 from .overlays_http import overlay_views
 from .playlists import DATA_PLAYLISTS, PlaylistManager
-from .playlists_http import playlist_views
+from .playlists_http import async_picture_thumbnail_response, playlist_views
 from .render.schema import ScreenConfig
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
 from .screens_http import screens_views
@@ -73,6 +73,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         FramesView(),
         PlayerStateView(),
         PlayerArtworkView(),
+        PlayerThumbnailView(),
         PlayerControlView(),
         PlayerQueueView(),
         ScenesView(),
@@ -763,12 +764,14 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         fixed_picture = source.get("library_image") or (
             source.get("provider") and source.get("provider_item")
         )
-        if (
-            not fixed_picture
-            or playlist_id is None
-            or slide.screen_id not in active_slide_ids
-        ):
+        if not fixed_picture:
             return None
+        if playlist_id is None or slide.screen_id not in active_slide_ids:
+            query = urlencode({"entry_id": entry.entry_id})
+            return (
+                f"/api/fraimic/player/thumbnail/"
+                f"{quote(slide.screen_id, safe='')}?{query}"
+            )
         query = urlencode(
             {
                 "entry_id": entry.entry_id,
@@ -850,6 +853,29 @@ class PlayerArtworkView(_FraimicView):
             content_type="image/png",
             headers={"Cache-Control": "private, no-store"},
         )
+
+
+class PlayerThumbnailView(_FraimicView):
+    """Serve processed thumbnails for hand-queued fixed pictures."""
+
+    url = "/api/fraimic/player/thumbnail/{slide_id}"
+    name = "api:fraimic:player:thumbnail"
+
+    async def get(self, request: web.Request, slide_id: str) -> web.Response:
+        hass = request.app[KEY_HASS]
+        entry = require_loaded_entry(hass, request.query.get("entry_id"))
+        scheduler = entry.runtime_data.scheduler
+        screen = next(
+            (
+                candidate
+                for candidate in (*scheduler.queued_slides, *scheduler.screens)
+                if candidate.screen_id == slide_id
+            ),
+            None,
+        )
+        if screen is None:
+            raise web.HTTPNotFound(text="Queued slide not found")
+        return await async_picture_thumbnail_response(hass, entry, screen)
 
 
 class PlayerControlView(_FraimicView):
