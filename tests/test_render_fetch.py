@@ -105,6 +105,25 @@ class _Hass:
     services = _Services()
 
 
+def test_template_fetch_does_not_evaluate_literal_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fetch = _load_fetch(monkeypatch)
+
+    class UnexpectedTemplate:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pytest.fail("literal text must not be evaluated as a template")
+
+    fetch.Template = UnexpectedTemplate
+    result = asyncio.run(
+        fetch._async_fetch_template(
+            _Hass(), {"literal": "{{ states('sensor.private') }}"}, None
+        )
+    )
+
+    assert result == {"text": "{{ states('sensor.private') }}"}
+
+
 def test_calendar_fetch_only_treats_bare_dates_as_all_day(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

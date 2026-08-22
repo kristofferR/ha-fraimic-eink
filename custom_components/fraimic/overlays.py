@@ -123,6 +123,11 @@ def _widget_options(overlay_type: str, raw: Any) -> dict[str, Any]:
         widget_type = (
             "weather_forecast" if weather_view == "forecast" else "weather_current"
         )
+        if weather_view == "forecast":
+            options.pop("name", None)
+        else:
+            options.pop("mode", None)
+            options.pop("count", None)
     if overlay_type == "caption":
         return {
             "fields": [
@@ -391,7 +396,7 @@ def _render_specs(
             caption = _caption_text(options, art)
             if not caption:
                 continue
-            options = {"template": caption, "align": "left", "size": "m"}
+            options = {"literal": caption, "align": "left", "size": "m"}
         specs.append(overlay)
         widgets.append(WidgetConfig(widget_type, "main", options))
     return specs, ScreenConfig(

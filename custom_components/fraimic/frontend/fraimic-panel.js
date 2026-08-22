@@ -316,6 +316,7 @@ class FraimicPanel extends HTMLElement {
     this._rendersWell = false;
     this._galleryLoading = false;
     this._galleryGeneration = 0;
+    this._sourcesGeneration = 0;
     this._playerGeneration = 0;
     this._detailGeneration = 0;
     this._galleryRenderTimer = null;
@@ -481,7 +482,10 @@ class FraimicPanel extends HTMLElement {
 
   async _loadSources() {
     if (!this._selectedFrameId) return;
-    const data = await this._api(`gallery/sources?entry_id=${encodeURIComponent(this._selectedFrameId)}`);
+    const entryId = this._selectedFrameId;
+    const generation = ++this._sourcesGeneration;
+    const data = await this._api(`gallery/sources?entry_id=${encodeURIComponent(entryId)}`);
+    if (generation !== this._sourcesGeneration || entryId !== this._selectedFrameId) return;
     this._sources = data.sources || [];
   }
 
