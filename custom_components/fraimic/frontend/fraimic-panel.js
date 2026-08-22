@@ -499,7 +499,7 @@ class FraimicPanel extends HTMLElement {
   connectedCallback() {
     window.addEventListener("popstate", this._onPop);
     window.addEventListener("resize", this._onWindowResize);
-    this.shadowRoot.addEventListener("keydown", this._onShadowKeyDown);
+    window.addEventListener("keydown", this._onShadowKeyDown);
     this._syncPanelBounds();
     if ("ResizeObserver" in window) {
       this._boundsObserver ||= new ResizeObserver(() => this._syncPanelBounds());
@@ -511,7 +511,7 @@ class FraimicPanel extends HTMLElement {
   disconnectedCallback() {
     window.removeEventListener("popstate", this._onPop);
     window.removeEventListener("resize", this._onWindowResize);
-    this.shadowRoot.removeEventListener("keydown", this._onShadowKeyDown);
+    window.removeEventListener("keydown", this._onShadowKeyDown);
     clearInterval(this._refreshTimer);
     clearTimeout(this._searchTimer);
     clearTimeout(this._toastTimer);
@@ -1265,7 +1265,7 @@ class FraimicPanel extends HTMLElement {
     const state = player.state || "idle";
     const interval = this._formatInterval(player.interval).replace(/^every /, "");
     const intervalControl = player.playlist_id ? `<button class="btn queue-interval${this._menu === "interval" ? " selected" : ""}" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button>` : "";
-    const chrome = `<span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-size="smaller" aria-label="Make queue smaller"><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-queue-size="larger" aria-label="Make queue larger"><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>`;
+    const chrome = `<span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>`;
     const nowMeta = state === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : state === "asleep" ? `Now showing · ${h(this._frame?.name || "frame")} is asleep` : "Now showing";
     const handle = `<div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>`;
     const head = current.title
@@ -1399,6 +1399,8 @@ class FraimicPanel extends HTMLElement {
     root.getElementById("upload")?.addEventListener("change", (event) => this._uploadFiles([...event.target.files]));
     root.querySelectorAll("[data-player-action]").forEach((node) => node.onclick = () => this._playerAction(node.dataset.playerAction));
     root.querySelectorAll("[data-queue-toggle]").forEach((node) => node.onclick = () => this._toggleQueue());
+    // The dimmed main area is pointer-events:none, so its clicks land on the shell.
+    root.querySelector(".shell")?.addEventListener("click", (event) => { if (this._queueOpen && event.target === event.currentTarget) this._toggleQueue(); });
     root.querySelector("[data-queue-handle]")?.addEventListener("pointerdown", (event) => this._dragQueueSheet(event));
     root.querySelector("[data-clear-queue]")?.addEventListener("click", () => this._queueAction({ action: "clear" }));
     root.querySelectorAll("[data-play-row]").forEach((node) => {
