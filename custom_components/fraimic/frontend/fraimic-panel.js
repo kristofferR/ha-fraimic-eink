@@ -263,8 +263,8 @@ const css = String.raw`
   .queue-more { padding: 10px 16px 16px; }
   .grip { color: var(--muted); cursor: grab; }
   .row-art { width: 52px; flex: none; }
-  button.row-art { min-height: 0; padding: 0; display: block; }
-  button.row-art:hover { outline: 1px solid var(--accent); outline-offset: 1px; }
+  button.row-art, button.player-art { min-height: 0; padding: 0; display: block; }
+  button.row-art:hover, button.player-art:hover { outline: 1px solid var(--accent); outline-offset: 1px; }
   .dither-preview { position: relative; display: grid; place-items: center; }
   .dither-preview .counter { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; white-space: normal; padding: 0 24px; }
   .dither-preview img { position: relative; }
@@ -1252,8 +1252,12 @@ class FraimicPanel extends HTMLElement {
       : state === "unreachable"
         ? `<button class="btn" data-player-action="retry">Retry</button><button class="btn quiet" data-device>Device page</button>`
         : "";
+    const barArt = current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : "";
+    const barArtCell = current.thumbnail_url
+      ? `<button class="player-art glass" data-dither-preview="${h(current.id || "")}" data-preview-title="${h(current.title || "Now showing")}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title || "artwork")}" title="Frame preview">${barArt}</button>`
+      : `<div class="player-art glass"></div>`;
     return `<footer class="player ${h(state)}" tabindex="0" data-player>
-      <div class="player-art glass">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</div>
+      ${barArtCell}
       <div class="player-copy"><b>${h(title)}</b><span data-player-meta>${h(meta)}</span></div>
       ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i data-player-progress style="width:${progress}%"></i></div>` : ""}
       ${transport}${state === "asleep" && player?.waiting_count ? `<span class="counter">${player.waiting_count} waiting</span>` : ""}
@@ -1275,7 +1279,7 @@ class FraimicPanel extends HTMLElement {
     const nowMeta = state === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : state === "asleep" ? `Now showing · ${h(this._frame?.name || "frame")} is asleep` : "Now showing";
     const handle = `<div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>`;
     const head = current.title
-      ? `<div class="queue-now queue-toolbar">${handle}<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title)}" title="Frame preview">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
+      ? `<div class="queue-now queue-toolbar">${handle}<button class="row-art glass" data-dither-preview="${h(current.id || "")}" data-preview-title="${h(current.title)}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title)}" title="Frame preview">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
       : `<div class="queue-head queue-toolbar">${handle}<h2>Queue</h2>${chrome}</div>`;
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       ${head}
