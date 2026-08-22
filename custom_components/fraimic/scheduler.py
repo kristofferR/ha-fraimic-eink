@@ -335,6 +335,10 @@ class FraimicScheduler:
             if (screen := self._slide_by_id(slide_id)) is not None
         ]
 
+    def slide_by_id(self, slide_id: str) -> ScreenConfig | None:
+        """Resolve a queue-sheet slide id (playlist, external, or catalog)."""
+        return self._slide_by_id(slide_id)
+
     def _slide_by_id(self, slide_id: str) -> ScreenConfig | None:
         screen = next(
             (item for item in self.screens if item.screen_id == slide_id), None

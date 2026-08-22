@@ -263,6 +263,12 @@ const css = String.raw`
   .queue-more { padding: 10px 16px 16px; }
   .grip { color: var(--muted); cursor: grab; }
   .row-art { width: 52px; flex: none; }
+  button.row-art { min-height: 0; padding: 0; display: block; }
+  button.row-art:hover { outline: 1px solid var(--accent); outline-offset: 1px; }
+  .dither-preview { position: relative; display: grid; place-items: center; }
+  .dither-preview .counter { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; white-space: normal; padding: 0 24px; }
+  .dither-preview img { position: relative; }
+  .dither-modal .dialog-body { padding: 12px; }
   .row-copy { min-width: 0; flex: 1; }
   .row-copy b, .row-copy span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .row-copy b { font-size: 13px; } .row-copy span { color: var(--muted); font-size: 12px; }
@@ -1216,7 +1222,7 @@ class FraimicPanel extends HTMLElement {
     const movement = playlist.shuffle ? "" : `<button class="icon-btn" data-move-slide="top" data-slide-index="${index}" aria-label="Move to top" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-up"></ha-icon></button><button class="icon-btn" data-move-slide="up" data-slide-index="${index}" aria-label="Move up" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-move-slide="down" data-slide-index="${index}" aria-label="Move down" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-move-slide="bottom" data-slide-index="${index}" aria-label="Move to bottom" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-down"></ha-icon></button>`;
     return `<li class="slide-row" ${playlist.shuffle ? "" : "draggable=\"true\""} data-slide-id="${h(slide.id)}" data-slide-index="${index}">
       <span class="grip" aria-hidden="true"><ha-icon icon="mdi:drag"></ha-icon></span><span class="number">${index + 1}</span>
-      <div class="row-art glass">${slide.thumbnail_url ? `<img ${this._imageAttrs(slide.thumbnail_url, "")}>` : ""}</div>
+      ${this._artPreviewCell(slide)}
       <div class="row-copy"><b>${h(slide.title)}</b><span>${h(slide.meta)}${slide.overlays === "inherit" && this._player?.overlay_count ? ` · Inheriting ${this._player.overlay_count} overlays from ${this._frame?.name}` : ""}</span></div>
       <div class="row-actions">${movement}<button class="icon-btn" data-slide-settings="${h(slide.id)}" aria-label="Slide settings"><ha-icon icon="mdi:tune"></ha-icon></button><button class="icon-btn" data-remove-slide="${h(slide.id)}" aria-label="Remove"><ha-icon icon="mdi:close"></ha-icon></button></div>
     </li>`;
@@ -1269,7 +1275,7 @@ class FraimicPanel extends HTMLElement {
     const nowMeta = state === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : state === "asleep" ? `Now showing · ${h(this._frame?.name || "frame")} is asleep` : "Now showing";
     const handle = `<div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>`;
     const head = current.title
-      ? `<div class="queue-now queue-toolbar">${handle}<div class="row-art glass">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</div><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
+      ? `<div class="queue-now queue-toolbar">${handle}<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title)}" title="Frame preview">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
       : `<div class="queue-head queue-toolbar">${handle}<h2>Queue</h2>${chrome}</div>`;
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       ${head}
@@ -1283,7 +1289,13 @@ class FraimicPanel extends HTMLElement {
     const remove = section === "queue"
       ? `<button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove" title="Remove"><ha-icon icon="mdi:close"></ha-icon></button>`
       : `<button class="icon-btn" data-skip-queue="${index}:${h(item.id)}" aria-label="Skip this time" title="Skip this time, comes back next cycle"><ha-icon icon="mdi:close"></ha-icon></button>`;
-    return `<li class="queue-row" draggable="true" data-queue-section="${section}" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span><div class="row-art glass">${item.thumbnail_url ? `<img ${this._imageAttrs(item.thumbnail_url, "")}>` : ""}</div><div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions">${remove}</div></li>`;
+    return `<li class="queue-row" draggable="true" data-queue-section="${section}" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions">${remove}</div></li>`;
+  }
+
+  _artPreviewCell(item) {
+    const art = item.thumbnail_url ? `<img ${this._imageAttrs(item.thumbnail_url, "")}>` : "";
+    if (item.live || item.blank) return `<div class="row-art glass">${art}</div>`;
+    return `<button class="row-art glass" data-dither-preview="${h(item.id)}" data-preview-title="${h(item.title)}" data-preview-meta="${h(item.meta)}" aria-label="Preview ${h(item.title)} on the frame" title="Frame preview">${art}</button>`;
   }
 
   _menuTemplate() {
@@ -1408,6 +1420,7 @@ class FraimicPanel extends HTMLElement {
       node.onclick = (event) => { if (!event.target.closest("button")) play(); };
       node.onkeydown = (event) => { if (event.key === "Enter" && event.target === node) { event.preventDefault(); play(); } };
     });
+    root.querySelectorAll("[data-dither-preview]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._openDitherPreview(node.dataset.ditherPreview, node.dataset.previewTitle, node.dataset.previewMeta); });
     root.querySelectorAll("[data-remove-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.removeQueue.split(":"); this._queueAction({ action: "remove", index: Number(index), slide_id: id.join(":") }); });
     root.querySelectorAll("[data-skip-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.skipQueue.split(":"); this._queueAction({ action: "skip", index: Number(index), slide_id: id.join(":") }); });
     root.querySelectorAll("[data-create-playlist]").forEach((node) => node.onclick = () => this._createPlaylist());
@@ -1954,6 +1967,21 @@ class FraimicPanel extends HTMLElement {
       if (message) this._notify(message); else this._render();
     }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); await this._loadPlayer(); }
+  }
+
+  _openDitherPreview(slideId, title, meta) {
+    // Empty slideId = the now-showing artwork, which is already the dithered PNG.
+    const url = slideId
+      ? `/api/fraimic/player/queue/preview/${encodeURIComponent(this._selectedFrameId)}/${encodeURIComponent(slideId)}`
+      : this._player?.current?.thumbnail_url;
+    if (!url) return;
+    this._modal = {
+      title: title || "Frame preview",
+      subtitle: h(meta || `Dithered for ${this._frame?.name || "the frame"}`),
+      className: "dither-modal",
+      body: `<div class="dither-preview glass"><span class="counter">Rendering the six colour preview. This can take a few seconds.</span><img ${this._imageAttrs(url, title || "Frame preview")}></div>`,
+    };
+    this._render();
   }
 
   _toggleQueue() {

@@ -74,6 +74,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         PlayerArtworkView(),
         PlayerControlView(),
         PlayerQueueView(),
+        PlayerQueuePreviewView(),
         ScenesView(),
         SceneView(),
         SceneSendView(),
@@ -849,6 +850,33 @@ class PlayerArtworkView(_FraimicView):
             body=preview,
             content_type="image/png",
             headers={"Cache-Control": "private, no-store"},
+        )
+
+
+class PlayerQueuePreviewView(_FraimicView):
+    """On-demand dithered frame preview for one queue-sheet slide."""
+
+    url = "/api/fraimic/player/queue/preview/{entry_id}/{slide_id}"
+    name = "api:fraimic:player:queue:preview"
+
+    async def get(
+        self, request: web.Request, entry_id: str, slide_id: str
+    ) -> web.Response:
+        hass = request.app[KEY_HASS]
+        entry = require_loaded_entry(hass, entry_id)
+        slide = entry.runtime_data.scheduler.slide_by_id(slide_id)
+        if slide is None:
+            raise web.HTTPNotFound(text="That slide is no longer available")
+        from .render.display import async_preview_screen
+
+        try:
+            preview, _mode = await async_preview_screen(hass, entry, slide)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_GATEWAY)
+        return web.Response(
+            body=preview,
+            content_type="image/png",
+            headers={"Cache-Control": "private, max-age=300"},
         )
 
 

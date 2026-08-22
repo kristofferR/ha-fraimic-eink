@@ -318,6 +318,50 @@ async def async_prepare_screen(
     return True
 
 
+async def async_preview_screen(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> tuple[bytes, str]:
+    """Dithered frame preview of one slide; no upload, no runtime side effects.
+
+    Runs the same fetch + conversion pipeline as a real send (reusing the
+    artwork/library caches), but skips overlay compositing: this answers
+    "how will this art dither", not "what exact pixels ship next".
+    Returns ``(preview_png, used_mode)``.
+    """
+    from ..services import async_convert_for_entry
+
+    if screen.kind == KIND_PICTURE:
+        source = screen.source or {}
+        if image_id := source.get("library_image"):
+            from ..library import get_library
+
+            library = get_library(hass)
+            if library is None:
+                raise HomeAssistantError("The Fraimic library is not set up")
+            rendered = await library.async_render_for_entry(
+                image_id, entry, _picture_overrides(source)
+            )
+        else:
+            png, overrides, _art = await _async_picture_source(hass, entry, screen)
+            convert_kwargs = {"preprocess": True}
+            if (cache_id := _picture_cache_id(screen)) is not None:
+                convert_kwargs["cache_id"] = cache_id
+            rendered = await async_convert_for_entry(
+                hass, entry, png, overrides, **convert_kwargs
+            )
+    else:
+        png, mode = await async_render_screen(hass, entry, screen)
+        overrides = dict(_NEUTRAL_OVERRIDES)
+        overrides[ATTR_MODE] = mode
+        rendered = await async_convert_for_entry(
+            hass, entry, png, overrides, preprocess=False
+        )
+    _bin_data, preview_png, used_mode = rendered
+    if not preview_png:
+        raise HomeAssistantError("No preview could be rendered for that slide")
+    return preview_png, used_mode
+
+
 async def async_show_screen(
     hass: HomeAssistant,
     entry,
