@@ -445,16 +445,21 @@ class PlaylistSlidesView(_PlaylistView):
         if slide is None:
             raise PlaylistChangedError("That slide is no longer available")
         entry = require_loaded_entry(hass, body.get("entry_id"))
+        scheduler = entry.runtime_data.scheduler
         stopper = entry.runtime_data.stop_camera_loop
         if stopper is not None:
             stopper()
         if body["action"] == "show_now":
-            await entry.runtime_data.scheduler.async_select(
+            await scheduler.async_select(
                 slide,
                 hold=manager.assignments.get(entry.entry_id) != playlist_id,
             )
         else:
-            await entry.runtime_data.scheduler.async_add_to_queue(slide, play_next=True)
+            if not scheduler.screens:
+                raise PlaylistRequestError(
+                    "Choose a playlist on this frame before playing next"
+                )
+            await scheduler.async_add_to_queue(slide, play_next=True)
         return {}
 
     async def post(self, request: web.Request, playlist_id: str) -> web.Response:

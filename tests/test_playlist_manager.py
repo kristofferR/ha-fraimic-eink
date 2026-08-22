@@ -131,6 +131,67 @@ def test_migrates_each_frame_once_and_materializes_playlist_settings(
     assert restored.render_slides(playlist.playlist_id)[0].source["tone"] == "vivid"
 
 
+def test_migration_preserves_legacy_scheduler_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    playlists, store = _load_playlists(monkeypatch)
+    manager = playlists.PlaylistManager(SimpleNamespace())
+    asyncio.run(manager.async_setup())
+    entry = SimpleNamespace(
+        entry_id="frame-1",
+        title="Living room",
+        subentries={
+            "first": _subentry(
+                "first",
+                "First",
+                {"layout": "full", "widgets": [{"type": "clock", "slot": "main"}]},
+            ),
+            "second": _subentry(
+                "second",
+                "Second",
+                {"layout": "full", "widgets": [{"type": "date", "slot": "main"}]},
+            ),
+        },
+    )
+    store.loaded = {"playlist_order": ["second", "first"]}
+
+    asyncio.run(manager.async_migrate_entry(entry))
+
+    assert [slide.slide_id for slide in manager.playlists[0].slides] == [
+        "second",
+        "first",
+    ]
+
+
+def test_restore_normalizes_unhashable_tone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    playlists, store = _load_playlists(monkeypatch)
+    store.loaded = {
+        "playlists": [
+            {
+                "id": "playlist-1",
+                "name": "Saved",
+                "slides": [
+                    {
+                        "id": "slide-1",
+                        "data": {
+                            "layout": "full",
+                            "widgets": [{"type": "clock", "slot": "main"}],
+                        },
+                        "tone": ["vivid"],
+                    }
+                ],
+            }
+        ]
+    }
+    manager = playlists.PlaylistManager(SimpleNamespace())
+
+    asyncio.run(manager.async_setup())
+
+    assert manager.playlists[0].slides[0].tone == "balanced"
+
+
 def test_add_duplicate_reorder_remove_and_undo(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

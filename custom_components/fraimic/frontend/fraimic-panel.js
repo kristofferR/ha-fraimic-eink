@@ -679,7 +679,7 @@ class FraimicPanel extends HTMLElement {
       <div class="shell${this._dropActive ? " drop-active" : ""}${this._queueOpen ? " queue-open" : ""}">
         ${this._topTemplate()}
         ${this._route === "browse" ? this._filterTemplate() : ""}
-        <main>${this._mainTemplate()}</main>
+        <main ${this._queueOpen ? "inert" : ""}>${this._mainTemplate()}</main>
         ${this._playerTemplate()}
         ${this._queueOpen ? this._queueTemplate() : ""}
         ${this._menuTemplate()}
@@ -695,22 +695,34 @@ class FraimicPanel extends HTMLElement {
 
   _renderPreservingFocus() {
     const active = this.shadowRoot.activeElement;
-    const id = active?.id;
+    const controls = [...this.shadowRoot.querySelectorAll("button, [href], input, select, textarea, [tabindex]")];
+    const focus = active ? {
+      id: active.id,
+      ariaLabel: active.getAttribute("aria-label") || "",
+      text: active.textContent.trim(),
+      index: controls.indexOf(active),
+    } : null;
     const start = active?.selectionStart;
     this._render();
-    if (id) {
-      const replacement = this.shadowRoot.getElementById(id);
-      replacement?.focus();
-      if (typeof start === "number") replacement?.setSelectionRange(start, start);
-    }
+    if (!focus) return;
+    const replacements = [...this.shadowRoot.querySelectorAll("button, [href], input, select, textarea, [tabindex]")];
+    const replacement = replacements.find((control) =>
+      (focus.id && control.id === focus.id) ||
+      (focus.ariaLabel && control.getAttribute("aria-label") === focus.ariaLabel) ||
+      (focus.text && control.textContent.trim() === focus.text)
+    ) || replacements[focus.index];
+    replacement?.focus();
+    if (typeof start === "number") replacement?.setSelectionRange?.(start, start);
   }
 
   _topTemplate() {
     const frames = this._frames.map((frame) => {
       const content = `<span class="dot ${frame.charging ? "charging" : frame.online ? "online" : ""}"></span>${h(frame.name)}`;
+      const status = frame.charging ? "charging" : frame.online ? "online" : frame.asleep ? "asleep" : "unreachable";
+      const label = `${frame.name}, ${status}${frame.battery == null ? "" : `, ${frame.battery}% battery`}`;
       return this._frames.length === 1
-        ? `<span class="chip selected">${content}</span>`
-        : `<button class="chip${frame.id === this._selectedFrameId ? " selected" : ""}" data-frame="${h(frame.id)}" role="radio" aria-checked="${frame.id === this._selectedFrameId}">${content}</button>`;
+        ? `<span class="chip selected" aria-label="${h(label)}">${content}</span>`
+        : `<button class="chip${frame.id === this._selectedFrameId ? " selected" : ""}" data-frame="${h(frame.id)}" role="radio" aria-checked="${frame.id === this._selectedFrameId}" aria-label="${h(label)}">${content}</button>`;
     }).join("");
     return `<header class="top">
       ${this._mergeRouteTitle()}
@@ -908,10 +920,10 @@ class FraimicPanel extends HTMLElement {
     const hand = player.hand_queue || [];
     const playlist = player.playlist?.items || [];
     const shuffled = Boolean(player.playlist?.shuffle);
-    return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue">
+    return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       <div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>
       <div class="queue-head"><h2>Queue</h2><span class="spacer"></span><button class="icon-btn" data-queue-size="smaller" aria-label="Make queue smaller"><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-queue-size="larger" aria-label="Make queue larger"><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button></div>
-      ${hand.length ? `<div class="queue-head"><h2>Next in queue · added by you, played once</h2><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" aria-live="polite" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue", hand.length, true)).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue">Drop a picture here to play it next</div>`}
+      ${hand.length ? `<div class="queue-head"><h2>Next in queue · added by you, played once</h2><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue", hand.length, true)).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue">Drop a picture here to play it next</div>`}
       ${player.playlist_id ? `<div class="queue-head"><h2>Next from ${h(player.playlist_name || "playlist")}${shuffled ? ", shuffled" : ""}</h2><span class="spacer"></span><button class="btn small" data-menu="interval">${h(this._formatInterval(player.interval))}</button><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `${shuffled ? "" : `<div class="failure">Reordering here changes the playlist.</div>`}<ol class="queue-list" data-art-drop="playlist">${playlist.map((item, index) => this._queueRow(item, index, "playlist", playlist.length, !shuffled)).join("")}</ol>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
     </section>`;
   }
@@ -1026,7 +1038,7 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-upload]").forEach((node) => node.onclick = () => root.getElementById("upload")?.click());
     root.getElementById("upload")?.addEventListener("change", (event) => this._uploadFiles([...event.target.files]));
     root.querySelectorAll("[data-player-action]").forEach((node) => node.onclick = () => this._playerAction(node.dataset.playerAction));
-    root.querySelectorAll("[data-queue-toggle]").forEach((node) => node.onclick = () => { this._queueOpen = !this._queueOpen; this._render(); });
+    root.querySelectorAll("[data-queue-toggle]").forEach((node) => node.onclick = () => this._toggleQueue());
     root.querySelectorAll("[data-queue-size]").forEach((node) => node.onclick = () => this._stepQueueSize(node.dataset.queueSize));
     root.querySelector("[data-queue-handle]")?.addEventListener("pointerdown", (event) => this._dragQueueSheet(event));
     root.querySelector("[data-clear-queue]")?.addEventListener("click", () => this._queueAction({ action: "clear" }));
@@ -1427,8 +1439,19 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _queueAction(body) {
-    try { this._player = await this._api("player/queue", this._json({ entry_id: this._selectedFrameId, ...body })); this._render(); }
+    try {
+      this._player = await this._api("player/queue", this._json({ entry_id: this._selectedFrameId, ...body }));
+      const message = body.action === "clear" ? "Queue cleared." : body.action === "remove" ? "Removed from queue." : body.action === "reorder" ? "Queue reordered." : null;
+      if (message) this._notify(message); else this._render();
+    }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); await this._loadPlayer(); }
+  }
+
+  _toggleQueue() {
+    this._queueOpen = !this._queueOpen;
+    this._render();
+    if (this._queueOpen) this.shadowRoot.querySelector(".queue-sheet")?.focus();
+    else this.shadowRoot.querySelector("[data-player] [data-queue-toggle]")?.focus();
   }
 
   _moveQueue(section, index, direction) {
@@ -1598,7 +1621,7 @@ class FraimicPanel extends HTMLElement {
   _friendlyError(error) {
     const message = error?.message || String(error);
     if (/too large|buffer/i.test(message)) return "That picture is too large for the frame buffer.";
-    if (/upload|answer|connect|unreachable/i.test(message)) return `${this._frame?.name || "The frame"} did not answer. Nothing was sent.`;
+    if (/upload|answer|connect|unreachable/i.test(message)) return `${this._frame?.name || "The frame"} did not answer. Check the frame before trying again.`;
     return message;
   }
 

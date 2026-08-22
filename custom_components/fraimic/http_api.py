@@ -591,6 +591,17 @@ class FramesView(_FraimicView):
         return self.json({"frames": frames})
 
 
+def _entry_by_id(hass: HomeAssistant, entry_id: object) -> ConfigEntry:
+    """Resolve one loaded frame entry or reject the request."""
+    entry = next(
+        (candidate for candidate in loaded_fraimic_entries(hass) if candidate.entry_id == entry_id),
+        None,
+    )
+    if entry is None:
+        raise web.HTTPBadRequest(text="Unknown or unloaded entry_id")
+    return entry
+
+
 def _frame_payload(entry: ConfigEntry) -> dict[str, Any]:
     """Return the selected-frame fields used by the redesigned shell."""
     runtime = entry.runtime_data

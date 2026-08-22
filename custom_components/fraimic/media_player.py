@@ -496,7 +496,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         preview = self.coordinator.config_entry.runtime_data.displayed_preview
         if preview is None:
             return None
-        return hashlib.sha1(preview).hexdigest()[:16]
+        return hashlib.sha1(preview, usedforsecurity=False).hexdigest()[:16]
 
     async def async_get_media_image(self) -> tuple[bytes | None, str | None]:
         """Return the current artwork preview as the player's media image."""

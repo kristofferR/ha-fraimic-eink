@@ -502,11 +502,14 @@ class FraimicScheduler:
         positions = {
             screen.screen_id: index for index, screen in enumerate(self.screens)
         }
-        if self._playlists is not None and self.playlist_id is not None:
-            await self._playlists.async_reorder(self.playlist_id, ordered_ids)
         reordered = list(self.screens)
         for expected_id, ordered_id in zip(expected, ordered_ids, strict=True):
             reordered[positions[expected_id]] = by_id[ordered_id]
+        if self._playlists is not None and self.playlist_id is not None:
+            await self._playlists.async_reorder(
+                self.playlist_id,
+                [screen.screen_id for screen in reordered],
+            )
         self.screens = reordered
         self._playback_order = [screen.screen_id for screen in self.screens]
         self._playlist_order = [screen.screen_id for screen in self.screens]
@@ -657,6 +660,8 @@ class FraimicScheduler:
             )
         except Exception:
             self._pending_from_queue = False
+            if self._last_show_permanently_rejected:
+                await self._async_consume_queued(slide.screen_id)
             raise
         if self._last_show_permanently_rejected:
             await self._async_consume_queued(slide.screen_id)
@@ -754,9 +759,9 @@ class FraimicScheduler:
             except HomeAssistantError as err:
                 self._pending = None
                 self._pending_hold_on_success = False
+                self._last_show_permanently_rejected = True
                 if manual:
                     raise
-                self._last_show_permanently_rejected = True
                 if advance_playlist:
                     self.current_id = screen.screen_id
                     self._playlist_cursor_id = screen.screen_id
