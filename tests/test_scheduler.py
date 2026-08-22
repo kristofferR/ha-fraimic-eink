@@ -498,6 +498,52 @@ def test_external_upload_can_invalidate_hash_without_hold(
     assert saved[-1]["enabled"] is True
 
 
+def test_new_direct_send_discards_pending_scheduler_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler._pending = SimpleNamespace(screen_id="older")
+    scheduler._pending_from_queue = True
+    saved: list[dict] = []
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.append(dict(data))
+
+    scheduler._store = Store()
+
+    asyncio.run(scheduler.async_discard_pending_retry())
+
+    assert scheduler._pending is None
+    assert scheduler._pending_from_queue is False
+    assert saved[-1]["pending_queue_id"] is None
+
+
+def test_deferred_external_delivery_resets_scheduler_durably(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", interval=900)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current]
+    scheduler.current_id = current.screen_id
+    scheduler.displayed_hash = "old-hash"
+    saved: list[dict] = []
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.append(dict(data))
+
+    scheduler._store = Store()
+
+    asyncio.run(scheduler.async_notify_external_upload())
+
+    assert scheduler.displayed_hash is None
+    assert scheduler.hold_until == datetime(2026, 7, 3, 12, 20)
+    assert saved[-1]["displayed_hash"] is None
+
+
 def test_manual_screen_control_blocked_during_external_upload(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

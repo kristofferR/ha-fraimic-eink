@@ -222,6 +222,9 @@ class FraimicSendQueue:
             "trigger": trigger,
         }
         await self._store.async_save({"pending": self._pending})
+        scheduler = getattr(self._entry.runtime_data, "scheduler", None)
+        if scheduler is not None:
+            await scheduler.async_discard_pending_retry()
         self._start_waiting()
         self._dispatch(f"Waiting to send {title} — tap the frame to wake it up")
         _LOGGER.info(
@@ -368,6 +371,7 @@ class FraimicSendQueue:
                             )
                     runtime.last_art = None
                     runtime.media_title = title
+                    await runtime.scheduler.async_notify_external_upload()
                     await self._async_clear(f"Already displaying {title}")
                     return
                 if reason in DEFER_REASONS:
@@ -388,6 +392,7 @@ class FraimicSendQueue:
                     runtime.last_art = None
                     runtime.media_title = title
                     await runtime.power.async_record_upload(content_hash, trigger)
+                    await runtime.scheduler.async_notify_external_upload()
                     await self._async_clear(
                         f"Sent {title} (unconfirmed — the frame's reply timed out)"
                     )
@@ -417,6 +422,7 @@ class FraimicSendQueue:
                         )
                 runtime.last_art = None
                 runtime.media_title = title
+                await runtime.scheduler.async_notify_external_upload()
                 _LOGGER.info(
                     "Delivered queued image '%s' to %s", title, self._entry.title
                 )
