@@ -99,6 +99,12 @@ class ByteCache:
             oldest = next(iter(self._values))
             self._remove(oldest)
 
+    def discard_where(self, predicate: Callable[[Hashable], bool]) -> None:
+        """Remove every cached item whose key matches ``predicate``."""
+        for key in tuple(self._values):
+            if predicate(key):
+                self._remove(key)
+
     def _remove(self, key: Hashable) -> None:
         _stored_at, value, _content_type = self._values.pop(key)
         self._size -= len(value)

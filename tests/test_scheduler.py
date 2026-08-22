@@ -74,6 +74,10 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     dt.now = lambda: datetime(2026, 7, 3, 14, 5)
     dt.utcnow = lambda: datetime(2026, 7, 3, 12, 5)
     display.async_show_screen = async_show_screen
+    display.discard_prepared_thumbnails = lambda *_args, **_kwargs: None
+    display.prepared_thumbnail_fingerprint = (
+        lambda _hass, _entry, screen: repr(getattr(screen, "source", None))
+    )
     playlist.eligible = lambda *_args, **_kwargs: True
     playlist.next_screen = lambda *_args, **_kwargs: None
     schema.ScreenConfig = SimpleNamespace

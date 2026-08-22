@@ -39,7 +39,11 @@ from .const import CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH, DOMAIN
 from .coordinator import FraimicConfigEntry
 from .power import TRIGGER_MANUAL, TRIGGER_PLAYLIST
 from .providers.ha import ArtFetchError
-from .render.display import async_show_screen
+from .render.display import (
+    async_show_screen,
+    discard_prepared_thumbnails,
+    prepared_thumbnail_fingerprint,
+)
 from .render.playlist import eligible, next_screen
 from .render.schema import KIND_PICTURE, ScreenConfig
 from .screens import screens_from_entry
@@ -208,6 +212,7 @@ class FraimicScheduler:
         if self._prefetch_task is not None:
             self._prefetch_task.cancel()
             self._prefetch_task = None
+        discard_prepared_thumbnails(self.hass, entry_id=self.entry.entry_id)
 
     # -- entity plumbing ---------------------------------------------------
 
@@ -628,6 +633,8 @@ class FraimicScheduler:
         """Apply catalog assignment/settings changes to this frame scheduler."""
         if self._playlists is None:
             return
+        discard_prepared_thumbnails(self.hass, entry_id=self.entry.entry_id)
+        self._playlist_preprocess_done = None
         self._load_assigned_playlist()
         valid_ids = {screen.screen_id for screen in self.screens} | set(
             self._external_queue
@@ -823,6 +830,17 @@ class FraimicScheduler:
             if slide_id not in keep:
                 self._external_queue.pop(slide_id, None)
                 self._external_queue_data.pop(slide_id, None)
+                discard_prepared_thumbnails(
+                    self.hass,
+                    entry_id=self.entry.entry_id,
+                    screen_id=slide_id,
+                )
+
+    @callback
+    def invalidate_preprocessing(self) -> None:
+        """Retry the serial pass after an external render dependency changes."""
+        self._playlist_preprocess_done = None
+        self._schedule_prefetch()
 
     async def _async_show(
         self,
@@ -1025,13 +1043,11 @@ class FraimicScheduler:
                 "slides": [
                     [
                         screen.screen_id,
-                        getattr(screen, "kind", None),
-                        getattr(screen, "source", None),
+                        prepared_thumbnail_fingerprint(self.hass, self.entry, screen),
                     ]
                     for screen in self.screens
+                    if self._is_preparable_picture(screen)
                 ],
-                "entry_data": dict(getattr(self.entry, "data", {})),
-                "entry_options": dict(getattr(self.entry, "options", {})),
             },
             sort_keys=True,
             separators=(",", ":"),
