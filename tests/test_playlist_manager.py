@@ -110,6 +110,7 @@ def test_migrates_each_frame_once_and_materializes_playlist_settings(
             playlist.playlist_id,
             "photo",
             fit="contain_black",
+            mode="atkinson",
             tone="vivid",
             overlays="none",
         )
@@ -118,6 +119,7 @@ def test_migrates_each_frame_once_and_materializes_playlist_settings(
     assert [slide.interval for slide in rendered] == [900, 900]
     assert rendered[0].source["tone"] == "vivid"
     assert rendered[0].source["fit"] == "contain_black"
+    assert rendered[0].source["mode"] == "atkinson"
     assert rendered[0].overlay_mode == "none"
     assert len(store.saved) == 2
 

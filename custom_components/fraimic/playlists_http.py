@@ -5,13 +5,19 @@ from __future__ import annotations
 from collections import Counter
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import quote, urlencode
 
 from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import (
+    CONF_PLAYLIST_PREFETCH,
+    DEFAULT_PLAYLIST_PREFETCH,
+    DOMAIN,
+    MODE_AUTO,
+)
 from .frame_name import frame_display_name
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
@@ -93,7 +99,7 @@ def _slide_kind(slide: PlaylistSlide) -> str:
     return "picture"
 
 
-def _slide_thumbnail(slide: PlaylistSlide) -> str | None:
+def _original_slide_thumbnail(slide: PlaylistSlide) -> str | None:
     data = slide.data
     if image_id := data.get("library_image"):
         return f"/api/fraimic/library/thumb/{image_id}"
@@ -101,8 +107,35 @@ def _slide_thumbnail(slide: PlaylistSlide) -> str | None:
     return data.get("url") or metadata.get("thumbnail_url")
 
 
+def _slide_thumbnail(
+    slide: PlaylistSlide,
+    *,
+    playlist_id: str | None = None,
+    entry_id: str | None = None,
+    version: float | None = None,
+) -> str | None:
+    data = slide.data
+    fixed_picture = bool(
+        data.get("library_image")
+        or (data.get("provider") and data.get("provider_item"))
+    )
+    if fixed_picture and playlist_id and entry_id:
+        query = urlencode(
+            {"entry_id": entry_id, "v": f"{version or 0:.6f}"}
+        )
+        return (
+            f"/api/fraimic/playlists/{quote(playlist_id, safe='')}"
+            f"/slides/{quote(slide.slide_id, safe='')}/thumbnail?{query}"
+        )
+    return _original_slide_thumbnail(slide)
+
+
 def _slide_payload(
-    slide: PlaylistSlide, *, on_frame: bool = False, editable: bool = False
+    slide: PlaylistSlide,
+    *,
+    on_frame: bool = False,
+    editable: bool = False,
+    thumbnail_url: str | None = None,
 ) -> dict[str, Any]:
     data = slide.data
     metadata = data.get("metadata") or {}
@@ -122,9 +155,10 @@ def _slide_payload(
         "title": data.get("name") or "Untitled",
         "artist": metadata.get("artist"),
         "meta": meta,
-        "thumbnail_url": _slide_thumbnail(slide),
+        "thumbnail_url": thumbnail_url or _original_slide_thumbnail(slide),
         "library_image": data.get("library_image"),
         "fit": data.get("fit", "cover"),
+        "mode": data.get("mode", MODE_AUTO),
         "tone": slide.tone,
         "overlays": overlays,
         "live": kind == "live",
@@ -150,6 +184,7 @@ def _playlist_payload(
     playlist: Playlist,
     *,
     detail: bool = False,
+    entry_id: str | None = None,
 ) -> dict[str, Any]:
     playing = _playing_frames(hass, manager, playlist.playlist_id)
     on_frame_ids = {
@@ -170,7 +205,15 @@ def _playlist_payload(
         "composition": _composition(playlist),
         "interval": playlist.interval,
         "shuffle": playlist.shuffle,
-        "thumbnails": [_slide_thumbnail(slide) for slide in playlist.slides[:4]],
+        "thumbnails": [
+            _slide_thumbnail(
+                slide,
+                playlist_id=playlist.playlist_id,
+                entry_id=entry_id,
+                version=playlist.modified_at,
+            )
+            for slide in playlist.slides[:4]
+        ],
         "playing": playing,
         "modified_at": playlist.modified_at,
     }
@@ -180,10 +223,90 @@ def _playlist_payload(
                 slide,
                 on_frame=slide.slide_id in on_frame_ids,
                 editable=slide.slide_id in legacy_ids,
+                thumbnail_url=_slide_thumbnail(
+                    slide,
+                    playlist_id=playlist.playlist_id,
+                    entry_id=entry_id,
+                    version=playlist.modified_at,
+                ),
             )
             for slide in playlist.slides
         ]
     return payload
+
+
+class PlaylistThumbnailView(HomeAssistantView):
+    """Serve a small cached e-ink preview for a fixed playlist slide."""
+
+    url = "/api/fraimic/playlists/{playlist_id}/slides/{slide_id}/thumbnail"
+    name = "api:fraimic:playlist:slide:thumbnail"
+
+    async def get(
+        self, request: web.Request, playlist_id: str, slide_id: str
+    ) -> web.Response:
+        hass = request.app[KEY_HASS]
+        entry = require_loaded_entry(hass, request.query.get("entry_id"))
+        manager = _manager(hass)
+        screen = manager.render_slide(playlist_id, slide_id)
+        if screen is None:
+            raise web.HTTPNotFound(text="Playlist slide not found")
+        from .render.display import cached_prepared_thumbnail
+
+        try:
+            enabled = int(
+                entry.options.get(
+                    CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH
+                )
+            ) > 0
+        except (TypeError, ValueError):
+            enabled = DEFAULT_PLAYLIST_PREFETCH > 0
+        preview = cached_prepared_thumbnail(hass, entry, screen) if enabled else None
+        if preview is not None:
+            return web.Response(
+                body=preview,
+                content_type="image/png",
+                headers={"Cache-Control": "private, max-age=60"},
+            )
+        playlist = manager.require(playlist_id)
+        slide = next(
+            (item for item in playlist.slides if item.slide_id == slide_id), None
+        )
+        if slide is not None and (image_id := slide.data.get("library_image")):
+            library = get_library(hass)
+            if library is not None:
+                try:
+                    thumbnail = await library.async_get_thumbnail(image_id)
+                except HomeAssistantError:
+                    pass
+                else:
+                    return web.Response(
+                        body=thumbnail,
+                        content_type="image/jpeg",
+                        headers={"Cache-Control": "private, max-age=60"},
+                    )
+        if slide is not None and (
+            provider := slide.data.get("provider")
+        ) and (item_id := slide.data.get("provider_item")):
+            from .gallery_http import _async_gallery_image
+
+            try:
+                thumbnail, content_type = await _async_gallery_image(
+                    hass, entry, provider, item_id, thumbnail=True
+                )
+            except (HomeAssistantError, OSError):
+                pass
+            else:
+                return web.Response(
+                    body=thumbnail,
+                    content_type=content_type,
+                    headers={"Cache-Control": "private, max-age=60"},
+                )
+        fallback = _original_slide_thumbnail(slide) if slide is not None else None
+        if fallback:
+            raise web.HTTPFound(
+                location=fallback, headers={"Cache-Control": "no-store"}
+            )
+        raise web.HTTPNotFound(text="No thumbnail is available")
 
 
 async def _refresh_assigned(
@@ -225,6 +348,7 @@ class PlaylistsView(_PlaylistView):
     async def get(self, request: web.Request) -> web.Response:
         hass = request.app[KEY_HASS]
         manager = _manager(hass)
+        entry_id = request.query.get("entry_id")
         ordered = sorted(
             manager.playlists,
             key=lambda playlist: (
@@ -235,9 +359,12 @@ class PlaylistsView(_PlaylistView):
         return self.json(
             {
                 "playlists": [
-                    _playlist_payload(hass, manager, playlist) for playlist in ordered
+                    _playlist_payload(
+                        hass, manager, playlist, entry_id=entry_id
+                    )
+                    for playlist in ordered
                 ],
-                "selected_frame_id": request.query.get("entry_id"),
+                "selected_frame_id": entry_id,
             }
         )
 
@@ -250,7 +377,13 @@ class PlaylistsView(_PlaylistView):
         except ValueError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         return self.json(
-            _playlist_payload(hass, _manager(hass), playlist, detail=True),
+            _playlist_payload(
+                hass,
+                _manager(hass),
+                playlist,
+                detail=True,
+                entry_id=body.get("entry_id"),
+            ),
             status_code=HTTPStatus.CREATED,
         )
 
@@ -268,7 +401,15 @@ class PlaylistView(_PlaylistView):
             playlist = manager.require(playlist_id)
         except PlaylistNotFoundError as err:
             return self._error(err)
-        return self.json(_playlist_payload(hass, manager, playlist, detail=True))
+        return self.json(
+            _playlist_payload(
+                hass,
+                manager,
+                playlist,
+                detail=True,
+                entry_id=request.query.get("entry_id"),
+            )
+        )
 
     async def post(self, request: web.Request, playlist_id: str) -> web.Response:
         _assert_admin(request)
@@ -287,7 +428,15 @@ class PlaylistView(_PlaylistView):
                 return self.json_message("Unknown action", HTTPStatus.BAD_REQUEST)
         except (PlaylistNotFoundError, ValueError) as err:
             return self._error(err)
-        return self.json(_playlist_payload(hass, manager, playlist, detail=True))
+        return self.json(
+            _playlist_payload(
+                hass,
+                manager,
+                playlist,
+                detail=True,
+                entry_id=body.get("entry_id"),
+            )
+        )
 
     async def delete(self, request: web.Request, playlist_id: str) -> web.Response:
         _assert_admin(request)
@@ -354,7 +503,15 @@ class PlaylistControlView(_PlaylistView):
                 return self.json_message("Unknown action", HTTPStatus.BAD_REQUEST)
         except (PlaylistNotFoundError, ValueError, HomeAssistantError) as err:
             return self._error(err)
-        return self.json(_playlist_payload(hass, manager, playlist, detail=True))
+        return self.json(
+            _playlist_payload(
+                hass,
+                manager,
+                playlist,
+                detail=True,
+                entry_id=body.get("entry_id"),
+            )
+        )
 
 
 class PlaylistSlidesView(_PlaylistView):
@@ -443,6 +600,7 @@ class PlaylistSlidesView(_PlaylistView):
             playlist_id,
             slide_id,
             fit=body.get("fit"),
+            mode=body.get("mode"),
             tone=body.get("tone"),
             overlays=body.get("overlays"),
         )
@@ -512,7 +670,13 @@ class PlaylistSlidesView(_PlaylistView):
         return self.json(
             {
                 **result,
-                "playlist": _playlist_payload(hass, manager, playlist, detail=True),
+                "playlist": _playlist_payload(
+                    hass,
+                    manager,
+                    playlist,
+                    detail=True,
+                    entry_id=body.get("entry_id"),
+                ),
             }
         )
 
@@ -523,4 +687,5 @@ def playlist_views() -> tuple[HomeAssistantView, ...]:
         PlaylistView(),
         PlaylistControlView(),
         PlaylistSlidesView(),
+        PlaylistThumbnailView(),
     )

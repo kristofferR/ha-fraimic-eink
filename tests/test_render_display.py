@@ -108,6 +108,7 @@ class _PreviewImage:
 
 def _entry(rotation: int = 0) -> types.SimpleNamespace:
     return types.SimpleNamespace(
+        entry_id="entry",
         data={"width": 800, "height": 480},
         options={"rotation": rotation},
         runtime_data=types.SimpleNamespace(
@@ -657,6 +658,80 @@ def test_provider_prefetch_is_skipped_when_artwork_cache_is_off(
     monkeypatch.setattr(display, "_async_picture_source", picture_source)
 
     assert asyncio.run(display.async_prepare_screen(_Hass(), entry, screen)) is False
+
+
+def test_library_prepared_preview_returns_dithered_thumbnail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+
+    class Library:
+        async def async_render_for_entry(
+            self, image_id: str, _entry: object, overrides: dict
+        ) -> tuple[bytes, bytes, str]:
+            assert image_id == "image-1"
+            assert overrides == {"fit": "contain", "tone": 0.0}
+            return b"panel", b"eink-preview", "none"
+
+    library = types.ModuleType("fraimic.library")
+    library.get_library = lambda _hass: Library()
+    monkeypatch.setitem(sys.modules, "fraimic.library", library)
+    screen = types.SimpleNamespace(
+        name="Library",
+        kind=display.KIND_PICTURE,
+        source={
+            "library_image": "image-1",
+            "fit": "contain",
+            "tone": "soft",
+        },
+    )
+
+    preview = asyncio.run(
+        display.async_prepared_preview(_Hass(), _entry(), screen)
+    )
+
+    assert preview == b"eink-preview"
+
+
+def test_prepare_screen_exposes_only_small_matching_thumbnail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import io
+
+    from PIL import Image
+
+    display, _ = _load_display(monkeypatch)
+    source = io.BytesIO()
+    Image.new("RGB", (1600, 1200), (160, 32, 32)).save(source, format="PNG")
+
+    class Library:
+        async def async_render_for_entry(
+            self, _image_id: str, _entry: object, _overrides: dict
+        ) -> tuple[bytes, bytes, str]:
+            return b"panel", source.getvalue(), "none"
+
+    library = types.ModuleType("fraimic.library")
+    library.get_library = lambda _hass: Library()
+    monkeypatch.setitem(sys.modules, "fraimic.library", library)
+    hass = _Hass()
+    hass.data = {}
+    entry = _entry()
+    screen = types.SimpleNamespace(
+        screen_id="slide-1",
+        name="Library",
+        kind=display.KIND_PICTURE,
+        source={"library_image": "image-1", "mode": "none"},
+    )
+
+    assert asyncio.run(display.async_prepare_screen(hass, entry, screen)) is True
+    thumbnail = display.cached_prepared_thumbnail(hass, entry, screen)
+    assert thumbnail is not None
+    with Image.open(io.BytesIO(thumbnail)) as image:
+        assert image.size == (320, 240)
+        assert image.getpixel((0, 0)) == (160, 32, 32)
+
+    screen.source["mode"] = "atkinson"
+    assert display.cached_prepared_thumbnail(hass, entry, screen) is None
 
 
 def test_library_picture_preview_only_uses_cached_render(

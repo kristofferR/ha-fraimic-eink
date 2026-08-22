@@ -10,6 +10,8 @@ quantisation is lossless), packs the ``.bin``, and uploads.
 from __future__ import annotations
 
 import hashlib
+import io
+import json
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
@@ -32,6 +34,7 @@ from ..const import (
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
+    DOMAIN,
     FIT_COVER,
     MODE_NONE,
     PLAYLIST_TONE_VALUES,
@@ -213,17 +216,58 @@ def _picture_cache_id(screen: ScreenConfig) -> str | None:
     return f"provider:{provider}:{item_id}:original"
 
 
-async def async_prepare_screen(
+def _prepared_thumbnail_fingerprint(entry, screen: ScreenConfig) -> str:
+    """Identify the slide and frame settings that determine a preview."""
+    payload = {
+        "source": screen.source,
+        "entry_data": dict(entry.data),
+        "entry_options": dict(entry.options),
+    }
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
+    ).hexdigest()
+
+
+def _prepared_thumbnail_cache(hass: HomeAssistant) -> dict:
+    return hass.data.setdefault(DOMAIN, {}).setdefault(
+        "playlist_prepared_thumbnails", {}
+    )
+
+
+def cached_prepared_thumbnail(
     hass: HomeAssistant, entry, screen: ScreenConfig
-) -> bool:
-    """Download and convert one cacheable picture without changing the display.
+) -> bytes | None:
+    """Return a serially prepared thumbnail without doing render work."""
+    key = (entry.entry_id, screen.screen_id)
+    cached = _prepared_thumbnail_cache(hass).get(key)
+    fingerprint = _prepared_thumbnail_fingerprint(entry, screen)
+    if cached is None or cached[0] != fingerprint:
+        return None
+    return cached[1]
+
+
+def _small_preview(preview: bytes) -> bytes:
+    """Shrink an e-ink preview while preserving its exact panel colours."""
+    from PIL import Image
+
+    with Image.open(io.BytesIO(preview)) as image:
+        image.thumbnail((320, 320), Image.Resampling.NEAREST)
+        output = io.BytesIO()
+        image.save(output, format="PNG", optimize=True)
+    return output.getvalue()
+
+
+async def async_prepared_preview(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> bytes | None:
+    """Return a prepared e-ink preview without changing the display.
 
     Dynamic dashboards, entity/URL pictures, and random-provider slides are
     intentionally skipped: preparing those early would freeze data that is
     expected to be fresh at display time.
     """
     if screen.kind != KIND_PICTURE:
-        return False
+        return None
     source = screen.source or {}
     overrides = _picture_overrides(source)
     if image_id := source.get("library_image"):
@@ -231,27 +275,45 @@ async def async_prepare_screen(
 
         library = get_library(hass)
         if library is None:
-            return False
-        await library.async_render_for_entry(image_id, entry, overrides)
-        return True
+            return None
+        _, preview, _ = await library.async_render_for_entry(
+            image_id, entry, overrides
+        )
+        return preview
     if entry.options.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE) not in {
         ARTWORK_CACHE_30_DAYS,
         ARTWORK_CACHE_FOREVER,
     }:
-        return False
+        return None
     cache_id = _picture_cache_id(screen)
     if cache_id is None:
-        return False
+        return None
     from ..services import async_convert_for_entry
 
     raw, overrides, _art = await _async_picture_source(hass, entry, screen)
-    await async_convert_for_entry(
+    _, preview, _ = await async_convert_for_entry(
         hass,
         entry,
         raw,
         overrides,
         preprocess=True,
         cache_id=cache_id,
+    )
+    return preview
+
+
+async def async_prepare_screen(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> bool:
+    """Cache one fixed picture's panel render without changing the display."""
+    preview = await async_prepared_preview(hass, entry, screen)
+    if preview is None:
+        return False
+    thumbnail = await hass.async_add_executor_job(_small_preview, preview)
+    key = (entry.entry_id, screen.screen_id)
+    _prepared_thumbnail_cache(hass)[key] = (
+        _prepared_thumbnail_fingerprint(entry, screen),
+        thumbnail,
     )
     return True
 
