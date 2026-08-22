@@ -320,11 +320,11 @@ class FraimicScheduler:
                 return
             await self._async_rotate(force=False)
 
-    async def async_next(self) -> None:
-        await self._async_step(1)
+    async def async_next(self) -> bool:
+        return await self._async_step(1)
 
-    async def async_previous(self) -> None:
-        await self._async_step(-1)
+    async def async_previous(self) -> bool:
+        return await self._async_step(-1)
 
     async def async_select(self, screen: ScreenConfig, *, hold: bool = False) -> None:
         """Show a specific screen now and pin rotation to it."""
@@ -336,10 +336,11 @@ class FraimicScheduler:
             hold_on_success=hold,
         )
 
-    async def _async_step(self, step: int) -> None:
+    async def _async_step(self, step: int) -> bool:
         if step > 0 and self.queued_slides:
-            await self._async_show_queued(self.queued_slides[0], manual=True)
-            return
+            return await self._async_show_queued(
+                self.queued_slides[0], manual=True
+            )
         candidate = next_screen(
             self._rotation_screens(),
             self._playlist_cursor_id or self.current_id,
@@ -348,7 +349,7 @@ class FraimicScheduler:
         )
         if candidate is None:
             raise HomeAssistantError("No screen is eligible to show right now")
-        await self._async_show(candidate, manual=True)
+        return await self._async_show(candidate, manual=True)
 
     async def async_add_to_queue(
         self, slide: ScreenConfig, *, play_next: bool = False
