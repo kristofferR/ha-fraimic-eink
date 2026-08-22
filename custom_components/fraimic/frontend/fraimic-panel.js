@@ -1979,13 +1979,12 @@ class FraimicPanel extends HTMLElement {
       ? `/api/fraimic/player/queue/preview/${encodeURIComponent(this._selectedFrameId)}/${encodeURIComponent(slideId)}`
       : this._player?.current?.thumbnail_url;
     if (!url) return;
-    this._modal = {
-      title: title || "Frame preview",
-      subtitle: h(meta || `Dithered for ${this._frame?.name || "the frame"}`),
-      className: "dither-modal",
-      body: `<div class="dither-preview glass"><span class="counter">Rendering the six colour preview. This can take a few seconds.</span><img ${this._imageAttrs(url, title || "Frame preview")}></div>`,
-    };
-    this._render();
+    this._openModal(
+      title || "Frame preview",
+      `<div class="dither-preview glass"><span class="counter">Rendering the six colour preview. This can take a few seconds.</span><img ${this._imageAttrs(url, title || "Frame preview")}></div>`,
+      "",
+      { subtitle: h(meta || `Dithered for ${this._frame?.name || "the frame"}`), className: "dither-modal" },
+    );
   }
 
   _toggleQueue() {

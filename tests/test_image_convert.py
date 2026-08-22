@@ -493,3 +493,8 @@ def test_bin_to_png_is_full_resolution_and_rotates() -> None:
 
     rotated = ic.bin_to_png(packed, 1600, 1200, preview_rotate=90)
     assert Image.open(io.BytesIO(rotated)).size == (1200, 1600)
+
+
+def test_bin_to_indices_rejects_wrong_buffer_size() -> None:
+    with pytest.raises(ValueError, match="Buffer size"):
+        ic.bin_to_indices(b"\x00" * 16, 1600, 1200)

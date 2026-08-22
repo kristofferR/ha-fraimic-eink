@@ -1715,6 +1715,68 @@ def test_move_hand_queue_one_off_into_session(
     assert "x" in scheduler._external_queue
 
 
+def test_session_order_restores_from_store(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    assigned = SimpleNamespace(
+        playlist_id="playlist-1", name="Gallery", interval=1800, shuffle=False
+    )
+    slides = [
+        SimpleNamespace(screen_id="a", name="A"),
+        SimpleNamespace(screen_id="b", name="B"),
+    ]
+
+    class Playlists:
+        def assigned_to(self, _entry_id: str) -> object:
+            return assigned
+
+        def render_slides(self, _playlist_id: str) -> list[object]:
+            return list(slides)
+
+        def get(self, _playlist_id: str) -> object:
+            return assigned
+
+        def render_slide_by_id(self, _slide_id: str) -> None:
+            return None
+
+    class Store:
+        def __init__(self, session: dict) -> None:
+            self._session = session
+
+        async def async_load(self) -> dict:
+            return {"session": self._session}
+
+        async def async_save(self, _data: dict) -> None:
+            return None
+
+    def start_with(session: dict) -> object:
+        scheduler = scheduler_mod.FraimicScheduler(
+            SimpleNamespace(), _entry(), Playlists()
+        )
+        scheduler._store = Store(session)
+        asyncio.run(scheduler.async_start())
+        return scheduler
+
+    matching = start_with(
+        {"playlist_id": "playlist-1", "shuffle": False, "order": ["b", "a"], "custom": True}
+    )
+    assert matching._playback_order == ["b", "a"]
+    assert matching._order_custom is True
+
+    shuffle_mismatch = start_with(
+        {"playlist_id": "playlist-1", "shuffle": True, "order": ["b", "a"], "custom": True}
+    )
+    assert shuffle_mismatch._playback_order == ["a", "b"]
+    assert shuffle_mismatch._order_custom is False
+
+    empty_order = start_with(
+        {"playlist_id": "playlist-1", "shuffle": False, "order": [], "custom": True}
+    )
+    assert empty_order._playback_order == ["a", "b"]
+    assert empty_order._order_custom is False
+
+
 def test_session_order_survives_playlist_refresh(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
