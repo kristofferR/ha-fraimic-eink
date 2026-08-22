@@ -744,6 +744,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
 
     artwork_url = (
         f"/api/fraimic/player/artwork/{entry.entry_id}"
+        f"?v={runtime.displayed_preview_version}"
         if runtime.displayed_preview is not None
         else None
     )

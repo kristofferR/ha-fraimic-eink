@@ -18,7 +18,7 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
 
 from .artwork_cache import get_artwork_cache
-from .const import DOMAIN
+from .const import DOMAIN, LIBRARY_ALBUM_DEFAULT
 from .helpers import resolve_render_params
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
@@ -31,12 +31,14 @@ from .providers.ha import (
     ArtFetchError,
     artwork_source_cache_id,
     async_art_by_media_id,
+    async_browse_provider,
     async_browse_candidates,
     async_candidate_by_media_id,
 )
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
 
 LIBRARY_SOURCE = "saved"
+FAVORITES_ALBUM = "Favorites"
 GALLERY_LIMIT = 40
 MAX_GALLERY_OFFSET = 1000
 GALLERY_THUMBNAIL_CACHE_BYTES = 24 * 1024 * 1024
@@ -200,10 +202,15 @@ def _candidate_payload(
     queued_refs, _ = _queued_refs(entry)
     provider = get_provider(candidate.provider)
     candidate_urls = {candidate.image_url, _source_page(candidate)} - {None, ""}
-    saved_urls = {
-        image.source_url for image in library.images.values() if image.source_url
-    }
-    saved = bool(candidate_urls & saved_urls)
+    saved_image = next(
+        (
+            image
+            for image in library.images.values()
+            if image.source_url and image.source_url in candidate_urls
+        ),
+        None,
+    )
+    saved = saved_image is not None
     width = candidate.width if isinstance(candidate.width, int) else 4
     height = candidate.height if isinstance(candidate.height, int) else 3
     image_base = "/api/fraimic/gallery/image?" + urlencode(
@@ -230,6 +237,10 @@ def _candidate_payload(
         "license": candidate.license,
         "attribution": candidate.attribution,
         "saved": saved,
+        "favorite": bool(
+            saved_image and FAVORITES_ALBUM in saved_image.normalized_albums()
+        ),
+        "favorite_image_id": saved_image.image_id if saved_image else None,
         "queued": (candidate.provider, candidate.item_id) in queued_refs,
         "year": _extra(candidate, "year", "date", "created"),
         "description": _extra(candidate, "description", "caption"),
@@ -244,7 +255,7 @@ def _library_payload(image, entry) -> dict[str, Any]:
     return {
         "id": image.image_id,
         "source": LIBRARY_SOURCE,
-        "source_name": "Saved",
+        "source_name": "My library",
         "title": title,
         "artist": image.attribution,
         "thumbnail_url": f"/api/fraimic/library/thumb/{image.image_id}",
@@ -257,6 +268,8 @@ def _library_payload(image, entry) -> dict[str, Any]:
         "license": image.license,
         "attribution": image.attribution,
         "saved": True,
+        "favorite": FAVORITES_ALBUM in image.normalized_albums(),
+        "favorite_image_id": image.image_id,
         "queued": image.image_id in queued_ids,
         "year": None,
         "description": None,
@@ -296,6 +309,50 @@ def _source_payload(provider, available: set[str]) -> dict[str, Any]:
         "hierarchical": provider.hierarchical_browse,
         "group": SOURCE_GROUPS.get(provider.key, "other"),
     }
+
+
+def _library_folders(library: FraimicLibrary) -> list[dict[str, Any]]:
+    """Return the compact My Library tree shown in the source rail."""
+    images = list(library.images.values())
+    favorite_count = sum(
+        FAVORITES_ALBUM in image.normalized_albums() for image in images
+    )
+    counts = Counter(
+        album
+        for image in images
+        for album in image.normalized_albums()
+        if album not in {LIBRARY_ALBUM_DEFAULT, FAVORITES_ALBUM}
+    )
+    return [
+        {"id": "", "title": "All pictures", "count": len(images)},
+        {"id": "favorites", "title": "Favorites", "count": favorite_count},
+        *[
+            {"id": f"album:{name}", "title": name, "count": count}
+            for name, count in sorted(
+                counts.items(), key=lambda item: item[0].casefold()
+            )
+        ],
+    ]
+
+
+def _favorite_image_for_item(
+    library: FraimicLibrary, source: str, item_id: str, item: dict[str, Any]
+):
+    """Find the library original backing a gallery favorite, if any."""
+    if source == LIBRARY_SOURCE:
+        return library.get(item_id)
+    favorite_id = item.get("favorite_image_id")
+    if isinstance(favorite_id, str):
+        return library.images.get(favorite_id)
+    source_url = item.get("source_page_url") or item.get("download_url")
+    return next(
+        (
+            image
+            for image in library.images.values()
+            if source_url and image.source_url == source_url
+        ),
+        None,
+    )
 
 
 async def _resolve_item(hass, entry, source: str, item_id: str) -> dict[str, Any]:
@@ -396,22 +453,70 @@ class GallerySourcesView(HomeAssistantView):
         hass = request.app[KEY_HASS]
         entry = require_loaded_entry(hass, request.query.get("entry_id"))
         available = set(available_provider_keys(entry))
+        library = _library(hass)
         return self.json(
             {
                 "sources": [
                     {
                         "key": LIBRARY_SOURCE,
-                        "name": "Saved",
+                        "name": "My library",
                         "available": True,
                         "requires_key": False,
-                        "hierarchical": False,
+                        "hierarchical": True,
                         "group": "library",
+                        "count": len(library.images),
+                        "children": _library_folders(library),
                     },
                     *[
                         _source_payload(provider, available)
                         for provider in PROVIDERS.values()
                     ],
                 ]
+            }
+        )
+
+
+class GallerySourceTreeView(HomeAssistantView):
+    """Lazy source-folder navigation for the gallery sidebar."""
+
+    url = "/api/fraimic/gallery/tree"
+    name = "api:fraimic:gallery:tree"
+
+    async def get(self, request: web.Request) -> web.Response:
+        hass = request.app[KEY_HASS]
+        entry = require_loaded_entry(hass, request.query.get("entry_id"))
+        source = request.query.get("source", "")
+        browse_id = request.query.get("browse_id", "").strip("/")
+        if source == LIBRARY_SOURCE:
+            library = _library(hass)
+            return self.json(
+                {
+                    "title": "My library",
+                    "folders": _library_folders(library),
+                    "has_items": bool(library.images),
+                }
+            )
+        provider = get_provider(source)
+        if provider is None or not provider.hierarchical_browse:
+            raise web.HTTPNotFound(text="This source has no folders")
+        if source not in available_provider_keys(entry):
+            raise web.HTTPConflict(text="This source is not configured")
+        try:
+            page = await async_browse_provider(hass, entry, source, browse_id)
+        except (ArtFetchError, HomeAssistantError) as err:
+            raise web.HTTPBadGateway(text=str(err)) from err
+        return self.json(
+            {
+                "title": page.title,
+                "folders": [
+                    {
+                        "id": folder.item_id,
+                        "title": folder.title,
+                        "count": folder.count,
+                    }
+                    for folder in page.folders
+                ],
+                "has_items": bool(page.candidates),
             }
         )
 
@@ -424,6 +529,7 @@ class GalleryBrowseView(HomeAssistantView):
         hass = request.app[KEY_HASS]
         entry = require_loaded_entry(hass, request.query.get("entry_id"))
         source = request.query.get("source", "")
+        browse_id = request.query.get("browse_id", "").strip("/")
         query = request.query.get("q", "").strip()
         refresh = request.query.get("refresh") in {"1", "true", "yes"}
         cursor = _cursor(request.query.get("cursor"))
@@ -439,6 +545,20 @@ class GalleryBrowseView(HomeAssistantView):
                 key=lambda image: image.uploaded_at,
                 reverse=True,
             )
+            title = "All pictures"
+            if browse_id == "favorites":
+                images = [
+                    image
+                    for image in images
+                    if FAVORITES_ALBUM in image.normalized_albums()
+                ]
+                title = "Favorites"
+            elif browse_id.startswith("album:"):
+                album = browse_id.removeprefix("album:").strip()
+                images = [
+                    image for image in images if album in image.normalized_albums()
+                ]
+                title = album or "All pictures"
             items = [_library_payload(image, entry) for image in images]
             if query:
                 needle = query.casefold()
@@ -460,6 +580,7 @@ class GalleryBrowseView(HomeAssistantView):
                     else None,
                     "facets": _facets(items),
                     "source_status": [{"source": source, "status": "ready"}],
+                    "title": title,
                 }
             )
         provider = get_provider(source)
@@ -472,6 +593,56 @@ class GalleryBrowseView(HomeAssistantView):
                     "total": 0,
                     "facets": _facets([]),
                     "source_status": [{"source": source, "status": "needs_key"}],
+                }
+            )
+        if browse_id:
+            if not provider.hierarchical_browse:
+                raise web.HTTPBadRequest(text="This source has no browse folders")
+            try:
+                browse_page = await async_browse_provider(
+                    hass, entry, source, browse_id
+                )
+            except (ArtFetchError, HomeAssistantError) as err:
+                return self.json(
+                    {
+                        "results": [],
+                        "total": 0,
+                        "facets": _facets([]),
+                        "source_status": [
+                            {"source": source, "status": "error", "detail": str(err)}
+                        ],
+                        "title": browse_id.rsplit("/", 1)[-1]
+                        .replace("-", " ")
+                        .title(),
+                    }
+                )
+            candidates = list(browse_page.candidates)
+            if query:
+                needle = query.casefold()
+                candidates = [
+                    candidate
+                    for candidate in candidates
+                    if needle
+                    in " ".join(
+                        filter(None, (candidate.title, candidate.artist))
+                    ).casefold()
+                ]
+            total = len(candidates)
+            items = [
+                _candidate_payload(candidate, entry, _library(hass))
+                for candidate in candidates[cursor : cursor + limit]
+            ]
+            next_cursor = cursor + len(items) if cursor + len(items) < total else None
+            return self.json(
+                {
+                    "results": items,
+                    "total": total,
+                    "next_cursor": str(next_cursor)
+                    if next_cursor is not None
+                    else None,
+                    "facets": _facets(items),
+                    "source_status": [{"source": source, "status": "ready"}],
+                    "title": browse_page.title,
                 }
             )
         try:
@@ -593,7 +764,7 @@ class GalleryPreviewView(HomeAssistantView):
         if (
             not source
             or not item_id
-            or fit not in {"cover", "contain"}
+            or fit not in {"cover", "contain", "stretch"}
             or tone not in {"vivid", "balanced", "soft"}
         ):
             raise web.HTTPBadRequest(
@@ -665,14 +836,57 @@ class GalleryActionView(HomeAssistantView):
             fit = body.get("fit", "cover")
             tone = body.get("tone", "balanced")
             crop = _crop(body.get("crop"))
-            if fit not in {"cover", "contain"}:
+            if fit not in {"cover", "contain", "stretch"}:
                 raise ValueError("Unknown fit")
+            if fit != "cover":
+                crop = None
             if tone not in {"vivid", "balanced", "soft"}:
                 raise ValueError("Unknown tone")
             item = await _resolve_item(hass, entry, source, item_id)
             if source == LIBRARY_SOURCE and crop is not None:
                 await _library(hass).async_set_crop(
                     item_id, *_viewed_size(entry), list(crop)
+                )
+            if action in {"favorite", "unfavorite"}:
+                library = _library(hass)
+                saved = _favorite_image_for_item(library, source, item_id, item)
+                if action == "favorite" and saved is None:
+                    art = await async_art_by_media_id(hass, entry, source, item_id)
+                    extension = Path(
+                        re.sub(r"[?#].*$", "", art.candidate.image_url)
+                    ).suffix
+                    filename = f"{art.candidate.title}{extension or '.jpg'}"
+                    saved = await library.async_add_image(
+                        art.data,
+                        filename,
+                        albums=[FAVORITES_ALBUM],
+                        source_url=_source_page(art.candidate)
+                        or art.candidate.image_url,
+                        license_text=art.candidate.license,
+                        attribution=art.candidate.attribution,
+                    )
+                elif saved is not None:
+                    albums = saved.normalized_albums()
+                    if action == "favorite" and FAVORITES_ALBUM not in albums:
+                        albums.append(FAVORITES_ALBUM)
+                    elif action == "unfavorite":
+                        albums = [
+                            album for album in albums if album != FAVORITES_ALBUM
+                        ]
+                    saved = await library.async_update_image(
+                        saved.image_id, albums=albums
+                    )
+                if action == "favorite" and saved is not None and crop is not None:
+                    await library.async_set_crop(
+                        saved.image_id, *_viewed_size(entry), list(crop)
+                    )
+                updated = await _resolve_item(hass, entry, source, item_id)
+                return self.json(
+                    {
+                        "item": updated,
+                        "favorite": action == "favorite",
+                        "saved": saved.image_id if saved is not None else None,
+                    }
                 )
             data = _slide_data(item, fit=fit, tone=tone, crop=crop)
             slide = screen_from_dict(data, f"gallery_{uuid.uuid4().hex}")
@@ -740,6 +954,7 @@ class GalleryActionView(HomeAssistantView):
 def gallery_views() -> tuple[HomeAssistantView, ...]:
     return (
         GallerySourcesView(),
+        GallerySourceTreeView(),
         GalleryBrowseView(),
         GalleryDetailView(),
         GalleryImageView(),
