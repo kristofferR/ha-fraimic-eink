@@ -61,6 +61,7 @@ class FraimicScheduler:
         self._playlist_cursor_id: str | None = None
         self.displayed_hash: str | None = None
         self._last_rotation: datetime | None = None
+        self._paused_at: datetime | None = None
         self._hold_until: datetime | None = None
         self._pending: ScreenConfig | None = None
         self._pending_requires_enabled = True
@@ -122,6 +123,8 @@ class FraimicScheduler:
             self._hold_until = dt_util.parse_datetime(raw)
         if raw := data.get("last_rotation"):
             self._last_rotation = dt_util.parse_datetime(raw)
+        if not self.enabled and (raw := data.get("paused_at")):
+            self._paused_at = dt_util.parse_datetime(raw)
         self._unsub_timer = async_track_time_interval(self.hass, self._async_tick, TICK)
         self._unsub_coordinator = self.entry.runtime_data.coordinator.async_add_listener(
             self._coordinator_updated
@@ -178,6 +181,8 @@ class FraimicScheduler:
     @property
     def last_rotation(self) -> datetime | None:
         """When the currently displayed scheduler slide last changed."""
+        if self._last_rotation is not None and self._paused_at is not None:
+            return self._last_rotation + (dt_util.utcnow() - self._paused_at)
         return self._last_rotation
 
     @property
@@ -239,6 +244,13 @@ class FraimicScheduler:
             if persist:
                 await self._async_save()
             return
+        now = dt_util.utcnow()
+        if changed and not enabled:
+            self._paused_at = now
+        elif changed and enabled and self._paused_at is not None:
+            if self._last_rotation is not None:
+                self._last_rotation += now - self._paused_at
+            self._paused_at = None
         self.enabled = enabled
         if clear_hold:
             self._hold_until = None
@@ -268,6 +280,21 @@ class FraimicScheduler:
             return await self._async_show_queued(
                 self.queued_slides[0], manual=True
             )
+        if (
+            step < 0
+            and self._playlist_cursor_id is not None
+            and self.current_id != self._playlist_cursor_id
+        ):
+            previous = next(
+                (
+                    screen
+                    for screen in self.screens
+                    if screen.screen_id == self._playlist_cursor_id
+                ),
+                None,
+            )
+            if previous is not None:
+                return await self._async_show(previous, manual=True)
         candidate = next_screen(
             self.screens,
             self._playlist_cursor_id or self.current_id,
@@ -590,6 +617,8 @@ class FraimicScheduler:
                 self._playlist_cursor_id = screen.screen_id
             self.displayed_hash = result.get("content_hash")
             self._last_rotation = dt_util.utcnow()
+            if not self.enabled:
+                self._paused_at = self._last_rotation
             if clear_hold_on_success:
                 self._hold_until = None
             if not result.get("uploaded", True):
@@ -659,9 +688,10 @@ class FraimicScheduler:
                 "hold_until": (
                     self._hold_until.isoformat() if self._hold_until else None
                 ),
-                "last_rotation": (
-                    self._last_rotation.isoformat() if self._last_rotation else None
-                ),
+            "last_rotation": (
+                self._last_rotation.isoformat() if self._last_rotation else None
+            ),
+            "paused_at": self._paused_at.isoformat() if self._paused_at else None,
                 "queued_slide_ids": self._queued_ids,
                 "pending_queue_id": (
                     self._pending.screen_id

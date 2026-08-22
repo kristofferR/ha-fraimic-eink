@@ -413,6 +413,37 @@ def test_enabling_playlist_respects_fresh_current_screen(
     assert scheduler.current_id == "screen-1"
 
 
+def test_pause_freezes_remaining_playlist_interval(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="screen-1", name="Current", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise AssertionError("resuming a paused interval must not advance")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current]
+    scheduler.enabled = True
+    scheduler.current_id = current.screen_id
+    scheduler.displayed_hash = "hash123"
+    scheduler._last_rotation = datetime(2026, 7, 3, 12, 0)
+
+    asyncio.run(scheduler.async_set_enabled(False))
+    assert scheduler.last_rotation == datetime(2026, 7, 3, 12, 0)
+
+    monkeypatch.setattr(
+        scheduler_mod.dt_util,
+        "utcnow",
+        lambda: datetime(2026, 7, 3, 13, 5),
+    )
+    asyncio.run(scheduler.async_set_enabled(True))
+
+    assert scheduler.enabled is True
+    assert scheduler._last_rotation == datetime(2026, 7, 3, 13, 0)
+
+
 def test_enabling_playlist_retries_pending_wake_push(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -712,6 +743,11 @@ def test_hand_queue_consumes_once_without_moving_playlist_cursor(
     ]
     assert saved[-1]["playlist_cursor_id"] == first.screen_id
     assert saved[-1]["queued_slide_ids"] == []
+
+    asyncio.run(scheduler.async_previous())
+
+    assert scheduler.current_id == first.screen_id
+    assert scheduler._playlist_cursor_id == first.screen_id
 
 
 def test_sleeping_queued_slide_is_consumed_only_after_wake(
