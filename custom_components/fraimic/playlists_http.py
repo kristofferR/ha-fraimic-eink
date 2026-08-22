@@ -427,6 +427,9 @@ class PlaylistSlidesView(_PlaylistView):
         if slide is None:
             raise PlaylistChangedError("That slide is no longer available")
         entry = require_loaded_entry(hass, body.get("entry_id"))
+        stopper = entry.runtime_data.stop_camera_loop
+        if stopper is not None:
+            stopper()
         if body["action"] == "show_now":
             await entry.runtime_data.scheduler.async_select(
                 slide,

@@ -19,6 +19,7 @@ from homeassistant.helpers.storage import Store
 from .const import (
     DEFAULT_SCREEN_INTERVAL,
     DOMAIN,
+    FIT_MODES,
     MIN_SCREEN_INTERVAL,
     PLAYLIST_TONE_VALUES,
 )
@@ -547,7 +548,7 @@ class PlaylistManager:
             if slide is None:
                 raise PlaylistChangedError("That slide is no longer in the playlist")
             if fit is not None:
-                if fit not in {"cover", "contain"}:
+                if fit not in FIT_MODES:
                     raise ValueError("Unknown fit")
                 if slide.data.get("kind") == KIND_PICTURE:
                     slide.data["fit"] = fit

@@ -221,10 +221,9 @@ class FraimicScheduler:
 
     @property
     def current_screen(self) -> ScreenConfig | None:
-        for screen in self.screens:
-            if screen.screen_id == self.current_id:
-                return screen
-        return None
+        if self.current_id is None:
+            return None
+        return self._slide_by_id(self.current_id)
 
     @property
     def playlist_name(self) -> str | None:

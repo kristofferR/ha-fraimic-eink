@@ -109,6 +109,7 @@ def test_migrates_each_frame_once_and_materializes_playlist_settings(
         manager.async_update_slide(
             playlist.playlist_id,
             "photo",
+            fit="contain_black",
             tone="vivid",
             overlays="none",
         )
@@ -116,6 +117,7 @@ def test_migrates_each_frame_once_and_materializes_playlist_settings(
     rendered = manager.render_slides(playlist.playlist_id)
     assert [slide.interval for slide in rendered] == [900, 900]
     assert rendered[0].source["tone"] == "vivid"
+    assert rendered[0].source["fit"] == "contain_black"
     assert rendered[0].overlay_mode == "none"
     assert len(store.saved) == 2
 

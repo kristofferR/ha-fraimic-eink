@@ -224,6 +224,7 @@ def test_timed_out_upload_is_not_reported_for_retry(
 
     power = Power()
     entry = SimpleNamespace(
+        data={},
         runtime_data=SimpleNamespace(
             scheduler=None,
             power=power,
