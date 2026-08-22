@@ -595,16 +595,37 @@ class FraimicScheduler:
         image gets its screen time) and forget the displayed hash so the next
         playlist upload can never be skipped as "unchanged".
         """
+        self._mark_external_upload(hold=hold)
+        self.entry.async_create_task(
+            self.hass, self._async_save(), "fraimic_playlist_external_save"
+        )
+        self._notify()
+
+    def _mark_external_upload(self, *, hold: bool) -> None:
+        """Reset scheduler state after external content reaches the frame."""
         self._pending = None
         self._pending_from_queue = False
+        self._pending_hold_on_success = False
         self.displayed_hash = None
         if hold:
             screen = self.current_screen
             interval = screen.interval if screen else 1800
             self._hold_until = dt_util.utcnow() + timedelta(seconds=interval)
-        self.entry.async_create_task(
-            self.hass, self._async_save(), "fraimic_playlist_external_save"
-        )
+
+    async def async_notify_external_upload(self, *, hold: bool = True) -> None:
+        """Durably record a deferred external delivery."""
+        self._mark_external_upload(hold=hold)
+        await self._async_save()
+        self._notify()
+
+    async def async_discard_pending_retry(self) -> None:
+        """Let a newer direct send supersede an older scheduler retry."""
+        if self._pending is None:
+            return
+        self._pending = None
+        self._pending_from_queue = False
+        self._pending_hold_on_success = False
+        await self._async_save()
         self._notify()
 
     # -- the loop ------------------------------------------------------------
