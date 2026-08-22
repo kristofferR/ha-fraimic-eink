@@ -356,9 +356,15 @@ async def async_preview_screen(
         rendered = await async_convert_for_entry(
             hass, entry, png, overrides, preprocess=False
         )
-    _bin_data, preview_png, used_mode = rendered
-    if not preview_png:
-        raise HomeAssistantError("No preview could be rendered for that slide")
+    bin_data, _preview_png, used_mode = rendered
+    from ..image_convert import bin_to_png
+
+    width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
+    height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    rotation = entry.options.get(CONF_ROTATION, DEFAULT_ROTATION)
+    preview_png = await hass.async_add_executor_job(
+        bin_to_png, bin_data, width, height, (-rotation) % 360
+    )
     return preview_png, used_mode
 
 

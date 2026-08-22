@@ -464,3 +464,32 @@ def test_auto_picks_error_diffusion_for_photos() -> None:
     w, h = LARGE
     _bin, _preview, mode = ic.convert_image(_continuous_tone(w, h), width=w, height=h, mode="auto")
     assert mode in (const.MODE_FLOYD_STEINBERG, const.MODE_ATKINSON)
+
+
+@pytest.mark.parametrize(("width", "height"), [(1600, 1200), (1440, 2560)])
+def test_bin_unpack_round_trips_the_packer(width: int, height: int) -> None:
+    import numpy as np
+
+    rng = np.random.default_rng(7)
+    indices = rng.integers(0, 6, size=height * width, dtype=np.uint8)
+
+    packed = ic._pack_nibbles(indices, width, height)
+    unpacked = ic.bin_to_indices(packed, width, height)
+
+    assert unpacked.shape == (height, width)
+    assert np.array_equal(unpacked.reshape(-1), indices)
+
+
+def test_bin_to_png_is_full_resolution_and_rotates() -> None:
+    from PIL import Image
+    import numpy as np
+
+    rng = np.random.default_rng(11)
+    indices = rng.integers(0, 6, size=1200 * 1600, dtype=np.uint8)
+    packed = ic._pack_nibbles(indices, 1600, 1200)
+
+    png = ic.bin_to_png(packed, 1600, 1200)
+    assert Image.open(io.BytesIO(png)).size == (1600, 1200)
+
+    rotated = ic.bin_to_png(packed, 1600, 1200, preview_rotate=90)
+    assert Image.open(io.BytesIO(rotated)).size == (1200, 1600)
