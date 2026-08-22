@@ -791,6 +791,9 @@ class PlayerControlView(_FraimicView):
             elif action == "pause":
                 await scheduler.async_set_enabled(False)
             elif action == "play":
+                stopper = runtime.stop_camera_loop
+                if stopper is not None:
+                    stopper()
                 await scheduler.async_set_enabled(True)
             elif action == "toggle":
                 await scheduler.async_set_enabled(not scheduler.enabled)
@@ -798,6 +801,7 @@ class PlayerControlView(_FraimicView):
                 await runtime.coordinator.async_request_refresh()
             elif action == "refresh":
                 await runtime.client.refresh()
+                runtime.coordinator.async_set_frame_online(True)
             elif action == "sleep":
                 await runtime.client.sleep()
                 runtime.coordinator.async_set_frame_online(False)
