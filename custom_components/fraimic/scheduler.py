@@ -521,6 +521,13 @@ class FraimicScheduler:
                 if self._pending is not screen or manual:
                     self._pending_requires_enabled = not manual
                 self._pending = screen
+                send_queue = getattr(self.entry.runtime_data, "send_queue", None)
+                if (
+                    manual
+                    and send_queue is not None
+                    and send_queue.pending is not None
+                ):
+                    await send_queue.async_discard()
                 self.entry.runtime_data.coordinator.async_set_frame_online(False)
                 await self._async_save()
                 _LOGGER.debug(
