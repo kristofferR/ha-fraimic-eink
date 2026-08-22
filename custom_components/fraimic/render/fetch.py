@@ -218,6 +218,8 @@ def _fetch_entities(hass: HomeAssistant, options: dict[str, Any]) -> dict[str, A
 async def _async_fetch_template(
     hass: HomeAssistant, options: dict[str, Any], _ctx: RenderContext
 ) -> dict[str, Any]:
+    if "literal" in options:
+        return {"text": str(options["literal"])}
     try:
         text = Template(options["template"], hass).async_render(parse_result=False)
     except TemplateError as err:
@@ -360,7 +362,13 @@ async def _async_fetch_todo(
         return_response=True,
     )
     raw_items = (response or {}).get(entity_id, {}).get("items") or []
+    state = hass.states.get(entity_id)
     return {
+        "name": (
+            state.attributes.get("friendly_name")
+            if state is not None
+            else entity_id
+        ) or entity_id,
         "items": [
             {"summary": item.get("summary", ""), "done": item.get("status") == "completed"}
             for item in raw_items

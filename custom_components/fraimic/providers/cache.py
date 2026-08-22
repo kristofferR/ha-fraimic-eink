@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 import time
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Hashable
 from typing import Any
 
 DEFAULT_MAX_ENTRIES = 128
@@ -56,3 +56,49 @@ class ProviderCache:
             if elapsed < min_interval:
                 await asyncio.sleep(min_interval - elapsed)
             self._last_call[key] = self._clock()
+
+
+class ByteCache:
+    """Byte-size-bounded TTL/LRU cache for downloaded media."""
+
+    def __init__(
+        self,
+        max_bytes: int,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        if max_bytes < 1:
+            raise ValueError("max_bytes must be positive")
+        self._clock = clock
+        self._max_bytes = max_bytes
+        self._size = 0
+        self._values: OrderedDict[
+            Hashable, tuple[float, bytes, str]
+        ] = OrderedDict()
+
+    def get(self, key: Hashable, ttl: float) -> tuple[bytes, str] | None:
+        """Cached bytes and content type if younger than ``ttl`` seconds."""
+        entry = self._values.get(key)
+        if entry is None:
+            return None
+        stored_at, value, content_type = entry
+        if self._clock() - stored_at > ttl:
+            self._remove(key)
+            return None
+        self._values.move_to_end(key)
+        return value, content_type
+
+    def set(self, key: Hashable, value: bytes, content_type: str) -> None:
+        """Store an item and evict least-recently-used data to stay bounded."""
+        if key in self._values:
+            self._remove(key)
+        if len(value) > self._max_bytes:
+            return
+        self._values[key] = (self._clock(), value, content_type)
+        self._size += len(value)
+        while self._size > self._max_bytes:
+            oldest = next(iter(self._values))
+            self._remove(oldest)
+
+    def _remove(self, key: Hashable) -> None:
+        _stored_at, value, _content_type = self._values.pop(key)
+        self._size -= len(value)

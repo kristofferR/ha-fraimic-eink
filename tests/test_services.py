@@ -190,3 +190,117 @@ def test_upload_image_library_branch_releases_hold_when_library_missing(
         )
 
     assert entry.scheduler.events == [("begin", None), ("finish", False)]
+
+
+def test_timed_out_upload_is_not_reported_for_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+
+    async def convert(*_args: object, **_kwargs: object) -> tuple[bytes, bytes, str]:
+        return b"packed", b"preview", "none"
+
+    class Client:
+        async def upload_image(self, _data: bytes) -> None:
+            raise services.FraimicTimeoutError("redraw response timed out")
+
+    class Power:
+        def __init__(self) -> None:
+            self.recorded: list[tuple[str, str]] = []
+
+        def begin(self, _trigger: str) -> object:
+            return object()
+
+        def skip_reason(self, *_args: object) -> None:
+            return None
+
+        async def async_record_upload(self, content_hash: str, trigger: str) -> None:
+            self.recorded.append((content_hash, trigger))
+
+        def schedule_sleep(self) -> None:
+            return None
+
+        def finish(self, _token: object) -> None:
+            return None
+
+    power = Power()
+    runtime = SimpleNamespace(
+        scheduler=None,
+        power=power,
+        upload_lock=asyncio.Lock(),
+        client=Client(),
+        coordinator=SimpleNamespace(data={}),
+        send_queue=None,
+        last_preview=None,
+        displayed_preview=None,
+        preview_image=None,
+    )
+
+    def set_displayed_preview(preview: bytes, _mode: str) -> None:
+        runtime.last_preview = preview
+        runtime.displayed_preview = preview
+
+    runtime.set_displayed_preview = set_displayed_preview
+    entry = SimpleNamespace(data={}, runtime_data=runtime)
+    monkeypatch.setattr(services, "async_convert_for_entry", convert)
+
+    result = asyncio.run(
+        services.async_render_and_upload(
+            SimpleNamespace(), entry, b"source", hold_playlist=False
+        )
+    )
+
+    assert result["uploaded"] is True
+    assert result["displayed"] is True
+    assert entry.runtime_data.last_preview == b"preview"
+    assert entry.runtime_data.displayed_preview == b"preview"
+    assert power.recorded == [(result["content_hash"], services.TRIGGER_MANUAL)]
+
+
+def test_deferred_render_does_not_replace_displayed_preview(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+
+    async def convert(*_args: object, **_kwargs: object) -> tuple[bytes, bytes, str]:
+        return b"packed", b"deferred-preview", "none"
+
+    class Power:
+        def begin(self, _trigger: str) -> object:
+            return object()
+
+        def skip_reason(self, *_args: object) -> str:
+            return "low_battery"
+
+        def finish(self, _token: object) -> None:
+            return None
+
+    entry = SimpleNamespace(
+        data={},
+        runtime_data=SimpleNamespace(
+            scheduler=None,
+            power=Power(),
+            upload_lock=asyncio.Lock(),
+            client=SimpleNamespace(),
+            coordinator=SimpleNamespace(data={}),
+            send_queue=None,
+            last_preview=b"current-preview",
+            displayed_preview=b"current-preview",
+            preview_image=None,
+        )
+    )
+    monkeypatch.setattr(services, "async_convert_for_entry", convert)
+
+    result = asyncio.run(
+        services.async_render_and_upload(
+            SimpleNamespace(),
+            entry,
+            b"source",
+            hold_playlist=False,
+            trigger="playlist",
+        )
+    )
+
+    assert result["displayed"] is False
+    assert entry.runtime_data.last_preview == b"deferred-preview"
+    assert entry.runtime_data.displayed_preview == b"current-preview"

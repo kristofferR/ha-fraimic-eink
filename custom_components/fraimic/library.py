@@ -38,6 +38,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .api import FraimicError
 from .const import (
+    ATTR_FIT,
     ATTR_ROTATE,
     DOMAIN,
     LIBRARY_ALBUM_DEFAULT,
@@ -45,6 +46,7 @@ from .const import (
     LIBRARY_THUMB_SIZE,
     MAX_SOURCE_BYTES,
     MAX_SOURCE_PIXELS,
+    PLAYLIST_TONE_VALUES,
 )
 from .helpers import loaded_fraimic_entries, resolve_render_params
 from .image_convert import convert_image
@@ -61,6 +63,15 @@ from .library_model import (
 from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
 
 _LOGGER = logging.getLogger(__name__)
+
+_ADHOC_PREVIEW_OVERRIDES = {
+    "fit",
+    "mode",
+    "saturation",
+    "contrast",
+    "sharpen",
+    "tone",
+}
 
 DATA_LIBRARY = "library"
 _T = TypeVar("_T")
@@ -134,7 +145,9 @@ class FraimicLibrary:
         except (OSError, ValueError) as err:
             # Never wipe a manifest we failed to parse — move it aside so the
             # originals stay recoverable, and start empty.
-            _LOGGER.error("Fraimic library manifest is unreadable (%s); starting fresh", err)
+            _LOGGER.error(
+                "Fraimic library manifest is unreadable (%s); starting fresh", err
+            )
             try:
                 self.manifest_path.rename(self.manifest_path.with_suffix(".corrupt"))
             except OSError:
@@ -237,9 +250,7 @@ class FraimicLibrary:
         await self._async_save_manifest()
         return image
 
-    async def async_rename_image(
-        self, image_id: str, filename: str
-    ) -> LibraryImage:
+    async def async_rename_image(self, image_id: str, filename: str) -> LibraryImage:
         """Rename an original while preserving its stable library id."""
         image = self.get(image_id)
         filename = safe_filename(filename)
@@ -354,7 +365,10 @@ class FraimicLibrary:
         render_dir = self.renders_dir / image_id
         if not render_dir.is_dir():
             return
-        prefixes = (f"{resolution_key(width, height)}_", f"{resolution_key(height, width)}_")
+        prefixes = (
+            f"{resolution_key(width, height)}_",
+            f"{resolution_key(height, width)}_",
+        )
         for path in render_dir.iterdir():
             if path.name.startswith(prefixes):
                 path.unlink(missing_ok=True)
@@ -366,17 +380,23 @@ class FraimicLibrary:
 
     async def async_rename_album(self, old: str, new: str) -> None:
         if old == LIBRARY_ALBUM_DEFAULT:
-            raise HomeAssistantError(f"The {LIBRARY_ALBUM_DEFAULT!r} album cannot be renamed")
+            raise HomeAssistantError(
+                f"The {LIBRARY_ALBUM_DEFAULT!r} album cannot be renamed"
+            )
         new = new.strip()
         if not new:
             raise HomeAssistantError("Album name cannot be empty")
         for image in self.images.values():
-            image.albums = [new if album == old else album for album in image.normalized_albums()]
+            image.albums = [
+                new if album == old else album for album in image.normalized_albums()
+            ]
         await self._async_save_manifest()
 
     async def async_delete_album(self, name: str) -> None:
         if name == LIBRARY_ALBUM_DEFAULT:
-            raise HomeAssistantError(f"The {LIBRARY_ALBUM_DEFAULT!r} album cannot be deleted")
+            raise HomeAssistantError(
+                f"The {LIBRARY_ALBUM_DEFAULT!r} album cannot be deleted"
+            )
         for image in self.images.values():
             image.albums = [a for a in image.normalized_albums() if a != name] or [
                 LIBRARY_ALBUM_DEFAULT
@@ -391,7 +411,9 @@ class FraimicLibrary:
         try:
             data = await self.hass.async_add_executor_job(path.read_bytes)
         except OSError as err:
-            raise HomeAssistantError(f"Library file for {image_id} is missing: {err}") from err
+            raise HomeAssistantError(
+                f"Library file for {image_id} is missing: {err}"
+            ) from err
         return data, image.content_type
 
     async def async_get_thumbnail(self, image_id: str) -> bytes:
@@ -424,20 +446,29 @@ class FraimicLibrary:
         crop_width, crop_height = _crop_key_size(params)
         # A per-call rotate override changes the wall aspect, so the saved
         # crop/rotation pair (drawn for the mount orientation) no longer fits.
-        if overrides and overrides.get(ATTR_ROTATE):
+        if overrides and overrides.get("crop") is not None:
+            crop = normalize_crop(overrides["crop"])
+        elif overrides and (
+            overrides.get(ATTR_ROTATE)
+            or overrides.get(ATTR_FIT) in {"contain", "contain_black"}
+        ):
             crop = None
         else:
             crop = image.crop_for(crop_width, crop_height)
-            if saved_rotate := image.rotation_for(crop_width, crop_height):
-                # Crop first (original space), then rotate — matching the
-                # pipeline order, so the pair stays consistent.
-                params["rotate"] = (params["rotate"] + saved_rotate) % 360
+        if not (overrides and overrides.get(ATTR_ROTATE)) and (
+            saved_rotate := image.rotation_for(crop_width, crop_height)
+        ):
+            # Crop first (original space), then rotate — matching the
+            # pipeline order, so the pair stays consistent.
+            params["rotate"] = (params["rotate"] + saved_rotate) % 360
         cache_params = dict(params)
         cache_params["crop"] = list(crop) if crop else None
         key = render_cache_key(cache_params)
         render_dir = self.renders_dir / image_id
 
-        cached = await self.hass.async_add_executor_job(self._read_render_sync, render_dir, key)
+        cached = await self.hass.async_add_executor_job(
+            self._read_render_sync, render_dir, key
+        )
         if cached is not None:
             return cached
 
@@ -458,7 +489,12 @@ class FraimicLibrary:
 
         try:
             await self.hass.async_add_executor_job(
-                self._write_render_sync, render_dir, key, bin_data, preview_png, used_mode
+                self._write_render_sync,
+                render_dir,
+                key,
+                bin_data,
+                preview_png,
+                used_mode,
             )
         except OSError as err:
             _LOGGER.warning("Could not write render cache for %s: %s", image_id, err)
@@ -474,12 +510,21 @@ class FraimicLibrary:
             return None
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            return bin_path.read_bytes(), png_path.read_bytes(), str(meta.get("mode", "auto"))
+            return (
+                bin_path.read_bytes(),
+                png_path.read_bytes(),
+                str(meta.get("mode", "auto")),
+            )
         except (OSError, ValueError):
             return None
 
     def _write_render_sync(
-        self, render_dir: Path, key: str, bin_data: bytes, preview_png: bytes | None, mode: str
+        self,
+        render_dir: Path,
+        key: str,
+        bin_data: bytes,
+        preview_png: bytes | None,
+        mode: str,
     ) -> None:
         render_dir.mkdir(parents=True, exist_ok=True)
 
@@ -488,7 +533,9 @@ class FraimicLibrary:
             write(tmp)
             tmp.replace(path)
 
-        _atomic_write(render_dir / f"{key}.bin", lambda path: path.write_bytes(bin_data))
+        _atomic_write(
+            render_dir / f"{key}.bin", lambda path: path.write_bytes(bin_data)
+        )
         if preview_png is not None:
             _atomic_write(
                 render_dir / f"{key}.png", lambda path: path.write_bytes(preview_png)
@@ -526,6 +573,7 @@ class FraimicLibrary:
         entry: ConfigEntry,
         box: list[float] | None,
         rotate: int | None = None,
+        overrides: dict[str, Any] | None = None,
     ) -> bytes:
         """Dithered preview PNG for an arbitrary (possibly unsaved) crop box.
 
@@ -537,12 +585,29 @@ class FraimicLibrary:
         """
         image = self.get(image_id)
         params = resolve_render_params(entry)
+        overrides = overrides or {}
+        unknown = set(overrides) - _ADHOC_PREVIEW_OVERRIDES - {"tone_name"}
+        if unknown:
+            raise HomeAssistantError(
+                f"Unsupported preview overrides: {sorted(unknown)}"
+            )
+        params.update(
+            {
+                key: value
+                for key, value in overrides.items()
+                if key in _ADHOC_PREVIEW_OVERRIDES
+            }
+        )
+        if (tone_name := overrides.get("tone_name")) in PLAYLIST_TONE_VALUES:
+            params["tone"] = PLAYLIST_TONE_VALUES[tone_name]
         crop = normalize_crop(box) if box is not None else None
         crop_width, crop_height = _crop_key_size(params)
         if rotate is None:
             rotate = image.rotation_for(crop_width, crop_height)
-        if crop == image.crop_for(crop_width, crop_height) and rotate == image.rotation_for(
-            crop_width, crop_height
+        if (
+            not overrides
+            and crop == image.crop_for(crop_width, crop_height)
+            and rotate == image.rotation_for(crop_width, crop_height)
         ):
             _, preview_png, _ = await self.async_render_for_entry(image_id, entry)
             if preview_png is not None:
@@ -657,9 +722,7 @@ async def async_upload_rendered(
                 runtime.last_art = None
                 runtime.media_title = media_title
                 if preview_png:
-                    runtime.last_preview = preview_png
-                    if runtime.preview_image is not None:
-                        runtime.preview_image.set_preview(preview_png, mode)
+                    runtime.set_displayed_preview(preview_png, mode)
                 runtime.coordinator.async_update_listeners()
             return
         if queue is not None:
@@ -689,9 +752,7 @@ async def async_upload_rendered(
         runtime.last_art = None
         runtime.media_title = media_title
         if preview_png:
-            runtime.last_preview = preview_png
-            if runtime.preview_image is not None:
-                runtime.preview_image.set_preview(preview_png, mode)
+            runtime.set_displayed_preview(preview_png, mode)
         await runtime.power.async_record_upload(content_hash, trigger)
         runtime.power.schedule_sleep()
         runtime.coordinator.async_update_listeners()

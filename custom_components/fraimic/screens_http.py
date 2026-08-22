@@ -23,6 +23,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN, PALETTE_NAMES
 from .helpers import loaded_fraimic_entries
+from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .render.display import async_render_screen
 from .render.layout import LAYOUT_SLOTS
 from .render.schema import KIND_PICTURE, SCREEN_SCHEMA, screen_from_dict
@@ -37,6 +38,18 @@ def _resolve_entry(hass: HomeAssistant, entry_id: Any):
         if entry.entry_id == entry_id:
             return entry
     raise web.HTTPBadRequest(text="Unknown or unloaded entry_id")
+
+
+async def _refresh_assigned_schedulers(
+    hass: HomeAssistant, manager: PlaylistManager, entry
+) -> None:
+    """Refresh every loaded frame sharing the edited migrated playlist."""
+    playlist = manager.assigned_to(entry.entry_id)
+    if playlist is None:
+        return
+    for candidate in loaded_fraimic_entries(hass):
+        if manager.assignments.get(candidate.entry_id) == playlist.playlist_id:
+            await candidate.runtime_data.scheduler.async_refresh_playlist()
 
 
 def _validate_screen(raw: Any) -> dict:
@@ -172,6 +185,10 @@ class ScreenSaveView(_ScreensViewBase):
             hass.config_entries.async_update_subentry(
                 entry, subentry, data=MappingProxyType(data), title=title
             )
+            manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+            if isinstance(manager, PlaylistManager):
+                await manager.async_sync_legacy_slide(entry, subentry_id)
+                await _refresh_assigned_schedulers(hass, manager, entry)
             return self.json({"screen_id": subentry_id, "saved": True})
 
         subentry = ConfigSubentry(
@@ -181,6 +198,10 @@ class ScreenSaveView(_ScreensViewBase):
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(entry, subentry)
+        manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+        if isinstance(manager, PlaylistManager):
+            await manager.async_sync_legacy_slide(entry, subentry.subentry_id)
+            await _refresh_assigned_schedulers(hass, manager, entry)
         return self.json({"screen_id": subentry.subentry_id, "saved": True})
 
 
@@ -198,6 +219,10 @@ class ScreenDeleteView(_ScreensViewBase):
         if subentry is None or subentry.subentry_type != SUBENTRY_TYPE_SCREEN:
             return self.json_message("No such stored screen", HTTPStatus.NOT_FOUND)
         hass.config_entries.async_remove_subentry(entry, screen_id)
+        manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+        if isinstance(manager, PlaylistManager):
+            await manager.async_remove_legacy_slide(entry, screen_id)
+            await _refresh_assigned_schedulers(hass, manager, entry)
         return self.json({"deleted": screen_id})
 
 

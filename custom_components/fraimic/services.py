@@ -21,8 +21,9 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .api import FraimicConnectionError, FraimicError
+from .api import FraimicConnectionError, FraimicError, FraimicTimeoutError
 from .const import (
+    ATTR_CAPTION,
     ATTR_CONFIG_ENTRY,
     ATTR_CONTRAST,
     ATTR_DITHER,
@@ -30,16 +31,15 @@ from .const import (
     ATTR_IMAGE_ENTITY,
     ATTR_LIBRARY_IMAGE,
     ATTR_MODE,
-    ATTR_CAPTION,
     ATTR_PATH,
     ATTR_PREVIEW_ONLY,
     ATTR_PROVIDER,
     ATTR_QUERY,
     ATTR_ROTATE,
     ATTR_SATURATION,
+    ATTR_SCENE_NAME,
     ATTR_SCREEN,
     ATTR_SCREEN_ID,
-    ATTR_SCENE_NAME,
     ATTR_SHARPEN,
     ATTR_TONE,
     ATTR_URL,
@@ -60,6 +60,7 @@ from .const import (
     MAX_BIN_SIZE,
     MODE_AUTO,
     MODE_NONE,
+    PLAYLIST_TONE_VALUES,
     PROVIDER_KEYS,
     PROVIDER_SHUFFLE,
     SERVICE_CANCEL_SCHEDULED_SEND,
@@ -76,8 +77,8 @@ from .image_convert import convert_image
 from .library import get_library
 from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
 from .render.display import async_show_screen
-from .scenes import get_scene_manager
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
+from .scenes import get_scene_manager
 from .scheduled_events import RECURRENCE_NONE, RECURRENCES, get_scheduled_events
 from .screens import AmbiguousScreenNameError, screen_by_key
 from .source import async_get_source_bytes
@@ -219,7 +220,9 @@ SCHEDULE_SEND_SCHEMA = vol.All(
             vol.Exclusive(ATTR_IMAGE_ENTITY, "source"): cv.entity_id,
             vol.Exclusive(ATTR_LIBRARY_IMAGE, "source"): cv.string,
             vol.Optional(ATTR_FIT): vol.In(FIT_MODES),
-            vol.Optional(ATTR_ROTATE): vol.All(vol.Coerce(int), vol.In((0, 90, 180, 270))),
+            vol.Optional(ATTR_ROTATE): vol.All(
+                vol.Coerce(int), vol.In((0, 90, 180, 270))
+            ),
             vol.Optional(ATTR_MODE): vol.In(DITHER_MODES),
             vol.Optional(ATTR_SATURATION): vol.All(
                 vol.Coerce(float), vol.Range(min=0.0, max=3.0)
@@ -390,7 +393,13 @@ async def _async_handle_update_album(call: ServiceCall) -> ServiceResponse:
         raise HomeAssistantError(f"Album update failed: {err}") from err
     entry.runtime_data.coordinator.expire_albums_cache()
     if call.return_response:
-        return {"album": {k: result.get(k) for k in ("id", "name", "active") if isinstance(result, dict) and k in result}}
+        return {
+            "album": {
+                k: result.get(k)
+                for k in ("id", "name", "active")
+                if isinstance(result, dict) and k in result
+            }
+        }
     return None
 
 
@@ -625,10 +634,17 @@ async def async_convert_for_entry(
             f"Frame resolution {width}x{height} is too large to render"
         )
     fit = overrides.get(ATTR_FIT, options.get(ATTR_FIT, FIT_COVER))
-    saturation = overrides.get(ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION))
-    contrast = overrides.get(ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST))
+    saturation = overrides.get(
+        ATTR_SATURATION, options.get(ATTR_SATURATION, DEFAULT_SATURATION)
+    )
+    contrast = overrides.get(
+        ATTR_CONTRAST, options.get(ATTR_CONTRAST, DEFAULT_CONTRAST)
+    )
     sharpen = overrides.get(ATTR_SHARPEN, options.get(ATTR_SHARPEN, DEFAULT_SHARPEN))
     tone = overrides.get(ATTR_TONE, options.get(ATTR_TONE, DEFAULT_TONE))
+    if (tone_name := overrides.get("tone_name")) in PLAYLIST_TONE_VALUES:
+        tone = PLAYLIST_TONE_VALUES[tone_name]
+    crop = overrides.get("crop", options.get("crop"))
     # Per-frame base rotation (how the frame is mounted) + any per-call rotate.
     base_rotation = options.get(CONF_ROTATION, DEFAULT_ROTATION)
     rotate = (base_rotation + overrides.get(ATTR_ROTATE, 0)) % 360
@@ -651,6 +667,7 @@ async def async_convert_for_entry(
             sharpen,
             tone,
             preview_rotate,
+            crop,
             preprocess,
         )
     except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
@@ -673,6 +690,7 @@ async def async_render_and_upload(
     queue_if_asleep: bool = False,
     title: str | None = None,
     trigger: str = TRIGGER_MANUAL,
+    rendered: tuple[bytes, bytes | None, str] | None = None,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
@@ -690,16 +708,29 @@ async def async_render_and_upload(
     senders (playlist, camera loop) must NOT set this — they produce fresh
     content on the next cycle anyway. ``title`` labels the send in the
     ``send_status`` sensor.
+    ``rendered`` supplies an existing cached conversion for library pictures.
     """
     runtime = entry.runtime_data
+    width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
+    height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+    if width * height // 2 > MAX_BIN_SIZE:
+        raise HomeAssistantError(
+            f"Frame resolution {width}x{height} is too large to render"
+        )
     scheduler = begin_external_upload(entry) if hold_playlist else None
     power_token = runtime.power.begin(trigger)
     uploaded = False
     try:
         async with runtime.upload_lock:
-            bin_data, preview_png, used_mode = await async_convert_for_entry(
-                hass, entry, raw, overrides, preprocess=preprocess
-            )
+            if rendered is None:
+                rendered = await async_convert_for_entry(
+                    hass, entry, raw, overrides, preprocess=preprocess
+                )
+            bin_data, preview_png, used_mode = rendered
+            if len(bin_data) > MAX_BIN_SIZE:
+                raise HomeAssistantError(
+                    f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
+                )
             content_hash = hashlib.sha256(bin_data).hexdigest()
             reason = (
                 SKIP_DUPLICATE
@@ -716,6 +747,8 @@ async def async_render_and_upload(
                     runtime.last_preview = preview_png
                     if runtime.preview_image is not None:
                         runtime.preview_image.set_preview(preview_png, used_mode)
+                    if reason == SKIP_DUPLICATE:
+                        runtime.displayed_preview = preview_png
                 queue = runtime.send_queue if queue_if_asleep else None
                 queued = False
                 if reason in DEFER_REASONS and queue is not None:
@@ -758,6 +791,12 @@ async def async_render_and_upload(
             else:
                 try:
                     await runtime.client.upload_image(bin_data)
+                except FraimicTimeoutError:
+                    # The firmware can hold the response open for the entire
+                    # redraw after accepting the image. Treat that ambiguous
+                    # outcome as accepted so no caller retries a visible,
+                    # battery-expensive refresh.
+                    uploaded = True
                 except FraimicConnectionError as err:
                     raise FrameUploadError(
                         f"Could not upload to the frame: {err}"
@@ -766,12 +805,11 @@ async def async_render_and_upload(
                     raise HomeAssistantError(
                         f"Could not upload to the frame: {err}"
                     ) from err
-                uploaded = True
+                else:
+                    uploaded = True
 
             if uploaded and preview_png:
-                runtime.last_preview = preview_png
-                if runtime.preview_image is not None:
-                    runtime.preview_image.set_preview(preview_png, used_mode)
+                runtime.set_displayed_preview(preview_png, used_mode)
 
             if uploaded:
                 await runtime.power.async_record_upload(content_hash, trigger)
@@ -802,6 +840,7 @@ def _convert(
     sharpen: float,
     tone: float,
     preview_rotate: int,
+    crop: tuple[float, float, float, float] | None,
     preprocess: bool = True,
 ) -> tuple[bytes, bytes | None, str]:
     return convert_image(
@@ -816,5 +855,6 @@ def _convert(
         contrast=contrast,
         sharpen=sharpen,
         tone=tone,
+        crop=crop,
         preprocess=preprocess,
     )

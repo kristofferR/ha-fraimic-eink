@@ -81,8 +81,21 @@ def test_parse_cleveland_item() -> None:
     assert "Cleveland Museum of Art" in candidate.attribution
 
 
+def test_cleveland_searches_all_open_access_paintings() -> None:
+    assert "highlight=1" in cleveland.ClevelandProvider._list_url(None)
+    search_url = cleveland.ClevelandProvider._list_url("Georgia O'Keeffe")
+    assert "highlight=1" not in search_url
+    assert "q=Georgia+O%27Keeffe" in search_url
+
+
+def test_dimu_quotes_user_queries_as_literal_solr_text() -> None:
+    assert dimu._solr_query('Munch: title OR "x"') == ('"Munch: title OR \\"x\\""')
+
+
 def test_parse_wikimedia_potd_prefers_sized_thumb() -> None:
-    candidate = wikimedia.parse_potd(_fixture("wikimedia_potd.json"), "2026-07-04", 1600)
+    candidate = wikimedia.parse_potd(
+        _fixture("wikimedia_potd.json"), "2026-07-04", 1600
+    )
     assert candidate is not None
     assert "3840px-" in candidate.image_url  # snapped up from 1.5x target width
     assert candidate.license == "CC BY-SA 4.0"
@@ -232,7 +245,7 @@ def test_dimu_query_searches_all_fine_art() -> None:
     _run(provider.async_candidates(session, cache_mod.ProviderCache(), request, 2))
 
     params = session.calls[0]["params"]
-    assert params["q"] == "Munch"
+    assert params["q"] == '"Munch"'
     assert "artifact.type:Fineart" in params["fq"]
     assert not any("NMK" in f for f in params["fq"])
 
@@ -289,9 +302,7 @@ def test_parse_reframed_artwork_tiles_and_pagination() -> None:
     assert candidate.artist == "Albert Bierstadt"
     assert candidate.thumb_url == "https://images.test/thumb"
     assert candidate.extra == {
-        "source_url": (
-            "https://www.reframed.gallery/albert-bierstadt/elk-in-oak-grove"
-        )
+        "source_url": ("https://www.reframed.gallery/albert-bierstadt/elk-in-oak-grove")
     }
     assert reframed.parse_page_count(REFRAMED_ARTWORK_HTML, "recent") == 8
 
@@ -335,11 +346,7 @@ def test_parse_reframed_artwork_detail_json_ld() -> None:
         "thumbnailUrl": "https://images.test/elk",
     }
     for document in (artwork, [artwork], {"@graph": [artwork]}):
-        html = (
-            '<script type="application/ld+json">'
-            f"{json.dumps(document)}"
-            "</script>"
-        )
+        html = f'<script type="application/ld+json">{json.dumps(document)}</script>'
 
         candidate = reframed.parse_artwork_page(
             html, "albert-bierstadt/elk-in-oak-grove"
@@ -480,8 +487,12 @@ class _Provider(base.ArtProvider):
 
 def _candidate(item_id: str, url: str, width=None, height=None):
     return base.ArtCandidate(
-        provider="fake", item_id=item_id, image_url=url, title=item_id,
-        width=width, height=height,
+        provider="fake",
+        item_id=item_id,
+        image_url=url,
+        title=item_id,
+        width=width,
+        height=height,
     )
 
 
@@ -526,7 +537,11 @@ def test_engine_returns_first_acceptable_candidate() -> None:
     provider = _Provider([_candidate("a", "https://x/big.png")])
     image = _run(
         engine.async_pick_and_download(
-            provider, session, cache_mod.ProviderCache(), REQUEST, dims_of=_dims_from_png
+            provider,
+            session,
+            cache_mod.ProviderCache(),
+            REQUEST,
+            dims_of=_dims_from_png,
         )
     )
     assert image.candidate.item_id == "a"
@@ -543,7 +558,11 @@ def test_engine_skips_bad_metadata_dims_without_downloading() -> None:
     )
     image = _run(
         engine.async_pick_and_download(
-            provider, session, cache_mod.ProviderCache(), REQUEST, dims_of=_dims_from_png
+            provider,
+            session,
+            cache_mod.ProviderCache(),
+            REQUEST,
+            dims_of=_dims_from_png,
         )
     )
     assert image.candidate.item_id == "good"
@@ -556,13 +575,15 @@ def test_engine_accepts_wide_metadata_dims_for_contain_fit() -> None:
     provider = _Provider(
         [_candidate("wide", "https://x/wide.png", width=3840, height=2160)]
     )
-    request = base.FetchRequest(
-        target_width=1200, target_height=1600, fit="contain"
-    )
+    request = base.FetchRequest(target_width=1200, target_height=1600, fit="contain")
 
     image = _run(
         engine.async_pick_and_download(
-            provider, session, cache_mod.ProviderCache(), request, dims_of=_dims_from_png
+            provider,
+            session,
+            cache_mod.ProviderCache(),
+            request,
+            dims_of=_dims_from_png,
         )
     )
 
@@ -582,7 +603,11 @@ def test_engine_falls_back_to_best_scored_download() -> None:
     )
     image = _run(
         engine.async_pick_and_download(
-            provider, session, cache_mod.ProviderCache(), REQUEST, dims_of=_dims_from_png
+            provider,
+            session,
+            cache_mod.ProviderCache(),
+            REQUEST,
+            dims_of=_dims_from_png,
         )
     )
     assert image.candidate.item_id == "ok"
@@ -648,7 +673,10 @@ def test_engine_raises_when_nothing_downloads() -> None:
     with pytest.raises(base.ArtFetchError):
         _run(
             engine.async_pick_and_download(
-                provider, session, cache_mod.ProviderCache(), REQUEST,
+                provider,
+                session,
+                cache_mod.ProviderCache(),
+                REQUEST,
                 dims_of=_dims_from_png,
             )
         )
@@ -658,7 +686,10 @@ def test_engine_raises_on_empty_candidates() -> None:
     with pytest.raises(base.ArtFetchError):
         _run(
             engine.async_pick_and_download(
-                _Provider([]), FakeSession(), cache_mod.ProviderCache(), REQUEST,
+                _Provider([]),
+                FakeSession(),
+                cache_mod.ProviderCache(),
+                REQUEST,
                 dims_of=_dims_from_png,
             )
         )
@@ -688,9 +719,7 @@ def test_reframed_provider_uses_recent_pages_for_random_candidates(
 
 
 def test_reframed_provider_browse_root_preserves_site_taxonomy() -> None:
-    page = _run(
-        reframed.ReframedProvider().async_browse(None, None, "", REQUEST)
-    )
+    page = _run(reframed.ReframedProvider().async_browse(None, None, "", REQUEST))
 
     assert [folder.item_id for folder in page.folders] == [
         "collections",
@@ -753,9 +782,7 @@ def test_wallhaven_candidates_use_query_and_frame_orientation() -> None:
 
 
 def test_wallhaven_browse_root_exposes_sorting_and_filters() -> None:
-    page = _run(
-        wallhaven.WallhavenProvider().async_browse(None, None, "", REQUEST)
-    )
+    page = _run(wallhaven.WallhavenProvider().async_browse(None, None, "", REQUEST))
 
     assert [folder.item_id for folder in page.folders] == [
         "latest",
@@ -797,9 +824,7 @@ def test_wallhaven_browse_applies_selected_filter(
     provider.min_interval = 0
 
     page = _run(
-        provider.async_browse(
-            session, cache_mod.ProviderCache(), browse_id, REQUEST
-        )
+        provider.async_browse(session, cache_mod.ProviderCache(), browse_id, REQUEST)
     )
 
     assert [candidate.item_id for candidate in page.candidates] == ["mlg7qm"]
@@ -823,15 +848,15 @@ def test_wallhaven_by_id_uses_detail_metadata() -> None:
     provider.min_interval = 0
 
     candidate = _run(
-        provider.async_by_id(
-            session, cache_mod.ProviderCache(), "mlg7qm", REQUEST
-        )
+        provider.async_by_id(session, cache_mod.ProviderCache(), "mlg7qm", REQUEST)
     )
 
     assert candidate.title == "Mountains · Landscape · Clouds"
     assert candidate.artist == "test-user"
     with pytest.raises(base.ArtFetchError, match="Invalid Wallhaven"):
-        _run(provider.async_by_id(session, cache_mod.ProviderCache(), "../bad", REQUEST))
+        _run(
+            provider.async_by_id(session, cache_mod.ProviderCache(), "../bad", REQUEST)
+        )
 
 
 def test_engine_wraps_body_read_failures() -> None:
@@ -959,9 +984,18 @@ def test_smk_candidates_use_random_offset_and_cache_total(
 ) -> None:
     session = FakeSession()
     search_payload = _fixture("smk_search.json")
-    session.add(smk.SEARCH_URL[: smk.SEARCH_URL.index("?")], FakeResponse(payload=search_payload))
-    session.add(smk.SEARCH_URL[: smk.SEARCH_URL.index("?")], FakeResponse(payload=search_payload))
-    session.add(smk.SEARCH_URL[: smk.SEARCH_URL.index("?")], FakeResponse(payload=search_payload))
+    session.add(
+        smk.SEARCH_URL[: smk.SEARCH_URL.index("?")],
+        FakeResponse(payload=search_payload),
+    )
+    session.add(
+        smk.SEARCH_URL[: smk.SEARCH_URL.index("?")],
+        FakeResponse(payload=search_payload),
+    )
+    session.add(
+        smk.SEARCH_URL[: smk.SEARCH_URL.index("?")],
+        FakeResponse(payload=search_payload),
+    )
     monkeypatch.setattr(smk.random, "randrange", lambda stop: 41)
     cache = cache_mod.ProviderCache()
     provider = smk.SmkProvider()
@@ -988,9 +1022,7 @@ def test_nasa_candidates_probe_total_then_fetch_random_page(
     cache = cache_mod.ProviderCache()
     provider = nasa.NasaImagesProvider()
     provider.min_interval = 0
-    request = base.FetchRequest(
-        target_width=1600, target_height=1200, query="nebula"
-    )
+    request = base.FetchRequest(target_width=1600, target_height=1200, query="nebula")
 
     candidates = _run(provider.async_candidates(session, cache, request, 2))
 
@@ -1049,6 +1081,35 @@ def test_cache_evicts_least_recently_used_entry_at_size_limit() -> None:
     assert cache.get("new", ttl=100) == 3
 
 
+def test_byte_cache_is_ttl_and_byte_size_bounded() -> None:
+    clock = {"t": 0.0}
+    cache = cache_mod.ByteCache(max_bytes=6, clock=lambda: clock["t"])
+    cache.set("old", b"123", "image/jpeg")
+    cache.set("recent", b"45", "image/png")
+    assert cache.get("old", ttl=100) == (b"123", "image/jpeg")
+
+    cache.set("new", b"678", "image/webp")
+
+    assert cache.get("recent", ttl=100) is None
+    assert cache.get("old", ttl=100) == (b"123", "image/jpeg")
+    assert cache.get("new", ttl=100) == (b"678", "image/webp")
+    clock["t"] = 101
+    assert cache.get("old", ttl=100) is None
+
+
+def test_byte_cache_replacement_and_oversized_values_do_not_leak_capacity() -> None:
+    cache = cache_mod.ByteCache(max_bytes=4)
+    cache.set("same", b"1234", "image/jpeg")
+    cache.set("same", b"1", "image/png")
+    cache.set("other", b"234", "image/webp")
+
+    assert cache.get("same", ttl=100) == (b"1", "image/png")
+    assert cache.get("other", ttl=100) == (b"234", "image/webp")
+
+    cache.set("too-large", b"12345", "image/jpeg")
+    assert cache.get("too-large", ttl=100) is None
+
+
 def test_browse_selection_survives_provider_cache_eviction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1060,6 +1121,8 @@ def test_browse_selection_survives_provider_cache_eviction(
     exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
     helpers = types.ModuleType("homeassistant.helpers")
     helpers.__path__ = []
+    aiohttp = types.ModuleType("aiohttp")
+    aiohttp.ClientError = OSError
     aiohttp_client = types.ModuleType("homeassistant.helpers.aiohttp_client")
     aiohttp_client.async_get_clientsession = lambda _hass: None
 
@@ -1067,6 +1130,7 @@ def test_browse_selection_survives_provider_cache_eviction(
     monkeypatch.setitem(sys.modules, "homeassistant.core", core)
     monkeypatch.setitem(sys.modules, "homeassistant.exceptions", exceptions)
     monkeypatch.setitem(sys.modules, "homeassistant.helpers", helpers)
+    monkeypatch.setitem(sys.modules, "aiohttp", aiohttp)
     monkeypatch.setitem(
         sys.modules, "homeassistant.helpers.aiohttp_client", aiohttp_client
     )
@@ -1083,7 +1147,13 @@ def test_browse_selection_survives_provider_cache_eviction(
 
         hass = types.SimpleNamespace(data={})
         entry = types.SimpleNamespace(entry_id="frame", options={})
-        candidate = _candidate("selected", "https://x/selected.png")
+        candidate = base.ArtCandidate(
+            provider="fake",
+            item_id="selected",
+            image_url="https://x/selected.png",
+            thumb_url="https://x/selected-thumb.png",
+            title="selected",
+        )
         provider_ha._stash_candidates(hass, entry, "fake", [candidate])
 
         provider_cache = provider_ha._cache(hass)
@@ -1092,21 +1162,34 @@ def test_browse_selection_survives_provider_cache_eviction(
 
         session = FakeSession()
         session.add("https://x/selected.png", FakeResponse(body=b"selected"))
+        session.add(
+            "https://x/selected-thumb.png", FakeResponse(body=b"selected-thumb")
+        )
         monkeypatch.setattr(
             provider_ha, "get_provider", lambda _key: SelectedProvider()
         )
         monkeypatch.setattr(
             provider_ha, "async_get_clientsession", lambda _hass: session
         )
+        target_entry = types.SimpleNamespace(entry_id="other-frame", options={})
 
         image = _run(
             provider_ha.async_art_by_media_id(
-                hass, entry, "fake", candidate.item_id
+                hass, target_entry, "fake", candidate.item_id
             )
         )
 
         assert image.candidate is candidate
         assert image.data == b"selected"
+
+        thumbnail = _run(
+            provider_ha.async_art_by_media_id(
+                hass, target_entry, "fake", candidate.item_id,
+                thumbnail=True,
+            )
+        )
+        assert thumbnail.candidate.image_url == candidate.thumb_url
+        assert thumbnail.data == b"selected-thumb"
     finally:
         sys.modules.pop("fraimic.providers.ha", None)
         if previous_ha is not None:
@@ -1206,7 +1289,9 @@ def test_parse_unsplash_photo() -> None:
 def test_unsplash_candidates_do_not_store_api_key() -> None:
     unsplash = load("providers.unsplash")
     session = FakeSession()
-    session.add(unsplash.RANDOM_URL, FakeResponse(payload=_fixture("unsplash_random.json")))
+    session.add(
+        unsplash.RANDOM_URL, FakeResponse(payload=_fixture("unsplash_random.json"))
+    )
     provider = unsplash.UnsplashProvider()
     provider.min_interval = 0
     request = base.FetchRequest(
@@ -1217,10 +1302,11 @@ def test_unsplash_candidates_do_not_store_api_key() -> None:
     )
 
     candidates = _run(
-        provider.async_candidates(session, cache_mod.ProviderCache(), request, 1)
+        provider.async_candidates(session, cache_mod.ProviderCache(), request, 40)
     )
 
     assert candidates
+    assert session.calls[0]["params"]["count"] == 30
     assert "api_key" not in (candidates[0].extra or {})
 
 

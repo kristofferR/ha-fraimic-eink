@@ -22,19 +22,20 @@ from ..const import (
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
-    FIT_COVER,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
+    FIT_COVER,
     MODE_NONE,
+    PLAYLIST_TONE_VALUES,
 )
+from ..power import TRIGGER_MANUAL
 from .compose import render_screen
 from .fetch import async_build_context
 from .schema import KIND_PICTURE, ScreenConfig
-from ..power import TRIGGER_MANUAL
 
 if TYPE_CHECKING:
     from ..coordinator import FraimicConfigEntry
@@ -106,27 +107,58 @@ async def _async_picture_source(
 
     source = screen.source or {}
     art = None
+    overrides = _picture_overrides(source)
+    if source.get("library_image"):
+        raise HomeAssistantError("Library pictures use the cached render path")
     if provider_key := source.get("provider"):
         from ..providers.caption import composite_with_caption
-        from ..providers.ha import ArtFetchError, async_fetch_art
+        from ..providers.ha import (
+            ArtFetchError,
+            async_art_by_media_id,
+            async_fetch_art,
+        )
 
         fit = source.get("fit") or entry.options.get(ATTR_FIT, FIT_COVER)
-        art = await async_fetch_art(
-            hass, entry, provider_key, query=source.get("query"), fit=fit
+        if item_id := source.get("provider_item"):
+            try:
+                art = await async_art_by_media_id(
+                    hass, entry, provider_key, item_id
+                )
+                raw = art.data
+            except ArtFetchError:
+                metadata = source.get("metadata") or {}
+                download_url = metadata.get("download_url")
+                if not isinstance(download_url, str) or not download_url:
+                    raise
+                raw = await async_get_source_bytes(
+                    hass, url=download_url, redact_url=True
+                )
+        else:
+            art = await async_fetch_art(
+                hass,
+                entry,
+                provider_key,
+                query=source.get("query"),
+                fit=fit,
+            )
+            raw = art.data
+        attribution = (
+            art.candidate.attribution
+            if art is not None
+            else (source.get("metadata") or {}).get("attribution")
         )
-        raw = art.data
-        if source.get("caption") and art.candidate.attribution:
+        if source.get("caption") and attribution:
             width, height = viewed_size(entry)
             try:
                 raw = await hass.async_add_executor_job(
                     composite_with_caption,
                     raw,
-                    art.candidate.attribution,
+                    attribution,
                     width,
                     height,
                     fit,
                 )
-            except Exception as err:  # noqa: BLE001 - image decoders fail broadly
+            except Exception as err:
                 raise ArtFetchError(f"Captioned image: {err}") from err
     else:
         raw = await async_get_source_bytes(
@@ -135,12 +167,21 @@ async def _async_picture_source(
             entity_id=source.get("entity"),
             redact_url=True,
         )
-    overrides: dict = {}
+    return raw, overrides, art
+
+
+def _picture_overrides(source: dict) -> dict:
+    """Resolve per-slide picture controls into conversion overrides."""
+    overrides = {}
     if fit := source.get("fit"):
         overrides[ATTR_FIT] = fit
     if mode := source.get("mode"):
         overrides[ATTR_MODE] = mode
-    return raw, overrides, art
+    if (tone := source.get("tone")) in PLAYLIST_TONE_VALUES:
+        overrides[ATTR_TONE] = PLAYLIST_TONE_VALUES[tone]
+    if crop := source.get("crop"):
+        overrides["crop"] = tuple(crop)
+    return overrides
 
 
 async def async_show_screen(
@@ -175,9 +216,25 @@ async def async_show_screen(
     try:
         art = None
         art_info: dict | None = None
+        rendered = None
         if screen.kind == KIND_PICTURE:
-            png, overrides, art = await _async_picture_source(hass, entry, screen)
+            source = screen.source or {}
+            if image_id := source.get("library_image"):
+                from ..library import get_library
+
+                library = get_library(hass)
+                if library is None:
+                    raise HomeAssistantError("The Fraimic library is not set up")
+                overrides = _picture_overrides(source)
+                rendered = await library.async_render_for_entry(
+                    image_id, entry, overrides
+                )
+                png = b""
+            else:
+                png, overrides, art = await _async_picture_source(hass, entry, screen)
             art_info = _public_art_dict(art.candidate) if art is not None else None
+            if isinstance(source.get("metadata"), dict):
+                art_info = {**source["metadata"], **(art_info or {})}
             preprocess = True
         else:
             png, mode = await async_render_screen(hass, entry, screen)
@@ -186,11 +243,46 @@ async def async_show_screen(
             preprocess = False
         width, height = viewed_size(entry)
         runtime = entry.runtime_data
+        overlay_count = 0
+        overlay_manager = None
+        if getattr(hass, "data", None) is not None:
+            from ..overlays import get_overlay_manager
+
+            overlay_manager = get_overlay_manager(hass)
+        if (
+            screen.kind == KIND_PICTURE
+            and getattr(screen, "overlay_mode", "inherit") == "inherit"
+            and overlay_manager is not None
+        ):
+            from ..overlays import async_apply_frame_overlays
+
+            if rendered is None:
+                rendered = await async_convert_for_entry(
+                    hass, entry, png, overrides, preprocess=True
+                )
+            base_preview = rendered[1]
+            if base_preview is not None:
+                composed, overlay_count = await async_apply_frame_overlays(
+                    hass, entry, base_preview, art_info
+                )
+                if overlay_count:
+                    rendered = await async_convert_for_entry(
+                        hass,
+                        entry,
+                        composed,
+                        _NEUTRAL_OVERRIDES,
+                        preprocess=False,
+                    )
+                    png = b""
+                    overrides = dict(_NEUTRAL_OVERRIDES)
+                    preprocess = False
 
         if preview_only:
-            bin_data, preview_png, used_mode = await async_convert_for_entry(
-                hass, entry, png, overrides, preprocess=preprocess
-            )
+            if rendered is None:
+                rendered = await async_convert_for_entry(
+                    hass, entry, png, overrides, preprocess=preprocess
+                )
+            bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
             return {
                 "uploaded": False,
@@ -206,6 +298,8 @@ async def async_show_screen(
             "skip_if_hash": skip_if_hash,
             "hold_playlist": scheduler is None and hold_playlist,
         }
+        if rendered is not None:
+            upload_kwargs["rendered"] = rendered
         if trigger != TRIGGER_MANUAL:
             upload_kwargs["trigger"] = trigger
         result = await async_render_and_upload(
@@ -216,10 +310,11 @@ async def async_show_screen(
         preview_png = result.pop("preview_png", None)
         _set_screen_preview(runtime, preview_png, result["mode"])
         if displayed or result.get("content_hash") == skip_if_hash:
+            runtime.last_overlay_count = overlay_count
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = art_info
-            runtime.media_title = art_info.get("title") if art_info else None
+            runtime.media_title = (art_info or {}).get("title") or screen.name
             # Entities read this lazily — poke coordinator listeners so their
             # attributes update now instead of at the next poll.
             runtime.coordinator.async_update_listeners()

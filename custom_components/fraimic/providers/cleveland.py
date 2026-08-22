@@ -8,14 +8,16 @@ from __future__ import annotations
 
 import random
 from typing import Any
+from urllib.parse import quote_plus
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
 from .engine import async_fetch_json
 
-LIST_URL = (
+BASE_LIST_URL = (
     "https://openaccess-api.clevelandart.org/api/artworks/"
-    "?cc0=1&has_image=1&highlight=1&type=Painting"
+    "?cc0=1&has_image=1&type=Painting"
 )
+LIST_URL = f"{BASE_LIST_URL}&highlight=1"
 ITEM_URL = "https://openaccess-api.clevelandart.org/api/artworks/{id}"
 COUNT_TTL = 24 * 3600
 API_TIMEOUT = 20.0
@@ -64,35 +66,45 @@ def parse_cleveland_item(item: dict) -> ArtCandidate | None:
 class ClevelandProvider(ArtProvider):
     key = "cleveland"
     name = "Cleveland Museum of Art"
+    supports_query = True
     min_interval = 1.0
 
-    async def _total(self, session: Any, cache: Any) -> int:
-        total = cache.get("cleveland_total", COUNT_TTL)
+    @staticmethod
+    def _list_url(query: str | None) -> str:
+        if query:
+            return f"{BASE_LIST_URL}&q={quote_plus(query)}"
+        return LIST_URL
+
+    async def _total(self, session: Any, cache: Any, query: str | None = None) -> int:
+        cache_key = f"cleveland_total_{(query or '*').casefold()}"
+        total = cache.get(cache_key, COUNT_TTL)
         if total is None:
             payload = await async_fetch_json(
                 session,
                 cache,
                 key=self.key,
                 min_interval=self.min_interval,
-                url=f"{LIST_URL}&limit=1",
+                url=f"{self._list_url(query)}&limit=1",
                 error_label="Cleveland list",
                 headers=api_headers(),
                 timeout=API_TIMEOUT,
             )
             total = (payload.get("info") or {}).get("total") or 0
-            if not total:
+            if not total and not query:
                 raise ArtFetchError("Cleveland returned an empty highlight pool")
-            cache.set("cleveland_total", total)
+            cache.set(cache_key, total)
         return total
 
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
-        total = await self._total(session, cache)
+        total = await self._total(session, cache, request.query)
+        if total == 0:
+            return []
         skip = random.randrange(max(1, total - count + 1))
         await cache.async_throttle(self.key, self.min_interval)
         resp = await session.get(
-            f"{LIST_URL}&limit={count}&skip={skip}",
+            f"{self._list_url(request.query)}&limit={count}&skip={skip}",
             headers=api_headers(),
             timeout=API_TIMEOUT,
         )

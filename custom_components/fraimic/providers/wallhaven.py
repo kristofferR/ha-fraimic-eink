@@ -94,9 +94,7 @@ _COLORS = (
     ("cccccc", "Light gray"),
     ("ffffff", "White"),
 )
-COLOR_FOLDERS = tuple(
-    BrowseFolder(f"color/{value}", title) for value, title in _COLORS
-)
+COLOR_FOLDERS = tuple(BrowseFolder(f"color/{value}", title) for value, title in _COLORS)
 COLOR_TITLES = dict(_COLORS)
 TOP_TITLES = {
     folder.item_id.removeprefix("top/"): folder.title for folder in TOP_FOLDERS
@@ -154,9 +152,7 @@ def parse_wallhaven_wallpaper(item: Any) -> ArtCandidate | None:
         if isinstance(uploader, dict)
         else ""
     )
-    attribution = (
-        f"{title} — {artist}, Wallhaven" if artist else f"{title}, Wallhaven"
-    )
+    attribution = f"{title} — {artist}, Wallhaven" if artist else f"{title}, Wallhaven"
     thumbs = item.get("thumbs")
     thumb_url = thumbs.get("large") if isinstance(thumbs, dict) else None
     source_url = item.get("url") or f"https://wallhaven.cc/w/{item_id}"
@@ -236,6 +232,7 @@ def _browse_query(browse_id: str) -> tuple[str, dict[str, str]] | None:
 class WallhavenProvider(ArtProvider):
     key = "wallhaven"
     name = "Wallhaven"
+    supports_query = True
     hierarchical_browse = True
     # Wallhaven publishes a 45 requests/minute limit.
     min_interval = 1.5
@@ -245,9 +242,7 @@ class WallhavenProvider(ArtProvider):
         # Wallhaven accepts these broad web-UI ratio filters in its API. An
         # exact numeric ratio would hide wallpapers that crop cleanly to the frame.
         orientation = (
-            "landscape"
-            if request.target_width >= request.target_height
-            else "portrait"
+            "landscape" if request.target_width >= request.target_height else "portrait"
         )
         return {
             "categories": "111",
@@ -357,9 +352,7 @@ class WallhavenProvider(ArtProvider):
         if page == 1 and base_id != "random":
             folders = tuple(
                 BrowseFolder(f"{base_id}/page/{number}", f"Page {number}")
-                for number in range(
-                    2, min(_last_page(payload), MAX_BROWSE_PAGES) + 1
-                )
+                for number in range(2, min(_last_page(payload), MAX_BROWSE_PAGES) + 1)
             )
         page_title = title if page == 1 else f"{title} · Page {page}"
         return BrowsePage(title=page_title, folders=folders, candidates=candidates)

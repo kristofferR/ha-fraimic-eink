@@ -25,15 +25,22 @@ API_TIMEOUT = 20.0
 POOL_TTL = 24 * 3600
 
 
-def _search_body(limit: int, page: int = 1) -> dict:
+def _search_body(limit: int, page: int = 1, query: str | None = None) -> dict:
+    filters: list[dict] = [
+        {"term": {"is_public_domain": True}},
+        {"term": {"is_boosted": True}},
+        {"term": {"artwork_type_title.keyword": "Painting"}},
+    ]
+    must = (
+        [{"multi_match": {"query": query, "fields": ["title", "artist_title"]}}]
+        if query
+        else []
+    )
     return {
         "query": {
             "bool": {
-                "filter": [
-                    {"term": {"is_public_domain": True}},
-                    {"term": {"is_boosted": True}},
-                    {"term": {"artwork_type_title.keyword": "Painting"}},
-                ]
+                "filter": filters,
+                "must": must,
             }
         },
         "fields": "id,title,image_id,artist_display,thumbnail",
@@ -49,9 +56,8 @@ def parse_aic_item(item: dict) -> ArtCandidate | None:
     title = item.get("title") or "Untitled"
     # artist_display is e.g. "Vincent van Gogh (Dutch, 1853–1890)\nSaint-Rémy"
     # — keep just the name for captions.
-    artist = (
-        (item.get("artist_display") or "").split("\n")[0].split(" (")[0].strip() or None
-    )
+    artist_display = (item.get("artist_display") or "").partition("\n")[0]
+    artist = artist_display.partition(" (")[0].strip() or None
     thumbnail = item.get("thumbnail") or {}
     width, height = thumbnail.get("width"), thumbnail.get("height")
     # Metadata dims are the master scan; scale to what IIIF will deliver.
@@ -80,6 +86,7 @@ def parse_aic_item(item: dict) -> ArtCandidate | None:
 class AicProvider(ArtProvider):
     key = "aic"
     name = "Art Institute of Chicago"
+    supports_query = True
     min_interval = 2.0  # 60 req/min anonymous limit
 
     def image_headers(self, candidate: ArtCandidate) -> dict[str, str]:
@@ -89,8 +96,9 @@ class AicProvider(ArtProvider):
             "Referer": "https://www.artic.edu/",
         }
 
-    async def _total(self, session: Any, cache: Any) -> int:
-        total = cache.get("aic_total", POOL_TTL)
+    async def _total(self, session: Any, cache: Any, query: str | None = None) -> int:
+        cache_key = f"aic_total_{(query or '*').casefold()}"
+        total = cache.get(cache_key, POOL_TTL)
         if total is None:
             payload = await async_fetch_json(
                 session,
@@ -100,20 +108,23 @@ class AicProvider(ArtProvider):
                 url=SEARCH_URL,
                 method="post",
                 error_label="AIC search",
-                json=_search_body(limit=1),
+                json=_search_body(limit=1, query=query),
                 headers=api_headers({"AIC-User-Agent": api_headers()["User-Agent"]}),
                 timeout=API_TIMEOUT,
             )
             total = (payload.get("pagination") or {}).get("total") or 0
-            if not total:
+            if not total and not query:
                 raise ArtFetchError("AIC returned an empty boosted-paintings pool")
-            cache.set("aic_total", total)
+            if total:
+                cache.set(cache_key, total)
         return total
 
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
-        total = await self._total(session, cache)
+        total = await self._total(session, cache, request.query)
+        if total == 0:
+            return []
         limit = count * 2
         page = random.randrange(max(1, -(-total // limit))) + 1
         payload = await async_fetch_json(
@@ -124,7 +135,7 @@ class AicProvider(ArtProvider):
             url=SEARCH_URL,
             method="post",
             error_label="AIC search",
-            json=_search_body(limit=limit, page=page),
+            json=_search_body(limit=limit, page=page, query=request.query),
             headers=api_headers({"AIC-User-Agent": api_headers()["User-Agent"]}),
             timeout=API_TIMEOUT,
         )

@@ -12,6 +12,7 @@ import asyncio
 import io
 import logging
 import random
+from dataclasses import replace
 
 import aiohttp
 from homeassistant.core import HomeAssistant
@@ -30,6 +31,9 @@ _LOGGER = logging.getLogger(__name__)
 BROWSE_STASH_TTL = 3600.0
 BROWSE_STASH_LIMIT = 256
 BROWSE_STASH_CACHE_LIMIT = 32
+GALLERY_CACHE_TTL = 10 * 60.0
+GALLERY_CACHE_LIMIT = 128
+PROVIDER_CACHE_LIMIT = 128
 
 
 class ArtFetchError(HomeAssistantError):
@@ -47,7 +51,7 @@ def _cache(hass: HomeAssistant) -> ProviderCache:
     domain_data = hass.data.setdefault(DOMAIN, {})
     cache = domain_data.get("art_cache")
     if cache is None:
-        cache = ProviderCache()
+        cache = ProviderCache(max_entries=PROVIDER_CACHE_LIMIT)
         domain_data["art_cache"] = cache
     return cache
 
@@ -59,6 +63,16 @@ def _browse_cache(hass: HomeAssistant) -> ProviderCache:
     if cache is None:
         cache = ProviderCache(max_entries=BROWSE_STASH_CACHE_LIMIT)
         domain_data["art_browse_cache"] = cache
+    return cache
+
+
+def _gallery_cache(hass: HomeAssistant) -> ProviderCache:
+    """Short-lived result cache for the progressively loaded gallery."""
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    cache = domain_data.get("art_gallery_cache")
+    if cache is None:
+        cache = ProviderCache(max_entries=GALLERY_CACHE_LIMIT)
+        domain_data["art_gallery_cache"] = cache
     return cache
 
 
@@ -125,19 +139,27 @@ async def async_fetch_art(
     return image
 
 
-def _request_for(hass: HomeAssistant, entry, provider) -> FetchRequest:
+def _request_for(
+    hass: HomeAssistant,
+    entry,
+    provider,
+    *,
+    query: str | None = None,
+) -> FetchRequest:
     from ..render.display import viewed_size
 
     width, height = viewed_size(entry)
     return FetchRequest(
         target_width=width,
         target_height=height,
+        query=query,
         api_key=entry.options.get(provider.key_option) if provider.key_option else None,
     )
 
 
-def _browse_stash_key(entry, provider_key: str) -> str:
-    return f"browse_{entry.entry_id}_{provider_key}"
+def _browse_stash_key(_entry, provider_key: str) -> str:
+    """Share browsed candidates across frames in the same HA instance."""
+    return f"browse_{provider_key}"
 
 
 def _stash_candidates(hass, entry, provider_key: str, candidates) -> None:
@@ -153,28 +175,101 @@ def _stash_candidates(hass, entry, provider_key: str, candidates) -> None:
 
 
 async def async_browse_candidates(
-    hass: HomeAssistant, entry, provider_key: str, count: int = 20
+    hass: HomeAssistant,
+    entry,
+    provider_key: str,
+    count: int = 20,
+    *,
+    query: str | None = None,
 ) -> list:
     """Fresh candidates for the media browser; stashed for later play-by-id."""
     provider = get_provider(provider_key)
     if provider is None:
         raise ArtFetchError(f"Unknown image provider: {provider_key}")
-    session = async_get_clientsession(hass)
-    cache = _cache(hass)
-    try:
-        candidates = await provider.async_candidates(
-            session, cache, _request_for(hass, entry, provider), count
-        )
-    except _BaseArtFetchError as err:
-        raise ArtFetchError(f"{provider.name}: {err}") from err
-    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-        raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
-    except Exception as err:  # noqa: BLE001 - provider parser failures vary
-        raise ArtFetchError(f"{provider.name}: {err}") from err
+    normalized_query = (query or "").strip()
+    result_key = (
+        f"gallery_{entry.entry_id}_{provider_key}_{normalized_query.casefold()}"
+    )
+    result_cache = _gallery_cache(hass)
+    cached_result = result_cache.get(result_key, GALLERY_CACHE_TTL)
+    if isinstance(cached_result, dict):
+        candidates = cached_result["candidates"]
+        exhausted = cached_result["exhausted"]
+    else:
+        candidates = cached_result or []
+        exhausted = False
+    if len(candidates) < count and not exhausted:
+        session = async_get_clientsession(hass)
+        cache = _cache(hass)
+        locks = hass.data.setdefault(DOMAIN, {}).setdefault("art_gallery_locks", {})
+        lock_key = (entry.entry_id, provider_key)
+        lock = locks.get(lock_key)
+        if lock is None:
+            lock = asyncio.Lock()
+            locks[lock_key] = lock
+        async with lock:
+            cached_result = result_cache.get(result_key, GALLERY_CACHE_TTL)
+            if isinstance(cached_result, dict):
+                candidates = cached_result["candidates"]
+                exhausted = cached_result["exhausted"]
+            else:
+                candidates = cached_result or []
+                exhausted = False
+            if len(candidates) < count and not exhausted:
+                local_filter = bool(
+                    normalized_query and not provider.supports_query
+                )
+                attempts = 3 if local_filter else 1
+                provider_returned_candidates = False
+                for attempt in range(attempts):
+                    try:
+                        fetched = await provider.async_candidates(
+                            session,
+                            cache,
+                            _request_for(
+                                hass,
+                                entry,
+                                provider,
+                                query=normalized_query or None,
+                            ),
+                            count + attempt,
+                        )
+                    except _BaseArtFetchError as err:
+                        raise ArtFetchError(f"{provider.name}: {err}") from err
+                    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                        raise ArtFetchError(
+                            f"{provider.name} is unreachable: {err}"
+                        ) from err
+                    except Exception as err:  # noqa: BLE001 - provider parser failures vary
+                        raise ArtFetchError(f"{provider.name}: {err}") from err
+                    provider_returned_candidates |= bool(fetched)
+                    if local_filter:
+                        needle = normalized_query.casefold()
+                        fetched = [
+                            candidate
+                            for candidate in fetched
+                            if needle
+                            in " ".join(
+                                filter(None, (candidate.title, candidate.artist))
+                            ).casefold()
+                        ]
+                    by_id = {
+                        candidate.item_id: candidate for candidate in candidates
+                    }
+                    for candidate in fetched:
+                        by_id.setdefault(candidate.item_id, candidate)
+                    candidates = list(by_id.values())
+                    if len(candidates) >= count or not provider_returned_candidates:
+                        break
+                exhausted = not provider_returned_candidates
+                result_cache.set(
+                    result_key,
+                    {"candidates": candidates, "exhausted": exhausted},
+                )
     # Daily providers have no by-id lookup; the browse stash covers the gap
     # between browsing and clicking.
     _stash_candidates(hass, entry, provider_key, candidates)
-    return candidates
+    return candidates[:count]
 
 
 async def async_browse_provider(
@@ -200,32 +295,64 @@ async def async_browse_provider(
     return page
 
 
-async def async_art_by_media_id(
+async def async_candidate_by_media_id(
     hass: HomeAssistant, entry, provider_key: str, item_id: str
-) -> ArtImage:
-    """Download the item a user clicked in the media browser."""
+) -> object:
+    """Resolve metadata for an item exposed by browse without downloading it."""
     provider = get_provider(provider_key)
     if provider is None:
         raise ArtFetchError(f"Unknown image provider: {provider_key}")
     session = async_get_clientsession(hass)
     cache = _cache(hass)
-    stash = _browse_cache(hass).get(
-        _browse_stash_key(entry, provider_key), BROWSE_STASH_TTL
-    ) or {}
+    stash = (
+        _browse_cache(hass).get(
+            _browse_stash_key(entry, provider_key), BROWSE_STASH_TTL
+        )
+        or {}
+    )
     candidate = stash.get(item_id)
     try:
         if candidate is None:
             candidate = await provider.async_by_id(
                 session, cache, item_id, _request_for(hass, entry, provider)
             )
-        image = await async_download_candidate(provider, session, candidate)
     except _BaseArtFetchError as err:
         raise ArtFetchError(f"{provider.name}: {err}") from err
     except (aiohttp.ClientError, asyncio.TimeoutError) as err:
         raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
     except Exception as err:  # noqa: BLE001 - provider parser/decoder failures vary
         raise ArtFetchError(f"{provider.name}: {err}") from err
-    return image
+    _stash_candidates(hass, entry, provider_key, [candidate])
+    return candidate
+
+
+async def async_art_by_media_id(
+    hass: HomeAssistant,
+    entry,
+    provider_key: str,
+    item_id: str,
+    *,
+    thumbnail: bool = False,
+) -> ArtImage:
+    """Download the item a user clicked in the media browser."""
+    provider = get_provider(provider_key)
+    if provider is None:
+        raise ArtFetchError(f"Unknown image provider: {provider_key}")
+    candidate = await async_candidate_by_media_id(hass, entry, provider_key, item_id)
+    download_candidate = (
+        replace(candidate, image_url=candidate.thumb_url)
+        if thumbnail and candidate.thumb_url
+        else candidate
+    )
+    session = async_get_clientsession(hass)
+    try:
+        return await async_download_candidate(provider, session, download_candidate)
+    except _BaseArtFetchError as err:
+        raise ArtFetchError(f"{provider.name}: {err}") from err
+    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        raise ArtFetchError(f"{provider.name} is unreachable: {err}") from err
+    except Exception as err:  # noqa: BLE001 - provider decoder failures vary
+        raise ArtFetchError(f"{provider.name}: {err}") from err
 
 
 async def async_art_displayed(hass: HomeAssistant, entry, art: ArtImage) -> None:

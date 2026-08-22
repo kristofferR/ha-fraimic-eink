@@ -22,7 +22,9 @@ CONTENT_URL = "https://api.si.edu/openaccess/api/v1.0/content/{id}"
 IDS_URL = "https://ids.si.edu/ids/deliveryService?id={id}&max={size}"
 FULL_SIZE = 3000
 THUMB_SIZE = 640
-DEFAULT_FILTER = 'unit_code:SAAM AND object_type:"Paintings" AND online_media_type:"Images"'
+DEFAULT_FILTER = (
+    'unit_code:SAAM AND object_type:"Paintings" AND online_media_type:"Images"'
+)
 API_TIMEOUT = 20.0
 COUNT_TTL = 24 * 3600
 DEMO_KEY = "DEMO_KEY"
@@ -78,6 +80,7 @@ def parse_smithsonian_row(row: dict) -> ArtCandidate | None:
 class SmithsonianProvider(ArtProvider):
     key = "smithsonian"
     name = "Smithsonian Open Access"
+    supports_query = True
     key_option = "smithsonian_api_key"  # optional - DEMO_KEY works without it
     min_interval = 5.0
 
@@ -109,7 +112,9 @@ class SmithsonianProvider(ArtProvider):
         api_key = request.api_key or DEMO_KEY
         q = self._query(request)
         demo_cache_key = f"smithsonian_demo_{q}"
-        if not request.api_key and (cached := cache.get(demo_cache_key, DEMO_CACHE_TTL)):
+        if not request.api_key and (
+            cached := cache.get(demo_cache_key, DEMO_CACHE_TTL)
+        ):
             return cached[:count]
 
         total_key = f"smithsonian_total_{q}"
@@ -117,9 +122,12 @@ class SmithsonianProvider(ArtProvider):
         if total is None:
             response = await self._search(session, cache, api_key, q, 0, 1)
             total = response.get("rowCount") or 0
-            if not total:
+            if not total and not request.query:
                 raise ArtFetchError("Smithsonian search found no artworks")
             cache.set(total_key, total)
+
+        if total == 0:
+            return []
 
         rows = count * 2  # not every row carries a CC0 image
         start = random.randrange(max(1, total - rows + 1))

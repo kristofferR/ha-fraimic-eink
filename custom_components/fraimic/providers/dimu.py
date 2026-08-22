@@ -44,6 +44,14 @@ DEFAULT_FILTERS = (
 QUERY_FILTERS = ("artifact.type:Fineart", "artifact.hasPictures:true")
 
 _BRACKET_SUFFIX = re.compile(r"\s*\[[^\]]*\]\s*$")  # "Kyss [Maleri]" -> "Kyss"
+_CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]+")
+
+
+def _solr_query(value: str) -> str:
+    """Quote user text as one literal Solr phrase."""
+    normalized = _CONTROL_CHARACTERS.sub(" ", value).strip()
+    escaped = normalized.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
 
 
 def _flip_name(name: str) -> str:
@@ -57,7 +65,9 @@ def parse_dimu_doc(doc: dict) -> ArtCandidate | None:
     uuid = doc.get("artifact.uuid")
     if not media_id or not uuid:
         return None
-    title = _BRACKET_SUFFIX.sub("", doc.get("artifact.ingress.title") or "") or "Untitled"
+    title = (
+        _BRACKET_SUFFIX.sub("", doc.get("artifact.ingress.title") or "") or "Untitled"
+    )
     producer = (doc.get("artifact.ingress.producer") or "").strip()
     artist = _flip_name(producer) if producer else None
     owner = doc.get("identifier.owner") or ""
@@ -77,6 +87,7 @@ def parse_dimu_doc(doc: dict) -> ArtCandidate | None:
 class DimuProvider(ArtProvider):
     key = "dimu"
     name = "Nasjonalmuseet (DigitaltMuseum)"
+    supports_query = True
     min_interval = 2.0  # shared demo key — be polite
 
     async def _select(
@@ -99,7 +110,7 @@ class DimuProvider(ArtProvider):
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
         if request.query:
-            q, filters = request.query, QUERY_FILTERS
+            q, filters = _solr_query(request.query), QUERY_FILTERS
         else:
             q, filters = "*:*", DEFAULT_FILTERS
         docs = await self._select(
@@ -117,10 +128,6 @@ class DimuProvider(ArtProvider):
         candidates = [
             candidate for doc in docs if (candidate := parse_dimu_doc(doc)) is not None
         ]
-        if not candidates and request.query:
-            raise ArtFetchError(
-                f"DigitaltMuseum found no fine art for {request.query!r}"
-            )
         return candidates
 
     async def async_by_id(

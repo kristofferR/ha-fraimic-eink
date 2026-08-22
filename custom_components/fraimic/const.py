@@ -180,6 +180,11 @@ DEFAULT_SHARPEN: Final = 80.0
 # off shadows/highlights so detail survives the panel's limited dynamic range
 # (rather than clipping). 0 disables.
 DEFAULT_TONE: Final = 25.0
+PLAYLIST_TONE_VALUES: Final = {
+    "vivid": 50.0,
+    "balanced": DEFAULT_TONE,
+    "soft": 0.0,
+}
 # Clip this fraction off each end of the histogram for black/white-point autolevels.
 AUTOCONTRAST_CUTOFF: Final = 0.5
 

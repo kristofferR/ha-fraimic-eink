@@ -107,6 +107,7 @@ def test_queue_rejects_invalid_payload_before_writing(send_queue_module) -> None
 
     entry = types.SimpleNamespace(
         entry_id="small-frame",
+        title="Small frame",
         data={"width": 2, "height": 4},
     )
     queue = send_queue.FraimicSendQueue(Hass(), entry)
@@ -115,6 +116,63 @@ def test_queue_rejects_invalid_payload_before_writing(send_queue_module) -> None
         asyncio.run(
             queue._async_queue(b"12345", None, "auto", "Art", "hash", "manual")
         )
+
+
+def test_discard_clears_superseded_pending_send(send_queue_module) -> None:
+    send_queue = send_queue_module
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: "/unused/queue.bin")
+
+    class Store:
+        saved = None
+
+        async def async_save(self, data) -> None:
+            self.saved = data
+
+    entry = types.SimpleNamespace(entry_id="small-frame", data={})
+    queue = send_queue.FraimicSendQueue(Hass(), entry)
+    queue._store = Store()
+    queue._pending = {"title": "Older picture"}
+
+    asyncio.run(queue.async_discard())
+
+    assert queue.pending is None
+    assert queue._store.saved == {"pending": None}
+    assert queue.status == "Idle"
+
+
+def test_queueing_direct_send_discards_scheduler_retry(send_queue_module) -> None:
+    send_queue = send_queue_module
+    discarded: list[bool] = []
+
+    class Scheduler:
+        async def async_discard_pending_retry(self) -> None:
+            discarded.append(True)
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: "/unused/queue.bin")
+
+        async def async_add_executor_job(self, _target, *_args):
+            return None
+
+    class Store:
+        async def async_save(self, _data) -> None:
+            return None
+
+    entry = types.SimpleNamespace(
+        entry_id="small-frame",
+        title="Small frame",
+        data={"width": 2, "height": 4},
+        runtime_data=types.SimpleNamespace(scheduler=Scheduler()),
+    )
+    queue = send_queue.FraimicSendQueue(Hass(), entry)
+    queue._store = Store()
+    queue._start_waiting = lambda: None
+
+    asyncio.run(queue._async_queue(b"1234", None, "none", "New", "hash", "manual"))
+
+    assert discarded == [True]
 
 
 def test_flush_caps_queued_payload_read(

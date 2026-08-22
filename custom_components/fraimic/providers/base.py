@@ -100,6 +100,7 @@ class ArtProvider:
     requires_key: bool = False
     key_option: str | None = None  # entry-options key holding the API key
     hierarchical_browse: bool = False
+    supports_query: bool = False
     # Seconds between API calls (politeness / published limits).
     min_interval: float = 1.0
 

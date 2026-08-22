@@ -47,7 +47,9 @@ type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 class FraimicRuntimeData:
     """Objects shared across the integration's platforms."""
 
-    def __init__(self, coordinator: FraimicDataUpdateCoordinator, client: FraimicClient) -> None:
+    def __init__(
+        self, coordinator: FraimicDataUpdateCoordinator, client: FraimicClient
+    ) -> None:
         self.coordinator = coordinator
         self.client = client
         # Set by the image platform once its preview entity is created, so the
@@ -56,8 +58,11 @@ class FraimicRuntimeData:
         # Ditto for the dashboard-screen preview entity (render_screen output,
         # including preview-only renders that never reach the frame).
         self.screen_preview_image: Any = None
-        # Last preview PNG, also exposed as the media_player's artwork.
+        # Most recently rendered preview, including preview-only/deferred work.
         self.last_preview: bytes | None = None
+        # Preview known (or accepted-with-timeout) to be on the frame. Player
+        # artwork must use this so deferred renders never replace the glass.
+        self.displayed_preview: bytes | None = None
         # Playlist scheduler (set during entry setup; None until then).
         self.scheduler: Any = None
         # Queued-send manager (send_queue.FraimicSendQueue; set during setup).
@@ -73,6 +78,18 @@ class FraimicRuntimeData:
         self.last_art: dict[str, Any] | None = None
         # Fallback media-player title for non-provider content currently on the frame.
         self.media_title: str | None = None
+        # Count of frame-owned overlays in the last composed picture.
+        self.last_overlay_count = 0
+
+    def set_displayed_preview(
+        self, preview_png: bytes, mode: str, *, overlay_count: int = 0
+    ) -> None:
+        """Keep every representation of the preview on the glass in sync."""
+        self.last_preview = preview_png
+        self.displayed_preview = preview_png
+        self.last_overlay_count = overlay_count
+        if self.preview_image is not None:
+            self.preview_image.set_preview(preview_png, mode)
 
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -110,6 +127,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass, CACHE_VERSION, f"{DOMAIN}_coordinator_{entry.entry_id}"
         )
         self._consecutive_failures = 0
+        self._expected_asleep = False
+        self._last_seen: float | None = None
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
 
@@ -132,6 +151,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         albums = cached.get("albums")
         if isinstance(albums, list):
             self.albums = albums
+        last_seen = cached.get("last_seen")
+        if isinstance(last_seen, (int, float)):
+            self._last_seen = float(last_seen)
+        self._expected_asleep = cached.get("expected_asleep") is True
 
     async def _async_save_cache(self) -> None:
         await self._store.async_save(
@@ -139,14 +162,41 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "data": self.data,
                 "info_page": self.info_page,
                 "albums": self.albums,
+                "last_seen": self._last_seen,
+                "expected_asleep": self._expected_asleep,
             }
         )
 
+    @property
+    def consecutive_failures(self) -> int:
+        """Number of polls that have failed since the frame last answered."""
+        return self._consecutive_failures
+
+    @property
+    def last_seen(self) -> float | None:
+        """Epoch timestamp of the latest confirmed frame response."""
+        return self._last_seen
+
+    @property
+    def expected_asleep(self) -> bool:
+        """Whether Home Assistant intentionally put the frame to sleep."""
+        return self._expected_asleep
+
     @callback
-    def async_set_frame_online(self, online: bool) -> None:
+    def async_set_frame_online(
+        self, online: bool, *, expected_sleep: bool = False
+    ) -> None:
         """Record liveness observed outside the normal coordinator poll."""
         if online:
             self._consecutive_failures = 0
+            self._last_seen = time.time()
+            self._expected_asleep = False
+        elif expected_sleep:
+            self._expected_asleep = True
+        if online or expected_sleep:
+            self.config_entry.async_create_task(
+                self.hass, self._async_save_cache(), "fraimic-save-liveness"
+            )
         self.frame_online = online
         self.async_update_listeners()
 
@@ -165,6 +215,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         self._consecutive_failures = 0
         self.frame_online = True
+        self._expected_asleep = False
+        self._last_seen = time.time()
         # Newer firmware accepts the simpler (and structured-error) upload
         # path; the client stays on multipart /upload until confirmed.
         self.client.prefer_api_image = firmware_supports_api_image(
@@ -232,9 +284,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     other.title,
                 )
                 return
-        _LOGGER.debug(
-            "Backfilling unique_id %s for entry %s", device_key, entry.title
-        )
+        _LOGGER.debug("Backfilling unique_id %s for entry %s", device_key, entry.title)
         self.hass.config_entries.async_update_entry(entry, unique_id=device_key)
 
     def _async_maybe_rediscover(self) -> None:
@@ -346,7 +396,9 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
         },
         "battery": {
             "percent": pick(("battery", "percent"), "battery_pct", "battery_percent"),
-            "voltage_mv": pick(("battery", "voltage_mv"), "battery_voltage_mv", "voltage_mv"),
+            "voltage_mv": pick(
+                ("battery", "voltage_mv"), "battery_voltage_mv", "voltage_mv"
+            ),
             "charging": pick(("battery", "charging"), "charging", "battery_charging"),
             "cable_connected": pick(("battery", "cable_connected"), "cable_connected"),
             "source": pick(("battery", "source"), "battery_source"),

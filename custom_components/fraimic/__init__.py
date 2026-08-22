@@ -31,7 +31,9 @@ from .coordinator import (
 from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
+from .overlays import DATA_OVERLAYS, OverlayManager
 from .panel import async_register_panel, async_unregister_panel
+from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .power import FraimicPowerManager, effective_scan_interval
 from .scenes import DATA_SCENES, SceneManager
 from .scheduled_events import DATA_SCHEDULED_EVENTS, ScheduledEventManager
@@ -76,6 +78,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
             scheduled = ScheduledEventManager(hass)
             await scheduled.async_setup()
             domain_data[DATA_SCHEDULED_EVENTS] = scheduled
+        if DATA_PLAYLISTS not in domain_data:
+            playlists = PlaylistManager(hass)
+            await playlists.async_setup()
+            domain_data[DATA_PLAYLISTS] = playlists
+        playlists = domain_data[DATA_PLAYLISTS]
+        if DATA_OVERLAYS not in domain_data:
+            overlays = OverlayManager(hass)
+            await overlays.async_setup()
+            domain_data[DATA_OVERLAYS] = overlays
+        await playlists.async_migrate_entry(entry)
     async_register_views(hass)
     await async_register_panel(hass)
 
@@ -107,7 +119,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Playlist scheduler for stored screens; started before the platforms so
     # the switch/select/button entities can see it. Subentry changes reload
     # the entry, rebuilding it with the fresh screen list.
-    scheduler = FraimicScheduler(hass, entry)
+    scheduler = FraimicScheduler(hass, entry, playlists)
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()
     entry.async_on_unload(scheduler.async_stop)
@@ -133,6 +145,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
             scheduled.shutdown()
         domain_data.pop(DATA_PACKS, None)
         domain_data.pop(DATA_SCENES, None)
+        domain_data.pop(DATA_PLAYLISTS, None)
+        domain_data.pop(DATA_OVERLAYS, None)
         library = domain_data.pop(DATA_LIBRARY, None)
         if library is not None:
             await library.async_shutdown()
@@ -169,6 +183,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) ->
     return True
 
 
-async def _async_update_listener(hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
+async def _async_update_listener(
+    hass: HomeAssistant, entry: FraimicConfigEntry
+) -> None:
     """Reload the entry when options (e.g. poll interval) change."""
     await hass.config_entries.async_reload(entry.entry_id)

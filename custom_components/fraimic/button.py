@@ -72,7 +72,7 @@ async def async_setup_entry(
         FraimicTryQueuedSendButton(coordinator),
     ]
     scheduler = entry.runtime_data.scheduler
-    if scheduler is not None and scheduler.screens:
+    if scheduler is not None:
         entities += [
             FraimicPlaylistStepButton(coordinator, "next_screen", 1),
             FraimicPlaylistStepButton(coordinator, "previous_screen", -1),
@@ -196,7 +196,8 @@ class FraimicPlaylistStepButton(FraimicEntity, ButtonEntity):
     def available(self) -> bool:
         # Stepping renders locally and uploads; let the press surface a clear
         # error if the frame is asleep instead of greying the button out.
-        return self.coordinator.config_entry.runtime_data.scheduler is not None
+        scheduler = self.coordinator.config_entry.runtime_data.scheduler
+        return scheduler is not None and bool(scheduler.screens)
 
     async def async_press(self) -> None:
         scheduler = self.coordinator.config_entry.runtime_data.scheduler

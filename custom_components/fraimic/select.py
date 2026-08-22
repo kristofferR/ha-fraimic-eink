@@ -22,9 +22,9 @@ async def async_setup_entry(
     entry: FraimicConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the screen select (only when the frame has stored screens)."""
+    """Set up the screen select so later playlist assignments appear live."""
     runtime = entry.runtime_data
-    if runtime.scheduler is None or not runtime.scheduler.screens:
+    if runtime.scheduler is None:
         return
     async_add_entities([FraimicScreenSelect(runtime.coordinator)])
 
@@ -45,7 +45,9 @@ class FraimicScreenSelect(FraimicEntity, SelectEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self.async_on_remove(self._scheduler.async_add_listener(self.async_write_ha_state))
+        scheduler = self._scheduler
+        if scheduler is not None:
+            self.async_on_remove(scheduler.async_add_listener(self.async_write_ha_state))
 
     @property
     def available(self) -> bool:
@@ -53,20 +55,25 @@ class FraimicScreenSelect(FraimicEntity, SelectEntity):
 
     @property
     def options(self) -> list[str]:
-        return [_option(screen) for screen in self._scheduler.screens]
+        scheduler = self._scheduler
+        return [_option(screen) for screen in scheduler.screens] if scheduler else []
 
     @property
     def current_option(self) -> str | None:
-        current = self._scheduler.current_screen
+        scheduler = self._scheduler
+        current = scheduler.current_screen if scheduler else None
         return _option(current) if current else None
 
     async def async_select_option(self, option: str) -> None:
-        for screen in self._scheduler.screens:
+        scheduler = self._scheduler
+        if scheduler is None:
+            raise HomeAssistantError("The playlist scheduler is not loaded")
+        for screen in scheduler.screens:
             if _option(screen) == option:
-                self._scheduler.raise_if_upload_active()
+                scheduler.raise_if_upload_active()
                 stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop
                 if stopper is not None:
                     stopper()
-                await self._scheduler.async_select(screen)
+                await scheduler.async_select(screen)
                 return
         raise HomeAssistantError(f"No stored screen option {option!r}")

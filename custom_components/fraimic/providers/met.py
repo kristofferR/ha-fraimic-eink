@@ -9,14 +9,12 @@ from __future__ import annotations
 
 import random
 from typing import Any
+from urllib.parse import quote_plus
 
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
 from .engine import async_fetch_json
 
-SEARCH_URL = (
-    "https://collectionapi.metmuseum.org/public/collection/v1/search"
-    "?hasImages=true&isHighlight=true&q=*"
-)
+SEARCH_URL = "https://collectionapi.metmuseum.org/public/collection/v1/search"
 OBJECT_URL = "https://collectionapi.metmuseum.org/public/collection/v1/objects/{id}"
 POOL_TTL = 24 * 3600
 API_TIMEOUT = 20.0
@@ -47,31 +45,38 @@ def parse_met_object(payload: dict) -> ArtCandidate | None:
 class MetProvider(ArtProvider):
     key = "met"
     name = "The Met"
+    supports_query = True
     min_interval = 0.5
 
-    async def _pool(self, session: Any, cache: Any) -> list[int]:
-        pool = cache.get("met_ids", POOL_TTL)
+    async def _pool(
+        self, session: Any, cache: Any, query: str | None = None
+    ) -> list[int]:
+        term = (query or "*").strip() or "*"
+        cache_key = f"met_ids_{term.casefold()}"
+        pool = cache.get(cache_key, POOL_TTL)
         if pool is None:
             payload = await async_fetch_json(
                 session,
                 cache,
                 key=self.key,
                 min_interval=self.min_interval,
-                url=SEARCH_URL,
+                url=(
+                    f"{SEARCH_URL}?hasImages=true&isHighlight=true&q={quote_plus(term)}"
+                ),
                 error_label="Met search",
                 headers=api_headers(),
                 timeout=API_TIMEOUT,
             )
             pool = payload.get("objectIDs") or []
-            if not pool:
+            if not pool and not query:
                 raise ArtFetchError("Met search returned no objects")
-            cache.set("met_ids", pool)
+            cache.set(cache_key, pool)
         return pool
 
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
-        pool = await self._pool(session, cache)
+        pool = await self._pool(session, cache, request.query)
         candidates: list[ArtCandidate] = []
         # Object lookups are individually cheap but many lack images; probe
         # up to 2x count random ids.
@@ -83,7 +88,9 @@ class MetProvider(ArtProvider):
                 candidates.append(candidate)
         return candidates
 
-    async def _object(self, session: Any, cache: Any, object_id: int) -> ArtCandidate | None:
+    async def _object(
+        self, session: Any, cache: Any, object_id: int
+    ) -> ArtCandidate | None:
         await cache.async_throttle(self.key, self.min_interval)
         resp = await session.get(
             OBJECT_URL.format(id=object_id), headers=api_headers(), timeout=API_TIMEOUT

@@ -222,6 +222,9 @@ class FraimicSendQueue:
             "trigger": trigger,
         }
         await self._store.async_save({"pending": self._pending})
+        scheduler = getattr(self._entry.runtime_data, "scheduler", None)
+        if scheduler is not None:
+            await scheduler.async_discard_pending_retry()
         self._start_waiting()
         self._dispatch(f"Waiting to send {title} — tap the frame to wake it up")
         _LOGGER.info(
@@ -243,6 +246,10 @@ class FraimicSendQueue:
             return
         self._apply_battery(battery)
         await self._async_flush()
+
+    async def async_discard(self) -> None:
+        """Discard a queued send that has been superseded by newer content."""
+        await self._async_clear("Idle")
 
     async def _async_probe(self, _now: Any = None) -> None:
         self._unsub_probe = None
@@ -356,12 +363,13 @@ class FraimicSendQueue:
                 runtime.power.finish(power_token)
                 if reason == SKIP_DUPLICATE:
                     if preview_png:
-                        runtime.last_preview = preview_png
-                        if runtime.preview_image is not None:
-                            runtime.preview_image.set_preview(
-                                preview_png, pending.get("mode") or ""
-                            )
+                        runtime.set_displayed_preview(
+                            preview_png, pending.get("mode") or ""
+                        )
+                    runtime.last_art = None
                     runtime.media_title = title
+                    await runtime.scheduler.async_notify_external_upload()
+                    runtime.coordinator.async_update_listeners()
                     await self._async_clear(f"Already displaying {title}")
                     return
                 if reason in DEFER_REASONS:
@@ -372,7 +380,15 @@ class FraimicSendQueue:
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:
+                    if preview_png:
+                        runtime.set_displayed_preview(
+                            preview_png, pending.get("mode") or ""
+                        )
+                    runtime.last_art = None
+                    runtime.media_title = title
                     await runtime.power.async_record_upload(content_hash, trigger)
+                    await runtime.scheduler.async_notify_external_upload()
+                    runtime.coordinator.async_update_listeners()
                     await self._async_clear(
                         f"Sent {title} (unconfirmed — the frame's reply timed out)"
                     )
@@ -392,14 +408,15 @@ class FraimicSendQueue:
 
                 runtime.coordinator.async_set_frame_online(True)
                 await runtime.power.async_record_upload(content_hash, trigger)
-                await self._async_clear(f"Sent {self._now_str()}")
                 if preview_png:
-                    runtime.last_preview = preview_png
-                    if runtime.preview_image is not None:
-                        runtime.preview_image.set_preview(
-                            preview_png, pending.get("mode") or ""
-                        )
+                    runtime.set_displayed_preview(
+                        preview_png, pending.get("mode") or ""
+                    )
+                runtime.last_art = None
                 runtime.media_title = title
+                await runtime.scheduler.async_notify_external_upload()
+                runtime.coordinator.async_update_listeners()
+                await self._async_clear(f"Sent {self._now_str()}")
                 _LOGGER.info(
                     "Delivered queued image '%s' to %s", title, self._entry.title
                 )
