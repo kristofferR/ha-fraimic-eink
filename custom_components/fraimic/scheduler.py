@@ -527,6 +527,7 @@ class FraimicScheduler:
         """Reset scheduler state after external content reaches the frame."""
         self._pending = None
         self._pending_from_queue = False
+        self._pending_hold_on_success = False
         self.displayed_hash = None
         if hold:
             screen = self.current_screen
@@ -545,6 +546,7 @@ class FraimicScheduler:
             return
         self._pending = None
         self._pending_from_queue = False
+        self._pending_hold_on_success = False
         await self._async_save()
         self._notify()
 

@@ -662,6 +662,7 @@ def test_new_direct_send_discards_pending_scheduler_retry(
     scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
     scheduler._pending = SimpleNamespace(screen_id="older")
     scheduler._pending_from_queue = True
+    scheduler._pending_hold_on_success = True
     saved: list[dict] = []
 
     class Store:
@@ -674,6 +675,7 @@ def test_new_direct_send_discards_pending_scheduler_retry(
 
     assert scheduler._pending is None
     assert scheduler._pending_from_queue is False
+    assert scheduler._pending_hold_on_success is False
     assert saved[-1]["pending_queue_id"] is None
 
 
@@ -686,6 +688,7 @@ def test_deferred_external_delivery_resets_scheduler_durably(
     scheduler.screens = [current]
     scheduler.current_id = current.screen_id
     scheduler.displayed_hash = "old-hash"
+    scheduler._pending_hold_on_success = True
     saved: list[dict] = []
 
     class Store:
@@ -697,6 +700,7 @@ def test_deferred_external_delivery_resets_scheduler_durably(
     asyncio.run(scheduler.async_notify_external_upload())
 
     assert scheduler.displayed_hash is None
+    assert scheduler._pending_hold_on_success is False
     assert scheduler.hold_until == datetime(2026, 7, 3, 12, 20)
     assert saved[-1]["displayed_hash"] is None
 
