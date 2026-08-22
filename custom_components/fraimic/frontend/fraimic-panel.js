@@ -359,8 +359,7 @@ class FraimicPanel extends HTMLElement {
     if (this._selectedFrameId !== previousEntryId) {
       this._playerGeneration += 1;
       this._player = null;
-      this._renderPlayer();
-      this._renderQueue();
+      this._setQueueOpen(false);
     }
     this._renderFrameChips();
   }
@@ -2118,6 +2117,23 @@ class FraimicPanel extends HTMLElement {
     }
     root.appendChild(this._el("span", { class: "shell-spacer" }));
 
+    const queueButton = () => this._el(
+      "button",
+      {
+        class: "queue-toggle",
+        "aria-expanded": String(this._queueOpen),
+        "aria-controls": "queueSheet",
+        onclick: () => this._setQueueOpen(!this._queueOpen),
+      },
+      [
+        this._el("span", { class: "queue-label", text: "Queue" }),
+        document.createTextNode(String(player.queue_count)),
+        this._el("ha-icon", {
+          icon: this._queueOpen ? "mdi:chevron-down" : "mdi:chevron-up",
+        }),
+      ]
+    );
+
     if (state === "unreachable") {
       root.append(
         this._el("button", {
@@ -2139,6 +2155,7 @@ class FraimicPanel extends HTMLElement {
           onclick: () => this._showPlaylists(),
         })
       );
+      if (player.queue_count) root.appendChild(queueButton());
     } else {
       if (player.waiting_count) {
         root.appendChild(
@@ -2148,23 +2165,7 @@ class FraimicPanel extends HTMLElement {
           })
         );
       }
-      const queueButton = this._el(
-        "button",
-        {
-          class: "queue-toggle",
-          "aria-expanded": String(this._queueOpen),
-          "aria-controls": "queueSheet",
-          onclick: () => this._setQueueOpen(!this._queueOpen),
-        },
-        [
-          this._el("span", { class: "queue-label", text: "Queue" }),
-          document.createTextNode(String(player.queue_count)),
-          this._el("ha-icon", {
-            icon: this._queueOpen ? "mdi:chevron-down" : "mdi:chevron-up",
-          }),
-        ]
-      );
-      root.appendChild(queueButton);
+      root.appendChild(queueButton());
     }
     root.appendChild(
       this._iconButton(
