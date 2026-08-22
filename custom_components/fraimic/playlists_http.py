@@ -24,6 +24,7 @@ from .playlists import (
     PlaylistSlide,
 )
 from .render.schema import KIND_DASHBOARD
+from .screens import SUBENTRY_TYPE_SCREEN
 
 
 class PlaylistRequestError(ValueError):
@@ -51,6 +52,7 @@ def _playing_frames(
         if (
             manager.assignments.get(entry.entry_id) != playlist_id
             or not scheduler.enabled
+            or not scheduler.screens
         ):
             continue
         playing.append(
@@ -83,7 +85,9 @@ def _slide_thumbnail(slide: PlaylistSlide) -> str | None:
     return data.get("url") or metadata.get("thumbnail_url")
 
 
-def _slide_payload(slide: PlaylistSlide, *, on_frame: bool = False) -> dict[str, Any]:
+def _slide_payload(
+    slide: PlaylistSlide, *, on_frame: bool = False, editable: bool = False
+) -> dict[str, Any]:
     data = slide.data
     metadata = data.get("metadata") or {}
     kind = _slide_kind(slide)
@@ -111,7 +115,7 @@ def _slide_payload(slide: PlaylistSlide, *, on_frame: bool = False) -> dict[str,
         "shuffle_album": data.get("provider") == "shuffle",
         "blank": kind == "blank",
         "on_frame": on_frame,
-        "editable": kind == "blank" or overlays == "custom",
+        "editable": editable,
     }
 
 
@@ -137,6 +141,12 @@ def _playlist_payload(
         for entry in loaded_fraimic_entries(hass)
         if manager.assignments.get(entry.entry_id) == playlist.playlist_id
     }
+    legacy_ids = {
+        subentry.subentry_id
+        for entry in loaded_fraimic_entries(hass)
+        for subentry in entry.subentries.values()
+        if subentry.subentry_type == SUBENTRY_TYPE_SCREEN
+    }
     payload: dict[str, Any] = {
         "id": playlist.playlist_id,
         "name": playlist.name,
@@ -150,7 +160,11 @@ def _playlist_payload(
     }
     if detail:
         payload["slides"] = [
-            _slide_payload(slide, on_frame=slide.slide_id in on_frame_ids)
+            _slide_payload(
+                slide,
+                on_frame=slide.slide_id in on_frame_ids,
+                editable=slide.slide_id in legacy_ids,
+            )
             for slide in playlist.slides
         ]
     return payload

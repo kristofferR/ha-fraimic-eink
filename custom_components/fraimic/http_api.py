@@ -945,6 +945,8 @@ class PlayerQueueView(_FraimicView):
                 if section == "queue":
                     await scheduler.async_reorder_queue(ordered_ids)
                 elif section == "playlist":
+                    if not getattr(request.get("hass_user"), "is_admin", False):
+                        raise web.HTTPForbidden(text="Admin required")
                     playlist_id = scheduler.playlist_id
                     await scheduler.async_reorder_upcoming(ordered_ids)
                     if playlist_id is not None:

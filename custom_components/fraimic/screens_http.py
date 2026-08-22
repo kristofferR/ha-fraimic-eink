@@ -186,6 +186,10 @@ class ScreenSaveView(_ScreensViewBase):
             unique_id=None,
         )
         hass.config_entries.async_add_subentry(entry, subentry)
+        manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+        if isinstance(manager, PlaylistManager):
+            await manager.async_sync_legacy_slide(entry, subentry.subentry_id)
+            await entry.runtime_data.scheduler.async_refresh_playlist()
         return self.json({"screen_id": subentry.subentry_id, "saved": True})
 
 
@@ -203,6 +207,10 @@ class ScreenDeleteView(_ScreensViewBase):
         if subentry is None or subentry.subentry_type != SUBENTRY_TYPE_SCREEN:
             return self.json_message("No such stored screen", HTTPStatus.NOT_FOUND)
         hass.config_entries.async_remove_subentry(entry, screen_id)
+        manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+        if isinstance(manager, PlaylistManager):
+            await manager.async_remove_legacy_slide(entry, screen_id)
+            await entry.runtime_data.scheduler.async_refresh_playlist()
         return self.json({"deleted": screen_id})
 
 

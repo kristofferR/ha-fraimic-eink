@@ -253,14 +253,39 @@ class PlaylistManager:
             return
         async with self._lock:
             changed = False
+            matched = False
             for playlist in self.playlists:
                 for stored in playlist.slides:
-                    if stored.slide_id == slide_id and stored.data != current.data:
+                    if stored.slide_id != slide_id:
+                        continue
+                    matched = True
+                    if stored.data != current.data:
                         stored.data = current.data
                         playlist.modified_at = time.time()
                         changed = True
+            if not matched and entry.entry_id in self._migrated_entries:
+                assigned = self.assigned_to(entry.entry_id)
+                if assigned is not None:
+                    assigned.slides.append(current)
+                    assigned.modified_at = time.time()
+                    changed = True
             if changed:
                 await self._async_save()
+
+    async def async_remove_legacy_slide(self, entry: Any, slide_id: str) -> None:
+        """Remove a deleted legacy slide from its migrated assigned playlist."""
+        if entry.entry_id not in self._migrated_entries:
+            return
+        async with self._lock:
+            playlist = self.assigned_to(entry.entry_id)
+            if playlist is None:
+                return
+            kept = [slide for slide in playlist.slides if slide.slide_id != slide_id]
+            if len(kept) == len(playlist.slides):
+                return
+            playlist.slides = kept
+            playlist.modified_at = time.time()
+            await self._async_save()
 
     @staticmethod
     def _legacy_slides(entry: Any) -> list[PlaylistSlide]:
