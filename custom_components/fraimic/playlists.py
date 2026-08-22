@@ -29,6 +29,7 @@ from .screens import SUBENTRY_TYPE_SCREEN
 DATA_PLAYLISTS = "playlists"
 STORE_KEY = f"{DOMAIN}_playlists"
 STORE_VERSION = 1
+LEGACY_SCHEDULER_STORE_VERSION = 1
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -100,7 +101,11 @@ class PlaylistSlide:
         return cls(
             slide_id=slide_id,
             data=validated,
-            tone=tone if tone in PLAYLIST_TONE_VALUES else "balanced",
+            tone=(
+                tone
+                if isinstance(tone, str) and tone in PLAYLIST_TONE_VALUES
+                else "balanced"
+            ),
             overlays=(
                 overlays
                 if overlays in {"inherit", "none", "custom"}
@@ -230,6 +235,26 @@ class PlaylistManager:
                 return
             slides = self._legacy_slides(entry)
             if slides:
+                legacy_state = await Store(
+                    self.hass,
+                    LEGACY_SCHEDULER_STORE_VERSION,
+                    f"{DOMAIN}_playlist_{entry.entry_id}",
+                ).async_load()
+                legacy_order = (
+                    legacy_state.get("playlist_order", [])
+                    if isinstance(legacy_state, dict)
+                    else []
+                )
+                if isinstance(legacy_order, list):
+                    positions = {
+                        slide_id: index
+                        for index, slide_id in enumerate(legacy_order)
+                        if isinstance(slide_id, str)
+                    }
+                    fallback = len(positions)
+                    slides.sort(
+                        key=lambda slide: positions.get(slide.slide_id, fallback)
+                    )
                 playlist = Playlist(
                     playlist_id=uuid.uuid4().hex,
                     name=entry.title,

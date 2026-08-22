@@ -205,7 +205,8 @@ def test_timed_out_upload_is_not_reported_for_retry(
             raise services.FraimicTimeoutError("redraw response timed out")
 
     class Power:
-        recorded: list[tuple[str, str]] = []
+        def __init__(self) -> None:
+            self.recorded: list[tuple[str, str]] = []
 
         def begin(self, _trigger: str) -> object:
             return object()
