@@ -176,6 +176,20 @@ def test_new_pending_screen_requires_enabled_after_upload_failure(
     assert scheduler._pending_requires_enabled is True
 
 
+def test_direct_send_suppresses_automatic_wake_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    screen = SimpleNamespace(screen_id="screen-1", name="Automatic")
+    entry = _entry()
+    entry.runtime_data.send_queue = SimpleNamespace(pending={"title": "Direct send"})
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+
+    asyncio.run(scheduler._async_show(screen, manual=False))
+
+    assert scheduler._pending is None
+
+
 def test_manual_queue_retry_is_persisted_while_frame_sleeps(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -276,6 +290,31 @@ def test_power_deferred_screen_does_not_replace_displayed_hash(
     assert scheduler.current_id == current.screen_id
     assert scheduler.displayed_hash == "on-glass"
     assert scheduler._last_rotation == original_rotation
+
+
+def test_rejected_automatic_slide_keeps_displayed_screen_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    rejected = SimpleNamespace(screen_id="rejected", name="Rejected", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise scheduler_mod.HomeAssistantError("render failed")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, rejected]
+    scheduler.current_id = current.screen_id
+    scheduler._playlist_cursor_id = current.screen_id
+    scheduler.displayed_hash = "on-glass"
+
+    displayed = asyncio.run(scheduler._async_show(rejected, manual=False))
+
+    assert displayed is False
+    assert scheduler.current_id == current.screen_id
+    assert scheduler._playlist_cursor_id == rejected.screen_id
+    assert scheduler.displayed_hash == "on-glass"
 
 
 def test_queue_success_is_consumed_in_display_state_save(
