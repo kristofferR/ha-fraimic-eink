@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
+from .frame_name import frame_display_name
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .library import get_library
@@ -73,7 +74,7 @@ def _playing_frames(
         playing.append(
             {
                 "id": entry.entry_id,
-                "name": entry.title,
+                "name": frame_display_name(hass, entry),
                 "since": (
                     scheduler.last_rotation.isoformat()
                     if scheduler.last_rotation is not None

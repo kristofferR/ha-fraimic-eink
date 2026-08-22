@@ -91,8 +91,10 @@ const css = String.raw`
   .filter {
     position: sticky; top: var(--top-h); z-index: 25; min-height: var(--filter-h);
     display: flex; align-items: center; gap: 7px; padding: 7px 16px;
-    background: var(--chrome); border-bottom: 1px solid var(--line); flex-wrap: wrap;
+    background: var(--chrome); border-bottom: 1px solid var(--line); flex-wrap: nowrap;
+    overflow-x: auto; scrollbar-width: none;
   }
+  .filter::-webkit-scrollbar { display: none; }
   .search { position: relative; width: min(340px, 32vw); min-width: 220px; }
   .search ha-icon { position: absolute; left: 10px; top: 12px; color: var(--muted); pointer-events: none; }
   .search input, .field input, .field select, .field textarea {
@@ -102,6 +104,29 @@ const css = String.raw`
   .search input { height: 34px; min-height: 34px; padding-left: 36px; }
   .counter { color: var(--muted); font-size: 12px; white-space: nowrap; }
   main { min-height: calc(100vh - var(--top-h) - var(--player-h)); }
+  .browse-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); min-height: calc(100vh - var(--top-h) - var(--filter-h) - var(--player-h)); }
+  .browse-results { min-width: 0; }
+  .source-rail {
+    position: sticky; top: calc(var(--top-h) + var(--filter-h)); align-self: start;
+    height: calc(100vh - var(--top-h) - var(--filter-h) - var(--player-h));
+    overflow-y: auto; padding: 9px 7px 18px; border-right: 1px solid var(--line);
+    background: var(--chrome);
+  }
+  .source-group-label {
+    padding: 11px 9px 5px; color: var(--muted); font-size: 10px;
+    font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  }
+  .source-option {
+    width: 100%; min-height: 38px; display: flex; align-items: center; gap: 7px;
+    padding: 5px 9px; border-left: 2px solid transparent; color: var(--muted);
+    text-align: left;
+  }
+  .source-option:hover { color: var(--text); background: var(--secondary-background-color); }
+  .source-option.selected { border-left-color: var(--accent); color: var(--text); background: var(--secondary-background-color); }
+  .source-option:disabled { color: var(--disabled-text-color); cursor: default; }
+  .source-option span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .source-option .source-meta { margin-left: auto; color: var(--muted); font-size: 10px; }
+  .source-option ha-icon { --mdc-icon-size: 16px; flex: none; }
   .content { padding: 18px 16px 28px; }
   .failure {
     display: flex; align-items: center; gap: 8px; padding: 10px 16px;
@@ -183,6 +208,14 @@ const css = String.raw`
   .queue-handle::after { content: ""; width: 42px; height: 4px; border-radius: 4px; background: var(--disabled-text-color); }
   .queue-head { display: flex; align-items: center; gap: 8px; padding: 8px 16px; }
   .queue-head h2 { margin: 0; font-size: 14px; }
+  .queue-interval { height: 38px; min-height: 38px; align-items: flex-start; flex-direction: column; justify-content: center; gap: 0; line-height: 1.1; }
+  .queue-interval small { color: var(--muted); font-size: 9px; font-weight: 500; }
+  .queue-interval b { font-size: 12px; }
+  .queue-interval-menu { width: 230px; margin: 0 60px 8px auto; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--chrome); }
+  .queue-interval-menu h3 { margin: 7px 10px; font-size: 13px; }
+  .queue-interval-menu button { width: 100%; min-height: 40px; display: flex; align-items: center; padding: 0 10px; text-align: left; }
+  .queue-interval-menu button:hover { background: var(--secondary-background-color); }
+  .queue-interval-menu button span { margin-left: auto; color: var(--muted); font-size: 11px; }
   .queue-list { margin: 0; padding: 0; list-style: none; }
   .queue-row { min-height: 68px; display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-bottom: 1px solid var(--line); }
   .queue-row.drag-over { border-top: 2px solid var(--accent); }
@@ -272,6 +305,7 @@ const css = String.raw`
   @media (hover: none) { .actions { opacity: 1; } }
   @media (max-width: 900px) {
     .progress, .overlay-tag { display: none; }
+    .browse-layout { grid-template-columns: 150px minmax(0, 1fr); }
     .editor-grid { grid-template-columns: 1fr; }
     .inspector { border-left: 0; border-top: 1px solid var(--line); }
   }
@@ -280,6 +314,17 @@ const css = String.raw`
     .top .nav-label, .player .previous, .player .next, .player .frame-more { display: none; }
     .frames { min-width: 0; }
     .filter { flex-wrap: nowrap; overflow-x: auto; }
+    .browse-layout { display: block; }
+    .source-rail {
+      position: sticky; top: calc(var(--top-h) + var(--filter-h)); z-index: 19;
+      height: auto; display: flex; gap: 3px; overflow-x: auto; padding: 6px 12px;
+      border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: none;
+    }
+    .source-rail::-webkit-scrollbar { display: none; }
+    .source-group { display: contents; }
+    .source-group-label { display: none; }
+    .source-option { width: auto; min-width: max-content; border-left: 0; border-bottom: 2px solid transparent; }
+    .source-option.selected { border-bottom-color: var(--accent); }
     .search { min-width: 44px; width: 44px; }
     .search input { width: 44px; color: transparent; padding: 0; }
     .search:focus-within { position: absolute; left: 8px; right: 8px; width: auto; z-index: 2; }
@@ -754,16 +799,10 @@ class FraimicPanel extends HTMLElement {
   }
 
   _filterTemplate() {
-    const selected = (key) => this._selectedSource === key ? " selected" : "";
-    const sourceChips = this._sources.slice(0, 7).map((source) => `
-      <button class="chip${selected(source.key)}" data-source="${h(source.key)}" ${source.available ? "" : "disabled"}>${h(source.name)}${source.requires_key ? " · key" : ""}</button>`).join("");
-    const more = this._sources.length > 7 ? `<button class="chip" data-menu="sources">+ ${this._sources.length - 7} more</button>` : "";
     const colourLabel = this._colours.size ? `Colour: ${[...this._colours].join(", ")}` : "Colour";
     const activeFilters = this._colours.size || this._artist || this._era || this._fits || this._rendersWell || this._selectedSource !== "all";
     return `<div class="filter">
       <div class="search"><ha-icon icon="mdi:magnify"></ha-icon><input id="gallery-search" value="${h(this._query)}" placeholder="Search art, artist, subject, colour" aria-label="Search art, artist, subject, colour"></div>
-      <button class="chip${selected("all")}" data-source="all">All sources</button>
-      ${sourceChips}${more}
       ${this._facets.colours.length || this._colours.size ? `<button class="chip${this._colours.size ? " selected" : ""}" data-menu="colour">${h(colourLabel)}</button>` : ""}
       <button class="chip${this._artist ? " selected" : ""}" data-menu="artist">${h(this._artist || "Artist")}</button>
       ${this._facets.eras.length ? `<button class="chip${this._era ? " selected" : ""}" data-menu="era">${h(this._era || "Era")}</button>` : ""}
@@ -772,6 +811,31 @@ class FraimicPanel extends HTMLElement {
       <span class="spacer"></span><span class="counter">${this._galleryCounter()}</span>
       ${activeFilters ? `<button class="btn quiet small" data-clear-filters>Clear filters</button>` : ""}
     </div>`;
+  }
+
+  _sourceRailTemplate() {
+    const selected = (key) => this._selectedSource === key ? " selected" : "";
+    const option = (source) => {
+      const status = this._sourceStatus.get(source.key)?.status;
+      const warning = status === "error" ? `<ha-icon icon="mdi:alert-circle-outline" title="Source unavailable"></ha-icon>` : "";
+      const meta = source.requires_key ? "key" : "";
+      return `<button class="source-option${selected(source.key)}" data-source="${h(source.key)}" ${source.available ? "" : "disabled"} aria-current="${this._selectedSource === source.key ? "true" : "false"}"><span>${h(source.name)}</span><span class="source-meta">${warning}${h(meta)}</span></button>`;
+    };
+    const available = this._sources.filter((source) => source.available).length;
+    const saved = this._sources.filter((source) => source.group === "library");
+    const groups = [
+      ["collections", "Collections"],
+      ["daily", "Daily picks"],
+      ["photography", "Photography"],
+      ["other", "Other"],
+    ];
+    return `<nav class="source-rail" aria-label="Sources">
+      <div class="source-group"><div class="source-group-label">Sources</div><button class="source-option${selected("all")}" data-source="all" aria-current="${this._selectedSource === "all" ? "true" : "false"}"><span>All sources</span><span class="source-meta">${available}</span></button>${saved.map(option).join("")}</div>
+      ${groups.map(([key, label]) => {
+        const sources = this._sources.filter((source) => source.group === key);
+        return sources.length ? `<div class="source-group"><div class="source-group-label">${label}</div>${sources.map(option).join("")}</div>` : "";
+      }).join("")}
+    </nav>`;
   }
 
   _galleryCounter() {
@@ -807,18 +871,19 @@ class FraimicPanel extends HTMLElement {
     const failure = this._failureTemplate();
     const items = this._filteredItems;
     const visibleItems = items.slice(0, this._renderLimit);
-    if (this._galleryLoading && !items.length) return `${failure}<div class="content">${this._loadingTemplate()}</div>`;
-    if (!items.length && !this._galleryLoading) return `${failure}<div class="empty"><h2>Nothing matched</h2><p>Try all sources, or drop the Fits filter to include more art.</p><div class="empty-actions"><button class="btn primary" data-source="all">Search all sources</button><button class="btn" data-clear-filters>Clear filters</button></div></div>`;
+    const layout = (body) => `<div class="browse-layout">${this._sourceRailTemplate()}<div class="browse-results">${failure}${body}</div></div>`;
+    if (this._galleryLoading && !items.length) return layout(`<div class="content">${this._loadingTemplate()}</div>`);
+    if (!items.length && !this._galleryLoading) return layout(`<div class="empty"><h2>Nothing matched</h2><p>Try all sources, or drop the Fits filter to include more art.</p><div class="empty-actions"><button class="btn primary" data-source="all">Search all sources</button><button class="btn" data-clear-filters>Clear filters</button></div></div>`);
     const discovering = !this._query.trim() && !this._colours.size && !this._artist && !this._era && !this._fits && !this._rendersWell;
     const rows = discovering ? this._discoveryRows(items) : "";
     const adding = this._addingToPlaylist ? this._playlists.find((playlist) => playlist.id === this._addingToPlaylist) : null;
     const firstRun = this._player?.state === "idle" && !localStorage.getItem(`fraimic-shown-${this._selectedFrameId}`)
       ? `<div class="empty" style="padding:44px 24px 20px"><h2>${h(this._frame.name)} is showing nothing yet</h2><p>Tap any picture below to put it on the wall, or start a playlist so it changes through the day.</p></div>` : "";
-    return `${failure}${adding ? `<div class="adding-bar"><b>Adding to ${h(adding.name)}</b><span class="spacer"></span><button class="btn quiet small" data-stop-adding>Done</button></div>` : ""}${firstRun}<div class="content">${rows}
+    return layout(`${adding ? `<div class="adding-bar"><b>Adding to ${h(adding.name)}</b><span class="spacer"></span><button class="btn quiet small" data-stop-adding>Done</button></div>` : ""}${firstRun}<div class="content">${rows}
       <div class="row-head"><h2>${discovering ? "Everything, newest first" : this._query ? this._query : "Results"}</h2><span class="spacer"></span><button class="btn quiet small" data-save-results>Save as playlist</button></div>
       <div class="masonry">${visibleItems.map((item) => this._tileTemplate(item)).join("")}</div>
       ${visibleItems.length < items.length || [...this._galleryCursorBySource.values()].some((cursor) => cursor != null) ? `<div class="load-more"><button class="btn" data-load-more ${this._loadingMore ? "disabled" : ""}>${this._loadingMore ? "Loading more" : "Load more"}</button></div>` : ""}
-    </div>`;
+    </div>`);
   }
 
   _loadingTemplate() {
@@ -939,11 +1004,14 @@ class FraimicPanel extends HTMLElement {
     const hand = player.hand_queue || [];
     const playlist = player.playlist?.items || [];
     const shuffled = Boolean(player.playlist?.shuffle);
+    const interval = this._formatInterval(player.interval).replace(/^every /, "");
+    const intervalControl = player.playlist_id ? `<button class="btn queue-interval${this._menu === "interval" ? " selected" : ""}" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button>` : "";
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       <div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>
-      <div class="queue-head"><h2>Queue</h2><span class="spacer"></span><button class="icon-btn" data-queue-size="smaller" aria-label="Make queue smaller"><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-queue-size="larger" aria-label="Make queue larger"><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <div class="queue-head"><h2>Queue</h2><span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-size="smaller" aria-label="Make queue smaller"><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-queue-size="larger" aria-label="Make queue larger"><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      ${this._menu === "interval" && player.playlist_id ? this._intervalMenuTemplate("queue-interval-menu") : ""}
       ${hand.length ? `<div class="queue-head"><h2>Next in queue · added by you, played once</h2><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue", hand.length, true)).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue">Drop a picture here to play it next</div>`}
-      ${player.playlist_id ? `<div class="queue-head"><h2>Next from ${h(player.playlist_name || "playlist")}${shuffled ? ", shuffled" : ""}</h2><span class="spacer"></span><button class="btn small" data-menu="interval">${h(this._formatInterval(player.interval))}</button><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `${shuffled ? "" : `<div class="failure">Reordering here changes the playlist.</div>`}<ol class="queue-list" data-art-drop="playlist">${playlist.map((item, index) => this._queueRow(item, index, "playlist", playlist.length, !shuffled)).join("")}</ol>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
+      ${player.playlist_id ? `<div class="queue-head"><h2>Next from ${h(player.playlist_name || "playlist")}${shuffled ? ", shuffled" : ""}</h2><span class="spacer"></span><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `${shuffled ? "" : `<div class="failure">Reordering here changes the playlist.</div>`}<ol class="queue-list" data-art-drop="playlist">${playlist.map((item, index) => this._queueRow(item, index, "playlist", playlist.length, !shuffled)).join("")}</ol>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
     </section>`;
   }
 
@@ -957,12 +1025,15 @@ class FraimicPanel extends HTMLElement {
     if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources and API keys</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
     if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Change playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.playlist?.shuffle ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image defaults <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
-      const values = [[900,"15 minutes"],[1800,"30 minutes"],[2700,"45 minutes"],[3600,"1 hour"],[7200,"2 hours"],[14400,"4 hours"],[43200,"12 hours"],[86400,"Once a day"]];
-      return `<div class="menu player-menu"><h3>Changes every</h3>${values.map(([value,label]) => `<button data-interval="${value}">${label}<span>${value === this._player?.interval ? "current" : ""}</span></button>`).join("")}<div class="failure">Each change costs a 30 second refresh and a little battery.</div></div>`;
+      return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
-    if (this._menu === "sources") return `<div class="menu top-menu"><h3>Sources</h3>${this._sources.slice(7).map((source) => `<button data-source="${h(source.key)}" ${source.available ? "" : "disabled"}>${h(source.name)}<span>${source.requires_key ? "key" : ""}</span></button>`).join("")}</div>`;
     if (["colour", "artist", "era"].includes(this._menu)) return this._facetMenu();
     return "";
+  }
+
+  _intervalMenuTemplate(className) {
+    const values = [[900,"15 minutes"],[1800,"30 minutes"],[2700,"45 minutes"],[3600,"1 hour"],[7200,"2 hours"],[14400,"4 hours"],[43200,"12 hours"],[86400,"Once a day"]];
+    return `<div class="${className}"><h3>Changes every</h3>${values.map(([value,label]) => `<button data-interval="${value}">${label}<span>${value === this._player?.interval ? "current" : ""}</span></button>`).join("")}<div class="failure">Each change costs a 30 second refresh and a little battery.</div></div>`;
   }
 
   _facetMenu() {
@@ -1108,7 +1179,7 @@ class FraimicPanel extends HTMLElement {
     if (event.key === "Escape") {
       if (this._modal) this._closeModal();
       else if (this._overlaysOpen) this._requestCloseOverlays();
-      else if (this._queueOpen) { this._queueOpen = false; this._render(); }
+      else if (this._queueOpen) this._toggleQueue();
     }
     if (this._modal && event.key === "Tab") this._trapModalFocus(event);
   }
@@ -1487,6 +1558,7 @@ class FraimicPanel extends HTMLElement {
 
   _toggleQueue() {
     this._queueOpen = !this._queueOpen;
+    if (!this._queueOpen && this._menu === "interval") this._menu = null;
     this._render();
     if (this._queueOpen) this.shadowRoot.querySelector(".queue-sheet")?.focus();
     else this.shadowRoot.querySelector("[data-player] [data-queue-toggle]")?.focus();

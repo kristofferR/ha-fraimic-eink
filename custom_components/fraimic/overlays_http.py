@@ -9,6 +9,7 @@ from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
 
+from .frame_name import frame_display_name
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .overlays import (
@@ -84,7 +85,7 @@ def _payload(hass, entry) -> dict[str, Any]:
     return {
         "frame": {
             "id": entry.entry_id,
-            "name": entry.title,
+            "name": frame_display_name(hass, entry),
             "width": entry.data.get("width"),
             "height": entry.data.get("height"),
             "rotation": entry.options.get("rotation", 0),
@@ -155,7 +156,7 @@ class OverlayFramesView(HomeAssistantView):
                 "frames": [
                     {
                         "id": entry.entry_id,
-                        "name": entry.title,
+                        "name": frame_display_name(hass, entry),
                         "overlay_count": len(_manager(hass).for_frame(entry.entry_id)),
                     }
                     for entry in loaded_fraimic_entries(hass)

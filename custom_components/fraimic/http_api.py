@@ -31,6 +31,7 @@ from .const import (
     MAX_SOURCE_BYTES,
 )
 from .coordinator import REDISCOVERY_FAIL_THRESHOLD
+from .frame_name import frame_display_name
 from .gallery_http import gallery_views
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
@@ -586,7 +587,9 @@ class FramesView(_FraimicView):
 
     async def get(self, request: web.Request) -> web.Response:
         hass = request.app[KEY_HASS]
-        frames = [_frame_payload(entry) for entry in loaded_fraimic_entries(hass)]
+        frames = [
+            _frame_payload(hass, entry) for entry in loaded_fraimic_entries(hass)
+        ]
         return self.json({"frames": frames})
 
 
@@ -601,7 +604,7 @@ def _entry_by_id(hass: HomeAssistant, entry_id: object) -> ConfigEntry:
     return entry
 
 
-def _frame_payload(entry: ConfigEntry) -> dict[str, Any]:
+def _frame_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     """Return the selected-frame fields used by the redesigned shell."""
     runtime = entry.runtime_data
     coordinator = runtime.coordinator
@@ -614,12 +617,13 @@ def _frame_payload(entry: ConfigEntry) -> dict[str, Any]:
         and failures >= REDISCOVERY_FAIL_THRESHOLD
     )
     battery = info.get("battery") or {}
+    name = frame_display_name(hass, entry)
     return {
         # New vocabulary-first shape plus the legacy aliases used underneath.
         "id": entry.entry_id,
-        "name": entry.title,
+        "name": name,
         "entry_id": entry.entry_id,
-        "title": entry.title,
+        "title": name,
         "host": runtime.client.host,
         "width": entry.data.get(CONF_WIDTH),
         "height": entry.data.get(CONF_HEIGHT),
@@ -688,7 +692,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     scheduler = runtime.scheduler
     playlist_id = scheduler.playlist_id
     playlist_name = scheduler.playlist_name
-    frame = _frame_payload(entry)
+    frame = _frame_payload(hass, entry)
     current = (
         scheduler.current_screen if scheduler.displayed_hash is not None else None
     )

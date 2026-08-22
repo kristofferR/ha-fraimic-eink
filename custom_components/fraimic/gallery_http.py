@@ -40,6 +40,24 @@ MAX_GALLERY_OFFSET = 1000
 GALLERY_THUMBNAIL_CACHE_BYTES = 24 * 1024 * 1024
 GALLERY_THUMBNAIL_CACHE_TTL = 3600
 GALLERY_IMAGE_CONCURRENCY = 6
+SOURCE_GROUPS = {
+    "met": "collections",
+    "aic": "collections",
+    "cleveland": "collections",
+    "smk": "collections",
+    "dimu": "collections",
+    "reframed": "collections",
+    "smithsonian": "collections",
+    "wellcome": "collections",
+    "wikimedia": "daily",
+    "bing": "daily",
+    "apod": "daily",
+    "wallhaven": "photography",
+    "nasa": "photography",
+    "picsum": "photography",
+    "unsplash": "photography",
+    "pexels": "photography",
+}
 
 
 def _thumbnail_cache(hass) -> ByteCache:
@@ -261,6 +279,7 @@ def _source_payload(provider, available: set[str]) -> dict[str, Any]:
         "available": enabled,
         "requires_key": bool(provider.requires_key and not enabled),
         "hierarchical": provider.hierarchical_browse,
+        "group": SOURCE_GROUPS.get(provider.key, "other"),
     }
 
 
@@ -371,6 +390,7 @@ class GallerySourcesView(HomeAssistantView):
                         "available": True,
                         "requires_key": False,
                         "hierarchical": False,
+                        "group": "library",
                     },
                     *[
                         _source_payload(provider, available)
