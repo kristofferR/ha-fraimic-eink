@@ -362,6 +362,7 @@ class FraimicSendQueue:
                             runtime.preview_image.set_preview(
                                 preview_png, pending.get("mode") or ""
                             )
+                    runtime.last_art = None
                     runtime.media_title = title
                     await self._async_clear(f"Already displaying {title}")
                     return
@@ -380,6 +381,7 @@ class FraimicSendQueue:
                             runtime.preview_image.set_preview(
                                 preview_png, pending.get("mode") or ""
                             )
+                    runtime.last_art = None
                     runtime.media_title = title
                     await runtime.power.async_record_upload(content_hash, trigger)
                     await self._async_clear(
@@ -409,6 +411,7 @@ class FraimicSendQueue:
                         runtime.preview_image.set_preview(
                             preview_png, pending.get("mode") or ""
                         )
+                runtime.last_art = None
                 runtime.media_title = title
                 _LOGGER.info(
                     "Delivered queued image '%s' to %s", title, self._entry.title
