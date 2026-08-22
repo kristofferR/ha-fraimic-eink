@@ -18,6 +18,7 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     DEFAULT_SCREEN_INTERVAL,
+    DITHER_MODES,
     DOMAIN,
     FIT_MODES,
     MIN_SCREEN_INTERVAL,
@@ -617,6 +618,7 @@ class PlaylistManager:
         slide_id: str,
         *,
         fit: str | None = None,
+        mode: str | None = None,
         tone: str | None = None,
         overlays: str | None = None,
     ) -> None:
@@ -633,6 +635,11 @@ class PlaylistManager:
                     raise ValueError("Unknown fit")
                 if slide.data.get("kind") == KIND_PICTURE:
                     slide.data["fit"] = fit
+            if mode is not None:
+                if mode not in DITHER_MODES:
+                    raise ValueError("Unknown dithering mode")
+                if slide.data.get("kind") == KIND_PICTURE:
+                    slide.data["mode"] = mode
             if tone is not None:
                 if tone not in PLAYLIST_TONE_VALUES:
                     raise ValueError("Unknown tone")

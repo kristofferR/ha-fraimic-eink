@@ -18,7 +18,7 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
 
 from .artwork_cache import get_artwork_cache
-from .const import DOMAIN, LIBRARY_ALBUM_DEFAULT
+from .const import DITHER_MODES, DOMAIN, LIBRARY_ALBUM_DEFAULT, MODE_AUTO
 from .helpers import resolve_render_params
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
@@ -31,8 +31,8 @@ from .providers.ha import (
     ArtFetchError,
     artwork_source_cache_id,
     async_art_by_media_id,
-    async_browse_provider,
     async_browse_candidates,
+    async_browse_provider,
     async_candidate_by_media_id,
 )
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
@@ -367,6 +367,7 @@ def _slide_data(
     item: dict[str, Any],
     *,
     fit: str = "cover",
+    mode: str = MODE_AUTO,
     tone: str = "balanced",
     crop: tuple[float, float, float, float] | None = None,
 ) -> dict[str, Any]:
@@ -374,6 +375,7 @@ def _slide_data(
         "name": item["title"],
         "kind": "picture",
         "fit": fit,
+        "mode": mode,
         "tone": tone,
         "show_header": False,
     }
@@ -759,12 +761,14 @@ class GalleryPreviewView(HomeAssistantView):
         source = request.query.get("source")
         item_id = request.query.get("item_id")
         fit = request.query.get("fit", "cover")
+        mode = request.query.get("mode", MODE_AUTO)
         tone = request.query.get("tone", "balanced")
         crop = _crop(request.query.get("crop"))
         if (
             not source
             or not item_id
             or fit not in {"cover", "contain", "stretch"}
+            or mode not in DITHER_MODES
             or tone not in {"vivid", "balanced", "soft"}
         ):
             raise web.HTTPBadRequest(
@@ -772,9 +776,9 @@ class GalleryPreviewView(HomeAssistantView):
             )
         cache = hass.data.setdefault(DOMAIN, {}).setdefault("gallery_previews", {})
         render_settings = render_cache_key(
-            resolve_render_params(entry, {"fit": fit})
+            resolve_render_params(entry, {"fit": fit, "mode": mode})
         )
-        key = (entry.entry_id, source, item_id, fit, tone, crop, render_settings)
+        key = (entry.entry_id, source, item_id, fit, mode, tone, crop, render_settings)
         png = cache.get(key)
         if png is None:
             from .services import async_convert_for_entry
@@ -785,7 +789,7 @@ class GalleryPreviewView(HomeAssistantView):
                         item_id,
                         entry,
                         list(crop) if crop is not None else None,
-                        overrides={"fit": fit, "tone_name": tone},
+                        overrides={"fit": fit, "mode": mode, "tone_name": tone},
                     )
                 else:
                     art = await async_art_by_media_id(hass, entry, source, item_id)
@@ -793,7 +797,12 @@ class GalleryPreviewView(HomeAssistantView):
                         hass,
                         entry,
                         art.data,
-                        {"fit": fit, "tone_name": tone, "crop": crop},
+                        {
+                            "fit": fit,
+                            "mode": mode,
+                            "tone_name": tone,
+                            "crop": crop,
+                        },
                         cache_id=artwork_source_cache_id(source, item_id),
                     )
             except (ArtFetchError, HomeAssistantError) as err:
@@ -834,12 +843,15 @@ class GalleryActionView(HomeAssistantView):
             raise web.HTTPBadRequest(text="source and item_id are required")
         try:
             fit = body.get("fit", "cover")
+            mode = body.get("mode", MODE_AUTO)
             tone = body.get("tone", "balanced")
             crop = _crop(body.get("crop"))
             if fit not in {"cover", "contain", "stretch"}:
                 raise ValueError("Unknown fit")
             if fit != "cover":
                 crop = None
+            if mode not in DITHER_MODES:
+                raise ValueError("Unknown dithering mode")
             if tone not in {"vivid", "balanced", "soft"}:
                 raise ValueError("Unknown tone")
             item = await _resolve_item(hass, entry, source, item_id)
@@ -891,7 +903,7 @@ class GalleryActionView(HomeAssistantView):
                         "deleted": False,
                     }
                 )
-            data = _slide_data(item, fit=fit, tone=tone, crop=crop)
+            data = _slide_data(item, fit=fit, mode=mode, tone=tone, crop=crop)
             slide = screen_from_dict(data, f"gallery_{uuid.uuid4().hex}")
             scheduler = entry.runtime_data.scheduler
             if action == "show_now":

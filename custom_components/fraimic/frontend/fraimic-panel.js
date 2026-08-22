@@ -1605,7 +1605,7 @@ class FraimicPanel extends HTMLElement {
       const entryId = targetEntryId || this._selectedFrameId;
       const fit = options.fit || "cover";
       const crop = fit === "cover" ? options.crop : null;
-      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit, tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_before_id: options.beforeSlideId }));
+      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit, mode: options.mode || "auto", tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_before_id: options.beforeSlideId }));
       const item = this._findItem(source, itemId);
       if (item && data.item) Object.assign(item, data.item);
       const targetFrame = this._frames.find((frame) => frame.id === entryId) || this._frame;
@@ -1671,7 +1671,7 @@ class FraimicPanel extends HTMLElement {
       const key = this._cropKey(source, itemId, this._selectedFrameId);
       const crop = this._cropDrafts.get(key) || detail.saved_crop || this._defaultCrop(detail, this._frame);
       this._cropDrafts.set(key, crop);
-      this._detailOptions = { fit: "cover", tone: "balanced", crop };
+      this._detailOptions = { fit: "cover", mode: "auto", tone: "balanced", crop };
       this._renderDetailModal();
     } catch (error) { this._closeModal(); this._notify(this._friendlyError(error), { error: true }); }
   }
@@ -1687,6 +1687,7 @@ class FraimicPanel extends HTMLElement {
     const artAspect = `${Math.max(1, Number(detail.width) || 4)} / ${Math.max(1, Number(detail.height) || 3)}`;
     const fitNotes = { cover: "Fills the whole frame", contain: "Shows the complete artwork", stretch: "Fills without cropping" };
     const toneNotes = { vivid: "More colour and contrast", balanced: "Natural colour and contrast", soft: "Gentler, paper-like result" };
+    const modeNotes = { auto: "Chooses the best method for the artwork", official: "Matches Fraimic's converter", none: "Uses the nearest panel colours", bayer: "Ordered pattern, good for graphics", floyd_steinberg: "Detailed diffusion for photographs", atkinson: "Lighter diffusion with stronger highlights" };
     const artistLink = detail.artist ? `<button class="detail-text-link" data-related-query="${h(detail.artist)}">${h(detail.artist)}</button>` : "Unknown";
     const sourceLink = `<button class="detail-text-link" data-related-source="${h(detail.source)}">${h(detail.source_name || detail.source)}</button>`;
     const body = `<div class="detail-grid">
@@ -1699,6 +1700,7 @@ class FraimicPanel extends HTMLElement {
         <div class="detail-section-head"><h3>Display settings</h3><span class="spacer"></span><span class="counter">Spectra 6</span></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Fit</h3><p>${h(fitNotes[options.fit])}</p></div><select class="detail-select" data-detail-fit aria-label="Artwork fit"><option value="cover" ${options.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${options.fit === "contain" ? "selected" : ""}>Contain</option><option value="stretch" ${options.fit === "stretch" ? "selected" : ""}>Stretch</option></select></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Tone</h3><p>${h(toneNotes[options.tone])}</p></div><select class="detail-select" data-detail-tone aria-label="Artwork tone"><option value="vivid" ${options.tone === "vivid" ? "selected" : ""}>Vivid</option><option value="balanced" ${options.tone === "balanced" ? "selected" : ""}>Balanced</option><option value="soft" ${options.tone === "soft" ? "selected" : ""}>Soft</option></select></div>
+        <div class="detail-setting"><div class="detail-setting-copy"><h3>Dithering</h3><p>${h(modeNotes[options.mode])}</p></div><select class="detail-select" data-detail-mode aria-label="Artwork dithering"><option value="auto" ${options.mode === "auto" ? "selected" : ""}>Automatic</option><option value="official" ${options.mode === "official" ? "selected" : ""}>Fraimic official</option><option value="none" ${options.mode === "none" ? "selected" : ""}>None</option><option value="bayer" ${options.mode === "bayer" ? "selected" : ""}>Bayer</option><option value="floyd_steinberg" ${options.mode === "floyd_steinberg" ? "selected" : ""}>Floyd-Steinberg</option><option value="atkinson" ${options.mode === "atkinson" ? "selected" : ""}>Atkinson</option></select></div>
         <section class="artwork-details"><h3>Artwork details</h3><dl class="detail-meta-list">
           <div class="detail-meta-row"><dt>Artist</dt><dd>${artistLink}</dd></div>
           <div class="detail-meta-row"><dt>Source</dt><dd>${sourceLink}</dd></div>
@@ -1729,6 +1731,7 @@ class FraimicPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-detail-favorite]")?.addEventListener("click", () => this._toggleDetailFavorite());
     this.shadowRoot.querySelector("[data-detail-fit]")?.addEventListener("change", (event) => { options.fit = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelector("[data-detail-tone]")?.addEventListener("change", (event) => { options.tone = event.target.value; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-detail-mode]")?.addEventListener("change", (event) => { options.mode = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelectorAll("[data-crop-command]").forEach((node) => node.onclick = () => this._adjustCrop(node.dataset.cropCommand));
     this.shadowRoot.querySelector("[data-crop-window]")?.addEventListener("pointerdown", (event) => { if (!event.target.dataset.cropResize) this._dragCrop(event, false); });
     this.shadowRoot.querySelector("[data-crop-resize]")?.addEventListener("pointerdown", (event) => { event.stopPropagation(); this._dragCrop(event, true); });
@@ -1989,8 +1992,8 @@ class FraimicPanel extends HTMLElement {
 
   _slideSettings(id) {
     const slide = this._playlist.slides.find((item) => item.id === id);
-    this._openModal("Slide settings", `<div class="field"><label>Fit</label><select id="slide-fit"><option value="cover" ${slide.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${slide.fit === "contain" ? "selected" : ""}>Contain</option></select></div><div class="field"><label>Tone</label><select id="slide-tone">${["soft","balanced","vivid"].map((tone) => `<option value="${tone}" ${slide.tone === tone ? "selected" : ""}>${tone}</option>`).join("")}</select></div><div class="field"><label>Overlays</label><select id="slide-overlays"><option value="inherit" ${slide.overlays === "inherit" ? "selected" : ""}>Inherit from ${h(this._frame?.name || "frame")}</option><option value="none" ${slide.overlays === "none" ? "selected" : ""}>None</option></select></div>`, `<span class="spacer"></span><button class="btn primary" data-save-slide>Save</button>`);
-    this.shadowRoot.querySelector("[data-save-slide]").onclick = async () => { try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "settings", slide_id: id, fit: this.shadowRoot.getElementById("slide-fit").value, tone: this.shadowRoot.getElementById("slide-tone").value, overlays: this.shadowRoot.getElementById("slide-overlays").value, entry_id: this._selectedFrameId })); this._playlist = data.playlist; this._closeModal(); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } };
+    this._openModal("Slide settings", `<div class="field"><label>Fit</label><select id="slide-fit"><option value="cover" ${slide.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${slide.fit === "contain" ? "selected" : ""}>Contain</option></select></div><div class="field"><label>Tone</label><select id="slide-tone">${["soft","balanced","vivid"].map((tone) => `<option value="${tone}" ${slide.tone === tone ? "selected" : ""}>${tone}</option>`).join("")}</select></div><div class="field"><label>Dithering</label><select id="slide-mode"><option value="auto" ${slide.mode === "auto" ? "selected" : ""}>Automatic</option><option value="official" ${slide.mode === "official" ? "selected" : ""}>Fraimic official</option><option value="none" ${slide.mode === "none" ? "selected" : ""}>None</option><option value="bayer" ${slide.mode === "bayer" ? "selected" : ""}>Bayer</option><option value="floyd_steinberg" ${slide.mode === "floyd_steinberg" ? "selected" : ""}>Floyd-Steinberg</option><option value="atkinson" ${slide.mode === "atkinson" ? "selected" : ""}>Atkinson</option></select></div><div class="field"><label>Overlays</label><select id="slide-overlays"><option value="inherit" ${slide.overlays === "inherit" ? "selected" : ""}>Inherit from ${h(this._frame?.name || "frame")}</option><option value="none" ${slide.overlays === "none" ? "selected" : ""}>None</option></select></div>`, `<span class="spacer"></span><button class="btn primary" data-save-slide>Save</button>`);
+    this.shadowRoot.querySelector("[data-save-slide]").onclick = async () => { try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "settings", slide_id: id, fit: this.shadowRoot.getElementById("slide-fit").value, tone: this.shadowRoot.getElementById("slide-tone").value, mode: this.shadowRoot.getElementById("slide-mode").value, overlays: this.shadowRoot.getElementById("slide-overlays").value, entry_id: this._selectedFrameId })); this._playlist = data.playlist; this._closeModal(); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } };
   }
 
   _changePlaylist() { this._openModal("Change playlist", `<div class="queue-list">${this._playlists.map((playlist) => `<button class="queue-row" data-change-to="${h(playlist.id)}">${h(playlist.name)}${playlist.id === this._player?.playlist_id ? `<span class="spacer"></span><span class="counter">current</span>` : ""}</button>`).join("")}</div>`); this.shadowRoot.querySelectorAll("[data-change-to]").forEach((node) => node.onclick = () => { this._closeModal(); this._playPlaylist(node.dataset.changeTo); }); }

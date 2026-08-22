@@ -12,7 +12,12 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH, DOMAIN
+from .const import (
+    CONF_PLAYLIST_PREFETCH,
+    DEFAULT_PLAYLIST_PREFETCH,
+    DOMAIN,
+    MODE_AUTO,
+)
 from .frame_name import frame_display_name
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
@@ -153,6 +158,7 @@ def _slide_payload(
         "thumbnail_url": thumbnail_url or _original_slide_thumbnail(slide),
         "library_image": data.get("library_image"),
         "fit": data.get("fit", "cover"),
+        "mode": data.get("mode", MODE_AUTO),
         "tone": slide.tone,
         "overlays": overlays,
         "live": kind == "live",
@@ -570,6 +576,7 @@ class PlaylistSlidesView(_PlaylistView):
             playlist_id,
             slide_id,
             fit=body.get("fit"),
+            mode=body.get("mode"),
             tone=body.get("tone"),
             overlays=body.get("overlays"),
         )
