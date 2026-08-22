@@ -151,7 +151,7 @@ any periodic-render feature.
 Run:
 
 ```bash
-uv run --with pillow --with numpy --with pytest pytest
+uv run --with pillow --with numpy --with pytest --with voluptuous --with resvg_py pytest
 ```
 
 No tests yet for api/services/config_flow/entities. CI: `.github/workflows/validate.yml`.

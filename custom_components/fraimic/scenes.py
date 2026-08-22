@@ -16,7 +16,6 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
@@ -35,9 +34,6 @@ _LOGGER = logging.getLogger(__name__)
 DATA_SCENES = "scenes"
 STORAGE_KEY = f"{DOMAIN}.scenes"
 STORAGE_VERSION = 1
-
-# Dispatcher signal fired on any scene CRUD, so the scene entities follow.
-SIGNAL_SCENES_UPDATED = f"{DOMAIN}_scenes_updated"
 
 
 class SceneNotFoundError(HomeAssistantError):
@@ -65,7 +61,6 @@ class SceneManager:
 
     async def _async_save(self) -> None:
         await self._store.async_save(scenes_to_dict(self.scenes))
-        async_dispatcher_send(self.hass, SIGNAL_SCENES_UPDATED)
 
     # ------------------------------------------------------------------ CRUD
 

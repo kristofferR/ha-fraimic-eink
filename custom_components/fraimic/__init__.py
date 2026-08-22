@@ -6,6 +6,7 @@ import asyncio
 
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FraimicClient
@@ -47,7 +48,6 @@ PLATFORMS: list[Platform] = [
     Platform.BUTTON,
     Platform.IMAGE,
     Platform.MEDIA_PLAYER,
-    Platform.SCENE,
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
@@ -95,6 +95,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
             await overlays.async_setup()
             domain_data[DATA_OVERLAYS] = overlays
         await playlists.async_migrate_entry(entry)
+        # The scene entity platform was removed (the panel replaced it); drop
+        # the leftover virtual "Fraimic Scenes" device from older installs.
+        device_registry = dr.async_get(hass)
+        if stale := device_registry.async_get_device(
+            identifiers={(DOMAIN, "fraimic_scenes")}
+        ):
+            device_registry.async_remove_device(stale.id)
     async_register_views(hass)
     await async_register_panel(hass)
 
