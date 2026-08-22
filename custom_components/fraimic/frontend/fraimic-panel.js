@@ -322,7 +322,10 @@ class FraimicPanel extends HTMLElement {
 
   async _loadPlaylist(playlistId = this._playlistId) {
     if (!playlistId) return;
-    this._playlist = await this._api(`playlists/${encodeURIComponent(playlistId)}`);
+    const playlist = await this._api(`playlists/${encodeURIComponent(playlistId)}`);
+    if (this._route === "playlist-detail" && this._playlistId === playlistId) {
+      this._playlist = playlist;
+    }
   }
 
   async _loadRouteData(render = true) {

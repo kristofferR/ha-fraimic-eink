@@ -120,6 +120,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             hass, CACHE_VERSION, f"{DOMAIN}_coordinator_{entry.entry_id}"
         )
         self._consecutive_failures = 0
+        self._expected_asleep = False
         self._last_seen: float | None = None
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
@@ -146,6 +147,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         last_seen = cached.get("last_seen")
         if isinstance(last_seen, (int, float)):
             self._last_seen = float(last_seen)
+        self._expected_asleep = cached.get("expected_asleep") is True
 
     async def _async_save_cache(self) -> None:
         await self._store.async_save(
@@ -154,6 +156,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "info_page": self.info_page,
                 "albums": self.albums,
                 "last_seen": self._last_seen,
+                "expected_asleep": self._expected_asleep,
             }
         )
 
@@ -167,16 +170,25 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Epoch timestamp of the latest confirmed frame response."""
         return self._last_seen
 
+    @property
+    def expected_asleep(self) -> bool:
+        """Whether Home Assistant intentionally put the frame to sleep."""
+        return self._expected_asleep
+
     @callback
-    def async_set_frame_online(self, online: bool) -> None:
+    def async_set_frame_online(
+        self, online: bool, *, expected_sleep: bool = False
+    ) -> None:
         """Record liveness observed outside the normal coordinator poll."""
         if online:
             self._consecutive_failures = 0
             self._last_seen = time.time()
+            self._expected_asleep = False
+        elif expected_sleep:
+            self._expected_asleep = True
+        if online or expected_sleep:
             self.config_entry.async_create_task(
-                self.hass,
-                self._async_save_cache(),
-                "fraimic-save-last-seen",
+                self.hass, self._async_save_cache(), "fraimic-save-liveness"
             )
         self.frame_online = online
         self.async_update_listeners()
@@ -196,6 +208,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         self._consecutive_failures = 0
         self.frame_online = True
+        self._expected_asleep = False
         self._last_seen = time.time()
         # Newer firmware accepts the simpler (and structured-error) upload
         # path; the client stays on multipart /upload until confirmed.

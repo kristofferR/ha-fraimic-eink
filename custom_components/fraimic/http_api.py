@@ -596,7 +596,11 @@ def _frame_payload(entry: ConfigEntry) -> dict[str, Any]:
     info = coordinator.data or {}
     failures = coordinator.consecutive_failures
     online = coordinator.frame_online
-    unreachable = not online and failures >= REDISCOVERY_FAIL_THRESHOLD
+    unreachable = (
+        not online
+        and not getattr(coordinator, "expected_asleep", False)
+        and failures >= REDISCOVERY_FAIL_THRESHOLD
+    )
     battery = info.get("battery") or {}
     return {
         # New vocabulary-first shape plus the legacy aliases used underneath.
@@ -849,7 +853,9 @@ class PlayerControlView(_FraimicView):
                 runtime.coordinator.async_set_frame_online(True)
             elif action == "sleep":
                 await runtime.client.sleep()
-                runtime.coordinator.async_set_frame_online(False)
+                runtime.coordinator.async_set_frame_online(
+                    False, expected_sleep=True
+                )
             else:
                 return self.json_message("Unknown player action", HTTPStatus.BAD_REQUEST)
         except (HomeAssistantError, FraimicError) as err:

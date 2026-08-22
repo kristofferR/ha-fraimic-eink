@@ -176,8 +176,10 @@ async def _refresh_assigned(
     reset: bool = False,
 ) -> None:
     for entry in loaded_fraimic_entries(hass):
-        if manager.assignments.get(entry.entry_id) == playlist_id:
-            await entry.runtime_data.scheduler.async_refresh_playlist(reset=reset)
+        assigned = manager.assignments.get(entry.entry_id) == playlist_id
+        await entry.runtime_data.scheduler.async_refresh_playlist(
+            reset=reset and assigned
+        )
 
 
 class _PlaylistView(HomeAssistantView):
@@ -282,6 +284,8 @@ class PlaylistView(_PlaylistView):
             if entry.entry_id in affected:
                 await entry.runtime_data.scheduler.async_set_enabled(False)
                 await entry.runtime_data.scheduler.async_refresh_playlist(reset=True)
+            else:
+                await entry.runtime_data.scheduler.async_refresh_playlist()
         return self.json({"deleted": playlist_id})
 
 
