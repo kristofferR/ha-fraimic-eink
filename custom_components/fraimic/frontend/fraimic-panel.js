@@ -256,6 +256,7 @@ const css = String.raw`
   .queue-row { min-height: 68px; display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .queue-row:hover { background: var(--secondary-background-color); }
   .queue-row.drag-over { border-top: 2px solid var(--accent); }
+  .queue-head.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
   .queue-now { display: flex; align-items: center; gap: 10px; padding: 14px 16px 8px; }
   .queue-now .row-art { outline: 1px solid var(--accent); outline-offset: 1px; }
   .queue-head .sub, .queue-more { color: var(--muted); font-size: 12px; font-weight: 400; }
@@ -1273,8 +1274,8 @@ class FraimicPanel extends HTMLElement {
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       ${head}
       ${this._menu === "interval" && player.playlist_id ? this._intervalMenuTemplate("queue-interval-menu") : ""}
-      ${hand.length ? `<div class="queue-head"><h2>Next in queue</h2><span class="sub">${hand.length}</span><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue")).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue">Drop a picture here to play it next</div>`}
-      ${player.playlist_id ? `<div class="queue-head"><h2>Next from ${h(player.playlist_name || "playlist")}</h2><span class="sub">${shuffled ? "shuffled · " : ""}this frame only, playlist unchanged</span><span class="spacer"></span><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `<ol class="queue-list">${playlist.map((item, index) => this._queueRow(item, index, "playlist")).join("")}</ol>` : ""}${total > playlist.length ? `<div class="queue-more">and ${total - playlist.length} more in the playlist</div>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
+      ${hand.length ? `<div class="queue-head" data-queue-move-drop="queue"><h2>Next in queue</h2><span class="sub">${hand.length}</span><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue")).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue" data-queue-move-drop="queue">Drop a picture here to play it next</div>`}
+      ${player.playlist_id ? `<div class="queue-head" data-queue-move-drop="playlist"><h2>Next from ${h(player.playlist_name || "playlist")}</h2><span class="sub">${shuffled ? "shuffled · " : ""}this frame only, playlist unchanged</span><span class="spacer"></span><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `<ol class="queue-list">${playlist.map((item, index) => this._queueRow(item, index, "playlist")).join("")}</ol>` : ""}${total > playlist.length ? `<div class="queue-more">and ${total - playlist.length} more in the playlist</div>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
     </section>`;
   }
 
@@ -1488,10 +1489,7 @@ class FraimicPanel extends HTMLElement {
     let expandTimer = null;
     player?.addEventListener("dragenter", () => { if (this._draggedArt && !this._queueOpen) expandTimer = setTimeout(() => { this._queueOpen = true; this._render(); }, 600); });
     player?.addEventListener("dragleave", () => clearTimeout(expandTimer));
-    this._bindReorder("[data-queue-section]", (source, target) => {
-      if (source.dataset.queueSection !== target.dataset.queueSection) return;
-      this._reorderQueue(source.dataset.queueSection, Number(source.dataset.queueIndex), Number(target.dataset.queueIndex));
-    });
+    this._bindQueueDnD();
     this._bindReorder("[data-slide-id]", (source, target) => this._reorderSlides(Number(source.dataset.slideIndex), Number(target.dataset.slideIndex)));
   }
 
@@ -1544,6 +1542,33 @@ class FraimicPanel extends HTMLElement {
         : null;
       this._artAction("add_playlist", art.source, art.itemId, playlistId || this._player?.playlist_id, { beforeSlideId });
     }
+  }
+
+  _bindQueueDnD() {
+    // One drag surface across both queue sections: same-section drops reorder,
+    // cross-section drops move between the hand queue and the session order.
+    let dragged = null;
+    const clear = () => { dragged = null; this.shadowRoot.querySelectorAll(".drag-over").forEach((node) => node.classList.remove("drag-over")); };
+    const drop = (toSection, toIndex) => {
+      const source = dragged;
+      clear();
+      if (!source) return;
+      const from = source.dataset.queueSection;
+      if (from === toSection) this._reorderQueue(from, Number(source.dataset.queueIndex), toIndex);
+      else this._queueAction({ action: "move", from_section: from, index: Number(source.dataset.queueIndex), slide_id: source.dataset.queueId, to_section: toSection, to_index: toIndex });
+    };
+    this.shadowRoot.querySelectorAll("[data-queue-section]").forEach((row) => {
+      row.ondragstart = (event) => { dragged = row; event.dataTransfer.effectAllowed = "move"; };
+      row.ondragover = (event) => { if (dragged && dragged !== row) { event.preventDefault(); row.classList.add("drag-over"); } };
+      row.ondragleave = () => row.classList.remove("drag-over");
+      row.ondrop = (event) => { event.preventDefault(); if (dragged && dragged !== row) drop(row.dataset.queueSection, Number(row.dataset.queueIndex)); };
+      row.ondragend = clear;
+    });
+    this.shadowRoot.querySelectorAll("[data-queue-move-drop]").forEach((zone) => {
+      zone.addEventListener("dragover", (event) => { if (dragged) { event.preventDefault(); zone.classList.add("drag-over"); } });
+      zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+      zone.addEventListener("drop", (event) => { event.preventDefault(); if (dragged) drop(zone.dataset.queueMoveDrop, 0); });
+    });
   }
 
   _bindReorder(selector, onDrop) {
@@ -1923,7 +1948,7 @@ class FraimicPanel extends HTMLElement {
   async _queueAction(body) {
     try {
       this._player = await this._api("player/queue", this._json({ entry_id: this._selectedFrameId, ...body }));
-      const message = body.action === "clear" ? "Queue cleared." : body.action === "remove" ? "Removed from queue." : body.action === "skip" ? "Skipped. The playlist is unchanged." : body.action === "reorder" ? "Queue reordered." : null;
+      const message = body.action === "clear" ? "Queue cleared." : body.action === "remove" ? "Removed from queue." : body.action === "skip" ? "Skipped. The playlist is unchanged." : body.action === "reorder" ? "Queue reordered." : body.action === "move" ? (body.to_section === "queue" ? "Playing next from the queue." : "Moved into this frame's rotation.") : null;
       if (message) this._notify(message); else this._render();
     }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); await this._loadPlayer(); }

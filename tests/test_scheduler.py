@@ -1664,6 +1664,57 @@ def test_skip_upcoming_defers_to_end_of_cycle(
         asyncio.run(scheduler.async_skip_upcoming(0, "b"))
 
 
+def test_move_playlist_item_into_hand_queue(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    slides = [
+        SimpleNamespace(screen_id=slide_id, name=slide_id.title())
+        for slide_id in ("a", "b", "c")
+    ]
+
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = list(slides)
+    scheduler.current_id = "a"
+    scheduler._playlist_cursor_id = "a"
+
+    asyncio.run(scheduler.async_move_queue_item("playlist", 0, "b", "queue", 0))
+
+    assert scheduler._queued_ids == ["b"]
+    # Deferred in the session so it does not play twice back to back.
+    assert scheduler._playback_order == ["b", "a", "c"]
+    assert [slide.screen_id for slide in scheduler.playlist_up_next()] == ["c", "b"]
+
+
+def test_move_hand_queue_one_off_into_session(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="a", name="A")
+    second = SimpleNamespace(screen_id="b", name="B")
+    one_off = SimpleNamespace(screen_id="x", name="X")
+
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second]
+    scheduler.current_id = "a"
+    scheduler._playlist_cursor_id = "a"
+    scheduler._external_queue["x"] = one_off
+    scheduler._external_queue_data["x"] = {"name": "X"}
+    scheduler._queued_ids = ["x"]
+
+    asyncio.run(scheduler.async_move_queue_item("queue", 0, "x", "playlist", 0))
+
+    assert scheduler._queued_ids == []
+    assert scheduler._playback_order == ["a", "x", "b"]
+    assert [slide.screen_id for slide in scheduler.playlist_up_next()] == ["x", "b"]
+
+    # The one-off definition must survive pruning while in the session.
+    scheduler._prune_external()
+    assert "x" in scheduler._external_queue
+
+
 def test_session_order_survives_playlist_refresh(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

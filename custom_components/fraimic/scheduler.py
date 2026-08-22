@@ -71,6 +71,8 @@ class FraimicScheduler:
         self.screens: list[ScreenConfig] = []
         self._playback_order: list[str] = []
         self._order_custom = False
+        self._external_queue_data: dict[str, dict[str, Any]] = {}
+        self._external_queue: dict[str, ScreenConfig] = {}
         self._load_assigned_playlist()
         self.enabled = False
         self._stored_enabled = False
@@ -85,8 +87,6 @@ class FraimicScheduler:
         self._pending_from_queue = False
         self._pending_hold_on_success = False
         self._queued_ids: list[str] = []
-        self._external_queue_data: dict[str, dict[str, Any]] = {}
-        self._external_queue: dict[str, ScreenConfig] = {}
         self._playlist_order: list[str] = []
         self._external_upload_count = 0
         self._external_upload_started_at: float | None = None
@@ -133,7 +133,7 @@ class FraimicScheduler:
             if self.shuffle:
                 random.shuffle(self._playback_order)
             return
-        known = set(base)
+        known = set(base) | set(self._external_queue)
         order = [slide_id for slide_id in self._playback_order if slide_id in known]
         kept = set(order)
         missing = [slide_id for slide_id in base if slide_id not in kept]
@@ -145,10 +145,16 @@ class FraimicScheduler:
         self._playback_order = order
 
     def _rotation_screens(self) -> list[ScreenConfig]:
-        """Catalog slides in the current playback order."""
+        """Catalog slides in the current playback order.
+
+        One-off slides moved into the session (queue row dragged into the
+        upcoming block) resolve through the external-queue definitions.
+        """
         if not self._playback_order:
             return self.screens
         by_id = {screen.screen_id: screen for screen in self.screens}
+        for slide_id, screen in self._external_queue.items():
+            by_id.setdefault(slide_id, screen)
         return [
             by_id[slide_id] for slide_id in self._playback_order if slide_id in by_id
         ]
@@ -583,7 +589,7 @@ class FraimicScheduler:
         self._playback_order = [
             slide_id
             for slide_id in self._playback_order
-            if slide_id not in screen_ids
+            if slide_id not in matching_ids
         ]
         self._playlist_order = [
             slide_id
@@ -666,7 +672,15 @@ class FraimicScheduler:
         items = self.playlist_up_next(limit=index + 1)
         if not 0 <= index < len(items) or items[index].screen_id != slide_id:
             raise HomeAssistantError("That queue item is no longer available")
-        order = [
+        self._defer_in_session(slide_id)
+        self._order_custom = True
+        await self._async_save()
+        self._notify()
+        self._schedule_prefetch()
+
+    def _session_order_without(self, slide_id: str) -> list[str]:
+        """The session order (seeded from the slides if empty) minus one id."""
+        return [
             candidate
             for candidate in (
                 self._playback_order
@@ -674,6 +688,10 @@ class FraimicScheduler:
             )
             if candidate != slide_id
         ]
+
+    def _defer_in_session(self, slide_id: str) -> None:
+        """Move a slide to the last upcoming slot of the session cycle."""
+        order = self._session_order_without(slide_id)
         cursor = self._playlist_cursor_id or self.current_id
         # Just before the cursor in circular order = last upcoming slot.
         if cursor is not None and cursor in order:
@@ -682,7 +700,58 @@ class FraimicScheduler:
             at = len(order)
         order.insert(at, slide_id)
         self._playback_order = order
+
+    def _place_in_session(self, slide_id: str, to_index: int) -> None:
+        """Insert a slide into the session order at a visible upcoming position."""
+        upcoming = self.playlist_up_next(limit=to_index + 1)
+        anchor = upcoming[to_index].screen_id if to_index < len(upcoming) else None
+        if anchor == slide_id:
+            return
+        order = self._session_order_without(slide_id)
+        if anchor is not None and anchor in order:
+            order.insert(order.index(anchor), slide_id)
+            self._playback_order = order
+        else:
+            self._playback_order = order
+            self._defer_in_session(slide_id)
+
+    async def async_move_queue_item(
+        self,
+        from_section: str,
+        index: int,
+        slide_id: str,
+        to_section: str,
+        to_index: int,
+    ) -> None:
+        """Move one visible row between the hand queue and the session order.
+
+        Playlist row dragged into the hand queue: plays once from the queue
+        and is deferred to the end of the session cycle so it does not come
+        up again right away. Queue row dragged into the upcoming block: joins
+        this frame's rotation at that position (one-off slides included);
+        the saved playlist is never touched.
+        """
+        if {from_section, to_section} != {"queue", "playlist"}:
+            raise HomeAssistantError("Move must cross between queue and playlist")
+        if from_section == "queue":
+            if (
+                not 0 <= index < len(self._queued_ids)
+                or self._queued_ids[index] != slide_id
+                or self._slide_by_id(slide_id) is None
+            ):
+                raise HomeAssistantError("That queue item is no longer available")
+            self._queued_ids.pop(index)
+            self._place_in_session(slide_id, to_index)
+        else:
+            items = self.playlist_up_next(limit=index + 1)
+            if not 0 <= index < len(items) or items[index].screen_id != slide_id:
+                raise HomeAssistantError("That queue item is no longer available")
+            self._queued_ids.insert(
+                max(0, min(to_index, len(self._queued_ids))), slide_id
+            )
+            self._defer_in_session(slide_id)
         self._order_custom = True
+        self._sync_pending_queue_head()
         await self._async_save()
         self._notify()
         self._schedule_prefetch()
@@ -880,8 +949,8 @@ class FraimicScheduler:
         self._notify()
 
     def _prune_external(self) -> None:
-        """Drop one-off definitions once neither displayed nor queued."""
-        keep = set(self._queued_ids)
+        """Drop one-off definitions once neither displayed, queued, nor in session."""
+        keep = set(self._queued_ids) | set(self._playback_order)
         if self.current_id:
             keep.add(self.current_id)
         if self._pending is not None:

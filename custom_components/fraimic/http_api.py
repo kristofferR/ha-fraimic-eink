@@ -988,6 +988,31 @@ class PlayerQueueView(_FraimicView):
                         "slide_id is required", HTTPStatus.BAD_REQUEST
                     )
                 await scheduler.async_skip_upcoming(index, slide_id)
+            elif action == "move":
+                from_section = body.get("from_section")
+                to_section = body.get("to_section")
+                index = body.get("index")
+                to_index = body.get("to_index")
+                slide_id = body.get("slide_id")
+                if {from_section, to_section} != {"queue", "playlist"}:
+                    return self.json_message(
+                        "move must cross between queue and playlist",
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                if any(
+                    not isinstance(value, int) or isinstance(value, bool)
+                    for value in (index, to_index)
+                ):
+                    return self.json_message(
+                        "index and to_index are required", HTTPStatus.BAD_REQUEST
+                    )
+                if not isinstance(slide_id, str):
+                    return self.json_message(
+                        "slide_id is required", HTTPStatus.BAD_REQUEST
+                    )
+                await scheduler.async_move_queue_item(
+                    from_section, index, slide_id, to_section, to_index
+                )
             elif action == "reorder":
                 section = body.get("section")
                 ordered_ids = body.get("ordered_ids")
