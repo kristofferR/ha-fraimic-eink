@@ -165,6 +165,14 @@ class FraimicScheduler:
             for slide_id in self._queued_ids
             if self._slide_by_id(slide_id) is not None
         ]
+        pending_queue_id = data.get("pending_queue_id")
+        if pending_queue_id in self._queued_ids:
+            self._pending = self._slide_by_id(pending_queue_id)
+            if self._pending is not None:
+                self._pending_from_queue = True
+                self._pending_requires_enabled = bool(
+                    data.get("pending_requires_enabled", True)
+                )
         if self._playlist_cursor_id not in valid_ids:
             self._playlist_cursor_id = (
                 self.current_id if self.current_id in valid_ids else None
@@ -649,7 +657,7 @@ class FraimicScheduler:
         except Exception:
             self._pending_from_queue = False
             raise
-        if displayed or self._last_show_permanently_rejected:
+        if self._last_show_permanently_rejected:
             await self._async_consume_queued(slide.screen_id)
         elif self._pending is not slide:
             self._pending_from_queue = False
@@ -729,6 +737,8 @@ class FraimicScheduler:
                     self._pending_requires_enabled = not manual
                 self._pending = screen
                 self._pending_hold_on_success = hold_on_success
+                self.entry.runtime_data.coordinator.async_set_frame_online(False)
+                await self._async_save()
                 _LOGGER.debug(
                     "Playlist could not show %r (frame asleep?): %s", screen.name, err
                 )
@@ -759,6 +769,12 @@ class FraimicScheduler:
                 return False
             self._pending = None
             self._pending_hold_on_success = False
+            if self._pending_from_queue:
+                try:
+                    self._queued_ids.remove(screen.screen_id)
+                except ValueError:
+                    pass
+                self._pending_from_queue = False
             self.current_id = screen.screen_id
             if advance_playlist:
                 self._playlist_cursor_id = screen.screen_id
@@ -821,7 +837,7 @@ class FraimicScheduler:
             advance_playlist=not pending_from_queue and not pending_hold_on_success,
             hold_on_success=pending_hold_on_success,
         )
-        if (displayed or self._last_show_permanently_rejected) and pending_from_queue:
+        if self._last_show_permanently_rejected and pending_from_queue:
             await self._async_consume_queued(screen.screen_id)
         if self._pending is screen:
             self._pending_requires_enabled = pending_requires_enabled
@@ -841,6 +857,12 @@ class FraimicScheduler:
             ),
             "queued_slide_ids": self._queued_ids,
             "external_queue": self._external_queue_data,
+            "pending_queue_id": (
+                self._pending.screen_id
+                if self._pending_from_queue and self._pending is not None
+                else None
+            ),
+            "pending_requires_enabled": self._pending_requires_enabled,
         }
         if self._playlists is None:
             data["playlist_order"] = [screen.screen_id for screen in self.screens]

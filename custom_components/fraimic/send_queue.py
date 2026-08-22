@@ -357,6 +357,7 @@ class FraimicSendQueue:
                 if reason == SKIP_DUPLICATE:
                     if preview_png:
                         runtime.last_preview = preview_png
+                        runtime.displayed_preview = preview_png
                         if runtime.preview_image is not None:
                             runtime.preview_image.set_preview(
                                 preview_png, pending.get("mode") or ""
@@ -372,6 +373,14 @@ class FraimicSendQueue:
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:
+                    if preview_png:
+                        runtime.last_preview = preview_png
+                        runtime.displayed_preview = preview_png
+                        if runtime.preview_image is not None:
+                            runtime.preview_image.set_preview(
+                                preview_png, pending.get("mode") or ""
+                            )
+                    runtime.media_title = title
                     await runtime.power.async_record_upload(content_hash, trigger)
                     await self._async_clear(
                         f"Sent {title} (unconfirmed — the frame's reply timed out)"
@@ -395,6 +404,7 @@ class FraimicSendQueue:
                 await self._async_clear(f"Sent {self._now_str()}")
                 if preview_png:
                     runtime.last_preview = preview_png
+                    runtime.displayed_preview = preview_png
                     if runtime.preview_image is not None:
                         runtime.preview_image.set_preview(
                             preview_png, pending.get("mode") or ""

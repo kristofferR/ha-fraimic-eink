@@ -126,6 +126,7 @@ def _entry(created: list[tuple[object, str]] | None = None) -> object:
             coordinator=SimpleNamespace(
                 last_update_success=True,
                 async_add_listener=lambda _listener: lambda: None,
+                async_set_frame_online=lambda _online: None,
             )
         )
 
@@ -230,6 +231,54 @@ def test_new_pending_screen_requires_enabled_after_upload_failure(
 
     assert scheduler._pending is new_screen
     assert scheduler._pending_requires_enabled is True
+
+
+def test_manual_queue_retry_is_persisted_while_frame_sleeps(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    screen = SimpleNamespace(screen_id="screen-1", name="Manual")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [screen]
+    scheduler._queued_ids = [screen.screen_id]
+    saved: list[dict] = []
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.append(dict(data))
+
+    scheduler._store = Store()
+
+    asyncio.run(scheduler._async_show_queued(screen, manual=True))
+
+    assert saved[-1]["pending_queue_id"] == screen.screen_id
+    assert saved[-1]["pending_requires_enabled"] is False
+
+
+def test_start_restores_manual_queue_retry_while_paused(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    screen = SimpleNamespace(screen_id="screen-1", name="Manual")
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [screen]
+
+    class Store:
+        async def async_load(self) -> dict:
+            return {
+                "enabled": False,
+                "queued_slide_ids": [screen.screen_id],
+                "pending_queue_id": screen.screen_id,
+                "pending_requires_enabled": False,
+            }
+
+    scheduler._store = Store()
+
+    asyncio.run(scheduler.async_start())
+
+    assert scheduler._pending is screen
+    assert scheduler._pending_from_queue is True
+    assert scheduler._pending_requires_enabled is False
 
 
 def test_successful_wake_retry_clears_pending(
@@ -425,6 +474,34 @@ def test_power_deferred_screen_does_not_replace_displayed_hash(
     assert scheduler.current_id == current.screen_id
     assert scheduler.displayed_hash == "on-glass"
     assert scheduler._last_rotation == original_rotation
+
+
+def test_queue_success_is_consumed_in_display_state_save(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        return {"uploaded": True, "content_hash": "queued-hash"}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [queued]
+    scheduler._queued_ids = [queued.screen_id]
+    saved: list[dict] = []
+
+    class Store:
+        async def async_save(self, data: dict) -> None:
+            saved.append(dict(data))
+
+    scheduler._store = Store()
+
+    asyncio.run(scheduler._async_show_queued(queued, manual=False))
+
+    assert len(saved) == 1
+    assert saved[0]["current_screen_id"] == queued.screen_id
+    assert saved[0]["queued_slide_ids"] == []
 
 
 def test_wake_retry_rechecks_enabled_state(

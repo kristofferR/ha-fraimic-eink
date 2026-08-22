@@ -719,6 +719,7 @@ async def async_upload_rendered(
                 runtime.media_title = media_title
                 if preview_png:
                     runtime.last_preview = preview_png
+                    runtime.displayed_preview = preview_png
                     if runtime.preview_image is not None:
                         runtime.preview_image.set_preview(preview_png, mode)
                 runtime.coordinator.async_update_listeners()
@@ -751,6 +752,7 @@ async def async_upload_rendered(
         runtime.media_title = media_title
         if preview_png:
             runtime.last_preview = preview_png
+            runtime.displayed_preview = preview_png
             if runtime.preview_image is not None:
                 runtime.preview_image.set_preview(preview_png, mode)
         await runtime.power.async_record_upload(content_hash, trigger)

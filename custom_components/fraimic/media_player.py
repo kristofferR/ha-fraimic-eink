@@ -493,14 +493,14 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
     @property
     def media_image_hash(self) -> str | None:
         """Hash of the current artwork so HA refetches it when it changes."""
-        preview = self.coordinator.config_entry.runtime_data.last_preview
+        preview = self.coordinator.config_entry.runtime_data.displayed_preview
         if preview is None:
             return None
         return hashlib.sha1(preview).hexdigest()[:16]
 
     async def async_get_media_image(self) -> tuple[bytes | None, str | None]:
         """Return the current artwork preview as the player's media image."""
-        preview = self.coordinator.config_entry.runtime_data.last_preview
+        preview = self.coordinator.config_entry.runtime_data.displayed_preview
         if preview is not None:
             return preview, "image/png"
         return None, None
