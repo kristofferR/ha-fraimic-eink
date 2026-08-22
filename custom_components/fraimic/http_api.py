@@ -785,9 +785,17 @@ class PlayerControlView(_FraimicView):
         action = body.get("action")
         try:
             if action == "previous":
-                await scheduler.async_previous()
+                stopper = runtime.stop_camera_loop
+                if stopper is not None:
+                    stopper()
+                if await scheduler.async_previous():
+                    runtime.coordinator.async_set_frame_online(True)
             elif action == "next":
-                await scheduler.async_next()
+                stopper = runtime.stop_camera_loop
+                if stopper is not None:
+                    stopper()
+                if await scheduler.async_next():
+                    runtime.coordinator.async_set_frame_online(True)
             elif action == "pause":
                 await scheduler.async_set_enabled(False)
             elif action == "play":
