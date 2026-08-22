@@ -629,7 +629,12 @@ def test_hand_queue_consumes_once_without_moving_playlist_cursor(
     queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
     saved: list[dict] = []
 
-    def next_screen(screens: list, current_id: str | None, *_args, **_kwargs):
+    def next_screen(
+        screens: list[SimpleNamespace],
+        current_id: str | None,
+        *_args: object,
+        **_kwargs: object,
+    ) -> SimpleNamespace:
         ids = [slide.screen_id for slide in screens]
         start = ids.index(current_id) if current_id in ids else -1
         return screens[(start + 1) % len(screens)]
@@ -727,6 +732,30 @@ def test_invalid_queued_slide_is_dropped_without_moving_playlist_cursor(
     assert scheduler.queued_slides == []
     assert scheduler.current_id == current.screen_id
     assert scheduler._playlist_cursor_id == current.screen_id
+
+
+def test_manual_next_drops_permanently_rejected_queue_head(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
+    queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
+
+    async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
+        raise scheduler_mod.HomeAssistantError("invalid slide")
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", async_show_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [current, queued]
+    scheduler.current_id = current.screen_id
+    scheduler._playlist_cursor_id = current.screen_id
+    scheduler._queued_ids = [queued.screen_id]
+
+    with pytest.raises(scheduler_mod.HomeAssistantError, match="invalid slide"):
+        asyncio.run(scheduler.async_next())
+
+    assert scheduler.queued_slides == []
+    assert scheduler.current_id == current.screen_id
 
 
 def test_power_deferred_queued_slide_stays_at_head(
@@ -841,7 +870,12 @@ def test_reorder_upcoming_changes_only_visible_playlist_window(
     second = SimpleNamespace(screen_id="second", name="Second")
     hidden = SimpleNamespace(screen_id="hidden", name="Hidden")
 
-    def next_screen(screens: list, current_id: str | None, *_args, **_kwargs):
+    def next_screen(
+        screens: list[SimpleNamespace],
+        current_id: str | None,
+        *_args: object,
+        **_kwargs: object,
+    ) -> SimpleNamespace:
         visible = [slide for slide in screens if slide.screen_id != "hidden"]
         ids = [slide.screen_id for slide in visible]
         start = ids.index(current_id) if current_id in ids else -1

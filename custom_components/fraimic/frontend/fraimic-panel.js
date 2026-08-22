@@ -1123,6 +1123,17 @@ class FraimicPanel extends HTMLElement {
         }
         #toast.show { transform: translateY(0); }
         #toast.error { border-color: var(--error-color); }
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border: 0;
+        }
         @media (max-width: 899px) {
           .player-progress, .overlay-tag { display: none; }
         }
@@ -1170,7 +1181,8 @@ class FraimicPanel extends HTMLElement {
           <main id="content"></main>
         </div>
         <button class="queue-backdrop" id="queueBackdrop" aria-label="Close queue" hidden></button>
-        <section class="queue-sheet" id="queueSheet" aria-label="Queue" hidden></section>
+        <section class="queue-sheet" id="queueSheet" aria-label="Queue" tabindex="-1" hidden></section>
+        <div class="sr-only" id="queueStatus" aria-live="polite"></div>
         <footer class="playerbar" id="playerBar"></footer>
         <div id="toast"></div>
         <div id="modal"></div>
@@ -1238,6 +1250,7 @@ class FraimicPanel extends HTMLElement {
     const root = this.shadowRoot.getElementById("frameChips");
     const shell = this.shadowRoot.getElementById("appShell");
     if (!root || !shell) return;
+    const focus = this._captureFocus(root);
     root.innerHTML = "";
     const active = this._activeFrame();
     for (const frame of this._frames) {
@@ -1250,6 +1263,7 @@ class FraimicPanel extends HTMLElement {
           class: "frame-chip",
           role: "radio",
           "aria-checked": String(selected),
+          "aria-label": this._frameChipTitle(frame),
           title: this._frameChipTitle(frame),
           onclick: () => this._selectFrame(frame.entry_id),
         },
@@ -1266,6 +1280,30 @@ class FraimicPanel extends HTMLElement {
     } else {
       shell.style.setProperty("--frame-aspect", "4 / 3");
     }
+    this._restoreFocus(root, focus);
+  }
+
+  _captureFocus(root) {
+    const active = this.shadowRoot.activeElement;
+    if (!active || !root.contains(active)) return null;
+    const controls = [...root.querySelectorAll("button, [href], input, select, textarea, [tabindex]")];
+    return {
+      id: active.id,
+      ariaLabel: active.getAttribute("aria-label") || "",
+      text: active.textContent.trim(),
+      index: controls.indexOf(active),
+    };
+  }
+
+  _restoreFocus(root, focus) {
+    if (!focus) return;
+    const controls = [...root.querySelectorAll("button, [href], input, select, textarea, [tabindex]")];
+    const match = controls.find((control) =>
+      (focus.id && control.id === focus.id) ||
+      (focus.ariaLabel && control.getAttribute("aria-label") === focus.ariaLabel) ||
+      (focus.text && control.textContent.trim() === focus.text)
+    ) || controls[focus.index];
+    match?.focus();
   }
 
   _frameChipTitle(frame) {
@@ -1353,7 +1391,7 @@ class FraimicPanel extends HTMLElement {
       this._navigate("/config/integrations/integration/fraimic")
     );
     add("Documentation", () =>
-      window.open("https://github.com/kristofferR/ha-fraimic-eink", "_blank")
+      window.open("https://github.com/kristofferR/ha-fraimic-eink", "_blank", "noopener")
     );
   }
 
@@ -1412,6 +1450,12 @@ class FraimicPanel extends HTMLElement {
   _renderPlayer() {
     const root = this.shadowRoot.getElementById("playerBar");
     if (!root) return;
+    const focus = this._captureFocus(root);
+    this._renderPlayerContent(root);
+    this._restoreFocus(root, focus);
+  }
+
+  _renderPlayerContent(root) {
     root.innerHTML = "";
     root.className = "playerbar";
     const frame = this._activeFrame();
@@ -1446,8 +1490,7 @@ class FraimicPanel extends HTMLElement {
     let title = player.current?.title || "Nothing playing";
     let meta = "";
     if (state === "sending") {
-      const seconds = Math.max(1, Math.ceil((100 - (player.sending_progress || 0)) * 0.3));
-      meta = `Sending · about ${seconds} seconds left`;
+      meta = "Sending · the panel takes about 30 seconds";
     } else if (state === "asleep") {
       meta = `${frame.title} is asleep · still showing this`;
     } else if (state === "unreachable") {
@@ -1529,7 +1572,7 @@ class FraimicPanel extends HTMLElement {
         this._el("button", {
           class: "player-action desktop-control",
           text: "Device page",
-          onclick: () => window.open(`http://${frame.host}/`, "_blank"),
+          onclick: () => window.open(`http://${frame.host}/`, "_blank", "noopener"),
         })
       );
     } else if (state === "idle") {
@@ -1601,7 +1644,7 @@ class FraimicPanel extends HTMLElement {
     };
     add("Refresh panel now", () => this._playerControl("refresh"));
     if (!frame.charging) add("Put to sleep", () => this._playerControl("sleep"));
-    add("Device page", () => window.open(`http://${frame.host}/`, "_blank"));
+    add("Device page", () => window.open(`http://${frame.host}/`, "_blank", "noopener"));
     return menu;
   }
 
@@ -1625,7 +1668,7 @@ class FraimicPanel extends HTMLElement {
         generation === this._playerGeneration
       ) {
         await this._loadPlayer().catch(() => {});
-        this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+        this._toast(`${frame.title} did not answer. Check the frame before trying again.`, true);
       }
       return;
     }
@@ -1668,6 +1711,7 @@ class FraimicPanel extends HTMLElement {
   }
 
   _setQueueOpen(open) {
+    const wasOpen = this._queueOpen;
     this._queueOpen = Boolean(open && this._player);
     this._rowMenu = null;
     const sheet = this.shadowRoot.getElementById("queueSheet");
@@ -1675,14 +1719,25 @@ class FraimicPanel extends HTMLElement {
     const content = this.shadowRoot.getElementById("legacyViewport");
     if (sheet) sheet.hidden = !this._queueOpen;
     if (backdrop) backdrop.hidden = !this._queueOpen;
-    if (content) content.classList.toggle("queue-open", this._queueOpen);
+    if (content) {
+      content.classList.toggle("queue-open", this._queueOpen);
+      content.inert = this._queueOpen;
+    }
     this._renderQueue();
     this._renderPlayer();
+    if (this._queueOpen) sheet?.focus();
+    else if (wasOpen) this.shadowRoot.querySelector(".queue-toggle")?.focus();
   }
 
   _renderQueue() {
     const root = this.shadowRoot.getElementById("queueSheet");
     if (!root) return;
+    const focus = this._captureFocus(root);
+    this._renderQueueContent(root);
+    this._restoreFocus(root, focus);
+  }
+
+  _renderQueueContent(root) {
     root.hidden = !this._queueOpen;
     root.innerHTML = "";
     if (!this._queueOpen || !this._player) return;
@@ -1761,7 +1816,6 @@ class FraimicPanel extends HTMLElement {
   _queueList(section, items, reorderable) {
     const list = this._el("ol", {
       class: "queue-list",
-      "aria-live": "polite",
       "aria-label": section === "queue" ? "Next in queue" : "Next from playlist",
     });
     items.forEach((item, index) => {
@@ -2009,7 +2063,7 @@ class FraimicPanel extends HTMLElement {
       this._markPlaylistWarningSeen();
     }
     this._renderQueue();
-    const generation = this._playerGeneration + 1;
+    const generation = ++this._playerGeneration;
     try {
       const response = await this._queueMutation(
         {
@@ -2017,11 +2071,13 @@ class FraimicPanel extends HTMLElement {
           section,
           ordered_ids: items.map((item) => item.id),
         },
-        false
+        false,
+        generation
       );
       if (response) this._player = response;
       this._renderPlayer();
       this._renderQueue();
+      this._announceQueue("Queue reordered.");
     } catch (_err) {
       if (
         entryId !== this._selectedFrameId ||
@@ -2054,11 +2110,10 @@ class FraimicPanel extends HTMLElement {
     }
   }
 
-  async _queueMutation(payload, render = true) {
+  async _queueMutation(payload, render = true, generation) {
     const frame = this._activeFrame();
     if (!frame) return null;
     const entryId = frame.entry_id;
-    const generation = ++this._playerGeneration;
     const response = await this._api("player/queue", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -2079,9 +2134,12 @@ class FraimicPanel extends HTMLElement {
 
   async _safeQueueMutation(payload) {
     const entryId = this._selectedFrameId;
-    const generation = this._playerGeneration + 1;
+    const generation = ++this._playerGeneration;
     try {
-      await this._queueMutation(payload);
+      const player = await this._queueMutation(payload, true, generation);
+      if (player) {
+        this._announceQueue(payload.action === "clear" ? "Queue cleared." : "Removed from queue.");
+      }
     } catch (_err) {
       if (
         entryId !== this._selectedFrameId ||
@@ -2096,11 +2154,12 @@ class FraimicPanel extends HTMLElement {
     const frame = this._activeFrame();
     if (!frame) return;
     const entryId = frame.entry_id;
-    const generation = this._playerGeneration + 1;
+    const generation = ++this._playerGeneration;
     try {
       const player = await this._queueMutation(
         { action: "add", slide_id: slideId, play_next: playNext },
-        false
+        false,
+        generation
       );
       if (!player) return;
       this._player = player;
@@ -2108,9 +2167,11 @@ class FraimicPanel extends HTMLElement {
       this._renderQueue();
       if (playNext) {
         this._toast(`Playing next on ${frame.title}.`);
+        this._announceQueue("Added to play next.");
       } else {
         const waiting = this._player.hand_queue.length;
         this._toast(`Added to the queue, ${waiting} waiting.`);
+        this._announceQueue("Added to queue.");
       }
     } catch (_err) {
       if (
@@ -2119,6 +2180,13 @@ class FraimicPanel extends HTMLElement {
       ) return;
       this._toast("The queue changed. Try again.", true);
     }
+  }
+
+  _announceQueue(message) {
+    const status = this.shadowRoot.getElementById("queueStatus");
+    if (!status) return;
+    status.textContent = "";
+    window.setTimeout(() => { status.textContent = message; }, 0);
   }
 
   _renderTab() {
@@ -2750,7 +2818,7 @@ class FraimicPanel extends HTMLElement {
         });
         const failed = Object.values(result.results).filter((r) => !r.ok);
         if (failed.length) {
-          this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+          this._toast(`${frame.title} did not answer. Check the frame before trying again.`, true);
           await this._loadPlayer().catch(() => {});
           return;
         }
@@ -2765,7 +2833,7 @@ class FraimicPanel extends HTMLElement {
         this._renderTab();
       } catch (_err) {
         await this._loadPlayer().catch(() => {});
-        this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+        this._toast(`${frame.title} did not answer. Check the frame before trying again.`, true);
         ev.target.disabled = false;
       }
     };
@@ -2881,7 +2949,7 @@ class FraimicPanel extends HTMLElement {
         this._el("button", {
           class: "btn",
           text: "Open frame UI",
-          onclick: () => window.open(`http://${frame.host}/`, "_blank"),
+          onclick: () => window.open(`http://${frame.host}/`, "_blank", "noopener"),
         }),
       ]);
       const highlight = frame.entry_id === this._highlightEntry;
@@ -3479,7 +3547,7 @@ class FraimicPanel extends HTMLElement {
               }
             } catch (_err) {
               await this._loadPlayer().catch(() => {});
-              this._toast(`${frame.title} did not answer. Nothing was sent.`, true);
+              this._toast(`${frame.title} did not answer. Check the frame before trying again.`, true);
             } finally {
               ev.target.disabled = false;
             }

@@ -456,6 +456,8 @@ class FraimicScheduler:
             )
         except Exception:
             self._pending_from_queue = False
+            if self._last_show_permanently_rejected:
+                await self._async_consume_queued(slide.screen_id)
             raise
         if self._last_show_permanently_rejected:
             await self._async_consume_queued(slide.screen_id)
@@ -536,9 +538,9 @@ class FraimicScheduler:
                 return False
             except HomeAssistantError as err:
                 self._pending = None
+                self._last_show_permanently_rejected = True
                 if manual:
                     raise
-                self._last_show_permanently_rejected = True
                 if advance_playlist:
                     self.current_id = screen.screen_id
                     self._playlist_cursor_id = screen.screen_id
