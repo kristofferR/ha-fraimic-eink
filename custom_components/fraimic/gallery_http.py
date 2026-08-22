@@ -17,6 +17,7 @@ from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
 
+from .artwork_cache import get_artwork_cache
 from .const import DOMAIN
 from .helpers import resolve_render_params
 from .http_helpers import require_loaded_entry
@@ -28,6 +29,7 @@ from .providers.base import ArtCandidate
 from .providers.cache import ByteCache
 from .providers.ha import (
     ArtFetchError,
+    artwork_source_cache_id,
     async_art_by_media_id,
     async_browse_candidates,
     async_candidate_by_media_id,
@@ -58,6 +60,19 @@ SOURCE_GROUPS = {
     "unsplash": "photography",
     "pexels": "photography",
 }
+
+
+def _browser_cache_seconds(hass, entry, fallback: int) -> int:
+    """Match browser freshness to the configured server-side cache policy."""
+    cache = get_artwork_cache(hass)
+    if cache is None:
+        return fallback
+    policy = cache.policy_for(entry)
+    if not policy.enabled:
+        return fallback
+    if policy.retention is None:
+        return 365 * 24 * 60 * 60
+    return max(fallback, int(policy.retention))
 
 
 def _thumbnail_cache(hass) -> ByteCache:
@@ -410,6 +425,7 @@ class GalleryBrowseView(HomeAssistantView):
         entry = require_loaded_entry(hass, request.query.get("entry_id"))
         source = request.query.get("source", "")
         query = request.query.get("q", "").strip()
+        refresh = request.query.get("refresh") in {"1", "true", "yes"}
         cursor = _cursor(request.query.get("cursor"))
         try:
             limit = min(
@@ -460,7 +476,12 @@ class GalleryBrowseView(HomeAssistantView):
             )
         try:
             candidates = await async_browse_candidates(
-                hass, entry, source, cursor + limit, query=query or None
+                hass,
+                entry,
+                source,
+                cursor + limit,
+                query=query or None,
+                refresh=refresh,
             )
         except ArtFetchError as err:
             return self.json(
@@ -548,7 +569,12 @@ class GalleryImageView(HomeAssistantView):
         return web.Response(
             body=image,
             content_type=content_type,
-            headers={"Cache-Control": "private, max-age=3600"},
+            headers={
+                "Cache-Control": (
+                    "private, max-age="
+                    f"{_browser_cache_seconds(hass, entry, 3600)}, immutable"
+                )
+            },
         )
 
 
@@ -597,6 +623,7 @@ class GalleryPreviewView(HomeAssistantView):
                         entry,
                         art.data,
                         {"fit": fit, "tone_name": tone, "crop": crop},
+                        cache_id=artwork_source_cache_id(source, item_id),
                     )
             except (ArtFetchError, HomeAssistantError) as err:
                 raise web.HTTPBadGateway(text=str(err)) from err
@@ -608,6 +635,9 @@ class GalleryPreviewView(HomeAssistantView):
         return web.Response(
             body=png,
             content_type="image/png",
+            # Unlike an original, a preview also depends on frame options that
+            # are not encoded in its URL. Keep browser freshness short; the
+            # persistent render cache still makes a re-request inexpensive.
             headers={"Cache-Control": "private, max-age=600"},
         )
 

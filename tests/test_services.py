@@ -304,3 +304,18 @@ def test_deferred_render_does_not_replace_displayed_preview(
     assert result["displayed"] is False
     assert entry.runtime_data.last_preview == b"deferred-preview"
     assert entry.runtime_data.displayed_preview == b"current-preview"
+
+
+def test_convert_rejects_invalid_height_before_rendering(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+    entry = SimpleNamespace(
+        data={services.CONF_WIDTH: 1600, services.CONF_HEIGHT: 1201},
+        options={},
+    )
+
+    with pytest.raises(services.HomeAssistantError, match="not divisible by 4"):
+        asyncio.run(
+            services.async_convert_for_entry(SimpleNamespace(), entry, b"source")
+        )

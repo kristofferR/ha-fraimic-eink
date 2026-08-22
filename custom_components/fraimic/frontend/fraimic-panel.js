@@ -4,8 +4,8 @@ const API = "/api/fraimic";
 const SEARCH_DELAY = 350;
 const SOURCE_LIMIT = 40;
 const ALL_SOURCES_LIMIT = 8;
-const INITIAL_RENDER_LIMIT = 80;
-const RENDER_PAGE_SIZE = 80;
+const INITIAL_RENDER_LIMIT = 60;
+const RENDER_PAGE_SIZE = 60;
 const SIGNED_PATH_LIMIT = 512;
 const QUEUE_SNAPS = [220, 320, 420];
 const PALETTE = ["black", "white", "yellow", "red", "blue", "green", "neutral"];
@@ -137,7 +137,14 @@ const css = String.raw`
   .row-head .sub { color: var(--muted); font-size: 12px; }
   .strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 190px); gap: 12px; overflow-x: auto; padding: 2px 2px 8px; }
   .masonry { columns: 180px; column-gap: 14px; }
-  .tile { display: inline-block; width: 100%; margin: 0 0 17px; break-inside: avoid; border-radius: 8px; }
+  .tile {
+    display: inline-block; width: 100%; margin: 0 0 17px;
+    break-inside: avoid; border-radius: 8px; contain: paint;
+  }
+  .tile:focus-visible {
+    outline: 0;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
   .strip .tile { display: block; margin: 0; }
   .art {
     position: relative; width: 100%; aspect-ratio: var(--art-aspect, 4 / 3);
@@ -369,10 +376,11 @@ class FraimicPanel extends HTMLElement {
     this._rendersWell = false;
     this._galleryLoading = false;
     this._galleryGeneration = 0;
+    this._galleryRequestKey = null;
+    this._galleryLoadedAt = 0;
     this._sourcesGeneration = 0;
     this._playerGeneration = 0;
     this._detailGeneration = 0;
-    this._galleryRenderTimer = null;
     this._renderLimit = INITIAL_RENDER_LIMIT;
     this._route = "browse";
     this._playlistId = null;
@@ -432,7 +440,6 @@ class FraimicPanel extends HTMLElement {
     clearInterval(this._refreshTimer);
     clearTimeout(this._searchTimer);
     clearTimeout(this._toastTimer);
-    clearTimeout(this._galleryRenderTimer);
     this._imageObserver?.disconnect();
     this._boundsObserver?.disconnect();
   }
@@ -523,7 +530,7 @@ class FraimicPanel extends HTMLElement {
         this._player = null;
       }
       if (this._selectedFrameId) localStorage.setItem("fraimic-frame", this._selectedFrameId);
-      await Promise.all([this._loadPlayer(), this._loadPlaylists(), this._loadSources()]);
+      await Promise.all([this._loadPlayer(false), this._loadPlaylists(), this._loadSources()]);
       await this._loadRoute();
     } catch (error) {
       this._notify(this._friendlyError(error), { error: true });
@@ -532,7 +539,7 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _loadRoute() {
-    if (this._route === "browse") await this._loadGallery();
+    if (this._route === "browse") return this._loadGallery();
     if (this._route === "playlists") await this._loadPlaylists();
     if (this._route === "playlist" && this._playlistId) await this._loadPlaylist(this._playlistId);
     this._render();
@@ -575,17 +582,40 @@ class FraimicPanel extends HTMLElement {
       const changed = signature !== this._playerSignature;
       this._player = player;
       this._playerSignature = signature;
-      if (render && changed && !this._modal && !this._overlaysOpen && !this._queueDragging) this._renderPreservingFocus();
+      if (render && changed && !this._modal && !this._overlaysOpen && !this._queueDragging) {
+        this._renderPreservingFocus();
+      } else if (render && !changed) {
+        this._updatePlayerTiming();
+      }
     } catch (_error) { /* a frame may be reloading */ }
   }
 
   _playerRenderSignature(player) {
     const copy = structuredClone(player);
-    if (copy?.state !== "sending") {
-      if (copy?.seconds_elapsed != null) copy.seconds_elapsed = Math.floor(copy.seconds_elapsed / 60);
-      if (copy?.seconds_remaining != null) copy.seconds_remaining = Math.ceil(copy.seconds_remaining / 60);
-    }
+    // The fixed player bar does not justify rebuilding every gallery image
+    // whenever its five-second poll advances a timer.
+    if (copy?.seconds_elapsed != null) delete copy.seconds_elapsed;
+    if (copy?.seconds_remaining != null) delete copy.seconds_remaining;
     return JSON.stringify(copy);
+  }
+
+  _updatePlayerTiming() {
+    const player = this._player;
+    const current = player?.current || {};
+    const state = player?.state || "idle";
+    const meta = this.shadowRoot?.querySelector("[data-player-meta]");
+    if (meta && current.title && !["sending", "asleep", "unreachable"].includes(state)) {
+      meta.textContent = [
+        current.artist,
+        player.playlist_name,
+        player.paused ? "Paused" : this._timeLeft(player.seconds_remaining),
+      ].filter(Boolean).join(" · ");
+    }
+    const progress = this.shadowRoot?.querySelector("[data-player-progress]");
+    if (progress && player?.interval) {
+      const percent = Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / player.interval * 100));
+      progress.style.width = `${percent}%`;
+    }
   }
 
   _startRefresh() {
@@ -593,45 +623,75 @@ class FraimicPanel extends HTMLElement {
     this._refreshTimer = setInterval(() => this._loadPlayer(), 5000);
   }
 
-  async _loadGallery() {
+  async _loadGallery(force = false) {
     if (!this._selectedFrameId) return;
+    const entryId = this._selectedFrameId;
     const generation = ++this._galleryGeneration;
     this._loadingMore = false;
     this._renderLimit = INITIAL_RENDER_LIMIT;
-    this._galleryBySource = new Map();
-    this._galleryCursorBySource = new Map();
-    this._galleryTotalBySource = new Map();
-    this._sourceStatus = new Map();
-    this._facets = { artists: [], colours: [], collections: [], eras: [] };
     const sources = this._selectedSource === "all"
       ? this._sources.filter((source) => source.available)
       : this._sources.filter((source) => source.key === this._selectedSource);
-    this._galleryLoading = true;
-    this._renderPreservingFocus();
     const query = this._query.trim();
+    const requestKey = `${entryId}\u0000${this._selectedSource}\u0000${query}`;
+    const replacesVisibleQuery = requestKey !== this._galleryRequestKey;
+    if (!force && !replacesVisibleQuery && this._galleryBySource.size
+      && Date.now() - this._galleryLoadedAt < 5 * 60 * 1000) {
+      this._galleryLoading = false;
+      this._renderPreservingFocus();
+      return;
+    }
+    this._galleryRequestKey = requestKey;
+    this._galleryLoading = true;
+    // A manual refresh keeps the existing grid in place. A different query or
+    // source gets one stable skeleton and one atomic result swap; individual
+    // provider responses no longer repeatedly reorder the masonry.
+    if (replacesVisibleQuery) {
+      this._galleryBySource = new Map();
+      this._galleryCursorBySource = new Map();
+      this._galleryTotalBySource = new Map();
+      this._sourceStatus = new Map();
+      this._facets = { artists: [], colours: [], collections: [], eras: [] };
+      this._renderPreservingFocus();
+    }
+    const nextBySource = new Map();
+    const nextCursorBySource = new Map();
+    const nextTotalBySource = new Map();
+    const nextStatus = new Map();
+    const nextFacets = { artists: [], colours: [], collections: [], eras: [] };
+    const mergeFacets = (next) => {
+      for (const key of Object.keys(nextFacets)) {
+        const values = new Map(nextFacets[key].map((item) => [item.value, item.count]));
+        for (const item of next[key] || []) values.set(item.value, (values.get(item.value) || 0) + item.count);
+        nextFacets[key] = [...values].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
+      }
+    };
     const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
     await Promise.all(sources.map(async (source) => {
       try {
-        const params = new URLSearchParams({ entry_id: this._selectedFrameId, source: source.key, limit: String(limit) });
+        const params = new URLSearchParams({ entry_id: entryId, source: source.key, limit: String(limit) });
         if (query) params.set("q", query);
+        if (force) params.set("refresh", "1");
         const data = await this._api(`gallery?${params}`);
-        if (generation !== this._galleryGeneration) return;
-        this._galleryBySource.set(source.key, data.results || []);
-        this._galleryCursorBySource.set(source.key, data.next_cursor ?? null);
-        this._galleryTotalBySource.set(source.key, data.total ?? (data.results || []).length);
-        this._sourceStatus.set(source.key, data.source_status?.[0] || { source: source.key, status: "ready" });
-        this._mergeFacets(data.facets || {});
-        this._scheduleGalleryRender();
+        if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
+        nextBySource.set(source.key, data.results || []);
+        nextCursorBySource.set(source.key, data.next_cursor ?? null);
+        nextTotalBySource.set(source.key, data.total ?? (data.results || []).length);
+        nextStatus.set(source.key, data.source_status?.[0] || { source: source.key, status: "ready" });
+        mergeFacets(data.facets || {});
       } catch (error) {
         if (generation !== this._galleryGeneration) return;
-        this._sourceStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
-        this._scheduleGalleryRender();
+        nextStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
       }
     }));
-    if (generation !== this._galleryGeneration) return;
-    clearTimeout(this._galleryRenderTimer);
-    this._galleryRenderTimer = null;
+    if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
+    this._galleryBySource = nextBySource;
+    this._galleryCursorBySource = nextCursorBySource;
+    this._galleryTotalBySource = nextTotalBySource;
+    this._sourceStatus = nextStatus;
+    this._facets = nextFacets;
     this._galleryLoading = false;
+    this._galleryLoadedAt = Date.now();
     if (query) localStorage.setItem("fraimic-last-search", query);
     this._renderPreservingFocus();
   }
@@ -669,14 +729,6 @@ class FraimicPanel extends HTMLElement {
     if (generation !== this._galleryGeneration) return;
     this._loadingMore = false;
     this._renderPreservingFocus();
-  }
-
-  _scheduleGalleryRender() {
-    clearTimeout(this._galleryRenderTimer);
-    this._galleryRenderTimer = setTimeout(() => {
-      this._galleryRenderTimer = null;
-      this._renderPreservingFocus();
-    }, 80);
   }
 
   _mergeFacets(next) {
@@ -916,7 +968,7 @@ class FraimicPanel extends HTMLElement {
     const src = this._imageAttrs(item.thumbnail_url, `${item.title}${item.artist ? `, ${item.artist}` : ""}`);
     return `<article class="tile" tabindex="0" draggable="true" data-item="${h(item.source)}:${h(item.id)}" data-keyboard-item>
       <div class="art" style="--art-aspect:${aspect}" data-detail="${h(item.source)}:${h(item.id)}">
-        <img ${src} loading="lazy" decoding="async">
+        <img ${src} width="${Math.max(1, item.width || 4)}" height="${Math.max(1, item.height || 3)}" loading="lazy" decoding="async">
         ${item.queued ? `<span class="badge right">queued</span>` : ""}
         <div class="actions">
           <button class="btn primary" data-art-action="show_now" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">Show now</button>
@@ -992,8 +1044,8 @@ class FraimicPanel extends HTMLElement {
         : "";
     return `<footer class="player ${h(state)}" tabindex="0" data-player>
       <div class="player-art glass">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</div>
-      <div class="player-copy"><b>${h(title)}</b><span>${h(meta)}</span></div>
-      ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i style="width:${progress}%"></i></div>` : ""}
+      <div class="player-copy"><b>${h(title)}</b><span data-player-meta>${h(meta)}</span></div>
+      ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i data-player-progress style="width:${progress}%"></i></div>` : ""}
       ${transport}${state === "asleep" && player?.waiting_count ? `<span class="counter">${player.waiting_count} waiting</span>` : ""}
       <span class="spacer"></span>${stateActions}${player?.overlay_count && state !== "unreachable" ? `<button class="chip overlay-tag" data-overlays>${player.overlay_count} overlays</button>` : ""}<button class="btn" data-queue-toggle>Queue ${player?.queue_count || 0} <ha-icon icon="mdi:chevron-${this._queueOpen ? "down" : "up"}"></ha-icon></button><button class="icon-btn frame-more" data-menu="frame" aria-label="Frame menu"><ha-icon icon="mdi:dots-vertical"></ha-icon></button>
     </footer>`;
@@ -1022,8 +1074,8 @@ class FraimicPanel extends HTMLElement {
 
   _menuTemplate() {
     if (!this._menu) return "";
-    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources and API keys</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
-    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Change playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.playlist?.shuffle ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image defaults <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
+    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
+    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Change playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.playlist?.shuffle ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
@@ -1151,7 +1203,7 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-interval]").forEach((node) => node.onclick = () => this._setInterval(Number(node.dataset.interval)));
     root.querySelectorAll("[data-options]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/integration/fraimic"));
     root.querySelectorAll("[data-add-frame]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/dashboard/add?domain=fraimic"));
-    root.querySelectorAll("[data-reload], [data-retry]").forEach((node) => node.onclick = () => this._loadGallery());
+    root.querySelectorAll("[data-reload], [data-retry]").forEach((node) => node.onclick = () => this._loadGallery(true));
     root.querySelector("[data-reload-frames]")?.addEventListener("click", () => this._loadAll());
     root.querySelector("[data-dismiss-failures]")?.addEventListener("click", () => { for (const [key, status] of this._sourceStatus) if (status.status === "error") this._sourceStatus.delete(key); this._render(); });
     root.querySelector("[data-docs]")?.addEventListener("click", () => window.open("https://github.com/kristofferR/ha-fraimic-eink", "_blank", "noopener"));
@@ -1418,6 +1470,7 @@ class FraimicPanel extends HTMLElement {
     try {
       await this._api(`library/image/${encodeURIComponent(detail.itemId)}`, { method: "DELETE" });
       this._closeModal();
+      this._galleryLoadedAt = 0;
       await Promise.all([this._loadGallery(), this._loadPlaylists(), this._loadPlayer(false)]);
       this._notify("Removed from your library.");
     } catch (error) {
@@ -1534,6 +1587,7 @@ class FraimicPanel extends HTMLElement {
       } catch (error) { upload.status = this._friendlyError(error); upload.error = true; }
       this._showUploads();
     }
+    this._galleryLoadedAt = 0;
     await this._loadGallery();
   }
 

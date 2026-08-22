@@ -10,6 +10,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
+from .artwork_cache import DATA_ARTWORK_CACHE, ArtworkCache
 from .const import (
     CONF_CAMERA_INTERVAL,
     CONF_HEIGHT,
@@ -60,6 +61,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     domain_data = hass.data.setdefault(DOMAIN, {})
     domain_lock = domain_data.setdefault("domain_setup_lock", asyncio.Lock())
     async with domain_lock:
+        if DATA_ARTWORK_CACHE not in domain_data:
+            artwork_cache = ArtworkCache(hass)
+            await artwork_cache.async_setup()
+            domain_data[DATA_ARTWORK_CACHE] = artwork_cache
+        artwork_cache = domain_data[DATA_ARTWORK_CACHE]
+        artwork_cache.schedule_cleanup(entry)
         if DATA_LIBRARY not in domain_data:
             library = FraimicLibrary(hass)
             await library.async_setup()
@@ -128,8 +135,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     async_setup_services(hass)
-    # Pre-render the library's default variants for this frame in the background.
-    library.schedule_full_backfill()
+    # The scheduler pre-renders only upcoming playlist pictures. A full library
+    # sweep here used to compete with dashboard requests after every reload.
     return True
 
 
@@ -147,6 +154,9 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
         domain_data.pop(DATA_SCENES, None)
         domain_data.pop(DATA_PLAYLISTS, None)
         domain_data.pop(DATA_OVERLAYS, None)
+        artwork_cache = domain_data.pop(DATA_ARTWORK_CACHE, None)
+        if artwork_cache is not None:
+            artwork_cache.shutdown()
         library = domain_data.pop(DATA_LIBRARY, None)
         if library is not None:
             await library.async_shutdown()

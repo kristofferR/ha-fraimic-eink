@@ -140,6 +140,31 @@ def _entry(created: list[tuple[object, str]] | None = None) -> object:
     return Entry()
 
 
+def test_prefetch_prepares_only_configured_queue_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    entry.options = {scheduler_mod.CONF_PLAYLIST_PREFETCH: 2}
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    screens = [
+        SimpleNamespace(screen_id=f"screen-{index}", name=f"Screen {index}")
+        for index in range(3)
+    ]
+    scheduler._external_queue = {screen.screen_id: screen for screen in screens}
+    scheduler._queued_ids = [screen.screen_id for screen in screens]
+    prepared: list[str] = []
+
+    async def prepare(_hass: object, _entry: object, screen: object) -> bool:
+        prepared.append(screen.screen_id)
+        return True
+
+    sys.modules["fraimic.render.display"].async_prepare_screen = prepare
+    asyncio.run(scheduler._async_prefetch())
+
+    assert prepared == ["screen-0", "screen-1"]
+
+
 def test_wake_retry_keeps_manual_pending_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
