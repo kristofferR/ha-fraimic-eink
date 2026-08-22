@@ -239,9 +239,10 @@ const css = String.raw`
     transition: height 180ms ease-out;
   }
   .queue-sheet.dragging { transition: none; user-select: none; }
-  .queue-handle { position: sticky; top: 0; z-index: 2; height: 28px; display: grid; place-items: center; background: var(--surface); cursor: ns-resize; }
+  .queue-handle { position: absolute; top: 10px; left: 50%; z-index: 3; width: 56px; height: 20px; display: grid; place-items: start center; transform: translateX(-50%); cursor: ns-resize; touch-action: none; }
   .queue-handle::after { content: ""; width: 42px; height: 4px; border-radius: 4px; background: var(--disabled-text-color); }
   .queue-head { display: flex; align-items: center; gap: 8px; padding: 8px 16px; }
+  .queue-toolbar { position: sticky; top: 0; z-index: 2; min-height: 48px; padding-top: 14px; background: var(--surface); }
   .queue-head h2 { margin: 0; font-size: 14px; }
   .queue-interval { height: 38px; min-height: 38px; align-items: flex-start; flex-direction: column; justify-content: center; gap: 0; line-height: 1.1; }
   .queue-interval small { color: var(--muted); font-size: 9px; font-weight: 500; }
@@ -1252,8 +1253,7 @@ class FraimicPanel extends HTMLElement {
     const interval = this._formatInterval(player.interval).replace(/^every /, "");
     const intervalControl = player.playlist_id ? `<button class="btn queue-interval${this._menu === "interval" ? " selected" : ""}" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button>` : "";
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
-      <div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>
-      <div class="queue-head"><h2>Queue</h2><span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-size="smaller" aria-label="Make queue smaller"><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-queue-size="larger" aria-label="Make queue larger"><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      <div class="queue-head queue-toolbar"><div class="queue-handle" data-queue-handle aria-label="Resize queue"></div><h2>Queue</h2><span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button></div>
       ${this._menu === "interval" && player.playlist_id ? this._intervalMenuTemplate("queue-interval-menu") : ""}
       ${hand.length ? `<div class="queue-head"><h2>Next in queue · added by you, played once</h2><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue", hand.length, true)).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue">Drop a picture here to play it next</div>`}
       ${player.playlist_id ? `<div class="queue-head"><h2>Next from ${h(player.playlist_name || "playlist")}${shuffled ? ", shuffled" : ""}</h2><span class="spacer"></span><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `${shuffled ? "" : `<div class="failure">Reordering here changes the playlist.</div>`}<ol class="queue-list" data-art-drop="playlist">${playlist.map((item, index) => this._queueRow(item, index, "playlist", playlist.length, !shuffled)).join("")}</ol>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
@@ -1378,7 +1378,6 @@ class FraimicPanel extends HTMLElement {
     root.getElementById("upload")?.addEventListener("change", (event) => this._uploadFiles([...event.target.files]));
     root.querySelectorAll("[data-player-action]").forEach((node) => node.onclick = () => this._playerAction(node.dataset.playerAction));
     root.querySelectorAll("[data-queue-toggle]").forEach((node) => node.onclick = () => this._toggleQueue());
-    root.querySelectorAll("[data-queue-size]").forEach((node) => node.onclick = () => this._stepQueueSize(node.dataset.queueSize));
     root.querySelector("[data-queue-handle]")?.addEventListener("pointerdown", (event) => this._dragQueueSheet(event));
     root.querySelector("[data-clear-queue]")?.addEventListener("click", () => this._queueAction({ action: "clear" }));
     root.querySelectorAll("[data-play-queue]").forEach((node) => node.onclick = () => this._queueAction({ action: "play", section: node.dataset.section, index: Number(node.dataset.index), slide_id: node.dataset.slideId }));
@@ -1927,13 +1926,6 @@ class FraimicPanel extends HTMLElement {
     const items = section === "queue" ? [...(this._player.hand_queue || [])] : [...(this._player.playlist?.items || [])];
     const [item] = items.splice(from, 1); items.splice(to, 0, item);
     this._queueAction({ action: "reorder", section, ordered_ids: items.map((candidate) => candidate.id) });
-  }
-
-  _stepQueueSize(direction) {
-    let index = QUEUE_SNAPS.reduce((best, value, current) => Math.abs(value - this._queueHeight) < Math.abs(QUEUE_SNAPS[best] - this._queueHeight) ? current : best, 0);
-    index += direction === "larger" ? 1 : -1;
-    this._queueHeight = QUEUE_SNAPS[Math.max(0, Math.min(QUEUE_SNAPS.length - 1, index))];
-    this._render();
   }
 
   _dragQueueSheet(event) {
