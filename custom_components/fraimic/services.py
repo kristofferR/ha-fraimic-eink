@@ -792,11 +792,16 @@ async def async_render_and_upload(
             )
             if reason is not None:
                 if preview_png:
-                    runtime.last_preview = preview_png
-                    if runtime.preview_image is not None:
-                        runtime.preview_image.set_preview(preview_png, used_mode)
                     if reason == SKIP_DUPLICATE:
-                        runtime.displayed_preview = preview_png
+                        # The packed content is already on the frame, but the
+                        # browser may still be showing the previous player
+                        # artwork URL. Use the shared setter so its version is
+                        # advanced just like a real upload.
+                        runtime.set_displayed_preview(preview_png, used_mode)
+                    else:
+                        runtime.last_preview = preview_png
+                        if runtime.preview_image is not None:
+                            runtime.preview_image.set_preview(preview_png, used_mode)
                 queue = runtime.send_queue if queue_if_asleep else None
                 queued = False
                 if reason in DEFER_REASONS and queue is not None:
