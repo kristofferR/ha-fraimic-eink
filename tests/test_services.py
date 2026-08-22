@@ -232,6 +232,7 @@ def test_timed_out_upload_is_not_reported_for_retry(
             coordinator=SimpleNamespace(data={}),
             send_queue=None,
             last_preview=None,
+            displayed_preview=None,
             preview_image=None,
         )
     )
@@ -246,4 +247,53 @@ def test_timed_out_upload_is_not_reported_for_retry(
     assert result["uploaded"] is True
     assert result["displayed"] is True
     assert entry.runtime_data.last_preview == b"preview"
+    assert entry.runtime_data.displayed_preview == b"preview"
     assert power.recorded == [(result["content_hash"], services.TRIGGER_MANUAL)]
+
+
+def test_deferred_render_does_not_replace_displayed_preview(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+
+    async def convert(*_args: object, **_kwargs: object) -> tuple[bytes, bytes, str]:
+        return b"packed", b"deferred-preview", "none"
+
+    class Power:
+        def begin(self, _trigger: str) -> object:
+            return object()
+
+        def skip_reason(self, *_args: object) -> str:
+            return "low_battery"
+
+        def finish(self, _token: object) -> None:
+            return None
+
+    entry = SimpleNamespace(
+        runtime_data=SimpleNamespace(
+            scheduler=None,
+            power=Power(),
+            upload_lock=asyncio.Lock(),
+            client=SimpleNamespace(),
+            coordinator=SimpleNamespace(data={}),
+            send_queue=None,
+            last_preview=b"current-preview",
+            displayed_preview=b"current-preview",
+            preview_image=None,
+        )
+    )
+    monkeypatch.setattr(services, "async_convert_for_entry", convert)
+
+    result = asyncio.run(
+        services.async_render_and_upload(
+            SimpleNamespace(),
+            entry,
+            b"source",
+            hold_playlist=False,
+            trigger="playlist",
+        )
+    )
+
+    assert result["displayed"] is False
+    assert entry.runtime_data.last_preview == b"deferred-preview"
+    assert entry.runtime_data.displayed_preview == b"current-preview"

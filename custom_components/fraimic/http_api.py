@@ -688,7 +688,7 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
 
     artwork_url = (
         f"/api/fraimic/player/artwork/{entry.entry_id}"
-        if runtime.last_preview is not None
+        if runtime.displayed_preview is not None
         else None
     )
     queued = scheduler.queued_slides
@@ -761,7 +761,7 @@ class PlayerArtworkView(_FraimicView):
 
     async def get(self, request: web.Request, entry_id: str) -> web.Response:
         entry = _entry_by_id(request.app[KEY_HASS], entry_id)
-        preview = entry.runtime_data.last_preview
+        preview = entry.runtime_data.displayed_preview
         if preview is None:
             raise web.HTTPNotFound(text="No artwork preview is available")
         return web.Response(

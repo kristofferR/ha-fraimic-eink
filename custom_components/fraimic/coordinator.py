@@ -56,8 +56,11 @@ class FraimicRuntimeData:
         # Ditto for the dashboard-screen preview entity (render_screen output,
         # including preview-only renders that never reach the frame).
         self.screen_preview_image: Any = None
-        # Last preview PNG, also exposed as the media_player's artwork.
+        # Most recently rendered preview, including preview-only/deferred work.
         self.last_preview: bytes | None = None
+        # Preview known (or accepted-with-timeout) to be on the frame. Player
+        # artwork must use this so deferred renders never replace the glass.
+        self.displayed_preview: bytes | None = None
         # Playlist scheduler (set during entry setup; None until then).
         self.scheduler: Any = None
         # Queued-send manager (send_queue.FraimicSendQueue; set during setup).
