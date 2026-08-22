@@ -467,10 +467,15 @@ class FraimicPanel extends HTMLElement {
 
   async _loadAll() {
     try {
+      const previousFrameId = this._selectedFrameId;
       const { frames } = await this._api("frames");
       this._frames = frames;
       if (!frames.some((frame) => frame.id === this._selectedFrameId)) {
         this._selectedFrameId = frames[0]?.id || null;
+      }
+      if (this._selectedFrameId !== previousFrameId) {
+        this._queueOpen = false;
+        this._player = null;
       }
       if (this._selectedFrameId) localStorage.setItem("fraimic-frame", this._selectedFrameId);
       await Promise.all([this._loadPlayer(), this._loadPlaylists(), this._loadSources()]);

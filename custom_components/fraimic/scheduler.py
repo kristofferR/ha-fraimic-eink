@@ -792,11 +792,22 @@ class FraimicScheduler:
                 self._hold_until = dt_util.utcnow() + timedelta(seconds=300)
                 return False
             except FrameUploadError as err:
+                send_queue = getattr(self.entry.runtime_data, "send_queue", None)
+                if (
+                    not manual
+                    and send_queue is not None
+                    and send_queue.pending is not None
+                ):
+                    # A direct send is explicit and owns the next wake. Do not
+                    # create a second retry that would redraw over it.
+                    self._pending = None
+                    self._pending_from_queue = False
+                    await self._async_save()
+                    return False
                 if self._pending is not screen or manual:
                     self._pending_requires_enabled = not manual
                 self._pending = screen
                 self._pending_hold_on_success = hold_on_success
-                send_queue = getattr(self.entry.runtime_data, "send_queue", None)
                 if (
                     manual
                     and send_queue is not None
@@ -816,7 +827,6 @@ class FraimicScheduler:
                 if manual:
                     raise
                 if advance_playlist:
-                    self.current_id = screen.screen_id
                     self._playlist_cursor_id = screen.screen_id
                     self._last_rotation = dt_util.utcnow()
                     await self._async_save()

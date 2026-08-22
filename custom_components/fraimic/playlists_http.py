@@ -43,6 +43,21 @@ def _assert_admin(request: web.Request) -> None:
         raise web.HTTPForbidden(text="Admin required")
 
 
+async def _stop_camera_loop(entry: Any) -> None:
+    """Stop camera playback and restore the persisted playlist state."""
+    stopper = entry.runtime_data.stop_camera_loop
+    if stopper is not None:
+        stopper()
+    scheduler = entry.runtime_data.scheduler
+    if scheduler.stored_enabled and not scheduler.enabled:
+        await scheduler.async_set_enabled(
+            True,
+            rotate=False,
+            clear_hold=False,
+            persist=False,
+        )
+
+
 def _playing_frames(
     hass: HomeAssistant, manager: PlaylistManager, playlist_id: str
 ) -> list[dict[str, Any]]:
@@ -306,9 +321,7 @@ class PlaylistControlView(_PlaylistView):
             playlist = manager.require(playlist_id)
             if action == "play":
                 entry = require_loaded_entry(hass, body.get("entry_id"))
-                stopper = entry.runtime_data.stop_camera_loop
-                if stopper is not None:
-                    stopper()
+                await _stop_camera_loop(entry)
                 await manager.async_assign(entry.entry_id, playlist_id)
                 await entry.runtime_data.scheduler.async_refresh_playlist(
                     reset=True, start=True
@@ -451,9 +464,7 @@ class PlaylistSlidesView(_PlaylistView):
         entry = require_loaded_entry(hass, body.get("entry_id"))
         scheduler = entry.runtime_data.scheduler
         scheduler.raise_if_upload_active()
-        stopper = entry.runtime_data.stop_camera_loop
-        if stopper is not None:
-            stopper()
+        await _stop_camera_loop(entry)
         if body["action"] == "show_now":
             # Queue first so an asleep-frame retry survives an HA restart,
             # then immediately consume it through the normal manual path.

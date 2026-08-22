@@ -362,10 +362,15 @@ def test_migration_appends_new_legacy_slide(
         "first",
         "second",
     ]
+    copied = copy.deepcopy(manager.playlists[0])
+    copied.playlist_id = "copied"
+    manager.playlists.append(copied)
+    manager.assignments[entry.entry_id] = copied.playlist_id
 
     asyncio.run(manager.async_remove_legacy_slide(entry, "first"))
 
     assert [slide.slide_id for slide in manager.playlists[0].slides] == ["second"]
+    assert [slide.slide_id for slide in manager.playlists[1].slides] == ["second"]
 
 
 def test_corrupt_store_is_ignored(monkeypatch: pytest.MonkeyPatch) -> None:
