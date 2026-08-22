@@ -21,7 +21,7 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .api import FraimicConnectionError, FraimicError
+from .api import FraimicConnectionError, FraimicError, FraimicTimeoutError
 from .const import (
     ATTR_CAPTION,
     ATTR_CONFIG_ENTRY,
@@ -772,6 +772,12 @@ async def async_render_and_upload(
             else:
                 try:
                     await runtime.client.upload_image(bin_data)
+                except FraimicTimeoutError:
+                    # The firmware can hold the response open for the entire
+                    # redraw after accepting the image. Treat that ambiguous
+                    # outcome as accepted so no caller retries a visible,
+                    # battery-expensive refresh.
+                    uploaded = True
                 except FraimicConnectionError as err:
                     raise FrameUploadError(
                         f"Could not upload to the frame: {err}"
@@ -780,7 +786,8 @@ async def async_render_and_upload(
                     raise HomeAssistantError(
                         f"Could not upload to the frame: {err}"
                     ) from err
-                uploaded = True
+                else:
+                    uploaded = True
 
             if uploaded and preview_png:
                 runtime.last_preview = preview_png

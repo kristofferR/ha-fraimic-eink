@@ -163,6 +163,11 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if online:
             self._consecutive_failures = 0
             self._last_seen = time.time()
+            self.config_entry.async_create_task(
+                self.hass,
+                self._async_save_cache(),
+                "fraimic-save-last-seen",
+            )
         self.frame_online = online
         self.async_update_listeners()
 
