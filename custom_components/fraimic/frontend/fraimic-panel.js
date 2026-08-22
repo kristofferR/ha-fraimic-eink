@@ -626,9 +626,12 @@ class FraimicPanel extends HTMLElement {
       ...this._sourceOrder.filter((key) => current.has(key)),
       ...this._sources.map((source) => source.key).filter((key) => !this._sourceOrder.includes(key)),
     ];
-    await Promise.all(this._sources
+    const preload = this._sources
       .filter((source) => source.hierarchical && this._expandedSources.has(source.key) && !this._sourceChildren.has(this._sourceNodeKey(source.key, "")))
-      .map((source) => this._loadSourceNode(source.key, "", false)));
+      .map((source) => this._loadSourceNode(source.key, "", false));
+    if (preload.length) void Promise.all(preload).then(() => {
+      if (generation === this._sourcesGeneration && entryId === this._selectedFrameId) this._renderPreservingFocus();
+    });
   }
 
   async _loadPlaylists() {
@@ -689,7 +692,7 @@ class FraimicPanel extends HTMLElement {
       ].filter(Boolean).join(" · ");
     }
     const progress = this.shadowRoot?.querySelector("[data-player-progress]");
-    if (progress && player?.interval) {
+    if (progress && player?.interval && state !== "sending") {
       const percent = Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / player.interval * 100));
       progress.style.width = `${percent}%`;
     }
@@ -704,8 +707,6 @@ class FraimicPanel extends HTMLElement {
     if (!this._selectedFrameId) return;
     const entryId = this._selectedFrameId;
     const generation = ++this._galleryGeneration;
-    this._loadingMore = false;
-    this._renderLimit = INITIAL_RENDER_LIMIT;
     const sources = this._selectedSource === "all"
       ? this._sources.filter((source) => source.available)
       : this._sources.filter((source) => source.key === this._selectedSource);
@@ -718,6 +719,8 @@ class FraimicPanel extends HTMLElement {
       this._renderPreservingFocus();
       return;
     }
+    this._loadingMore = false;
+    this._renderLimit = INITIAL_RENDER_LIMIT;
     this._galleryRequestKey = requestKey;
     this._galleryLoading = true;
     // A manual refresh keeps the existing grid in place. A different query or
@@ -737,13 +740,6 @@ class FraimicPanel extends HTMLElement {
     const nextTotalBySource = new Map();
     const nextStatus = new Map();
     const nextFacets = { artists: [], colours: [], collections: [], eras: [] };
-    const mergeFacets = (next) => {
-      for (const key of Object.keys(nextFacets)) {
-        const values = new Map(nextFacets[key].map((item) => [item.value, item.count]));
-        for (const item of next[key] || []) values.set(item.value, (values.get(item.value) || 0) + item.count);
-        nextFacets[key] = [...values].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
-      }
-    };
     const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
     await Promise.all(sources.map(async (source) => {
       try {
@@ -758,7 +754,7 @@ class FraimicPanel extends HTMLElement {
         nextTotalBySource.set(source.key, data.total ?? (data.results || []).length);
         nextStatus.set(source.key, data.source_status?.[0] || { source: source.key, status: "ready" });
         if (this._selectedSource !== "all" && data.title) this._galleryTitle = data.title;
-        mergeFacets(data.facets || {});
+        this._mergeFacetsInto(nextFacets, data.facets || {});
       } catch (error) {
         if (generation !== this._galleryGeneration) return;
         nextStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
@@ -813,10 +809,14 @@ class FraimicPanel extends HTMLElement {
   }
 
   _mergeFacets(next) {
-    for (const key of Object.keys(this._facets)) {
-      const values = new Map(this._facets[key].map((item) => [item.value, item.count]));
+    this._mergeFacetsInto(this._facets, next);
+  }
+
+  _mergeFacetsInto(target, next) {
+    for (const key of Object.keys(target)) {
+      const values = new Map(target[key].map((item) => [item.value, item.count]));
       for (const item of next[key] || []) values.set(item.value, (values.get(item.value) || 0) + item.count);
-      this._facets[key] = [...values].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
+      target[key] = [...values].map(([value, count]) => ({ value, count })).sort((a, b) => b.count - a.count);
     }
   }
 
@@ -1598,8 +1598,9 @@ class FraimicPanel extends HTMLElement {
     if (action === "queue" && this._findItem(source, itemId)?.queued) return;
     try {
       const entryId = targetEntryId || this._selectedFrameId;
-      const crop = options.fit === "cover" ? options.crop : null;
-      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit: options.fit || "cover", tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_before_id: options.beforeSlideId }));
+      const fit = options.fit || "cover";
+      const crop = fit === "cover" ? options.crop : null;
+      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit, tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_before_id: options.beforeSlideId }));
       const item = this._findItem(source, itemId);
       if (item && data.item) Object.assign(item, data.item);
       const targetFrame = this._frames.find((frame) => frame.id === entryId) || this._frame;
@@ -1739,10 +1740,17 @@ class FraimicPanel extends HTMLElement {
     try {
       const action = detail.favorite ? "unfavorite" : "favorite";
       const data = await this._artAction(action, detail.source, detail.itemId, null, { ...this._detailOptions, quiet: true });
+      if (data?.deleted) {
+        this._closeModal();
+        await Promise.all([this._loadSources(), this._loadGallery(true), this._loadPlaylists()]);
+        this._notify("Removed from favorites.");
+        return;
+      }
       if (data?.item) Object.assign(detail, data.item);
       detail.favorite = action === "favorite";
       this._galleryLoadedAt = 0;
       await this._loadSources();
+      if (this._selectedSource === "saved" && this._selectedBrowseId === "favorites") await this._loadGallery(true);
     } catch (error) {
       this._notify(this._friendlyError(error), { error: true });
     } finally {

@@ -236,7 +236,7 @@ async def async_browse_candidates(
     if cached_result is None and not refresh and disk_cache is not None:
         cached_result = _candidate_result_from_dict(
             await disk_cache.async_get_metadata(
-                result_key, max_age=GALLERY_DISK_CACHE_TTL
+                result_key, entry, max_age=GALLERY_DISK_CACHE_TTL
             )
         )
         if cached_result is not None:
@@ -321,6 +321,7 @@ async def async_browse_candidates(
                     await disk_cache.async_store_metadata(
                         result_key,
                         _candidate_result_to_dict(candidates, exhausted),
+                        entry,
                     )
     # Daily providers have no by-id lookup; the browse stash covers the gap
     # between browsing and clicking.
@@ -372,6 +373,7 @@ async def async_candidate_by_media_id(
     if candidate is None and policy is not None and policy.enabled:
         cached_candidate = await disk_cache.async_get_metadata(
             _candidate_cache_id(provider_key, item_id),
+            entry,
             max_age=policy.retention,
         )
         if isinstance(cached_candidate, dict):
@@ -393,7 +395,7 @@ async def async_candidate_by_media_id(
     _stash_candidates(hass, entry, provider_key, [candidate])
     if disk_cache is not None and policy is not None and policy.enabled:
         await disk_cache.async_store_metadata(
-            _candidate_cache_id(provider_key, item_id), asdict(candidate)
+            _candidate_cache_id(provider_key, item_id), asdict(candidate), entry
         )
     return candidate
 

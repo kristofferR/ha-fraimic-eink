@@ -35,7 +35,7 @@ from .frame_name import frame_display_name
 from .gallery_http import gallery_views
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
-from .library import FraimicLibrary, get_library
+from .library import FraimicLibrary, async_delete_library_image, get_library
 from .overlays_http import overlay_views
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .playlists_http import playlist_views
@@ -203,20 +203,10 @@ class LibraryImageView(_FraimicView):
 
     async def delete(self, request: web.Request, image_id: str) -> web.Response:
         hass = request.app[KEY_HASS]
-        library = self._library(request)
         try:
-            await library.async_delete_image(image_id)
+            await async_delete_library_image(hass, image_id)
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.NOT_FOUND)
-        # Scenes must not keep dangling references to a deleted image.
-        if scenes := get_scene_manager(hass):
-            await scenes.async_prune_image(image_id)
-        playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
-        if isinstance(playlists, PlaylistManager):
-            affected = await playlists.async_prune_image(image_id)
-            for entry in loaded_fraimic_entries(hass):
-                if playlists.assignments.get(entry.entry_id) in affected:
-                    await entry.runtime_data.scheduler.async_refresh_playlist()
         return self.json({"deleted": image_id})
 
 

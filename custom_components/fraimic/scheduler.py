@@ -625,12 +625,15 @@ class FraimicScheduler:
     @callback
     def finish_external_upload(self, *, uploaded: bool, hold: bool = True) -> None:
         self._external_upload_count = max(0, self._external_upload_count - 1)
-        if self._external_upload_count == 0:
+        became_idle = self._external_upload_count == 0
+        if became_idle:
             self._external_upload_started_at = None
         if uploaded:
             self.notify_external_upload(hold=hold)
         else:
             self._notify()
+        if became_idle:
+            self._schedule_prefetch()
 
     @callback
     def notify_external_upload(self, *, hold: bool = True) -> None:
@@ -882,13 +885,13 @@ class FraimicScheduler:
                 )
             await self._async_save()
             self._notify()
-            self._schedule_prefetch()
             return True
         finally:
             self._busy = False
             self._busy_started_at = None
             self._sending_slide_name = None
             self._notify()
+            self._schedule_prefetch()
 
     # -- background preparation -------------------------------------------
 

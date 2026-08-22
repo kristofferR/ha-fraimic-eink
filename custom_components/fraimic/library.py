@@ -110,6 +110,28 @@ def get_library(hass: HomeAssistant) -> FraimicLibrary | None:
     return hass.data.get(DOMAIN, {}).get(DATA_LIBRARY)
 
 
+async def async_delete_library_image(hass: HomeAssistant, image_id: str) -> None:
+    """Delete an original and prune every persisted reference to it."""
+    library = get_library(hass)
+    if library is None:
+        raise HomeAssistantError("Fraimic is not set up")
+    await library.async_delete_image(image_id)
+
+    # Local imports avoid loading the playlist/scene graph from this core
+    # storage module until referential cleanup is actually needed.
+    from .playlists import DATA_PLAYLISTS, PlaylistManager
+    from .scenes import get_scene_manager
+
+    if scenes := get_scene_manager(hass):
+        await scenes.async_prune_image(image_id)
+    playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+    if isinstance(playlists, PlaylistManager):
+        affected = await playlists.async_prune_image(image_id)
+        for entry in loaded_fraimic_entries(hass):
+            if playlists.assignments.get(entry.entry_id) in affected:
+                await entry.runtime_data.scheduler.async_refresh_playlist()
+
+
 class FraimicLibrary:
     """Domain-level image library shared by every configured frame."""
 

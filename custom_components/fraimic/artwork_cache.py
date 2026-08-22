@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from weakref import WeakValueDictionary
 
 from homeassistant.core import HomeAssistant
 
@@ -68,7 +69,9 @@ class ArtworkCache:
         self.root = Path(hass.config.path(ARTWORK_CACHE_DIR))
         self.items_dir = self.root / "items"
         self.metadata_dir = self.root / "metadata"
-        self._locks: dict[str, asyncio.Lock] = {}
+        # Callers keep a strong reference while using or waiting on a lock;
+        # idle per-artwork locks disappear instead of growing for HA's lifetime.
+        self._locks: WeakValueDictionary[str, asyncio.Lock] = WeakValueDictionary()
         self._cleanup_task: asyncio.Task | None = None
         self._last_cleanup = 0.0
 
@@ -278,15 +281,23 @@ class ArtworkCache:
     # ---------------------------------------------------------- small JSON
 
     async def async_get_metadata(
-        self, cache_id: str, *, max_age: float | None = METADATA_MAX_AGE
+        self,
+        cache_id: str,
+        entry,
+        *,
+        max_age: float | None = METADATA_MAX_AGE,
     ) -> Any | None:
         """Read small provider-list metadata persisted across HA restarts."""
+        if not self.policy_for(entry).enabled:
+            return None
         return await self.hass.async_add_executor_job(
             self._read_metadata_sync, cache_id, max_age
         )
 
-    async def async_store_metadata(self, cache_id: str, value: Any) -> None:
+    async def async_store_metadata(self, cache_id: str, value: Any, entry) -> None:
         """Persist JSON-compatible provider-list metadata."""
+        if not self.policy_for(entry).enabled:
+            return
         try:
             payload = json.dumps(
                 {"stored_at": time.time(), "value": value},
@@ -297,6 +308,8 @@ class ArtworkCache:
             )
         except (OSError, TypeError, ValueError) as err:
             _LOGGER.debug("Could not persist gallery metadata %s: %s", cache_id, err)
+            return
+        self._schedule_cleanup(entry)
 
     def _read_metadata_sync(
         self, cache_id: str, max_age: float | None
@@ -320,9 +333,7 @@ class ArtworkCache:
         if self._cleanup_task is not None and not self._cleanup_task.done():
             return
         policy = self.policy_for(entry)
-        if not policy.enabled or (
-            policy.retention is None and policy.max_bytes is None
-        ):
+        if not policy.enabled:
             return
         self._last_cleanup = time.monotonic()
         self._cleanup_task = self.hass.async_create_background_task(
@@ -341,7 +352,7 @@ class ArtworkCache:
         if not policy.enabled:
             return
         now = time.time()
-        rows: list[tuple[float, int, Path]] = []
+        rows: list[tuple[float, int, Path, bool]] = []
         item_dirs = (
             item_dir
             for shard in self.items_dir.iterdir()
@@ -364,14 +375,28 @@ class ArtworkCache:
             if policy.retention is not None and now - accessed > policy.retention:
                 shutil.rmtree(item_dir, ignore_errors=True)
                 continue
-            rows.append((accessed, sum(stat.st_size for stat in stats), item_dir))
+            rows.append(
+                (accessed, sum(stat.st_size for stat in stats), item_dir, True)
+            )
+        for path in self.metadata_dir.glob("*.json"):
+            try:
+                stat = path.stat()
+            except OSError:
+                continue
+            if now - stat.st_mtime > METADATA_MAX_AGE:
+                path.unlink(missing_ok=True)
+                continue
+            rows.append((stat.st_mtime, stat.st_size, path, False))
         if policy.max_bytes is None:
             return
-        total = sum(size for _accessed, size, _path in rows)
-        for _accessed, size, item_dir in sorted(rows):
+        total = sum(size for _accessed, size, _path, _is_dir in rows)
+        for _accessed, size, path, is_dir in sorted(rows):
             if total <= policy.max_bytes:
                 break
-            shutil.rmtree(item_dir, ignore_errors=True)
+            if is_dir:
+                shutil.rmtree(path, ignore_errors=True)
+            else:
+                path.unlink(missing_ok=True)
             total -= size
 
     # ---------------------------------------------------------------- paths

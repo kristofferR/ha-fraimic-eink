@@ -165,6 +165,21 @@ def test_prefetch_prepares_only_configured_queue_window(
     assert prepared == ["screen-0", "screen-1"]
 
 
+def test_prefetch_is_rescheduled_when_external_upload_finishes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduled: list[bool] = []
+    scheduler._schedule_prefetch = lambda: scheduled.append(True)
+
+    scheduler.begin_external_upload()
+    scheduler.finish_external_upload(uploaded=False)
+
+    assert scheduler.external_upload_active is False
+    assert scheduled == [True]
+
+
 def test_wake_retry_keeps_manual_pending_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
