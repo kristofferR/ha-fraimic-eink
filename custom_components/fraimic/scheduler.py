@@ -20,6 +20,7 @@ rotation.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import random
 import time
@@ -100,6 +101,7 @@ class FraimicScheduler:
         self._listeners: list[Callable[[], None]] = []
         self._prefetch_task: asyncio.Task | None = None
         self._prefetch_again = False
+        self._playlist_preprocess_done: str | None = None
 
     def _load_assigned_playlist(self) -> None:
         """Refresh the assigned catalog playlist or use the legacy slide list."""
@@ -1001,7 +1003,8 @@ class FraimicScheduler:
 
     def _playlist_preprocess_screens(self) -> list[ScreenConfig]:
         """Every fixed picture in the assigned playlist, once per slide id."""
-        if self._prefetch_limit() <= 0:
+        signature = self._playlist_preprocess_signature()
+        if signature is None or signature == self._playlist_preprocess_done:
             return []
         result: list[ScreenConfig] = []
         seen: set[str] = set()
@@ -1011,6 +1014,29 @@ class FraimicScheduler:
             result.append(screen)
             seen.add(screen.screen_id)
         return result
+
+    def _playlist_preprocess_signature(self) -> str | None:
+        """Version the full preparation pass by playlist and render settings."""
+        if self._prefetch_limit() <= 0:
+            return None
+        return json.dumps(
+            {
+                "playlist": self.playlist_id,
+                "slides": [
+                    [
+                        screen.screen_id,
+                        getattr(screen, "kind", None),
+                        getattr(screen, "source", None),
+                    ]
+                    for screen in self.screens
+                ],
+                "entry_data": dict(getattr(self.entry, "data", {})),
+                "entry_options": dict(getattr(self.entry, "options", {})),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
 
     def _schedule_prefetch(self) -> None:
         """Start or refresh the single serial preparation worker."""
@@ -1032,12 +1058,14 @@ class FraimicScheduler:
             while True:
                 self._prefetch_again = False
                 upcoming = self._prefetch_screens()
+                full_signature = self._playlist_preprocess_signature()
+                full_screens = self._playlist_preprocess_screens()
                 prepared_ids = {screen.screen_id for screen in upcoming}
                 screens = [
                     *upcoming,
                     *(
                         screen
-                        for screen in self._playlist_preprocess_screens()
+                        for screen in full_screens
                         if screen.screen_id not in prepared_ids
                     ),
                 ]
@@ -1062,6 +1090,8 @@ class FraimicScheduler:
                             screen.name,
                             err,
                         )
+                if full_screens:
+                    self._playlist_preprocess_done = full_signature
                 if not self._prefetch_again:
                     return
         finally:

@@ -248,6 +248,7 @@ def test_assigned_playlist_preprocesses_every_fixed_picture(
 
     sys.modules["fraimic.render.display"].async_prepare_screen = prepare
     asyncio.run(scheduler._async_prefetch())
+    asyncio.run(scheduler._async_prefetch())
 
     assert prepared == ["library", "provider"]
 

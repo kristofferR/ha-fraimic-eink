@@ -642,16 +642,20 @@ class FraimicPanel extends HTMLElement {
 
   async _loadPlaylists() {
     if (!this._selectedFrameId) return;
-    const data = await this._api(`playlists?entry_id=${encodeURIComponent(this._selectedFrameId)}`);
+    const entryId = this._selectedFrameId;
+    const data = await this._api(`playlists?entry_id=${encodeURIComponent(entryId)}`);
+    if (entryId !== this._selectedFrameId) return;
     this._playlists = data.playlists || [];
   }
 
   async _loadPlaylist(id) {
+    const entryId = this._selectedFrameId;
+    if (!entryId) return;
     try {
-      const playlist = await this._api(`playlists/${encodeURIComponent(id)}?entry_id=${encodeURIComponent(this._selectedFrameId)}`);
-      if (this._route === "playlist" && this._playlistId === id) this._playlist = playlist;
+      const playlist = await this._api(`playlists/${encodeURIComponent(id)}?entry_id=${encodeURIComponent(entryId)}`);
+      if (entryId === this._selectedFrameId && this._route === "playlist" && this._playlistId === id) this._playlist = playlist;
     } catch (error) {
-      if (this._route !== "playlist" || this._playlistId !== id) return;
+      if (entryId !== this._selectedFrameId || this._route !== "playlist" || this._playlistId !== id) return;
       this._notify(this._friendlyError(error), { error: true });
       this._navigate("/playlists");
     }
