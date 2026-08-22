@@ -97,7 +97,7 @@ class FraimicPanel extends HTMLElement {
     this._packProgressTimer = null;
     this._packProgressAttempts = 0;
     this._installingPacks.clear();
-    clearInterval(this._playerRefreshTimer);
+    clearTimeout(this._playerRefreshTimer);
     this._playerRefreshTimer = null;
     this._cancelTouchDrag();
   }
@@ -387,10 +387,18 @@ class FraimicPanel extends HTMLElement {
 
   _startPlayerRefresh() {
     if (this._playerRefreshTimer || !this.isConnected) return;
-    this._playerRefreshTimer = window.setInterval(
-      () => this._refreshPlayerState(),
-      60 * 1000
-    );
+    const delay = this._player?.sending ? 5 * 1000 : 60 * 1000;
+    this._playerRefreshTimer = window.setTimeout(async () => {
+      this._playerRefreshTimer = null;
+      await this._refreshPlayerState();
+      this._startPlayerRefresh();
+    }, delay);
+  }
+
+  _restartPlayerRefresh() {
+    clearTimeout(this._playerRefreshTimer);
+    this._playerRefreshTimer = null;
+    this._startPlayerRefresh();
   }
 
   async _refreshPlayerState() {
@@ -663,7 +671,7 @@ class FraimicPanel extends HTMLElement {
         button.btn.danger { color: var(--error-color); }
         button.btn.raised {
           background: var(--primary-color);
-          color: var(--primary-background-color);
+          color: var(--text-primary-color);
         }
         button.btn:disabled { opacity: 0.4; cursor: default; }
         select, input[type="text"] {
@@ -685,8 +693,8 @@ class FraimicPanel extends HTMLElement {
           margin: 2px 2px 0 0;
         }
         .chip.warn {
-          background: var(--warning-color, var(--primary-color));
-          color: var(--primary-background-color);
+          border-color: var(--warning-color, var(--primary-color));
+          color: var(--primary-text-color);
         }
         .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
         .dot.on { background: var(--success-color, var(--primary-color)); }
@@ -790,7 +798,7 @@ class FraimicPanel extends HTMLElement {
           height: 22px;
           border-radius: 50%;
           background: var(--primary-color);
-          color: var(--primary-background-color);
+          color: var(--text-primary-color);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -837,7 +845,7 @@ class FraimicPanel extends HTMLElement {
         .chiprow .fchip.active {
           background: var(--primary-color);
           border-color: var(--primary-color);
-          color: var(--primary-background-color);
+          color: var(--text-primary-color);
         }
         .gallery { text-align: center; }
         .gallery img {
@@ -983,9 +991,9 @@ class FraimicPanel extends HTMLElement {
           cursor: pointer;
         }
         .frame-chip[aria-checked="true"] {
-          border-color: var(--primary-text-color);
-          background: var(--primary-text-color);
-          color: var(--primary-background-color);
+          border-color: var(--primary-color);
+          background: var(--primary-color);
+          color: var(--text-primary-color);
           font-weight: 600;
         }
         .frame-chip:disabled { cursor: default; opacity: 1; }
@@ -1045,9 +1053,9 @@ class FraimicPanel extends HTMLElement {
           border-radius: 4px;
         }
         .icon-button.primary ha-icon {
-          border-color: var(--primary-text-color);
-          background: var(--primary-text-color);
-          color: var(--primary-background-color);
+          border-color: var(--primary-color);
+          background: var(--primary-color);
+          color: var(--text-primary-color);
         }
         .icon-button:disabled { cursor: default; opacity: 0.4; }
         .shell-menu {
@@ -1625,10 +1633,10 @@ class FraimicPanel extends HTMLElement {
         }
         .player-action.primary {
           min-height: 32px;
-          border: 1px solid var(--primary-text-color);
+          border: 1px solid var(--primary-color);
           border-radius: 4px;
-          background: var(--primary-text-color);
-          color: var(--primary-background-color);
+          background: var(--primary-color);
+          color: var(--text-primary-color);
           font-weight: 600;
         }
         #toast {
@@ -2250,6 +2258,7 @@ class FraimicPanel extends HTMLElement {
           title: title || this._player.current?.title,
         },
       };
+      this._restartPlayerRefresh();
       this._renderPlayer();
     }
     this._toast(`Sending to ${frame.title}. The panel takes about 30 seconds.`);

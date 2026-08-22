@@ -77,6 +77,13 @@ class FraimicRuntimeData:
         # Fallback media-player title for non-provider content currently on the frame.
         self.media_title: str | None = None
 
+    def set_displayed_preview(self, preview_png: bytes, mode: str) -> None:
+        """Keep every representation of the preview on the glass in sync."""
+        self.last_preview = preview_png
+        self.displayed_preview = preview_png
+        if self.preview_image is not None:
+            self.preview_image.set_preview(preview_png, mode)
+
 
 class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Polls ``/api/info`` and exposes the latest device snapshot."""

@@ -224,20 +224,24 @@ def test_timed_out_upload_is_not_reported_for_retry(
             return None
 
     power = Power()
-    entry = SimpleNamespace(
-        data={},
-        runtime_data=SimpleNamespace(
-            scheduler=None,
-            power=power,
-            upload_lock=asyncio.Lock(),
-            client=Client(),
-            coordinator=SimpleNamespace(data={}),
-            send_queue=None,
-            last_preview=None,
-            displayed_preview=None,
-            preview_image=None,
-        )
+    runtime = SimpleNamespace(
+        scheduler=None,
+        power=power,
+        upload_lock=asyncio.Lock(),
+        client=Client(),
+        coordinator=SimpleNamespace(data={}),
+        send_queue=None,
+        last_preview=None,
+        displayed_preview=None,
+        preview_image=None,
     )
+
+    def set_displayed_preview(preview: bytes, _mode: str) -> None:
+        runtime.last_preview = preview
+        runtime.displayed_preview = preview
+
+    runtime.set_displayed_preview = set_displayed_preview
+    entry = SimpleNamespace(data={}, runtime_data=runtime)
     monkeypatch.setattr(services, "async_convert_for_entry", convert)
 
     result = asyncio.run(
