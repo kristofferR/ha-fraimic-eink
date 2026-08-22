@@ -1195,10 +1195,10 @@ class FraimicPanel extends HTMLElement {
           justify-content: center;
           width: 42px;
           height: 42px;
-          border: 1px solid var(--primary-text-color);
+          border: 1px solid var(--primary-color);
           border-radius: 50%;
-          background: var(--primary-text-color);
-          color: var(--primary-background-color);
+          background: var(--primary-color);
+          color: var(--text-primary-color);
           cursor: pointer;
           opacity: 0;
         }
@@ -1278,9 +1278,9 @@ class FraimicPanel extends HTMLElement {
           cursor: pointer;
         }
         .playlist-control.primary {
-          border-color: var(--primary-text-color);
-          background: var(--primary-text-color);
-          color: var(--primary-background-color);
+          border-color: var(--primary-color);
+          background: var(--primary-color);
+          color: var(--text-primary-color);
           font-weight: 600;
         }
         .playlist-control:disabled { cursor: default; opacity: 0.45; }
