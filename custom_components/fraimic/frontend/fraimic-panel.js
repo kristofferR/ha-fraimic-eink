@@ -504,8 +504,14 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _loadPlaylist(id) {
-    try { this._playlist = await this._api(`playlists/${encodeURIComponent(id)}`); }
-    catch (error) { this._notify(this._friendlyError(error), { error: true }); this._navigate("/playlists"); }
+    try {
+      const playlist = await this._api(`playlists/${encodeURIComponent(id)}`);
+      if (this._route === "playlist" && this._playlistId === id) this._playlist = playlist;
+    } catch (error) {
+      if (this._route !== "playlist" || this._playlistId !== id) return;
+      this._notify(this._friendlyError(error), { error: true });
+      this._navigate("/playlists");
+    }
   }
 
   async _loadPlayer(render = true) {

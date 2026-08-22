@@ -103,6 +103,7 @@ def _entry(rotation: int = 0) -> types.SimpleNamespace:
             last_preview=None,
             screen_preview_image=_PreviewImage(),
             last_art=None,
+            last_overlay_count=3,
             media_title=None,
             coordinator=types.SimpleNamespace(async_update_listeners=lambda: None),
         ),
@@ -169,6 +170,7 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
     assert result["height"] == 800
     assert calls == [("convert", b"screen-png", display._NEUTRAL_OVERRIDES, False)]
     assert entry.runtime_data.screen_preview_image.calls == [(b"preview-png", "none")]
+    assert entry.runtime_data.last_overlay_count == 3
 
 
 def test_upload_path_uploads_and_updates_screen_preview(
@@ -235,6 +237,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
     assert entry.runtime_data.screen_preview_image.calls == [
         (b"uploaded-preview", "none")
     ]
+    assert entry.runtime_data.last_overlay_count == 0
 
 
 def test_upload_path_holds_playlist_before_rendering(

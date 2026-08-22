@@ -284,7 +284,6 @@ async def async_show_screen(
                 )
             bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
-            runtime.last_overlay_count = overlay_count
             return {
                 "uploaded": False,
                 "content_hash": hashlib.sha256(bin_data).hexdigest(),
@@ -310,8 +309,8 @@ async def async_show_screen(
         displayed = result.get("displayed", uploaded)
         preview_png = result.pop("preview_png", None)
         _set_screen_preview(runtime, preview_png, result["mode"])
-        runtime.last_overlay_count = overlay_count
         if displayed or result.get("content_hash") == skip_if_hash:
+            runtime.last_overlay_count = overlay_count
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = art_info

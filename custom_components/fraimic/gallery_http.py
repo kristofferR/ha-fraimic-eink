@@ -634,6 +634,10 @@ class GalleryActionView(HomeAssistantView):
                 await scheduler.async_add_to_queue(slide, play_next=True, raw_data=data)
                 await scheduler.async_next()
             elif action in {"play_next", "queue"}:
+                if action == "play_next" and not scheduler.screens:
+                    raise ValueError(
+                        "Choose a playlist on this frame before playing next"
+                    )
                 await scheduler.async_add_to_queue(
                     slide,
                     play_next=action == "play_next",

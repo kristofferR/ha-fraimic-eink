@@ -35,7 +35,6 @@ from .gallery_http import gallery_views
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
-from .overlays import get_overlay_manager
 from .overlays_http import overlay_views
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .playlists_http import playlist_views
@@ -609,7 +608,11 @@ def _frame_payload(entry: ConfigEntry) -> dict[str, Any]:
     info = coordinator.data or {}
     failures = coordinator.consecutive_failures
     online = coordinator.frame_online
-    unreachable = not online and failures >= REDISCOVERY_FAIL_THRESHOLD
+    unreachable = (
+        not online
+        and not getattr(coordinator, "expected_asleep", False)
+        and failures >= REDISCOVERY_FAIL_THRESHOLD
+    )
     battery = info.get("battery") or {}
     return {
         # New vocabulary-first shape plus the legacy aliases used underneath.
@@ -755,16 +758,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
 
     send_queue = runtime.send_queue
     waiting = int(send_queue is not None and send_queue.pending is not None)
-    overlay_manager = get_overlay_manager(hass)
-    overlay_count = (
-        sum(
-            1
-            for overlay in overlay_manager.for_frame(entry.entry_id)
-            if overlay.get("enabled", True)
-        )
-        if overlay_manager is not None
-        else 0
-    )
+    overlay_count = runtime.last_overlay_count
     return {
         "frame": frame,
         "state": state,
@@ -883,7 +877,9 @@ class PlayerControlView(_FraimicView):
                 runtime.coordinator.async_set_frame_online(True)
             elif action == "sleep":
                 await runtime.client.sleep()
-                runtime.coordinator.async_set_frame_online(False)
+                runtime.coordinator.async_set_frame_online(
+                    False, expected_sleep=True
+                )
             else:
                 return self.json_message(
                     "Unknown player action", HTTPStatus.BAD_REQUEST

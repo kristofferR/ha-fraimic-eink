@@ -384,6 +384,7 @@ class FraimicPowerManager:
             if runtime.upload_lock.locked() or (queue is not None and queue.pending):
                 return
             await runtime.client.sleep()
+            runtime.coordinator.async_set_frame_online(False, expected_sleep=True)
         except asyncio.CancelledError:
             raise
         except Exception as err:  # noqa: BLE001 - best-effort experimental feature
