@@ -362,7 +362,13 @@ async def _async_fetch_todo(
         return_response=True,
     )
     raw_items = (response or {}).get(entity_id, {}).get("items") or []
+    state = hass.states.get(entity_id)
     return {
+        "name": (
+            state.attributes.get("friendly_name")
+            if state is not None
+            else entity_id
+        ) or entity_id,
         "items": [
             {"summary": item.get("summary", ""), "done": item.get("status") == "completed"}
             for item in raw_items

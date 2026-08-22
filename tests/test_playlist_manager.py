@@ -232,6 +232,20 @@ def test_add_duplicate_reorder_remove_and_undo(
     with pytest.raises(playlists.PlaylistChangedError):
         asyncio.run(manager.async_reorder(playlist.playlist_id, [original_ids[0]]))
 
+    asyncio.run(
+        manager.async_add_slides(
+            playlist.playlist_id,
+            [{"name": "Inserted", "kind": "picture", "provider": "wikimedia"}],
+            before_slide_id=original_ids[0],
+        )
+    )
+    inserted_index = next(
+        index
+        for index, slide in enumerate(playlist.slides)
+        if slide.data["name"] == "Inserted"
+    )
+    assert playlist.slides[inserted_index + 1].slide_id == original_ids[0]
+
     removed_id = playlist.slides[0].slide_id
     token = asyncio.run(manager.async_remove_slide(playlist.playlist_id, removed_id))
     with pytest.raises(playlists.PlaylistChangedError, match="another playlist"):

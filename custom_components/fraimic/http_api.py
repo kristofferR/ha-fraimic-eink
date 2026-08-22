@@ -952,6 +952,9 @@ class PlayerQueueView(_FraimicView):
                     return self.json_message(
                         "slide_id is required", HTTPStatus.BAD_REQUEST
                     )
+                stopper = entry.runtime_data.stop_camera_loop
+                if stopper is not None:
+                    stopper()
                 await scheduler.async_play_queue_item(section, index, slide_id)
             elif action == "reorder":
                 section = body.get("section")

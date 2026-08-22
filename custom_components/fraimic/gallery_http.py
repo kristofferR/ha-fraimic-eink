@@ -628,6 +628,9 @@ class GalleryActionView(HomeAssistantView):
             slide = screen_from_dict(data, f"gallery_{uuid.uuid4().hex}")
             scheduler = entry.runtime_data.scheduler
             if action == "show_now":
+                stopper = entry.runtime_data.stop_camera_loop
+                if stopper is not None:
+                    stopper()
                 await scheduler.async_add_to_queue(slide, play_next=True, raw_data=data)
                 await scheduler.async_next()
             elif action in {"play_next", "queue"}:
@@ -645,6 +648,7 @@ class GalleryActionView(HomeAssistantView):
                     playlist_id,
                     [data],
                     insert_at=body.get("playlist_index"),
+                    before_slide_id=body.get("playlist_before_id"),
                 )
                 for candidate in hass.config_entries.async_entries(DOMAIN):
                     runtime = getattr(candidate, "runtime_data", None)

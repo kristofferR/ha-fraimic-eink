@@ -1136,7 +1136,12 @@ class FraimicPanel extends HTMLElement {
     this._draggedArt = null;
     if (!art) return;
     if (section === "queue") this._artAction("queue", art.source, art.itemId, null, { queueIndex: index });
-    else this._artAction("add_playlist", art.source, art.itemId, playlistId || this._player?.playlist_id, { playlistIndex: index });
+    else {
+      const beforeSlideId = Number.isInteger(index)
+        ? this._player?.playlist?.items?.[index]?.id
+        : null;
+      this._artAction("add_playlist", art.source, art.itemId, playlistId || this._player?.playlist_id, { beforeSlideId });
+    }
   }
 
   _bindReorder(selector, onDrop) {
@@ -1218,7 +1223,7 @@ class FraimicPanel extends HTMLElement {
     try {
       const entryId = targetEntryId || this._selectedFrameId;
       const crop = options.fit === "contain" ? null : options.crop;
-      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit: options.fit || "cover", tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_index: options.playlistIndex }));
+      const data = await this._api("gallery/action", this._json({ action, entry_id: entryId, source, item_id: itemId, playlist_id: playlistId, fit: options.fit || "cover", tone: options.tone || "balanced", crop, queue_index: options.queueIndex, playlist_before_id: options.beforeSlideId }));
       const item = this._findItem(source, itemId);
       if (item && data.item) Object.assign(item, data.item);
       const targetFrame = this._frames.find((frame) => frame.id === entryId) || this._frame;

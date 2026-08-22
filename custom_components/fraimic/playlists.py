@@ -494,12 +494,15 @@ class PlaylistManager:
         raw_slides: list[dict[str, Any]],
         *,
         insert_at: int | None = None,
+        before_slide_id: str | None = None,
     ) -> Playlist:
         """Validate and append or position slides supplied by the add menu."""
         if insert_at is not None and (
             isinstance(insert_at, bool) or not isinstance(insert_at, int)
         ):
             raise ValueError("Playlist position must be a number")
+        if before_slide_id is not None and not isinstance(before_slide_id, str):
+            raise ValueError("Playlist target must be a slide id")
         slides: list[PlaylistSlide] = []
         for raw in raw_slides:
             if not isinstance(raw, dict):
@@ -522,6 +525,17 @@ class PlaylistManager:
             raise ValueError("Choose at least one slide")
         async with self._lock:
             playlist = self.require(playlist_id)
+            if before_slide_id is not None:
+                try:
+                    insert_at = next(
+                        index
+                        for index, slide in enumerate(playlist.slides)
+                        if slide.slide_id == before_slide_id
+                    )
+                except StopIteration:
+                    raise PlaylistChangedError(
+                        "The playlist changed before art was added"
+                    ) from None
             if insert_at is None:
                 playlist.slides.extend(slides)
             else:
