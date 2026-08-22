@@ -730,6 +730,8 @@ async def async_render_and_upload(
                     runtime.last_preview = preview_png
                     if runtime.preview_image is not None:
                         runtime.preview_image.set_preview(preview_png, used_mode)
+                    if reason == SKIP_DUPLICATE:
+                        runtime.displayed_preview = preview_png
                 queue = runtime.send_queue if queue_if_asleep else None
                 queued = False
                 if reason in DEFER_REASONS and queue is not None:
@@ -791,6 +793,7 @@ async def async_render_and_upload(
 
             if uploaded and preview_png:
                 runtime.last_preview = preview_png
+                runtime.displayed_preview = preview_png
                 if runtime.preview_image is not None:
                     runtime.preview_image.set_preview(preview_png, used_mode)
 
