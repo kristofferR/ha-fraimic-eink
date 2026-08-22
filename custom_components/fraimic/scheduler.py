@@ -955,15 +955,18 @@ class FraimicScheduler:
 
     # -- background preparation -------------------------------------------
 
-    def _prefetch_screens(self) -> list[ScreenConfig]:
-        """Upcoming hand-queue and playlist pictures in actual play order."""
+    def _prefetch_limit(self) -> int:
         options = getattr(self.entry, "options", {})
         try:
-            limit = int(
+            return int(
                 options.get(CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH)
             )
         except (TypeError, ValueError):
-            limit = DEFAULT_PLAYLIST_PREFETCH
+            return DEFAULT_PLAYLIST_PREFETCH
+
+    def _prefetch_screens(self) -> list[ScreenConfig]:
+        """Upcoming hand-queue and playlist pictures in actual play order."""
+        limit = self._prefetch_limit()
         if limit <= 0:
             return []
         queued = self.queued_slides
@@ -980,12 +983,7 @@ class FraimicScheduler:
             ),
         ]
         for screen in candidates:
-            source = getattr(screen, "source", None) or {}
-            preparable = getattr(screen, "kind", None) == KIND_PICTURE and bool(
-                source.get("library_image")
-                or (source.get("provider") and source.get("provider_item"))
-            )
-            if screen.screen_id in seen or not preparable:
+            if screen.screen_id in seen or not self._is_preparable_picture(screen):
                 continue
             result.append(screen)
             seen.add(screen.screen_id)
@@ -993,9 +991,30 @@ class FraimicScheduler:
                 break
         return result
 
+    @staticmethod
+    def _is_preparable_picture(screen: ScreenConfig) -> bool:
+        source = getattr(screen, "source", None) or {}
+        return getattr(screen, "kind", None) == KIND_PICTURE and bool(
+            source.get("library_image")
+            or (source.get("provider") and source.get("provider_item"))
+        )
+
+    def _playlist_preprocess_screens(self) -> list[ScreenConfig]:
+        """Every fixed picture in the assigned playlist, once per slide id."""
+        if self._prefetch_limit() <= 0:
+            return []
+        result: list[ScreenConfig] = []
+        seen: set[str] = set()
+        for screen in self.screens:
+            if screen.screen_id in seen or not self._is_preparable_picture(screen):
+                continue
+            result.append(screen)
+            seen.add(screen.screen_id)
+        return result
+
     def _schedule_prefetch(self) -> None:
         """Start or refresh the single serial preparation worker."""
-        if not self._prefetch_screens():
+        if not self._prefetch_screens() and not self._playlist_preprocess_screens():
             return
         if self._prefetch_task is not None and not self._prefetch_task.done():
             self._prefetch_again = True
@@ -1012,7 +1031,17 @@ class FraimicScheduler:
         try:
             while True:
                 self._prefetch_again = False
-                for screen in self._prefetch_screens():
+                upcoming = self._prefetch_screens()
+                prepared_ids = {screen.screen_id for screen in upcoming}
+                screens = [
+                    *upcoming,
+                    *(
+                        screen
+                        for screen in self._playlist_preprocess_screens()
+                        if screen.screen_id not in prepared_ids
+                    ),
+                ]
+                for screen in screens:
                     if self._busy or self.external_upload_active:
                         return
                     try:

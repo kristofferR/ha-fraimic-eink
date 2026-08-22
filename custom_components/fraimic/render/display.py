@@ -213,17 +213,17 @@ def _picture_cache_id(screen: ScreenConfig) -> str | None:
     return f"provider:{provider}:{item_id}:original"
 
 
-async def async_prepare_screen(
+async def async_prepared_preview(
     hass: HomeAssistant, entry, screen: ScreenConfig
-) -> bool:
-    """Download and convert one cacheable picture without changing the display.
+) -> bytes | None:
+    """Return a prepared e-ink preview without changing the display.
 
     Dynamic dashboards, entity/URL pictures, and random-provider slides are
     intentionally skipped: preparing those early would freeze data that is
     expected to be fresh at display time.
     """
     if screen.kind != KIND_PICTURE:
-        return False
+        return None
     source = screen.source or {}
     overrides = _picture_overrides(source)
     if image_id := source.get("library_image"):
@@ -231,21 +231,23 @@ async def async_prepare_screen(
 
         library = get_library(hass)
         if library is None:
-            return False
-        await library.async_render_for_entry(image_id, entry, overrides)
-        return True
+            return None
+        _, preview, _ = await library.async_render_for_entry(
+            image_id, entry, overrides
+        )
+        return preview
     if entry.options.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE) not in {
         ARTWORK_CACHE_30_DAYS,
         ARTWORK_CACHE_FOREVER,
     }:
-        return False
+        return None
     cache_id = _picture_cache_id(screen)
     if cache_id is None:
-        return False
+        return None
     from ..services import async_convert_for_entry
 
     raw, overrides, _art = await _async_picture_source(hass, entry, screen)
-    await async_convert_for_entry(
+    _, preview, _ = await async_convert_for_entry(
         hass,
         entry,
         raw,
@@ -253,7 +255,14 @@ async def async_prepare_screen(
         preprocess=True,
         cache_id=cache_id,
     )
-    return True
+    return preview
+
+
+async def async_prepare_screen(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> bool:
+    """Cache one fixed picture's panel render without changing the display."""
+    return await async_prepared_preview(hass, entry, screen) is not None
 
 
 async def async_show_screen(

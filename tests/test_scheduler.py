@@ -210,6 +210,48 @@ def test_prefetch_limit_counts_only_fixed_pictures(
     ]
 
 
+def test_assigned_playlist_preprocesses_every_fixed_picture(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    entry.options = {scheduler_mod.CONF_PLAYLIST_PREFETCH: 1}
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    scheduler.screens = [
+        SimpleNamespace(
+            screen_id="dashboard", name="Dashboard", kind="dashboard", source=None
+        ),
+        SimpleNamespace(
+            screen_id="library",
+            name="Library",
+            kind="picture",
+            source={"library_image": "image-1"},
+        ),
+        SimpleNamespace(
+            screen_id="live",
+            name="Live",
+            kind="picture",
+            source={"provider": "museum"},
+        ),
+        SimpleNamespace(
+            screen_id="provider",
+            name="Provider",
+            kind="picture",
+            source={"provider": "museum", "provider_item": "art-1"},
+        ),
+    ]
+    prepared: list[str] = []
+
+    async def prepare(_hass: object, _entry: object, screen: object) -> bool:
+        prepared.append(screen.screen_id)
+        return True
+
+    sys.modules["fraimic.render.display"].async_prepare_screen = prepare
+    asyncio.run(scheduler._async_prefetch())
+
+    assert prepared == ["library", "provider"]
+
+
 def test_prefetch_is_rescheduled_when_external_upload_finishes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

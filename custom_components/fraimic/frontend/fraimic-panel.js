@@ -647,7 +647,7 @@ class FraimicPanel extends HTMLElement {
 
   async _loadPlaylist(id) {
     try {
-      const playlist = await this._api(`playlists/${encodeURIComponent(id)}`);
+      const playlist = await this._api(`playlists/${encodeURIComponent(id)}?entry_id=${encodeURIComponent(this._selectedFrameId)}`);
       if (this._route === "playlist" && this._playlistId === id) this._playlist = playlist;
     } catch (error) {
       if (this._route !== "playlist" || this._playlistId !== id) return;
@@ -1945,7 +1945,7 @@ class FraimicPanel extends HTMLElement {
 
   async _createPlaylist() {
     const name = prompt("Playlist name", "New playlist"); if (!name) return;
-    try { const playlist = await this._api("playlists", this._json({ name })); await this._loadPlaylists(); this._navigate(`/playlists/${encodeURIComponent(playlist.id)}`); }
+    try { const playlist = await this._api("playlists", this._json({ name, entry_id: this._selectedFrameId })); await this._loadPlaylists(); this._navigate(`/playlists/${encodeURIComponent(playlist.id)}`); }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
 
@@ -1966,7 +1966,7 @@ class FraimicPanel extends HTMLElement {
       if (action === "delete") { if (!confirm("Delete this playlist?")) return; await this._api(`playlists/${encodeURIComponent(id)}`, { method: "DELETE" }); this._navigate("/playlists"); return; }
       const name = action === "rename" ? prompt("Playlist name", this._playlist?.name || "") : null;
       if (action === "rename" && name === null) return;
-      const playlist = await this._api(`playlists/${encodeURIComponent(id)}`, this._json(action === "rename" ? { action, name } : { action }));
+      const playlist = await this._api(`playlists/${encodeURIComponent(id)}`, this._json(action === "rename" ? { action, name, entry_id: this._selectedFrameId } : { action, entry_id: this._selectedFrameId }));
       await this._loadPlaylists(); this._navigate(`/playlists/${encodeURIComponent(playlist.id)}`);
     } catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
@@ -1976,26 +1976,26 @@ class FraimicPanel extends HTMLElement {
   async _reorderSlides(from, to) {
     if (!this._playlist || from === to || to < 0 || to >= this._playlist.slides.length) return;
     const slides = [...this._playlist.slides]; const [slide] = slides.splice(from, 1); slides.splice(to, 0, slide); this._playlist.slides = slides; this._render();
-    try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "reorder", ordered_ids: slides.map((item) => item.id) })); this._playlist = data.playlist; this._render(); }
+    try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "reorder", ordered_ids: slides.map((item) => item.id), entry_id: this._selectedFrameId })); this._playlist = data.playlist; this._render(); }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); await this._loadPlaylist(this._playlist.id); this._render(); }
   }
 
   async _removeSlide(id) {
-    try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "remove", slide_id: id })); this._playlist = data.playlist; this._notify(`Removed from ${this._playlist.name}.`, { action: "Undo", callback: () => this._undoRemove(data.undo_token) }); this._render(); }
+    try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "remove", slide_id: id, entry_id: this._selectedFrameId })); this._playlist = data.playlist; this._notify(`Removed from ${this._playlist.name}.`, { action: "Undo", callback: () => this._undoRemove(data.undo_token) }); this._render(); }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
 
-  async _undoRemove(token) { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "undo", undo_token: token })); this._playlist = data.playlist; this._render(); }
+  async _undoRemove(token) { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "undo", undo_token: token, entry_id: this._selectedFrameId })); this._playlist = data.playlist; this._render(); }
 
   _slideSettings(id) {
     const slide = this._playlist.slides.find((item) => item.id === id);
     this._openModal("Slide settings", `<div class="field"><label>Fit</label><select id="slide-fit"><option value="cover" ${slide.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${slide.fit === "contain" ? "selected" : ""}>Contain</option></select></div><div class="field"><label>Tone</label><select id="slide-tone">${["soft","balanced","vivid"].map((tone) => `<option value="${tone}" ${slide.tone === tone ? "selected" : ""}>${tone}</option>`).join("")}</select></div><div class="field"><label>Overlays</label><select id="slide-overlays"><option value="inherit" ${slide.overlays === "inherit" ? "selected" : ""}>Inherit from ${h(this._frame?.name || "frame")}</option><option value="none" ${slide.overlays === "none" ? "selected" : ""}>None</option></select></div>`, `<span class="spacer"></span><button class="btn primary" data-save-slide>Save</button>`);
-    this.shadowRoot.querySelector("[data-save-slide]").onclick = async () => { try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "settings", slide_id: id, fit: this.shadowRoot.getElementById("slide-fit").value, tone: this.shadowRoot.getElementById("slide-tone").value, overlays: this.shadowRoot.getElementById("slide-overlays").value })); this._playlist = data.playlist; this._closeModal(); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } };
+    this.shadowRoot.querySelector("[data-save-slide]").onclick = async () => { try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "settings", slide_id: id, fit: this.shadowRoot.getElementById("slide-fit").value, tone: this.shadowRoot.getElementById("slide-tone").value, overlays: this.shadowRoot.getElementById("slide-overlays").value, entry_id: this._selectedFrameId })); this._playlist = data.playlist; this._closeModal(); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } };
   }
 
   _changePlaylist() { this._openModal("Change playlist", `<div class="queue-list">${this._playlists.map((playlist) => `<button class="queue-row" data-change-to="${h(playlist.id)}">${h(playlist.name)}${playlist.id === this._player?.playlist_id ? `<span class="spacer"></span><span class="counter">current</span>` : ""}</button>`).join("")}</div>`); this.shadowRoot.querySelectorAll("[data-change-to]").forEach((node) => node.onclick = () => { this._closeModal(); this._playPlaylist(node.dataset.changeTo); }); }
-  async _toggleShuffle() { if (!this._player?.playlist_id) return; try { await this._api(`playlists/${encodeURIComponent(this._player.playlist_id)}/control`, this._json({ action: "shuffle", shuffle: !this._player.playlist.shuffle })); await this._loadPlayer(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
-  async _setInterval(interval) { if (!this._player?.playlist_id) return; try { await this._api(`playlists/${encodeURIComponent(this._player.playlist_id)}/control`, this._json({ action: "interval", interval })); this._menu = null; await this._loadPlayer(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
+  async _toggleShuffle() { if (!this._player?.playlist_id) return; try { await this._api(`playlists/${encodeURIComponent(this._player.playlist_id)}/control`, this._json({ action: "shuffle", shuffle: !this._player.playlist.shuffle, entry_id: this._selectedFrameId })); await this._loadPlayer(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
+  async _setInterval(interval) { if (!this._player?.playlist_id) return; try { await this._api(`playlists/${encodeURIComponent(this._player.playlist_id)}/control`, this._json({ action: "interval", interval, entry_id: this._selectedFrameId })); this._menu = null; await this._loadPlayer(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
 
   async _openOverlays() {
     this._menu = null; this._overlaysOpen = true; this._overlayData = null; this._render();

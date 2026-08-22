@@ -12,6 +12,7 @@ import logging
 import time
 from http import HTTPStatus
 from typing import Any
+from urllib.parse import quote, urlencode
 
 from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
@@ -743,12 +744,40 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     upcoming = full_upcoming[: 3 if scheduler.shuffle else 10]
     playlist_queue_count = len(full_upcoming)
     current_thumbnail = artwork_url if current is not None else None
+    playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
+    active_playlist = (
+        playlists.get(playlist_id)
+        if isinstance(playlists, PlaylistManager) and playlist_id is not None
+        else None
+    )
+    active_slide_ids = (
+        {slide.slide_id for slide in active_playlist.slides}
+        if active_playlist is not None
+        else set()
+    )
 
     def queue_thumbnail(slide: ScreenConfig) -> str | None:
+        if current is not None and slide.screen_id == current.screen_id:
+            return current_thumbnail
+        source = slide.source or {}
+        fixed_picture = source.get("library_image") or (
+            source.get("provider") and source.get("provider_item")
+        )
+        if (
+            not fixed_picture
+            or playlist_id is None
+            or slide.screen_id not in active_slide_ids
+        ):
+            return None
+        query = urlencode(
+            {
+                "entry_id": entry.entry_id,
+                "v": f"{active_playlist.modified_at if active_playlist else 0:.6f}",
+            }
+        )
         return (
-            current_thumbnail
-            if current is not None and slide.screen_id == current.screen_id
-            else None
+            f"/api/fraimic/playlists/{quote(playlist_id, safe='')}"
+            f"/slides/{quote(slide.screen_id, safe='')}/thumbnail?{query}"
         )
 
     send_queue = runtime.send_queue

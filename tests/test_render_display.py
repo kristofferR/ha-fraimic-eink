@@ -659,6 +659,39 @@ def test_provider_prefetch_is_skipped_when_artwork_cache_is_off(
     assert asyncio.run(display.async_prepare_screen(_Hass(), entry, screen)) is False
 
 
+def test_library_prepared_preview_returns_dithered_thumbnail(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+
+    class Library:
+        async def async_render_for_entry(
+            self, image_id: str, _entry: object, overrides: dict
+        ) -> tuple[bytes, bytes, str]:
+            assert image_id == "image-1"
+            assert overrides == {"fit": "contain", "tone": 0.0}
+            return b"panel", b"eink-preview", "none"
+
+    library = types.ModuleType("fraimic.library")
+    library.get_library = lambda _hass: Library()
+    monkeypatch.setitem(sys.modules, "fraimic.library", library)
+    screen = types.SimpleNamespace(
+        name="Library",
+        kind=display.KIND_PICTURE,
+        source={
+            "library_image": "image-1",
+            "fit": "contain",
+            "tone": "soft",
+        },
+    )
+
+    preview = asyncio.run(
+        display.async_prepared_preview(_Hass(), _entry(), screen)
+    )
+
+    assert preview == b"eink-preview"
+
+
 def test_library_picture_preview_only_uses_cached_render(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

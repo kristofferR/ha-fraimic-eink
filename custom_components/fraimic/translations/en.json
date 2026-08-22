@@ -189,7 +189,7 @@
           "camera_refresh_interval": "How often a camera ‘playing’ on this frame takes a fresh snapshot. Each update is a full ~30 s E-Ink refresh and costs battery — minimum 60. 0 = show once, no auto-refresh.",
           "artwork_cache": "off keeps only short-lived RAM data; 30_days stores downloaded originals, thumbnails, and converted frame files for 30 days; forever never expires or size-evicts them.",
           "artwork_cache_max_mb": "Disk limit for 30_days mode (default 2048 MB). Least-recently-used artwork is removed first. Forever mode deliberately ignores this limit.",
-          "playlist_prefetch_items": "Download and dither this many upcoming fixed pictures while the frame is idle, so their turns start immediately. 0 disables preparation; default 3.",
+          "playlist_prefetch_items": "Prioritize this many upcoming fixed pictures, then prepare the rest of the assigned playlist while the frame is idle. Processed thumbnails show the frame's actual six colours. 0 disables preparation; default 3.",
           "mode": "auto/error-diffusion for photos; official reproduces Fraimic's published converter recipe and ignores the processing sliders; bayer for graphics; none for nearest-colour.",
           "fit": "Fill (crop), Fit (keep aspect — white or black bars), or Stretch.",
           "saturation": "Saturation boost (default 1.15). 1.0 = no change.",
