@@ -107,7 +107,10 @@ class PlaylistSlide:
                 else "balanced"
             ),
             overlays=(
-                overlays if overlays in {"inherit", "none"} else "inherit"
+                overlays
+                if isinstance(overlays, str)
+                and overlays in {"inherit", "none"}
+                else "inherit"
             ),
         )
 

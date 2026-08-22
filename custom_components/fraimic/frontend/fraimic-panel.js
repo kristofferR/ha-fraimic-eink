@@ -9,6 +9,14 @@ const RENDER_PAGE_SIZE = 80;
 const SIGNED_PATH_LIMIT = 512;
 const QUEUE_SNAPS = [220, 320, 420];
 const PALETTE = ["black", "white", "yellow", "red", "blue", "green", "neutral"];
+const PLATE_THEME = {
+  black: ["var(--primary-text-color)", "var(--primary-background-color)"],
+  white: ["var(--primary-background-color)", "var(--primary-text-color)"],
+  yellow: ["var(--warning-color)", "var(--primary-text-color)"],
+  red: ["var(--error-color)", "var(--text-primary-color)"],
+  blue: ["var(--primary-color)", "var(--text-primary-color)"],
+  green: ["var(--success-color)", "var(--primary-text-color)"],
+};
 const ANCHORS = [
   "top_left", "top", "top_right", "left", "center", "right",
   "bottom_left", "bottom", "bottom_right",
@@ -230,9 +238,9 @@ const css = String.raw`
   .canvas { position: relative; width: min(460px, 100%); aspect-ratio: var(--frame-aspect); background: #0d0d0d; overflow: hidden; flex: none; }
   .canvas.dragging { background-image: linear-gradient(to right, var(--line) 1px, transparent 1px), linear-gradient(to bottom, var(--line) 1px, transparent 1px); background-size: calc(100% / 12) calc(100% / 8); }
   .canvas > img { width: 100%; height: 100%; object-fit: cover; }
-  .overlay-box { position: absolute; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--accent); cursor: move; color: var(--text); }
-  .overlay-box.panel { background: var(--surface); }
-  .overlay-box.outline { box-shadow: inset 0 0 0 2px var(--surface); }
+  .overlay-box { position: absolute; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--accent); cursor: move; color: var(--plate-text, var(--text)); }
+  .overlay-box.panel { background: var(--plate-color, var(--surface)); }
+  .overlay-box.outline { box-shadow: inset 0 0 0 2px var(--plate-color, var(--surface)); }
   .overlay-box.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
   .overlay-box .resize { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; background: var(--accent); cursor: nwse-resize; }
   .editor-hint { max-width: 250px; color: var(--muted); font-size: 13px; line-height: 1.5; }
@@ -976,7 +984,8 @@ class FraimicPanel extends HTMLElement {
 
   _overlayBox(overlay) {
     const label = overlay.type === "clock" ? "09:41" : overlay.type === "caption" ? "Title · Artist · Source" : overlay.type[0].toUpperCase() + overlay.type.slice(1);
-    return `<div class="overlay-box ${h(overlay.plate)}${overlay.id === this._selectedOverlayId ? " selected" : ""}" style="left:${overlay.x / 12 * 100}%;top:${overlay.y / 8 * 100}%;width:${overlay.w / 12 * 100}%;height:${overlay.h / 8 * 100}%" data-overlay-box="${h(overlay.id)}"><span>${h(label)}</span><span class="resize" data-overlay-resize="${h(overlay.id)}"></span></div>`;
+    const [plateColour, plateText] = PLATE_THEME[overlay.plate_color] || PLATE_THEME.white;
+    return `<div class="overlay-box ${h(overlay.plate)}${overlay.id === this._selectedOverlayId ? " selected" : ""}" style="--plate-color:${plateColour};--plate-text:${plateText};left:${overlay.x / 12 * 100}%;top:${overlay.y / 8 * 100}%;width:${overlay.w / 12 * 100}%;height:${overlay.h / 8 * 100}%" data-overlay-box="${h(overlay.id)}"><span>${h(label)}</span><span class="resize" data-overlay-resize="${h(overlay.id)}"></span></div>`;
   }
 
   _layerTemplate(overlay, index) {
@@ -1302,12 +1311,13 @@ class FraimicPanel extends HTMLElement {
     const sourceHref = this._safeHref(detail.source_page_url);
     const artAspect = `${Math.max(1, Number(detail.width) || 4)} / ${Math.max(1, Number(detail.height) || 3)}`;
     const body = `<div class="detail-grid"><div><div class="crop-stage" style="--art-aspect:${artAspect}"><img ${this._imageAttrs(detail.image_url, `${detail.title}${detail.artist ? `, ${detail.artist}` : ""}`)}>${cropWindow}</div>${options.fit === "cover" ? `<div class="crop-tools"><button class="btn small" data-crop-command="reset">Reset crop</button><button class="btn small" data-crop-command="centre">Centre</button><button class="btn small" data-crop-command="in">Zoom in</button><button class="btn small" data-crop-command="out">Zoom out</button></div><p class="counter">Drag the window. Saved for ${h(this._frame.name)} only.</p>` : ""}</div><div><p class="detail-meta">${h(meta)}</p>${detail.description ? `<p>${h(detail.description)}</p>` : ""}<div class="field"><label>Result on ${h(this._frame.name)}</label><div class="preview-pair"><div><div class="glass"><img ${this._imageAttrs(this._detailPreviewUrl("cover"), "Cover preview")}></div><span class="counter">Cover, cropped</span></div><div><div class="glass"><img ${this._imageAttrs(this._detailPreviewUrl("contain"), "Contain preview")}></div><span class="counter">Contain, bordered</span></div></div></div><div class="field"><label>Fit</label><div class="seg"><button class="${options.fit === "cover" ? "selected" : ""}" data-detail-fit="cover">Cover</button><button class="${options.fit === "contain" ? "selected" : ""}" data-detail-fit="contain">Contain</button></div><p class="counter">A tall picture on a landscape frame loses the top and bottom under Cover. Contain keeps all of it and fills the sides with a palette colour.</p></div><div class="field"><label>Tone</label><div class="seg">${["vivid","balanced","soft"].map((tone) => `<button class="${options.tone === tone ? "selected" : ""}" data-detail-tone="${tone}">${tone[0].toUpperCase() + tone.slice(1)}</button>`).join("")}</div></div><div class="field"><label>Related</label>${relatedFrame && this._fitDifference(detail, relatedFrame) < this._fitDifference(detail, this._frame) ? `<button class="btn quiet" data-related-frame="${h(relatedFrame.id)}">Better on ${h(relatedFrame.name)}, which is ${this._frameShape(relatedFrame)}</button>` : ""}${detail.artist ? `<button class="btn quiet" data-related-query="${h(detail.artist)}">More by ${h(detail.artist)}</button>` : ""}<button class="btn quiet" data-related-source="${h(detail.source)}">More from ${h(detail.source_name)}</button>${sourceHref ? `<a class="btn quiet" href="${h(sourceHref)}" target="_blank" rel="noopener">Open source page</a>` : ""}</div></div></div>`;
-    const actions = `<button class="btn primary" data-detail-action="show_now">Show now</button><button class="btn" data-detail-action="play_next">Play next</button><button class="btn" data-detail-action="queue">Add to queue</button><button class="btn" data-detail-action="playlist">Add to playlist</button>${detail.saved ? "" : `<button class="btn" data-detail-action="save">Save</button>`}<span class="spacer"></span>`;
+    const actions = `<button class="btn primary" data-detail-action="show_now">Show now</button><button class="btn" data-detail-action="play_next">Play next</button><button class="btn" data-detail-action="queue">Add to queue</button><button class="btn" data-detail-action="playlist">Add to playlist</button>${detail.saved ? "" : `<button class="btn" data-detail-action="save">Save</button>`}<span class="spacer"></span>${detail.source === "saved" ? `<button class="btn danger" data-detail-action="delete">Remove from library</button>` : ""}`;
     this._openModal(detail.title, body, actions);
     this.shadowRoot.querySelectorAll("[data-detail-action]").forEach((node) => node.onclick = () => {
       const action = node.dataset.detailAction;
       if (action === "playlist") this._choosePlaylist(detail.source, detail.itemId, options);
       else if (action === "show_now") this._showNow(detail.source, detail.itemId, options);
+      else if (action === "delete") this._deleteSavedPicture(detail);
       else { this._closeModal(); this._artAction(action, detail.source, detail.itemId, null, options); }
     });
     this.shadowRoot.querySelectorAll("[data-detail-fit]").forEach((node) => node.onclick = () => { options.fit = node.dataset.detailFit; this._renderDetailModal(); });
@@ -1319,6 +1329,18 @@ class FraimicPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-related-source]").forEach((node) => node.onclick = () => { this._selectedSource = node.dataset.relatedSource; this._closeModal(); this._loadGallery(); });
     this.shadowRoot.querySelectorAll("[data-related-frame]").forEach((node) => node.onclick = async () => { this._closeModal(); await this._selectFrame(node.dataset.relatedFrame); this._openDetail(detail.source, detail.itemId, null); });
     this._signImages();
+  }
+
+  async _deleteSavedPicture(detail) {
+    if (!confirm(`Remove ${detail.title} from your library?`)) return;
+    try {
+      await this._api(`library/image/${encodeURIComponent(detail.itemId)}`, { method: "DELETE" });
+      this._closeModal();
+      await Promise.all([this._loadGallery(), this._loadPlaylists(), this._loadPlayer(false)]);
+      this._notify("Removed from your library.");
+    } catch (error) {
+      this._notify(this._friendlyError(error), { error: true });
+    }
   }
 
   _cropKey(source, itemId, frameId) { return `${frameId}:${source}:${itemId}`; }

@@ -216,38 +216,52 @@ async def async_browse_candidates(
                 candidates = cached_result or []
                 exhausted = False
             if len(candidates) < count and not exhausted:
-                try:
-                    fetched = await provider.async_candidates(
-                        session,
-                        cache,
-                        _request_for(
-                            hass, entry, provider, query=normalized_query or None
-                        ),
-                        count,
-                    )
-                except _BaseArtFetchError as err:
-                    raise ArtFetchError(f"{provider.name}: {err}") from err
-                except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-                    raise ArtFetchError(
-                        f"{provider.name} is unreachable: {err}"
-                    ) from err
-                except Exception as err:  # noqa: BLE001 - provider parser failures vary
-                    raise ArtFetchError(f"{provider.name}: {err}") from err
-                if normalized_query and not provider.supports_query:
-                    needle = normalized_query.casefold()
-                    fetched = [
-                        candidate
-                        for candidate in fetched
-                        if needle
-                        in " ".join(
-                            filter(None, (candidate.title, candidate.artist))
-                        ).casefold()
-                    ]
-                by_id = {candidate.item_id: candidate for candidate in candidates}
-                for candidate in fetched:
-                    by_id.setdefault(candidate.item_id, candidate)
-                candidates = list(by_id.values())
-                exhausted = not fetched
+                local_filter = bool(
+                    normalized_query and not provider.supports_query
+                )
+                attempts = 3 if local_filter else 1
+                provider_returned_candidates = False
+                for attempt in range(attempts):
+                    try:
+                        fetched = await provider.async_candidates(
+                            session,
+                            cache,
+                            _request_for(
+                                hass,
+                                entry,
+                                provider,
+                                query=normalized_query or None,
+                            ),
+                            count + attempt,
+                        )
+                    except _BaseArtFetchError as err:
+                        raise ArtFetchError(f"{provider.name}: {err}") from err
+                    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+                        raise ArtFetchError(
+                            f"{provider.name} is unreachable: {err}"
+                        ) from err
+                    except Exception as err:  # noqa: BLE001 - provider parser failures vary
+                        raise ArtFetchError(f"{provider.name}: {err}") from err
+                    provider_returned_candidates |= bool(fetched)
+                    if local_filter:
+                        needle = normalized_query.casefold()
+                        fetched = [
+                            candidate
+                            for candidate in fetched
+                            if needle
+                            in " ".join(
+                                filter(None, (candidate.title, candidate.artist))
+                            ).casefold()
+                        ]
+                    by_id = {
+                        candidate.item_id: candidate for candidate in candidates
+                    }
+                    for candidate in fetched:
+                        by_id.setdefault(candidate.item_id, candidate)
+                    candidates = list(by_id.values())
+                    if len(candidates) >= count or not provider_returned_candidates:
+                        break
+                exhausted = not provider_returned_candidates
                 result_cache.set(
                     result_key,
                     {"candidates": candidates, "exhausted": exhausted},
