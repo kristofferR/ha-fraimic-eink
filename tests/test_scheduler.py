@@ -423,8 +423,10 @@ def test_named_playlist_assignment_and_global_queue_lookup(
     assert scheduler.shuffle is True
     assert scheduler.screens == [active, second]
     assert scheduler._rotation_screens() == [second, active]
-    with pytest.raises(scheduler_mod.HomeAssistantError, match="shuffled"):
-        asyncio.run(scheduler.async_reorder_upcoming([second.screen_id]))
+
+    # A settings refresh must not reshuffle the session order.
+    scheduler._load_assigned_playlist()
+    assert scheduler._rotation_screens() == [second, active]
 
 
 def test_new_pending_screen_requires_enabled_after_upload_failure(
@@ -1557,79 +1559,148 @@ def test_queue_mutations_replace_sleeping_pending_item_with_new_head(
     assert scheduler._pending is first
 
 
-def test_reorder_upcoming_changes_only_visible_playlist_window(
+def _circular_next_screen(
+    screens: list[SimpleNamespace],
+    current_id: str | None,
+    *_args: object,
+    **_kwargs: object,
+) -> SimpleNamespace:
+    ids = [slide.screen_id for slide in screens]
+    start = ids.index(current_id) if current_id in ids else -1
+    return screens[(start + 1) % len(screens)]
+
+
+def test_reorder_upcoming_edits_session_order_not_playlist(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     scheduler_mod = _load_scheduler(monkeypatch)
     current = SimpleNamespace(screen_id="current", name="Current")
     first = SimpleNamespace(screen_id="first", name="First")
     second = SimpleNamespace(screen_id="second", name="Second")
-    hidden = SimpleNamespace(screen_id="hidden", name="Hidden")
+    third = SimpleNamespace(screen_id="third", name="Third")
 
-    def next_screen(
-        screens: list[SimpleNamespace],
-        current_id: str | None,
-        *_args: object,
-        **_kwargs: object,
-    ) -> SimpleNamespace:
-        visible = [slide for slide in screens if slide.screen_id != "hidden"]
-        ids = [slide.screen_id for slide in visible]
-        start = ids.index(current_id) if current_id in ids else -1
-        return visible[(start + 1) % len(visible)]
-
-    monkeypatch.setattr(scheduler_mod, "next_screen", next_screen)
-    persisted: list[str] = []
-
-    async def persist(_playlist_id: str, ordered_ids: list[str]) -> None:
-        persisted.extend(ordered_ids)
-
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
     scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
-    scheduler.screens = [first, second, hidden, current]
+    scheduler.screens = [first, second, third, current]
     scheduler.current_id = current.screen_id
     scheduler._playlist_cursor_id = current.screen_id
-    scheduler._playlists = SimpleNamespace(async_reorder=persist)
+    # No async_reorder attribute: touching the playlist would AttributeError.
+    scheduler._playlists = SimpleNamespace()
     scheduler.playlist_id = "playlist-1"
 
     asyncio.run(scheduler.async_reorder_upcoming([second.screen_id, first.screen_id]))
 
-    assert [slide.screen_id for slide in scheduler.screens] == [
-        second.screen_id,
-        first.screen_id,
-        hidden.screen_id,
-        current.screen_id,
-    ]
-    assert persisted == [
-        second.screen_id,
-        first.screen_id,
-        hidden.screen_id,
-        current.screen_id,
+    assert scheduler.screens == [first, second, third, current]
+    assert scheduler._playback_order == ["second", "first", "third", "current"]
+    assert scheduler._order_custom is True
+    assert [slide.screen_id for slide in scheduler.playlist_up_next()] == [
+        "second",
+        "first",
+        "third",
     ]
 
 
-def test_reorder_upcoming_keeps_local_order_when_persistence_conflicts(
+def test_reorder_upcoming_allowed_when_shuffled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     scheduler_mod = _load_scheduler(monkeypatch)
     first = SimpleNamespace(screen_id="first", name="First")
     second = SimpleNamespace(screen_id="second", name="Second")
 
-    def next_screen(screens: list, current_id: str | None, *_args, **_kwargs):
-        ids = [slide.screen_id for slide in screens]
-        start = ids.index(current_id) if current_id in ids else -1
-        return screens[(start + 1) % len(screens)]
-
-    async def reject_reorder(_playlist_id: str, _ordered_ids: list[str]) -> None:
-        raise scheduler_mod.HomeAssistantError("playlist changed")
-
-    monkeypatch.setattr(scheduler_mod, "next_screen", next_screen)
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
     scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
     scheduler.screens = [first, second]
-    scheduler._playlists = SimpleNamespace(async_reorder=reject_reorder)
-    scheduler.playlist_id = "playlist-1"
+    scheduler.shuffle = True
+
+    asyncio.run(scheduler.async_reorder_upcoming([second.screen_id, first.screen_id]))
+
+    assert scheduler._playback_order == ["second", "first"]
+
+
+def test_reorder_upcoming_rejects_stale_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    first = SimpleNamespace(screen_id="first", name="First")
+    second = SimpleNamespace(screen_id="second", name="Second")
+
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [first, second]
 
     with pytest.raises(scheduler_mod.HomeAssistantError, match="changed"):
-        asyncio.run(
-            scheduler.async_reorder_upcoming([second.screen_id, first.screen_id])
-        )
+        asyncio.run(scheduler.async_reorder_upcoming(["second", "missing"]))
 
-    assert scheduler.screens == [first, second]
+    assert scheduler._playback_order == []
+    assert scheduler._order_custom is False
+
+
+def test_skip_upcoming_defers_to_end_of_cycle(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    slides = [
+        SimpleNamespace(screen_id=slide_id, name=slide_id.title())
+        for slide_id in ("a", "b", "c", "d")
+    ]
+
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = list(slides)
+    scheduler.current_id = "a"
+    scheduler._playlist_cursor_id = "a"
+
+    asyncio.run(scheduler.async_skip_upcoming(0, "b"))
+
+    assert scheduler._playback_order == ["b", "a", "c", "d"]
+    assert scheduler._order_custom is True
+    assert [slide.screen_id for slide in scheduler.playlist_up_next()] == [
+        "c",
+        "d",
+        "b",
+    ]
+
+    with pytest.raises(scheduler_mod.HomeAssistantError, match="no longer"):
+        asyncio.run(scheduler.async_skip_upcoming(0, "b"))
+
+
+def test_session_order_survives_playlist_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    assigned = SimpleNamespace(
+        playlist_id="playlist-1", name="Gallery", interval=1800, shuffle=False
+    )
+    slides = [
+        SimpleNamespace(screen_id="a", name="A"),
+        SimpleNamespace(screen_id="b", name="B"),
+    ]
+
+    class Playlists:
+        def assigned_to(self, _entry_id: str) -> object:
+            return assigned
+
+        def render_slides(self, _playlist_id: str) -> list[object]:
+            return list(slides)
+
+        def get(self, _playlist_id: str) -> object:
+            return assigned
+
+        def render_slide_by_id(self, _slide_id: str) -> None:
+            return None
+
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry(), Playlists())
+    assert scheduler._playback_order == ["a", "b"]
+
+    scheduler._playback_order = ["b", "a"]
+    scheduler._order_custom = True
+    slides.append(SimpleNamespace(screen_id="c", name="C"))
+    asyncio.run(scheduler.async_refresh_playlist())
+
+    assert scheduler._playback_order == ["b", "a", "c"]
+    assert scheduler._order_custom is True
+
+    asyncio.run(scheduler.async_refresh_playlist(reset=True))
+
+    assert scheduler._playback_order == ["a", "b", "c"]
+    assert scheduler._order_custom is False

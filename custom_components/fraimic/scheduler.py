@@ -70,6 +70,7 @@ class FraimicScheduler:
         self.shuffle = False
         self.screens: list[ScreenConfig] = []
         self._playback_order: list[str] = []
+        self._order_custom = False
         self._load_assigned_playlist()
         self.enabled = False
         self._stored_enabled = False
@@ -104,18 +105,44 @@ class FraimicScheduler:
         self._playlist_preprocess_done: str | None = None
 
     def _load_assigned_playlist(self) -> None:
-        """Refresh the assigned catalog playlist or use the legacy slide list."""
+        """Refresh the assigned catalog playlist and rebase the session order."""
+        previous = (self.playlist_id, self.shuffle)
         if self._playlists is None:
             self.screens = screens_from_entry(self.entry)
-            self._playback_order = [screen.screen_id for screen in self.screens]
+        else:
+            playlist = self._playlists.assigned_to(self.entry.entry_id)
+            self.playlist_id = playlist.playlist_id if playlist is not None else None
+            self.shuffle = playlist.shuffle if playlist is not None else False
+            self.screens = self._playlists.render_slides(self.playlist_id)
+        self._rebase_playback_order(fresh=previous != (self.playlist_id, self.shuffle))
+
+    def _rebase_playback_order(self, *, fresh: bool) -> None:
+        """Recompute the session play order against the current slide list.
+
+        The session order is this frame's own view of the playlist: shuffle
+        lives here, and queue-sheet reorders/skips edit it without ever
+        touching the saved playlist. ``fresh`` rebuilds it from scratch
+        (assignment or shuffle change); otherwise stale ids are dropped and
+        new playlist slides slotted in while user edits survive.
+        """
+        base = [screen.screen_id for screen in self.screens]
+        if fresh:
+            self._order_custom = False
+        if fresh or (not self._order_custom and not self.shuffle):
+            self._playback_order = base
+            if self.shuffle:
+                random.shuffle(self._playback_order)
             return
-        playlist = self._playlists.assigned_to(self.entry.entry_id)
-        self.playlist_id = playlist.playlist_id if playlist is not None else None
-        self.shuffle = playlist.shuffle if playlist is not None else False
-        self.screens = self._playlists.render_slides(self.playlist_id)
-        self._playback_order = [screen.screen_id for screen in self.screens]
+        known = set(base)
+        order = [slide_id for slide_id in self._playback_order if slide_id in known]
+        kept = set(order)
+        missing = [slide_id for slide_id in base if slide_id not in kept]
         if self.shuffle:
-            random.shuffle(self._playback_order)
+            for slide_id in missing:
+                order.insert(random.randint(0, len(order)), slide_id)
+        else:
+            order.extend(missing)
+        self._playback_order = order
 
     def _rotation_screens(self) -> list[ScreenConfig]:
         """Catalog slides in the current playback order."""
@@ -163,6 +190,21 @@ class FraimicScheduler:
         ]
         if self._playlists is None:
             self._apply_playlist_order()
+        session = data.get("session")
+        if (
+            isinstance(session, dict)
+            and session.get("playlist_id") == self.playlist_id
+            and bool(session.get("shuffle")) == self.shuffle
+        ):
+            order = [
+                slide_id
+                for slide_id in session.get("order") or []
+                if isinstance(slide_id, str)
+            ]
+            if order:
+                self._playback_order = order
+                self._order_custom = bool(session.get("custom"))
+        self._rebase_playback_order(fresh=False)
         valid_ids = {screen.screen_id for screen in self.screens} | set(
             self._external_queue
         )
@@ -488,7 +530,7 @@ class FraimicScheduler:
             return
         if section != "playlist":
             raise HomeAssistantError("section must be queue or playlist")
-        items = self.playlist_up_next(limit=3 if self.shuffle else 10)
+        items = self.playlist_up_next(limit=index + 1)
         if not 0 <= index < len(items) or items[index].screen_id != slide_id:
             raise HomeAssistantError("That queue item is no longer available")
         if self._pending_from_queue:
@@ -593,31 +635,54 @@ class FraimicScheduler:
         self._pending_hold_on_success = False
 
     async def async_reorder_upcoming(self, ordered_ids: list[str]) -> None:
-        """Reorder the visible playlist window while keeping hidden slides stable."""
-        if self.shuffle:
-            raise HomeAssistantError("A shuffled playlist cannot be reordered")
+        """Reorder the visible upcoming window in this frame's session only.
+
+        The saved playlist is never touched; the change lives in the session
+        play order until another playlist (or shuffle change) replaces it.
+        """
         expected = [
             slide.screen_id for slide in self.playlist_up_next(limit=len(ordered_ids))
         ]
         if Counter(ordered_ids) != Counter(expected):
-            raise HomeAssistantError(
-                "The playlist changed before it could be reordered"
-            )
-        by_id = {screen.screen_id: screen for screen in self.screens}
-        positions = {
-            screen.screen_id: index for index, screen in enumerate(self.screens)
-        }
-        reordered = list(self.screens)
+            raise HomeAssistantError("The queue changed before it could be reordered")
+        order = list(self._playback_order) or [
+            screen.screen_id for screen in self.screens
+        ]
+        positions = {slide_id: index for index, slide_id in enumerate(order)}
         for expected_id, ordered_id in zip(expected, ordered_ids, strict=True):
-            reordered[positions[expected_id]] = by_id[ordered_id]
-        if self._playlists is not None and self.playlist_id is not None:
-            await self._playlists.async_reorder(
-                self.playlist_id,
-                [screen.screen_id for screen in reordered],
+            order[positions[expected_id]] = ordered_id
+        self._playback_order = order
+        self._order_custom = True
+        await self._async_save()
+        self._notify()
+        self._schedule_prefetch()
+
+    async def async_skip_upcoming(self, index: int, slide_id: str) -> None:
+        """Defer one upcoming playlist slide to the end of the rotation cycle.
+
+        Session-only, like reordering: the slide comes back after everything
+        else has played, and the saved playlist is unchanged.
+        """
+        items = self.playlist_up_next(limit=index + 1)
+        if not 0 <= index < len(items) or items[index].screen_id != slide_id:
+            raise HomeAssistantError("That queue item is no longer available")
+        order = [
+            candidate
+            for candidate in (
+                self._playback_order
+                or [screen.screen_id for screen in self.screens]
             )
-        self.screens = reordered
-        self._playback_order = [screen.screen_id for screen in self.screens]
-        self._playlist_order = [screen.screen_id for screen in self.screens]
+            if candidate != slide_id
+        ]
+        cursor = self._playlist_cursor_id or self.current_id
+        # Just before the cursor in circular order = last upcoming slot.
+        if cursor is not None and cursor in order:
+            at = order.index(cursor)
+        else:
+            at = len(order)
+        order.insert(at, slide_id)
+        self._playback_order = order
+        self._order_custom = True
         await self._async_save()
         self._notify()
         self._schedule_prefetch()
@@ -629,6 +694,8 @@ class FraimicScheduler:
         if self._playlists is None:
             return
         self._load_assigned_playlist()
+        if reset:
+            self._rebase_playback_order(fresh=True)
         valid_ids = {screen.screen_id for screen in self.screens} | set(
             self._external_queue
         )
@@ -1163,6 +1230,12 @@ class FraimicScheduler:
                 else None
             ),
             "pending_requires_enabled": self._pending_requires_enabled,
+            "session": {
+                "playlist_id": self.playlist_id,
+                "shuffle": self.shuffle,
+                "order": self._playback_order,
+                "custom": self._order_custom,
+            },
         }
         if self._playlists is None:
             data["playlist_order"] = [screen.screen_id for screen in self.screens]

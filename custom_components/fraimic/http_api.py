@@ -38,7 +38,6 @@ from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, async_delete_library_image, get_library
 from .overlays_http import overlay_views
-from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .playlists_http import playlist_views
 from .render.schema import ScreenConfig
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
@@ -741,7 +740,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     )
     queued = scheduler.queued_slides
     full_upcoming = scheduler.playlist_up_next(limit=len(scheduler.screens))
-    upcoming = full_upcoming[: 3 if scheduler.shuffle else 10]
+    upcoming = full_upcoming[:10]
     playlist_queue_count = len(full_upcoming)
     current_thumbnail = artwork_url if current is not None else None
     playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
@@ -813,6 +812,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "name": playlist_name,
             "interval": interval,
             "shuffle": scheduler.shuffle,
+            "total": playlist_queue_count,
             "items": [
                 _slide_payload(slide, thumbnail_url=queue_thumbnail(slide))
                 for slide in upcoming
@@ -976,6 +976,18 @@ class PlayerQueueView(_FraimicView):
                 if stopper is not None:
                     stopper()
                 await scheduler.async_play_queue_item(section, index, slide_id)
+            elif action == "skip":
+                index = body.get("index")
+                slide_id = body.get("slide_id")
+                if not isinstance(index, int) or isinstance(index, bool):
+                    return self.json_message(
+                        "index is required", HTTPStatus.BAD_REQUEST
+                    )
+                if not isinstance(slide_id, str):
+                    return self.json_message(
+                        "slide_id is required", HTTPStatus.BAD_REQUEST
+                    )
+                await scheduler.async_skip_upcoming(index, slide_id)
             elif action == "reorder":
                 section = body.get("section")
                 ordered_ids = body.get("ordered_ids")
@@ -989,22 +1001,7 @@ class PlayerQueueView(_FraimicView):
                 if section == "queue":
                     await scheduler.async_reorder_queue(ordered_ids)
                 elif section == "playlist":
-                    if not getattr(request.get("hass_user"), "is_admin", False):
-                        raise web.HTTPForbidden(text="Admin required")
-                    playlist_id = scheduler.playlist_id
                     await scheduler.async_reorder_upcoming(ordered_ids)
-                    if playlist_id is not None:
-                        hass = request.app[KEY_HASS]
-                        playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
-                        if isinstance(playlists, PlaylistManager):
-                            for candidate in loaded_fraimic_entries(hass):
-                                if (
-                                    candidate.entry_id != entry.entry_id
-                                    and playlists.assignments.get(candidate.entry_id)
-                                    == playlist_id
-                                ):
-                                    other_scheduler = candidate.runtime_data.scheduler
-                                    await other_scheduler.async_refresh_playlist()
                 else:
                     return self.json_message(
                         "section must be queue or playlist",
