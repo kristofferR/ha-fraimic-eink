@@ -16,15 +16,19 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
 from ..const import (
+    ARTWORK_CACHE_30_DAYS,
+    ARTWORK_CACHE_FOREVER,
     ATTR_CONTRAST,
     ATTR_FIT,
     ATTR_MODE,
     ATTR_SATURATION,
     ATTR_SHARPEN,
     ATTR_TONE,
+    CONF_ARTWORK_CACHE,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
+    DEFAULT_ARTWORK_CACHE,
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
@@ -230,6 +234,11 @@ async def async_prepare_screen(
             return False
         await library.async_render_for_entry(image_id, entry, overrides)
         return True
+    if entry.options.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE) not in {
+        ARTWORK_CACHE_30_DAYS,
+        ARTWORK_CACHE_FOREVER,
+    }:
+        return False
     cache_id = _picture_cache_id(screen)
     if cache_id is None:
         return False

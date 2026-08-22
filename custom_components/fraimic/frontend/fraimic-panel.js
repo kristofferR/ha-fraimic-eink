@@ -381,9 +381,14 @@ const css = String.raw`
       border-right: 0; border-bottom: 1px solid var(--line); scrollbar-width: none;
     }
     .source-rail::-webkit-scrollbar { display: none; }
-    .source-group, .source-tree, .source-tree-row { display: contents; }
+    .source-group, .source-tree, .source-tree-row, .source-child-row, .source-children.open { display: contents; }
     .source-group-label { display: none; }
-    .source-grip, .source-expand, .source-expand-placeholder, .source-children, .source-divider { display: none; }
+    .source-grip, .source-expand-placeholder, .source-children:not(.open), .source-divider { display: none; }
+    .source-expand {
+      width: 34px; min-width: 34px; min-height: 38px; flex: none;
+      border-bottom: 2px solid transparent;
+    }
+    .source-expand[aria-expanded="true"] { color: var(--text); border-bottom-color: var(--accent); }
     .source-option { width: auto; min-width: max-content; border-left: 0; border-bottom: 2px solid transparent; }
     .source-option.selected { border-bottom-color: var(--accent); }
     .search { min-width: 44px; width: 44px; }
@@ -946,7 +951,7 @@ class FraimicPanel extends HTMLElement {
     </div>`;
   }
 
-  _sourceNodeKey(source, browseId = "") { return `${source}\u0000${browseId}`; }
+  _sourceNodeKey(source, browseId = "") { return `${this._selectedFrameId || ""}\u0000${source}\u0000${browseId}`; }
 
   _orderedSources() {
     const order = new Map(this._sourceOrder.map((key, index) => [key, index]));
@@ -1875,6 +1880,7 @@ class FraimicPanel extends HTMLElement {
       this._showUploads();
     }
     this._galleryLoadedAt = 0;
+    await this._loadSources();
     await this._loadGallery();
   }
 

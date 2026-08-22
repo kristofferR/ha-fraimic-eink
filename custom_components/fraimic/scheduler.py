@@ -40,7 +40,7 @@ from .power import TRIGGER_MANUAL, TRIGGER_PLAYLIST
 from .providers.ha import ArtFetchError
 from .render.display import async_show_screen
 from .render.playlist import eligible, next_screen
-from .render.schema import ScreenConfig
+from .render.schema import KIND_PICTURE, ScreenConfig
 from .screens import screens_from_entry
 from .services import FrameUploadError
 
@@ -506,6 +506,66 @@ class FraimicScheduler:
         self._notify()
         self._schedule_prefetch()
 
+    async def async_prune_library_image(self, image_id: str) -> bool:
+        """Remove scheduler-owned references to a deleted library image."""
+
+        def uses_image(screen: ScreenConfig | None) -> bool:
+            source = getattr(screen, "source", None) or {}
+            return source.get("library_image") == image_id
+
+        screen_ids = {
+            screen.screen_id for screen in self.screens if uses_image(screen)
+        }
+        matching_ids = screen_ids | {
+            slide_id
+            for slide_id in {
+                *self._queued_ids,
+                *self._external_queue,
+                self.current_id,
+                self._pending.screen_id if self._pending is not None else None,
+            }
+            if slide_id is not None and uses_image(self._slide_by_id(slide_id))
+        }
+        if not matching_ids and not uses_image(self._pending):
+            return False
+
+        subentries = getattr(self.entry, "subentries", {})
+        for screen_id in screen_ids:
+            if screen_id in subentries:
+                self.hass.config_entries.async_remove_subentry(
+                    self.entry, screen_id
+                )
+        self.screens = [screen for screen in self.screens if not uses_image(screen)]
+        self._playback_order = [
+            slide_id
+            for slide_id in self._playback_order
+            if slide_id not in screen_ids
+        ]
+        self._playlist_order = [
+            slide_id
+            for slide_id in self._playlist_order
+            if slide_id not in screen_ids
+        ]
+        self._queued_ids = [
+            slide_id for slide_id in self._queued_ids if slide_id not in matching_ids
+        ]
+        if self.current_id in matching_ids:
+            self.current_id = None
+        if self._playlist_cursor_id in matching_ids:
+            self._playlist_cursor_id = None
+        if uses_image(self._pending):
+            self._pending = None
+            self._pending_requires_enabled = True
+            self._pending_from_queue = False
+            self._pending_hold_on_success = False
+        for slide_id in matching_ids:
+            self._external_queue.pop(slide_id, None)
+            self._external_queue_data.pop(slide_id, None)
+        await self._async_save()
+        self._notify()
+        self._schedule_prefetch()
+        return True
+
     async def async_reorder_queue(self, ordered_ids: list[str]) -> None:
         """Replace the hand-added order after validating an optimistic reorder."""
         if Counter(ordered_ids) != Counter(self._queued_ids):
@@ -913,10 +973,19 @@ class FraimicScheduler:
         seen: set[str] = set()
         candidates = [
             *queued,
-            *(self.playlist_up_next(limit=limit) if self.enabled else []),
+            *(
+                self.playlist_up_next(limit=len(self.screens))
+                if self.enabled
+                else []
+            ),
         ]
         for screen in candidates:
-            if screen.screen_id in seen:
+            source = getattr(screen, "source", None) or {}
+            preparable = getattr(screen, "kind", None) == KIND_PICTURE and bool(
+                source.get("library_image")
+                or (source.get("provider") and source.get("provider_item"))
+            )
+            if screen.screen_id in seen or not preparable:
                 continue
             result.append(screen)
             seen.add(screen.screen_id)

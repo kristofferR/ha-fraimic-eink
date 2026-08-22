@@ -14,13 +14,34 @@ from types import SimpleNamespace
 from conftest import load
 
 
+class _ConfigEntryState:
+    LOADED = object()
+    NOT_LOADED = object()
+
+
 def _load_cache(monkeypatch):
     homeassistant = types.ModuleType("homeassistant")
+    config_entries = types.ModuleType("homeassistant.config_entries")
     core = types.ModuleType("homeassistant.core")
+    exceptions = types.ModuleType("homeassistant.exceptions")
+    helpers = types.ModuleType("fraimic.helpers")
+    config_entries.ConfigEntry = object
+    config_entries.ConfigEntryState = _ConfigEntryState
     core.HomeAssistant = object
+    exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
+    helpers.loaded_fraimic_entries = lambda hass: [
+        entry
+        for entry in hass.config_entries.async_entries("fraimic")
+        if entry.state is _ConfigEntryState.LOADED
+    ]
+    homeassistant.config_entries = config_entries
     homeassistant.core = core
+    homeassistant.exceptions = exceptions
     monkeypatch.setitem(sys.modules, "homeassistant", homeassistant)
+    monkeypatch.setitem(sys.modules, "homeassistant.config_entries", config_entries)
     monkeypatch.setitem(sys.modules, "homeassistant.core", core)
+    monkeypatch.setitem(sys.modules, "homeassistant.exceptions", exceptions)
+    monkeypatch.setitem(sys.modules, "fraimic.helpers", helpers)
     sys.modules.pop("fraimic.artwork_cache", None)
     return load("artwork_cache")
 
@@ -36,6 +57,9 @@ class _Config:
 class _Entries:
     def __init__(self, entries: list[object]) -> None:
         self.entries = entries
+        for entry in entries:
+            if not hasattr(entry, "state"):
+                entry.state = _ConfigEntryState.LOADED
 
     def async_entries(self, _domain: str) -> list[object]:
         return self.entries
@@ -127,6 +151,29 @@ def test_forever_policy_wins_for_shared_cache(tmp_path, monkeypatch) -> None:
     assert policy.enabled
     assert policy.retention is None
     assert policy.max_bytes is None
+
+
+def test_unloaded_entries_do_not_expand_shared_cache_policy(
+    tmp_path, monkeypatch
+) -> None:
+    cache_mod = _load_cache(monkeypatch)
+    bounded = SimpleNamespace(
+        options={
+            cache_mod.CONF_ARTWORK_CACHE: cache_mod.ARTWORK_CACHE_30_DAYS,
+            cache_mod.CONF_ARTWORK_CACHE_MAX_MB: 128,
+        }
+    )
+    unloaded_forever = SimpleNamespace(
+        options={cache_mod.CONF_ARTWORK_CACHE: cache_mod.ARTWORK_CACHE_FOREVER},
+        state=_ConfigEntryState.NOT_LOADED,
+    )
+    manager = cache_mod.ArtworkCache(_Hass(tmp_path, [bounded, unloaded_forever]))
+
+    policy = manager.policy_for(bounded)
+
+    assert policy.enabled
+    assert policy.retention == cache_mod.THIRTY_DAYS
+    assert policy.max_bytes == 128 * 1024 * 1024
 
 
 def test_disabled_entry_does_not_use_shared_files(tmp_path, monkeypatch) -> None:

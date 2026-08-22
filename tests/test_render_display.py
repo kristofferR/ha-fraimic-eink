@@ -15,6 +15,7 @@ from conftest import load
 
 def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     homeassistant = types.ModuleType("homeassistant")
+    config_entries = types.ModuleType("homeassistant.config_entries")
     core = types.ModuleType("homeassistant.core")
     exceptions = types.ModuleType("homeassistant.exceptions")
     helpers = types.ModuleType("homeassistant.helpers")
@@ -24,6 +25,9 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
 
     class HomeAssistant:
         pass
+
+    class ConfigEntryState:
+        LOADED = object()
 
     class State:
         pass
@@ -51,10 +55,13 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     exceptions.HomeAssistantError = HomeAssistantError
     exceptions.ServiceValidationError = ServiceValidationError
     exceptions.TemplateError = TemplateError
+    config_entries.ConfigEntry = object
+    config_entries.ConfigEntryState = ConfigEntryState
     template.Template = Template
     template.TemplateError = TemplateError
     dt.now = lambda: datetime(2026, 7, 3, 14, 5)
     homeassistant.core = core
+    homeassistant.config_entries = config_entries
     homeassistant.exceptions = exceptions
     homeassistant.helpers = helpers
     homeassistant.util = util
@@ -62,6 +69,7 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     util.dt = dt
 
     monkeypatch.setitem(sys.modules, "homeassistant", homeassistant)
+    monkeypatch.setitem(sys.modules, "homeassistant.config_entries", config_entries)
     monkeypatch.setitem(sys.modules, "homeassistant.core", core)
     monkeypatch.setitem(sys.modules, "homeassistant.exceptions", exceptions)
     monkeypatch.setitem(sys.modules, "homeassistant.helpers", helpers)
@@ -75,7 +83,10 @@ def _load_display(
     monkeypatch: pytest.MonkeyPatch,
 ) -> tuple[types.ModuleType, type[Exception]]:
     error = _install_ha_stubs(monkeypatch)
-    for name in ("fraimic.render.display", "fraimic.render.fetch"):
+    for name in (
+        "fraimic.render.display",
+        "fraimic.render.fetch",
+    ):
         sys.modules.pop(name, None)
     return load("render.display"), error
 
@@ -626,6 +637,26 @@ def test_library_picture_uses_cached_render(
     assert entry.runtime_data.screen_preview_image.calls == [
         (b"cached-preview", "none")
     ]
+
+
+def test_provider_prefetch_is_skipped_when_artwork_cache_is_off(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+    entry = _entry()
+    entry.options[display.CONF_ARTWORK_CACHE] = "off"
+    screen = types.SimpleNamespace(
+        name="Provider picture",
+        kind=display.KIND_PICTURE,
+        source={"provider": "museum", "provider_item": "art-1"},
+    )
+
+    async def picture_source(*_args: object, **_kwargs: object) -> object:
+        pytest.fail("disabled caching must not download provider artwork")
+
+    monkeypatch.setattr(display, "_async_picture_source", picture_source)
+
+    assert asyncio.run(display.async_prepare_screen(_Hass(), entry, screen)) is False
 
 
 def test_library_picture_preview_only_uses_cached_render(

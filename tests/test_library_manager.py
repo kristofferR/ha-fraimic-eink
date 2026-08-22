@@ -83,6 +83,65 @@ def test_rename_rolls_back_file_and_metadata_when_manifest_save_fails(
     assert not (tmp_path / f"{image.image_id}_New Name.png").exists()
 
 
+def test_delete_prunes_every_loaded_scheduler_before_original(
+    library_module, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    library = library_module
+    events: list[str] = []
+
+    class Library:
+        async def async_delete_image(self, image_id: str) -> None:
+            events.append(f"delete:{image_id}")
+
+    class Scheduler:
+        def __init__(self, entry_id: str) -> None:
+            self.entry_id = entry_id
+
+        async def async_prune_library_image(self, image_id: str) -> None:
+            events.append(f"prune:{self.entry_id}:{image_id}")
+
+        async def async_refresh_playlist(self) -> None:
+            events.append(f"refresh:{self.entry_id}")
+
+    class PlaylistManager:
+        assignments: dict[str, str] = {}
+
+        async def async_prune_image(self, _image_id: str) -> set[str]:
+            return set()
+
+    entries = [
+        types.SimpleNamespace(
+            entry_id=entry_id,
+            runtime_data=types.SimpleNamespace(scheduler=Scheduler(entry_id)),
+        )
+        for entry_id in ("frame-1", "frame-2")
+    ]
+    playlists = types.ModuleType("fraimic.playlists")
+    playlists.DATA_PLAYLISTS = "playlists"
+    playlists.PlaylistManager = PlaylistManager
+    scenes = types.ModuleType("fraimic.scenes")
+    scenes.get_scene_manager = lambda _hass: None
+    monkeypatch.setitem(sys.modules, "fraimic.playlists", playlists)
+    monkeypatch.setitem(sys.modules, "fraimic.scenes", scenes)
+    monkeypatch.setattr(library, "loaded_fraimic_entries", lambda _hass: entries)
+    hass = types.SimpleNamespace(
+        data={
+            library.DOMAIN: {
+                library.DATA_LIBRARY: Library(),
+                playlists.DATA_PLAYLISTS: PlaylistManager(),
+            }
+        }
+    )
+
+    asyncio.run(library.async_delete_library_image(hass, "image-1"))
+
+    assert events == [
+        "prune:frame-1:image-1",
+        "prune:frame-2:image-1",
+        "delete:image-1",
+    ]
+
+
 def test_rename_keeps_new_metadata_when_failed_manifest_cannot_roll_back(
     library_module, tmp_path
 ) -> None:

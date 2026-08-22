@@ -38,6 +38,7 @@ from .const import (
     DEFAULT_ARTWORK_CACHE_MAX_MB,
     DOMAIN,
 )
+from .helpers import loaded_fraimic_entries
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -101,11 +102,7 @@ class ArtworkCache:
         if requested not in {ARTWORK_CACHE_30_DAYS, ARTWORK_CACHE_FOREVER}:
             return CachePolicy(False, 0, 0)
 
-        entries = []
-        try:
-            entries = self.hass.config_entries.async_entries(DOMAIN)
-        except (AttributeError, TypeError):
-            pass
+        entries = loaded_fraimic_entries(self.hass)
         if entry not in entries:
             entries = [*entries, entry]
 

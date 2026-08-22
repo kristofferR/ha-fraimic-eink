@@ -21,7 +21,7 @@ from .artwork_cache import get_artwork_cache
 from .const import DOMAIN, LIBRARY_ALBUM_DEFAULT
 from .helpers import resolve_render_params
 from .http_helpers import require_loaded_entry
-from .library import FraimicLibrary, async_delete_library_image, get_library
+from .library import FraimicLibrary, get_library
 from .library_model import LibraryImage, normalize_crop, render_cache_key
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .providers import PROVIDERS, available_provider_keys, get_provider
@@ -850,7 +850,6 @@ class GalleryActionView(HomeAssistantView):
             if action in {"favorite", "unfavorite"}:
                 library = _library(hass)
                 saved = _favorite_image_for_item(library, source, item_id, item)
-                deleted = False
                 if action == "favorite" and saved is None:
                     art = await async_art_by_media_id(hass, entry, source, item_id)
                     extension = Path(
@@ -874,29 +873,22 @@ class GalleryActionView(HomeAssistantView):
                         albums = [
                             album for album in albums if album != FAVORITES_ALBUM
                         ]
-                    if not albums:
-                        await async_delete_library_image(hass, saved.image_id)
-                        saved = None
-                        deleted = True
-                    else:
-                        saved = await library.async_update_image(
-                            saved.image_id, albums=albums
-                        )
+                        if not albums:
+                            albums = [LIBRARY_ALBUM_DEFAULT]
+                    saved = await library.async_update_image(
+                        saved.image_id, albums=albums
+                    )
                 if action == "favorite" and saved is not None and crop is not None:
                     await library.async_set_crop(
                         saved.image_id, *_viewed_size(entry), list(crop)
                     )
-                updated = (
-                    None
-                    if deleted and source == LIBRARY_SOURCE
-                    else await _resolve_item(hass, entry, source, item_id)
-                )
+                updated = await _resolve_item(hass, entry, source, item_id)
                 return self.json(
                     {
                         "item": updated,
                         "favorite": action == "favorite",
                         "saved": saved.image_id if saved is not None else None,
-                        "deleted": deleted,
+                        "deleted": False,
                     }
                 )
             data = _slide_data(item, fit=fit, tone=tone, crop=crop)

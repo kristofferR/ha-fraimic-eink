@@ -77,6 +77,7 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     playlist.eligible = lambda *_args, **_kwargs: True
     playlist.next_screen = lambda *_args, **_kwargs: None
     schema.ScreenConfig = SimpleNamespace
+    schema.KIND_PICTURE = "picture"
     coordinator.FraimicConfigEntry = SimpleNamespace
     screens.screens_from_entry = lambda _entry: []
     services.FrameUploadError = FrameUploadError
@@ -148,7 +149,12 @@ def test_prefetch_prepares_only_configured_queue_window(
     entry.options = {scheduler_mod.CONF_PLAYLIST_PREFETCH: 2}
     scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
     screens = [
-        SimpleNamespace(screen_id=f"screen-{index}", name=f"Screen {index}")
+        SimpleNamespace(
+            screen_id=f"screen-{index}",
+            name=f"Screen {index}",
+            kind="picture",
+            source={"provider": "museum", "provider_item": str(index)},
+        )
         for index in range(3)
     ]
     scheduler._external_queue = {screen.screen_id: screen for screen in screens}
@@ -165,6 +171,45 @@ def test_prefetch_prepares_only_configured_queue_window(
     assert prepared == ["screen-0", "screen-1"]
 
 
+def test_prefetch_limit_counts_only_fixed_pictures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    entry.options = {scheduler_mod.CONF_PLAYLIST_PREFETCH: 2}
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    screens = [
+        SimpleNamespace(
+            screen_id="dashboard", name="Dashboard", kind="dashboard", source=None
+        ),
+        SimpleNamespace(
+            screen_id="url",
+            name="Live URL",
+            kind="picture",
+            source={"url": "https://example.test/live.png"},
+        ),
+        SimpleNamespace(
+            screen_id="library",
+            name="Library",
+            kind="picture",
+            source={"library_image": "image-1"},
+        ),
+        SimpleNamespace(
+            screen_id="provider",
+            name="Provider",
+            kind="picture",
+            source={"provider": "museum", "provider_item": "art-1"},
+        ),
+    ]
+    scheduler._external_queue = {screen.screen_id: screen for screen in screens}
+    scheduler._queued_ids = [screen.screen_id for screen in screens]
+
+    assert [screen.screen_id for screen in scheduler._prefetch_screens()] == [
+        "library",
+        "provider",
+    ]
+
+
 def test_prefetch_is_rescheduled_when_external_upload_finishes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -178,6 +223,88 @@ def test_prefetch_is_rescheduled_when_external_upload_finishes(
 
     assert scheduler.external_upload_active is False
     assert scheduled == [True]
+
+
+def test_prune_library_image_removes_scheduler_owned_references(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    removed = SimpleNamespace(
+        screen_id="removed",
+        name="Removed",
+        kind="picture",
+        source={"library_image": "image-1"},
+    )
+    kept = SimpleNamespace(
+        screen_id="kept",
+        name="Kept",
+        kind="picture",
+        source={"library_image": "image-2"},
+    )
+    scheduler._external_queue = {"removed": removed, "kept": kept}
+    scheduler._external_queue_data = {
+        "removed": {"library_image": "image-1"},
+        "kept": {"library_image": "image-2"},
+    }
+    scheduler._queued_ids = ["removed", "kept", "removed"]
+    scheduler.current_id = "removed"
+    scheduler._playlist_cursor_id = "removed"
+    scheduler._pending = removed
+    scheduler._pending_from_queue = True
+
+    changed = asyncio.run(scheduler.async_prune_library_image("image-1"))
+
+    assert changed is True
+    assert scheduler._queued_ids == ["kept"]
+    assert scheduler.current_id is None
+    assert scheduler._playlist_cursor_id is None
+    assert scheduler._pending is None
+    assert scheduler._pending_from_queue is False
+    assert scheduler._external_queue == {"kept": kept}
+    assert scheduler._external_queue_data == {
+        "kept": {"library_image": "image-2"}
+    }
+
+
+def test_prune_library_image_removes_legacy_screen_subentry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    removed_subentries: list[str] = []
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_remove_subentry=lambda _entry, screen_id: removed_subentries.append(
+                screen_id
+            )
+        )
+    )
+    entry = _entry()
+    entry.subentries = {"legacy": object()}
+    scheduler = scheduler_mod.FraimicScheduler(hass, entry)
+    legacy = SimpleNamespace(
+        screen_id="legacy",
+        name="Legacy",
+        kind="picture",
+        source={"library_image": "image-1"},
+    )
+    kept = SimpleNamespace(
+        screen_id="kept",
+        name="Kept",
+        kind="dashboard",
+        source=None,
+    )
+    scheduler.screens = [legacy, kept]
+    scheduler._playback_order = ["legacy", "kept"]
+    scheduler._playlist_order = ["legacy", "kept"]
+
+    changed = asyncio.run(scheduler.async_prune_library_image("image-1"))
+
+    assert changed is True
+    assert removed_subentries == ["legacy"]
+    assert scheduler.screens == [kept]
+    assert scheduler._playback_order == ["kept"]
+    assert scheduler._playlist_order == ["kept"]
 
 
 def test_wake_retry_keeps_manual_pending_state(
