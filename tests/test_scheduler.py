@@ -356,6 +356,47 @@ def test_playlist_refresh_replaces_or_clears_pending_slide(
     assert scheduler._pending is None
 
 
+def test_playlist_refresh_preserves_displayed_external_slide(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler_mod = _load_scheduler(monkeypatch)
+    playlist = SimpleNamespace(
+        playlist_id="playlist-1",
+        name="Gallery",
+        interval=1800,
+        shuffle=False,
+    )
+    catalog = SimpleNamespace(screen_id="catalog", name="Catalog", interval=1800)
+    external = SimpleNamespace(screen_id="external", name="External", interval=900)
+
+    class Playlists:
+        def assigned_to(self, _entry_id: str) -> object:
+            return playlist
+
+        def render_slides(self, _playlist_id: str) -> list[object]:
+            return [catalog]
+
+        def get(self, _playlist_id: str) -> object:
+            return playlist
+
+        def render_slide_by_id(self, _slide_id: str) -> None:
+            return None
+
+    scheduler = scheduler_mod.FraimicScheduler(
+        SimpleNamespace(), _entry(), Playlists()
+    )
+    scheduler._external_queue[external.screen_id] = external
+    scheduler._external_queue_data[external.screen_id] = {"name": "External"}
+    scheduler.current_id = external.screen_id
+    scheduler._playlist_cursor_id = catalog.screen_id
+
+    asyncio.run(scheduler.async_refresh_playlist())
+
+    assert scheduler.current_screen is external
+    assert scheduler.current_id == external.screen_id
+    assert scheduler._playlist_cursor_id == catalog.screen_id
+
+
 def test_power_deferred_screen_does_not_replace_displayed_hash(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

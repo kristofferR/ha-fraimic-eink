@@ -65,7 +65,7 @@ class UnsplashProvider(ArtProvider):
         orientation = (
             "landscape" if request.target_width >= request.target_height else "portrait"
         )
-        params = {"count": count, "orientation": orientation}
+        params = {"count": min(count, 30), "orientation": orientation}
         if request.query:
             params["query"] = request.query
         await cache.async_throttle(self.key, self.min_interval)

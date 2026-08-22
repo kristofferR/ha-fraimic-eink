@@ -102,7 +102,7 @@ class PlaylistSlide:
             data=validated,
             tone=tone if tone in PLAYLIST_TONE_VALUES else "balanced",
             overlays=(
-                overlays if overlays in {"inherit", "none", "custom"} else "inherit"
+                overlays if overlays in {"inherit", "none"} else "inherit"
             ),
         )
 
@@ -568,7 +568,7 @@ class PlaylistManager:
                     raise ValueError("Unknown tone")
                 slide.tone = tone
             if overlays is not None:
-                if overlays not in {"inherit", "none", "custom"}:
+                if overlays not in {"inherit", "none"}:
                     raise ValueError("Unknown overlay mode")
                 slide.overlays = overlays
             playlist.modified_at = time.time()

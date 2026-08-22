@@ -1302,10 +1302,11 @@ def test_unsplash_candidates_do_not_store_api_key() -> None:
     )
 
     candidates = _run(
-        provider.async_candidates(session, cache_mod.ProviderCache(), request, 1)
+        provider.async_candidates(session, cache_mod.ProviderCache(), request, 40)
     )
 
     assert candidates
+    assert session.calls[0]["params"]["count"] == 30
     assert "api_key" not in (candidates[0].extra or {})
 
 

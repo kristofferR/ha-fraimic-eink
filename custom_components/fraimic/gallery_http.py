@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import io
 import json
 import re
@@ -19,9 +18,10 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
+from .helpers import resolve_render_params
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
-from .library_model import normalize_crop
+from .library_model import normalize_crop, render_cache_key
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .providers import PROVIDERS, available_provider_keys, get_provider
 from .providers.base import ArtCandidate
@@ -40,7 +40,6 @@ MAX_GALLERY_OFFSET = 1000
 GALLERY_THUMBNAIL_CACHE_BYTES = 24 * 1024 * 1024
 GALLERY_THUMBNAIL_CACHE_TTL = 3600
 GALLERY_IMAGE_CONCURRENCY = 6
-_PALETTE_COLOURS = ("black", "white", "yellow", "red", "blue", "green", "neutral")
 
 
 def _thumbnail_cache(hass) -> ByteCache:
@@ -128,17 +127,17 @@ def _source_page(candidate: ArtCandidate) -> str | None:
     return value if isinstance(value, str) else None
 
 
-def _stable_score(source: str, item_id: str) -> float:
-    """Stable neutral score until a source exposes measured palette metadata."""
-    value = hashlib.blake2s(f"{source}:{item_id}".encode(), digest_size=2).digest()
-    return round(0.35 + int.from_bytes(value) / 65535 * 0.55, 3)
-
-
-def _stable_colour(source: str, item_id: str) -> str:
-    digest = hashlib.blake2s(
-        f"colour:{source}:{item_id}".encode(), digest_size=1
-    ).digest()
-    return _PALETTE_COLOURS[digest[0] % len(_PALETTE_COLOURS)]
+def _render_score(width: int | None, height: int | None, entry) -> float:
+    """Rank known artwork by frame-aspect match and available resolution."""
+    if not width or not height or width <= 0 or height <= 0:
+        return 0.0
+    frame_width, frame_height = _viewed_size(entry)
+    aspect_error = abs((width / height) / (frame_width / frame_height) - 1)
+    aspect_score = max(0.0, 1.0 - aspect_error)
+    resolution_score = min(
+        1.0, (width * height / (frame_width * frame_height)) ** 0.5
+    )
+    return round(aspect_score * 0.7 + resolution_score * 0.3, 3)
 
 
 def _queued_refs(entry) -> tuple[set[tuple[str, str]], set[str]]:
@@ -167,10 +166,11 @@ def _candidate_payload(
 ) -> dict[str, Any]:
     queued_refs, _ = _queued_refs(entry)
     provider = get_provider(candidate.provider)
-    saved = any(
-        image.source_url in {candidate.image_url, _source_page(candidate)}
-        for image in library.images.values()
-    )
+    candidate_urls = {candidate.image_url, _source_page(candidate)} - {None, ""}
+    saved_urls = {
+        image.source_url for image in library.images.values() if image.source_url
+    }
+    saved = bool(candidate_urls & saved_urls)
     width = candidate.width if isinstance(candidate.width, int) else 4
     height = candidate.height if isinstance(candidate.height, int) else 3
     image_base = "/api/fraimic/gallery/image?" + urlencode(
@@ -192,8 +192,8 @@ def _candidate_payload(
         "height": height,
         "dimensions_known": candidate.width is not None
         and candidate.height is not None,
-        "palette_score": _stable_score(candidate.provider, candidate.item_id),
-        "colour": _stable_colour(candidate.provider, candidate.item_id),
+        "palette_score": _render_score(candidate.width, candidate.height, entry),
+        "colour": None,
         "license": candidate.license,
         "attribution": candidate.attribution,
         "saved": saved,
@@ -218,8 +218,8 @@ def _library_payload(image, entry) -> dict[str, Any]:
         "width": image.width or 4,
         "height": image.height or 3,
         "dimensions_known": image.width is not None and image.height is not None,
-        "palette_score": _stable_score(LIBRARY_SOURCE, image.image_id),
-        "colour": _stable_colour(LIBRARY_SOURCE, image.image_id),
+        "palette_score": _render_score(image.width, image.height, entry),
+        "colour": None,
         "license": image.license,
         "attribution": image.attribution,
         "saved": True,
@@ -292,24 +292,24 @@ def _slide_data(
             {
                 "provider": item["source"],
                 "provider_item": item["id"],
-                "metadata": {
-                    key: item.get(key)
-                    for key in (
-                        "title",
-                        "artist",
-                        "source_name",
-                        "license",
-                        "attribution",
-                        "year",
-                        "description",
-                        "source_page_url",
-                        "thumbnail_url",
-                        "image_url",
-                    )
-                    if item.get(key) is not None
-                },
             }
         )
+    base["metadata"] = {
+        key: item.get(key)
+        for key in (
+            "title",
+            "artist",
+            "source_name",
+            "license",
+            "attribution",
+            "year",
+            "description",
+            "source_page_url",
+            "thumbnail_url",
+            "image_url",
+        )
+        if item.get(key) is not None
+    }
     if crop is not None:
         base["crop"] = list(crop)
     return SCREEN_SCHEMA(base)
@@ -552,7 +552,10 @@ class GalleryPreviewView(HomeAssistantView):
                 text="source, item_id, and a valid fit are required"
             )
         cache = hass.data.setdefault(DOMAIN, {}).setdefault("gallery_previews", {})
-        key = (entry.entry_id, source, item_id, fit, tone, crop)
+        render_settings = render_cache_key(
+            resolve_render_params(entry, {"fit": fit})
+        )
+        key = (entry.entry_id, source, item_id, fit, tone, crop, render_settings)
         png = cache.get(key)
         if png is None:
             from .services import async_convert_for_entry

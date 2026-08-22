@@ -112,17 +112,23 @@ async def _async_picture_source(
         raise HomeAssistantError("Library pictures use the cached render path")
     if provider_key := source.get("provider"):
         from ..providers.caption import composite_with_caption
-        from ..providers.ha import ArtFetchError, async_fetch_art
+        from ..providers.ha import (
+            ArtFetchError,
+            async_art_by_media_id,
+            async_fetch_art,
+        )
 
         fit = source.get("fit") or entry.options.get(ATTR_FIT, FIT_COVER)
-        art = await async_fetch_art(
-            hass,
-            entry,
-            provider_key,
-            query=source.get("query"),
-            item_id=source.get("provider_item"),
-            fit=fit,
-        )
+        if item_id := source.get("provider_item"):
+            art = await async_art_by_media_id(hass, entry, provider_key, item_id)
+        else:
+            art = await async_fetch_art(
+                hass,
+                entry,
+                provider_key,
+                query=source.get("query"),
+                fit=fit,
+            )
         raw = art.data
         if source.get("caption") and art.candidate.attribution:
             width, height = viewed_size(entry)

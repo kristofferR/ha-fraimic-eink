@@ -462,6 +462,49 @@ def test_picture_source_redacts_url_failures(monkeypatch: pytest.MonkeyPatch) ->
     assert "token=secret" not in message
 
 
+def test_picture_source_uses_stashed_provider_item(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+    calls: list[tuple[str, str]] = []
+    caption = types.ModuleType("fraimic.providers.caption")
+    caption.composite_with_caption = None
+    providers_ha = types.ModuleType("fraimic.providers.ha")
+    providers_ha.ArtFetchError = type("ArtFetchError", (Exception,), {})
+
+    async def by_media_id(
+        _hass: object, _entry: object, provider: str, item_id: str
+    ) -> object:
+        calls.append((provider, item_id))
+        return types.SimpleNamespace(
+            data=b"selected-art",
+            candidate=types.SimpleNamespace(attribution=None),
+        )
+
+    async def fetch_art(*_args: object, **_kwargs: object) -> object:
+        pytest.fail("a concrete gallery item must use the browse stash")
+
+    providers_ha.async_art_by_media_id = by_media_id
+    providers_ha.async_fetch_art = fetch_art
+    monkeypatch.setitem(sys.modules, "fraimic.providers.caption", caption)
+    monkeypatch.setitem(sys.modules, "fraimic.providers.ha", providers_ha)
+    screen = types.SimpleNamespace(
+        source={
+            "provider": "unsplash",
+            "provider_item": "photo-1",
+            "fit": "cover",
+        }
+    )
+
+    raw, overrides, _art = asyncio.run(
+        display._async_picture_source(_Hass(), _entry(), screen)
+    )
+
+    assert raw == b"selected-art"
+    assert overrides == {"fit": "cover"}
+    assert calls == [("unsplash", "photo-1")]
+
+
 def test_library_picture_uses_cached_render(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -89,7 +89,7 @@ def _register_panel(hass: HomeAssistant, version: str, url_path: str) -> None:
         sidebar_title="Fraimic",
         sidebar_icon="mdi:image-frame",
         frontend_url_path=url_path,
-        require_admin=False,
+        require_admin=True,
         config={
             "_panel_custom": {
                 "name": PANEL_ELEMENT_NAME,

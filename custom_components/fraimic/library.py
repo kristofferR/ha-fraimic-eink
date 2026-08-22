@@ -38,6 +38,7 @@ from homeassistant.exceptions import HomeAssistantError
 
 from .api import FraimicError
 from .const import (
+    ATTR_FIT,
     ATTR_ROTATE,
     DOMAIN,
     LIBRARY_ALBUM_DEFAULT,
@@ -445,7 +446,10 @@ class FraimicLibrary:
         crop_width, crop_height = _crop_key_size(params)
         # A per-call rotate override changes the wall aspect, so the saved
         # crop/rotation pair (drawn for the mount orientation) no longer fits.
-        if overrides and overrides.get(ATTR_ROTATE):
+        if overrides and (
+            overrides.get(ATTR_ROTATE)
+            or overrides.get(ATTR_FIT) in {"contain", "contain_black"}
+        ):
             crop = None
         else:
             crop = image.crop_for(crop_width, crop_height)

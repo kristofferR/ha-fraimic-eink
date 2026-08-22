@@ -724,11 +724,11 @@ class FraimicPanel extends HTMLElement {
       <div class="search"><ha-icon icon="mdi:magnify"></ha-icon><input id="gallery-search" value="${h(this._query)}" placeholder="Search art, artist, subject, colour" aria-label="Search art, artist, subject, colour"></div>
       <button class="chip${selected("all")}" data-source="all">All sources</button>
       ${sourceChips}${more}
-      <button class="chip${this._colours.size ? " selected" : ""}" data-menu="colour">${h(colourLabel)}</button>
+      ${this._facets.colours.length || this._colours.size ? `<button class="chip${this._colours.size ? " selected" : ""}" data-menu="colour">${h(colourLabel)}</button>` : ""}
       <button class="chip${this._artist ? " selected" : ""}" data-menu="artist">${h(this._artist || "Artist")}</button>
       ${this._facets.eras.length ? `<button class="chip${this._era ? " selected" : ""}" data-menu="era">${h(this._era || "Era")}</button>` : ""}
       <button class="chip${this._fits ? " selected" : ""}" data-toggle="fits">Fits ${h(this._frame?.name || "frame")}</button>
-      <button class="chip${this._rendersWell ? " selected" : ""}" data-toggle="renders" title="Ranked by how well the picture survives the six colour panel.">Renders well</button>
+      <button class="chip${this._rendersWell ? " selected" : ""}" data-toggle="renders" title="Ranked by frame aspect and source resolution.">Renders well</button>
       <span class="spacer"></span><span class="counter">${this._galleryCounter()}</span>
       ${activeFilters ? `<button class="btn quiet small" data-clear-filters>Clear filters</button>` : ""}
     </div>`;
@@ -795,7 +795,7 @@ class FraimicPanel extends HTMLElement {
     const facets = this._facets.colours.slice(0, 2).map((facet) => ({ title: facet.value[0].toUpperCase() + facet.value.slice(1), items: items.filter((item) => item.colour === facet.value).slice(0, 20) }));
     const last = localStorage.getItem("fraimic-last-search");
     const rows = [
-      { title: `Made for ${this._frame?.name}`, sub: "matched to the frame and ranked for the six colour panel", items: madeFor },
+      { title: `Made for ${this._frame?.name}`, sub: "matched to the frame aspect and source resolution", items: madeFor },
       ...(last ? [{ title: "Continue where you left off", sub: last, items: items.filter((item) => `${item.title} ${item.artist || ""}`.toLowerCase().includes(last.toLowerCase())).slice(0, 20) }] : []),
       ...facets,
       { title: "Your library", sub: `${library.length} pictures`, items: library, manage: true },
@@ -1209,7 +1209,10 @@ class FraimicPanel extends HTMLElement {
         await Promise.all([this._loadPlayer(false), this._loadPlaylists()]);
         this._render();
       }
-    } catch (error) { this._notify(this._friendlyError(error), { error: true }); }
+    } catch (error) {
+      if (options.quiet) throw error;
+      this._notify(this._friendlyError(error), { error: true });
+    }
   }
 
   _findItem(source, itemId) { return this._allGalleryItems.find((item) => item.source === source && item.id === itemId); }
@@ -1369,9 +1372,18 @@ class FraimicPanel extends HTMLElement {
     if (!value) return;
     try {
       const playlist = await this._api("playlists", this._json({ name: value }));
-      for (const item of items.slice(0, 50)) await this._artAction("add_playlist", item.source, item.id, playlist.id, { quiet: true });
+      const selected = items.slice(0, 50);
+      let added = 0;
+      let failure = null;
+      for (const item of selected) {
+        try {
+          await this._artAction("add_playlist", item.source, item.id, playlist.id, { quiet: true });
+          added += 1;
+        } catch (error) { failure = error; }
+      }
       await this._loadPlaylists();
-      this._notify(`Added to ${playlist.name}.`, { action: "Open", callback: () => this._navigate(`/playlists/${encodeURIComponent(playlist.id)}`) });
+      const partial = added !== selected.length;
+      this._notify(partial ? `Added ${added} of ${selected.length} to ${playlist.name}. ${this._friendlyError(failure)}` : `Added to ${playlist.name}.`, { error: partial, action: "Open", callback: () => this._navigate(`/playlists/${encodeURIComponent(playlist.id)}`) });
     } catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
 
@@ -1484,7 +1496,7 @@ class FraimicPanel extends HTMLElement {
 
   _slideSettings(id) {
     const slide = this._playlist.slides.find((item) => item.id === id);
-    this._openModal("Slide settings", `<div class="field"><label>Fit</label><select id="slide-fit"><option value="cover" ${slide.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${slide.fit === "contain" ? "selected" : ""}>Contain</option></select></div><div class="field"><label>Tone</label><select id="slide-tone">${["soft","balanced","vivid"].map((tone) => `<option value="${tone}" ${slide.tone === tone ? "selected" : ""}>${tone}</option>`).join("")}</select></div><div class="field"><label>Overlays</label><select id="slide-overlays"><option value="inherit" ${slide.overlays === "inherit" ? "selected" : ""}>Inherit from ${h(this._frame?.name || "frame")}</option><option value="none" ${slide.overlays === "none" ? "selected" : ""}>None</option><option value="custom" ${slide.overlays === "custom" ? "selected" : ""}>Custom</option></select></div>`, `<span class="spacer"></span><button class="btn primary" data-save-slide>Save</button>`);
+    this._openModal("Slide settings", `<div class="field"><label>Fit</label><select id="slide-fit"><option value="cover" ${slide.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${slide.fit === "contain" ? "selected" : ""}>Contain</option></select></div><div class="field"><label>Tone</label><select id="slide-tone">${["soft","balanced","vivid"].map((tone) => `<option value="${tone}" ${slide.tone === tone ? "selected" : ""}>${tone}</option>`).join("")}</select></div><div class="field"><label>Overlays</label><select id="slide-overlays"><option value="inherit" ${slide.overlays === "inherit" ? "selected" : ""}>Inherit from ${h(this._frame?.name || "frame")}</option><option value="none" ${slide.overlays === "none" ? "selected" : ""}>None</option></select></div>`, `<span class="spacer"></span><button class="btn primary" data-save-slide>Save</button>`);
     this.shadowRoot.querySelector("[data-save-slide]").onclick = async () => { try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "settings", slide_id: id, fit: this.shadowRoot.getElementById("slide-fit").value, tone: this.shadowRoot.getElementById("slide-tone").value, overlays: this.shadowRoot.getElementById("slide-overlays").value })); this._playlist = data.playlist; this._closeModal(); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } };
   }
 
@@ -1546,8 +1558,8 @@ class FraimicPanel extends HTMLElement {
     this._selectedOverlayId = this._overlayDraft.at(-1)?.id || null; this._render();
   }
 
-  async _saveOverlays() { try { this._overlayData = await this._api("overlays", this._json({ action: "save", entry_id: this._selectedFrameId, overlays: this._overlayDraft })); this._overlayDraft = structuredClone(this._overlayData.overlays || []); this._overlaySaved = JSON.stringify(this._overlayDraft); this._overlaysOpen = false; await this._loadPlayer(false); this._notify("Overlays saved. They will appear on the next picture change.", { action: "Apply now", callback: () => this._applyOverlaysNow() }); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
-  async _applyOverlaysNow() { try { await this._api("overlays", this._json({ action: "save", entry_id: this._selectedFrameId, overlays: this._overlayDraft, apply_now: true })); this._notify(`Sending to ${this._frame.name}. The panel takes about 30 seconds.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
+  async _saveOverlays() { try { const entryId = this._selectedFrameId; this._overlayData = await this._api("overlays", this._json({ action: "save", entry_id: entryId, overlays: this._overlayDraft })); this._overlayDraft = structuredClone(this._overlayData.overlays || []); const overlays = structuredClone(this._overlayDraft); const frameName = this._frames.find((frame) => frame.id === entryId)?.name || this._frame.name; this._overlaySaved = JSON.stringify(this._overlayDraft); this._overlaysOpen = false; await this._loadPlayer(false); this._notify("Overlays saved. They will appear on the next picture change.", { action: "Apply now", callback: () => this._applyOverlaysNow(entryId, overlays, frameName) }); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
+  async _applyOverlaysNow(entryId, overlays, frameName) { try { await this._api("overlays", this._json({ action: "save", entry_id: entryId, overlays, apply_now: true })); this._notify(`Sending to ${frameName}. The panel takes about 30 seconds.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
   _overlaysDirty() { return JSON.stringify(this._overlayDraft) !== this._overlaySaved; }
   _closeOverlayEditor() { this._overlaysOpen = false; this._overlayData = null; this._overlayDraft = []; this._overlaySaved = "[]"; }
   _discardOverlays() { this._closeOverlayEditor(); this._render(); }

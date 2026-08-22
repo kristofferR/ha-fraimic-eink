@@ -511,7 +511,9 @@ class FraimicScheduler:
         if self._playlists is None:
             return
         self._load_assigned_playlist()
-        valid_ids = {screen.screen_id for screen in self.screens}
+        valid_ids = {screen.screen_id for screen in self.screens} | set(
+            self._external_queue
+        )
         self._queued_ids = [
             slide_id
             for slide_id in self._queued_ids

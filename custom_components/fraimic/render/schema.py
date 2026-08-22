@@ -30,6 +30,7 @@ from ..const import (
     PROVIDER_KEYS,
     PROVIDER_SHUFFLE,
 )
+from ..library_model import normalize_crop
 from .layout import LAYOUT_SLOTS
 
 KIND_DASHBOARD = "dashboard"
@@ -330,7 +331,7 @@ SCREEN_SCHEMA = vol.All(
             ),
             vol.Optional("tone"): vol.In(("vivid", "balanced", "soft")),
             vol.Optional("crop"): vol.All(
-                [vol.Coerce(float)], vol.Length(min=4, max=4)
+                [vol.Coerce(float)], vol.Length(min=4, max=4), normalize_crop
             ),
             vol.Optional("mode"): vol.In(DITHER_MODES),
             vol.Optional("background", default="white"): _COLOR,

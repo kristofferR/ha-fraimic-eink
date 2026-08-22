@@ -149,6 +149,17 @@ def test_provider_item_requires_a_specific_provider() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "crop",
+    ([0.8, 0.2, 0.4, 0.9], [0, 0, 0.001, 1], [-0.1, 0, 1, 1]),
+)
+def test_picture_crop_must_be_ordered_and_normalized(crop: list[float]) -> None:
+    with pytest.raises((vol.Invalid, ValueError), match="crop"):
+        schema.SCREEN_SCHEMA(
+            {"kind": "picture", "library_image": "image-1", "crop": crop}
+        )
+
+
 def test_empty_query_still_requires_a_provider() -> None:
     with pytest.raises(vol.Invalid, match="provider source"):
         schema.SCREEN_SCHEMA(
