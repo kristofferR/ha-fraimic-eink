@@ -449,10 +449,10 @@ class PlaylistSlidesView(_PlaylistView):
         if stopper is not None:
             stopper()
         if body["action"] == "show_now":
-            await scheduler.async_select(
-                slide,
-                hold=manager.assignments.get(entry.entry_id) != playlist_id,
-            )
+            # Queue first so an asleep-frame retry survives an HA restart,
+            # then immediately consume it through the normal manual path.
+            await scheduler.async_add_to_queue(slide, play_next=True)
+            await scheduler.async_next()
         else:
             if not scheduler.screens:
                 raise PlaylistRequestError(

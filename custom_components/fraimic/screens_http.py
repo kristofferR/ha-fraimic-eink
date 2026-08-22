@@ -40,6 +40,18 @@ def _resolve_entry(hass: HomeAssistant, entry_id: Any):
     raise web.HTTPBadRequest(text="Unknown or unloaded entry_id")
 
 
+async def _refresh_assigned_schedulers(
+    hass: HomeAssistant, manager: PlaylistManager, entry
+) -> None:
+    """Refresh every loaded frame sharing the edited migrated playlist."""
+    playlist = manager.assigned_to(entry.entry_id)
+    if playlist is None:
+        return
+    for candidate in loaded_fraimic_entries(hass):
+        if manager.assignments.get(candidate.entry_id) == playlist.playlist_id:
+            await candidate.runtime_data.scheduler.async_refresh_playlist()
+
+
 def _validate_screen(raw: Any) -> dict:
     if not isinstance(raw, dict):
         raise web.HTTPBadRequest(text="screen must be an object")
@@ -176,7 +188,7 @@ class ScreenSaveView(_ScreensViewBase):
             manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
             if isinstance(manager, PlaylistManager):
                 await manager.async_sync_legacy_slide(entry, subentry_id)
-                await entry.runtime_data.scheduler.async_refresh_playlist()
+                await _refresh_assigned_schedulers(hass, manager, entry)
             return self.json({"screen_id": subentry_id, "saved": True})
 
         subentry = ConfigSubentry(
@@ -189,7 +201,7 @@ class ScreenSaveView(_ScreensViewBase):
         manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
         if isinstance(manager, PlaylistManager):
             await manager.async_sync_legacy_slide(entry, subentry.subentry_id)
-            await entry.runtime_data.scheduler.async_refresh_playlist()
+            await _refresh_assigned_schedulers(hass, manager, entry)
         return self.json({"screen_id": subentry.subentry_id, "saved": True})
 
 
@@ -210,7 +222,7 @@ class ScreenDeleteView(_ScreensViewBase):
         manager = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
         if isinstance(manager, PlaylistManager):
             await manager.async_remove_legacy_slide(entry, screen_id)
-            await entry.runtime_data.scheduler.async_refresh_playlist()
+            await _refresh_assigned_schedulers(hass, manager, entry)
         return self.json({"deleted": screen_id})
 
 
