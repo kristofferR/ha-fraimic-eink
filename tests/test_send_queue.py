@@ -117,6 +117,30 @@ def test_queue_rejects_invalid_payload_before_writing(send_queue_module) -> None
         )
 
 
+def test_discard_clears_superseded_pending_send(send_queue_module) -> None:
+    send_queue = send_queue_module
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: "/unused/queue.bin")
+
+    class Store:
+        saved = None
+
+        async def async_save(self, data) -> None:
+            self.saved = data
+
+    entry = types.SimpleNamespace(entry_id="small-frame", data={})
+    queue = send_queue.FraimicSendQueue(Hass(), entry)
+    queue._store = Store()
+    queue._pending = {"title": "Older picture"}
+
+    asyncio.run(queue.async_discard())
+
+    assert queue.pending is None
+    assert queue._store.saved == {"pending": None}
+    assert queue.status == "Idle"
+
+
 def test_flush_caps_queued_payload_read(
     send_queue_module, monkeypatch: pytest.MonkeyPatch
 ) -> None:

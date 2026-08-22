@@ -653,7 +653,9 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
     playlist_id = scheduler.playlist_id
     playlist_name = scheduler.playlist_name
     frame = _frame_payload(entry)
-    current = scheduler.current_screen
+    current = (
+        scheduler.current_screen if scheduler.displayed_hash is not None else None
+    )
     art = runtime.last_art or {}
     title = art.get("title") or runtime.media_title or (current.name if current else None)
     artist = art.get("artist")
@@ -727,8 +729,8 @@ def _player_payload(entry: ConfigEntry) -> dict[str, Any]:
             "artist": artist,
             "thumbnail_url": artwork_url,
         },
-        "playlist_id": playlist_id,
-        "playlist_name": playlist_name,
+        "playlist_id": playlist_id if current is not None else None,
+        "playlist_name": playlist_name if current is not None else None,
         "interval": interval,
         "seconds_elapsed": elapsed,
         "seconds_remaining": remaining,
@@ -820,11 +822,19 @@ class PlayerControlView(_FraimicView):
                     stopper()
                 await scheduler.async_set_enabled(True)
             elif action == "toggle":
-                await scheduler.async_set_enabled(not scheduler.enabled)
+                enabled = not scheduler.enabled
+                if enabled:
+                    stopper = runtime.stop_camera_loop
+                    if stopper is not None:
+                        stopper()
+                await scheduler.async_set_enabled(enabled)
             elif action == "retry":
                 await runtime.coordinator.async_request_refresh()
             elif action == "refresh":
-                await runtime.client.refresh()
+                scheduler.raise_if_upload_active()
+                async with runtime.upload_lock:
+                    scheduler.raise_if_upload_active()
+                    await runtime.client.refresh()
                 runtime.coordinator.async_set_frame_online(True)
             elif action == "sleep":
                 await runtime.client.sleep()

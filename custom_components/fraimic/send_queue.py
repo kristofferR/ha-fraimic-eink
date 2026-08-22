@@ -244,6 +244,10 @@ class FraimicSendQueue:
         self._apply_battery(battery)
         await self._async_flush()
 
+    async def async_discard(self) -> None:
+        """Discard a queued send that has been superseded by newer content."""
+        await self._async_clear("Idle")
+
     async def _async_probe(self, _now: Any = None) -> None:
         self._unsub_probe = None
         if self._pending is None:

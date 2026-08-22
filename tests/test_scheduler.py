@@ -826,7 +826,17 @@ def test_sleeping_queued_slide_is_consumed_only_after_wake(
     scheduler_mod = _load_scheduler(monkeypatch)
     current = SimpleNamespace(screen_id="current", name="Current", interval=1800)
     queued = SimpleNamespace(screen_id="queued", name="Queued", interval=1800)
-    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    entry = _entry()
+    discarded: list[bool] = []
+
+    class SendQueue:
+        pending = {"title": "Older picture"}
+
+        async def async_discard(self) -> None:
+            discarded.append(True)
+
+    entry.runtime_data.send_queue = SendQueue()
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
     scheduler.screens = [current, queued]
     scheduler.current_id = current.screen_id
     scheduler._playlist_cursor_id = current.screen_id
@@ -836,6 +846,7 @@ def test_sleeping_queued_slide_is_consumed_only_after_wake(
 
     assert scheduler._pending is queued
     assert scheduler._pending_from_queue is True
+    assert discarded == [True]
     assert [slide.screen_id for slide in scheduler.queued_slides] == [queued.screen_id]
 
     async def async_show_screen(*_args: object, **_kwargs: object) -> dict:
