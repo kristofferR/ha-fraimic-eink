@@ -445,6 +445,7 @@ class PlaylistSlidesView(_PlaylistView):
             raise PlaylistChangedError("That slide is no longer available")
         entry = require_loaded_entry(hass, body.get("entry_id"))
         scheduler = entry.runtime_data.scheduler
+        scheduler.raise_if_upload_active()
         stopper = entry.runtime_data.stop_camera_loop
         if stopper is not None:
             stopper()

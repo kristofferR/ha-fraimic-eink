@@ -163,8 +163,10 @@ def test_migration_preserves_legacy_scheduler_order(
     ]
 
 
-def test_restore_normalizes_unhashable_tone(
+@pytest.mark.parametrize("field", ["tone", "overlays"])
+def test_restore_normalizes_unhashable_slide_setting(
     monkeypatch: pytest.MonkeyPatch,
+    field: str,
 ) -> None:
     playlists, store = _load_playlists(monkeypatch)
     store.loaded = {
@@ -179,7 +181,7 @@ def test_restore_normalizes_unhashable_tone(
                             "layout": "full",
                             "widgets": [{"type": "clock", "slot": "main"}],
                         },
-                        "tone": ["vivid"],
+                        field: ["invalid"],
                     }
                 ],
             }
@@ -189,7 +191,11 @@ def test_restore_normalizes_unhashable_tone(
 
     asyncio.run(manager.async_setup())
 
-    assert manager.playlists[0].slides[0].tone == "balanced"
+    slide = manager.playlists[0].slides[0]
+    assert getattr(slide, field) == {
+        "tone": "balanced",
+        "overlays": "inherit",
+    }[field]
 
 
 def test_add_duplicate_reorder_remove_and_undo(
