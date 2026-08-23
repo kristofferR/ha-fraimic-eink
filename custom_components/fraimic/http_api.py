@@ -38,6 +38,7 @@ from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, async_delete_library_image, get_library
 from .overlays_http import overlay_views
+from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .playlists_http import playlist_views
 from .render.schema import ScreenConfig
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
