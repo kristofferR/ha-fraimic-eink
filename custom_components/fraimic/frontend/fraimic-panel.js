@@ -212,7 +212,7 @@ const css = String.raw`
     display: flex; align-items: center; gap: 10px; padding: 0 16px;
     background: var(--chrome); border-top: 1px solid var(--line);
   }
-  .player.asleep .player-art, .player.unreachable .player-art { opacity: .45; }
+  .player.unreachable .player-art { opacity: .45; }
   .player.unreachable { border-top-color: var(--error-color); }
   .player-art { width: 52px; flex: none; }
   .player-copy { min-width: 0; max-width: 340px; }
