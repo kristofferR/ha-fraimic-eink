@@ -210,6 +210,16 @@ def test_official_mode_matches_fraimic_converter() -> None:
     assert mode == const.MODE_OFFICIAL
 
 
+def test_official_palette_lut_is_a_flat_24_bit_table() -> None:
+    """The Atkinson loop indexes the LUT as (r << 16) | (g << 8) | b."""
+    lut = ic._official_palette_lut()
+
+    assert isinstance(lut, bytes)
+    assert len(lut) == 1 << 24
+    for index, (red, green, blue) in enumerate(ic._OFFICIAL_PALETTE_RGB):
+        assert lut[(red << 16) | (green << 8) | blue] == index
+
+
 def test_official_palette_and_diffusion_match_golden_indices() -> None:
     """Pin the published RGB+luma metric without Pillow resize variability."""
     from PIL import Image
