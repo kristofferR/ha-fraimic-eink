@@ -578,21 +578,16 @@ class FramesView(_FraimicView):
 
     async def get(self, request: web.Request) -> web.Response:
         hass = request.app[KEY_HASS]
-        frames = [
-            _frame_payload(hass, entry) for entry in loaded_fraimic_entries(hass)
-        ]
+        frames = []
+        for entry in loaded_fraimic_entries(hass):
+            entry.runtime_data.coordinator.async_probe_if_stale()
+            frames.append(_frame_payload(hass, entry))
         return self.json({"frames": frames})
 
 
 def _entry_by_id(hass: HomeAssistant, entry_id: object) -> ConfigEntry:
     """Resolve one loaded frame entry or reject the request."""
-    entry = next(
-        (candidate for candidate in loaded_fraimic_entries(hass) if candidate.entry_id == entry_id),
-        None,
-    )
-    if entry is None:
-        raise web.HTTPBadRequest(text="Unknown or unloaded entry_id")
-    return entry
+    return require_loaded_entry(hass, entry_id)
 
 
 def _frame_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:

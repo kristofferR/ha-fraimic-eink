@@ -69,7 +69,8 @@ pass it explicitly; otherwise the frame's configured default is used.
 New frames default to **Minimum** mode: no startup or periodic requests, no active queued-send
 polling unless the frame advertised its next scheduled wake, and at most one automatic redraw per
 day while unplugged. Use **Refresh frame data** when you want fresh sensors, battery-health data,
-or cloud albums; cached values survive Home Assistant restarts.
+or cloud albums; cached values survive Home Assistant restarts. Opening the Fraimic dashboard
+probes the frame at most every five minutes, so the panel shows whether it is really awake.
 
 - **Balanced** polls no faster than hourly and permits up to eight automatic redraws per day.
 - **Responsive** retains the old polling behaviour and permits up to 48 automatic redraws per day.

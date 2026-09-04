@@ -38,6 +38,9 @@ REDISCOVERY_FAIL_THRESHOLD = 3
 REDISCOVERY_MIN_INTERVAL = 3600  # seconds between subnet scans
 REDISCOVERY_PROBE_TIMEOUT = 2.0  # per-host /api/info probe
 REDISCOVERY_CONCURRENCY = 32
+# Minimum power mode never polls by itself. Someone looking at the dashboard
+# gets at most one liveness probe per this many seconds instead.
+DASHBOARD_PROBE_MAX_AGE = 300
 
 CACHE_VERSION = 1
 
@@ -134,6 +137,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._consecutive_failures = 0
         self._expected_asleep = False
         self._last_seen: float | None = None
+        self._last_probe_attempt = 0.0
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
 
@@ -205,7 +209,31 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.frame_online = online
         self.async_update_listeners()
 
+    @callback
+    def async_probe_if_stale(self, max_age: float = DASHBOARD_PROBE_MAX_AGE) -> None:
+        """Check liveness in the background for a dashboard viewer.
+
+        Cached sensors stay as they are when the frame does not answer; only
+        the online flag changes. An answering frame gets a full refresh.
+        """
+        now = time.time()
+        if now - self._last_probe_attempt < max_age:
+            return
+        self._last_probe_attempt = now
+        self.config_entry.async_create_task(
+            self.hass, self._async_probe(), "fraimic-dashboard-probe"
+        )
+
+    async def _async_probe(self) -> None:
+        try:
+            await self.client.get_battery()
+        except FraimicError:
+            self.async_set_frame_online(False)
+            return
+        await self.async_request_refresh()
+
     async def _async_update_data(self) -> dict[str, Any]:
+        self._last_probe_attempt = time.time()
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:
