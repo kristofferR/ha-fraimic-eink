@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
@@ -42,6 +43,8 @@ from .scheduled_events import DATA_SCHEDULED_EVENTS, ScheduledEventManager
 from .scheduler import FraimicScheduler
 from .send_queue import FraimicSendQueue
 from .services import async_setup_services
+
+_LOGGER = logging.getLogger(__name__)
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
@@ -137,6 +140,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()
     entry.async_on_unload(scheduler.async_stop)
+    # Provider catalogs are cached in memory, so the first dashboard open after
+    # a restart used to wait ~10 s for the slowest museum API. Warm them once.
+    entry.async_create_background_task(
+        hass, _async_warm_catalogs(hass, entry), "fraimic-warm-catalogs"
+    )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -205,3 +213,15 @@ async def _async_update_listener(
 ) -> None:
     """Reload the entry when options (e.g. poll interval) change."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def _async_warm_catalogs(hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
+    """Fetch each online source's first gallery page into the shared caches."""
+    from .providers import available_provider_keys
+    from .providers.ha import async_browse_candidates
+
+    for key in available_provider_keys(entry):
+        try:
+            await async_browse_candidates(hass, entry, key, 8)
+        except Exception:
+            _LOGGER.debug("Catalog warm-up for %s failed", key, exc_info=True)

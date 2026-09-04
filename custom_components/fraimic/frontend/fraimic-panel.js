@@ -752,6 +752,21 @@ class FraimicPanel extends HTMLElement {
     const nextStatus = new Map();
     const nextFacets = { artists: [], colours: [], collections: [], eras: [] };
     const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
+    // Sources answer anywhere between 40 ms (library) and 10 s (a cold museum
+    // API). For a new query, paint what has arrived at most once a second
+    // instead of holding the empty grid until the slowest provider is done.
+    let lastPaint = 0;
+    const commit = (final) => {
+      if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
+      this._galleryBySource = nextBySource;
+      this._galleryCursorBySource = nextCursorBySource;
+      this._galleryTotalBySource = nextTotalBySource;
+      this._sourceStatus = nextStatus;
+      this._facets = nextFacets;
+      this._galleryLoading = !final;
+      lastPaint = Date.now();
+      this._renderPreservingFocus();
+    };
     await Promise.all(sources.map(async (source) => {
       try {
         const params = new URLSearchParams({ entry_id: entryId, source: source.key, limit: String(limit) });
@@ -770,17 +785,13 @@ class FraimicPanel extends HTMLElement {
         if (generation !== this._galleryGeneration) return;
         nextStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
       }
+      // A manual refresh keeps the old grid until the atomic final swap.
+      if (replacesVisibleQuery && Date.now() - lastPaint > 1000) commit(false);
     }));
     if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
-    this._galleryBySource = nextBySource;
-    this._galleryCursorBySource = nextCursorBySource;
-    this._galleryTotalBySource = nextTotalBySource;
-    this._sourceStatus = nextStatus;
-    this._facets = nextFacets;
-    this._galleryLoading = false;
     this._galleryLoadedAt = Date.now();
     if (query) localStorage.setItem("fraimic-last-search", query);
-    this._renderPreservingFocus();
+    commit(true);
   }
 
   async _loadMoreGallery() {
