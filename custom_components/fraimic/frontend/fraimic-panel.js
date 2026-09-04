@@ -274,14 +274,14 @@ const css = String.raw`
   .slide-row .number { width: 26px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .slide-row .row-art { width: 64px; }
   .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--primary-background-color) 72%, transparent); }
-  .dialog { width: min(880px, 92vw); max-height: 90vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
-  .dialog-title { min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
+  .dialog { width: min(880px, 92vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+  .dialog-title { min-height: 56px; flex: none; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
   .dialog-heading { min-width: 0; }
   .dialog-title h2 { margin: 0; font-size: 16px; }
   .dialog-subtitle { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: var(--muted); font-size: 12px; }
   .dialog-header-actions { display: flex; align-items: center; gap: 2px; }
-  .dialog-body { padding: 16px; }
-  .dialog-actions { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; }
+  .dialog-actions { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .dialog.detail-dialog { width: min(1120px, 94vw); }
   .detail-dialog .dialog-body { padding: 0; }
   .detail-grid { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(280px, .62fr); }
