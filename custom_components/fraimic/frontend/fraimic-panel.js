@@ -549,9 +549,10 @@ class FraimicPanel extends HTMLElement {
 
   async _api(path, options = {}) {
     const response = await this._hass.fetchWithAuth(`${API}/${path}`, options);
+    const text = await response.text();
     let body = null;
-    try { body = await response.json(); } catch (_error) { /* empty response */ }
-    if (!response.ok) throw new Error(body?.message || response.statusText || "Request did not complete");
+    try { body = text ? JSON.parse(text) : null; } catch (_error) { /* plain-text error body */ }
+    if (!response.ok) throw new Error(body?.message || text || response.statusText || "Request did not complete");
     return body;
   }
 
@@ -1805,6 +1806,7 @@ class FraimicPanel extends HTMLElement {
   _cropStyle(crop) { return `left:${crop[0] * 100}%;top:${crop[1] * 100}%;width:${(crop[2] - crop[0]) * 100}%;height:${(crop[3] - crop[1]) * 100}%`; }
 
   _setDetailCrop(crop, render = true) {
+    if (!crop.every(Number.isFinite)) return;
     this._detailOptions.crop = crop.map((value) => Math.max(0, Math.min(1, value)));
     this._cropDrafts.set(this._cropKey(this._detail.source, this._detail.itemId, this._selectedFrameId), this._detailOptions.crop);
     if (render) this._renderDetailModal();
@@ -1828,6 +1830,7 @@ class FraimicPanel extends HTMLElement {
     const startX = event.clientX, startY = event.clientY;
     target.setPointerCapture(event.pointerId);
     const move = (next) => {
+      if (!stage.isConnected || !stage.clientWidth || !stage.clientHeight) return;
       const dx = (next.clientX - startX) / stage.clientWidth, dy = (next.clientY - startY) / stage.clientHeight;
       let crop;
       if (resize) {

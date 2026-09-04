@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
+import voluptuous as vol
 from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
@@ -961,6 +962,8 @@ class GalleryActionView(HomeAssistantView):
                 return self.json({"item": item, "saved": saved.image_id})
             else:
                 raise ValueError("Unknown gallery action")
+        except vol.Invalid as err:
+            return self.json_message(f"Invalid slide: {err}", HTTPStatus.BAD_REQUEST)
         except (ArtFetchError, HomeAssistantError, ValueError) as err:
             return self.json_message(str(err), HTTPStatus.CONFLICT)
         return self.json({"item": await _resolve_item(hass, entry, source, item_id)})

@@ -184,3 +184,12 @@ def test_screen_from_dict_parses_windows() -> None:
 def test_bad_window_time_rejected() -> None:
     with pytest.raises(vol.Invalid):
         schema.SCREEN_SCHEMA(_minimal(windows=[{"after": "25:00"}]))
+
+
+def test_picture_crop_survives_revalidation() -> None:
+    # The scheduler queue validates slides that already passed the schema.
+    once = schema.SCREEN_SCHEMA(
+        {"kind": "picture", "library_image": "image-1", "crop": [0, 0.28, 1, 0.72]}
+    )
+    assert once["crop"] == [0.0, 0.28, 1.0, 0.72]
+    assert schema.SCREEN_SCHEMA(once)["crop"] == once["crop"]
