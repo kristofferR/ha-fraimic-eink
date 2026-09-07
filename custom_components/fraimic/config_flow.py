@@ -20,6 +20,7 @@ from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 
 from .api import FraimicClient, FraimicError, normalize_host
+from .cloud import FraimicCloudAuthError, FraimicCloudClient, FraimicCloudError
 from .const import (
     ARTWORK_CACHE_MODES,
     ATTR_CONTRAST,
@@ -30,6 +31,13 @@ from .const import (
     ATTR_TONE,
     CONF_CAMERA_INTERVAL,
     CONF_AUTO_SLEEP,
+    CONF_CLOUD_DEVICE_ID,
+    CONF_CLOUD_EMAIL,
+    CONF_CLOUD_PASSWORD,
+    CONF_DELIVERY_MODE,
+    DEFAULT_DELIVERY_MODE,
+    DELIVERY_CLOUD,
+    DELIVERY_MODES,
     CONF_ARTWORK_CACHE,
     CONF_ARTWORK_CACHE_MAX_MB,
     CONF_DEFAULT_PROVIDER,
@@ -303,6 +311,10 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
 class FraimicOptionsFlow(OptionsFlow):
     """Handle the Fraimic options (poll interval, base rotation)."""
 
+    def __init__(self) -> None:
+        self._pending: dict[str, Any] = {}
+        self._devices: list[dict[str, Any]] = []
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -320,13 +332,27 @@ class FraimicOptionsFlow(OptionsFlow):
             if 0 < camera_interval < MIN_CAMERA_INTERVAL:
                 errors[CONF_CAMERA_INTERVAL] = "camera_interval_too_low"
             if not errors:
-                return self.async_create_entry(title="", data=user_input)
+                # Carry the account over unless the user is about to re-enter it.
+                merged = {
+                    key: self.config_entry.options[key]
+                    for key in (CONF_CLOUD_EMAIL, CONF_CLOUD_PASSWORD, CONF_CLOUD_DEVICE_ID)
+                    if key in self.config_entry.options
+                }
+                merged.update(user_input)
+                if user_input.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
+                    self._pending = merged
+                    return await self.async_step_cloud()
+                return self.async_create_entry(title="", data=merged)
 
         o = self.config_entry.options
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
+                    vol.Required(
+                        CONF_DELIVERY_MODE,
+                        default=o.get(CONF_DELIVERY_MODE, DEFAULT_DELIVERY_MODE),
+                    ): vol.In(DELIVERY_MODES),
                     vol.Required(
                         CONF_POWER_MODE,
                         default=o.get(CONF_POWER_MODE, DEFAULT_POWER_MODE),
@@ -422,6 +448,92 @@ class FraimicOptionsFlow(OptionsFlow):
                 }
             ),
             errors=errors,
+        )
+
+
+    async def async_step_cloud(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Fraimic account for cloud delivery; verifies the login."""
+        errors: dict[str, str] = {}
+        o = self.config_entry.options
+        if user_input is not None:
+            # A blank password keeps the saved one so other options can be
+            # changed without re-entering the account.
+            password = user_input.get(CONF_CLOUD_PASSWORD) or ""
+            if not password and user_input[CONF_CLOUD_EMAIL].strip() == o.get(
+                CONF_CLOUD_EMAIL
+            ):
+                password = o.get(CONF_CLOUD_PASSWORD, "")
+            user_input = {**user_input, CONF_CLOUD_PASSWORD: password}
+            client = FraimicCloudClient(
+                async_get_clientsession(self.hass),
+                user_input[CONF_CLOUD_EMAIL].strip(),
+                password,
+            )
+            try:
+                await client.async_login()
+                self._devices = await client.async_devices()
+            except FraimicCloudAuthError:
+                errors["base"] = "invalid_auth"
+            except FraimicCloudError:
+                errors["base"] = "cannot_connect"
+            else:
+                self._devices = [d for d in self._devices if d.get("device_id")]
+                if not self._devices:
+                    errors["base"] = "no_devices"
+            if not errors:
+                self._pending[CONF_CLOUD_EMAIL] = user_input[CONF_CLOUD_EMAIL].strip()
+                self._pending[CONF_CLOUD_PASSWORD] = user_input[CONF_CLOUD_PASSWORD]
+                return await self.async_step_cloud_device()
+        # Suggest an account already used by another frame.
+        email = o.get(CONF_CLOUD_EMAIL)
+        if not email:
+            for other in self.hass.config_entries.async_entries(DOMAIN):
+                if other.options.get(CONF_CLOUD_EMAIL):
+                    email = other.options[CONF_CLOUD_EMAIL]
+                    break
+        return self.async_show_form(
+            step_id="cloud",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_CLOUD_EMAIL, description={"suggested_value": email}
+                    ): str,
+                    vol.Optional(CONF_CLOUD_PASSWORD, default=""): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_cloud_device(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Pick which account device this frame is."""
+        if user_input is not None:
+            self._pending[CONF_CLOUD_DEVICE_ID] = user_input[CONF_CLOUD_DEVICE_ID]
+            return self.async_create_entry(title="", data=self._pending)
+        host = self.config_entry.data.get(CONF_HOST, "")
+        current = self.config_entry.options.get(CONF_CLOUD_DEVICE_ID)
+        choices: dict[str, str] = {}
+        default = None
+        for device in self._devices:
+            device_id = str(device.get("device_id") or "")
+            if not device_id:
+                continue
+            label = f"{device.get('device_name') or 'Canvas'} ({device.get('ip_address') or '?'})"
+            choices[device_id] = label
+            if device_id == current or (
+                default is None and device.get("ip_address") == host
+            ):
+                default = device_id
+        if default is None and choices:
+            default = next(iter(choices))
+        return self.async_show_form(
+            step_id="cloud_device",
+            data_schema=vol.Schema(
+                {vol.Required(CONF_CLOUD_DEVICE_ID, default=default): vol.In(choices)}
+            ),
         )
 
 

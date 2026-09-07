@@ -48,6 +48,35 @@ POWER_MODES: Final = (
     POWER_MODE_RESPONSIVE,
 )
 DEFAULT_POWER_MODE: Final = POWER_MODE_MINIMUM
+
+# How rendered images reach the frame. ``local`` pushes the packed buffer over
+# the LAN (the frame must be awake). ``cloud`` uploads a palette PNG to the
+# Fraimic account and keeps a per-frame album whose schedule wakes the frame
+# from deep sleep for every slot, so keep-awake can stay off.
+CONF_DELIVERY_MODE: Final = "delivery_mode"
+DELIVERY_LOCAL: Final = "local"
+DELIVERY_CLOUD: Final = "cloud"
+DELIVERY_MODES: Final = (DELIVERY_LOCAL, DELIVERY_CLOUD)
+DEFAULT_DELIVERY_MODE: Final = DELIVERY_LOCAL
+CONF_CLOUD_EMAIL: Final = "cloud_email"
+CONF_CLOUD_PASSWORD: Final = "cloud_password"
+CONF_CLOUD_DEVICE_ID: Final = "cloud_device_id"
+# The frame's wake for an album slot happens at ``anchor + interval`` where
+# the anchor is the album's last edit. Home Assistant edits the album once per
+# playlist rotation, so the album interval is the playlist interval plus this
+# lead: the frame then wakes shortly *after* the next image was uploaded and
+# never re-fetches a stale one. Minutes, because the cloud schedule is.
+CLOUD_SLOT_LEAD_MINUTES: Final = 3
+CLOUD_API_BASE: Final = "https://origin.fraimic.com"
+# Supabase project behind app.fraimic.com. The anon key is the public one
+# shipped in the web app bundle; it only authorizes the login endpoints.
+CLOUD_AUTH_BASE: Final = "https://sclpedxwezoiwzesfdps.supabase.co/auth/v1"
+CLOUD_AUTH_ANON_KEY: Final = (
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+    "eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNjbHBlZHh3ZXpvaXd6ZXNmZHBzIiwicm9sZSI6"
+    "ImFub24iLCJpYXQiOjE3NTQzMzkzMjYsImV4cCI6MjA2OTkxNTMyNn0."
+    "CugvGydkxRhPCM0jMtJea_hdVXA3XOy41PbCAMr4Bjg"
+)
 DEFAULT_AUTO_SLEEP: Final = False
 
 # Per-frame base rotation (degrees clockwise) applied to every upload, on top of

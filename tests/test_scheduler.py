@@ -55,6 +55,9 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     class FrameUploadError(Exception):
         pass
 
+    class CloudDeliveryError(Exception):
+        pass
+
     def callback(func: Callable[..., object]) -> Callable[..., object]:
         return func
 
@@ -81,6 +84,7 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator.FraimicConfigEntry = SimpleNamespace
     screens.screens_from_entry = lambda _entry: []
     services.FrameUploadError = FrameUploadError
+    services.CloudDeliveryError = CloudDeliveryError
     providers.ha = providers_ha
     providers_ha.ArtFetchError = ArtFetchError
     homeassistant.core = core

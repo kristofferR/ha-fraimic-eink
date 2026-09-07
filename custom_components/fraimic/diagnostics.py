@@ -9,6 +9,8 @@ from homeassistant.core import HomeAssistant
 
 from .api import FraimicError
 from .const import (
+    CONF_CLOUD_EMAIL,
+    CONF_CLOUD_PASSWORD,
     CONF_NASA_API_KEY,
     CONF_PEXELS_KEY,
     CONF_SMITHSONIAN_KEY,
@@ -18,6 +20,8 @@ from .coordinator import FraimicConfigEntry
 from .log_page import parse_logs_page
 
 TO_REDACT = {
+    CONF_CLOUD_PASSWORD,
+    CONF_CLOUD_EMAIL,
     "ssid",
     "ip",
     "wifi_ssid",
@@ -88,6 +92,11 @@ async def async_get_config_entry_diagnostics(
         "data": async_redact_data(coordinator.data or {}, TO_REDACT),
         "battery_health": dict(coordinator.info_page),
         "power": entry.runtime_data.power.diagnostics(),
+        "cloud": (
+            entry.runtime_data.cloud.diagnostics()
+            if entry.runtime_data.cloud is not None
+            else None
+        ),
         # Recent frame logs (/logs admin page) — the only source for the WiFi
         # drop / upload-wedge symptoms; fetched on demand, never fatal.
         "logs": await _async_logs(coordinator),

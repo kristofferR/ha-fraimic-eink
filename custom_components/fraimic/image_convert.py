@@ -748,6 +748,86 @@ def _pack_el315(arr) -> bytes:
     return np.concatenate(blocks).tobytes()
 
 
+def unpack_bin(data: bytes, width: int, height: int):
+    """Recover per-pixel palette positions from a packed ``.bin`` buffer.
+
+    Exact inverse of :func:`_pack_nibbles`, so a cached buffer can be turned
+    back into pixels (for the cloud PNG) without re-rendering. Returns a
+    ``(height, width)`` uint8 array of palette positions.
+    """
+    import numpy as np
+
+    resolution = _require_canonical_resolution(width, height)
+    if len(data) != _expected_bin_size(width, height):
+        raise ValueError(f"Buffer is {len(data)} bytes, not a {width}x{height} frame")
+    raw = np.frombuffer(data, dtype=np.uint8)
+    nibbles = np.empty(raw.size * 2, dtype=np.uint8)
+    nibbles[0::2] = raw >> 4
+    nibbles[1::2] = raw & 0x0F
+    # Panel nibble -> palette position; the unused 0x4 (and anything else
+    # unexpected) reads back as white.
+    position = np.full(16, 1, dtype=np.uint8)
+    for index, nibble in enumerate(SPECTRA6_PANEL_INDEX):
+        position[nibble] = index
+
+    if resolution == (1440, 2560):
+        return position[_unpack_el315_nibbles(nibbles)]
+
+    half_h = height // 2
+    halves = []
+    for half in nibbles.reshape(2, -1):
+        cols = half.reshape(width, half_h)  # per column, bottom pixel first
+        halves.append(np.flipud(cols.T))
+    arr = np.concatenate((halves[1], halves[0]), axis=0)  # top half first
+    return position[arr]
+
+
+def _unpack_el315_nibbles(nibbles):
+    """Inverse of :func:`_pack_el315`: eight padded IC blocks -> portrait pixels."""
+    import numpy as np
+
+    block_rows = 720
+    block_pixels = 800
+    half_rows = 1280
+    blocks = nibbles.reshape(8, block_rows, block_pixels)
+    flipped = np.empty((2 * half_rows, 1440), dtype=np.uint8)
+    for half in range(2):
+        band = np.empty((block_rows, half_rows * 2), dtype=np.uint8)
+        for ic in range(4):
+            real_pixels = 160 if ic == 3 else block_pixels
+            start = ic * block_pixels
+            band[:, start : start + real_pixels] = blocks[half * 4 + ic][
+                :, :real_pixels
+            ]
+        strip = band.reshape(block_rows, half_rows, 2).transpose(1, 0, 2)
+        flipped[half * half_rows : (half + 1) * half_rows] = strip.reshape(
+            half_rows, 1440
+        )
+    return np.flipud(flipped)
+
+
+def indices_to_cloud_png(indices, width: int, height: int, rotate: int = 0) -> bytes:
+    """Encode palette positions as a full-size PNG in the six pure primaries.
+
+    The Fraimic cloud re-runs its own fit and dither on every upload; feeding
+    it an image that is already exactly on its palette at the panel's viewed
+    resolution makes that pass an identity, so the integration's own dither
+    survives. ``rotate`` turns the native buffer clockwise into the viewed
+    orientation; callers pass ``(-base_rotation) % 360`` like the preview.
+    """
+    import numpy as np
+    from PIL import Image
+
+    palette = np.array(_OFFICIAL_PALETTE_RGB, dtype=np.uint8)
+    rgb = palette[np.asarray(indices, dtype=np.uint8).reshape(height, width) % SPECTRA6_LEVELS]
+    image = Image.fromarray(rgb, mode="RGB")
+    if rotate % 360:
+        image = image.rotate(-(rotate % 360), expand=True)
+    buf = io.BytesIO()
+    image.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
 def _expected_bin_size(width: int, height: int) -> int:
     """Return the exact wire payload size for a configured panel."""
     resolution = _require_canonical_resolution(width, height)

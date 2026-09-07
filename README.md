@@ -84,6 +84,21 @@ probes the frame at most every five minutes, so the panel shows whether it is re
 - **Sleep after upload** is an experimental opt-in. It waits 45 seconds for rendering, then sleeps
   an unplugged frame only when no upload/queue work remains and firmware keep-awake is off.
 
+### Cloud delivery (battery mode)
+
+Set **Delivery** to **cloud** in the frame's options and sign in with your Fraimic account (the
+same login as the app). Home Assistant then uploads every image to your account and keeps a
+private album named after the frame. The album's schedule wakes the frame from deep sleep for each
+image, so **keep-awake is switched off** after the first delivery and the frame no longer needs
+to be reachable on your network. Playlists, queued sends, screens and the upload service all work
+unchanged; a "show now" appears at the frame's next wake, which is at most one playlist interval
+plus three minutes away. While the frame sleeps, battery and settings come from your account.
+Switching back to **local** re-enables keep-awake and deactivates the album.
+
+Images are pre-dithered here and uploaded exactly on the panel palette, so the cloud's own
+processing leaves them untouched. Each wake costs roughly three minutes of radio and a full
+redraw, so the playlist interval is the battery knob.
+
 ## Entities
 
 | Type | Entities |

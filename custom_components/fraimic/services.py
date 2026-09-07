@@ -22,6 +22,7 @@ from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
 from .api import FraimicConnectionError, FraimicError, FraimicTimeoutError
+from .cloud import FraimicCloudError
 from .const import (
     ATTR_CAPTION,
     ATTR_CONFIG_ENTRY,
@@ -86,6 +87,10 @@ from .source import async_get_source_bytes
 _LOGGER = logging.getLogger(__name__)
 
 ERR_NO_FRAIMIC_FRAME = "No Fraimic frame is set up"
+
+
+class CloudDeliveryError(HomeAssistantError):
+    """The Fraimic cloud rejected or could not take a delivery (transient)."""
 
 
 class FrameUploadError(HomeAssistantError):
@@ -780,16 +785,20 @@ async def async_render_and_upload(
                     f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
                 )
             content_hash = hashlib.sha256(bin_data).hexdigest()
-            reason = (
-                SKIP_DUPLICATE
-                if skip_if_hash is not None and content_hash == skip_if_hash
-                else runtime.power.skip_reason(
+            cloud = getattr(runtime, "cloud", None)
+            if skip_if_hash is not None and content_hash == skip_if_hash:
+                reason = SKIP_DUPLICATE
+            elif cloud is not None:
+                # The frame wakes for every album slot regardless, so the
+                # LAN redraw budget does not apply to cloud delivery.
+                reason = None
+            else:
+                reason = runtime.power.skip_reason(
                     content_hash,
                     trigger,
                     power_token,
                     runtime.coordinator.data,
                 )
-            )
             if reason is not None:
                 if preview_png:
                     if reason == SKIP_DUPLICATE:
@@ -825,8 +834,16 @@ async def async_render_and_upload(
                 }
 
             queued = False
-            queue = runtime.send_queue if queue_if_asleep else None
-            if queue is not None:
+            queue = runtime.send_queue if queue_if_asleep and cloud is None else None
+            if cloud is not None:
+                try:
+                    await cloud.async_deliver(bin_data, title=title or "image")
+                except FraimicCloudError as err:
+                    raise CloudDeliveryError(
+                        f"Could not deliver to the Fraimic cloud: {err}"
+                    ) from err
+                uploaded = True
+            elif queue is not None:
                 try:
                     uploaded = await queue.async_upload_or_queue(
                         bin_data,
@@ -866,7 +883,8 @@ async def async_render_and_upload(
 
             if uploaded:
                 await runtime.power.async_record_upload(content_hash, trigger)
-                runtime.power.schedule_sleep()
+                if cloud is None:
+                    runtime.power.schedule_sleep()
     finally:
         runtime.power.finish(power_token)
         finish_external_upload(scheduler, uploaded=uploaded)

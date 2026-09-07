@@ -41,6 +41,8 @@ REDISCOVERY_CONCURRENCY = 32
 # Minimum power mode never polls by itself. Someone looking at the dashboard
 # gets at most one liveness probe per this many seconds instead.
 DASHBOARD_PROBE_MAX_AGE = 300
+# Reuse the account's device record this long between failed LAN polls.
+CLOUD_SNAPSHOT_TTL = 300
 
 CACHE_VERSION = 1
 
@@ -76,6 +78,9 @@ class FraimicRuntimeData:
         self.send_queue: Any = None
         # Battery policy / redraw accounting (set during entry setup).
         self.power: Any = None
+        # Cloud delivery (cloud_delivery.FraimicCloudDelivery) when the frame's
+        # delivery mode is ``cloud``; None for LAN delivery.
+        self.cloud: Any = None
         # Serialize uploads; the frame can only process one long refresh.
         self.upload_lock = asyncio.Lock()
         # Set by the media player so enabling playlists can stop camera loops.
@@ -138,6 +143,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._expected_asleep = False
         self._last_seen: float | None = None
         self._last_probe_attempt = 0.0
+        self._cloud_snapshot: tuple[float, dict[str, Any]] | None = None
         self._last_rediscovery = 0.0
         self._rediscovery_task: asyncio.Task | None = None
 
@@ -241,6 +247,13 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # as a (non-noisy) UpdateFailed so entities go unavailable cleanly.
             self._consecutive_failures += 1
             self.frame_online = False
+            cloud_data = await self._async_cloud_snapshot()
+            if cloud_data is not None:
+                # Cloud delivery keeps the frame asleep on purpose; the account
+                # still knows its battery and settings from the last wake.
+                self.data = cloud_data
+                await self._async_save_cache()
+                return cloud_data
             self._async_maybe_rediscover()
             raise UpdateFailed(str(err)) from err
         except FraimicError as err:
@@ -262,6 +275,41 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.data = data
         await self._async_save_cache()
         return data
+
+    async def _async_cloud_snapshot(self) -> dict[str, Any] | None:
+        """Merge the account's device record over the last LAN snapshot."""
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        cloud = getattr(runtime, "cloud", None)
+        if cloud is None:
+            return None
+        # The account record only changes when the frame wakes, so a failed
+        # LAN poll every few seconds must not turn into a cloud call each time.
+        now = time.time()
+        if self._cloud_snapshot and now - self._cloud_snapshot[0] < CLOUD_SNAPSHOT_TTL:
+            return self._cloud_snapshot[1]
+        from .cloud import FraimicCloudError
+        from .cloud_delivery import cloud_device_snapshot
+
+        try:
+            device = await cloud.async_device()
+        except FraimicCloudError as err:
+            _LOGGER.debug("Cloud device lookup failed: %s", err)
+            return None
+        if device is None:
+            return None
+        base = dict(self.data) if isinstance(self.data, dict) else {}
+        merged: dict[str, Any] = {**base}
+        for section, values in cloud_device_snapshot(device).items():
+            if isinstance(values, dict):
+                current = base.get(section)
+                current = dict(current) if isinstance(current, dict) else {}
+                current.update({k: v for k, v in values.items() if v is not None})
+                merged[section] = current
+            elif values is not None or section not in merged:
+                merged[section] = values
+        merged["source"] = "cloud"
+        self._cloud_snapshot = (now, merged)
+        return merged
 
     async def async_refresh_albums(self) -> list[dict[str, Any]] | None:
         """Fetch cloud albums on demand; normal coordinator polls never do this."""
