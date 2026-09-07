@@ -247,8 +247,8 @@ async def _async_setup_cloud(
     if delivery.album_id is not None or delivery.keep_awake_released:
         # Switched back to local delivery: stop the album and let the frame
         # keep awake again so LAN uploads reach it.
-        await delivery.async_release()
-        await delivery.async_forget_album()
+        if await delivery.async_release():
+            await delivery.async_forget_album()
     return None
 
 

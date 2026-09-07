@@ -60,6 +60,9 @@ class FraimicCloudDelivery:
             hass, STORE_VERSION, f"{DOMAIN}_cloud_{entry.entry_id}"
         )
         self.album_id: str | None = None
+        # Canvas the album is assigned to; differs from ``device_id`` after the
+        # user picks another canvas, until the next delivery reassigns it.
+        self.album_device_id: str | None = None
         self.upload_id: str | None = None
         self.interval = DEFAULT_INTERVAL
         # True once the frame has been told to stop keeping awake: done after
@@ -71,6 +74,7 @@ class FraimicCloudDelivery:
     async def async_setup(self) -> None:
         data = await self._store.async_load() or {}
         self.album_id = data.get("album_id") or None
+        self.album_device_id = data.get("album_device_id") or None
         self.upload_id = data.get("upload_id") or None
         interval = data.get("interval")
         if isinstance(interval, int) and interval > 0:
@@ -82,6 +86,7 @@ class FraimicCloudDelivery:
         await self._store.async_save(
             {
                 "album_id": self.album_id,
+                "album_device_id": self.album_device_id,
                 "upload_id": self.upload_id,
                 "interval": self.interval,
                 "keep_awake_released": self.keep_awake_released,
@@ -136,15 +141,19 @@ class FraimicCloudDelivery:
 
     async def _async_point_album(self, upload_id: str) -> dict[str, Any]:
         if self.album_id is not None:
+            payload: dict[str, Any] = {"upload_ids": [upload_id]}
+            if self.album_device_id != self.device_id:
+                payload["device_assignments"] = [{"device_id": self.device_id}]
             try:
-                return await self.client.async_update_album(
-                    self.album_id, {"upload_ids": [upload_id]}
-                )
+                album = await self.client.async_update_album(self.album_id, payload)
             except FraimicCloudError as err:
                 if err.status != 404:
                     raise
                 _LOGGER.info("Cloud album %s is gone; creating a new one", self.album_id)
                 self.album_id = None
+            else:
+                self.album_device_id = self.device_id
+                return album
         album = await self.client.async_create_album(
             {
                 "name": self.album_name,
@@ -157,6 +166,7 @@ class FraimicCloudDelivery:
             }
         )
         self.album_id = str(album["id"])
+        self.album_device_id = self.device_id
         return album
 
     async def _async_discard(self, upload_id: str) -> None:
@@ -186,41 +196,52 @@ class FraimicCloudDelivery:
         if interval == self.interval and self.album_id is not None:
             return
         changed = album_interval_minutes(interval) != album_interval_minutes(self.interval)
-        self.interval = interval
-        await self._async_save()
         if self.album_id is None or not changed:
+            self.interval = interval
+            await self._async_save()
             return
         try:
             album = await self.client.async_update_album(
                 self.album_id, {"schedule": album_schedule(interval)}
             )
         except FraimicCloudError as err:
+            # Keep the old interval so the next sync retries the update.
             _LOGGER.warning("Could not update the cloud album schedule: %s", err)
             return
+        self.interval = interval
         self.last_anchor = album.get("updated_at") or self.last_anchor
         await self._async_save()
 
     # ------------------------------------------------------------ teardown
 
-    async def async_release(self) -> None:
-        """Hand the frame back to local delivery: keep-awake on, album off."""
+    async def async_release(self) -> bool:
+        """Hand the frame back to local delivery: keep-awake on, album off.
+
+        Returns whether everything succeeded; on failure the state is kept so
+        the next entry setup retries.
+        """
+        ok = True
         if self.album_id is not None:
             try:
                 await self.client.async_update_album(self.album_id, {"active": False})
             except FraimicCloudError as err:
                 _LOGGER.warning("Could not deactivate the cloud album: %s", err)
+                ok = False
         if self.keep_awake_released:
             try:
                 await self.client.async_set_keep_awake(self.device_id, True)
             except FraimicCloudError as err:
                 _LOGGER.warning("Could not turn keep-awake back on: %s", err)
+                ok = False
             else:
                 self.keep_awake_released = False
         await self._async_save()
+        return ok
 
     async def async_forget_album(self) -> None:
         """Drop the stored album so a later switch to cloud starts clean."""
         self.album_id = None
+        self.album_device_id = None
         self.upload_id = None
         await self._async_save()
 
@@ -233,6 +254,7 @@ class FraimicCloudDelivery:
     def diagnostics(self) -> dict[str, Any]:
         return {
             "album_id": self.album_id,
+            "album_device_id": self.album_device_id,
             "upload_id": self.upload_id,
             "interval": self.interval,
             "album_interval_minutes": album_interval_minutes(self.interval),
