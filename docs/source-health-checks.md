@@ -6,6 +6,10 @@ integration's provider registry, fetches candidates through the real provider
 code, and downloads and decodes an image. Empty results, parsing failures,
 download errors, and invalid images fail the check.
 
+Art Institute of Chicago (`aic`) is explicitly skipped in these live checks:
+its image downloads return HTTP 403 on GitHub-hosted runners while working from
+the home network. The source remains available in the integration.
+
 Checks run with at most four sources at once and a three-minute limit per source.
 The normal provider request throttles and image-size limits still apply. If any
 sources fail, the job waits 30 minutes and retries only those sources once, with

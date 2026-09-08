@@ -91,7 +91,11 @@ async def run_checks(
     async def attempt(key: str, *, retry: bool = False) -> None:
         provider = providers[key]
         api_key = api_keys.get(provider.key_option or "") or None
-        if provider.requires_key and not api_key:
+        if key == "aic":
+            result = CheckResult(
+                "skipped", "Image downloads return HTTP 403 on GitHub-hosted runners"
+            )
+        elif provider.requires_key and not api_key:
             result = CheckResult(
                 "skipped", f"Missing {(provider.key_option or key).upper()} secret"
             )
