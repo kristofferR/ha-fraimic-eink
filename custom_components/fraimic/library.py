@@ -387,7 +387,14 @@ class FraimicLibrary:
         from .render.display import discard_prepared_thumbnails
 
         for entry in loaded_fraimic_entries(self.hass):
-            if _crop_key_size(resolve_render_params(entry)) != (width, height):
+            try:
+                params = resolve_render_params(entry)
+            except HomeAssistantError as err:
+                _LOGGER.debug(
+                    "Skipping thumbnail invalidation for %s: %s", entry.entry_id, err
+                )
+                continue
+            if _crop_key_size(params) != (width, height):
                 continue
             discard_prepared_thumbnails(
                 self.hass, entry_id=entry.entry_id, image_id=image_id

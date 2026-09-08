@@ -1302,10 +1302,11 @@ class FraimicPanel extends HTMLElement {
   }
 
   _queueRow(item, index, section) {
+    const moveHint = section === "queue" ? "Alt+Right: move to the start of this frame's rotation" : "Alt+Left: move to the start of the queue";
     const remove = section === "queue"
       ? `<button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove" title="Remove"><ha-icon icon="mdi:close"></ha-icon></button>`
       : `<button class="icon-btn" data-skip-queue="${index}:${h(item.id)}" aria-label="Skip this time" title="Skip this time, comes back next cycle"><ha-icon icon="mdi:close"></ha-icon></button>`;
-    return `<li class="queue-row" draggable="true" data-queue-section="${section}" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions">${remove}</div></li>`;
+    return `<li class="queue-row" draggable="true" data-queue-section="${section}" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now" aria-description="${h(moveHint)}" aria-keyshortcuts="${section === "queue" ? "Alt+ArrowRight" : "Alt+ArrowLeft"}" title="${h(moveHint)}"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions">${remove}</div></li>`;
   }
 
   _artPreviewCell(item) {
@@ -1434,7 +1435,11 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-play-row]").forEach((node) => {
       const play = () => { if (!this._player?.sending) this._queueAction({ action: "play", section: node.dataset.queueSection, index: Number(node.dataset.queueIndex), slide_id: node.dataset.queueId }); };
       node.onclick = (event) => { if (!event.target.closest("button")) play(); };
-      node.onkeydown = (event) => { if (event.key === "Enter" && event.target === node) { event.preventDefault(); play(); } };
+      node.onkeydown = (event) => {
+        if (event.target !== node) return;
+        if (event.key === "Enter") { event.preventDefault(); play(); }
+        this._moveQueueRowWithKeyboard(event, node);
+      };
     });
     root.querySelectorAll("[data-dither-preview]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._openDitherPreview(node.dataset.ditherPreview, node.dataset.previewTitle, node.dataset.previewMeta); });
     root.querySelectorAll("[data-remove-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.removeQueue.split(":"); this._queueAction({ action: "remove", index: Number(index), slide_id: id.join(":") }); });
@@ -1575,6 +1580,19 @@ class FraimicPanel extends HTMLElement {
     }
   }
 
+  async _moveQueueRowWithKeyboard(event, row) {
+    const from = row.dataset.queueSection;
+    const key = from === "queue" ? "ArrowRight" : "ArrowLeft";
+    if (!event.altKey || event.key !== key || (from === "queue" && !this._player?.playlist_id)) return;
+    event.preventDefault();
+    const to = from === "queue" ? "playlist" : "queue";
+    const slideId = row.dataset.queueId;
+    await this._queueAction({ action: "move", from_section: from, index: Number(row.dataset.queueIndex), slide_id: slideId, to_section: to, to_index: 0 });
+    const rows = [...this.shadowRoot.querySelectorAll("[data-queue-section]")];
+    (rows.find((node) => node.dataset.queueSection === to && node.dataset.queueId === slideId)
+      || rows.find((node) => node.dataset.queueSection === from && node.dataset.queueId === slideId))?.focus();
+  }
+
   _bindQueueDnD() {
     // One drag surface across both queue sections: same-section drops reorder,
     // cross-section drops move between the hand queue and the session order.
@@ -1585,7 +1603,8 @@ class FraimicPanel extends HTMLElement {
       clear();
       if (!source) return;
       const from = source.dataset.queueSection;
-      if (from === toSection) this._reorderQueue(from, Number(source.dataset.queueIndex), toIndex);
+      const fromIndex = Number(source.dataset.queueIndex);
+      if (from === toSection) this._reorderQueue(from, fromIndex, fromIndex < toIndex ? toIndex - 1 : toIndex);
       else this._queueAction({ action: "move", from_section: from, index: Number(source.dataset.queueIndex), slide_id: source.dataset.queueId, to_section: toSection, to_index: toIndex });
     };
     this.shadowRoot.querySelectorAll("[data-queue-section]").forEach((row) => {

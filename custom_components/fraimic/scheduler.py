@@ -137,8 +137,11 @@ class FraimicScheduler:
             if self.shuffle:
                 random.shuffle(self._playback_order)
             return
-        known = set(base) | set(self._external_queue)
-        order = [slide_id for slide_id in self._playback_order if slide_id in known]
+        order = [
+            slide_id
+            for slide_id in self._playback_order
+            if self._slide_by_id(slide_id) is not None
+        ]
         kept = set(order)
         missing = [slide_id for slide_id in base if slide_id not in kept]
         if self.shuffle:
@@ -149,18 +152,13 @@ class FraimicScheduler:
         self._playback_order = order
 
     def _rotation_screens(self) -> list[ScreenConfig]:
-        """Catalog slides in the current playback order.
-
-        One-off slides moved into the session (queue row dragged into the
-        upcoming block) resolve through the external-queue definitions.
-        """
+        """Resolve session slides from the assigned playlist, gallery, or catalog."""
         if not self._playback_order:
             return self.screens
-        by_id = {screen.screen_id: screen for screen in self.screens}
-        for slide_id, screen in self._external_queue.items():
-            by_id.setdefault(slide_id, screen)
         return [
-            by_id[slide_id] for slide_id in self._playback_order if slide_id in by_id
+            screen
+            for slide_id in self._playback_order
+            if (screen := self._slide_by_id(slide_id)) is not None
         ]
 
     # -- lifecycle --------------------------------------------------------
@@ -215,7 +213,7 @@ class FraimicScheduler:
                 self._playback_order = order
                 self._order_custom = bool(session.get("custom"))
         self._rebase_playback_order(fresh=False)
-        valid_ids = {screen.screen_id for screen in self.screens} | set(
+        valid_ids = {screen.screen_id for screen in self._rotation_screens()} | set(
             self._external_queue
         )
         self._queued_ids = [
@@ -767,6 +765,10 @@ class FraimicScheduler:
                 raise HomeAssistantError("That queue item is no longer available")
             self._queued_ids.pop(index)
             self._place_in_session(slide_id, to_index)
+            if self._pending_from_queue and not self._queued_ids:
+                # The pending send now belongs to the session, not the hand queue.
+                self._pending_from_queue = False
+                self._pending_hold_on_success = False
         else:
             items = self.playlist_up_next(limit=index + 1)
             if not 0 <= index < len(items) or items[index].screen_id != slide_id:
@@ -793,7 +795,7 @@ class FraimicScheduler:
         self._load_assigned_playlist()
         if reset:
             self._rebase_playback_order(fresh=True)
-        valid_ids = {screen.screen_id for screen in self.screens} | set(
+        valid_ids = {screen.screen_id for screen in self._rotation_screens()} | set(
             self._external_queue
         )
         self._queued_ids = [
@@ -969,7 +971,6 @@ class FraimicScheduler:
                 >= (
                     (self.playlist_interval or current.interval)
                     if current.screen_id in self._playback_order
-                    and current.screen_id in self._external_queue
                     else current.interval
                 )
             )
