@@ -1604,7 +1604,7 @@ class FraimicPanel extends HTMLElement {
       if (!source) return;
       const from = source.dataset.queueSection;
       const fromIndex = Number(source.dataset.queueIndex);
-      if (from === toSection) this._reorderQueue(from, fromIndex, toIndex);
+      if (from === toSection) this._reorderQueue(from, fromIndex, fromIndex < toIndex ? toIndex - 1 : toIndex);
       else this._queueAction({ action: "move", from_section: from, index: Number(source.dataset.queueIndex), slide_id: source.dataset.queueId, to_section: toSection, to_index: toIndex });
     };
     this.shadowRoot.querySelectorAll("[data-queue-section]").forEach((row) => {

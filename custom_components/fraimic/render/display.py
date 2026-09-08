@@ -292,11 +292,13 @@ async def async_prepared_thumbnail(
     if (thumbnail := cached_prepared_thumbnail(hass, entry, screen)) is not None:
         return thumbnail
     scheduler = entry.runtime_data.scheduler
+    current = scheduler.current_screen
     if not any(
         candidate.screen_id == screen.screen_id
         for candidate in (
             *scheduler.screens,
             *scheduler.queued_slides,
+            *((current,) if current is not None else ()),
             *scheduler.playlist_up_next(limit=None),
         )
     ):

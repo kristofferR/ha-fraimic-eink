@@ -725,8 +725,10 @@ def test_library_prepared_preview_returns_dithered_thumbnail(
     assert preview == b"eink-preview"
 
 
+@pytest.mark.parametrize("current_one_off", [False, True])
 def test_prepare_screen_exposes_only_small_matching_thumbnail(
     monkeypatch: pytest.MonkeyPatch,
+    current_one_off: bool,
 ) -> None:
     import io
 
@@ -760,7 +762,10 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
         source={"library_image": "image-1", "mode": "none"},
     )
     entry.runtime_data.scheduler = types.SimpleNamespace(
-        screens=[], queued_slides=[], playlist_up_next=lambda **_kwargs: [screen]
+        screens=[],
+        queued_slides=[],
+        current_screen=screen if current_one_off else None,
+        playlist_up_next=lambda **_kwargs: [] if current_one_off else [screen],
     )
 
     assert asyncio.run(display.async_prepare_screen(hass, entry, screen)) is True
@@ -815,7 +820,10 @@ def test_unassigned_thumbnail_miss_does_not_render(monkeypatch):
     hass.data = {}
     entry = _entry()
     entry.runtime_data.scheduler = types.SimpleNamespace(
-        screens=[], queued_slides=[], playlist_up_next=lambda **_kwargs: []
+        screens=[],
+        queued_slides=[],
+        current_screen=None,
+        playlist_up_next=lambda **_kwargs: [],
     )
     screen = types.SimpleNamespace(screen_id="unassigned", source={})
 
