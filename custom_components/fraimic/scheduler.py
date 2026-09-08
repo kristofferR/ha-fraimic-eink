@@ -774,6 +774,8 @@ class FraimicScheduler:
                 max(0, min(to_index, len(self._queued_ids))), slide_id
             )
             self._defer_in_session(slide_id)
+            if self._pending is not None and self._pending_requires_enabled:
+                self._pending_from_queue = True
         self._order_custom = True
         self._sync_pending_queue_head()
         self._sync_pending_playlist_head()

@@ -1670,8 +1670,10 @@ def test_skip_upcoming_defers_to_end_of_cycle(
         asyncio.run(scheduler.async_skip_upcoming(0, "b"))
 
 
+@pytest.mark.parametrize("pending_manual", [None, False, True])
 def test_move_playlist_item_into_hand_queue(
     monkeypatch: pytest.MonkeyPatch,
+    pending_manual,
 ) -> None:
     scheduler_mod = _load_scheduler(monkeypatch)
     slides = [
@@ -1685,9 +1687,19 @@ def test_move_playlist_item_into_hand_queue(
     scheduler.current_id = "a"
     scheduler._playlist_cursor_id = "a"
 
+    if pending_manual is not None:
+        scheduler._pending = slides[2]
+        scheduler._pending_requires_enabled = not pending_manual
+
     asyncio.run(scheduler.async_move_queue_item("playlist", 0, "b", "queue", 0))
 
     assert scheduler._queued_ids == ["b"]
+    if pending_manual is False:
+        assert scheduler._pending is slides[1]
+        assert scheduler._pending_from_queue is True
+    elif pending_manual is True:
+        assert scheduler._pending is slides[2]
+        assert scheduler._pending_from_queue is False
     # Deferred in the session so it does not play twice back to back.
     assert scheduler._playback_order == ["b", "a", "c"]
     assert [slide.screen_id for slide in scheduler.playlist_up_next()] == ["c", "b"]
