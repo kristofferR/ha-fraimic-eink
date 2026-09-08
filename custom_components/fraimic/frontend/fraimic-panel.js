@@ -143,6 +143,7 @@ const css = String.raw`
   }
   .source-option:hover { color: var(--text); background: var(--secondary-background-color); }
   .source-option.selected { border-left-color: var(--accent); color: var(--text); background: var(--secondary-background-color); }
+  .source-option.favorites { color: var(--error-color); }
   .source-option:disabled { color: var(--disabled-text-color); cursor: default; }
   .source-option span:first-of-type { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .source-option .source-meta { margin-left: auto; color: var(--muted); font-size: 10px; }
@@ -203,6 +204,7 @@ const css = String.raw`
   .tile:hover .tile-heart, .tile:focus-within .tile-heart, .tile-heart[aria-pressed="true"] { opacity: 1; }
   .favorite-btn[aria-pressed="true"], .tile-heart[aria-pressed="true"] { color: var(--error-color); }
   .favorites-chip ha-icon { --mdc-icon-size: 15px; }
+  .favorites-chip.selected { color: var(--error-color); background: var(--surface); border-color: var(--line); }
   .badge { position: absolute; top: 7px; padding: 3px 6px; border-radius: 4px; background: var(--surface); color: var(--text); font-size: 10px; }
   .badge.right { right: 7px; }
   .loading-grid { columns: 180px; column-gap: 14px; }
@@ -1010,9 +1012,10 @@ class FraimicPanel extends HTMLElement {
       const canExpand = source.key !== "saved" && !(childMeta?.loaded && !childMeta.hasChildren);
       const expanded = this._expandedSources.has(childKey);
       const selected = this._selectedSource === source.key && this._selectedBrowseId === childId;
+      const favorite = source.key === "saved" && childId === "favorites";
       return `<div class="source-child-row">
         ${canExpand ? `<button class="source-expand" data-source-expand="${h(source.key)}" data-browse-id="${h(childId)}" aria-label="${expanded ? "Collapse" : "Expand"} ${h(child.title)}" aria-expanded="${expanded}"><ha-icon icon="mdi:chevron-right"></ha-icon></button>` : `<span class="source-expand-placeholder"></span>`}
-        <button class="source-option${selected ? " selected" : ""}" data-source-node="${h(source.key)}" data-browse-id="${h(childId)}" data-source-title="${h(child.title)}" aria-current="${selected ? "true" : "false"}"><span>${h(child.title)}</span>${child.count == null ? "" : `<span class="source-meta">${child.count}</span>`}</button>
+        <button class="source-option${selected ? " selected" : ""}${favorite ? " favorites" : ""}" data-source-node="${h(source.key)}" data-browse-id="${h(childId)}" data-source-title="${h(child.title)}" aria-current="${selected ? "true" : "false"}">${favorite ? `<ha-icon icon="mdi:heart"></ha-icon>` : ""}<span>${h(child.title)}</span>${child.count == null ? "" : `<span class="source-meta">${child.count}</span>`}</button>
         ${expanded ? `<div class="source-children open">${this._sourceChildrenTemplate(source, childId, depth + 1)}</div>` : ""}
       </div>`;
     }).join("");
@@ -1020,6 +1023,7 @@ class FraimicPanel extends HTMLElement {
 
   _sourceRailTemplate() {
     const available = this._sources.filter((source) => source.available).length;
+    const favoritesCount = this._sourceChildren.get(this._sourceNodeKey("saved"))?.find((child) => child.id === "favorites")?.count;
     const trees = this._orderedSources().map((source) => {
       const status = this._sourceStatus.get(source.key)?.status;
       const warning = status === "error" ? `<ha-icon icon="mdi:alert-circle-outline" title="Source unavailable"></ha-icon>` : "";
@@ -1039,6 +1043,7 @@ class FraimicPanel extends HTMLElement {
     const playlistsExpanded = this._expandedSources.has("@playlists");
     return `<nav class="source-rail" aria-label="Artwork navigation">
       <div class="source-group"><div class="source-group-label">Sources</div>
+        <div class="source-tree-row"><span class="source-grip"></span><span class="source-expand-placeholder"></span><button class="source-option favorites${this._viewingFavorites ? " selected" : ""}" data-source-node="saved" data-browse-id="favorites" data-source-title="Favorites" aria-current="${this._viewingFavorites ? "true" : "false"}"><ha-icon icon="mdi:heart"></ha-icon><span>Favorites</span>${favoritesCount == null ? "" : `<span class="source-meta">${favoritesCount}</span>`}</button></div>
         <div class="source-tree-row"><span class="source-grip"></span><span class="source-expand-placeholder"></span><button class="source-option${this._selectedSource === "all" ? " selected" : ""}" data-source="all" aria-current="${this._selectedSource === "all" ? "true" : "false"}"><ha-icon icon="mdi:view-grid-outline"></ha-icon><span>All sources</span><span class="source-meta">${available}</span></button></div>
         ${trees}
       </div>
