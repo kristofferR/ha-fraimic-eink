@@ -1,8 +1,7 @@
 """Reframed Gallery's public, curated artwork catalogue.
 
-No API is required: its server-rendered pages expose download URLs and
-structured artwork metadata. Keep the parser focused on those semantic
-attributes so CSS/module-name changes do not affect it.
+No API is required: its server-rendered pages expose image URLs and
+structured artwork metadata. Tile classes are matched without their build hashes.
 """
 
 from __future__ import annotations
@@ -79,6 +78,14 @@ class _TileParser(HTMLParser):
             self._tile.thumb_url = attrs.get("src") or None
         elif tag == "button" and attrs.get("data-download-url"):
             self._tile.download_url = attrs["data-download-url"]
+        elif tag == "button" and "downloadButton" in classes.split():
+            # Current tiles omit the download URL; the CDN thumbnail embeds it.
+            match = re.fullmatch(
+                r"https://cdn\.reframed\.gallery/cdn-cgi/image/[^/]+(/originals/.+)",
+                self._tile.thumb_url or "",
+            )
+            if match and not self._tile.download_url:
+                self._tile.download_url = f"https://cdn.reframed.gallery{match[1]}"
         elif tag == "span" and "Tile-module" in classes:
             if "name" in classes:
                 self._start_capture("label")

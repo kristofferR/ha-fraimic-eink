@@ -307,6 +307,48 @@ def test_parse_reframed_artwork_tiles_and_pagination() -> None:
     assert reframed.parse_page_count(REFRAMED_ARTWORK_HTML, "recent") == 8
 
 
+def test_parse_reframed_current_artwork_tile() -> None:
+    html = (FIXTURES / "reframed_artwork.html").read_text()
+    candidates = reframed.parse_artwork_tiles(html)
+
+    assert len(candidates) == 1
+    candidate = candidates[0]
+    assert candidate.item_id == "wheres-wally/the-land-of-waldos"
+    assert candidate.title == "The Land of Waldos"
+    assert candidate.artist == "Where's Wally"
+    assert candidate.image_url == (
+        "https://cdn.reframed.gallery/originals/"
+        "Where's%20Wally%20-%20The%20Land%20of%20Waldos%20-%20reframed.jpg"
+    )
+    assert candidate.thumb_url and "/cdn-cgi/image/" in candidate.thumb_url
+
+
+@pytest.mark.parametrize(
+    ("old", "new"),
+    [
+        ("cdn.reframed.gallery", "images.example.com"),
+        ("/originals/", "/thumbnails/"),
+        ("downloadButton", "unrelatedButton"),
+    ],
+)
+def test_reframed_thumbnail_fallback_requires_known_download(
+    old: str, new: str
+) -> None:
+    html = (FIXTURES / "reframed_artwork.html").read_text().replace(old, new)
+
+    assert reframed.parse_artwork_tiles(html) == []
+
+
+def test_reframed_explicit_download_takes_precedence() -> None:
+    html = (FIXTURES / "reframed_artwork.html").read_text().replace(
+        "<button ", '<button data-download-url="https://files.test/original.jpg" '
+    )
+
+    assert reframed.parse_artwork_tiles(html)[0].image_url == (
+        "https://files.test/original.jpg"
+    )
+
+
 def test_parse_reframed_group_tiles_and_color_tabs() -> None:
     groups_html = """
     <div class="Tile-module__hash__wrapper"><div>
