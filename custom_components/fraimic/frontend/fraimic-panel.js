@@ -1791,18 +1791,22 @@ class FraimicPanel extends HTMLElement {
     this._favoritePending.add(key);
     setLocal(!wasFavorite);
     refresh();
+    let saved = false;
     try {
       await this._artAction(wasFavorite ? "unfavorite" : "favorite", source, itemId, null, { ...options, quiet: true });
-      this._galleryLoadedAt = 0;
-      await Promise.all([this._loadSources(), this._loadPlayer(false), this._viewingFavorites ? this._loadGallery(true) : null]);
-      this._notify(wasFavorite ? "Removed from favorites." : "Added to favorites.");
+      saved = true;
     } catch (error) {
       setLocal(wasFavorite);
       this._notify(this._friendlyError(error), { error: true });
-    } finally {
-      this._favoritePending.delete(key);
-      refresh();
     }
+    if (saved) {
+      // The server has committed the change; a failed refresh must not roll the heart back.
+      this._galleryLoadedAt = 0;
+      this._notify(wasFavorite ? "Removed from favorites." : "Added to favorites.");
+      await Promise.allSettled([this._loadSources(), this._loadPlayer(false), this._viewingFavorites ? this._loadGallery(true) : null]);
+    }
+    this._favoritePending.delete(key);
+    refresh();
   }
 
   async _deleteSavedPicture(detail) {
