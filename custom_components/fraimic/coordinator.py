@@ -265,6 +265,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         self._consecutive_failures = 0
         self.frame_online = True
+        self._cloud_snapshot = None
         self._expected_asleep = False
         self._last_seen = time.time()
         # Newer firmware accepts the simpler (and structured-error) upload

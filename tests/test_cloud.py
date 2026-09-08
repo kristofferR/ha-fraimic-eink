@@ -265,3 +265,55 @@ def test_removal_preserves_ownership_and_reports_failed_cleanup(delivery_module,
         delivery._store.async_remove.assert_not_awaited()
         issues.async_create_issue.assert_called_once()
         assert issues.async_create_issue.call_args.kwargs["is_persistent"] is True
+
+
+def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypatch):
+    import asyncio
+    import time
+    from unittest.mock import AsyncMock, Mock
+
+    class GenericStub:
+        def __class_getitem__(cls, _item):
+            return cls
+
+    stubs = {
+        "homeassistant.config_entries": {"ConfigEntry": GenericStub},
+        "homeassistant.const": {"CONF_HOST": "host"},
+        "homeassistant.core": {"HomeAssistant": object, "callback": lambda fn: fn},
+        "homeassistant.helpers.aiohttp_client": {"async_get_clientsession": Mock()},
+        "homeassistant.helpers.update_coordinator": {
+            "DataUpdateCoordinator": GenericStub, "UpdateFailed": RuntimeError,
+        },
+    }
+    for name, attributes in stubs.items():
+        module = types.ModuleType(name)
+        module.__dict__.update(attributes)
+        monkeypatch.setitem(sys.modules, name, module)
+    monkeypatch.delitem(sys.modules, "fraimic.coordinator", raising=False)
+    coordinator_module = load("coordinator")
+    coordinator = object.__new__(coordinator_module.FraimicDataUpdateCoordinator)
+    cloud_device = AsyncMock(return_value={
+        "battery_pct": 80, "settings": {"keepAwakeEnabled": True},
+    })
+    coordinator.config_entry = types.SimpleNamespace(
+        runtime_data=types.SimpleNamespace(
+            power=None, cloud=types.SimpleNamespace(async_device=cloud_device),
+        ),
+    )
+    coordinator.client = types.SimpleNamespace(get_info=AsyncMock(side_effect=[
+        {"battery_pct": 80}, coordinator_module.FraimicConnectionError("asleep"),
+    ]))
+    coordinator._cloud_snapshot = (time.time(), {"battery": {"percent": 20}})
+    coordinator._async_backfill_unique_id = Mock()
+    coordinator._async_save_cache = AsyncMock()
+
+    async def poll():
+        lan = await coordinator._async_update_data()
+        assert lan["battery"]["percent"] == 80
+        assert coordinator._cloud_snapshot is None
+        fallback = await coordinator._async_update_data()
+        assert fallback["battery"]["percent"] == 80
+        assert fallback["settings"]["keep_awake"] is True
+
+    asyncio.run(poll())
+    cloud_device.assert_awaited_once()

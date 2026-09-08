@@ -230,7 +230,7 @@ def test_flush_caps_queued_payload_read(
 
 
 def test_cloud_setup_discards_lan_queue_without_starting_probes(send_queue_module):
-    from unittest.mock import AsyncMock
+    from unittest.mock import AsyncMock, Mock
 
     hass = types.SimpleNamespace(config=types.SimpleNamespace(path=lambda *parts: "/unused"))
     entry = types.SimpleNamespace(
@@ -241,6 +241,8 @@ def test_cloud_setup_discards_lan_queue_without_starting_probes(send_queue_modul
         async_load=AsyncMock(return_value={"pending": {"title": "Old art"}}),
         async_save=AsyncMock(),
     )
+    queue._start_waiting = Mock()
     asyncio.run(queue.async_setup())
+    queue._start_waiting.assert_not_called()
     queue._store.async_save.assert_awaited_once_with({"pending": None})
     assert queue.pending is None

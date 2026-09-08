@@ -7,6 +7,7 @@ import logging
 
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
@@ -233,8 +234,11 @@ async def _async_setup_cloud(
     if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
         return delivery
     if delivery.album_id is not None or delivery.keep_awake_released:
-        if await delivery.async_release():
-            await delivery.async_forget_album()
+        if not await delivery.async_release():
+            raise ConfigEntryNotReady(
+                "Cloud cleanup failed; retrying before enabling local delivery"
+            )
+        await delivery.async_forget_album()
     return None
 
 
