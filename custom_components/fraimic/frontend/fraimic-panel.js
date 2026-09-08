@@ -194,6 +194,15 @@ const css = String.raw`
   .tile:hover .actions, .tile:focus-within .actions { opacity: 1; }
   .actions .btn { height: 26px; min-height: 26px; padding: 0 7px; font-size: 11px; }
   .actions .icon-btn { width: 28px; height: 28px; min-height: 28px; color: var(--primary-text-color); }
+  .tile-heart {
+    position: absolute; top: 2px; right: 2px; width: 36px; height: 36px; min-height: 36px;
+    display: grid; place-items: center; color: #fff; opacity: 0;
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .75));
+  }
+  .tile-heart ha-icon { --mdc-icon-size: 22px; }
+  .tile:hover .tile-heart, .tile:focus-within .tile-heart, .tile-heart[aria-pressed="true"] { opacity: 1; }
+  .favorite-btn[aria-pressed="true"], .tile-heart[aria-pressed="true"] { color: var(--error-color); }
+  .favorites-chip ha-icon { --mdc-icon-size: 15px; }
   .badge { position: absolute; top: 7px; padding: 3px 6px; border-radius: 4px; background: var(--surface); color: var(--text); font-size: 10px; }
   .badge.right { right: 7px; }
   .loading-grid { columns: 180px; column-gap: 14px; }
@@ -312,7 +321,6 @@ const css = String.raw`
   .detail-description { margin: 12px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
   .detail-links { display: flex; align-items: flex-start; gap: 5px; flex-direction: column; margin-top: 12px; }
   .detail-links .btn { justify-content: flex-start; padding-left: 0; }
-  .favorite-btn[aria-pressed="true"] { color: var(--warning-color); }
   .favorite-btn[aria-pressed="true"] ha-icon { --mdc-icon-size: 22px; }
   .detail-ready { color: var(--muted); font-size: 12px; }
   .field { margin-bottom: 14px; }
@@ -464,7 +472,7 @@ class FraimicPanel extends HTMLElement {
     this._toastTimer = null;
     this._detail = null;
     this._detailOptions = null;
-    this._favoriteBusy = false;
+    this._favoritePending = new Set();
     this._cropDrafts = new Map();
     this._uploads = [];
     this._addingToPlaylist = null;
@@ -963,6 +971,7 @@ class FraimicPanel extends HTMLElement {
       ${this._facets.eras.length ? `<button class="chip${this._era ? " selected" : ""}" data-menu="era">${h(this._era || "Era")}</button>` : ""}
       <button class="chip${this._fits ? " selected" : ""}" data-toggle="fits">Fits ${h(this._frame?.name || "frame")}</button>
       <button class="chip${this._rendersWell ? " selected" : ""}" data-toggle="renders" title="Ranked by frame aspect and source resolution.">Renders well</button>
+      <button class="chip favorites-chip${this._viewingFavorites ? " selected" : ""}" data-toggle="favorites" aria-pressed="${this._viewingFavorites}"><ha-icon icon="mdi:heart${this._viewingFavorites ? "" : "-outline"}"></ha-icon>Favorites</button>
       <span class="spacer"></span><span class="counter">${this._galleryCounter()}</span>
       ${activeFilters ? `<button class="btn quiet small" data-clear-filters>Clear filters</button>` : ""}
     </div>`;
@@ -1180,6 +1189,7 @@ class FraimicPanel extends HTMLElement {
       <div class="art" style="--art-aspect:${aspect}" data-detail="${h(item.source)}:${h(item.id)}">
         <img ${src} width="${Math.max(1, item.width || 4)}" height="${Math.max(1, item.height || 3)}" loading="lazy" decoding="async">
         ${item.queued ? `<span class="badge right">queued</span>` : ""}
+        ${this._heartTemplate("tile-heart", item.favorite, `data-favorite data-source-id="${h(item.source)}" data-item-id="${h(item.id)}"`)}
         <div class="actions">
           <button class="btn primary" data-art-action="show_now" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">Show now</button>
           <button class="btn" data-art-action="queue" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">${item.queued ? "Queued" : "+ Queue"}</button>
@@ -1255,6 +1265,7 @@ class FraimicPanel extends HTMLElement {
     return `<footer class="player ${h(state)}" tabindex="0" data-player>
       <div class="player-art glass">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</div>
       <div class="player-copy"><b>${h(title)}</b><span data-player-meta>${h(meta)}</span></div>
+      ${current.source && current.item_id && !["idle", "unreachable"].includes(state) ? this._heartTemplate("icon-btn favorite-btn", current.favorite, "data-player-favorite") : ""}
       ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i data-player-progress style="width:${progress}%"></i></div>` : ""}
       ${transport}${state === "asleep" && player?.waiting_count ? `<span class="counter">${player.waiting_count} waiting</span>` : ""}
       <span class="spacer"></span>${stateActions}${player?.overlay_count && state !== "unreachable" ? `<button class="chip overlay-tag" data-overlays>${player.overlay_count} overlays</button>` : ""}<button class="btn" data-queue-toggle>Queue ${player?.queue_count || 0} <ha-icon icon="mdi:chevron-${this._queueOpen ? "down" : "up"}"></ha-icon></button><button class="icon-btn frame-more" data-menu="frame" aria-label="Frame menu"><ha-icon icon="mdi:dots-vertical"></ha-icon></button>
@@ -1381,6 +1392,9 @@ class FraimicPanel extends HTMLElement {
     root.querySelector("#gallery-search")?.addEventListener("input", (event) => this._search(event.target.value));
     root.querySelector("[data-toggle='fits']")?.addEventListener("click", () => { this._fits = !this._fits; this._render(); });
     root.querySelector("[data-toggle='renders']")?.addEventListener("click", () => { this._rendersWell = !this._rendersWell; this._render(); });
+    root.querySelector("[data-toggle='favorites']")?.addEventListener("click", () => this._viewingFavorites ? this._setSource("all") : this._setSource("saved", "favorites", "Favorites"));
+    root.querySelectorAll("[data-favorite]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._toggleFavorite(node.dataset.sourceId, node.dataset.itemId); });
+    root.querySelector("[data-player-favorite]")?.addEventListener("click", () => { const current = this._player?.current; if (current?.source) this._toggleFavorite(current.source, current.item_id); });
     root.querySelectorAll("[data-clear-filters]").forEach((node) => node.onclick = () => this._clearFilters());
     root.querySelectorAll("[data-facet]").forEach((node) => node.onclick = () => this._setFacet(node.dataset.facet, node.dataset.facetValue));
     root.querySelectorAll("[data-detail]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); const [source, ...rest] = node.dataset.detail.split(":"); this._openDetail(source, rest.join(":"), node); });
@@ -1436,6 +1450,7 @@ class FraimicPanel extends HTMLElement {
       if (event.key === "Enter") node.querySelector("[data-detail]")?.click();
       if (event.key.toLowerCase() === "s") node.querySelector("[data-art-action='show_now']")?.click();
       if (event.key.toLowerCase() === "q") node.querySelector("[data-art-action='queue']")?.click();
+      if (event.key.toLowerCase() === "f") node.querySelector("[data-favorite]")?.click();
     });
     this.shadowRoot.querySelector("[data-player]")?.addEventListener("keydown", (event) => { if (event.code === "Space") { event.preventDefault(); this._playerAction("toggle"); } });
   }
@@ -1728,7 +1743,7 @@ class FraimicPanel extends HTMLElement {
     </div>`;
     const actions = `<span class="detail-ready">Ready for ${h(this._frame.name)} · ${h(options.fit[0].toUpperCase() + options.fit.slice(1))} · ${h(options.tone[0].toUpperCase() + options.tone.slice(1))}</span><span class="spacer"></span><button class="btn primary" data-detail-action="show_now"><ha-icon icon="mdi:send"></ha-icon> Show now</button><button class="btn" data-detail-action="play_next">Play next</button><button class="btn" data-detail-action="queue">Add to queue</button><button class="btn" data-detail-action="playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon> Add to playlist</button>`;
     const subtitle = `${artistLink}<span>·</span>${sourceLink}`;
-    const headerActions = `<button class="icon-btn favorite-btn" data-detail-favorite aria-label="${detail.favorite ? "Remove from favorites" : "Add to favorites"}" aria-pressed="${Boolean(detail.favorite)}" ${this._favoriteBusy ? "disabled" : ""}><ha-icon icon="mdi:star${detail.favorite ? "" : "-outline"}"></ha-icon></button>`;
+    const headerActions = this._heartTemplate("icon-btn favorite-btn", detail.favorite, "data-detail-favorite");
     this._openModal(detail.title, body, actions, { className: "detail-dialog", subtitle, headerActions });
   }
 
@@ -1743,7 +1758,7 @@ class FraimicPanel extends HTMLElement {
       else if (action === "delete") this._deleteSavedPicture(detail);
       else { this._closeModal(); this._artAction(action, detail.source, detail.itemId, null, options); }
     });
-    this.shadowRoot.querySelector("[data-detail-favorite]")?.addEventListener("click", () => this._toggleDetailFavorite());
+    this.shadowRoot.querySelector("[data-detail-favorite]")?.addEventListener("click", () => this._toggleFavorite(detail.source, detail.itemId, options));
     this.shadowRoot.querySelector("[data-detail-fit]")?.addEventListener("change", (event) => { options.fit = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelector("[data-detail-tone]")?.addEventListener("change", (event) => { options.tone = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelector("[data-detail-mode]")?.addEventListener("change", (event) => { options.mode = event.target.value; this._renderDetailModal(); });
@@ -1755,30 +1770,38 @@ class FraimicPanel extends HTMLElement {
     this.shadowRoot.querySelectorAll("[data-related-frame]").forEach((node) => node.onclick = async () => { this._closeModal(); await this._selectFrame(node.dataset.relatedFrame); this._openDetail(detail.source, detail.itemId, null); });
   }
 
-  async _toggleDetailFavorite() {
-    const detail = this._detail;
-    if (!detail || this._favoriteBusy) return;
-    this._favoriteBusy = true;
-    this._renderDetailModal();
+  get _viewingFavorites() { return this._selectedSource === "saved" && this._selectedBrowseId === "favorites"; }
+
+  _heartTemplate(className, favorite, attrs) {
+    const on = Boolean(favorite);
+    return `<button class="${className}" ${attrs} aria-pressed="${on}" aria-label="${on ? "Remove from favorites" : "Add to favorites"}"><ha-icon icon="mdi:heart${on ? "" : "-outline"}"></ha-icon></button>`;
+  }
+
+  /** Flip a favorite optimistically wherever the picture shows: tile, detail dialog, player bar. */
+  async _toggleFavorite(source, itemId, options = {}) {
+    const key = `${source}:${itemId}`;
+    if (this._favoritePending.has(key)) return;
+    const item = this._findItem(source, itemId);
+    const current = this._player?.current;
+    const onWall = current?.source === source && current?.item_id === itemId;
+    const detail = this._detail?.source === source && this._detail?.itemId === itemId ? this._detail : null;
+    const wasFavorite = Boolean(item?.favorite ?? detail?.favorite ?? (onWall && current.favorite));
+    const setLocal = (value) => { if (item) item.favorite = value; if (onWall) current.favorite = value; if (detail) detail.favorite = value; };
+    const refresh = () => { this._renderPreservingFocus(); if (this._detail) this._renderDetailModal(); };
+    this._favoritePending.add(key);
+    setLocal(!wasFavorite);
+    refresh();
     try {
-      const action = detail.favorite ? "unfavorite" : "favorite";
-      const data = await this._artAction(action, detail.source, detail.itemId, null, { ...this._detailOptions, quiet: true });
-      if (data?.deleted) {
-        this._closeModal();
-        await Promise.all([this._loadSources(), this._loadGallery(true), this._loadPlaylists()]);
-        this._notify("Removed from favorites.");
-        return;
-      }
-      if (data?.item) Object.assign(detail, data.item);
-      detail.favorite = action === "favorite";
+      await this._artAction(wasFavorite ? "unfavorite" : "favorite", source, itemId, null, { ...options, quiet: true });
       this._galleryLoadedAt = 0;
-      await this._loadSources();
-      if (this._selectedSource === "saved" && this._selectedBrowseId === "favorites") await this._loadGallery(true);
+      await Promise.all([this._loadSources(), this._loadPlayer(false), this._viewingFavorites ? this._loadGallery(true) : null]);
+      this._notify(wasFavorite ? "Removed from favorites." : "Added to favorites.");
     } catch (error) {
+      setLocal(wasFavorite);
       this._notify(this._friendlyError(error), { error: true });
     } finally {
-      this._favoriteBusy = false;
-      if (this._detail) this._renderDetailModal();
+      this._favoritePending.delete(key);
+      refresh();
     }
   }
 
@@ -2073,7 +2096,7 @@ class FraimicPanel extends HTMLElement {
   async _copyOverlays() { const target = this._frames.find((frame) => frame.id !== this._selectedFrameId); if (!target) return; if (!confirm(`Replace overlays on ${target.name}?`)) return; try { await this._api("overlays", this._json({ action: "copy", entry_id: this._selectedFrameId, target_entry_id: target.id })); this._notify(`Copied overlays to ${target.name}.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
 
   _openModal(title, body, actions = "", options = {}) { this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
-  _closeModal() { this._detailGeneration += 1; this._modal = null; this._detail = null; this._favoriteBusy = false; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
+  _closeModal() { this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
 
   _trapModalFocus(event) {
     const focusable = [...this.shadowRoot.querySelectorAll(".dialog button:not([disabled]), .dialog input:not([disabled]), .dialog select:not([disabled]), .dialog textarea:not([disabled]), .dialog a[href]")];
