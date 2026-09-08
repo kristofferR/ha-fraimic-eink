@@ -29,7 +29,7 @@ from .const import (
     DEFAULT_WIDTH,
     DOMAIN,
 )
-from .image_convert import indices_to_cloud_png, unpack_bin
+from .image_convert import indices_to_cloud_png, bin_to_indices
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -39,7 +39,7 @@ DEFAULT_INTERVAL = 3600
 
 
 def _cloud_png(bin_data: bytes, width: int, height: int, rotation: int) -> bytes:
-    return indices_to_cloud_png(unpack_bin(bin_data, width, height), width, height, rotation)
+    return indices_to_cloud_png(bin_to_indices(bin_data, width, height), width, height, rotation)
 
 
 class FraimicCloudDelivery:

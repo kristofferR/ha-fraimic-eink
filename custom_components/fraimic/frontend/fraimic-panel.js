@@ -212,7 +212,7 @@ const css = String.raw`
     display: flex; align-items: center; gap: 10px; padding: 0 16px;
     background: var(--chrome); border-top: 1px solid var(--line);
   }
-  .player.asleep .player-art, .player.unreachable .player-art { opacity: .45; }
+  .player.unreachable .player-art { opacity: .45; }
   .player.unreachable { border-top-color: var(--error-color); }
   .player-art { width: 52px; flex: none; }
   .player-copy { min-width: 0; max-width: 340px; }
@@ -253,10 +253,22 @@ const css = String.raw`
   .queue-interval-menu button:hover { background: var(--secondary-background-color); }
   .queue-interval-menu button span { margin-left: auto; color: var(--muted); font-size: 11px; }
   .queue-list { margin: 0; padding: 0; list-style: none; }
-  .queue-row { min-height: 68px; display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-bottom: 1px solid var(--line); }
+  .queue-row { min-height: 68px; display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .queue-row:hover { background: var(--secondary-background-color); }
   .queue-row.drag-over { border-top: 2px solid var(--accent); }
+  .queue-head.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
+  .queue-now { display: flex; align-items: center; gap: 10px; padding: 14px 16px 8px; }
+  .queue-now .row-art { outline: 1px solid var(--accent); outline-offset: 1px; }
+  .queue-head .sub, .queue-more { color: var(--muted); font-size: 12px; font-weight: 400; }
+  .queue-more { padding: 10px 16px 16px; }
   .grip { color: var(--muted); cursor: grab; }
   .row-art { width: 52px; flex: none; }
+  button.row-art, button.player-art { min-height: 0; padding: 0; display: block; }
+  button.row-art:hover, button.player-art:hover { outline: 1px solid var(--accent); outline-offset: 1px; }
+  .dither-preview { position: relative; display: grid; place-items: center; }
+  .dither-preview .counter { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; white-space: normal; padding: 0 24px; }
+  .dither-preview img { position: relative; }
+  .dither-modal .dialog-body { padding: 12px; }
   .row-copy { min-width: 0; flex: 1; }
   .row-copy b, .row-copy span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .row-copy b { font-size: 13px; } .row-copy span { color: var(--muted); font-size: 12px; }
@@ -371,7 +383,7 @@ const css = String.raw`
     .inspector { border-left: 0; border-top: 1px solid var(--line); }
   }
   @media (max-width: 599px) {
-    .top, .filter, .content, .player, .queue-row, .queue-head { padding-left: 12px; padding-right: 12px; }
+    .top, .filter, .content, .player, .queue-row, .queue-head, .queue-now { padding-left: 12px; padding-right: 12px; }
     .top .nav-label, .player .previous, .player .next, .player .frame-more { display: none; }
     .frames { min-width: 0; }
     .filter { flex-wrap: nowrap; overflow-x: auto; }
@@ -493,7 +505,7 @@ class FraimicPanel extends HTMLElement {
   connectedCallback() {
     window.addEventListener("popstate", this._onPop);
     window.addEventListener("resize", this._onWindowResize);
-    this.shadowRoot.addEventListener("keydown", this._onShadowKeyDown);
+    window.addEventListener("keydown", this._onShadowKeyDown);
     this._syncPanelBounds();
     if ("ResizeObserver" in window) {
       this._boundsObserver ||= new ResizeObserver(() => this._syncPanelBounds());
@@ -505,7 +517,7 @@ class FraimicPanel extends HTMLElement {
   disconnectedCallback() {
     window.removeEventListener("popstate", this._onPop);
     window.removeEventListener("resize", this._onWindowResize);
-    this.shadowRoot.removeEventListener("keydown", this._onShadowKeyDown);
+    window.removeEventListener("keydown", this._onShadowKeyDown);
     clearInterval(this._refreshTimer);
     clearTimeout(this._searchTimer);
     clearTimeout(this._toastTimer);
@@ -1222,7 +1234,7 @@ class FraimicPanel extends HTMLElement {
     const movement = playlist.shuffle ? "" : `<button class="icon-btn" data-move-slide="top" data-slide-index="${index}" aria-label="Move to top" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-up"></ha-icon></button><button class="icon-btn" data-move-slide="up" data-slide-index="${index}" aria-label="Move up" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-move-slide="down" data-slide-index="${index}" aria-label="Move down" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-move-slide="bottom" data-slide-index="${index}" aria-label="Move to bottom" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-down"></ha-icon></button>`;
     return `<li class="slide-row" ${playlist.shuffle ? "" : "draggable=\"true\""} data-slide-id="${h(slide.id)}" data-slide-index="${index}">
       <span class="grip" aria-hidden="true"><ha-icon icon="mdi:drag"></ha-icon></span><span class="number">${index + 1}</span>
-      <div class="row-art glass">${slide.thumbnail_url ? `<img ${this._imageAttrs(slide.thumbnail_url, "")}>` : ""}</div>
+      ${this._artPreviewCell(slide)}
       <div class="row-copy"><b>${h(slide.title)}</b><span>${h(slide.meta)}${slide.overlays === "inherit" && this._player?.overlay_count ? ` · Inheriting ${this._player.overlay_count} overlays from ${this._frame?.name}` : ""}</span></div>
       <div class="row-actions">${movement}<button class="icon-btn" data-slide-settings="${h(slide.id)}" aria-label="Slide settings"><ha-icon icon="mdi:tune"></ha-icon></button><button class="icon-btn" data-remove-slide="${h(slide.id)}" aria-label="Remove"><ha-icon icon="mdi:close"></ha-icon></button></div>
     </li>`;
@@ -1252,8 +1264,12 @@ class FraimicPanel extends HTMLElement {
       : state === "unreachable"
         ? `<button class="btn" data-player-action="retry">Retry</button><button class="btn quiet" data-device>Device page</button>`
         : "";
+    const barArt = current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : "";
+    const barArtCell = current.thumbnail_url
+      ? `<button class="player-art glass" data-dither-preview="" data-preview-title="${h(current.title || "Now showing")}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title || "artwork")}" title="Frame preview">${barArt}</button>`
+      : `<div class="player-art glass"></div>`;
     return `<footer class="player ${h(state)}" tabindex="0" data-player>
-      <div class="player-art glass">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</div>
+      ${barArtCell}
       <div class="player-copy"><b>${h(title)}</b><span data-player-meta>${h(meta)}</span></div>
       ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i data-player-progress style="width:${progress}%"></i></div>` : ""}
       ${transport}${state === "asleep" && player?.waiting_count ? `<span class="counter">${player.waiting_count} waiting</span>` : ""}
@@ -1265,20 +1281,37 @@ class FraimicPanel extends HTMLElement {
     const player = this._player || {};
     const hand = player.hand_queue || [];
     const playlist = player.playlist?.items || [];
+    const total = player.playlist?.total ?? playlist.length;
     const shuffled = Boolean(player.playlist?.shuffle);
+    const current = player.current || {};
+    const state = player.state || "idle";
     const interval = this._formatInterval(player.interval).replace(/^every /, "");
     const intervalControl = player.playlist_id ? `<button class="btn queue-interval${this._menu === "interval" ? " selected" : ""}" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button>` : "";
+    const chrome = `<span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>`;
+    const nowMeta = state === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : state === "asleep" ? `Now showing · ${h(this._frame?.name || "frame")} is asleep` : "Now showing";
+    const handle = `<div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>`;
+    const head = current.title
+      ? `<div class="queue-now queue-toolbar">${handle}<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title)}" title="Frame preview">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
+      : `<div class="queue-head queue-toolbar">${handle}<h2>Queue</h2>${chrome}</div>`;
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
-      <div class="queue-head queue-toolbar"><div class="queue-handle" data-queue-handle aria-label="Resize queue"></div><h2>Queue</h2><span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button></div>
+      ${head}
       ${this._menu === "interval" && player.playlist_id ? this._intervalMenuTemplate("queue-interval-menu") : ""}
-      ${hand.length ? `<div class="queue-head"><h2>Next in queue · added by you, played once</h2><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue", hand.length, true)).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue">Drop a picture here to play it next</div>`}
-      ${player.playlist_id ? `<div class="queue-head"><h2>Next from ${h(player.playlist_name || "playlist")}${shuffled ? ", shuffled" : ""}</h2><span class="spacer"></span><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `${shuffled ? "" : `<div class="failure">Reordering here changes the playlist.</div>`}<ol class="queue-list" data-art-drop="playlist">${playlist.map((item, index) => this._queueRow(item, index, "playlist", playlist.length, !shuffled)).join("")}</ol>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
+      ${hand.length ? `<div class="queue-head" data-queue-move-drop="queue"><h2>Next in queue</h2><span class="sub">${hand.length}</span><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue")).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue" data-queue-move-drop="queue">Drop a picture here to play it next</div>`}
+      ${player.playlist_id ? `<div class="queue-head" data-queue-move-drop="playlist"><h2>Next from ${h(player.playlist_name || "playlist")}</h2><span class="sub">${shuffled ? "shuffled · " : ""}this frame only, playlist unchanged</span><span class="spacer"></span><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `<ol class="queue-list">${playlist.map((item, index) => this._queueRow(item, index, "playlist")).join("")}</ol>` : ""}${total > playlist.length ? `<div class="queue-more">and ${total - playlist.length} more in the playlist</div>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
     </section>`;
   }
 
-  _queueRow(item, index, section, count, reorderable) {
-    const movement = reorderable ? `<button class="icon-btn" data-move-queue="top" data-section="${section}" data-index="${index}" aria-label="Move to top" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-up"></ha-icon></button><button class="icon-btn" data-move-queue="up" data-section="${section}" data-index="${index}" aria-label="Move up" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-move-queue="down" data-section="${section}" data-index="${index}" aria-label="Move down" ${index === count - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-move-queue="bottom" data-section="${section}" data-index="${index}" aria-label="Move to bottom" ${index === count - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-down"></ha-icon></button>` : "";
-    return `<li class="queue-row" ${reorderable ? `draggable="true" data-queue-section="${section}"` : ""} data-queue-index="${index}" data-queue-id="${h(item.id)}"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span><div class="row-art glass">${item.thumbnail_url ? `<img ${this._imageAttrs(item.thumbnail_url, "")}>` : ""}</div><div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions"><button class="icon-btn" data-play-queue data-section="${section}" data-index="${index}" data-slide-id="${h(item.id)}" aria-label="Play now" ${this._player?.sending ? "disabled" : ""}><ha-icon icon="mdi:play"></ha-icon></button>${movement}${section === "queue" ? `<button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove"><ha-icon icon="mdi:close"></ha-icon></button>` : ""}</div></li>`;
+  _queueRow(item, index, section) {
+    const remove = section === "queue"
+      ? `<button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove" title="Remove"><ha-icon icon="mdi:close"></ha-icon></button>`
+      : `<button class="icon-btn" data-skip-queue="${index}:${h(item.id)}" aria-label="Skip this time" title="Skip this time, comes back next cycle"><ha-icon icon="mdi:close"></ha-icon></button>`;
+    return `<li class="queue-row" draggable="true" data-queue-section="${section}" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions">${remove}</div></li>`;
+  }
+
+  _artPreviewCell(item) {
+    const art = item.thumbnail_url ? `<img ${this._imageAttrs(item.thumbnail_url, "")}>` : "";
+    if (item.live || item.blank) return `<div class="row-art glass">${art}</div>`;
+    return `<button class="row-art glass" data-dither-preview="${h(item.id)}" data-preview-title="${h(item.title)}" data-preview-meta="${h(item.meta)}" aria-label="Preview ${h(item.title)} on the frame" title="Frame preview">${art}</button>`;
   }
 
   _menuTemplate() {
@@ -1394,11 +1427,18 @@ class FraimicPanel extends HTMLElement {
     root.getElementById("upload")?.addEventListener("change", (event) => this._uploadFiles([...event.target.files]));
     root.querySelectorAll("[data-player-action]").forEach((node) => node.onclick = () => this._playerAction(node.dataset.playerAction));
     root.querySelectorAll("[data-queue-toggle]").forEach((node) => node.onclick = () => this._toggleQueue());
+    // The dimmed main area is pointer-events:none, so its clicks land on the shell.
+    root.querySelector(".shell")?.addEventListener("click", (event) => { if (this._queueOpen && event.target === event.currentTarget) this._toggleQueue(); });
     root.querySelector("[data-queue-handle]")?.addEventListener("pointerdown", (event) => this._dragQueueSheet(event));
     root.querySelector("[data-clear-queue]")?.addEventListener("click", () => this._queueAction({ action: "clear" }));
-    root.querySelectorAll("[data-play-queue]").forEach((node) => node.onclick = () => this._queueAction({ action: "play", section: node.dataset.section, index: Number(node.dataset.index), slide_id: node.dataset.slideId }));
+    root.querySelectorAll("[data-play-row]").forEach((node) => {
+      const play = () => { if (!this._player?.sending) this._queueAction({ action: "play", section: node.dataset.queueSection, index: Number(node.dataset.queueIndex), slide_id: node.dataset.queueId }); };
+      node.onclick = (event) => { if (!event.target.closest("button")) play(); };
+      node.onkeydown = (event) => { if (event.key === "Enter" && event.target === node) { event.preventDefault(); play(); } };
+    });
+    root.querySelectorAll("[data-dither-preview]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._openDitherPreview(node.dataset.ditherPreview, node.dataset.previewTitle, node.dataset.previewMeta); });
     root.querySelectorAll("[data-remove-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.removeQueue.split(":"); this._queueAction({ action: "remove", index: Number(index), slide_id: id.join(":") }); });
-    root.querySelectorAll("[data-move-queue]").forEach((node) => node.onclick = () => this._moveQueue(node.dataset.section, Number(node.dataset.index), node.dataset.moveQueue));
+    root.querySelectorAll("[data-skip-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.skipQueue.split(":"); this._queueAction({ action: "skip", index: Number(index), slide_id: id.join(":") }); });
     root.querySelectorAll("[data-create-playlist]").forEach((node) => node.onclick = () => this._createPlaylist());
     root.querySelectorAll("[data-play-playlist]").forEach((node) => node.onclick = () => this._playPlaylist(node.dataset.playPlaylist));
     root.querySelectorAll("[data-add-from-browse]").forEach((node) => node.onclick = () => { this._addingToPlaylist = node.dataset.addFromBrowse; this._navigate("/"); this._notify(`Add art to ${this._playlist?.name || "playlist"}.`); });
@@ -1480,10 +1520,7 @@ class FraimicPanel extends HTMLElement {
     let expandTimer = null;
     player?.addEventListener("dragenter", () => { if (this._draggedArt && !this._queueOpen) expandTimer = setTimeout(() => { this._queueOpen = true; this._render(); }, 600); });
     player?.addEventListener("dragleave", () => clearTimeout(expandTimer));
-    this._bindReorder("[data-queue-section]", (source, target) => {
-      if (source.dataset.queueSection !== target.dataset.queueSection) return;
-      this._reorderQueue(source.dataset.queueSection, Number(source.dataset.queueIndex), Number(target.dataset.queueIndex));
-    });
+    this._bindQueueDnD();
     this._bindReorder("[data-slide-id]", (source, target) => this._reorderSlides(Number(source.dataset.slideIndex), Number(target.dataset.slideIndex)));
   }
 
@@ -1536,6 +1573,33 @@ class FraimicPanel extends HTMLElement {
         : null;
       this._artAction("add_playlist", art.source, art.itemId, playlistId || this._player?.playlist_id, { beforeSlideId });
     }
+  }
+
+  _bindQueueDnD() {
+    // One drag surface across both queue sections: same-section drops reorder,
+    // cross-section drops move between the hand queue and the session order.
+    let dragged = null;
+    const clear = () => { dragged = null; this.shadowRoot.querySelectorAll(".drag-over").forEach((node) => node.classList.remove("drag-over")); };
+    const drop = (toSection, toIndex) => {
+      const source = dragged;
+      clear();
+      if (!source) return;
+      const from = source.dataset.queueSection;
+      if (from === toSection) this._reorderQueue(from, Number(source.dataset.queueIndex), toIndex);
+      else this._queueAction({ action: "move", from_section: from, index: Number(source.dataset.queueIndex), slide_id: source.dataset.queueId, to_section: toSection, to_index: toIndex });
+    };
+    this.shadowRoot.querySelectorAll("[data-queue-section]").forEach((row) => {
+      row.ondragstart = (event) => { dragged = row; event.dataTransfer.effectAllowed = "move"; };
+      row.ondragover = (event) => { if (dragged && dragged !== row) { event.preventDefault(); row.classList.add("drag-over"); } };
+      row.ondragleave = () => row.classList.remove("drag-over");
+      row.ondrop = (event) => { event.preventDefault(); if (dragged && dragged !== row) drop(row.dataset.queueSection, Number(row.dataset.queueIndex)); };
+      row.ondragend = clear;
+    });
+    this.shadowRoot.querySelectorAll("[data-queue-move-drop]").forEach((zone) => {
+      zone.addEventListener("dragover", (event) => { if (dragged) { event.preventDefault(); zone.classList.add("drag-over"); } });
+      zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+      zone.addEventListener("drop", (event) => { event.preventDefault(); if (dragged) drop(zone.dataset.queueMoveDrop, 0); });
+    });
   }
 
   _bindReorder(selector, onDrop) {
@@ -1917,10 +1981,24 @@ class FraimicPanel extends HTMLElement {
   async _queueAction(body) {
     try {
       this._player = await this._api("player/queue", this._json({ entry_id: this._selectedFrameId, ...body }));
-      const message = body.action === "clear" ? "Queue cleared." : body.action === "remove" ? "Removed from queue." : body.action === "reorder" ? "Queue reordered." : null;
+      const message = body.action === "clear" ? "Queue cleared." : body.action === "remove" ? "Removed from queue." : body.action === "skip" ? "Skipped. The playlist is unchanged." : body.action === "reorder" ? "Queue reordered." : body.action === "move" ? (body.to_section === "queue" ? "Playing next from the queue." : "Moved into this frame's rotation.") : null;
       if (message) this._notify(message); else this._render();
     }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); await this._loadPlayer(); }
+  }
+
+  _openDitherPreview(slideId, title, meta) {
+    // Empty slideId = the now-showing artwork, which is already the dithered PNG.
+    const url = slideId
+      ? `/api/fraimic/player/queue/preview/${encodeURIComponent(this._selectedFrameId)}/${encodeURIComponent(slideId)}`
+      : this._player?.current?.thumbnail_url;
+    if (!url) return;
+    this._openModal(
+      title || "Frame preview",
+      `<div class="dither-preview glass"><span class="counter">Rendering the six colour preview. This can take a few seconds.</span><img ${this._imageAttrs(url, title || "Frame preview")}></div>`,
+      "",
+      { subtitle: h(meta || `Dithered for ${this._frame?.name || "the frame"}`), className: "dither-modal" },
+    );
   }
 
   _toggleQueue() {
@@ -1929,14 +2007,6 @@ class FraimicPanel extends HTMLElement {
     this._render();
     if (this._queueOpen) this.shadowRoot.querySelector(".queue-sheet")?.focus();
     else this.shadowRoot.querySelector("[data-player] [data-queue-toggle]")?.focus();
-  }
-
-  _moveQueue(section, index, direction) {
-    const items = section === "queue" ? [...(this._player.hand_queue || [])] : [...(this._player.playlist?.items || [])];
-    const target = direction === "top" ? 0 : direction === "bottom" ? items.length - 1 : direction === "up" ? index - 1 : index + 1;
-    if (target < 0 || target >= items.length) return;
-    [items[index], items[target]] = [items[target], items[index]];
-    this._queueAction({ action: "reorder", section, ordered_ids: items.map((item) => item.id) });
   }
 
   _reorderQueue(section, from, to) {

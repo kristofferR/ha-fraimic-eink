@@ -66,14 +66,6 @@ def test_settings_payload_sends_every_key(cloud):
     }
 
 
-@pytest.mark.parametrize("resolution", [(1600, 1200), (1440, 2560)])
-def test_unpack_bin_inverts_pack(resolution):
-    width, height = resolution
-    indices = np.random.default_rng(7).integers(0, 6, size=width * height, dtype=np.uint8)
-    packed = ic._pack_nibbles(indices, width, height)
-    assert np.array_equal(ic.unpack_bin(packed, width, height).reshape(-1), indices)
-
-
 def test_cloud_png_is_pure_primaries_in_viewed_orientation():
     from PIL import Image
 

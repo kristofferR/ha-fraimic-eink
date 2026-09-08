@@ -126,6 +126,32 @@ def _screen() -> types.SimpleNamespace:
     return types.SimpleNamespace(name="Dashboard", kind="dashboard")
 
 
+def test_missing_library_image_invalidates_thumbnail_without_raising(monkeypatch):
+    display, error = _load_display(monkeypatch)
+    library_module = types.ModuleType("fraimic.library")
+    image = types.SimpleNamespace(crops={}, rotations={})
+    images = {"image-1": image}
+
+    def get(image_id):
+        if image_id not in images:
+            raise error("Image deleted")
+        return images[image_id]
+
+    library_module.get_library = lambda hass: types.SimpleNamespace(get=get)
+    monkeypatch.setitem(sys.modules, "fraimic.library", library_module)
+    hass = types.SimpleNamespace(data={})
+    screen = types.SimpleNamespace(screen_id="slide", source={"library_image": "image-1"})
+    entry = _entry()
+    fingerprint = display.prepared_thumbnail_fingerprint(hass, entry, screen)
+    display._prepared_thumbnail_cache(hass).set(
+        display._prepared_thumbnail_key(hass, entry, screen), b"preview", "image/png"
+    )
+    images.clear()
+
+    assert display.prepared_thumbnail_fingerprint(hass, entry, screen) != fingerprint
+    assert display.cached_prepared_thumbnail(hass, entry, screen) is None
+
+
 def _install_services(monkeypatch: pytest.MonkeyPatch, **attrs: object) -> None:
     services = types.ModuleType("fraimic.services")
     services.begin_external_upload = lambda _entry: None
@@ -580,6 +606,11 @@ def test_library_picture_uses_cached_render(
     rendered = (b"cached-bin", b"cached-preview", "none")
 
     class Library:
+        image = types.SimpleNamespace(crops={}, rotations={})
+
+        def get(self, _image_id: str) -> object:
+            return self.image
+
         async def async_render_for_entry(
             self, image_id: str, entry: object, overrides: dict
         ) -> tuple[bytes, bytes, str]:
@@ -705,6 +736,11 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
     Image.new("RGB", (1600, 1200), (160, 32, 32)).save(source, format="PNG")
 
     class Library:
+        image = types.SimpleNamespace(crops={}, rotations={})
+
+        def get(self, _image_id: str) -> object:
+            return self.image
+
         async def async_render_for_entry(
             self, _image_id: str, _entry: object, _overrides: dict
         ) -> tuple[bytes, bytes, str]:
@@ -730,6 +766,13 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
         assert image.size == (320, 240)
         assert image.getpixel((0, 0)) == (160, 32, 32)
 
+    display._prepared_thumbnail_cache(hass).discard_where(lambda _key: True)
+    assert display.cached_prepared_thumbnail(hass, entry, screen) is None
+    assert asyncio.run(display.async_prepared_thumbnail(hass, entry, screen)) == thumbnail
+
+    Library.image.crops = {"800x480": [0.0, 0.0, 0.5, 1.0]}
+    assert display.cached_prepared_thumbnail(hass, entry, screen) is None
+    Library.image.crops = {}
     screen.source["mode"] = "atkinson"
     assert display.cached_prepared_thumbnail(hass, entry, screen) is None
 
