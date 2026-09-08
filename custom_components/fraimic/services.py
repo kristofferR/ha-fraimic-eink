@@ -515,8 +515,7 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
             library = get_library(hass)
             if library is None:
                 raise ServiceValidationError("The Fraimic library is not set up")
-            await library.async_send_to_entry(image_id, entry, dict(call.data))
-            uploaded = True
+            uploaded = await library.async_send_to_entry(image_id, entry, dict(call.data))
             return
         raw = await async_get_source_bytes(
             hass,
@@ -836,17 +835,10 @@ async def async_render_and_upload(
             queued = False
             queue = runtime.send_queue if queue_if_asleep and cloud is None else None
             if cloud is not None:
-                try:
-                    await cloud.async_deliver(bin_data, title=title or "image")
-                except FraimicCloudError as err:
-                    raise CloudDeliveryError(
-                        f"Could not deliver to the Fraimic cloud: {err}"
-                    ) from err
+                await async_deliver_cloud(entry, bin_data, title=title or "image")
                 # Album acceptance schedules a future wake; it does not confirm
                 # a redraw. Keep the last known display and its power accounting.
                 queued = True
-                if runtime.scheduler is not None:
-                    await runtime.scheduler.async_cloud_delivery_accepted()
             elif queue is not None:
                 try:
                     uploaded = await queue.async_upload_or_queue(
@@ -902,6 +894,17 @@ async def async_render_and_upload(
         "preview_png": preview_png,
         "displayed": uploaded,
     }
+
+
+async def async_deliver_cloud(entry, bin_data: bytes, *, title: str) -> None:
+    """Share cloud acceptance handling with already-rendered library/scene sends."""
+    runtime = entry.runtime_data
+    try:
+        await runtime.cloud.async_deliver(bin_data, title=title)
+    except FraimicCloudError as err:
+        raise CloudDeliveryError(f"Could not deliver to the Fraimic cloud: {err}") from err
+    if runtime.scheduler is not None:
+        await runtime.scheduler.async_cloud_delivery_accepted()
 
 
 def _convert(

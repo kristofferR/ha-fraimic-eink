@@ -836,6 +836,8 @@ class FraimicScheduler:
             return
         try:
             await cloud.async_sync_interval(self.playlist_interval)
+            if cloud.delivery_deadline is not None:
+                self._hold_until = dt_util.utc_from_timestamp(cloud.delivery_deadline)
         except Exception:  # noqa: BLE001 - cloud hiccups must not break startup
             _LOGGER.debug("Cloud album interval sync failed", exc_info=True)
 
@@ -925,12 +927,22 @@ class FraimicScheduler:
         self._hold_until = dt_util.utcnow() + timedelta(
             seconds=cloud.wake_interval + 60
         )
+        if getattr(cloud, "delivery_deadline", None) is not None:
+            self._hold_until = dt_util.utc_from_timestamp(cloud.delivery_deadline)
         await self._async_save()
         self._notify()
 
     # -- the loop ------------------------------------------------------------
 
     async def _async_tick(self, _now: datetime | None = None) -> None:
+        runtime = self.entry.runtime_data
+        cloud = getattr(runtime, "cloud", None)
+        if cloud is not None and not self._busy and not self.external_upload_active:
+            try:
+                async with runtime.upload_lock:
+                    await cloud.async_expire_delivery()
+            except Exception:  # noqa: BLE001 - retry cleanup on the next tick
+                _LOGGER.debug("Could not retire the cloud image", exc_info=True)
         await self._async_rotate(force=False)
 
     async def _async_rotate(self, *, force: bool) -> None:

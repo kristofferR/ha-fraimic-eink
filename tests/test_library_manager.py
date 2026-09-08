@@ -47,6 +47,24 @@ def library_module(monkeypatch: pytest.MonkeyPatch):
             sys.modules["fraimic.library"] = previous_library
 
 
+def test_prerendered_cloud_send_bypasses_lan_policy(library_module, monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+
+    library = library_module
+    deliver = AsyncMock()
+    services = types.ModuleType("fraimic.services")
+    services.async_deliver_cloud = deliver
+    monkeypatch.setitem(sys.modules, "fraimic.services", services)
+    power = types.SimpleNamespace(begin=Mock(), finish=Mock())
+    runtime = types.SimpleNamespace(cloud=object(), power=power, upload_lock=asyncio.Lock())
+    entry = types.SimpleNamespace(runtime_data=runtime)
+    assert asyncio.run(library.async_upload_rendered(
+        entry, b"panel", b"preview", "none", media_title="Art", queue_if_asleep=True
+    )) is False
+    deliver.assert_awaited_once_with(entry, b"panel", title="Art")
+    power.finish.assert_called_once()
+
+
 def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypatch):
     library = library_module
     invalidated = []

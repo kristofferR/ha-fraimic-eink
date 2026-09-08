@@ -595,13 +595,13 @@ class FraimicLibrary:
         overrides: dict | None = None,
         *,
         trigger: str = TRIGGER_MANUAL,
-    ) -> None:
+    ) -> bool:
         """Render (cache-aware) and upload one library image to one frame."""
         image = self.get(image_id)
         runtime = entry.runtime_data
         async with runtime.upload_lock:
             rendered = await self.async_render_for_entry(image_id, entry, overrides)
-            await async_upload_rendered(
+            return await async_upload_rendered(
                 entry,
                 *rendered,
                 media_title=image.filename,
@@ -728,7 +728,7 @@ async def async_upload_rendered(
     lock: bool = True,
     queue_if_asleep: bool = False,
     trigger: str = TRIGGER_MANUAL,
-) -> None:
+) -> bool:
     """Upload an already-rendered buffer to one frame and update its preview.
 
     Shared by direct library sends and scene activation (which pre-renders all
@@ -743,7 +743,12 @@ async def async_upload_rendered(
     content_hash = hashlib.sha256(bin_data).hexdigest()
     power_token = runtime.power.begin(trigger)
 
-    async def _upload() -> None:
+    async def _upload() -> bool:
+        if getattr(runtime, "cloud", None) is not None:
+            from .services import async_deliver_cloud
+
+            await async_deliver_cloud(entry, bin_data, title=media_title or "image")
+            return False
         queue = getattr(runtime, "send_queue", None) if queue_if_asleep else None
         reason = runtime.power.skip_reason(
             content_hash,
@@ -767,7 +772,7 @@ async def async_upload_rendered(
                 if preview_png:
                     runtime.set_displayed_preview(preview_png, mode)
                 runtime.coordinator.async_update_listeners()
-            return
+            return reason == SKIP_DUPLICATE
         if queue is not None:
             try:
                 sent_now = await queue.async_upload_or_queue(
@@ -784,7 +789,7 @@ async def async_upload_rendered(
                 ) from err
             if not sent_now:
                 # Queued: the flush updates preview/title on delivery.
-                return
+                return False
         else:
             try:
                 await runtime.client.upload_image(bin_data)
@@ -799,13 +804,14 @@ async def async_upload_rendered(
         await runtime.power.async_record_upload(content_hash, trigger)
         runtime.power.schedule_sleep()
         runtime.coordinator.async_update_listeners()
+        return True
 
     try:
         if lock:
             async with runtime.upload_lock:
-                await _upload()
+                return await _upload()
         else:
-            await _upload()
+            return await _upload()
     finally:
         runtime.power.finish(power_token)
 

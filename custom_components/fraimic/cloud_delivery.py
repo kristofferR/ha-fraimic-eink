@@ -9,6 +9,8 @@ for each slot, so keep-awake stays off and the LAN is never needed. See
 from __future__ import annotations
 
 import logging
+import time
+from datetime import UTC, datetime
 from typing import Any
 
 from homeassistant.core import HomeAssistant
@@ -22,6 +24,7 @@ from .cloud import (
 )
 from .const import (
     CONF_HEIGHT,
+    CONF_CLOUD_EMAIL,
     CONF_ROTATION,
     CONF_WIDTH,
     DEFAULT_HEIGHT,
@@ -71,6 +74,7 @@ class FraimicCloudDelivery:
         # before it is allowed to sleep.
         self.keep_awake_released = False
         self.last_anchor: str | None = None
+        self.album_active = False
 
     async def async_setup(self) -> None:
         data = await self._store.async_load() or {}
@@ -82,6 +86,7 @@ class FraimicCloudDelivery:
             self.interval = interval
         self.keep_awake_released = data.get("keep_awake_released") is True
         self.last_anchor = data.get("last_anchor") or None
+        self.album_active = data.get("album_active", self.album_id is not None)
 
     async def _async_save(self) -> None:
         await self._store.async_save(
@@ -92,18 +97,44 @@ class FraimicCloudDelivery:
                 "interval": self.interval,
                 "keep_awake_released": self.keep_awake_released,
                 "last_anchor": self.last_anchor,
+                "album_active": self.album_active,
             }
         )
 
     @property
     def has_image(self) -> bool:
         """Whether the album already carries an image (frame has a wake slot)."""
-        return self.album_id is not None and self.upload_id is not None
+        return self.album_active and self.album_id is not None and self.upload_id is not None
 
     @property
     def wake_interval(self) -> int:
         """Seconds from an album edit to its next scheduled wake."""
         return album_interval_minutes(self.interval) * 60
+
+    @property
+    def delivery_deadline(self) -> float | None:
+        """End of the current image's wake window, without inferring a redraw."""
+        if not self.album_active or not self.last_anchor:
+            return None
+        try:
+            return datetime.fromisoformat(self.last_anchor).timestamp() + self.wake_interval + 60
+        except ValueError:
+            return None
+
+    def _set_anchor(self, album: dict[str, Any]) -> None:
+        self.last_anchor = (
+            album.get("updated_at") or album.get("created_at")
+            or datetime.now(UTC).isoformat()
+        )
+
+    async def async_expire_delivery(self) -> None:
+        """Retire each image after its slot so an idle producer cannot repeat it."""
+        deadline = self.delivery_deadline
+        if deadline is None or time.time() < deadline:
+            return
+        await self.client.async_update_album(self.album_id, {"active": False})
+        self.album_active = False
+        await self._async_save()
 
     @property
     def album_name(self) -> str:
@@ -131,7 +162,7 @@ class FraimicCloudDelivery:
             await self._async_discard(upload_id)
             raise
         self.upload_id = upload_id
-        self.last_anchor = album.get("updated_at") or album.get("created_at")
+        self._set_anchor(album)
         await self._async_save()
         _LOGGER.debug(
             "Cloud delivery of %r queued on album %s; frame wakes about %s min after %s",
@@ -147,7 +178,7 @@ class FraimicCloudDelivery:
 
     async def _async_point_album(self, upload_id: str) -> dict[str, Any]:
         if self.album_id is not None:
-            payload: dict[str, Any] = {"upload_ids": [upload_id]}
+            payload: dict[str, Any] = {"upload_ids": [upload_id], "active": True}
             if self.album_device_id != self.device_id:
                 if self.keep_awake_released and self.album_device_id:
                     await self.client.async_set_keep_awake(self.album_device_id, True)
@@ -163,6 +194,7 @@ class FraimicCloudDelivery:
                 self.album_id = None
             else:
                 self.album_device_id = self.device_id
+                self.album_active = True
                 return album
         album = await self.client.async_create_album(
             {
@@ -177,6 +209,7 @@ class FraimicCloudDelivery:
         )
         self.album_id = str(album["id"])
         self.album_device_id = self.device_id
+        self.album_active = True
         return album
 
     async def _async_discard(self, upload_id: str) -> None:
@@ -219,7 +252,7 @@ class FraimicCloudDelivery:
             _LOGGER.warning("Could not update the cloud album schedule: %s", err)
             return
         self.interval = interval
-        self.last_anchor = album.get("updated_at") or self.last_anchor
+        self._set_anchor(album)
         await self._async_save()
 
     # ------------------------------------------------------------ teardown
@@ -261,6 +294,7 @@ class FraimicCloudDelivery:
         if self.album_id is not None:
             try:
                 await self.client.async_update_album(self.album_id, {"active": False})
+                self.album_active = False
             except FraimicCloudError as err:
                 _LOGGER.warning("Could not deactivate the cloud album: %s", err)
                 ok = err.status == 404
@@ -282,6 +316,7 @@ class FraimicCloudDelivery:
         self.album_id = None
         self.album_device_id = None
         self.upload_id = None
+        self.album_active = False
         await self._async_save()
 
     # ------------------------------------------------------------ status
@@ -299,17 +334,47 @@ class FraimicCloudDelivery:
             "album_interval_minutes": album_interval_minutes(self.interval),
             "keep_awake_released": self.keep_awake_released,
             "last_anchor": self.last_anchor,
+            "album_active": self.album_active,
         }
 
 
-def cloud_device_snapshot(device: dict[str, Any]) -> dict[str, Any]:
+async def async_release_for_account_change(hass, entry, email: str) -> bool:
+    """Retire ownership with the old credentials before saving another account."""
+    old_email = entry.options.get(CONF_CLOUD_EMAIL, "")
+    if not old_email or old_email.strip().casefold() == email.strip().casefold():
+        return True
+    runtime = getattr(entry, "runtime_data", None)
+    delivery = getattr(runtime, "cloud", None)
+    if delivery is None:
+        from . import _async_load_cloud
+
+        delivery = await _async_load_cloud(hass, entry)
+    if delivery is None:
+        return True
+
+    async def release() -> bool:
+        if not await delivery.async_release():
+            return False
+        await delivery.async_forget_album()
+        return True
+
+    lock = getattr(runtime, "upload_lock", None)
+    if lock is not None:
+        async with lock:
+            return await release()
+    return await release()
+
+
+def cloud_device_snapshot(
+    device: dict[str, Any], previous: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Shape a cloud device record like the frame's ``/api/info`` payload.
 
     Used when the frame sleeps and the LAN poll fails: the coordinator can
     still surface battery, network and settings without the frame answering.
     """
     settings = device.get("settings") or {}
-    return {
+    snapshot = {
         "firmware_version": None,
         "display_type": device.get("display_type"),
         "wifi": {
@@ -324,3 +389,10 @@ def cloud_device_snapshot(device: dict[str, Any]) -> dict[str, Any]:
         },
         "device": {"registered": True, "cloud_last_seen": device.get("last_seen_at")},
     }
+    previous = previous or {}
+    for key in ("device_id", "device_key", "model", "firmware_version"):
+        if snapshot.get(key) is None:
+            snapshot[key] = previous.get(key)
+    display = previous.get("display") or {}
+    snapshot["display"] = {key: display.get(key) for key in ("width", "height")}
+    return snapshot

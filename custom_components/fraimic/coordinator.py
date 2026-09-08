@@ -281,7 +281,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return data
 
     async def _async_cloud_snapshot(self) -> dict[str, Any] | None:
-        """Merge the account's device record over the last LAN snapshot."""
+        """Use the account record while retaining only static LAN identity."""
         runtime = getattr(self.config_entry, "runtime_data", None)
         cloud = getattr(runtime, "cloud", None)
         if cloud is None:
@@ -302,15 +302,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if device is None:
             return None
         base = dict(self.data) if isinstance(self.data, dict) else {}
-        merged: dict[str, Any] = {**base}
-        for section, values in cloud_device_snapshot(device).items():
-            if isinstance(values, dict):
-                current = base.get(section)
-                current = dict(current) if isinstance(current, dict) else {}
-                current.update({k: v for k, v in values.items() if v is not None})
-                merged[section] = current
-            elif values is not None or section not in merged:
-                merged[section] = values
+        merged = cloud_device_snapshot(device, base)
         merged["source"] = "cloud"
         self._cloud_snapshot = (now, merged)
         return merged

@@ -510,9 +510,20 @@ class FraimicOptionsFlow(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
         """Pick which account device this frame is."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            self._pending[CONF_CLOUD_DEVICE_ID] = user_input[CONF_CLOUD_DEVICE_ID]
-            return self.async_create_entry(title="", data=self._pending)
+            from .cloud_delivery import async_release_for_account_change
+
+            try:
+                released = await async_release_for_account_change(
+                    self.hass, self.config_entry, self._pending[CONF_CLOUD_EMAIL]
+                )
+            except (FraimicCloudError, OSError):
+                released = False
+            if released:
+                self._pending[CONF_CLOUD_DEVICE_ID] = user_input[CONF_CLOUD_DEVICE_ID]
+                return self.async_create_entry(title="", data=self._pending)
+            errors["base"] = "cannot_connect"
         host = self.config_entry.data.get(CONF_HOST, "")
         current = self.config_entry.options.get(CONF_CLOUD_DEVICE_ID)
         choices: dict[str, str] = {}
@@ -531,6 +542,7 @@ class FraimicOptionsFlow(OptionsFlow):
             default = next(iter(choices))
         return self.async_show_form(
             step_id="cloud_device",
+            errors=errors,
             data_schema=vol.Schema(
                 {vol.Required(CONF_CLOUD_DEVICE_ID, default=default): vol.In(choices)}
             ),

@@ -363,8 +363,7 @@ class LibrarySendView(_FraimicView):
             uploaded = False
             try:
                 scheduler = begin_external_upload(entry)
-                await library.async_send_to_entry(image_id, entry)
-                uploaded = True
+                uploaded = await library.async_send_to_entry(image_id, entry)
             except Exception as err:
                 _LOGGER.exception("Failed to send library image to %s", entry.entry_id)
                 return str(err)

@@ -148,8 +148,9 @@ def test_upload_image_library_branch_sends_and_releases_hold(
     class Library:
         async def async_send_to_entry(
             self, image_id: str, target_entry: object, overrides: dict
-        ) -> None:
+        ) -> bool:
             calls.append((image_id, target_entry, overrides))
+            return True
 
     hass = SimpleNamespace(
         config_entries=SimpleNamespace(

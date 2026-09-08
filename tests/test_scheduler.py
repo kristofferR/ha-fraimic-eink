@@ -399,6 +399,37 @@ def test_cloud_acceptance_advances_delivery_without_claiming_display(monkeypatch
     assert scheduler._hold_until == scheduler_mod.dt_util.utcnow() + timedelta(seconds=1980)
 
 
+def test_paused_scheduler_still_retires_cloud_images(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    expire = AsyncMock()
+    entry.runtime_data.cloud = SimpleNamespace(async_expire_delivery=expire)
+    entry.runtime_data.upload_lock = asyncio.Lock()
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    scheduler.enabled = False
+    asyncio.run(scheduler._async_tick())
+    expire.assert_awaited_once()
+
+
+def test_cloud_interval_sync_rebases_existing_hold(monkeypatch):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    cloud = SimpleNamespace(delivery_deadline=1000)
+
+    async def sync(_interval):
+        cloud.delivery_deadline = 2000
+
+    cloud.async_sync_interval = sync
+    entry.runtime_data.cloud = cloud
+    monkeypatch.setattr(scheduler_mod.dt_util, "utc_from_timestamp", datetime.fromtimestamp, raising=False)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    scheduler._hold_until = datetime.fromtimestamp(1000)
+    asyncio.run(scheduler._async_sync_cloud_interval())
+    assert scheduler._hold_until == datetime.fromtimestamp(2000)
+
+
 def test_wake_retry_keeps_manual_pending_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

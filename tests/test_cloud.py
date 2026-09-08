@@ -148,6 +148,74 @@ def test_release_targets_persisted_canvas_and_keeps_failed_cleanup(delivery_modu
     client.async_set_keep_awake.assert_awaited_once_with("old", True)
 
 
+def test_cloud_snapshot_drops_volatile_lan_fields(delivery_module):
+    previous = {
+        "device_id": "canvas", "firmware_version": "0.2.29",
+        "battery": {"charging": True, "percent": 99},
+        "wifi": {"connected": True, "rssi": -30},
+        "device": {"uptime_s": 600},
+        "display": {"width": 1600, "height": 1200, "last_refresh": 123},
+        "raw": {"charging": True},
+    }
+    snapshot = delivery_module.cloud_device_snapshot({"battery_pct": 70}, previous)
+    assert snapshot["device_id"] == "canvas"
+    assert snapshot["firmware_version"] == "0.2.29"
+    assert snapshot["display"] == {"width": 1600, "height": 1200}
+    assert snapshot["battery"] == {"percent": 70}
+    assert "connected" not in snapshot["wifi"]
+    assert "uptime_s" not in snapshot["device"]
+    assert "raw" not in snapshot
+
+
+def test_cloud_album_expires_once_and_reactivates_for_later_send(delivery_module, monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    client = types.SimpleNamespace(async_update_album=AsyncMock(return_value={"id": "album"}))
+    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
+    delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "canvas")
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
+    delivery.album_id = "album"
+    delivery.album_device_id = "canvas"
+    delivery.album_active = True
+    delivery.upload_id = "image"
+    delivery.last_anchor = "2026-09-08T12:00:00+00:00"
+    deadline = delivery.delivery_deadline
+    monkeypatch.setattr(delivery_module.time, "time", lambda: deadline - 1)
+    asyncio.run(delivery.async_expire_delivery())
+    client.async_update_album.assert_not_awaited()
+    monkeypatch.setattr(delivery_module.time, "time", lambda: deadline + 1)
+    asyncio.run(delivery.async_expire_delivery())
+    asyncio.run(delivery.async_expire_delivery())
+    client.async_update_album.assert_awaited_once_with("album", {"active": False})
+    assert not delivery.has_image
+    asyncio.run(delivery._async_point_album("next"))
+    assert client.async_update_album.call_args.args == (
+        "album", {"upload_ids": ["next"], "active": True}
+    )
+    assert delivery.album_active
+
+
+@pytest.mark.parametrize("released", [False, True])
+def test_account_change_keeps_ownership_until_cleanup_succeeds(delivery_module, released):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    delivery = types.SimpleNamespace(
+        async_release=AsyncMock(return_value=released),
+        async_forget_album=AsyncMock(),
+    )
+    entry = types.SimpleNamespace(
+        options={"cloud_email": "old@example.test"},
+        runtime_data=types.SimpleNamespace(cloud=delivery, upload_lock=asyncio.Lock()),
+    )
+    assert asyncio.run(delivery_module.async_release_for_account_change(
+        None, entry, "new@example.test"
+    )) is released
+    assert delivery.async_forget_album.await_count == int(released)
+    assert entry.options["cloud_email"] == "old@example.test"
+
+
 def test_camera_interval_overrides_playlist_sync_and_restores(delivery_module):
     import asyncio
     from unittest.mock import AsyncMock

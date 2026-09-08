@@ -47,6 +47,10 @@ Cloud album acceptance is reported as `queued: true`, `cloud_queued: true`,
 which image reached the glass, so previews and now-playing metadata retain
 the last confirmed local display. Playlist delivery order advances separately;
 automatic uploads wait until after the cloud wake slot before replacing its image.
+The scheduler retires each album image after that window, including while paused,
+so one-off sends cannot keep waking the frame with unchanged artwork. Later sends
+reactivate the album. Changing accounts first releases ownership using the old
+credentials; a failed cleanup keeps those credentials available for retry.
 
 ## Account auth
 

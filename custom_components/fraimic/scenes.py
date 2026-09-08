@@ -245,14 +245,13 @@ class SceneManager:
             async def _push(entry_id: str) -> None:
                 uploaded = False
                 try:
-                    await async_upload_rendered(
+                    uploaded = await async_upload_rendered(
                         active_entries[entry_id],
                         *prepared[entry_id],
                         media_title=media_titles[entry_id],
                         queue_if_asleep=True,
                         trigger=trigger,
                     )
-                    uploaded = True
                 except HomeAssistantError as err:
                     results[entry_id] = {"ok": False, "error": str(err)}
                 except asyncio.CancelledError:
