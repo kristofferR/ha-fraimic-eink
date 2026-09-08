@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import time
 from datetime import timedelta
 from urllib.parse import quote, unquote, urlsplit
 
@@ -199,6 +200,11 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         (the frame may simply be asleep or mid-render right now)."""
         if self._camera_entity is None:
             return
+        cloud = getattr(self.coordinator.config_entry.runtime_data, "cloud", None)
+        if cloud is not None:
+            deadline = cloud.delivery_deadline
+            if deadline is not None and time.time() < deadline:
+                return
         try:
             await self._async_show_camera(
                 self._camera_entity,
