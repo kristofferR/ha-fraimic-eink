@@ -1254,7 +1254,7 @@ class FraimicPanel extends HTMLElement {
         : "";
     const barArt = current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : "";
     const barArtCell = current.thumbnail_url
-      ? `<button class="player-art glass" data-dither-preview="${h(current.id || "")}" data-preview-title="${h(current.title || "Now showing")}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title || "artwork")}" title="Frame preview">${barArt}</button>`
+      ? `<button class="player-art glass" data-dither-preview="" data-preview-title="${h(current.title || "Now showing")}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title || "artwork")}" title="Frame preview">${barArt}</button>`
       : `<div class="player-art glass"></div>`;
     return `<footer class="player ${h(state)}" tabindex="0" data-player>
       ${barArtCell}
@@ -1279,7 +1279,7 @@ class FraimicPanel extends HTMLElement {
     const nowMeta = state === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : state === "asleep" ? `Now showing · ${h(this._frame?.name || "frame")} is asleep` : "Now showing";
     const handle = `<div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>`;
     const head = current.title
-      ? `<div class="queue-now queue-toolbar">${handle}<button class="row-art glass" data-dither-preview="${h(current.id || "")}" data-preview-title="${h(current.title)}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title)}" title="Frame preview">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
+      ? `<div class="queue-now queue-toolbar">${handle}<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="Now showing" aria-label="Preview ${h(current.title)}" title="Frame preview">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
       : `<div class="queue-head queue-toolbar">${handle}<h2>Queue</h2>${chrome}</div>`;
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       ${head}

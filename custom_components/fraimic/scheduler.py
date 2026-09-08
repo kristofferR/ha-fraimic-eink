@@ -351,9 +351,9 @@ class FraimicScheduler:
             return None
         return self._playlists.render_slide_by_id(slide_id)
 
-    def playlist_up_next(self, *, limit: int = 10) -> list[ScreenConfig]:
+    def playlist_up_next(self, *, limit: int | None = 10) -> list[ScreenConfig]:
         """Return the next distinct eligible playlist slides after the current one."""
-        if limit <= 0:
+        if limit is not None and limit <= 0:
             return []
         upcoming: list[ScreenConfig] = []
         cursor = self._playlist_cursor_id or self.current_id
@@ -367,7 +367,7 @@ class FraimicScheduler:
             upcoming.append(candidate)
             seen.add(candidate.screen_id)
             cursor = candidate.screen_id
-            if len(upcoming) >= limit:
+            if limit is not None and len(upcoming) >= limit:
                 break
         return upcoming
 
@@ -443,7 +443,7 @@ class FraimicScheduler:
             previous = next(
                 (
                     screen
-                    for screen in self.screens
+                    for screen in self._rotation_screens()
                     if screen.screen_id == self._playlist_cursor_id
                 ),
                 None,
@@ -904,7 +904,12 @@ class FraimicScheduler:
                 or self.displayed_hash is None
                 or self._last_rotation is None
                 or (dt_util.utcnow() - self._last_rotation).total_seconds()
-                >= current.interval
+                >= (
+                    (self.playlist_interval or current.interval)
+                    if current.screen_id in self._playback_order
+                    and current.screen_id in self._external_queue
+                    else current.interval
+                )
             )
             if not due:
                 return

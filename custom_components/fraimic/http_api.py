@@ -741,7 +741,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         else None
     )
     queued = scheduler.queued_slides
-    full_upcoming = scheduler.playlist_up_next(limit=len(scheduler.screens))
+    full_upcoming = scheduler.playlist_up_next(limit=None)
     upcoming = full_upcoming[:10]
     playlist_queue_count = len(full_upcoming)
     current_thumbnail = artwork_url if current is not None else None
@@ -877,7 +877,7 @@ class PlayerQueuePreviewView(_FraimicView):
         return web.Response(
             body=preview,
             content_type="image/png",
-            headers={"Cache-Control": "private, max-age=300"},
+            headers={"Cache-Control": "private, no-store"},
         )
 
 

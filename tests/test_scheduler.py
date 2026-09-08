@@ -1817,3 +1817,63 @@ def test_session_order_survives_playlist_refresh(
 
     assert scheduler._playback_order == ["a", "b", "c"]
     assert scheduler._order_custom is False
+
+
+def test_uncapped_upcoming_includes_all_promoted_slides(monkeypatch):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [SimpleNamespace(screen_id="a", name="A")]
+    scheduler._external_queue = {
+        str(i): SimpleNamespace(screen_id=str(i), name=str(i)) for i in range(12)
+    }
+    scheduler._playback_order = ["a", *scheduler._external_queue]
+    scheduler.current_id = scheduler._playlist_cursor_id = "a"
+
+    assert len(scheduler.playlist_up_next()) == 10
+    assert len(scheduler.playlist_up_next(limit=None)) == 12
+
+
+def test_previous_returns_to_promoted_cursor_after_hand_queue(monkeypatch):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    promoted = SimpleNamespace(screen_id="x", name="X")
+    scheduler.screens = [SimpleNamespace(screen_id="a", name="A")]
+    scheduler._external_queue = {"x": promoted}
+    scheduler._playback_order = ["a", "x"]
+    scheduler._playlist_cursor_id = "x"
+    scheduler.current_id = "queued"
+    shown = []
+
+    async def show(screen, **kwargs):
+        shown.append(screen.screen_id)
+        return True
+
+    scheduler._async_show = show
+    asyncio.run(scheduler.async_previous())
+    assert shown == ["x"]
+
+
+def test_promoted_slide_rotates_at_playlist_interval(monkeypatch):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [SimpleNamespace(screen_id="a", name="A", interval=1800)]
+    scheduler._external_queue = {
+        "x": SimpleNamespace(screen_id="x", name="X", interval=21600)
+    }
+    scheduler._playback_order = ["a", "x"]
+    scheduler.current_id = scheduler._playlist_cursor_id = "x"
+    scheduler.enabled = True
+    scheduler.displayed_hash = "shown"
+    scheduler._last_rotation = scheduler_mod.dt_util.utcnow() - timedelta(seconds=1800)
+    shown = []
+
+    async def show(screen, **kwargs):
+        shown.append(screen.screen_id)
+        return True
+
+    scheduler._async_show = show
+    asyncio.run(scheduler._async_rotate(force=False))
+    assert shown == ["a"]
