@@ -74,6 +74,10 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     dt.now = lambda: datetime(2026, 7, 3, 14, 5)
     dt.utcnow = lambda: datetime(2026, 7, 3, 12, 5)
     display.async_show_screen = async_show_screen
+    display.discard_prepared_thumbnails = lambda *_args, **_kwargs: None
+    display.prepared_thumbnail_fingerprint = (
+        lambda _hass, _entry, screen: repr(getattr(screen, "source", None))
+    )
     playlist.eligible = lambda *_args, **_kwargs: True
     playlist.next_screen = lambda *_args, **_kwargs: None
     schema.ScreenConfig = SimpleNamespace
@@ -413,8 +417,10 @@ def test_named_playlist_assignment_and_global_queue_lookup(
     assert scheduler.screens == [active, second]
 
     scheduler._queued_ids.append("missing")
+    scheduler._playlist_preprocess_done = "prepared"
     asyncio.run(scheduler.async_refresh_playlist())
     assert scheduler._queued_ids == ["queued"]
+    assert scheduler._playlist_preprocess_done == "prepared"
 
     assigned.shuffle = True
     monkeypatch.setattr(scheduler_mod.random, "shuffle", lambda items: items.reverse())

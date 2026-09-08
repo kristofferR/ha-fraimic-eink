@@ -384,6 +384,11 @@ class FraimicLibrary:
         await self.hass.async_add_executor_job(
             self._invalidate_renders_sync, image_id, width, height
         )
+        from .render.display import discard_prepared_thumbnails
+
+        discard_prepared_thumbnails(self.hass, image_id=image_id)
+        for entry in loaded_fraimic_entries(self.hass):
+            entry.runtime_data.scheduler.invalidate_preprocessing()
         self.schedule_backfill(image_id)
         return image
 

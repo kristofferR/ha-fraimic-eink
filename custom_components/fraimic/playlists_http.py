@@ -30,7 +30,7 @@ from .playlists import (
     PlaylistNotFoundError,
     PlaylistSlide,
 )
-from .render.schema import KIND_DASHBOARD
+from .render.schema import KIND_DASHBOARD, ScreenConfig
 from .screens import SUBENTRY_TYPE_SCREEN
 
 
@@ -235,6 +235,63 @@ def _playlist_payload(
     return payload
 
 
+async def async_picture_thumbnail_response(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> web.Response:
+    """Serve a cached e-ink thumbnail or an authenticated original fallback."""
+    source = screen.source or {}
+    from .render.display import cached_prepared_thumbnail
+
+    try:
+        enabled = int(
+            entry.options.get(CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH)
+        ) > 0
+    except (TypeError, ValueError):
+        enabled = DEFAULT_PLAYLIST_PREFETCH > 0
+    preview = cached_prepared_thumbnail(hass, entry, screen) if enabled else None
+    if preview is not None:
+        return web.Response(
+            body=preview,
+            content_type="image/png",
+            headers={"Cache-Control": "private, max-age=60"},
+        )
+    if image_id := source.get("library_image"):
+        library = get_library(hass)
+        if library is not None:
+            try:
+                thumbnail = await library.async_get_thumbnail(image_id)
+            except HomeAssistantError:
+                pass
+            else:
+                return web.Response(
+                    body=thumbnail,
+                    content_type="image/jpeg",
+                    headers={"Cache-Control": "private, max-age=60"},
+                )
+    if (provider := source.get("provider")) and (
+        item_id := source.get("provider_item")
+    ):
+        from .gallery_http import _async_gallery_image
+
+        try:
+            thumbnail, content_type = await _async_gallery_image(
+                hass, entry, provider, item_id, thumbnail=True
+            )
+        except (HomeAssistantError, OSError):
+            pass
+        else:
+            return web.Response(
+                body=thumbnail,
+                content_type=content_type,
+                headers={"Cache-Control": "private, max-age=60"},
+            )
+    metadata = source.get("metadata") or {}
+    fallback = source.get("url") or metadata.get("thumbnail_url")
+    if fallback:
+        raise web.HTTPFound(location=fallback, headers={"Cache-Control": "no-store"})
+    raise web.HTTPNotFound(text="No thumbnail is available")
+
+
 class PlaylistThumbnailView(HomeAssistantView):
     """Serve a small cached e-ink preview for a fixed playlist slide."""
 
@@ -246,67 +303,10 @@ class PlaylistThumbnailView(HomeAssistantView):
     ) -> web.Response:
         hass = request.app[KEY_HASS]
         entry = require_loaded_entry(hass, request.query.get("entry_id"))
-        manager = _manager(hass)
-        screen = manager.render_slide(playlist_id, slide_id)
+        screen = _manager(hass).render_slide(playlist_id, slide_id)
         if screen is None:
             raise web.HTTPNotFound(text="Playlist slide not found")
-        from .render.display import cached_prepared_thumbnail
-
-        try:
-            enabled = int(
-                entry.options.get(
-                    CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH
-                )
-            ) > 0
-        except (TypeError, ValueError):
-            enabled = DEFAULT_PLAYLIST_PREFETCH > 0
-        preview = cached_prepared_thumbnail(hass, entry, screen) if enabled else None
-        if preview is not None:
-            return web.Response(
-                body=preview,
-                content_type="image/png",
-                headers={"Cache-Control": "private, max-age=60"},
-            )
-        playlist = manager.require(playlist_id)
-        slide = next(
-            (item for item in playlist.slides if item.slide_id == slide_id), None
-        )
-        if slide is not None and (image_id := slide.data.get("library_image")):
-            library = get_library(hass)
-            if library is not None:
-                try:
-                    thumbnail = await library.async_get_thumbnail(image_id)
-                except HomeAssistantError:
-                    pass
-                else:
-                    return web.Response(
-                        body=thumbnail,
-                        content_type="image/jpeg",
-                        headers={"Cache-Control": "private, max-age=60"},
-                    )
-        if slide is not None and (
-            provider := slide.data.get("provider")
-        ) and (item_id := slide.data.get("provider_item")):
-            from .gallery_http import _async_gallery_image
-
-            try:
-                thumbnail, content_type = await _async_gallery_image(
-                    hass, entry, provider, item_id, thumbnail=True
-                )
-            except (HomeAssistantError, OSError):
-                pass
-            else:
-                return web.Response(
-                    body=thumbnail,
-                    content_type=content_type,
-                    headers={"Cache-Control": "private, max-age=60"},
-                )
-        fallback = _original_slide_thumbnail(slide) if slide is not None else None
-        if fallback:
-            raise web.HTTPFound(
-                location=fallback, headers={"Cache-Control": "no-store"}
-            )
-        raise web.HTTPNotFound(text="No thumbnail is available")
+        return await async_picture_thumbnail_response(hass, entry, screen)
 
 
 async def _refresh_assigned(

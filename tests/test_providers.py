@@ -1110,6 +1110,19 @@ def test_byte_cache_replacement_and_oversized_values_do_not_leak_capacity() -> N
     assert cache.get("too-large", ttl=100) is None
 
 
+def test_byte_cache_discards_matching_keys() -> None:
+    cache = cache_mod.ByteCache(max_bytes=10)
+    cache.set(("entry-1", "slide-1"), b"1", "image/png")
+    cache.set(("entry-1", "slide-2"), b"2", "image/png")
+    cache.set(("entry-2", "slide-1"), b"3", "image/png")
+
+    cache.discard_where(lambda key: key[0] == "entry-1")
+
+    assert cache.get(("entry-1", "slide-1"), ttl=100) is None
+    assert cache.get(("entry-1", "slide-2"), ttl=100) is None
+    assert cache.get(("entry-2", "slide-1"), ttl=100) == (b"3", "image/png")
+
+
 def test_browse_selection_survives_provider_cache_eviction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
