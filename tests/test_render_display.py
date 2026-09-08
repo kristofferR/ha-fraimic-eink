@@ -766,6 +766,10 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
         assert image.size == (320, 240)
         assert image.getpixel((0, 0)) == (160, 32, 32)
 
+    display._prepared_thumbnail_cache(hass).discard_where(lambda _key: True)
+    assert display.cached_prepared_thumbnail(hass, entry, screen) is None
+    assert asyncio.run(display.async_prepared_thumbnail(hass, entry, screen)) == thumbnail
+
     Library.image.crops = {"800x480": [0.0, 0.0, 0.5, 1.0]}
     assert display.cached_prepared_thumbnail(hass, entry, screen) is None
     Library.image.crops = {}
