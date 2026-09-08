@@ -479,6 +479,9 @@ rate limit (both work keyless on `DEMO_KEY` for daily use), and free
 unlock keyword-searchable photography (`provider: unsplash, query: northern lights`).
 Unsplash/Pexels stay hidden until a key is set.
 
+[Daily source checks](docs/source-health-checks.md) exercise the live providers in
+GitHub Actions and retry failures once after 30 minutes before failing the job.
+
 ## How image conversion works
 
 Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw and header-less,
