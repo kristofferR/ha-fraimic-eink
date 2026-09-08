@@ -598,5 +598,11 @@
         }
       }
     }
+  },
+  "issues": {
+    "cloud_cleanup": {
+      "title": "Finish cloud cleanup for {frame}",
+      "description": "Home Assistant could not finish releasing this removed frame. In your Fraimic account, deactivate album {album} and enable keep-awake for canvas {device} if you want LAN delivery. The album ownership record has been retained in Home Assistant storage for recovery. Dismiss this notice after completing cleanup."
+    }
   }
 }

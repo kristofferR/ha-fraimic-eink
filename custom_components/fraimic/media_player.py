@@ -107,12 +107,25 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             return MediaPlayerState.PLAYING
         return MediaPlayerState.IDLE
 
-    def _stop_camera_loop(self) -> None:
+    def _stop_camera_loop(self, *, sync_cloud: bool = True) -> None:
         self._camera_generation += 1
         if self._camera_unsub is not None:
             self._camera_unsub()
             self._camera_unsub = None
         self._camera_entity = None
+        entry = self.coordinator.config_entry
+        cloud = getattr(entry.runtime_data, "cloud", None)
+        if cloud is not None and cloud.camera_interval is not None:
+            cloud.camera_interval = None
+            if sync_cloud:
+                scheduler = entry.runtime_data.scheduler
+                entry.async_create_task(
+                    self.hass,
+                    cloud.async_sync_interval(
+                        scheduler.playlist_interval if scheduler is not None else None
+                    ),
+                    "fraimic-restore-cloud-interval",
+                )
 
     def _stop_camera_loop_and_write(self) -> None:
         self._stop_camera_loop()
@@ -128,7 +141,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         runtime = self.coordinator.config_entry.runtime_data
         if runtime.stop_camera_loop == self._stop_camera_loop_and_write:
             runtime.stop_camera_loop = None
-        self._stop_camera_loop()
+        self._stop_camera_loop(sync_cloud=False)
         await super().async_will_remove_from_hass()
 
     async def async_media_stop(self) -> None:
@@ -415,12 +428,18 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 scheduler = None
                 disabled_scheduler = False
             try:
+                cloud = getattr(self.coordinator.config_entry.runtime_data, "cloud", None)
+                if cloud is not None and interval > 0:
+                    cloud.camera_interval = interval
+                    await cloud.async_sync_interval(interval)
                 await self._async_show_camera(
                     camera_entity,
                     camera_generation=camera_generation,
                     hold_playlist=interval == 0,
                 )
             except Exception:
+                if camera_generation == self._camera_generation:
+                    self._stop_camera_loop()
                 if disabled_scheduler and scheduler is not None:
                     await scheduler.async_set_enabled(
                         True,

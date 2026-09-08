@@ -227,6 +227,28 @@ async def _async_setup_cloud(
     hass: HomeAssistant, entry: FraimicConfigEntry
 ) -> FraimicCloudDelivery | None:
     """Build cloud delivery for ``cloud`` mode; hand the frame back otherwise."""
+    delivery = await _async_load_cloud(hass, entry)
+    if delivery is None:
+        return None
+    if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
+        return delivery
+    if delivery.album_id is not None or delivery.keep_awake_released:
+        if await delivery.async_release():
+            await delivery.async_forget_album()
+    return None
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
+    """Deactivate the owned album when the frame is deleted, including unloaded entries."""
+    delivery = await _async_load_cloud(hass, entry)
+    if delivery is not None:
+        await delivery.async_remove()
+
+
+async def _async_load_cloud(
+    hass: HomeAssistant, entry: FraimicConfigEntry
+) -> FraimicCloudDelivery | None:
+    """Reconstruct cloud ownership from options and persisted state."""
     options = entry.options
     email = options.get(CONF_CLOUD_EMAIL)
     password = options.get(CONF_CLOUD_PASSWORD)
@@ -242,14 +264,7 @@ async def _async_setup_cloud(
     client = FraimicCloudClient(async_get_clientsession(hass), email, password)
     delivery = FraimicCloudDelivery(hass, entry, client, device_id)
     await delivery.async_setup()
-    if options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
-        return delivery
-    if delivery.album_id is not None or delivery.keep_awake_released:
-        # Switched back to local delivery: stop the album and let the frame
-        # keep awake again so LAN uploads reach it.
-        if await delivery.async_release():
-            await delivery.async_forget_album()
-    return None
+    return delivery
 
 
 async def _async_update_listener(

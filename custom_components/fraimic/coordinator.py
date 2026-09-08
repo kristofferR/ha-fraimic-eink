@@ -235,6 +235,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self.client.get_battery()
         except FraimicError:
             self.async_set_frame_online(False)
+            cloud_data = await self._async_cloud_snapshot()
+            if cloud_data is not None:
+                self.async_set_updated_data(cloud_data)
+                await self._async_save_cache()
             return
         await self.async_request_refresh()
 

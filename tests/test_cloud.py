@@ -99,3 +99,109 @@ def test_cloud_png_rotation_is_clockwise_like_the_preview():
     assert image.size == (1200, 1600)
     assert image.getpixel((0, 800)) == (0, 0, 0)
     assert image.getpixel((1199, 800)) == (255, 255, 255)
+
+
+@pytest.fixture
+def delivery_module(cloud, monkeypatch):
+    core = types.ModuleType("homeassistant.core")
+    core.HomeAssistant = object
+    storage = types.ModuleType("homeassistant.helpers.storage")
+    storage.Store = lambda *args, **kwargs: None
+    monkeypatch.setitem(sys.modules, "homeassistant.core", core)
+    monkeypatch.setitem(sys.modules, "homeassistant.helpers.storage", storage)
+    sys.modules.pop("fraimic.cloud_delivery", None)
+    return load("cloud_delivery")
+
+
+def test_reassignment_restores_old_canvas_and_releases_new_canvas(delivery_module):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    client = types.SimpleNamespace(
+        async_set_keep_awake=AsyncMock(),
+        async_update_album=AsyncMock(return_value={"id": "album"}),
+    )
+    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
+    delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "new")
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
+    delivery.album_id = "album"
+    delivery.album_device_id = "old"
+    delivery.keep_awake_released = True
+
+    asyncio.run(delivery._async_point_album("upload"))
+    client.async_set_keep_awake.assert_awaited_once_with("old", True)
+    assert delivery.album_device_id == "new"
+    assert delivery.keep_awake_released is False
+    asyncio.run(delivery._async_release_keep_awake())
+    assert client.async_set_keep_awake.call_args.args == ("new", False)
+
+
+def test_release_targets_persisted_canvas_and_keeps_failed_cleanup(delivery_module):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    client = types.SimpleNamespace(
+        async_set_keep_awake=AsyncMock(),
+        async_update_album=AsyncMock(side_effect=delivery_module.FraimicCloudError("offline")),
+    )
+    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
+    delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "new")
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
+    delivery.album_id = "album"
+    delivery.album_device_id = "old"
+    delivery.keep_awake_released = True
+
+    assert asyncio.run(delivery.async_release()) is False
+    assert delivery.album_id == "album"
+    client.async_set_keep_awake.assert_awaited_once_with("old", True)
+
+
+def test_camera_interval_overrides_playlist_sync_and_restores(delivery_module):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    client = types.SimpleNamespace(async_update_album=AsyncMock(return_value={}))
+    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
+    delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "canvas")
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
+    delivery.album_id = "album"
+    delivery.camera_interval = 600
+
+    asyncio.run(delivery.async_sync_interval(1800))
+    assert delivery.interval == 600
+    delivery.camera_interval = None
+    asyncio.run(delivery.async_sync_interval(1800))
+    assert delivery.interval == 1800
+
+
+@pytest.mark.parametrize("released", [True, False])
+def test_removal_preserves_ownership_and_reports_failed_cleanup(delivery_module, monkeypatch, released):
+    import asyncio
+    from unittest.mock import AsyncMock, Mock
+
+    issues = types.ModuleType("homeassistant.helpers.issue_registry")
+    issues.IssueSeverity = types.SimpleNamespace(WARNING="warning")
+    issues.async_create_issue = Mock()
+    issues.async_delete_issue = Mock()
+    helpers = types.ModuleType("homeassistant.helpers")
+    helpers.issue_registry = issues
+    monkeypatch.setitem(sys.modules, "homeassistant.helpers", helpers)
+    monkeypatch.setitem(sys.modules, "homeassistant.helpers.issue_registry", issues)
+    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
+    delivery = delivery_module.FraimicCloudDelivery(None, entry, None, "canvas")
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock(), async_remove=AsyncMock())
+    delivery.album_id = "album"
+    delivery.album_device_id = "canvas"
+    delivery.async_release = AsyncMock(return_value=released)
+
+    asyncio.run(delivery.async_remove())
+
+    if released:
+        assert delivery.album_id is None
+        delivery._store.async_remove.assert_awaited_once()
+        issues.async_create_issue.assert_not_called()
+    else:
+        assert delivery.album_id == "album"
+        delivery._store.async_remove.assert_not_awaited()
+        issues.async_create_issue.assert_called_once()
+        assert issues.async_create_issue.call_args.kwargs["is_persistent"] is True

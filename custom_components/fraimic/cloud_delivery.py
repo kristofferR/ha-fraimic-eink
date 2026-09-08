@@ -65,6 +65,7 @@ class FraimicCloudDelivery:
         self.album_device_id: str | None = None
         self.upload_id: str | None = None
         self.interval = DEFAULT_INTERVAL
+        self.camera_interval: int | None = None
         # True once the frame has been told to stop keeping awake: done after
         # the first delivery so the (still awake) frame learns the album slot
         # before it is allowed to sleep.
@@ -143,6 +144,10 @@ class FraimicCloudDelivery:
         if self.album_id is not None:
             payload: dict[str, Any] = {"upload_ids": [upload_id]}
             if self.album_device_id != self.device_id:
+                if self.keep_awake_released and self.album_device_id:
+                    await self.client.async_set_keep_awake(self.album_device_id, True)
+                self.keep_awake_released = False
+                await self._async_save()
                 payload["device_assignments"] = [{"device_id": self.device_id}]
             try:
                 album = await self.client.async_update_album(self.album_id, payload)
@@ -192,7 +197,7 @@ class FraimicCloudDelivery:
 
     async def async_sync_interval(self, playlist_interval: int | None) -> None:
         """Keep the album cadence equal to the playlist rotation."""
-        interval = playlist_interval or DEFAULT_INTERVAL
+        interval = self.camera_interval or playlist_interval or DEFAULT_INTERVAL
         if interval == self.interval and self.album_id is not None:
             return
         changed = album_interval_minutes(interval) != album_interval_minutes(self.interval)
@@ -214,6 +219,33 @@ class FraimicCloudDelivery:
 
     # ------------------------------------------------------------ teardown
 
+    async def async_remove(self) -> None:
+        """Release a deleted entry; retain ownership and a repair notice on failure."""
+        from homeassistant.helpers import issue_registry as ir
+
+        issue_id = f"cloud_cleanup_{self.entry.entry_id}"
+        if await self.async_release():
+            await self.async_forget_album()
+            await self._store.async_remove()
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        # HA removes the entry even when its removal hook raises. Keep the
+        # album IDs in storage and make the required account cleanup visible.
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            is_persistent=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="cloud_cleanup",
+            translation_placeholders={
+                "frame": self.entry.title,
+                "album": self.album_id or self.album_name,
+                "device": self.album_device_id or self.device_id,
+            },
+        )
+
     async def async_release(self) -> bool:
         """Hand the frame back to local delivery: keep-awake on, album off.
 
@@ -226,10 +258,12 @@ class FraimicCloudDelivery:
                 await self.client.async_update_album(self.album_id, {"active": False})
             except FraimicCloudError as err:
                 _LOGGER.warning("Could not deactivate the cloud album: %s", err)
-                ok = False
+                ok = err.status == 404
         if self.keep_awake_released:
             try:
-                await self.client.async_set_keep_awake(self.device_id, True)
+                await self.client.async_set_keep_awake(
+                    self.album_device_id or self.device_id, True
+                )
             except FraimicCloudError as err:
                 _LOGGER.warning("Could not turn keep-awake back on: %s", err)
                 ok = False
