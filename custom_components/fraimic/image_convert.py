@@ -21,6 +21,7 @@ CPU-bound (Pillow / numpy) and must be run in an executor.
 from __future__ import annotations
 
 import io
+from array import array
 from functools import cache
 
 from .const import (
@@ -307,39 +308,80 @@ def _official_palette_lut():
             best_distance[better] = distance[better]
             best_index[better] = index
         lut[red] = best_index
-    return lut
+    # Flat bytes, indexed as (r << 16) | (g << 8) | b: a plain int index beats
+    # NumPy scalar indexing by a wide margin in the per-pixel loop below.
+    return lut.tobytes()
 
 
 def _official_atkinson_indices(image):
-    """Apply Fraimic's tuned, left-to-right Atkinson implementation."""
+    """Apply Fraimic's tuned, left-to-right Atkinson implementation.
+
+    Error diffusion is sequential by construction (each pixel's error feeds its
+    neighbours), so this is a per-pixel Python loop either way. Running it over
+    flat channel buffers with a plain int LUT lookup, rather than indexing NumPy
+    arrays per pixel, renders a 1440x2560 frame in ~2.6 s instead of ~21 s.
+
+    The buffers are ``array("f")``, not lists: the published converter diffuses
+    error through a float32 image, and keeping that accumulation width is what
+    makes the output identical. Plain Python floats are a further ~30% faster
+    but drift, changing up to ~1% of pixels on saturated artwork.
+    """
     import numpy as np
 
-    working = np.asarray(image.convert("RGB"), dtype=np.float32).copy()
-    height, width, _ = working.shape
-    indices = np.zeros((height, width), dtype=np.uint8)
-    palette = np.array(_OFFICIAL_PALETTE_RGB, dtype=np.float32)
+    rgb = image.convert("RGB")
+    width, height = rgb.size
+    raw = rgb.tobytes()
+    reds = array("f", list(raw[0::3]))
+    greens = array("f", list(raw[1::3]))
+    blues = array("f", list(raw[2::3]))
+    indices = bytearray(width * height)
     lut = _official_palette_lut()
+    palette = [(float(r), float(g), float(b)) for r, g, b in _OFFICIAL_PALETTE_RGB]
 
     for y in range(height):
+        row = y * width
+        below = row + width
+        has_row_below = y + 1 < height
         for x in range(width):
-            old_pixel = working[y, x].copy()
-            red, green, blue = np.clip(old_pixel, 0, 255).astype(int)
-            index = int(lut[red, green, blue])
-            new_pixel = palette[index]
-            working[y, x] = new_pixel
-            indices[y, x] = index
-            error = old_pixel - new_pixel
+            offset = row + x
+            old_red = reds[offset]
+            old_green = greens[offset]
+            old_blue = blues[offset]
+            # Clamp to the byte range and truncate, as the published metric does.
+            red = 0 if old_red < 0.0 else 255 if old_red > 255.0 else int(old_red)
+            green = 0 if old_green < 0.0 else 255 if old_green > 255.0 else int(old_green)
+            blue = 0 if old_blue < 0.0 else 255 if old_blue > 255.0 else int(old_blue)
+            index = lut[(red << 16) | (green << 8) | blue]
+            indices[offset] = index
+            new_red, new_green, new_blue = palette[index]
 
+            # Atkinson: an eighth each to the right, bottom-left and
+            # bottom-right, a quarter straight down.
+            error_red = (old_red - new_red) * 0.125
+            error_green = (old_green - new_green) * 0.125
+            error_blue = (old_blue - new_blue) * 0.125
             if x + 1 < width:
-                working[y, x + 1] += error * (1 / 8)
-            if y + 1 < height:
-                if x > 0:
-                    working[y + 1, x - 1] += error * (1 / 8)
-                working[y + 1, x] += error * (1 / 4)
+                neighbour = offset + 1
+                reds[neighbour] += error_red
+                greens[neighbour] += error_green
+                blues[neighbour] += error_blue
+            if has_row_below:
+                if x:
+                    neighbour = below - 1
+                    reds[neighbour] += error_red
+                    greens[neighbour] += error_green
+                    blues[neighbour] += error_blue
+                reds[below] += error_red + error_red
+                greens[below] += error_green + error_green
+                blues[below] += error_blue + error_blue
                 if x + 1 < width:
-                    working[y + 1, x + 1] += error * (1 / 8)
+                    neighbour = below + 1
+                    reds[neighbour] += error_red
+                    greens[neighbour] += error_green
+                    blues[neighbour] += error_blue
+            below += 1
 
-    return indices.reshape(-1)
+    return np.frombuffer(bytes(indices), dtype=np.uint8)
 
 
 def _official_frame_indices(

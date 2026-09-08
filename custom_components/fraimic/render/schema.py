@@ -330,8 +330,15 @@ SCREEN_SCHEMA = vol.All(
                 ("cover", "contain", "contain_black", "stretch")
             ),
             vol.Optional("tone"): vol.In(("vivid", "balanced", "soft")),
+            # Coerce back to a list: normalize_crop returns a tuple, and already
+            # validated slides are run through this schema again by the
+            # scheduler queue.
             vol.Optional("crop"): vol.All(
-                [vol.Coerce(float)], vol.Length(min=4, max=4), normalize_crop
+                vol.Coerce(list),
+                [vol.Coerce(float)],
+                vol.Length(min=4, max=4),
+                normalize_crop,
+                vol.Coerce(list),
             ),
             vol.Optional("mode"): vol.In(DITHER_MODES),
             vol.Optional("background", default="white"): _COLOR,

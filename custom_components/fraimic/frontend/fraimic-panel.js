@@ -286,14 +286,14 @@ const css = String.raw`
   .slide-row .number { width: 26px; color: var(--muted); font-variant-numeric: tabular-nums; }
   .slide-row .row-art { width: 64px; }
   .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: color-mix(in srgb, var(--primary-background-color) 72%, transparent); }
-  .dialog { width: min(880px, 92vw); max-height: 90vh; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
-  .dialog-title { min-height: 56px; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
+  .dialog { width: min(880px, 92vw); max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; }
+  .dialog-title { min-height: 56px; flex: none; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); }
   .dialog-heading { min-width: 0; }
   .dialog-title h2 { margin: 0; font-size: 16px; }
   .dialog-subtitle { display: flex; align-items: center; gap: 5px; margin-top: 4px; color: var(--muted); font-size: 12px; }
   .dialog-header-actions { display: flex; align-items: center; gap: 2px; }
-  .dialog-body { padding: 16px; }
-  .dialog-actions { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .dialog-body { flex: 1 1 auto; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 16px; }
+  .dialog-actions { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .dialog.detail-dialog { width: min(1120px, 94vw); }
   .detail-dialog .dialog-body { padding: 0; }
   .detail-grid { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(280px, .62fr); }
@@ -561,9 +561,10 @@ class FraimicPanel extends HTMLElement {
 
   async _api(path, options = {}) {
     const response = await this._hass.fetchWithAuth(`${API}/${path}`, options);
+    const text = await response.text();
     let body = null;
-    try { body = await response.json(); } catch (_error) { /* empty response */ }
-    if (!response.ok) throw new Error(body?.message || response.statusText || "Request did not complete");
+    try { body = text ? JSON.parse(text) : null; } catch (_error) { /* plain-text error body */ }
+    if (!response.ok) throw new Error(body?.message || text || response.statusText || "Request did not complete");
     return body;
   }
 
@@ -763,6 +764,21 @@ class FraimicPanel extends HTMLElement {
     const nextStatus = new Map();
     const nextFacets = { artists: [], colours: [], collections: [], eras: [] };
     const limit = this._selectedSource === "all" ? ALL_SOURCES_LIMIT : SOURCE_LIMIT;
+    // Sources answer anywhere between 40 ms (library) and 10 s (a cold museum
+    // API). For a new query, paint what has arrived at most once a second
+    // instead of holding the empty grid until the slowest provider is done.
+    let lastPaint = 0;
+    const commit = (final) => {
+      if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
+      this._galleryBySource = nextBySource;
+      this._galleryCursorBySource = nextCursorBySource;
+      this._galleryTotalBySource = nextTotalBySource;
+      this._sourceStatus = nextStatus;
+      this._facets = nextFacets;
+      this._galleryLoading = !final;
+      lastPaint = Date.now();
+      this._renderPreservingFocus();
+    };
     await Promise.all(sources.map(async (source) => {
       try {
         const params = new URLSearchParams({ entry_id: entryId, source: source.key, limit: String(limit) });
@@ -781,17 +797,13 @@ class FraimicPanel extends HTMLElement {
         if (generation !== this._galleryGeneration) return;
         nextStatus.set(source.key, { source: source.key, status: "error", detail: error.message });
       }
+      // A manual refresh keeps the old grid until the atomic final swap.
+      if (replacesVisibleQuery && Date.now() - lastPaint > 1000) commit(false);
     }));
     if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
-    this._galleryBySource = nextBySource;
-    this._galleryCursorBySource = nextCursorBySource;
-    this._galleryTotalBySource = nextTotalBySource;
-    this._sourceStatus = nextStatus;
-    this._facets = nextFacets;
-    this._galleryLoading = false;
     this._galleryLoadedAt = Date.now();
     if (query) localStorage.setItem("fraimic-last-search", query);
-    this._renderPreservingFocus();
+    commit(true);
   }
 
   async _loadMoreGallery() {
@@ -1869,6 +1881,7 @@ class FraimicPanel extends HTMLElement {
   _cropStyle(crop) { return `left:${crop[0] * 100}%;top:${crop[1] * 100}%;width:${(crop[2] - crop[0]) * 100}%;height:${(crop[3] - crop[1]) * 100}%`; }
 
   _setDetailCrop(crop, render = true) {
+    if (!crop.every(Number.isFinite)) return;
     this._detailOptions.crop = crop.map((value) => Math.max(0, Math.min(1, value)));
     this._cropDrafts.set(this._cropKey(this._detail.source, this._detail.itemId, this._selectedFrameId), this._detailOptions.crop);
     if (render) this._renderDetailModal();
@@ -1892,6 +1905,7 @@ class FraimicPanel extends HTMLElement {
     const startX = event.clientX, startY = event.clientY;
     target.setPointerCapture(event.pointerId);
     const move = (next) => {
+      if (!stage.isConnected || !stage.clientWidth || !stage.clientHeight) return;
       const dx = (next.clientX - startX) / stage.clientWidth, dy = (next.clientY - startY) / stage.clientHeight;
       let crop;
       if (resize) {

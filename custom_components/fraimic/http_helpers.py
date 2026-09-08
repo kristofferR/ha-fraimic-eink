@@ -23,4 +23,9 @@ def require_loaded_entry(hass: HomeAssistant, entry_id: Any) -> ConfigEntry:
     )
     if entry is None:
         raise web.HTTPBadRequest(text="Unknown or unloaded entry_id")
+    # A dashboard request means someone is looking at this frame; make sure
+    # the state they see is not a days-old snapshot (see DASHBOARD_PROBE_MAX_AGE).
+    runtime = getattr(entry, "runtime_data", None)
+    if runtime is not None:
+        runtime.coordinator.async_probe_if_stale()
     return entry
