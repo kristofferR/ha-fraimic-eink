@@ -1893,19 +1893,26 @@ def test_previous_returns_to_promoted_cursor_after_hand_queue(monkeypatch):
     assert shown == ["x"]
 
 
-def test_promoted_slide_rotates_at_playlist_interval(monkeypatch):
+@pytest.mark.parametrize("source", ["gallery", "catalog"])
+@pytest.mark.parametrize("elapsed", [1790, 1800])
+def test_promoted_slide_rotates_at_playlist_interval(monkeypatch, source, elapsed):
     scheduler_mod = _load_scheduler(monkeypatch)
     monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
     scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
     scheduler.screens = [SimpleNamespace(screen_id="a", name="A", interval=1800)]
-    scheduler._external_queue = {
-        "x": SimpleNamespace(screen_id="x", name="X", interval=21600)
-    }
+    promoted = SimpleNamespace(screen_id="x", name="X", interval=21600)
+    if source == "gallery":
+        scheduler._external_queue = {"x": promoted}
+    else:
+        scheduler._playlists = SimpleNamespace(
+            get=lambda playlist_id: SimpleNamespace(interval=1800),
+            render_slide_by_id=lambda slide_id: promoted if slide_id == "x" else None,
+        )
     scheduler._playback_order = ["a", "x"]
     scheduler.current_id = scheduler._playlist_cursor_id = "x"
     scheduler.enabled = True
     scheduler.displayed_hash = "shown"
-    scheduler._last_rotation = scheduler_mod.dt_util.utcnow() - timedelta(seconds=1800)
+    scheduler._last_rotation = scheduler_mod.dt_util.utcnow() - timedelta(seconds=elapsed)
     shown = []
 
     async def show(screen, **kwargs):
@@ -1914,7 +1921,7 @@ def test_promoted_slide_rotates_at_playlist_interval(monkeypatch):
 
     scheduler._async_show = show
     asyncio.run(scheduler._async_rotate(force=False))
-    assert shown == ["a"]
+    assert shown == (["a"] if elapsed >= 1800 else [])
 
 
 @pytest.mark.parametrize("action", ["skip", "reorder"])

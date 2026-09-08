@@ -932,7 +932,6 @@ class FraimicScheduler:
                 >= (
                     (self.playlist_interval or current.interval)
                     if current.screen_id in self._playback_order
-                    and current.screen_id in self._external_queue
                     else current.interval
                 )
             )
