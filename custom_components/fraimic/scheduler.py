@@ -633,8 +633,6 @@ class FraimicScheduler:
         """Apply catalog assignment/settings changes to this frame scheduler."""
         if self._playlists is None:
             return
-        discard_prepared_thumbnails(self.hass, entry_id=self.entry.entry_id)
-        self._playlist_preprocess_done = None
         self._load_assigned_playlist()
         valid_ids = {screen.screen_id for screen in self.screens} | set(
             self._external_queue

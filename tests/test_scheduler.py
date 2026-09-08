@@ -417,8 +417,10 @@ def test_named_playlist_assignment_and_global_queue_lookup(
     assert scheduler.screens == [active, second]
 
     scheduler._queued_ids.append("missing")
+    scheduler._playlist_preprocess_done = "prepared"
     asyncio.run(scheduler.async_refresh_playlist())
     assert scheduler._queued_ids == ["queued"]
+    assert scheduler._playlist_preprocess_done == "prepared"
 
     assigned.shuffle = True
     monkeypatch.setattr(scheduler_mod.random, "shuffle", lambda items: items.reverse())

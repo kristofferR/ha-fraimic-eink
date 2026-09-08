@@ -234,11 +234,15 @@ def prepared_thumbnail_fingerprint(
 
         library = get_library(hass)
         if library is not None:
-            image = library.get(image_id)
-            payload["library_transform"] = {
-                "crops": image.crops,
-                "rotations": image.rotations,
-            }
+            try:
+                image = library.get(image_id)
+            except HomeAssistantError:
+                payload["library_transform"] = None
+            else:
+                payload["library_transform"] = {
+                    "crops": image.crops,
+                    "rotations": image.rotations,
+                }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
     ).hexdigest()
