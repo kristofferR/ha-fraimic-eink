@@ -47,6 +47,59 @@ def library_module(monkeypatch: pytest.MonkeyPatch):
             sys.modules["fraimic.library"] = previous_library
 
 
+def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypatch):
+    library = library_module
+    invalidated = []
+    evicted = []
+    image = library.LibraryImage("abc123def456", "Art.jpg", "image/jpeg", 1.0)
+
+    class Hass:
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    manager = object.__new__(library.FraimicLibrary)
+    manager.hass = Hass()
+    manager.images = {image.image_id: image}
+
+    async def save():
+        pass
+
+    manager._async_save_manifest = save
+    manager._invalidate_renders_sync = lambda *_args: None
+    manager.schedule_backfill = lambda _image_id: None
+    entries = []
+    for entry_id, size, queued, referenced in (
+        ("assigned", (800, 480), False, True),
+        ("queued", (800, 480), True, True),
+        ("other-image", (800, 480), False, False),
+        ("other-size", (480, 800), False, True),
+    ):
+        screen = types.SimpleNamespace(source={
+            "library_image": image.image_id if referenced else "other"
+        })
+        scheduler = types.SimpleNamespace(
+            screens=[] if queued else [screen],
+            queued_slides=[screen] if queued else [],
+            invalidate_preprocessing=lambda key=entry_id: invalidated.append(key),
+        )
+        entries.append(types.SimpleNamespace(
+            entry_id=entry_id, size=size,
+            runtime_data=types.SimpleNamespace(scheduler=scheduler),
+        ))
+    monkeypatch.setattr(library, "loaded_fraimic_entries", lambda _hass: entries)
+    monkeypatch.setattr(library, "resolve_render_params", lambda entry: {
+        "width": entry.size[0], "height": entry.size[1], "rotate": 0,
+    })
+    display = types.ModuleType("fraimic.render.display")
+    display.discard_prepared_thumbnails = lambda _hass, **kwargs: evicted.append(kwargs)
+    monkeypatch.setitem(sys.modules, "fraimic.render.display", display)
+
+    asyncio.run(manager.async_set_crop(image.image_id, 800, 480, None, rotate=90))
+
+    assert invalidated == ["assigned", "queued"]
+    assert {item["entry_id"] for item in evicted} == {"assigned", "queued", "other-image"}
+
+
 def test_rename_rolls_back_file_and_metadata_when_manifest_save_fails(
     library_module, tmp_path
 ) -> None:

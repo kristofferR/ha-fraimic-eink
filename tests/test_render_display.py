@@ -679,6 +679,7 @@ def test_provider_prefetch_is_skipped_when_artwork_cache_is_off(
     entry.options[display.CONF_ARTWORK_CACHE] = "off"
     screen = types.SimpleNamespace(
         name="Provider picture",
+        screen_id="provider-picture",
         kind=display.KIND_PICTURE,
         source={"provider": "museum", "provider_item": "art-1"},
     )
@@ -758,6 +759,9 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
         kind=display.KIND_PICTURE,
         source={"library_image": "image-1", "mode": "none"},
     )
+    entry.runtime_data.scheduler = types.SimpleNamespace(
+        screens=[screen], queued_slides=[]
+    )
 
     assert asyncio.run(display.async_prepare_screen(hass, entry, screen)) is True
     thumbnail = display.cached_prepared_thumbnail(hass, entry, screen)
@@ -775,6 +779,49 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
     Library.image.crops = {}
     screen.source["mode"] = "atkinson"
     assert display.cached_prepared_thumbnail(hass, entry, screen) is None
+
+
+@pytest.mark.parametrize("change_during", ["render", "resize"])
+def test_preparation_retries_when_transform_changes(monkeypatch, change_during):
+    display, _ = _load_display(monkeypatch)
+    hass = _Hass()
+    hass.data = {}
+    entry = _entry()
+    screen = types.SimpleNamespace(screen_id="slide", source={}, kind=display.KIND_PICTURE)
+    calls = []
+
+    async def preview(*_args):
+        pixels = str(entry.options["rotation"]).encode()
+        calls.append(pixels)
+        if change_during == "render":
+            entry.options["rotation"] = 90
+        return pixels
+
+    async def resize(_function, pixels):
+        if change_during == "resize":
+            entry.options["rotation"] = 90
+        return pixels
+
+    monkeypatch.setattr(display, "async_prepared_preview", preview)
+    hass.async_add_executor_job = resize
+    assert asyncio.run(display.async_prepare_screen(hass, entry, screen))
+    assert calls == [b"0", b"90"]
+    assert display.cached_prepared_thumbnail(hass, entry, screen) == b"90"
+
+
+def test_unassigned_thumbnail_miss_does_not_render(monkeypatch):
+    display, _ = _load_display(monkeypatch)
+    hass = _Hass()
+    hass.data = {}
+    entry = _entry()
+    entry.runtime_data.scheduler = types.SimpleNamespace(screens=[], queued_slides=[])
+    screen = types.SimpleNamespace(screen_id="unassigned", source={})
+
+    async def prepare(*_args):
+        pytest.fail("browsing an unassigned playlist must not render its originals")
+
+    monkeypatch.setattr(display, "async_prepare_screen", prepare)
+    assert asyncio.run(display.async_prepared_thumbnail(hass, entry, screen)) is None
 
 
 def test_library_picture_preview_only_uses_cached_render(

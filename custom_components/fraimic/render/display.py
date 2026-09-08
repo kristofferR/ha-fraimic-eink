@@ -240,9 +240,14 @@ def prepared_thumbnail_fingerprint(
             except HomeAssistantError:
                 payload["library_transform"] = None
             else:
+                width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
+                height = entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
+                if entry.options.get(CONF_ROTATION, DEFAULT_ROTATION) in (90, 270):
+                    width, height = height, width
+                resolution = f"{width}x{height}"
                 payload["library_transform"] = {
-                    "crops": image.crops,
-                    "rotations": image.rotations,
+                    "crop": image.crops.get(resolution),
+                    "rotation": image.rotations.get(resolution),
                 }
     return hashlib.sha256(
         json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode()
@@ -286,6 +291,12 @@ async def async_prepared_thumbnail(
     """Restore an evicted thumbnail on demand, serializing request-side renders."""
     if (thumbnail := cached_prepared_thumbnail(hass, entry, screen)) is not None:
         return thumbnail
+    scheduler = entry.runtime_data.scheduler
+    if not any(
+        candidate.screen_id == screen.screen_id
+        for candidate in (*scheduler.screens, *scheduler.queued_slides)
+    ):
+        return None
     lock = hass.data.setdefault(DOMAIN, {}).setdefault(
         "playlist_thumbnail_render_lock", asyncio.Lock()
     )
@@ -382,16 +393,16 @@ async def async_prepare_screen(
     hass: HomeAssistant, entry, screen: ScreenConfig
 ) -> bool:
     """Cache one fixed picture's panel render without changing the display."""
-    preview = await async_prepared_preview(hass, entry, screen)
-    if preview is None:
-        return False
-    thumbnail = await hass.async_add_executor_job(_small_preview, preview)
-    _prepared_thumbnail_cache(hass).set(
-        _prepared_thumbnail_key(hass, entry, screen),
-        thumbnail,
-        "image/png",
-    )
-    return True
+    while True:
+        key = _prepared_thumbnail_key(hass, entry, screen)
+        preview = await async_prepared_preview(hass, entry, screen)
+        if preview is None:
+            return False
+        thumbnail = await hass.async_add_executor_job(_small_preview, preview)
+        if key != _prepared_thumbnail_key(hass, entry, screen):
+            continue
+        _prepared_thumbnail_cache(hass).set(key, thumbnail, "image/png")
+        return True
 
 
 async def async_show_screen(

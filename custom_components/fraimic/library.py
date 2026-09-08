@@ -386,9 +386,18 @@ class FraimicLibrary:
         )
         from .render.display import discard_prepared_thumbnails
 
-        discard_prepared_thumbnails(self.hass, image_id=image_id)
         for entry in loaded_fraimic_entries(self.hass):
-            entry.runtime_data.scheduler.invalidate_preprocessing()
+            if _crop_key_size(resolve_render_params(entry)) != (width, height):
+                continue
+            discard_prepared_thumbnails(
+                self.hass, entry_id=entry.entry_id, image_id=image_id
+            )
+            scheduler = entry.runtime_data.scheduler
+            if any(
+                (screen.source or {}).get("library_image") == image_id
+                for screen in (*scheduler.screens, *scheduler.queued_slides)
+            ):
+                scheduler.invalidate_preprocessing()
         self.schedule_backfill(image_id)
         return image
 
