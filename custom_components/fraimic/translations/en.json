@@ -161,6 +161,7 @@
         "title": "Fraimic options",
         "description": "Choose how aggressively the integration saves the frame battery, then configure image defaults. Minimum mode makes no startup or periodic frame requests.",
         "data": {
+          "delivery_mode": "Delivery",
           "power_mode": "Power mode",
           "auto_sleep_after_upload": "Sleep after upload (experimental)",
           "scan_interval": "Polling interval (seconds)",
@@ -182,6 +183,7 @@
           "pexels_api_key": "Pexels API key (optional)"
         },
         "data_description": {
+          "delivery_mode": "local: push images to the frame over your network (the frame must be awake). cloud: upload to your Fraimic account and let its album schedule wake the frame for each image, so keep-awake can stay off and the battery lasts.",
           "power_mode": "minimum: no periodic polling and at most one automatic redraw/day; balanced: hourly polling and up to eight automatic redraws/day; responsive: legacy-style polling and up to 48 automatic redraws/day.",
           "auto_sleep_after_upload": "After a successful redraw, wait 45 seconds and ask an unplugged frame to sleep. Disabled when charging, keep-awake is set, work is queued, or power state is unknown.",
           "scan_interval": "Requested polling interval. Power mode may raise it; Minimum disables periodic polling entirely.",
@@ -202,11 +204,28 @@
           "unsplash_access_key": "Enables the Unsplash photo provider. Free at unsplash.com/developers.",
           "pexels_api_key": "Enables the Pexels photo provider. Free at pexels.com/api."
         }
+      },
+      "cloud": {
+        "title": "Fraimic account",
+        "description": "Cloud delivery signs in to the same account as the Fraimic app. The frame gets its own album named after this entry; the first successful delivery turns keep-awake off. Leave the password blank to keep the saved one.",
+        "data": {
+          "cloud_email": "Email",
+          "cloud_password": "Password"
+        }
+      },
+      "cloud_device": {
+        "title": "Which canvas is this frame?",
+        "data": {
+          "cloud_device_id": "Canvas"
+        }
       }
     },
     "error": {
       "provider_key_required": "That default provider needs an API key.",
-      "camera_interval_too_low": "Use 0 to disable, or at least 60 seconds."
+      "camera_interval_too_low": "Use 0 to disable, or at least 60 seconds.",
+      "invalid_auth": "Fraimic rejected that email or password.",
+      "cannot_connect": "Could not reach the Fraimic cloud.",
+      "no_devices": "That account has no canvases yet."
     }
   },
   "entity": {
@@ -300,24 +319,48 @@
       }
     },
     "button": {
-      "refresh": { "name": "Refresh display" },
-      "sleep": { "name": "Sleep" },
-      "restart": { "name": "Restart" },
-      "next_screen": { "name": "Next screen" },
-      "previous_screen": { "name": "Previous screen" },
-      "new_artwork": { "name": "New artwork" },
-      "refresh_data": { "name": "Refresh frame data" },
-      "try_queued_send": { "name": "Try queued send" }
+      "refresh": {
+        "name": "Refresh display"
+      },
+      "sleep": {
+        "name": "Sleep"
+      },
+      "restart": {
+        "name": "Restart"
+      },
+      "next_screen": {
+        "name": "Next screen"
+      },
+      "previous_screen": {
+        "name": "Previous screen"
+      },
+      "new_artwork": {
+        "name": "New artwork"
+      },
+      "refresh_data": {
+        "name": "Refresh frame data"
+      },
+      "try_queued_send": {
+        "name": "Try queued send"
+      }
     },
     "image": {
-      "preview": { "name": "Current artwork" },
-      "screen_preview": { "name": "Screen preview" }
+      "preview": {
+        "name": "Current artwork"
+      },
+      "screen_preview": {
+        "name": "Screen preview"
+      }
     },
     "switch": {
-      "playlist": { "name": "Playlist" }
+      "playlist": {
+        "name": "Playlist"
+      }
     },
     "select": {
-      "screen": { "name": "Screen" }
+      "screen": {
+        "name": "Screen"
+      }
     }
   },
   "services": {
@@ -554,6 +597,12 @@
           "description": "Full schedule object; the cloud replaces the whole schedule."
         }
       }
+    }
+  },
+  "issues": {
+    "cloud_cleanup": {
+      "title": "Finish cloud cleanup for {frame}",
+      "description": "Home Assistant could not finish releasing this removed frame. In your Fraimic account, deactivate album {album} and enable keep-awake for canvas {device} if you want LAN delivery. The album ownership record has been retained in Home Assistant storage for recovery. Dismiss this notice after completing cleanup."
     }
   }
 }

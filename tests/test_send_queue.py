@@ -82,6 +82,7 @@ def test_setup_discards_legacy_large_frame_payload(send_queue_module) -> None:
     entry = types.SimpleNamespace(
         entry_id="large-frame",
         data={"width": 1440, "height": 2560},
+        runtime_data=types.SimpleNamespace(cloud=None),
     )
     queue = send_queue.FraimicSendQueue(Hass(), entry)
     queue._store = Store()
@@ -226,3 +227,22 @@ def test_flush_caps_queued_payload_read(
     assert requested_sizes == [send_queue.MAX_BIN_SIZE + 1]
     assert queue.pending is None
     assert queue._store.saved == {"pending": None}
+
+
+def test_cloud_setup_discards_lan_queue_without_starting_probes(send_queue_module):
+    from unittest.mock import AsyncMock, Mock
+
+    hass = types.SimpleNamespace(config=types.SimpleNamespace(path=lambda *parts: "/unused"))
+    entry = types.SimpleNamespace(
+        entry_id="frame", data={}, runtime_data=types.SimpleNamespace(cloud=object())
+    )
+    queue = send_queue_module.FraimicSendQueue(hass, entry)
+    queue._store = types.SimpleNamespace(
+        async_load=AsyncMock(return_value={"pending": {"title": "Old art"}}),
+        async_save=AsyncMock(),
+    )
+    queue._start_waiting = Mock()
+    asyncio.run(queue.async_setup())
+    queue._start_waiting.assert_not_called()
+    queue._store.async_save.assert_awaited_once_with({"pending": None})
+    assert queue.pending is None

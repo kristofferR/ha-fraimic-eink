@@ -105,6 +105,9 @@ class FraimicSendQueue:
         data = await self._store.async_load()
         if data and data.get("pending"):
             self._pending = data["pending"]
+            if getattr(self._entry.runtime_data, "cloud", None) is not None:
+                await self.async_discard()
+                return
             queued_size = await self._hass.async_add_executor_job(
                 self._queued_payload_size
             )

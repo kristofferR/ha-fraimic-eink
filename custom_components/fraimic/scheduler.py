@@ -47,7 +47,7 @@ from .render.display import (
 from .render.playlist import eligible, next_screen
 from .render.schema import KIND_PICTURE, ScreenConfig
 from .screens import screens_from_entry
-from .services import FrameUploadError
+from .services import CloudDeliveryError, FrameUploadError
 
 if TYPE_CHECKING:
     from .playlists import PlaylistManager
@@ -239,6 +239,7 @@ class FraimicScheduler:
             self._last_rotation = dt_util.parse_datetime(raw)
         if not self.enabled and (raw := data.get("paused_at")):
             self._paused_at = dt_util.parse_datetime(raw)
+        await self._async_sync_cloud_interval()
         self._unsub_timer = async_track_time_interval(self.hass, self._async_tick, TICK)
         self._unsub_coordinator = (
             self.entry.runtime_data.coordinator.async_add_listener(
@@ -823,11 +824,24 @@ class FraimicScheduler:
             self.enabled = True
             self._stored_enabled = True
             self._hold_until = None
+        await self._async_sync_cloud_interval()
         await self._async_save()
         self._notify()
         self._schedule_prefetch()
         if start and (self._rotation_screens() or self.queued_slides):
             await self._async_rotate(force=True)
+
+    async def _async_sync_cloud_interval(self) -> None:
+        """Cloud delivery: the album slot cadence must follow the playlist."""
+        cloud = getattr(self.entry.runtime_data, "cloud", None)
+        if cloud is None:
+            return
+        try:
+            await cloud.async_sync_interval(self.playlist_interval)
+            if cloud.delivery_deadline is not None:
+                self._hold_until = dt_util.utc_from_timestamp(cloud.delivery_deadline)
+        except Exception:  # noqa: BLE001 - cloud hiccups must not break startup
+            _LOGGER.debug("Cloud album interval sync failed", exc_info=True)
 
     def _apply_playlist_order(self) -> None:
         """Apply the persisted order and append newly created slides."""
@@ -903,9 +917,34 @@ class FraimicScheduler:
         await self._async_save()
         self._notify()
 
+    async def async_cloud_delivery_accepted(self) -> None:
+        """Reserve the cloud wake slot without claiming the image is on glass."""
+        cloud = self.entry.runtime_data.cloud
+        self._pending = None
+        self._pending_hold_on_success = False
+        if not self._busy:
+            self._pending_from_queue = False
+        # Every album edit reanchors the wake. Allow the scheduled slot to pass
+        # before the next automatic upload replaces its image.
+        self._hold_until = dt_util.utcnow() + timedelta(
+            seconds=cloud.wake_interval + 60
+        )
+        if getattr(cloud, "delivery_deadline", None) is not None:
+            self._hold_until = dt_util.utc_from_timestamp(cloud.delivery_deadline)
+        await self._async_save()
+        self._notify()
+
     # -- the loop ------------------------------------------------------------
 
     async def _async_tick(self, _now: datetime | None = None) -> None:
+        runtime = self.entry.runtime_data
+        cloud = getattr(runtime, "cloud", None)
+        if cloud is not None and not self._busy and not self.external_upload_active:
+            try:
+                async with runtime.upload_lock:
+                    await cloud.async_expire_delivery()
+            except Exception:  # noqa: BLE001 - retry cleanup on the next tick
+                _LOGGER.debug("Could not retire the cloud image", exc_info=True)
         await self._async_rotate(force=False)
 
     async def _async_rotate(self, *, force: bool) -> None:
@@ -1049,6 +1088,19 @@ class FraimicScheduler:
                 )
                 self._hold_until = dt_util.utcnow() + timedelta(seconds=300)
                 return False
+            except CloudDeliveryError as err:
+                # Cloud hiccup: keep the slide and retry on a later tick rather
+                # than skipping it or treating the frame as asleep.
+                if manual:
+                    raise
+                self._pending = None
+                _LOGGER.warning(
+                    "Playlist: cloud delivery of %r failed, retrying later: %s",
+                    screen.name,
+                    err,
+                )
+                self._hold_until = dt_util.utcnow() + timedelta(seconds=120)
+                return False
             except FrameUploadError as err:
                 send_queue = getattr(self.entry.runtime_data, "send_queue", None)
                 if (
@@ -1092,6 +1144,16 @@ class FraimicScheduler:
                 _LOGGER.warning("Playlist skipped %r: %s", screen.name, err)
                 return False
             displayed = result.get("displayed", result.get("uploaded", True))
+            if result.get("cloud_queued"):
+                # Advance delivery order separately from the last confirmed
+                # screen/hash. The cloud owns this queued send from here.
+                if advance_playlist:
+                    self._playlist_cursor_id = screen.screen_id
+                if self._pending_from_queue:
+                    await self._async_consume_queued(screen.screen_id)
+                await self._async_save()
+                self._notify()
+                return False
             if not displayed:
                 # Power policy/coalescing skipped this redraw. Never claim its hash
                 # is on the glass or count the skipped work as a completed rotation.

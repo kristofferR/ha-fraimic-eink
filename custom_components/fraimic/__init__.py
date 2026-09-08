@@ -7,20 +7,28 @@ import logging
 
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
 from .artwork_cache import DATA_ARTWORK_CACHE, ArtworkCache
+from .cloud import FraimicCloudClient
+from .cloud_delivery import FraimicCloudDelivery
 from .const import (
     CONF_CAMERA_INTERVAL,
+    CONF_CLOUD_DEVICE_ID,
+    CONF_CLOUD_EMAIL,
+    CONF_CLOUD_PASSWORD,
+    CONF_DELIVERY_MODE,
     CONF_HEIGHT,
     CONF_POWER_MODE,
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
     DEFAULT_ROTATION,
+    DELIVERY_CLOUD,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
     ROTATION_OPTIONS,
@@ -118,6 +126,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     await power.async_setup()
     entry.async_on_unload(power.shutdown)
     await coordinator.async_restore()
+    # Cloud delivery (album schedule wakes the sleeping frame) when selected;
+    # must exist before the scheduler starts so it can sync the album cadence.
+    entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
     # Do NOT use async_config_entry_first_refresh here: it raises
     # ConfigEntryNotReady on a failed first poll, which would abort setup whenever
     # the (battery-powered) frame is in deep sleep on restart — the entities would
@@ -140,6 +151,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()
     entry.async_on_unload(scheduler.async_stop)
+    cloud = entry.runtime_data.cloud
+    if cloud is not None and not cloud.has_image:
+        # Nothing on the album yet, so the frame has no wake slot. Forget the
+        # displayed hash so the next tick re-sends the current slide.
+        scheduler.displayed_hash = None
     # Provider catalogs are cached in memory, so the first dashboard open after
     # a restart used to wait ~10 s for the slowest museum API. Warm them once.
     entry.async_create_background_task(
@@ -206,6 +222,53 @@ async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) ->
             entry, data=data, options=options, version=3
         )
     return True
+
+
+async def _async_setup_cloud(
+    hass: HomeAssistant, entry: FraimicConfigEntry
+) -> FraimicCloudDelivery | None:
+    """Build cloud delivery for ``cloud`` mode; hand the frame back otherwise."""
+    delivery = await _async_load_cloud(hass, entry)
+    if delivery is None:
+        return None
+    if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
+        return delivery
+    if delivery.album_id is not None or delivery.keep_awake_released:
+        if not await delivery.async_release():
+            raise ConfigEntryNotReady(
+                "Cloud cleanup failed; retrying before enabling local delivery"
+            )
+        await delivery.async_forget_album()
+    return None
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
+    """Deactivate the owned album when the frame is deleted, including unloaded entries."""
+    delivery = await _async_load_cloud(hass, entry)
+    if delivery is not None:
+        await delivery.async_remove()
+
+
+async def _async_load_cloud(
+    hass: HomeAssistant, entry: FraimicConfigEntry
+) -> FraimicCloudDelivery | None:
+    """Reconstruct cloud ownership from options and persisted state."""
+    options = entry.options
+    email = options.get(CONF_CLOUD_EMAIL)
+    password = options.get(CONF_CLOUD_PASSWORD)
+    device_id = options.get(CONF_CLOUD_DEVICE_ID)
+    if not (email and password and device_id):
+        if options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
+            _LOGGER.warning(
+                "Cloud delivery is selected for %s but the account is incomplete; "
+                "falling back to local delivery. Reconfigure the frame to sign in.",
+                entry.title,
+            )
+        return None
+    client = FraimicCloudClient(async_get_clientsession(hass), email, password)
+    delivery = FraimicCloudDelivery(hass, entry, client, device_id)
+    await delivery.async_setup()
+    return delivery
 
 
 async def _async_update_listener(

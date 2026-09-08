@@ -748,6 +748,28 @@ def _pack_el315(arr) -> bytes:
     return np.concatenate(blocks).tobytes()
 
 
+def indices_to_cloud_png(indices, width: int, height: int, rotate: int = 0) -> bytes:
+    """Encode palette positions as a full-size PNG in the six pure primaries.
+
+    The Fraimic cloud re-runs its own fit and dither on every upload; feeding
+    it an image that is already exactly on its palette at the panel's viewed
+    resolution makes that pass an identity, so the integration's own dither
+    survives. ``rotate`` turns the native buffer clockwise into the viewed
+    orientation; callers pass ``(-base_rotation) % 360`` like the preview.
+    """
+    import numpy as np
+    from PIL import Image
+
+    palette = np.array(_OFFICIAL_PALETTE_RGB, dtype=np.uint8)
+    rgb = palette[np.asarray(indices, dtype=np.uint8).reshape(height, width) % SPECTRA6_LEVELS]
+    image = Image.fromarray(rgb, mode="RGB")
+    if rotate % 360:
+        image = image.rotate(-(rotate % 360), expand=True)
+    buf = io.BytesIO()
+    image.save(buf, format="PNG", optimize=True)
+    return buf.getvalue()
+
+
 def _unpack_el315(raw):
     """Inverse of :func:`_pack_el315`, back to native portrait nibbles."""
     import numpy as np
@@ -822,6 +844,7 @@ def bin_to_png(data: bytes, width: int, height: int, preview_rotate: int = 0) ->
         image = image.rotate(-(preview_rotate % 360), expand=True)
     buf = io.BytesIO()
     image.save(buf, format="PNG")
+
     return buf.getvalue()
 
 

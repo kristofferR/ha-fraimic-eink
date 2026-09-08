@@ -55,6 +55,9 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     class FrameUploadError(Exception):
         pass
 
+    class CloudDeliveryError(Exception):
+        pass
+
     def callback(func: Callable[..., object]) -> Callable[..., object]:
         return func
 
@@ -85,6 +88,7 @@ def _install_scheduler_stubs(monkeypatch: pytest.MonkeyPatch) -> type[Exception]
     coordinator.FraimicConfigEntry = SimpleNamespace
     screens.screens_from_entry = lambda _entry: []
     services.FrameUploadError = FrameUploadError
+    services.CloudDeliveryError = CloudDeliveryError
     providers.ha = providers_ha
     providers_ha.ArtFetchError = ArtFetchError
     homeassistant.core = core
@@ -352,6 +356,78 @@ def test_prune_library_image_removes_legacy_screen_subentry(
     assert scheduler.screens == [kept]
     assert scheduler._playback_order == ["kept"]
     assert scheduler._playlist_order == ["kept"]
+
+
+@pytest.mark.parametrize("queued", [False, True])
+def test_cloud_acceptance_advances_delivery_without_claiming_display(monkeypatch, queued):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    entry.runtime_data.cloud = SimpleNamespace(wake_interval=1920)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    old = SimpleNamespace(screen_id="old", name="Old", interval=1800)
+    new = SimpleNamespace(screen_id="new", name="New", interval=1800)
+    scheduler.screens = [old, new]
+    scheduler.enabled = True
+    scheduler.current_id = "old"
+    scheduler.displayed_hash = "old-hash"
+    scheduler._playlist_cursor_id = "old"
+    if queued:
+        scheduler._queued_ids = ["new"]
+    deliveries = []
+
+    async def show(*_args, **_kwargs):
+        deliveries.append("accepted")
+        await scheduler.async_cloud_delivery_accepted()
+        return {"uploaded": False, "displayed": False, "cloud_queued": True}
+
+    monkeypatch.setattr(scheduler_mod, "async_show_screen", show)
+
+    async def scenario():
+        if queued:
+            await scheduler._async_show_queued(new, manual=False)
+        else:
+            await scheduler._async_show(new)
+        await scheduler._async_rotate(force=False)
+
+    asyncio.run(scenario())
+    assert deliveries == ["accepted"]
+    assert scheduler.current_id == "old"
+    assert scheduler.displayed_hash == "old-hash"
+    assert scheduler._last_rotation is None
+    assert scheduler._playlist_cursor_id == ("old" if queued else "new")
+    assert scheduler._queued_ids == []
+    assert scheduler._hold_until == scheduler_mod.dt_util.utcnow() + timedelta(seconds=1980)
+
+
+def test_paused_scheduler_still_retires_cloud_images(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    expire = AsyncMock()
+    entry.runtime_data.cloud = SimpleNamespace(async_expire_delivery=expire)
+    entry.runtime_data.upload_lock = asyncio.Lock()
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    scheduler.enabled = False
+    asyncio.run(scheduler._async_tick())
+    expire.assert_awaited_once()
+
+
+def test_cloud_interval_sync_rebases_existing_hold(monkeypatch):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    entry = _entry()
+    cloud = SimpleNamespace(delivery_deadline=1000)
+
+    async def sync(_interval):
+        cloud.delivery_deadline = 2000
+
+    cloud.async_sync_interval = sync
+    entry.runtime_data.cloud = cloud
+    monkeypatch.setattr(scheduler_mod.dt_util, "utc_from_timestamp", datetime.fromtimestamp, raising=False)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), entry)
+    scheduler._hold_until = datetime.fromtimestamp(1000)
+    asyncio.run(scheduler._async_sync_cloud_interval())
+    assert scheduler._hold_until == datetime.fromtimestamp(2000)
 
 
 def test_wake_retry_keeps_manual_pending_state(

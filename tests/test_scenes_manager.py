@@ -49,8 +49,8 @@ def _load_scenes(monkeypatch: pytest.MonkeyPatch):
     library = types.ModuleType("fraimic.library")
     library.FraimicLibrary = object
 
-    async def async_upload_rendered(*_args, **_kwargs) -> None:
-        return None
+    async def async_upload_rendered(*_args, **_kwargs) -> bool:
+        return True
 
     library.async_upload_rendered = async_upload_rendered
     helper_mod = types.ModuleType("fraimic.helpers")
@@ -205,8 +205,9 @@ def test_scene_send_snapshots_mappings_and_isolates_failures(
             raise OSError("source disappeared")
         return (b"bin", b"png", "auto")
 
-    async def upload(entry: SimpleNamespace, *_args, media_title=None, **_kwargs) -> None:
+    async def upload(entry: SimpleNamespace, *_args, media_title=None, **_kwargs) -> bool:
         upload_calls.append((entry.entry_id, media_title))
+        return True
 
     monkeypatch.setattr(
         manager.library, "async_render_for_entry", render, raising=False

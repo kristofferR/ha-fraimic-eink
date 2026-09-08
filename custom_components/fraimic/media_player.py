@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import time
 from datetime import timedelta
 from urllib.parse import quote, unquote, urlsplit
 
@@ -29,7 +30,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL, MEDIA_SCHEME
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
@@ -88,6 +89,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_media_player"
         self._camera_entity: str | None = None
         self._camera_unsub = None
+        self._camera_retry_unsub = None
+        self._camera_tick_busy = False
         self._camera_generation = 0
 
     @property
@@ -107,12 +110,28 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             return MediaPlayerState.PLAYING
         return MediaPlayerState.IDLE
 
-    def _stop_camera_loop(self) -> None:
+    def _stop_camera_loop(self, *, sync_cloud: bool = True) -> None:
         self._camera_generation += 1
+        if self._camera_retry_unsub is not None:
+            self._camera_retry_unsub()
+            self._camera_retry_unsub = None
         if self._camera_unsub is not None:
             self._camera_unsub()
             self._camera_unsub = None
         self._camera_entity = None
+        entry = self.coordinator.config_entry
+        cloud = getattr(entry.runtime_data, "cloud", None)
+        if cloud is not None and cloud.camera_interval is not None:
+            cloud.camera_interval = None
+            if sync_cloud:
+                scheduler = entry.runtime_data.scheduler
+                entry.async_create_task(
+                    self.hass,
+                    cloud.async_sync_interval(
+                        scheduler.playlist_interval if scheduler is not None else None
+                    ),
+                    "fraimic-restore-cloud-interval",
+                )
 
     def _stop_camera_loop_and_write(self) -> None:
         self._stop_camera_loop()
@@ -128,7 +147,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         runtime = self.coordinator.config_entry.runtime_data
         if runtime.stop_camera_loop == self._stop_camera_loop_and_write:
             runtime.stop_camera_loop = None
-        self._stop_camera_loop()
+        self._stop_camera_loop(sync_cloud=False)
         await super().async_will_remove_from_hass()
 
     async def async_media_stop(self) -> None:
@@ -184,8 +203,26 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
     async def _async_camera_tick(self, _now) -> None:
         """Periodic camera re-snapshot; failures are logged, the loop lives on
         (the frame may simply be asleep or mid-render right now)."""
-        if self._camera_entity is None:
+        if self._camera_entity is None or self._camera_tick_busy:
             return
+        cloud = getattr(self.coordinator.config_entry.runtime_data, "cloud", None)
+        if cloud is not None:
+            deadline = cloud.delivery_deadline
+            delay = deadline - time.time() if deadline is not None else 0
+            if delay > 0:
+                if self._camera_retry_unsub is not None:
+                    self._camera_retry_unsub()
+
+                async def retry(now):
+                    self._camera_retry_unsub = None
+                    await self._async_camera_tick(now)
+
+                self._camera_retry_unsub = async_call_later(self.hass, delay, retry)
+                return
+        if self._camera_retry_unsub is not None:
+            self._camera_retry_unsub()
+            self._camera_retry_unsub = None
+        self._camera_tick_busy = True
         try:
             await self._async_show_camera(
                 self._camera_entity,
@@ -199,6 +236,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self._camera_entity,
                 err,
             )
+        finally:
+            self._camera_tick_busy = False
 
     async def async_browse_media(
         self,
@@ -415,12 +454,18 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 scheduler = None
                 disabled_scheduler = False
             try:
+                cloud = getattr(self.coordinator.config_entry.runtime_data, "cloud", None)
+                if cloud is not None and interval > 0:
+                    cloud.camera_interval = interval
+                    await cloud.async_sync_interval(interval)
                 await self._async_show_camera(
                     camera_entity,
                     camera_generation=camera_generation,
                     hold_playlist=interval == 0,
                 )
             except Exception:
+                if camera_generation == self._camera_generation:
+                    self._stop_camera_loop()
                 if disabled_scheduler and scheduler is not None:
                     await scheduler.async_set_enabled(
                         True,

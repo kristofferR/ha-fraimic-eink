@@ -19,6 +19,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `diagnostics.py` | Redacted config-entry diagnostics; includes recent `/logs` tail. |
 | `info_page.py` | Pure parser for the `/info` HTML admin page (panel size, battery health). |
 | `log_page.py` | Pure parser for the `/logs` ESP-IDF viewer (current + previous boot). |
+| `cloud.py` | `FraimicCloudClient`: Supabase login (password grant, refresh) + account API (devices, settings, gallery upload, albums). Pure aiohttp. |
+| `cloud_delivery.py` | Cloud delivery mode: one HA-owned album per frame; each render becomes a pure-primary PNG upload and the album's single image; album interval = playlist interval + lead; turns keep-awake off after the first delivery. |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
 | `providers/` | Keyless/keyed online artwork sources. Reframed provides hierarchical Collections/Colors/Tags/Artists/Vertical/Recent browsing. |
@@ -135,6 +137,18 @@ not primaries.
   - Image defaults: `mode`, `fit`, `saturation`, `contrast`, `sharpen`, `tone`
 - Param resolution order: **call override > per-frame option > global default**.
 - Options change reloads the entry.
+
+## Delivery modes
+
+`CONF_DELIVERY_MODE` (options): `local` pushes the `.bin` over the LAN;
+`cloud` uploads through the Fraimic account instead (`cloud_delivery.py`).
+Cloud facts verified on hardware: album slots fire at *last album edit +
+interval*, every slot is a full re-download/re-render, an album-timer wake
+lasts ~2m40s then deep-sleeps, keep-awake changes apply on the next poll.
+`services.async_render_and_upload` switches transport on `runtime.cloud`;
+the LAN power budget and send queue are bypassed in cloud mode, and the
+coordinator falls back to the account's device record when the LAN poll
+fails. Full notes: [`docs/fraimic-cloud-api/albums-scheduling.md`](docs/fraimic-cloud-api/albums-scheduling.md).
 
 ## Scheduling
 
