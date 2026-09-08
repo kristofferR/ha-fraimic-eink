@@ -1705,8 +1705,10 @@ def test_move_playlist_item_into_hand_queue(
     assert [slide.screen_id for slide in scheduler.playlist_up_next()] == ["c", "b"]
 
 
+@pytest.mark.parametrize("source", ["gallery", "catalog"])
+@pytest.mark.parametrize("pending", [False, True])
 def test_move_hand_queue_one_off_into_session(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, source: str, pending: bool,
 ) -> None:
     scheduler_mod = _load_scheduler(monkeypatch)
     first = SimpleNamespace(screen_id="a", name="A")
@@ -1718,9 +1720,19 @@ def test_move_hand_queue_one_off_into_session(
     scheduler.screens = [first, second]
     scheduler.current_id = "a"
     scheduler._playlist_cursor_id = "a"
-    scheduler._external_queue["x"] = one_off
-    scheduler._external_queue_data["x"] = {"name": "X"}
+    if source == "gallery":
+        scheduler._external_queue["x"] = one_off
+        scheduler._external_queue_data["x"] = {"name": "X"}
+    else:
+        scheduler._playlists = SimpleNamespace(
+            render_slide_by_id=lambda slide_id: one_off if slide_id == "x" else None
+        )
     scheduler._queued_ids = ["x"]
+    if pending:
+        scheduler._pending = one_off
+        scheduler._pending_from_queue = True
+        scheduler._pending_requires_enabled = True
+        scheduler._pending_hold_on_success = True
 
     asyncio.run(scheduler.async_move_queue_item("queue", 0, "x", "playlist", 0))
 
@@ -1728,9 +1740,17 @@ def test_move_hand_queue_one_off_into_session(
     assert scheduler._playback_order == ["a", "x", "b"]
     assert [slide.screen_id for slide in scheduler.playlist_up_next()] == ["x", "b"]
 
-    # The one-off definition must survive pruning while in the session.
+    if pending:
+        assert scheduler._pending is one_off
+        assert scheduler._pending_from_queue is False
+        assert scheduler._pending_hold_on_success is False
+
+    # Session membership survives a catalog refresh and definition pruning.
+    scheduler._rebase_playback_order(fresh=False)
     scheduler._prune_external()
-    assert "x" in scheduler._external_queue
+    assert [slide.screen_id for slide in scheduler.playlist_up_next()] == ["x", "b"]
+    if source == "gallery":
+        assert "x" in scheduler._external_queue
 
 
 def test_session_order_restores_from_store(

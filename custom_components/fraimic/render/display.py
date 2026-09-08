@@ -294,7 +294,11 @@ async def async_prepared_thumbnail(
     scheduler = entry.runtime_data.scheduler
     if not any(
         candidate.screen_id == screen.screen_id
-        for candidate in (*scheduler.screens, *scheduler.queued_slides)
+        for candidate in (
+            *scheduler.screens,
+            *scheduler.queued_slides,
+            *scheduler.playlist_up_next(limit=None),
+        )
     ):
         return None
     lock = hass.data.setdefault(DOMAIN, {}).setdefault(

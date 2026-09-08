@@ -760,7 +760,7 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
         source={"library_image": "image-1", "mode": "none"},
     )
     entry.runtime_data.scheduler = types.SimpleNamespace(
-        screens=[screen], queued_slides=[]
+        screens=[], queued_slides=[], playlist_up_next=lambda **_kwargs: [screen]
     )
 
     assert asyncio.run(display.async_prepare_screen(hass, entry, screen)) is True
@@ -814,7 +814,9 @@ def test_unassigned_thumbnail_miss_does_not_render(monkeypatch):
     hass = _Hass()
     hass.data = {}
     entry = _entry()
-    entry.runtime_data.scheduler = types.SimpleNamespace(screens=[], queued_slides=[])
+    entry.runtime_data.scheduler = types.SimpleNamespace(
+        screens=[], queued_slides=[], playlist_up_next=lambda **_kwargs: []
+    )
     screen = types.SimpleNamespace(screen_id="unassigned", source={})
 
     async def prepare(*_args):
