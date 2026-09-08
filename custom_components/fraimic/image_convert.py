@@ -748,6 +748,83 @@ def _pack_el315(arr) -> bytes:
     return np.concatenate(blocks).tobytes()
 
 
+def _unpack_el315(raw):
+    """Inverse of :func:`_pack_el315`, back to native portrait nibbles."""
+    import numpy as np
+
+    block_rows = 720
+    block_pixels = 800
+    half_rows = 1280
+    blocks = raw.reshape(8, block_rows * block_pixels // 2)
+    flipped = np.empty((2 * half_rows, 1440), dtype=np.uint8)
+    for half in range(2):
+        band = np.empty((block_rows, half_rows * 2), dtype=np.uint8)
+        for ic in range(4):
+            packed = blocks[half * 4 + ic].reshape(block_rows, block_pixels // 2)
+            nibbles = np.empty((block_rows, block_pixels), dtype=np.uint8)
+            nibbles[:, 0::2] = packed >> 4
+            nibbles[:, 1::2] = packed & 0x0F
+            real_pixels = 160 if ic == 3 else block_pixels
+            start = ic * block_pixels
+            band[:, start : start + real_pixels] = nibbles[:, :real_pixels]
+        flipped[half * half_rows : (half + 1) * half_rows] = (
+            band.reshape(block_rows, half_rows, 2)
+            .transpose(1, 0, 2)
+            .reshape(half_rows, 1440)
+        )
+    return np.flipud(flipped)
+
+
+def bin_to_indices(data: bytes, width: int, height: int):
+    """Unpack a packed ``.bin`` back to per-pixel palette positions.
+
+    Exact inverse of :func:`_pack_nibbles` / :func:`_pack_el315`; returns a
+    ``(height, width)`` array. Unused nibble values decode as white.
+    """
+    import numpy as np
+
+    resolution = _require_canonical_resolution(width, height)
+    raw = np.frombuffer(data, dtype=np.uint8)
+    if raw.size != _expected_bin_size(width, height):
+        raise ValueError("Buffer size does not match the panel resolution")
+    if resolution == (1440, 2560):
+        arr = _unpack_el315(raw)
+    else:
+        half_h = height // 2
+        per_half = width * half_h // 2
+        halves = []
+        for part in (raw[:per_half], raw[per_half:]):  # bottom half first
+            nibbles = np.empty(part.size * 2, dtype=np.uint8)
+            nibbles[0::2] = part >> 4
+            nibbles[1::2] = part & 0x0F
+            halves.append(np.flipud(nibbles.reshape(width, half_h).T))
+        arr = np.concatenate([halves[1], halves[0]], axis=0)
+    positions = np.full(16, 1, dtype=np.uint8)
+    for position, nibble in enumerate(SPECTRA6_PANEL_INDEX):
+        positions[nibble] = position
+    return positions[arr]
+
+
+def bin_to_png(data: bytes, width: int, height: int, preview_rotate: int = 0) -> bytes:
+    """Full-resolution PNG of a packed ``.bin`` via the calibrated palette.
+
+    ``preview_rotate`` matches :func:`convert_image`'s preview handling so
+    the result is wall-oriented.
+    """
+    import numpy as np
+    from PIL import Image
+
+    palette = np.array(SPECTRA6_RGB, dtype=np.uint8)
+    image = Image.fromarray(
+        palette[bin_to_indices(data, width, height)], mode="RGB"
+    )
+    if preview_rotate % 360:
+        image = image.rotate(-(preview_rotate % 360), expand=True)
+    buf = io.BytesIO()
+    image.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def _expected_bin_size(width: int, height: int) -> int:
     """Return the exact wire payload size for a configured panel."""
     resolution = _require_canonical_resolution(width, height)

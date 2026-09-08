@@ -47,10 +47,12 @@ def library_module(monkeypatch: pytest.MonkeyPatch):
             sys.modules["fraimic.library"] = previous_library
 
 
-def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypatch):
+@pytest.mark.parametrize("invalid_entry", [False, True])
+def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypatch, invalid_entry):
     library = library_module
     invalidated = []
     evicted = []
+    backfilled = []
     image = library.LibraryImage("abc123def456", "Art.jpg", "image/jpeg", 1.0)
 
     class Hass:
@@ -66,7 +68,7 @@ def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypa
 
     manager._async_save_manifest = save
     manager._invalidate_renders_sync = lambda *_args: None
-    manager.schedule_backfill = lambda _image_id: None
+    manager.schedule_backfill = backfilled.append
     entries = []
     for entry_id, size, queued, referenced in (
         ("assigned", (800, 480), False, True),
@@ -87,9 +89,15 @@ def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypa
             runtime_data=types.SimpleNamespace(scheduler=scheduler),
         ))
     monkeypatch.setattr(library, "loaded_fraimic_entries", lambda _hass: entries)
-    monkeypatch.setattr(library, "resolve_render_params", lambda entry: {
-        "width": entry.size[0], "height": entry.size[1], "rotate": 0,
-    })
+    if invalid_entry:
+        entries.insert(0, types.SimpleNamespace(entry_id="invalid"))
+
+    def resolve_params(entry):
+        if entry.entry_id == "invalid":
+            raise library.HomeAssistantError("Resolution exceeds maximum size")
+        return {"width": entry.size[0], "height": entry.size[1], "rotate": 0}
+
+    monkeypatch.setattr(library, "resolve_render_params", resolve_params)
     display = types.ModuleType("fraimic.render.display")
     display.discard_prepared_thumbnails = lambda _hass, **kwargs: evicted.append(kwargs)
     monkeypatch.setitem(sys.modules, "fraimic.render.display", display)
@@ -97,6 +105,7 @@ def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypa
     asyncio.run(manager.async_set_crop(image.image_id, 800, 480, None, rotate=90))
 
     assert invalidated == ["assigned", "queued"]
+    assert backfilled == [image.image_id]
     assert {item["entry_id"] for item in evicted} == {"assigned", "queued", "other-image"}
 
 

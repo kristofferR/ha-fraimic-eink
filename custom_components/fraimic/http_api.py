@@ -76,6 +76,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         PlayerThumbnailView(),
         PlayerControlView(),
         PlayerQueueView(),
+        PlayerQueuePreviewView(),
         ScenesView(),
         SceneView(),
         SceneSendView(),
@@ -736,8 +737,8 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         else None
     )
     queued = scheduler.queued_slides
-    full_upcoming = scheduler.playlist_up_next(limit=len(scheduler.screens))
-    upcoming = full_upcoming[: 3 if scheduler.shuffle else 10]
+    full_upcoming = scheduler.playlist_up_next(limit=None)
+    upcoming = full_upcoming[:10]
     playlist_queue_count = len(full_upcoming)
     current_thumbnail = artwork_url if current is not None else None
     playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
@@ -811,6 +812,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "name": playlist_name,
             "interval": interval,
             "shuffle": scheduler.shuffle,
+            "total": playlist_queue_count,
             "items": [
                 _slide_payload(slide, thumbnail_url=queue_thumbnail(slide))
                 for slide in upcoming
@@ -850,6 +852,33 @@ class PlayerArtworkView(_FraimicView):
         )
 
 
+class PlayerQueuePreviewView(_FraimicView):
+    """On-demand dithered frame preview for one queue-sheet slide."""
+
+    url = "/api/fraimic/player/queue/preview/{entry_id}/{slide_id}"
+    name = "api:fraimic:player:queue:preview"
+
+    async def get(
+        self, request: web.Request, entry_id: str, slide_id: str
+    ) -> web.Response:
+        hass = request.app[KEY_HASS]
+        entry = require_loaded_entry(hass, entry_id)
+        slide = entry.runtime_data.scheduler.slide_by_id(slide_id)
+        if slide is None:
+            raise web.HTTPNotFound(text="That slide is no longer available")
+        from .render.display import async_preview_screen
+
+        try:
+            preview, _mode = await async_preview_screen(hass, entry, slide)
+        except HomeAssistantError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_GATEWAY)
+        return web.Response(
+            body=preview,
+            content_type="image/png",
+            headers={"Cache-Control": "private, no-store"},
+        )
+
+
 class PlayerThumbnailView(_FraimicView):
     """Serve processed thumbnails for hand-queued fixed pictures."""
 
@@ -860,14 +889,7 @@ class PlayerThumbnailView(_FraimicView):
         hass = request.app[KEY_HASS]
         entry = require_loaded_entry(hass, request.query.get("entry_id"))
         scheduler = entry.runtime_data.scheduler
-        screen = next(
-            (
-                candidate
-                for candidate in (*scheduler.queued_slides, *scheduler.screens)
-                if candidate.screen_id == slide_id
-            ),
-            None,
-        )
+        screen = scheduler.slide_by_id(slide_id)
         if screen is None:
             raise web.HTTPNotFound(text="Queued slide not found")
         return await async_picture_thumbnail_response(hass, entry, screen)
@@ -997,6 +1019,43 @@ class PlayerQueueView(_FraimicView):
                 if stopper is not None:
                     stopper()
                 await scheduler.async_play_queue_item(section, index, slide_id)
+            elif action == "skip":
+                index = body.get("index")
+                slide_id = body.get("slide_id")
+                if not isinstance(index, int) or isinstance(index, bool):
+                    return self.json_message(
+                        "index is required", HTTPStatus.BAD_REQUEST
+                    )
+                if not isinstance(slide_id, str):
+                    return self.json_message(
+                        "slide_id is required", HTTPStatus.BAD_REQUEST
+                    )
+                await scheduler.async_skip_upcoming(index, slide_id)
+            elif action == "move":
+                from_section = body.get("from_section")
+                to_section = body.get("to_section")
+                index = body.get("index")
+                to_index = body.get("to_index")
+                slide_id = body.get("slide_id")
+                if {from_section, to_section} != {"queue", "playlist"}:
+                    return self.json_message(
+                        "move must cross between queue and playlist",
+                        HTTPStatus.BAD_REQUEST,
+                    )
+                if any(
+                    not isinstance(value, int) or isinstance(value, bool)
+                    for value in (index, to_index)
+                ):
+                    return self.json_message(
+                        "index and to_index are required", HTTPStatus.BAD_REQUEST
+                    )
+                if not isinstance(slide_id, str):
+                    return self.json_message(
+                        "slide_id is required", HTTPStatus.BAD_REQUEST
+                    )
+                await scheduler.async_move_queue_item(
+                    from_section, index, slide_id, to_section, to_index
+                )
             elif action == "reorder":
                 section = body.get("section")
                 ordered_ids = body.get("ordered_ids")
@@ -1010,22 +1069,7 @@ class PlayerQueueView(_FraimicView):
                 if section == "queue":
                     await scheduler.async_reorder_queue(ordered_ids)
                 elif section == "playlist":
-                    if not getattr(request.get("hass_user"), "is_admin", False):
-                        raise web.HTTPForbidden(text="Admin required")
-                    playlist_id = scheduler.playlist_id
                     await scheduler.async_reorder_upcoming(ordered_ids)
-                    if playlist_id is not None:
-                        hass = request.app[KEY_HASS]
-                        playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
-                        if isinstance(playlists, PlaylistManager):
-                            for candidate in loaded_fraimic_entries(hass):
-                                if (
-                                    candidate.entry_id != entry.entry_id
-                                    and playlists.assignments.get(candidate.entry_id)
-                                    == playlist_id
-                                ):
-                                    other_scheduler = candidate.runtime_data.scheduler
-                                    await other_scheduler.async_refresh_playlist()
                 else:
                     return self.json_message(
                         "section must be queue or playlist",
