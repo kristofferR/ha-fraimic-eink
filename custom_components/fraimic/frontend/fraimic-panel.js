@@ -1006,16 +1006,16 @@ class FraimicPanel extends HTMLElement {
     if (!children) return this._sourceTreeLoading.has(parentKey)
       ? `<div class="source-option" aria-live="polite"><span>Loading…</span></div>` : "";
     return children.map((child) => {
+      if (source.key === "saved" && child.id === "favorites") return "";
       const childId = child.id || "";
       const childKey = this._sourceNodeKey(source.key, childId);
       const childMeta = this._sourceNodeMeta.get(childKey);
       const canExpand = source.key !== "saved" && !(childMeta?.loaded && !childMeta.hasChildren);
       const expanded = this._expandedSources.has(childKey);
       const selected = this._selectedSource === source.key && this._selectedBrowseId === childId;
-      const favorite = source.key === "saved" && childId === "favorites";
       return `<div class="source-child-row">
         ${canExpand ? `<button class="source-expand" data-source-expand="${h(source.key)}" data-browse-id="${h(childId)}" aria-label="${expanded ? "Collapse" : "Expand"} ${h(child.title)}" aria-expanded="${expanded}"><ha-icon icon="mdi:chevron-right"></ha-icon></button>` : `<span class="source-expand-placeholder"></span>`}
-        <button class="source-option${selected ? " selected" : ""}${favorite ? " favorites" : ""}" data-source-node="${h(source.key)}" data-browse-id="${h(childId)}" data-source-title="${h(child.title)}" aria-current="${selected ? "true" : "false"}">${favorite ? `<ha-icon icon="mdi:heart"></ha-icon>` : ""}<span>${h(child.title)}</span>${child.count == null ? "" : `<span class="source-meta">${child.count}</span>`}</button>
+        <button class="source-option${selected ? " selected" : ""}" data-source-node="${h(source.key)}" data-browse-id="${h(childId)}" data-source-title="${h(child.title)}" aria-current="${selected ? "true" : "false"}"><span>${h(child.title)}</span>${child.count == null ? "" : `<span class="source-meta">${child.count}</span>`}</button>
         ${expanded ? `<div class="source-children open">${this._sourceChildrenTemplate(source, childId, depth + 1)}</div>` : ""}
       </div>`;
     }).join("");
