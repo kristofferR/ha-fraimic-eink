@@ -30,7 +30,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import async_call_later, async_track_time_interval
 
 from .const import CONF_CAMERA_INTERVAL, DEFAULT_CAMERA_INTERVAL, MEDIA_SCHEME
 from .const import MAX_SOURCE_BYTES as MAX_DOWNLOAD_BYTES
@@ -89,6 +89,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_media_player"
         self._camera_entity: str | None = None
         self._camera_unsub = None
+        self._camera_retry_unsub = None
+        self._camera_tick_busy = False
         self._camera_generation = 0
 
     @property
@@ -110,6 +112,9 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
 
     def _stop_camera_loop(self, *, sync_cloud: bool = True) -> None:
         self._camera_generation += 1
+        if self._camera_retry_unsub is not None:
+            self._camera_retry_unsub()
+            self._camera_retry_unsub = None
         if self._camera_unsub is not None:
             self._camera_unsub()
             self._camera_unsub = None
@@ -198,13 +203,26 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
     async def _async_camera_tick(self, _now) -> None:
         """Periodic camera re-snapshot; failures are logged, the loop lives on
         (the frame may simply be asleep or mid-render right now)."""
-        if self._camera_entity is None:
+        if self._camera_entity is None or self._camera_tick_busy:
             return
         cloud = getattr(self.coordinator.config_entry.runtime_data, "cloud", None)
         if cloud is not None:
             deadline = cloud.delivery_deadline
-            if deadline is not None and time.time() < deadline:
+            delay = deadline - time.time() if deadline is not None else 0
+            if delay > 0:
+                if self._camera_retry_unsub is not None:
+                    self._camera_retry_unsub()
+
+                async def retry(now):
+                    self._camera_retry_unsub = None
+                    await self._async_camera_tick(now)
+
+                self._camera_retry_unsub = async_call_later(self.hass, delay, retry)
                 return
+        if self._camera_retry_unsub is not None:
+            self._camera_retry_unsub()
+            self._camera_retry_unsub = None
+        self._camera_tick_busy = True
         try:
             await self._async_show_camera(
                 self._camera_entity,
@@ -218,6 +236,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 self._camera_entity,
                 err,
             )
+        finally:
+            self._camera_tick_busy = False
 
     async def async_browse_media(
         self,
