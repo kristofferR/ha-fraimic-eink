@@ -203,13 +203,15 @@ def _candidate_payload(
     queued_refs, _ = _queued_refs(entry)
     provider = get_provider(candidate.provider)
     candidate_urls = {candidate.image_url, _source_page(candidate)} - {None, ""}
-    saved_image = next(
+    # A favorite duplicate must back both the displayed heart and its action.
+    saved_image = max(
         (
             image
             for image in library.images.values()
             if image.source_url and image.source_url in candidate_urls
         ),
-        None,
+        key=lambda image: FAVORITES_ALBUM in image.normalized_albums(),
+        default=None,
     )
     saved = saved_image is not None
     width = candidate.width if isinstance(candidate.width, int) else 4

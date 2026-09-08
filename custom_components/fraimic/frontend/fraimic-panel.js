@@ -1393,8 +1393,8 @@ class FraimicPanel extends HTMLElement {
     root.querySelector("[data-toggle='fits']")?.addEventListener("click", () => { this._fits = !this._fits; this._render(); });
     root.querySelector("[data-toggle='renders']")?.addEventListener("click", () => { this._rendersWell = !this._rendersWell; this._render(); });
     root.querySelector("[data-toggle='favorites']")?.addEventListener("click", () => this._viewingFavorites ? this._setSource("all") : this._setSource("saved", "favorites", "Favorites"));
-    root.querySelectorAll("[data-favorite]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._toggleFavorite(node.dataset.sourceId, node.dataset.itemId); });
-    root.querySelector("[data-player-favorite]")?.addEventListener("click", () => { const current = this._player?.current; if (current?.source) this._toggleFavorite(current.source, current.item_id); });
+    root.querySelectorAll("[data-favorite]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._toggleFavorite(node.dataset.sourceId, node.dataset.itemId, node.getAttribute("aria-pressed") === "true"); });
+    root.querySelector("[data-player-favorite]")?.addEventListener("click", () => { const current = this._player?.current; if (current?.source) this._toggleFavorite(current.source, current.item_id, Boolean(current.favorite)); });
     root.querySelectorAll("[data-clear-filters]").forEach((node) => node.onclick = () => this._clearFilters());
     root.querySelectorAll("[data-facet]").forEach((node) => node.onclick = () => this._setFacet(node.dataset.facet, node.dataset.facetValue));
     root.querySelectorAll("[data-detail]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); const [source, ...rest] = node.dataset.detail.split(":"); this._openDetail(source, rest.join(":"), node); });
@@ -1452,7 +1452,7 @@ class FraimicPanel extends HTMLElement {
       if (event.key.toLowerCase() === "q") node.querySelector("[data-art-action='queue']")?.click();
       if (event.key.toLowerCase() === "f") node.querySelector("[data-favorite]")?.click();
     });
-    this.shadowRoot.querySelector("[data-player]")?.addEventListener("keydown", (event) => { if (event.code === "Space") { event.preventDefault(); this._playerAction("toggle"); } });
+    this.shadowRoot.querySelector("[data-player]")?.addEventListener("keydown", (event) => { if (event.code === "Space" && event.target === event.currentTarget) { event.preventDefault(); this._playerAction("toggle"); } });
   }
 
   _handleKeyDown(event) {
@@ -1758,7 +1758,7 @@ class FraimicPanel extends HTMLElement {
       else if (action === "delete") this._deleteSavedPicture(detail);
       else { this._closeModal(); this._artAction(action, detail.source, detail.itemId, null, options); }
     });
-    this.shadowRoot.querySelector("[data-detail-favorite]")?.addEventListener("click", () => this._toggleFavorite(detail.source, detail.itemId, options));
+    this.shadowRoot.querySelector("[data-detail-favorite]")?.addEventListener("click", () => this._toggleFavorite(detail.source, detail.itemId, Boolean(detail.favorite), options));
     this.shadowRoot.querySelector("[data-detail-fit]")?.addEventListener("change", (event) => { options.fit = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelector("[data-detail-tone]")?.addEventListener("change", (event) => { options.tone = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelector("[data-detail-mode]")?.addEventListener("change", (event) => { options.mode = event.target.value; this._renderDetailModal(); });
@@ -1778,14 +1778,13 @@ class FraimicPanel extends HTMLElement {
   }
 
   /** Flip a favorite optimistically wherever the picture shows: tile, detail dialog, player bar. */
-  async _toggleFavorite(source, itemId, options = {}) {
+  async _toggleFavorite(source, itemId, wasFavorite, options = {}) {
     const key = `${source}:${itemId}`;
     if (this._favoritePending.has(key)) return;
     const item = this._findItem(source, itemId);
     const current = this._player?.current;
     const onWall = current?.source === source && current?.item_id === itemId;
     const detail = this._detail?.source === source && this._detail?.itemId === itemId ? this._detail : null;
-    const wasFavorite = Boolean(item?.favorite ?? detail?.favorite ?? (onWall && current.favorite));
     const setLocal = (value) => { if (item) item.favorite = value; if (onWall) current.favorite = value; if (detail) detail.favorite = value; };
     const refresh = () => { this._renderPreservingFocus(); if (this._detail) this._renderDetailModal(); };
     this._favoritePending.add(key);
