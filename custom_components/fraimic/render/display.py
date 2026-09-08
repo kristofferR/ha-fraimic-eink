@@ -13,6 +13,7 @@ import asyncio
 import hashlib
 import io
 import json
+from dataclasses import asdict
 from typing import TYPE_CHECKING
 
 from homeassistant.core import HomeAssistant
@@ -602,7 +603,11 @@ async def async_show_screen(
             runtime.last_overlay_count = overlay_count
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
-            runtime.last_art = art_info
+            runtime.last_art = (
+                {**asdict(art.candidate), **(art_info or {})}
+                if art is not None
+                else art_info
+            )
             runtime.media_title = (art_info or {}).get("title") or screen.name
             # Entities read this lazily — poke coordinator listeners so their
             # attributes update now instead of at the next poll.

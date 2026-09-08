@@ -33,7 +33,7 @@ from .const import (
 )
 from .coordinator import REDISCOVERY_FAIL_THRESHOLD
 from .frame_name import frame_display_name
-from .gallery_http import gallery_views
+from .gallery_http import FAVORITES_ALBUM, LIBRARY_SOURCE, gallery_views
 from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, async_delete_library_image, get_library
@@ -673,6 +673,44 @@ def _slide_payload(
     }
 
 
+def _current_art(
+    current: ScreenConfig | None,
+    library: FraimicLibrary | None,
+    art: dict[str, Any],
+) -> dict[str, Any]:
+    """Gallery reference and favorite state for the picture on the wall."""
+    source = (current.source or {}) if current is not None else {}
+    images = library.images.values() if library is not None else ()
+    if library_id := source.get("library_image"):
+        image = library.images.get(library_id) if library is not None else None
+        favorite = image is not None and FAVORITES_ALBUM in image.normalized_albums()
+        return {"source": LIBRARY_SOURCE, "item_id": library_id, "favorite": favorite}
+    provider, item_id = source.get("provider"), source.get("provider_item")
+    if not provider or not item_id:
+        return {"source": None, "item_id": None, "favorite": False}
+    metadata = source.get("metadata") or {}
+    urls = {
+        metadata.get(key) for key in ("source_page_url", "download_url", "image_url")
+    } - {None, ""}
+    if art.get("provider") == provider and art.get("item_id") == item_id:
+        urls.update(
+            art.get(key)
+            for key in ("source_page_url", "download_url", "image_url")
+            if art.get(key)
+        )
+        extra = art.get("extra") or {}
+        urls.update(
+            extra[key]
+            for key in ("source_url", "source_page", "web_url", "page_url")
+            if isinstance(extra.get(key), str) and extra[key]
+        )
+    favorite = any(
+        image.source_url in urls and FAVORITES_ALBUM in image.normalized_albums()
+        for image in images
+    )
+    return {"source": provider, "item_id": item_id, "favorite": favorite}
+
+
 def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     """Build the complete Phase 1 player and queue state for one frame."""
     runtime = entry.runtime_data
@@ -789,6 +827,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "title": scheduler.sending_slide_name or title,
             "artist": artist,
             "thumbnail_url": artwork_url,
+            **_current_art(current, get_library(hass), art),
         },
         "playlist_id": playlist_id if current is not None else None,
         "playlist_name": playlist_name if current is not None else None,
