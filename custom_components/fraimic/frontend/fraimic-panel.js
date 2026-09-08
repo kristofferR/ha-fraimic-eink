@@ -1447,7 +1447,7 @@ class FraimicPanel extends HTMLElement {
 
   _bindKeyboard() {
     this.shadowRoot.querySelectorAll("[data-keyboard-item]").forEach((node) => node.onkeydown = (event) => {
-      if (event.key === "Enter") node.querySelector("[data-detail]")?.click();
+      if (event.key === "Enter" && event.target === node) node.querySelector("[data-detail]")?.click();
       if (event.key.toLowerCase() === "s") node.querySelector("[data-art-action='show_now']")?.click();
       if (event.key.toLowerCase() === "q") node.querySelector("[data-art-action='queue']")?.click();
       if (event.key.toLowerCase() === "f") node.querySelector("[data-favorite]")?.click();

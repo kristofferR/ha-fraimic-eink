@@ -673,7 +673,9 @@ def _slide_payload(
 
 
 def _current_art(
-    current: ScreenConfig | None, library: FraimicLibrary | None
+    current: ScreenConfig | None,
+    library: FraimicLibrary | None,
+    art: dict[str, Any],
 ) -> dict[str, Any]:
     """Gallery reference and favorite state for the picture on the wall."""
     source = (current.source or {}) if current is not None else {}
@@ -689,6 +691,18 @@ def _current_art(
     urls = {
         metadata.get(key) for key in ("source_page_url", "download_url", "image_url")
     } - {None, ""}
+    if art.get("provider") == provider and art.get("item_id") == item_id:
+        urls.update(
+            art.get(key)
+            for key in ("source_page_url", "download_url", "image_url")
+            if art.get(key)
+        )
+        extra = art.get("extra") or {}
+        urls.update(
+            extra[key]
+            for key in ("source_url", "source_page", "web_url", "page_url")
+            if isinstance(extra.get(key), str) and extra[key]
+        )
     favorite = any(
         image.source_url in urls and FAVORITES_ALBUM in image.normalized_albums()
         for image in images
@@ -810,7 +824,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "title": scheduler.sending_slide_name or title,
             "artist": artist,
             "thumbnail_url": artwork_url,
-            **_current_art(current, get_library(hass)),
+            **_current_art(current, get_library(hass), art),
         },
         "playlist_id": playlist_id if current is not None else None,
         "playlist_name": playlist_name if current is not None else None,

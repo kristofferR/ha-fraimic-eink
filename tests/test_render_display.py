@@ -415,6 +415,7 @@ def test_skipped_picture_upload_keeps_current_art_metadata(
 
     assert result["uploaded"] is False
     assert entry.runtime_data.last_art["title"] == "Daily Art"
+    assert entry.runtime_data.last_art["image_url"] == art.candidate.image_url
     assert entry.runtime_data.media_title == "Daily Art"
     assert listener_calls == ["notify"]
 
