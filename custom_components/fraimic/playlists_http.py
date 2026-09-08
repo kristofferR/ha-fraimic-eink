@@ -240,7 +240,7 @@ async def async_picture_thumbnail_response(
 ) -> web.Response:
     """Serve a cached e-ink thumbnail or an authenticated original fallback."""
     source = screen.source or {}
-    from .render.display import cached_prepared_thumbnail
+    from .render.display import async_prepared_thumbnail
 
     try:
         enabled = int(
@@ -248,7 +248,12 @@ async def async_picture_thumbnail_response(
         ) > 0
     except (TypeError, ValueError):
         enabled = DEFAULT_PLAYLIST_PREFETCH > 0
-    preview = cached_prepared_thumbnail(hass, entry, screen) if enabled else None
+    preview = None
+    if enabled:
+        try:
+            preview = await async_prepared_thumbnail(hass, entry, screen)
+        except (HomeAssistantError, OSError):
+            pass
     if preview is not None:
         return web.Response(
             body=preview,

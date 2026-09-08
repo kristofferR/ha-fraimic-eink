@@ -9,6 +9,7 @@ quantisation is lossless), packs the ``.bin``, and uploads.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
 import json
@@ -277,6 +278,23 @@ def cached_prepared_thumbnail(
         _prepared_thumbnail_key(hass, entry, screen), float("inf")
     )
     return cached[0] if cached is not None else None
+
+
+async def async_prepared_thumbnail(
+    hass: HomeAssistant, entry, screen: ScreenConfig
+) -> bytes | None:
+    """Restore an evicted thumbnail on demand, serializing request-side renders."""
+    if (thumbnail := cached_prepared_thumbnail(hass, entry, screen)) is not None:
+        return thumbnail
+    lock = hass.data.setdefault(DOMAIN, {}).setdefault(
+        "playlist_thumbnail_render_lock", asyncio.Lock()
+    )
+    async with lock:
+        if (thumbnail := cached_prepared_thumbnail(hass, entry, screen)) is not None:
+            return thumbnail
+        if await async_prepare_screen(hass, entry, screen):
+            return cached_prepared_thumbnail(hass, entry, screen)
+    return None
 
 
 def discard_prepared_thumbnails(
