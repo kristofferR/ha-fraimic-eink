@@ -668,6 +668,7 @@ class FraimicScheduler:
             order[positions[expected_id]] = ordered_id
         self._playback_order = order
         self._order_custom = True
+        self._sync_pending_playlist_head()
         await self._async_save()
         self._notify()
         self._schedule_prefetch()
@@ -683,9 +684,23 @@ class FraimicScheduler:
             raise HomeAssistantError("That queue item is no longer available")
         self._defer_in_session(slide_id)
         self._order_custom = True
+        self._sync_pending_playlist_head()
         await self._async_save()
         self._notify()
         self._schedule_prefetch()
+
+    def _sync_pending_playlist_head(self) -> None:
+        """Apply session edits to an automatic retry waiting for the frame to wake."""
+        if (
+            self._pending is not None
+            and not self._pending_from_queue
+            and self._pending_requires_enabled
+        ):
+            self._pending = next_screen(
+                self._rotation_screens(),
+                self._playlist_cursor_id or self.current_id,
+                dt_util.now(),
+            )
 
     def _session_order_without(self, slide_id: str) -> list[str]:
         """The session order (seeded from the slides if empty) minus one id."""
@@ -761,6 +776,7 @@ class FraimicScheduler:
             self._defer_in_session(slide_id)
         self._order_custom = True
         self._sync_pending_queue_head()
+        self._sync_pending_playlist_head()
         await self._async_save()
         self._notify()
         self._schedule_prefetch()
@@ -806,7 +822,7 @@ class FraimicScheduler:
         await self._async_save()
         self._notify()
         self._schedule_prefetch()
-        if start and (self.screens or self.queued_slides):
+        if start and (self._rotation_screens() or self.queued_slides):
             await self._async_rotate(force=True)
 
     def _apply_playlist_order(self) -> None:
@@ -893,7 +909,7 @@ class FraimicScheduler:
             not self.enabled
             or self._busy
             or self.external_upload_active
-            or (not self.screens and not self.queued_slides)
+            or (not self._rotation_screens() and not self.queued_slides)
         ):
             return
         now = dt_util.now()

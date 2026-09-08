@@ -1883,3 +1883,38 @@ def test_promoted_slide_rotates_at_playlist_interval(monkeypatch):
     scheduler._async_show = show
     asyncio.run(scheduler._async_rotate(force=False))
     assert shown == ["a"]
+
+
+@pytest.mark.parametrize("action", ["skip", "reorder"])
+def test_session_edit_retargets_automatic_wake_retry(monkeypatch, action):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler.screens = [SimpleNamespace(screen_id=i, name=i) for i in ("a", "b", "c")]
+    scheduler._playback_order = ["a", "b", "c"]
+    scheduler.current_id = scheduler._playlist_cursor_id = "a"
+    scheduler._pending = scheduler.screens[1]
+    scheduler._pending_requires_enabled = True
+    if action == "skip":
+        asyncio.run(scheduler.async_skip_upcoming(0, "b"))
+    else:
+        asyncio.run(scheduler.async_reorder_upcoming(["c", "b"]))
+    assert scheduler._pending.screen_id == "c"
+
+
+def test_promoted_slide_rotates_with_empty_catalog(monkeypatch):
+    scheduler_mod = _load_scheduler(monkeypatch)
+    monkeypatch.setattr(scheduler_mod, "next_screen", _circular_next_screen)
+    scheduler = scheduler_mod.FraimicScheduler(SimpleNamespace(), _entry())
+    scheduler._external_queue = {"x": SimpleNamespace(screen_id="x", name="X")}
+    scheduler._playback_order = ["x"]
+    scheduler.enabled = True
+    shown = []
+
+    async def show(screen, **kwargs):
+        shown.append(screen.screen_id)
+        return True
+
+    scheduler._async_show = show
+    asyncio.run(scheduler._async_rotate(force=False))
+    assert shown == ["x"]
