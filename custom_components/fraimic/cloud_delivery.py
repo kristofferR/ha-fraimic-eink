@@ -101,6 +101,11 @@ class FraimicCloudDelivery:
         return self.album_id is not None and self.upload_id is not None
 
     @property
+    def wake_interval(self) -> int:
+        """Seconds from an album edit to its next scheduled wake."""
+        return album_interval_minutes(self.interval) * 60
+
+    @property
     def album_name(self) -> str:
         return f"Home Assistant: {self.entry.title}"
 

@@ -775,6 +775,8 @@ class FraimicScheduler:
                 max(0, min(to_index, len(self._queued_ids))), slide_id
             )
             self._defer_in_session(slide_id)
+            if self._pending is not None and self._pending_requires_enabled:
+                self._pending_from_queue = True
         self._order_custom = True
         self._sync_pending_queue_head()
         self._sync_pending_playlist_head()
@@ -908,6 +910,21 @@ class FraimicScheduler:
         self._pending = None
         self._pending_from_queue = False
         self._pending_hold_on_success = False
+        await self._async_save()
+        self._notify()
+
+    async def async_cloud_delivery_accepted(self) -> None:
+        """Reserve the cloud wake slot without claiming the image is on glass."""
+        cloud = self.entry.runtime_data.cloud
+        self._pending = None
+        self._pending_hold_on_success = False
+        if not self._busy:
+            self._pending_from_queue = False
+        # Every album edit reanchors the wake. Allow the scheduled slot to pass
+        # before the next automatic upload replaces its image.
+        self._hold_until = dt_util.utcnow() + timedelta(
+            seconds=cloud.wake_interval + 60
+        )
         await self._async_save()
         self._notify()
 
@@ -1114,6 +1131,16 @@ class FraimicScheduler:
                 _LOGGER.warning("Playlist skipped %r: %s", screen.name, err)
                 return False
             displayed = result.get("displayed", result.get("uploaded", True))
+            if result.get("cloud_queued"):
+                # Advance delivery order separately from the last confirmed
+                # screen/hash. The cloud owns this queued send from here.
+                if advance_playlist:
+                    self._playlist_cursor_id = screen.screen_id
+                if self._pending_from_queue:
+                    await self._async_consume_queued(screen.screen_id)
+                await self._async_save()
+                self._notify()
+                return False
             if not displayed:
                 # Power policy/coalescing skipped this redraw. Never claim its hash
                 # is on the glass or count the skipped work as a completed rotation.

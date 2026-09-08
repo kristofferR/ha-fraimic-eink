@@ -786,7 +786,7 @@ async def async_render_and_upload(
                 )
             content_hash = hashlib.sha256(bin_data).hexdigest()
             cloud = getattr(runtime, "cloud", None)
-            if skip_if_hash is not None and content_hash == skip_if_hash:
+            if cloud is None and skip_if_hash is not None and content_hash == skip_if_hash:
                 reason = SKIP_DUPLICATE
             elif cloud is not None:
                 # The frame wakes for every album slot regardless, so the
@@ -842,7 +842,11 @@ async def async_render_and_upload(
                     raise CloudDeliveryError(
                         f"Could not deliver to the Fraimic cloud: {err}"
                     ) from err
-                uploaded = True
+                # Album acceptance schedules a future wake; it does not confirm
+                # a redraw. Keep the last known display and its power accounting.
+                queued = True
+                if runtime.scheduler is not None:
+                    await runtime.scheduler.async_cloud_delivery_accepted()
             elif queue is not None:
                 try:
                     uploaded = await queue.async_upload_or_queue(
@@ -894,6 +898,7 @@ async def async_render_and_upload(
         "content_hash": content_hash,
         "uploaded": uploaded,
         "queued": queued,
+        "cloud_queued": cloud is not None and queued,
         "preview_png": preview_png,
         "displayed": uploaded,
     }

@@ -42,6 +42,12 @@ the frame over the LAN.
 - Log timestamps on the frame are in the firmware's local zone (UTC-4 here),
   not the household's.
 
+Cloud album acceptance is reported as `queued: true`, `cloud_queued: true`,
+`uploaded: false`, and `displayed: false`. The account API does not confirm
+which image reached the glass, so previews and now-playing metadata retain
+the last confirmed local display. Playlist delivery order advances separately;
+automatic uploads wait until after the cloud wake slot before replacing its image.
+
 ## Account auth
 
 Supabase email/password. The anon key is public in the web bundle

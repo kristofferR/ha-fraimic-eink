@@ -192,8 +192,10 @@ def test_upload_image_library_branch_releases_hold_when_library_missing(
     assert entry.scheduler.events == [("begin", None), ("finish", False)]
 
 
-def test_timed_out_upload_is_not_reported_for_retry(
+@pytest.mark.parametrize("delivery", ["lan_timeout", "cloud"])
+def test_accepted_delivery_updates_only_confirmed_display(
     monkeypatch: pytest.MonkeyPatch,
+    delivery,
 ) -> None:
     services = _load_services(monkeypatch)
 
@@ -224,6 +226,12 @@ def test_timed_out_upload_is_not_reported_for_retry(
             return None
 
     power = Power()
+    cloud_deliveries = []
+
+    class Cloud:
+        async def async_deliver(self, data, *, title):
+            cloud_deliveries.append((data, title))
+
     runtime = SimpleNamespace(
         scheduler=None,
         power=power,
@@ -234,6 +242,7 @@ def test_timed_out_upload_is_not_reported_for_retry(
         last_preview=None,
         displayed_preview=None,
         preview_image=None,
+        cloud=Cloud() if delivery == "cloud" else None,
     )
 
     def set_displayed_preview(preview: bytes, _mode: str) -> None:
@@ -250,11 +259,20 @@ def test_timed_out_upload_is_not_reported_for_retry(
         )
     )
 
-    assert result["uploaded"] is True
-    assert result["displayed"] is True
-    assert entry.runtime_data.last_preview == b"preview"
-    assert entry.runtime_data.displayed_preview == b"preview"
-    assert power.recorded == [(result["content_hash"], services.TRIGGER_MANUAL)]
+    if delivery == "cloud":
+        assert cloud_deliveries == [(b"packed", "image")]
+        assert result["uploaded"] is False
+        assert result["displayed"] is False
+        assert result["queued"] is True
+        assert result["cloud_queued"] is True
+        assert runtime.displayed_preview is None
+        assert power.recorded == []
+    else:
+        assert result["uploaded"] is True
+        assert result["displayed"] is True
+        assert runtime.last_preview == b"preview"
+        assert runtime.displayed_preview == b"preview"
+        assert power.recorded == [(result["content_hash"], services.TRIGGER_MANUAL)]
 
 
 def test_deferred_render_does_not_replace_displayed_preview(

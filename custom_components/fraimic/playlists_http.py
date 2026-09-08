@@ -258,7 +258,7 @@ async def async_picture_thumbnail_response(
         return web.Response(
             body=preview,
             content_type="image/png",
-            headers={"Cache-Control": "private, max-age=60"},
+            headers={"Cache-Control": "private, no-store"},
         )
     if image_id := source.get("library_image"):
         library = get_library(hass)
