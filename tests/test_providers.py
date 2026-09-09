@@ -760,6 +760,40 @@ def test_reframed_provider_uses_recent_pages_for_random_candidates(
     assert session.requests == [f"{reframed.BASE_URL}/recent"]
 
 
+@pytest.mark.parametrize("failure", ["empty", "http", "timeout"])
+def test_reframed_random_page_failure_keeps_recent_art(monkeypatch, failure):
+    provider = reframed.ReframedProvider()
+    paths = []
+
+    async def page(_session, _cache, path):
+        paths.append(path)
+        if path == "recent":
+            return REFRAMED_ARTWORK_HTML
+        if failure == "http":
+            raise base.ArtFetchError("HTTP 503")
+        if failure == "timeout":
+            raise TimeoutError()
+        return "<html>No artwork</html>"
+
+    monkeypatch.setattr(provider, "_page", page)
+    monkeypatch.setattr(reframed.random, "randint", lambda _start, _end: 2)
+    candidates = _run(provider.async_candidates(None, None, REQUEST, 20))
+
+    assert [art.item_id for art in candidates] == ["albert-bierstadt/elk-in-oak-grove"]
+    assert paths == ["recent", "recent/page/2"]
+
+
+def test_reframed_empty_catalogue_is_an_error_not_a_cached_empty_success(monkeypatch):
+    provider = reframed.ReframedProvider()
+
+    async def page(*_args):
+        return "<html>No artwork</html>"
+
+    monkeypatch.setattr(provider, "_page", page)
+    with pytest.raises(base.ArtFetchError, match="no artwork tiles"):
+        _run(provider.async_candidates(None, None, REQUEST, 20))
+
+
 def test_reframed_provider_browse_root_preserves_site_taxonomy() -> None:
     page = _run(reframed.ReframedProvider().async_browse(None, None, "", REQUEST))
 

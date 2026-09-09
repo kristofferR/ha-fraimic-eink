@@ -377,12 +377,17 @@ class ReframedProvider(ArtProvider):
     ) -> list[ArtCandidate]:
         first_page = await self._page(session, cache, "recent")
         page_number = random.randint(1, parse_page_count(first_page, "recent"))
-        html = (
-            first_page
-            if page_number == 1
-            else await self._page(session, cache, f"recent/page/{page_number}")
-        )
-        candidates = parse_artwork_tiles(html)
+        candidates = parse_artwork_tiles(first_page)
+        if page_number != 1:
+            try:
+                html = await self._page(session, cache, f"recent/page/{page_number}")
+            except Exception:  # noqa: BLE001 - optional page; retain the fetched recent art
+                if not candidates:
+                    raise
+            else:
+                candidates = parse_artwork_tiles(html) or candidates
+        if not candidates:
+            raise ArtFetchError("Reframed returned no artwork tiles")
         random.shuffle(candidates)
         return candidates[:count]
 

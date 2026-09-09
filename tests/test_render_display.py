@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import sys
 import types
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import load
@@ -124,6 +126,46 @@ def _entry(rotation: int = 0) -> types.SimpleNamespace:
 
 def _screen() -> types.SimpleNamespace:
     return types.SimpleNamespace(name="Dashboard", kind="dashboard")
+
+
+@pytest.mark.parametrize("source", [
+    {"library_image": "saved-art"},
+    {"provider": "reframed", "provider_item": "artist/art"},
+])
+def test_picture_preview_uses_shared_sources_without_changing_display(monkeypatch, source):
+    from PIL import Image
+
+    display, _ = _load_display(monkeypatch)
+    entry = _entry(rotation=90)
+    rendered = (bytes(800 * 480 // 2), b"unused-preview", "none")
+    screen = types.SimpleNamespace(
+        screen_id="candidate", name="Preview", kind="picture",
+        source={**source, "fit": "contain", "mode": "none"},
+    )
+    library_render = AsyncMock(return_value=rendered)
+    library = types.ModuleType("fraimic.library")
+    library.get_library = lambda _hass: types.SimpleNamespace(async_render_for_entry=library_render)
+    monkeypatch.setitem(sys.modules, "fraimic.library", library)
+    resolve = AsyncMock(return_value=(b"source-image", {"fit": "contain", "mode": "none"}, None))
+    monkeypatch.setattr(display, "_async_picture_source", resolve)
+    convert = AsyncMock(return_value=rendered)
+    _install_services(monkeypatch, async_convert_for_entry=convert)
+
+    png, mode = asyncio.run(display.async_preview_screen(_Hass(), entry, screen))
+
+    assert mode == "none"
+    with Image.open(io.BytesIO(png)) as preview:
+        assert preview.size == (480, 800)
+    if "library_image" in source:
+        library_render.assert_awaited_once_with("saved-art", entry, {"fit": "contain", "mode": "none"})
+        resolve.assert_not_awaited()
+        convert.assert_not_awaited()
+    else:
+        resolve.assert_awaited_once()
+        convert.assert_awaited_once()
+    assert entry.runtime_data.last_preview is None
+    assert entry.runtime_data.last_art is None
+    assert entry.runtime_data.screen_preview_image.calls == []
 
 
 def test_missing_library_image_invalidates_thumbnail_without_raising(monkeypatch):
