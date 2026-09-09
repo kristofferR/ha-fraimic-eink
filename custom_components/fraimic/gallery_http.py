@@ -536,6 +536,10 @@ class GalleryBrowseView(HomeAssistantView):
         source = request.query.get("source", "")
         browse_id = request.query.get("browse_id", "").strip("/")
         query = request.query.get("q", "").strip()
+        # Browse recent art deterministically; random pages belong to playback.
+        # This also bypasses empty root results cached by older Reframed parsers.
+        if source == "reframed" and not browse_id and not query:
+            browse_id = "recent"
         refresh = request.query.get("refresh") in {"1", "true", "yes"}
         cursor = _cursor(request.query.get("cursor"))
         try:

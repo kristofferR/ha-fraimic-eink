@@ -395,6 +395,7 @@ const css = String.raw`
   @media (max-width: 599px) {
     .top, .filter, .content, .player, .queue-row, .queue-head, .queue-now { padding-left: 12px; padding-right: 12px; }
     .top .nav-label, .player .previous, .player .next, .player .frame-more { display: none; }
+    .top .brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .frames { min-width: 0; }
     .filter { flex-wrap: nowrap; overflow-x: auto; }
     .browse-layout { display: block; }
@@ -421,13 +422,18 @@ const css = String.raw`
     .masonry, .loading-grid { columns: 140px; }
     .strip { grid-auto-columns: 145px; }
     .player-art { width: 44px; }
-    .player-copy { max-width: 42vw; }
+    .player { gap: 6px; }
+    .player-copy { flex: 1; max-width: 42vw; }
+    .player .spacer { display: none; }
     .queue-sheet { height: calc(100vh - var(--player-h)) !important; max-height: calc(100vh - var(--player-h)); }
     .detail-grid { grid-template-columns: 1fr; }
     .detail-workspace { border-right: 0; border-bottom: 1px solid var(--line); }
     .modal-backdrop { padding: 0; align-items: end; }
     .dialog { width: 100%; max-height: calc(100vh - 12px); border-radius: 9px 9px 0 0; }
     .playlist-head { flex-direction: column; }
+    .slide-row { display: grid; grid-template-columns: 16px 24px 64px minmax(0, 1fr); gap: 8px; padding: 12px 0; }
+    .slide-row .row-actions { grid-column: 1 / -1; justify-content: flex-end; flex-wrap: wrap; gap: 4px; }
+    .slide-row .row-actions .icon-btn { width: 44px; min-height: 44px; }
     .editor-top { padding: 0 10px; }
     .canvas-pane { padding: 12px; }
     .canvas-row { display: block; }
@@ -969,8 +975,8 @@ class FraimicPanel extends HTMLElement {
       ${this._mergeRouteTitle()}
       <div class="frames" ${this._frames.length > 1 ? `role="radiogroup" aria-label="Frames"` : ""}>${frames}</div>
       <span class="spacer"></span>
-      <button class="btn quiet" data-nav="/playlists"><ha-icon icon="mdi:playlist-music"></ha-icon><span class="nav-label">Playlists</span></button>
-      <button class="btn quiet" data-upload><ha-icon icon="mdi:upload"></ha-icon><span class="nav-label">Upload</span></button>
+      <button class="btn quiet" data-nav="/playlists" aria-label="Playlists"><ha-icon icon="mdi:playlist-music"></ha-icon><span class="nav-label">Playlists</span></button>
+      <button class="btn quiet" data-upload aria-label="Upload"><ha-icon icon="mdi:upload"></ha-icon><span class="nav-label">Upload</span></button>
       <button class="icon-btn" data-menu="app" aria-label="App menu"><ha-icon icon="mdi:dots-vertical"></ha-icon></button>
     </header>`;
   }
@@ -1260,10 +1266,10 @@ class FraimicPanel extends HTMLElement {
     if (!this._frame) return `<footer class="player"><div class="player-copy"><b>Nothing playing</b><span>Pick a playlist, or show a picture from the gallery</span></div></footer>`;
     const current = player?.current || {};
     const state = player?.state || "idle";
-    let title = current.title || "Nothing playing";
-    let meta = "Pick a playlist, or show a picture from the gallery";
+    let title = current.title || player?.playlist_name || "Nothing playing";
+    let meta = player?.playlist_id ? "Displayed artwork not confirmed" : "Pick a playlist, or show a picture from the gallery";
     if (state === "sending") meta = `Sending to ${this._frame.name}. The panel takes about 30 seconds.`;
-    else if (state === "asleep") meta = `${this._frame.name} is asleep · still showing this`;
+    else if (state === "asleep") meta = `${this._frame.name} is asleep · ${current.title ? "still showing this" : "displayed artwork not confirmed"}`;
     else if (state === "unreachable") {
       title = `Could not reach ${this._frame.name}`;
       meta = `Last seen ${this._lastSeenMinutes(this._frame.last_seen)} minutes ago, check power and wifi.`;
@@ -1822,7 +1828,7 @@ class FraimicPanel extends HTMLElement {
         <section class="artwork-details"><h3>Artwork details</h3><dl class="detail-meta-list">
           <div class="detail-meta-row"><dt>Artist</dt><dd>${artistLink}</dd></div>
           <div class="detail-meta-row"><dt>Source</dt><dd>${sourceLink}</dd></div>
-          <div class="detail-meta-row"><dt>Original</dt><dd>${h(detail.width)} × ${h(detail.height)}</dd></div>
+          <div class="detail-meta-row"><dt>Original</dt><dd>${detail.dimensions_known ? `${h(detail.width)} × ${h(detail.height)}` : "Dimensions unavailable"}</dd></div>
           ${detail.year ? `<div class="detail-meta-row"><dt>Year</dt><dd>${h(detail.year)}</dd></div>` : ""}
           ${detail.license ? `<div class="detail-meta-row"><dt>License</dt><dd>${h(detail.license)}</dd></div>` : ""}
         </dl>${detail.description ? `<p class="detail-description">${h(detail.description)}</p>` : ""}

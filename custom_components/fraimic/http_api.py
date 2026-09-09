@@ -722,10 +722,10 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         scheduler.current_screen if scheduler.displayed_hash is not None else None
     )
     art = runtime.last_art or {}
-    title = (
-        art.get("title") or runtime.media_title or (current.name if current else None)
-    )
+    # Manual uploads confirm runtime metadata without a scheduler screen/hash.
+    title = art.get("title") or runtime.media_title or (current.name if current else None)
     artist = art.get("artist")
+    transport_available = current is not None or bool(playlist_id and scheduler.screens)
     interval = scheduler.playlist_interval
     if interval is None and current is not None:
         interval = current.interval
@@ -762,7 +762,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         state = "unreachable"
     elif frame["asleep"]:
         state = "asleep"
-    elif title is None:
+    elif title is None and not transport_available:
         state = "idle"
     else:
         state = "playing"
@@ -829,13 +829,13 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "thumbnail_url": artwork_url,
             **_current_art(current, get_library(hass), art),
         },
-        "playlist_id": playlist_id if current is not None else None,
-        "playlist_name": playlist_name if current is not None else None,
+        "playlist_id": playlist_id,
+        "playlist_name": playlist_name,
         "interval": interval,
         "seconds_elapsed": elapsed,
         "seconds_remaining": remaining,
-        "paused": bool(current is not None and not scheduler.enabled),
-        "transport_available": current is not None,
+        "paused": bool(transport_available and not scheduler.enabled),
+        "transport_available": transport_available,
         "sending": sending,
         "sending_progress": sending_progress,
         "overlay_count": overlay_count,

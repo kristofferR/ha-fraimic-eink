@@ -24,7 +24,7 @@ from homeassistant.exceptions import HomeAssistantError
 from .const import DOMAIN, PALETTE_NAMES
 from .helpers import loaded_fraimic_entries
 from .playlists import DATA_PLAYLISTS, PlaylistManager
-from .render.display import async_render_screen
+from .render.display import async_preview_screen, async_render_screen
 from .render.layout import LAYOUT_SLOTS
 from .render.schema import KIND_PICTURE, SCREEN_SCHEMA, screen_from_dict
 from .screens import SUBENTRY_TYPE_SCREEN
@@ -134,35 +134,12 @@ class ScreenPreviewView(_ScreensViewBase):
         screen = screen_from_dict(data)
         try:
             if screen.kind == KIND_PICTURE:
-                png = await self._render_picture(hass, entry, screen)
+                png, _mode = await async_preview_screen(hass, entry, screen)
             else:
                 png, _mode = await async_render_screen(hass, entry, screen)
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         return web.Response(body=png, content_type="image/png")
-
-    async def _render_picture(self, hass, entry, screen) -> bytes:
-        """Picture screens preview through the photo pipeline's preview PNG."""
-        from .const import ATTR_FIT, ATTR_MODE
-        from .services import async_convert_for_entry
-        from .source import async_get_source_bytes
-
-        source = screen.source or {}
-        raw = await async_get_source_bytes(
-            hass, url=source.get("url"), entity_id=source.get("entity"), redact_url=True
-        )
-        overrides: dict = {}
-        if fit := source.get("fit"):
-            overrides[ATTR_FIT] = fit
-        if mode := source.get("mode"):
-            overrides[ATTR_MODE] = mode
-        _bin, preview_png, _mode = await async_convert_for_entry(
-            hass, entry, raw, overrides
-        )
-        if preview_png is None:  # pragma: no cover - preview defaults on
-            raise HomeAssistantError("Renderer returned no preview")
-        return preview_png
-
 
 class ScreenSaveView(_ScreensViewBase):
     """Create or update a stored screen subentry from the editor."""
