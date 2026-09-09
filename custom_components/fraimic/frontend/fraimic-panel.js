@@ -395,6 +395,7 @@ const css = String.raw`
   @media (max-width: 599px) {
     .top, .filter, .content, .player, .queue-row, .queue-head, .queue-now { padding-left: 12px; padding-right: 12px; }
     .top .nav-label, .player .previous, .player .next, .player .frame-more { display: none; }
+    .top .brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .frames { min-width: 0; }
     .filter { flex-wrap: nowrap; overflow-x: auto; }
     .browse-layout { display: block; }
@@ -421,7 +422,9 @@ const css = String.raw`
     .masonry, .loading-grid { columns: 140px; }
     .strip { grid-auto-columns: 145px; }
     .player-art { width: 44px; }
-    .player-copy { max-width: 42vw; }
+    .player { gap: 6px; }
+    .player-copy { flex: 1; max-width: 42vw; }
+    .player .spacer { display: none; }
     .queue-sheet { height: calc(100vh - var(--player-h)) !important; max-height: calc(100vh - var(--player-h)); }
     .detail-grid { grid-template-columns: 1fr; }
     .detail-workspace { border-right: 0; border-bottom: 1px solid var(--line); }
