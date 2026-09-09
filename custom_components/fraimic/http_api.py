@@ -722,8 +722,9 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         scheduler.current_screen if scheduler.displayed_hash is not None else None
     )
     art = runtime.last_art or {}
-    title = (art.get("title") or runtime.media_title or current.name) if current else None
-    artist = art.get("artist") if current else None
+    # Manual uploads confirm runtime metadata without a scheduler screen/hash.
+    title = art.get("title") or runtime.media_title or (current.name if current else None)
+    artist = art.get("artist")
     transport_available = current is not None or bool(playlist_id and scheduler.screens)
     interval = scheduler.playlist_interval
     if interval is None and current is not None:
@@ -769,7 +770,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     artwork_url = (
         f"/api/fraimic/player/artwork/{entry.entry_id}"
         f"?v={runtime.displayed_preview_version}"
-        if current is not None and runtime.displayed_preview is not None
+        if runtime.displayed_preview is not None
         else None
     )
     queued = scheduler.queued_slides

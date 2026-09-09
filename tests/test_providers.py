@@ -807,6 +807,26 @@ def test_reframed_provider_browse_root_preserves_site_taxonomy() -> None:
     ]
 
 
+@pytest.mark.parametrize("path", ["recent", "recent/page/2"])
+def test_reframed_empty_recent_browse_retries_instead_of_caching_success(path):
+    session = FakeSession()
+    url = f"{reframed.BASE_URL}/{path}"
+    session.add(url, FakeResponse(body=b"<html>Temporarily unavailable</html>"))
+    session.add(url, FakeResponse(body=REFRAMED_ARTWORK_HTML.encode()))
+    cache = cache_mod.ProviderCache()
+    provider = reframed.ReframedProvider()
+    provider.min_interval = 0
+
+    with pytest.raises(base.ArtFetchError, match="no artwork tiles"):
+        _run(provider.async_browse(session, cache, path, REQUEST))
+
+    recovered = _run(provider.async_browse(session, cache, path, REQUEST))
+    assert [art.item_id for art in recovered.candidates] == [
+        "albert-bierstadt/elk-in-oak-grove"
+    ]
+    assert session.requests == [url, url]
+
+
 def test_reframed_provider_browse_artwork_listing_includes_page_folders() -> None:
     path = "collections/after-the-storm"
     html = REFRAMED_ARTWORK_HTML.replace("/recent/page/", f"/{path}/page/")
