@@ -139,14 +139,14 @@ def test_player_previews_submission_without_claiming_display(player_api, kind):
     assert preview["status"] == ("submitted" if kind == "cloud" else "sending")
 
 
-@pytest.mark.parametrize("kind", ["confirmed", "cloud", "sending", "completed", "cloud_completed", "stale"])
+@pytest.mark.parametrize("kind", ["confirmed", "cloud", "stale_cloud", "sending", "completed", "cloud_completed", "stale"])
 def test_artwork_serves_selected_preview_without_mixing_sends(player_api, monkeypatch, kind):
     import asyncio
     import hashlib
 
     entry = _entry(preview=b"confirmed")
     runtime = entry.runtime_data
-    runtime.cloud = SimpleNamespace(preview_png=b"cloud")
+    runtime.cloud = SimpleNamespace(preview_png=b"cloud", upload_id="current-upload")
     runtime.sending_preview = (b"sending", "New artwork") if kind == "sending" else None
     monkeypatch.setattr(player_api, "require_loaded_entry", lambda *_: entry)
     class NotFound(Exception):
@@ -156,8 +156,9 @@ def test_artwork_serves_selected_preview_without_mixing_sends(player_api, monkey
     monkeypatch.setattr(player_api.web, "Response", lambda **kwargs: kwargs, raising=False)
     query = {}
     expected = b"confirmed"
-    if kind == "cloud":
+    if kind in ("cloud", "stale_cloud"):
         query["kind"] = "cloud"
+        query["v"] = "old-upload" if kind == "stale_cloud" else "current-upload"
         expected = b"cloud"
     elif kind in ("sending", "completed", "cloud_completed", "stale"):
         query["kind"] = "sending"
@@ -167,7 +168,7 @@ def test_artwork_serves_selected_preview_without_mixing_sends(player_api, monkey
         query["v"] = hashlib.sha256(expected).hexdigest()
     request = SimpleNamespace(app={player_api.KEY_HASS: object()}, query=query)
     call = player_api.PlayerArtworkView().get(request, "frame-1")
-    if kind == "stale":
+    if kind in ("stale", "stale_cloud"):
         with pytest.raises(NotFound):
             asyncio.run(call)
     else:

@@ -919,7 +919,12 @@ class PlayerArtworkView(_FraimicView):
             preview = next((png for png in candidates if png is not None
                             and hashlib.sha256(png).hexdigest() == request.query.get("v")), None)
         elif kind == "cloud":
-            preview = runtime.cloud.preview_png if runtime.cloud is not None else None
+            cloud = runtime.cloud
+            preview = (
+                cloud.preview_png
+                if cloud is not None and request.query.get("v") == cloud.upload_id
+                else None
+            )
         else:
             preview = runtime.displayed_preview
         if preview is None:
