@@ -83,6 +83,15 @@ Open **Picture details** to adjust the crop, fit, tone, and dithering. Choose
 mode, “Show now” submits the image for a scheduled wake; it cannot wake a sleeping
 frame immediately.
 
+**Frame preview** updates with your tone, dithering, fit and crop, using the actual
+panel pixels and approximate Spectra 6 colours. **Position artwork** edits the crop.
+Use **Whole frame** for composition, **1:1 pixels** to inspect the dither pattern,
+or **Physical size** to compare at the panel's density (Standard: 150 PPI;
+Large: 94 PPI, per [Fraimic's specifications](https://fraimic.com/)). Calibrate the
+5 cm line with a ruler for physical size, and recalibrate after changing screens
+or browser zoom. Room lighting and monitor colours affect the match; frame
+overlays are not included. Fraimic official uses its fixed tone recipe.
+
 ![Picture details with crop and display settings](docs/screenshots/picture-details.png)
 
 ### Playlists and the queue

@@ -52,7 +52,7 @@ from .const import (
 )
 from .delivery import async_use_cloud
 from .helpers import loaded_fraimic_entries, resolve_render_params
-from .image_convert import convert_image
+from .image_convert import bin_to_png, convert_image
 from .library_model import (
     LibraryImage,
     all_albums,
@@ -503,7 +503,7 @@ class FraimicLibrary:
             crop = normalize_crop(overrides["crop"])
         elif overrides and (
             overrides.get(ATTR_ROTATE)
-            or overrides.get(ATTR_FIT) in {"contain", "contain_black"}
+            or overrides.get(ATTR_FIT) in {"contain", "contain_black", "stretch"}
         ):
             crop = None
         else:
@@ -627,6 +627,8 @@ class FraimicLibrary:
         box: list[float] | None,
         rotate: int | None = None,
         overrides: dict[str, Any] | None = None,
+        *,
+        full_resolution: bool = False,
     ) -> bytes:
         """Dithered preview PNG for an arbitrary (possibly unsaved) crop box.
 
@@ -635,6 +637,9 @@ class FraimicLibrary:
         edited, without saving anything, uploading anything, or polluting the
         render cache. A box/rotation pair that matches the saved state goes
         through the normal cached path.
+
+        ``full_resolution`` decodes the final panel buffer, preserving every
+        dither pixel for physical-size and 1:1 inspection.
         """
         image = self.get(image_id)
         params = resolve_render_params(entry)
@@ -662,7 +667,15 @@ class FraimicLibrary:
             and crop == image.crop_for(crop_width, crop_height)
             and rotate == image.rotation_for(crop_width, crop_height)
         ):
-            _, preview_png, _ = await self.async_render_for_entry(image_id, entry)
+            packed, preview_png, _ = await self.async_render_for_entry(image_id, entry)
+            if full_resolution:
+                return await self.hass.async_add_executor_job(
+                    bin_to_png,
+                    packed,
+                    params["width"],
+                    params["height"],
+                    params["preview_rotate"],
+                )
             if preview_png is not None:
                 return preview_png
         if rotate:
@@ -671,9 +684,17 @@ class FraimicLibrary:
             self.original_path(image).read_bytes
         )
         try:
-            _, preview_png, _ = await self.hass.async_add_executor_job(
+            packed, preview_png, _ = await self.hass.async_add_executor_job(
                 lambda: convert_image(source, **params, crop=crop)
             )
+            if full_resolution:
+                preview_png = await self.hass.async_add_executor_job(
+                    bin_to_png,
+                    packed,
+                    params["width"],
+                    params["height"],
+                    params["preview_rotate"],
+                )
         except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
             raise HomeAssistantError(f"Could not render the preview: {err}") from err
         if preview_png is None:  # pragma: no cover - preview=True is the default

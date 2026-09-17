@@ -770,6 +770,7 @@ class GalleryPreviewView(HomeAssistantView):
         fit = request.query.get("fit", "cover")
         mode = request.query.get("mode", MODE_AUTO)
         tone = request.query.get("tone", "balanced")
+        resolution = request.query.get("resolution", "thumbnail")
         crop = _crop(request.query.get("crop"))
         if (
             not source
@@ -777,56 +778,87 @@ class GalleryPreviewView(HomeAssistantView):
             or fit not in {"cover", "contain", "stretch"}
             or mode not in DITHER_MODES
             or tone not in {"vivid", "balanced", "soft"}
+            or resolution not in {"thumbnail", "native"}
         ):
             raise web.HTTPBadRequest(
                 text="source, item_id, and a valid fit are required"
             )
-        cache = hass.data.setdefault(DOMAIN, {}).setdefault("gallery_previews", {})
+        data = hass.data.setdefault(DOMAIN, {})
+        cache = data.setdefault("gallery_preview_bytes", ByteCache(24 * 1024 * 1024))
+        # Full-panel diffusion is expensive; coalesce identical requests after
+        # waiting and keep simultaneous comparisons off the executor pool.
+        semaphore = data.setdefault("gallery_preview_semaphore", asyncio.Semaphore(1))
         render_settings = render_cache_key(
             resolve_render_params(entry, {"fit": fit, "mode": mode})
         )
-        key = (entry.entry_id, source, item_id, fit, mode, tone, crop, render_settings)
-        png = cache.get(key)
-        if png is None:
-            from .services import async_convert_for_entry
-
-            try:
-                if source == LIBRARY_SOURCE:
-                    png = await _library(hass).async_render_adhoc_preview(
-                        item_id,
-                        entry,
-                        list(crop) if crop is not None else None,
-                        overrides={"fit": fit, "mode": mode, "tone_name": tone},
-                    )
-                else:
-                    art = await async_art_by_media_id(hass, entry, source, item_id)
-                    _, png, _ = await async_convert_for_entry(
-                        hass,
-                        entry,
-                        art.data,
-                        {
-                            "fit": fit,
-                            "mode": mode,
-                            "tone_name": tone,
-                            "crop": crop,
-                        },
-                        cache_id=artwork_source_cache_id(source, item_id),
-                    )
-            except (ArtFetchError, HomeAssistantError) as err:
-                raise web.HTTPBadGateway(text=str(err)) from err
-            if png is None:
-                raise web.HTTPInternalServerError(text="No preview was rendered")
-            if len(cache) >= 24:
-                cache.pop(next(iter(cache)))
-            cache[key] = png
+        saved_rotation = (
+            _library(hass).get(item_id).rotation_for(*_viewed_size(entry))
+            if source == LIBRARY_SOURCE else 0
+        )
+        key = (
+            entry.entry_id, source, item_id, fit, mode, tone, crop,
+            render_settings, resolution, saved_rotation,
+        )
+        async with semaphore:
+            cached = cache.get(key, 600)
+            if cached is not None:
+                png = cached[0]
+            else:
+                png = await self._render(
+                    hass, entry, source, item_id, fit, mode, tone, crop, resolution
+                )
+                cache.set(key, png, "image/png")
         return web.Response(
             body=png,
             content_type="image/png",
-            # Unlike an original, a preview also depends on frame options that
-            # are not encoded in its URL. Keep browser freshness short; the
-            # persistent render cache still makes a re-request inexpensive.
-            headers={"Cache-Control": "private, max-age=600"},
+            # Frame options and saved crops can change without changing the URL.
+            headers={"Cache-Control": "private, no-cache"},
         )
+
+    async def _render(
+        self, hass, entry, source: str, item_id: str, fit: str, mode: str,
+        tone: str, crop: tuple[float, float, float, float] | None, resolution: str,
+    ) -> bytes:
+        from .image_convert import bin_to_png
+        from .services import async_convert_for_entry
+
+        try:
+            if source == LIBRARY_SOURCE:
+                png = await _library(hass).async_render_adhoc_preview(
+                    item_id,
+                    entry,
+                    list(crop) if crop is not None else None,
+                    overrides={"fit": fit, "mode": mode, "tone_name": tone},
+                    full_resolution=resolution == "native",
+                )
+            else:
+                art = await async_art_by_media_id(hass, entry, source, item_id)
+                packed, png, _ = await async_convert_for_entry(
+                    hass,
+                    entry,
+                    art.data,
+                    {
+                        "fit": fit,
+                        "mode": mode,
+                        "tone_name": tone,
+                        "crop": crop,
+                    },
+                    cache_id=artwork_source_cache_id(source, item_id),
+                )
+                if resolution == "native":
+                    params = resolve_render_params(entry)
+                    png = await hass.async_add_executor_job(
+                        bin_to_png,
+                        packed,
+                        params["width"],
+                        params["height"],
+                        params["preview_rotate"],
+                    )
+        except (ArtFetchError, HomeAssistantError) as err:
+            raise web.HTTPBadGateway(text=str(err)) from err
+        if png is None:
+            raise web.HTTPInternalServerError(text="No preview was rendered")
+        return png
 
 
 class GalleryActionView(HomeAssistantView):

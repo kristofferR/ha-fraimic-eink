@@ -71,6 +71,70 @@ def test_prerendered_cloud_send_bypasses_lan_policy(library_module, monkeypatch)
     power.finish.assert_called_once()
 
 
+@pytest.mark.parametrize("cached", [False, True])
+def test_native_adhoc_preview_preserves_panel_pixels(library_module, monkeypatch, tmp_path, cached):
+    from unittest.mock import AsyncMock, Mock
+    import numpy as np
+
+    library = library_module
+    ic = load("image_convert")
+    packed = ic._pack_nibbles(np.arange(32, dtype=np.uint8) % 6, 8, 4)
+    convert = Mock(return_value=(packed, b"thumbnail", "bayer"))
+    monkeypatch.setattr(library, "convert_image", convert)
+    params = {"width": 8, "height": 4, "rotate": 90, "preview_rotate": 270}
+    monkeypatch.setattr(library, "resolve_render_params", lambda _: params.copy())
+
+    class Hass:
+        async def async_add_executor_job(self, function, *args):
+            return function(*args)
+
+    manager = object.__new__(library.FraimicLibrary)
+    manager.hass = Hass()
+    manager.originals_dir = tmp_path
+    image = library.LibraryImage("art", "art.png", "image/png", 1.0)
+    manager.images = {image.image_id: image}
+    manager.original_path(image).write_bytes(b"original")
+    manager.async_render_for_entry = AsyncMock(return_value=(packed, b"thumbnail", "bayer"))
+    overrides = None if cached else {"fit": "contain", "mode": "bayer", "tone_name": "soft"}
+    png = asyncio.run(manager.async_render_adhoc_preview(
+        image.image_id, object(), None, overrides=overrides, full_resolution=True
+    ))
+    assert png == ic.bin_to_png(packed, 8, 4, 270)
+    if cached:
+        convert.assert_not_called()
+    else:
+        assert convert.call_args.kwargs["tone"] == 0
+        assert convert.call_args.kwargs["fit"] == "contain"
+        assert convert.call_args.kwargs["mode"] == "bayer"
+
+
+@pytest.mark.parametrize("fit", ["cover", "contain", "stretch"])
+def test_library_send_crop_matches_preview_fit(library_module, monkeypatch, tmp_path, fit):
+    from unittest.mock import Mock
+
+    library = library_module
+    monkeypatch.setattr(library, "resolve_render_params", lambda *_: {
+        "width": 8, "height": 4, "rotate": 0, "fit": fit,
+    })
+    convert = Mock(return_value=(b"panel", b"preview", "none"))
+    monkeypatch.setattr(library, "convert_image", convert)
+
+    class Hass:
+        async def async_add_executor_job(self, function, *args):
+            return function(*args)
+
+    manager = object.__new__(library.FraimicLibrary)
+    manager.hass = Hass()
+    manager.originals_dir = manager.renders_dir = tmp_path
+    manager._read_render_sync = lambda *_: None
+    manager._write_render_sync = lambda *_: None
+    image = library.LibraryImage("art", "art.png", "image/png", 1.0, crops={"8x4": [0, 0, .5, 1]})
+    manager.images = {image.image_id: image}
+    manager.original_path(image).write_bytes(b"original")
+    asyncio.run(manager.async_render_for_entry("art", object(), {"fit": fit}))
+    assert convert.call_args.kwargs["crop"] == ((0, 0, .5, 1) if fit == "cover" else None)
+
+
 @pytest.mark.parametrize("invalid_entry", [False, True])
 def test_crop_invalidates_only_matching_frame_playlists(library_module, monkeypatch, invalid_entry):
     library = library_module

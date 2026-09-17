@@ -309,6 +309,21 @@ const css = String.raw`
   .detail-inspector { min-width: 0; padding: 20px; background: var(--secondary-background-color); }
   .detail-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .detail-section-head h3 { margin: 0; font-size: 13px; }
+  .preview-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .preview-tools .btn[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  .preview-tools .detail-select { width: 150px; }
+  [data-preview-retry][hidden] { display: none; }
+  .preview-viewport { height: clamp(240px, 52vh, 600px); overflow: auto; background: #202020; border: 1px solid var(--line); border-radius: 8px; }
+  .preview-viewport.fit { height: auto; aspect-ratio: var(--frame-aspect); max-height: 52vh; }
+  .preview-surface { min-width: 100%; min-height: 100%; }
+  .preview-surface canvas { display: block; position: sticky; left: 0; top: 0; }
+  .preview-surface canvas[hidden] { display: none; }
+  .preview-status { min-height: 18px; margin: 8px 0; color: var(--muted); font-size: 12px; }
+  .preview-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 8px 0; }
+  .preview-calibration { margin-top: 12px; font-size: 12px; }
+  .preview-calibration input { width: min(100%, 320px); display: block; }
+  .preview-ruler-wrap { overflow: auto; padding: 8px 0; }
+  .preview-ruler { height: 10px; border: solid var(--text); border-width: 0 1px 1px; }
   .crop-stage { position: relative; width: 100%; aspect-ratio: var(--art-aspect, 4 / 3); border-radius: 8px; overflow: hidden; background: #0d0d0d; }
   .crop-stage > img { width: 100%; height: 100%; object-fit: fill; display: block; }
   .crop-window { position: absolute; border: 2px solid var(--primary-text-color); box-shadow: 0 3px 16px color-mix(in srgb, #0d0d0d 35%, transparent); cursor: move; touch-action: none; }
@@ -488,6 +503,11 @@ class FraimicPanel extends HTMLElement {
     this._toastTimer = null;
     this._detail = null;
     this._detailOptions = null;
+    this._detailView = "preview";
+    this._previewScale = "fit";
+    this._previewRuler = 189;
+    this._detailPreview = null;
+    this._previewObserver = null;
     this._favoritePending = new Set();
     this._cropDrafts = new Map();
     this._uploads = [];
@@ -535,6 +555,7 @@ class FraimicPanel extends HTMLElement {
     clearTimeout(this._toastTimer);
     this._imageObserver?.disconnect();
     this._boundsObserver?.disconnect();
+    this._disposeDetailPreview();
   }
 
   set hass(value) {
@@ -1776,6 +1797,8 @@ class FraimicPanel extends HTMLElement {
       const crop = this._cropDrafts.get(key) || detail.saved_crop || this._defaultCrop(detail, this._frame);
       this._cropDrafts.set(key, crop);
       this._detailOptions = { fit: "cover", mode: "auto", tone: "balanced", crop };
+      this._detailView = "preview";
+      this._previewScale = "fit";
       this._renderDetailModal();
     } catch (error) { this._closeModal(); this._notify(this._friendlyError(error), { error: true }); }
   }
@@ -1796,14 +1819,17 @@ class FraimicPanel extends HTMLElement {
     const sourceLink = `<button class="detail-text-link" data-related-source="${h(detail.source)}">${h(detail.source_name || detail.source)}</button>`;
     const body = `<div class="detail-grid">
       <div class="detail-workspace">
-        <div class="detail-section-head"><h3>Position artwork</h3><span class="spacer"></span><span class="counter">${h(this._frame.name)} · ${h(this._frame.width)} × ${h(this._frame.height)}</span></div>
+        <div class="detail-section-head"><h3>${h(this._frame.name)}</h3><span class="spacer"></span><span class="counter">${h(this._frame.width)} × ${h(this._frame.height)}${this._panelPpi ? ` · ${this._panelPpi} PPI` : ""}</span></div>
+        <div class="preview-tools" aria-label="Artwork view"><button class="btn small" data-detail-view="preview" aria-pressed="${this._detailView === "preview"}">Frame preview</button><button class="btn small" data-detail-view="position" aria-pressed="${this._detailView === "position"}">Position artwork</button></div>
+        ${this._detailView === "preview" ? this._detailPreviewTemplate() : `
         <div class="crop-stage" style="--art-aspect:${artAspect}"><img ${this._imageAttrs(detail.image_url, `${detail.title}${detail.artist ? `, ${detail.artist}` : ""}`)}>${cropWindow}</div>
         ${options.fit === "cover" ? `<div class="crop-tools"><button class="btn small" data-crop-command="reset"><ha-icon icon="mdi:restore"></ha-icon> Reset</button><button class="btn small" data-crop-command="centre"><ha-icon icon="mdi:image-filter-center-focus"></ha-icon> Centre</button><button class="btn small" data-crop-command="in"><ha-icon icon="mdi:magnify-plus-outline"></ha-icon> Zoom in</button><button class="btn small" data-crop-command="out"><ha-icon icon="mdi:magnify-minus-outline"></ha-icon> Zoom out</button></div><p class="crop-hint"><ha-icon icon="mdi:cursor-move"></ha-icon> Drag the crop to choose what stays inside the frame.</p>` : `<p class="crop-hint">${h(fitNotes[options.fit])}.</p>`}
+        `}
       </div>
       <aside class="detail-inspector" aria-label="Display settings">
         <div class="detail-section-head"><h3>Display settings</h3><span class="spacer"></span><span class="counter">Spectra 6</span></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Fit</h3><p>${h(fitNotes[options.fit])}</p></div><select class="detail-select" data-detail-fit aria-label="Artwork fit"><option value="cover" ${options.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${options.fit === "contain" ? "selected" : ""}>Contain</option><option value="stretch" ${options.fit === "stretch" ? "selected" : ""}>Stretch</option></select></div>
-        <div class="detail-setting"><div class="detail-setting-copy"><h3>Tone</h3><p>${h(toneNotes[options.tone])}</p></div><select class="detail-select" data-detail-tone aria-label="Artwork tone"><option value="vivid" ${options.tone === "vivid" ? "selected" : ""}>Vivid</option><option value="balanced" ${options.tone === "balanced" ? "selected" : ""}>Balanced</option><option value="soft" ${options.tone === "soft" ? "selected" : ""}>Soft</option></select></div>
+        <div class="detail-setting"><div class="detail-setting-copy"><h3>Tone</h3><p>${options.mode === "official" ? "Fraimic official uses its own fixed tone" : h(toneNotes[options.tone])}</p></div><select class="detail-select" data-detail-tone aria-label="Artwork tone" ${options.mode === "official" ? "disabled" : ""}><option value="vivid" ${options.tone === "vivid" ? "selected" : ""}>Vivid</option><option value="balanced" ${options.tone === "balanced" ? "selected" : ""}>Balanced</option><option value="soft" ${options.tone === "soft" ? "selected" : ""}>Soft</option></select></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Dithering</h3><p>${h(modeNotes[options.mode])}</p></div><select class="detail-select" data-detail-mode aria-label="Artwork dithering"><option value="auto" ${options.mode === "auto" ? "selected" : ""}>Automatic</option><option value="official" ${options.mode === "official" ? "selected" : ""}>Fraimic official</option><option value="none" ${options.mode === "none" ? "selected" : ""}>None</option><option value="bayer" ${options.mode === "bayer" ? "selected" : ""}>Bayer</option><option value="floyd_steinberg" ${options.mode === "floyd_steinberg" ? "selected" : ""}>Floyd-Steinberg</option><option value="atkinson" ${options.mode === "atkinson" ? "selected" : ""}>Atkinson</option></select></div>
         <section class="artwork-details"><h3>Artwork details</h3><dl class="detail-meta-list">
           <div class="detail-meta-row"><dt>Artist</dt><dd>${artistLink}</dd></div>
@@ -1834,14 +1860,158 @@ class FraimicPanel extends HTMLElement {
     });
     this.shadowRoot.querySelector("[data-detail-favorite]")?.addEventListener("click", () => this._toggleFavorite(detail.source, detail.itemId, Boolean(detail.favorite), options));
     this.shadowRoot.querySelector("[data-detail-fit]")?.addEventListener("change", (event) => { options.fit = event.target.value; this._renderDetailModal(); });
-    this.shadowRoot.querySelector("[data-detail-tone]")?.addEventListener("change", (event) => { options.tone = event.target.value; this._renderDetailModal(); });
-    this.shadowRoot.querySelector("[data-detail-mode]")?.addEventListener("change", (event) => { options.mode = event.target.value; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-detail-tone]")?.addEventListener("change", (event) => { options.tone = event.target.value; this._detailView = "preview"; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-detail-mode]")?.addEventListener("change", (event) => { options.mode = event.target.value; this._detailView = "preview"; this._renderDetailModal(); });
+    this.shadowRoot.querySelectorAll("[data-detail-view]").forEach((node) => node.onclick = () => { this._detailView = node.dataset.detailView; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-preview-scale]")?.addEventListener("change", (event) => { this._previewScale = event.target.value; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-preview-ruler]")?.addEventListener("input", (event) => {
+      this._previewRuler = Number(event.target.value);
+      this.shadowRoot.querySelector(".preview-ruler").style.width = `${this._previewRuler}px`;
+      this._paintDetailPreview();
+    });
+    this.shadowRoot.querySelector("[data-preview-retry]")?.addEventListener("click", () => {
+      if (this._detailPreview) this._detailPreview.errorKey = null;
+      this._queueDetailPreview();
+    });
+    this._previewObserver?.disconnect();
+    const viewport = this.shadowRoot.querySelector("[data-preview-viewport]");
+    if (viewport) {
+      this._previewObserver = new ResizeObserver(() => this._paintDetailPreview());
+      this._previewObserver.observe(viewport);
+      this._queueDetailPreview();
+    }
     this.shadowRoot.querySelectorAll("[data-crop-command]").forEach((node) => node.onclick = () => this._adjustCrop(node.dataset.cropCommand));
     this.shadowRoot.querySelector("[data-crop-window]")?.addEventListener("pointerdown", (event) => { if (!event.target.dataset.cropResize) this._dragCrop(event, false); });
     this.shadowRoot.querySelector("[data-crop-resize]")?.addEventListener("pointerdown", (event) => { event.stopPropagation(); this._dragCrop(event, true); });
     this.shadowRoot.querySelectorAll("[data-related-query]").forEach((node) => node.onclick = () => { this._query = node.dataset.relatedQuery; this._closeModal(); this._loadGallery(); });
     this.shadowRoot.querySelectorAll("[data-related-source]").forEach((node) => node.onclick = () => { this._closeModal(); this._setSource(node.dataset.relatedSource); });
     this.shadowRoot.querySelectorAll("[data-related-frame]").forEach((node) => node.onclick = async () => { this._closeModal(); await this._selectFrame(node.dataset.relatedFrame); this._openDetail(detail.source, detail.itemId, null); });
+  }
+
+  get _panelPpi() {
+    // Published panel density: https://fraimic.com/ (Product specifications).
+    const sides = [this._frame?.width, this._frame?.height].sort((a, b) => a - b).join("x");
+    return { "1200x1600": 150, "1440x2560": 94 }[sides] || null;
+  }
+
+  _detailPreviewTemplate() {
+    const ppi = this._panelPpi;
+    const scale = this._previewScale;
+    return `<div class="preview-tools"><label for="preview-scale">View</label><select id="preview-scale" class="detail-select" data-preview-scale>
+      <option value="fit" ${scale === "fit" ? "selected" : ""}>Whole frame</option>
+      <option value="pixels" ${scale === "pixels" ? "selected" : ""}>1:1 pixels</option>
+      ${ppi ? `<option value="physical" ${scale === "physical" ? "selected" : ""}>Physical size</option>` : ""}
+      </select><span class="counter">${scale === "pixels" ? "One panel pixel per screen pixel" : scale === "physical" ? "Calibrate below, then scroll to inspect" : "Full-resolution render, scaled to fit"}</span></div>
+      <div class="preview-viewport${scale === "fit" ? " fit" : ""}" data-preview-viewport tabindex="0" aria-label="Rendered frame preview, scroll to inspect"><div class="preview-surface"><canvas role="img" aria-label="Artwork rendered with the selected tone and dithering" hidden></canvas></div></div>
+      <p class="preview-status" data-preview-status role="status">Rendering at the frame's resolution…</p><button class="btn small" data-preview-retry hidden>Retry preview</button>
+      ${ppi ? `<p class="preview-note">${ppi} PPI · ${(25.4 / ppi).toFixed(3)} mm per panel pixel. Six panel colours; room lighting and your screen affect the colour match.</p>` : `<p class="preview-note">Six panel colours; room lighting and your screen affect the colour match.</p>`}
+      ${scale === "physical" ? `<div class="preview-calibration"><label for="preview-ruler">Match this line to 5 cm on a real ruler.</label><div class="preview-ruler-wrap"><div class="preview-ruler" style="width:${this._previewRuler}px"></div></div><input id="preview-ruler" data-preview-ruler type="range" min="80" max="500" step="1" value="${this._previewRuler}"><p class="preview-note">Adjust again if you move to another screen or change browser zoom. View from the same distance you would view the frame.</p></div>` : ""}`;
+  }
+
+  _disposeDetailPreview() {
+    const state = this._detailPreview;
+    this._detailPreview = null;
+    this._previewObserver?.disconnect();
+    if (!state) return;
+    clearTimeout(state.timer);
+    state.controller?.abort();
+    for (const bitmap of state.cache.values()) bitmap.close();
+  }
+
+  _queueDetailPreview() {
+    if (!this._detail || this._detailView !== "preview" || !this._modal?.className?.includes("detail-dialog")) return;
+    const options = this._detailOptions;
+    const params = new URLSearchParams({ entry_id: this._selectedFrameId, source: this._detail.source, item_id: this._detail.itemId, fit: options.fit, mode: options.mode, tone: options.tone, resolution: "native" });
+    if (options.fit === "cover" && options.crop) params.set("crop", JSON.stringify(options.crop));
+    const key = `${API}/gallery/preview?${params}`;
+    const state = this._detailPreview ||= { cache: new Map(), wanted: key, pending: false, errorKey: null, center: [.5, .5] };
+    state.wanted = key;
+    clearTimeout(state.timer);
+    this._paintDetailPreview();
+    if (state.pending || state.cache.has(key) || state.errorKey === key) return;
+    // Debounce quick edits and render only the latest selection after an in-flight job.
+    state.timer = setTimeout(async () => {
+      state.pending = true;
+      state.controller = new AbortController();
+      try {
+        const response = await this._hass.fetchWithAuth(key, { signal: state.controller.signal });
+        if (!response.ok) throw new Error(await response.text() || "Preview could not be rendered");
+        const bitmap = await createImageBitmap(await response.blob());
+        if (state !== this._detailPreview) { bitmap.close(); return; }
+        state.cache.set(key, bitmap);
+        while (state.cache.size > 4) {
+          const oldest = state.cache.keys().next().value;
+          state.cache.get(oldest).close();
+          state.cache.delete(oldest);
+        }
+        state.errorKey = null;
+      } catch (error) {
+        if (state !== this._detailPreview) return;
+        state.errorKey = key;
+        state.error = this._friendlyError(error);
+      } finally {
+        state.pending = false;
+        if (state === this._detailPreview) {
+          this._paintDetailPreview();
+          if (state.wanted !== key) this._queueDetailPreview();
+        }
+      }
+    }, SEARCH_DELAY);
+  }
+
+  _paintDetailPreview() {
+    const state = this._detailPreview;
+    const viewport = this.shadowRoot.querySelector("[data-preview-viewport]");
+    if (!state || !viewport) return;
+    const canvas = viewport.querySelector("canvas");
+    const status = this.shadowRoot.querySelector("[data-preview-status]");
+    const retry = this.shadowRoot.querySelector("[data-preview-retry]");
+    const bitmap = state.cache.get(state.wanted);
+    canvas.hidden = !bitmap;
+    if (!bitmap) {
+      canvas.parentElement.style.width = "100%";
+      canvas.parentElement.style.height = "100%";
+      viewport.onscroll = null;
+    }
+    const failed = state.errorKey === state.wanted;
+    retry.hidden = !failed;
+    status.textContent = failed ? state.error : bitmap ? `${this._detailOptions.mode === "official" ? "Fraimic official · fixed tone" : `${this._detailOptions.tone[0].toUpperCase() + this._detailOptions.tone.slice(1)} · ${this._detailOptions.mode.replaceAll("_", " ")}`} · ${bitmap.width} × ${bitmap.height} rendered pixels` : "Rendering at the frame's resolution…";
+    viewport.setAttribute("aria-busy", String(!bitmap && !failed));
+    if (!bitmap || !viewport.clientWidth || !viewport.clientHeight) return;
+    const dpr = window.devicePixelRatio || 1;
+    const scale = this._previewScale === "pixels" ? 1 / dpr : this._previewScale === "physical" && this._panelPpi ? (this._previewRuler * 25.4 / 50) / this._panelPpi : Math.min(viewport.clientWidth / bitmap.width, viewport.clientHeight / bitmap.height);
+    const width = Math.max(1, Math.round(bitmap.width * scale * dpr));
+    const height = Math.max(1, Math.round(bitmap.height * scale * dpr));
+    const cssWidth = width / dpr, cssHeight = height / dpr;
+    canvas.parentElement.style.width = `${cssWidth}px`;
+    canvas.parentElement.style.height = `${cssHeight}px`;
+    // Paint just the visible region: physical size can exceed the screen by a
+    // large factor, especially on high-DPI monitors. Keep canvas memory bounded.
+    canvas.width = Math.min(width, Math.round(viewport.clientWidth * dpr));
+    canvas.height = Math.min(height, Math.round(viewport.clientHeight * dpr));
+    canvas.style.width = `${canvas.width / dpr}px`;
+    canvas.style.height = `${canvas.height / dpr}px`;
+    canvas.style.marginLeft = `${Math.max(0, (viewport.clientWidth - cssWidth) / 2)}px`;
+    canvas.style.marginTop = `${Math.max(0, (viewport.clientHeight - cssHeight) / 2)}px`;
+    const context = canvas.getContext("2d");
+    context.imageSmoothingEnabled = this._previewScale !== "pixels";
+    context.imageSmoothingQuality = "high";
+    // Keep the same part of the artwork in view while comparing render settings.
+    viewport.onscroll = null;
+    viewport.scrollLeft = cssWidth * state.center[0] - viewport.clientWidth / 2;
+    viewport.scrollTop = cssHeight * state.center[1] - viewport.clientHeight / 2;
+    const draw = () => {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, viewport.scrollLeft / cssWidth * bitmap.width, viewport.scrollTop / cssHeight * bitmap.height,
+        canvas.width / width * bitmap.width, canvas.height / height * bitmap.height, 0, 0, canvas.width, canvas.height);
+    };
+    draw();
+    viewport.onscroll = () => {
+      draw();
+      if (this._previewScale === "fit") return;
+      if (viewport.scrollWidth > viewport.clientWidth) state.center[0] = (viewport.scrollLeft + viewport.clientWidth / 2) / cssWidth;
+      if (viewport.scrollHeight > viewport.clientHeight) state.center[1] = (viewport.scrollTop + viewport.clientHeight / 2) / cssHeight;
+    };
   }
 
   get _viewingFavorites() { return this._selectedSource === "saved" && this._selectedBrowseId === "favorites"; }
@@ -2178,8 +2348,8 @@ class FraimicPanel extends HTMLElement {
   _requestCloseOverlays() { if (this._overlaysDirty() && !confirm("Discard unsaved overlay changes?")) return; this._discardOverlays(); }
   async _copyOverlays() { const target = this._frames.find((frame) => frame.id !== this._selectedFrameId); if (!target) return; if (!confirm(`Replace overlays on ${target.name}?`)) return; try { await this._api("overlays", this._json({ action: "copy", entry_id: this._selectedFrameId, target_entry_id: target.id })); this._notify(`Copied overlays to ${target.name}.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
 
-  _openModal(title, body, actions = "", options = {}) { this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
-  _closeModal() { this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
+  _openModal(title, body, actions = "", options = {}) { if (options.className !== "detail-dialog") this._disposeDetailPreview(); this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
+  _closeModal() { this._disposeDetailPreview(); this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
 
   _trapModalFocus(event) {
     const focusable = [...this.shadowRoot.querySelectorAll(".dialog button:not([disabled]), .dialog input:not([disabled]), .dialog select:not([disabled]), .dialog textarea:not([disabled]), .dialog a[href]")];
