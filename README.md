@@ -13,13 +13,17 @@ display and delivers them over your local network or through your Fraimic accoun
 - **Playlists and a queue:** create named playlists, assign them to frames, and
   choose what plays next. Each frame keeps its own playback order.
 - **Picture controls:** position the crop and choose fit, tone, and dithering.
-  Preview the conversion without refreshing the frame.
+  Preview tone and dithering inside the crop without refreshing the frame (beta).
 - **Home Assistant data on the wall:** add weather, clocks, calendars, sensor
   values, and other overlays, or render a full dashboard screen.
 - **Battery-aware delivery:** upload locally while the frame is awake, queue
-  for later, or use cloud delivery so it can sleep between scheduled images.
+  for later, or choose **Hybrid** to use local delivery when awake and cloud
+  delivery for a scheduled wake when asleep.
 - **Native Home Assistant integration:** UI setup, discovery, entities, a media
   player, and actions for automations. No YAML required to get started.
+
+Fraimic **2.1** adds Hybrid delivery, crop previews, and clearer player delivery
+status. See the [release notes](docs/release-2.1.md).
 
 ## Installation
 
@@ -41,10 +45,14 @@ Set the mount rotation in the frame's options for portrait or landscape use.
 For a manual installation, copy `custom_components/fraimic/` into your Home
 Assistant `config/custom_components/` directory and restart.
 
-### Upgrading to 2.0
+### Updating
 
-Back up Home Assistant, update the integration, restart, and reload the browser
-to load the new panel. Existing frame slides migrate into named playlists.
+Back up Home Assistant, update the integration in HACS, restart Home Assistant,
+and reload the browser or companion-app page to load the new panel. Upgrading
+from 2.0 preserves your library, playlists, and delivery settings. Hybrid is
+optional; select it in the frame's integration options.
+
+**Upgrading from 1.x:** existing frame slides migrate into named playlists.
 
 **The old `scene.*` entities and virtual “Fraimic Scenes” device have been
 removed.** Saved Fraimic scenes remain available through `fraimic.send_scene`;
@@ -81,7 +89,8 @@ Heart an image to keep it in **Favorites**.
 Open **Picture details** to adjust the crop, fit, tone, and dithering. Choose
 **Show now**, **Play next**, **Add to queue**, or **Add to playlist**. In cloud
 mode, “Show now” submits the image for a scheduled wake; it cannot wake a sleeping
-frame immediately.
+frame immediately. Hybrid uses the same scheduled delivery when the frame is
+asleep.
 
 The original artwork and crop controls appear immediately. Enable **Preview inside
 the crop (beta)** below Dithering to process only the selected area using the actual
@@ -98,7 +107,11 @@ Large: 94 PPI, per [Fraimic's specifications](https://fraimic.com/)). Calibrate 
 or browser zoom. Room lighting and monitor colours affect the match; frame
 overlays are not included. Fraimic official uses its fixed tone recipe.
 
-![Picture details with crop and display settings](docs/screenshots/picture-details.png)
+**Preview is beta:** the on-screen dithering currently looks noticeably worse
+than the result on the physical frame. Use it as an approximate comparison;
+visual fidelity improvements are tracked in [issue #68](https://github.com/kristofferR/ha-fraimic-eink/issues/68).
+
+![Beta tone and dithering preview inside the crop, with the original artwork visible around it](docs/screenshots/picture-details.png)
 
 ### Playlists and the queue
 
@@ -166,7 +179,12 @@ since an upload timeout can mean the frame is already rendering.
 dashboard shows the submitted image with a **display unconfirmed** label and
 keeps confirmation separate from playback order. New cloud-submitted previews
 are retained across Home Assistant restarts. Allow the scheduled wake interval
-for delivery. Each wake and redraw uses battery, so longer playlist intervals help. See the
+for delivery. The player thumbnail stays visible while sending or waiting for
+cloud delivery.
+
+![Player showing submitted artwork with a display-unconfirmed delivery status](docs/screenshots/player-delivery.png)
+
+Each wake and redraw uses battery, so longer playlist intervals help. See the
 [verified cloud scheduling behaviour](docs/fraimic-cloud-api/albums-scheduling.md).
 
 ### Battery-saving modes
