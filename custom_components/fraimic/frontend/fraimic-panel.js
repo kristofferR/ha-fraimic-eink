@@ -2,6 +2,8 @@
 
 const API = "/api/fraimic";
 const SEARCH_DELAY = 350;
+const PREVIEW_CACHE_BYTES = 24 * 1024 * 1024;
+const DITHER_LABELS = { auto: "Automatic", bayer: "Bayer", none: "None", floyd_steinberg: "Floyd-Steinberg", atkinson: "Atkinson", official: "Fraimic official" };
 const SOURCE_LIMIT = 40;
 const ALL_SOURCES_LIMIT = 8;
 const INITIAL_RENDER_LIMIT = 60;
@@ -309,11 +311,31 @@ const css = String.raw`
   .detail-inspector { min-width: 0; padding: 20px; background: var(--secondary-background-color); }
   .detail-section-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
   .detail-section-head h3 { margin: 0; font-size: 13px; }
+  .preview-tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .preview-tools .detail-select { width: 150px; }
+  [data-preview-retry][hidden] { display: none; }
+  .artwork-viewport { overflow: auto; border-radius: 8px; }
+  .artwork-viewport.zoomed { height: clamp(240px, 52vh, 600px); }
+  .preview-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer; }
+  .preview-toggle input { min-height: 0; width: 16px; height: 16px; accent-color: var(--accent); }
+  .crop-window canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  .crop-window canvas[hidden] { display: none; }
+  .crop-window.fixed { cursor: default; touch-action: auto; }
+  .preview-status { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 5px; font-size: 13px; line-height: 1.5; }
+  .preview-status[data-busy="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); font-weight: 600; }
+  .preview-status[data-error="true"] { border-color: var(--error-color); }
+  .crop-preview-status { position: absolute; top: 10px; left: 10px; right: 10px; width: fit-content; max-width: calc(100% - 20px); padding: 8px 12px; border: 1px solid #8ab9f5; border-radius: 5px; background: #162332; color: #fff; font-size: 13px; font-weight: 600; pointer-events: none; z-index: 2; }
+  .preview-note { color: var(--muted); font-size: 12px; line-height: 1.5; margin: 8px 0; }
+  .preview-calibration { margin-top: 12px; font-size: 12px; }
+  .preview-calibration input { width: min(100%, 320px); display: block; }
+  .preview-ruler-wrap { overflow: auto; padding: 8px 0; }
+  .preview-ruler { height: 10px; border: solid var(--text); border-width: 0 1px 1px; }
   .crop-stage { position: relative; width: 100%; aspect-ratio: var(--art-aspect, 4 / 3); border-radius: 8px; overflow: hidden; background: #0d0d0d; }
-  .crop-stage > img { width: 100%; height: 100%; object-fit: fill; display: block; }
-  .crop-window { position: absolute; border: 2px solid var(--primary-text-color); box-shadow: 0 3px 16px color-mix(in srgb, #0d0d0d 35%, transparent); cursor: move; touch-action: none; }
-  .crop-window::after { content: attr(data-label); position: absolute; left: 0; bottom: 0; padding: 3px 5px; color: #fff; background: color-mix(in srgb, #0d0d0d 78%, transparent); font-size: 10px; white-space: nowrap; pointer-events: none; }
-  .crop-resize { position: absolute; right: -8px; bottom: -8px; width: 18px; height: 18px; border: 2px solid var(--primary-text-color); background: var(--accent); cursor: nwse-resize; touch-action: none; }
+  .crop-stage > img { width: 100%; height: 100%; object-fit: fill; display: block; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(var(--art-rotation, 0deg)); }
+  .crop-window { position: absolute; box-shadow: 0 3px 16px color-mix(in srgb, #0d0d0d 35%, transparent); cursor: move; touch-action: none; }
+  .crop-window::before { content: ""; position: absolute; inset: 0; border: 2px solid var(--primary-text-color); z-index: 1; pointer-events: none; }
+  .crop-window::after { content: attr(data-label); position: absolute; left: 0; bottom: 0; padding: 3px 5px; color: #fff; background: color-mix(in srgb, #0d0d0d 78%, transparent); font-size: 10px; white-space: nowrap; pointer-events: none; z-index: 2; }
+  .crop-resize { position: absolute; right: -8px; bottom: -8px; width: 18px; height: 18px; border: 2px solid var(--primary-text-color); background: var(--accent); cursor: nwse-resize; touch-action: none; z-index: 3; }
   .crop-tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 26px 0 8px; }
   .crop-hint { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; color: var(--muted); font-size: 12px; }
   .detail-setting { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 15px 0; border-bottom: 1px solid var(--line); }
@@ -488,6 +510,11 @@ class FraimicPanel extends HTMLElement {
     this._toastTimer = null;
     this._detail = null;
     this._detailOptions = null;
+    this._previewEnabled = false;
+    this._previewScale = "fit";
+    this._previewRuler = 189;
+    this._detailPreview = null;
+    this._previewObserver = null;
     this._favoritePending = new Set();
     this._cropDrafts = new Map();
     this._uploads = [];
@@ -535,6 +562,7 @@ class FraimicPanel extends HTMLElement {
     clearTimeout(this._toastTimer);
     this._imageObserver?.disconnect();
     this._boundsObserver?.disconnect();
+    this._disposeDetailPreview();
   }
 
   set hass(value) {
@@ -1748,15 +1776,16 @@ class FraimicPanel extends HTMLElement {
     const item = this._detail || this._findItem(source, itemId) || {};
     const frames = [...this._frames].sort((a, b) => this._fitDifference(item, a) - this._fitDifference(item, b));
     this._openModal("Show now", `<div class="queue-list">${frames.map((frame, index) => `<button class="queue-row" data-show-frame="${h(frame.id)}"><b>${h(frame.name)}</b><span class="spacer"></span><span class="counter">${index === 0 ? `${this._frameShape(frame)}, suits this` : `${this._frameShape(frame)}, will crop`}</span></button>`).join("")}${frames.length === 2 ? `<button class="queue-row" data-show-both>Both frames</button>` : ""}</div>`);
+    // Other frames use their own saved crop/rotation or the renderer's default fit.
     this.shadowRoot.querySelectorAll("[data-show-frame]").forEach((node) => node.onclick = () => {
       const frame = this._frames.find((candidate) => candidate.id === node.dataset.showFrame);
-      const targetOptions = { ...options, crop: frame?.id === this._selectedFrameId ? options.crop : this._defaultCrop(item, frame) };
+      const targetOptions = { ...options, crop: frame?.id === this._selectedFrameId ? options.crop : null };
       this._closeModal(); this._artAction("show_now", source, itemId, null, targetOptions, frame.id);
     });
     this.shadowRoot.querySelector("[data-show-both]")?.addEventListener("click", async () => {
       this._closeModal();
       for (const frame of frames) {
-        const targetOptions = { ...options, crop: frame.id === this._selectedFrameId ? options.crop : this._defaultCrop(item, frame) };
+        const targetOptions = { ...options, crop: frame.id === this._selectedFrameId ? options.crop : null };
         await this._artAction("show_now", source, itemId, null, targetOptions, frame.id);
       }
     });
@@ -1776,6 +1805,8 @@ class FraimicPanel extends HTMLElement {
       const crop = this._cropDrafts.get(key) || detail.saved_crop || this._defaultCrop(detail, this._frame);
       this._cropDrafts.set(key, crop);
       this._detailOptions = { fit: "cover", mode: "auto", tone: "balanced", crop };
+      this._previewEnabled = false;
+      this._previewScale = "fit";
       this._renderDetailModal();
     } catch (error) { this._closeModal(); this._notify(this._friendlyError(error), { error: true }); }
   }
@@ -1784,11 +1815,11 @@ class FraimicPanel extends HTMLElement {
     const detail = this._detail;
     if (!detail) return;
     const options = this._detailOptions;
-    const crop = options.crop;
-    const cropWindow = options.fit === "cover" ? `<div class="crop-window" data-crop-window data-label="Visible on ${h(this._frame.name)}" style="${this._cropStyle(crop)}"><span class="crop-resize" data-crop-resize></span></div>` : "";
+    const crop = this._rotateCrop(options.crop, detail.saved_rotation);
+    const cropWindow = `<div class="crop-window${options.fit === "cover" ? "" : " fixed"}" data-crop-window data-label="Visible on ${h(this._frame.name)}" style="${this._cropStyle(options.fit === "cover" ? crop : [0, 0, 1, 1])}"><canvas role="img" aria-label="Selected crop with tone and dithering applied" hidden></canvas><span class="crop-preview-status" data-crop-preview-status hidden></span>${options.fit === "cover" ? '<span class="crop-resize" data-crop-resize></span>' : ""}</div>`;
     const relatedFrame = this._frames.filter((frame) => frame.id !== this._selectedFrameId).sort((a, b) => this._fitDifference(detail, a) - this._fitDifference(detail, b))[0];
     const sourceHref = this._safeHref(detail.source_page_url);
-    const artAspect = `${Math.max(1, Number(detail.width) || 4)} / ${Math.max(1, Number(detail.height) || 3)}`;
+    const artAspect = options.fit === "cover" ? this._detailSourceRatio : this._frameAspect;
     const fitNotes = { cover: "Fills the whole frame", contain: "Shows the complete artwork", stretch: "Fills without cropping" };
     const toneNotes = { vivid: "More colour and contrast", balanced: "Natural colour and contrast", soft: "Gentler, paper-like result" };
     const modeNotes = { auto: "Chooses the best method for the artwork", official: "Matches Fraimic's converter", none: "Uses the nearest panel colours", bayer: "Ordered pattern, good for graphics", floyd_steinberg: "Detailed diffusion for photographs", atkinson: "Lighter diffusion with stronger highlights" };
@@ -1796,15 +1827,18 @@ class FraimicPanel extends HTMLElement {
     const sourceLink = `<button class="detail-text-link" data-related-source="${h(detail.source)}">${h(detail.source_name || detail.source)}</button>`;
     const body = `<div class="detail-grid">
       <div class="detail-workspace">
-        <div class="detail-section-head"><h3>Position artwork</h3><span class="spacer"></span><span class="counter">${h(this._frame.name)} · ${h(this._frame.width)} × ${h(this._frame.height)}</span></div>
-        <div class="crop-stage" style="--art-aspect:${artAspect}"><img ${this._imageAttrs(detail.image_url, `${detail.title}${detail.artist ? `, ${detail.artist}` : ""}`)}>${cropWindow}</div>
+        <div class="detail-section-head"><h3>${h(this._frame.name)}</h3><span class="spacer"></span><span class="counter">${h(this._frame.width)} × ${h(this._frame.height)}${this._panelPpi ? ` · ${this._panelPpi} PPI` : ""}</span></div>
+        <div class="artwork-viewport${this._previewEnabled && this._previewScale !== "fit" ? " zoomed" : ""}" data-artwork-viewport><div class="crop-stage" style="--art-aspect:${artAspect};--art-rotation:${detail.saved_rotation || 0}deg"><img ${this._imageAttrs(detail.image_url, `${detail.title}${detail.artist ? `, ${detail.artist}` : ""}`)} style="object-fit:${options.fit === "contain" ? "contain" : "fill"}">${cropWindow}</div></div>
         ${options.fit === "cover" ? `<div class="crop-tools"><button class="btn small" data-crop-command="reset"><ha-icon icon="mdi:restore"></ha-icon> Reset</button><button class="btn small" data-crop-command="centre"><ha-icon icon="mdi:image-filter-center-focus"></ha-icon> Centre</button><button class="btn small" data-crop-command="in"><ha-icon icon="mdi:magnify-plus-outline"></ha-icon> Zoom in</button><button class="btn small" data-crop-command="out"><ha-icon icon="mdi:magnify-minus-outline"></ha-icon> Zoom out</button></div><p class="crop-hint"><ha-icon icon="mdi:cursor-move"></ha-icon> Drag the crop to choose what stays inside the frame.</p>` : `<p class="crop-hint">${h(fitNotes[options.fit])}.</p>`}
+        ${this._detailPreviewTemplate()}
       </div>
       <aside class="detail-inspector" aria-label="Display settings">
         <div class="detail-section-head"><h3>Display settings</h3><span class="spacer"></span><span class="counter">Spectra 6</span></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Fit</h3><p>${h(fitNotes[options.fit])}</p></div><select class="detail-select" data-detail-fit aria-label="Artwork fit"><option value="cover" ${options.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${options.fit === "contain" ? "selected" : ""}>Contain</option><option value="stretch" ${options.fit === "stretch" ? "selected" : ""}>Stretch</option></select></div>
-        <div class="detail-setting"><div class="detail-setting-copy"><h3>Tone</h3><p>${h(toneNotes[options.tone])}</p></div><select class="detail-select" data-detail-tone aria-label="Artwork tone"><option value="vivid" ${options.tone === "vivid" ? "selected" : ""}>Vivid</option><option value="balanced" ${options.tone === "balanced" ? "selected" : ""}>Balanced</option><option value="soft" ${options.tone === "soft" ? "selected" : ""}>Soft</option></select></div>
+        <div class="detail-setting"><div class="detail-setting-copy"><h3>Tone</h3><p>${options.mode === "official" ? "Fraimic official uses its own fixed tone" : h(toneNotes[options.tone])}</p></div><select class="detail-select" data-detail-tone aria-label="Artwork tone" ${options.mode === "official" ? "disabled" : ""}><option value="vivid" ${options.tone === "vivid" ? "selected" : ""}>Vivid</option><option value="balanced" ${options.tone === "balanced" ? "selected" : ""}>Balanced</option><option value="soft" ${options.tone === "soft" ? "selected" : ""}>Soft</option></select></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Dithering</h3><p>${h(modeNotes[options.mode])}</p></div><select class="detail-select" data-detail-mode aria-label="Artwork dithering"><option value="auto" ${options.mode === "auto" ? "selected" : ""}>Automatic</option><option value="official" ${options.mode === "official" ? "selected" : ""}>Fraimic official</option><option value="none" ${options.mode === "none" ? "selected" : ""}>None</option><option value="bayer" ${options.mode === "bayer" ? "selected" : ""}>Bayer</option><option value="floyd_steinberg" ${options.mode === "floyd_steinberg" ? "selected" : ""}>Floyd-Steinberg</option><option value="atkinson" ${options.mode === "atkinson" ? "selected" : ""}>Atkinson</option></select></div>
+        <div class="preview-tools"><label class="preview-toggle"><input type="checkbox" data-toggle-preview ${this._previewEnabled ? "checked" : ""}>Preview inside the crop (beta)</label></div>
+        <div class="preview-status" data-preview-status role="status" aria-live="polite" hidden></div><button class="btn small" data-preview-retry hidden>Retry preview</button>
         <section class="artwork-details"><h3>Artwork details</h3><dl class="detail-meta-list">
           <div class="detail-meta-row"><dt>Artist</dt><dd>${artistLink}</dd></div>
           <div class="detail-meta-row"><dt>Source</dt><dd>${sourceLink}</dd></div>
@@ -1836,12 +1870,210 @@ class FraimicPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-detail-fit]")?.addEventListener("change", (event) => { options.fit = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelector("[data-detail-tone]")?.addEventListener("change", (event) => { options.tone = event.target.value; this._renderDetailModal(); });
     this.shadowRoot.querySelector("[data-detail-mode]")?.addEventListener("change", (event) => { options.mode = event.target.value; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-toggle-preview]")?.addEventListener("change", (event) => {
+      this._previewEnabled = event.target.checked;
+      if (!this._previewEnabled) {
+        this._previewScale = "fit";
+      }
+      this._renderDetailModal();
+    });
+    this.shadowRoot.querySelector("[data-preview-scale]")?.addEventListener("change", (event) => { this._previewScale = event.target.value; this._renderDetailModal(); });
+    this.shadowRoot.querySelector("[data-preview-ruler]")?.addEventListener("input", (event) => {
+      this._previewRuler = Number(event.target.value);
+      this.shadowRoot.querySelector(".preview-ruler").style.width = `${this._previewRuler}px`;
+      this._sizeArtworkPreview();
+    });
+    this.shadowRoot.querySelector("[data-preview-retry]")?.addEventListener("click", () => {
+      this._detailPreview?.errors.delete(this._detailPreview.wanted);
+      this._queueDetailPreview();
+    });
+    this._previewObserver?.disconnect();
+    const viewport = this.shadowRoot.querySelector("[data-artwork-viewport]");
+    if (viewport) {
+      this._previewObserver = new ResizeObserver(() => this._sizeArtworkPreview());
+      this._previewObserver.observe(viewport);
+      this._sizeArtworkPreview();
+      this._queueDetailPreview();
+    }
     this.shadowRoot.querySelectorAll("[data-crop-command]").forEach((node) => node.onclick = () => this._adjustCrop(node.dataset.cropCommand));
-    this.shadowRoot.querySelector("[data-crop-window]")?.addEventListener("pointerdown", (event) => { if (!event.target.dataset.cropResize) this._dragCrop(event, false); });
+    this.shadowRoot.querySelector("[data-crop-window]")?.addEventListener("pointerdown", (event) => { if (options.fit === "cover" && !event.target.hasAttribute("data-crop-resize")) this._dragCrop(event, false); });
     this.shadowRoot.querySelector("[data-crop-resize]")?.addEventListener("pointerdown", (event) => { event.stopPropagation(); this._dragCrop(event, true); });
     this.shadowRoot.querySelectorAll("[data-related-query]").forEach((node) => node.onclick = () => { this._query = node.dataset.relatedQuery; this._closeModal(); this._loadGallery(); });
     this.shadowRoot.querySelectorAll("[data-related-source]").forEach((node) => node.onclick = () => { this._closeModal(); this._setSource(node.dataset.relatedSource); });
     this.shadowRoot.querySelectorAll("[data-related-frame]").forEach((node) => node.onclick = async () => { this._closeModal(); await this._selectFrame(node.dataset.relatedFrame); this._openDetail(detail.source, detail.itemId, null); });
+  }
+
+  get _panelPpi() {
+    // Published panel density: https://fraimic.com/ (Product specifications).
+    const sides = [this._frame?.width, this._frame?.height].sort((a, b) => a - b).join("x");
+    return { "1200x1600": 150, "1440x2560": 94 }[sides] || null;
+  }
+
+  _detailPreviewTemplate() {
+    const ppi = this._panelPpi;
+    const scale = this._previewScale;
+    if (!this._previewEnabled) return "";
+    return `<div class="preview-tools"><label for="preview-scale">Zoom</label><select id="preview-scale" class="detail-select" data-preview-scale>
+      <option value="fit" ${scale === "fit" ? "selected" : ""}>Fit artwork</option>
+      <option value="pixels" ${scale === "pixels" ? "selected" : ""}>1:1 pixels</option>
+      ${ppi ? `<option value="physical" ${scale === "physical" ? "selected" : ""}>Physical size</option>` : ""}
+      </select><span class="counter">${scale === "pixels" ? "One panel pixel per screen pixel" : scale === "physical" ? "Calibrate below, then scroll to inspect" : "Only the frame area is processed"}</span></div>
+      ${ppi ? `<p class="preview-note">${ppi} PPI · ${(25.4 / ppi).toFixed(3)} mm per panel pixel. Six panel colours; room lighting and your screen affect the colour match.</p>` : `<p class="preview-note">Six panel colours; room lighting and your screen affect the colour match.</p>`}
+      ${scale === "physical" ? `<div class="preview-calibration"><label for="preview-ruler">Match this line to 5 cm on a real ruler.</label><div class="preview-ruler-wrap"><div class="preview-ruler" style="width:${this._previewRuler}px"></div></div><input id="preview-ruler" data-preview-ruler type="range" min="80" max="500" step="1" value="${this._previewRuler}"><p class="preview-note">Adjust again if you move to another screen or change browser zoom. View from the same distance you would view the frame.</p></div>` : ""}`;
+  }
+
+  _disposeDetailPreview() {
+    this._cropDragging = false;
+    const state = this._detailPreview;
+    this._detailPreview = null;
+    this._previewObserver?.disconnect();
+    if (!state) return;
+    clearTimeout(state.timer);
+    state.controller?.abort();
+    state.bitmap?.image.close();
+  }
+
+  _queueDetailPreview() {
+    if (!this._detail || this._cropDragging || !this._modal?.className?.includes("detail-dialog")) return;
+    const options = this._detailOptions;
+    const params = new URLSearchParams({ entry_id: this._selectedFrameId, source: this._detail.source, item_id: this._detail.itemId, fit: options.fit, tone: options.tone, resolution: "native" });
+    if (options.fit === "cover" && options.crop) params.set("crop", JSON.stringify(options.crop));
+    const context = params.toString();
+    const keyFor = (mode) => `${API}/gallery/preview?${context}&mode=${mode}`;
+    const fresh = !this._detailPreview;
+    const state = this._detailPreview ||= { cache: new Map(), bytes: 0, errors: new Map(), warmed: new Set(), pending: null, bitmap: null };
+    if (state.context !== context) {
+      state.context = context;
+      state.warmKeys = this._detail.warm_previews === false ? [] : Object.keys(DITHER_LABELS).map(keyFor);
+      state.warmed.clear();
+      state.errors.clear();
+    }
+    state.wanted = keyFor(options.mode);
+    this._showDetailPreview(state);
+    this._paintDetailPreview();
+    if (state.pending) return;
+    // One render at a time. The selected mode jumps ahead of speculative work,
+    // and a crop/tone/fit change replaces the remaining background queue.
+    const missing = (key) => !state.cache.has(key) && !state.errors.has(key);
+    const key = missing(state.wanted) ? state.wanted : state.warmKeys.find((candidate) => missing(candidate) && !state.warmed.has(candidate));
+    if (state.scheduled === key) return;
+    clearTimeout(state.timer);
+    state.scheduled = key;
+    if (!key) return;
+    state.timer = setTimeout(async () => {
+      state.scheduled = null;
+      if (this._cropDragging) return;
+      state.pending = key;
+      state.controller = new AbortController();
+      try {
+        const response = await this._hass.fetchWithAuth(key, { signal: state.controller.signal });
+        if (!response.ok) throw new Error(await response.text() || "Preview could not be rendered");
+        const blob = await response.blob();
+        if (state !== this._detailPreview) return;
+        if (blob.size > PREVIEW_CACHE_BYTES) throw new Error("Preview is too large to cache");
+        // Cache compressed PNGs; only the visible selection gets a decoded bitmap.
+        state.bytes -= state.cache.get(key)?.size || 0;
+        state.cache.delete(key);
+        state.cache.set(key, blob);
+        state.bytes += blob.size;
+        while (state.bytes > PREVIEW_CACHE_BYTES || state.cache.size > 18) {
+          const oldest = [...state.cache.keys()].find((candidate) => candidate !== state.wanted);
+          state.bytes -= state.cache.get(oldest).size;
+          state.cache.delete(oldest);
+        }
+        state.errors.delete(key);
+      } catch (error) {
+        if (state !== this._detailPreview) return;
+        state.errors.set(key, this._friendlyError(error));
+      } finally {
+        state.pending = null;
+        if (state === this._detailPreview) {
+          state.warmed.add(key);
+          this._queueDetailPreview();
+        }
+      }
+    }, fresh ? 0 : key === state.wanted ? SEARCH_DELAY : 50);
+  }
+
+  async _showDetailPreview(state) {
+    const key = state.wanted;
+    const blob = state.cache.get(key);
+    if (!this._previewEnabled || !blob || state.errors.has(key) || state.bitmap?.key === key || state.decoding) return;
+    state.decoding = key;
+    try {
+      const image = await createImageBitmap(blob);
+      if (state !== this._detailPreview || state.wanted !== key || !this._previewEnabled) { image.close(); return; }
+      state.bitmap?.image.close();
+      state.bitmap = { key, image };
+    } catch (error) {
+      if (state !== this._detailPreview) return;
+      state.errors.set(key, this._friendlyError(error));
+      state.bytes -= state.cache.get(key)?.size || 0;
+      state.cache.delete(key);
+    } finally {
+      if (state.decoding === key) state.decoding = null;
+      if (state === this._detailPreview) {
+        this._showDetailPreview(state);
+        this._paintDetailPreview();
+      }
+    }
+  }
+
+  _sizeArtworkPreview() {
+    const viewport = this.shadowRoot.querySelector("[data-artwork-viewport]");
+    if (!viewport || !this._detail) return;
+    const stage = viewport.querySelector(".crop-stage");
+    if (!this._previewEnabled || this._previewScale === "fit") {
+      stage.style.width = "100%";
+    } else {
+      const frameWidth = [90, 270].includes(this._frame.rotation) ? this._frame.height : this._frame.width;
+      const crop = this._rotateCrop(this._detailOptions.crop, this._detail.saved_rotation);
+      const fraction = this._detailOptions.fit === "cover" ? crop[2] - crop[0] : 1;
+      const scale = this._previewScale === "pixels" ? 1 / (window.devicePixelRatio || 1) : (this._previewRuler * 25.4 / 50) / this._panelPpi;
+      const width = frameWidth * scale / fraction;
+      stage.style.width = `${width}px`;
+      // Scale the whole artwork together, keeping the crop's original context.
+      const center = this._detailOptions.fit === "cover" ? [(crop[0] + crop[2]) / 2, (crop[1] + crop[3]) / 2] : [.5, .5];
+      viewport.scrollLeft = stage.clientWidth * center[0] - viewport.clientWidth / 2;
+      viewport.scrollTop = stage.clientHeight * center[1] - viewport.clientHeight / 2;
+    }
+    const image = stage.querySelector("img");
+    const sideways = [90, 270].includes(this._detail.saved_rotation);
+    image.style.width = `${sideways ? stage.clientHeight : stage.clientWidth}px`;
+    image.style.height = `${sideways ? stage.clientWidth : stage.clientHeight}px`;
+  }
+
+  _paintDetailPreview() {
+    const state = this._detailPreview;
+    const canvas = this.shadowRoot.querySelector(".crop-window canvas");
+    if (!canvas) return;
+    const bitmap = this._previewEnabled && !this._cropDragging && state?.bitmap?.key === state?.wanted ? state?.bitmap?.image : null;
+    canvas.hidden = !bitmap;
+    const status = this.shadowRoot.querySelector("[data-preview-status]");
+    const retry = this.shadowRoot.querySelector("[data-preview-retry]");
+    const badge = this.shadowRoot.querySelector("[data-crop-preview-status]");
+    if (!status || !state) return;
+    const error = state.errors.get(state.wanted);
+    const busy = !bitmap && !error;
+    const mode = DITHER_LABELS[this._detailOptions.mode];
+    const tone = this._detailOptions.mode === "official" ? "fixed tone" : this._detailOptions.tone;
+    const waiting = state.pending && state.pending !== state.wanted && !state.cache.has(state.wanted);
+    const message = this._cropDragging ? "Release to update the preview." : error ? error : bitmap ? `${mode} · ${tone} preview ready` : `${waiting ? "Preparing" : "Rendering"} ${mode} · ${tone}…`;
+    status.hidden = !this._previewEnabled;
+    status.dataset.busy = String(busy);
+    status.dataset.error = String(Boolean(error));
+    status.textContent = message + (busy && !this._cropDragging ? waiting ? " Finishing the current render first." : " Original artwork remains visible until ready." : "");
+    retry.hidden = !this._previewEnabled || !error;
+    badge.hidden = !this._previewEnabled || Boolean(bitmap);
+    badge.textContent = error ? "Preview failed. Retry below Dithering." : message;
+    if (!bitmap) return;
+    canvas.style.imageRendering = this._previewScale === "pixels" ? "pixelated" : "auto";
+    if (canvas.dataset.previewKey === state.wanted) return;
+    // Keep the canvas at panel resolution even at physical-size zoom.
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext("2d").drawImage(bitmap, 0, 0);
+    canvas.dataset.previewKey = state.wanted;
   }
 
   get _viewingFavorites() { return this._selectedSource === "saved" && this._selectedBrowseId === "favorites"; }
@@ -1908,13 +2140,29 @@ class FraimicPanel extends HTMLElement {
 
   _defaultCrop(detail, frame) {
     const sourceRatio = (detail.width || 4) / (detail.height || 3);
-    const normalizedRatio = this._frameRatio(frame) / sourceRatio;
+    const frameRatio = this._frameRatio(frame);
+    const normalizedRatio = ([90, 270].includes(detail.saved_rotation) ? 1 / frameRatio : frameRatio) / sourceRatio;
     if (normalizedRatio <= 1) return [(1 - normalizedRatio) / 2, 0, (1 + normalizedRatio) / 2, 1];
     const height = 1 / normalizedRatio;
     return [0, (1 - height) / 2, 1, (1 + height) / 2];
   }
 
   _cropStyle(crop) { return `left:${crop[0] * 100}%;top:${crop[1] * 100}%;width:${(crop[2] - crop[0]) * 100}%;height:${(crop[3] - crop[1]) * 100}%`; }
+
+  get _detailSourceRatio() {
+    const ratio = (this._detail.width || 4) / (this._detail.height || 3);
+    return [90, 270].includes(this._detail.saved_rotation) ? 1 / ratio : ratio;
+  }
+
+  _rotateCrop([x0, y0, x1, y1], rotation = 0) {
+    // Stored crops use original coordinates; the editor shows the saved rotation.
+    switch ((rotation + 360) % 360) {
+      case 90: return [1 - y1, x0, 1 - y0, x1];
+      case 180: return [1 - x1, 1 - y1, 1 - x0, 1 - y0];
+      case 270: return [y0, 1 - x1, y1, 1 - x0];
+      default: return [x0, y0, x1, y1];
+    }
+  }
 
   _setDetailCrop(crop, render = true) {
     if (!crop.every(Number.isFinite)) return;
@@ -1937,7 +2185,9 @@ class FraimicPanel extends HTMLElement {
     const target = event.currentTarget;
     const stage = target.closest(".crop-stage");
     const windowNode = stage.querySelector("[data-crop-window]");
-    const original = [...this._detailOptions.crop];
+    const original = this._rotateCrop(this._detailOptions.crop, this._detail.saved_rotation);
+    this._cropDragging = true;
+    this._paintDetailPreview();
     const startX = event.clientX, startY = event.clientY;
     target.setPointerCapture(event.pointerId);
     const move = (next) => {
@@ -1945,7 +2195,7 @@ class FraimicPanel extends HTMLElement {
       const dx = (next.clientX - startX) / stage.clientWidth, dy = (next.clientY - startY) / stage.clientHeight;
       let crop;
       if (resize) {
-        const normalizedRatio = this._frameRatio(this._frame) / ((this._detail.width || 4) / (this._detail.height || 3));
+        const normalizedRatio = this._frameRatio(this._frame) / this._detailSourceRatio;
         let width = Math.max(.12, Math.min(1 - original[0], original[2] - original[0] + dx));
         let height = width / normalizedRatio;
         if (height > 1 - original[1]) { height = 1 - original[1]; width = height * normalizedRatio; }
@@ -1956,10 +2206,10 @@ class FraimicPanel extends HTMLElement {
         const y = Math.max(0, Math.min(1 - height, original[1] + dy));
         crop = [x, y, x + width, y + height];
       }
-      this._setDetailCrop(crop, false);
+      this._setDetailCrop(this._rotateCrop(crop, -(this._detail.saved_rotation || 0)), false);
       windowNode.style.cssText = this._cropStyle(crop);
     };
-    const up = () => { target.removeEventListener("pointermove", move); target.removeEventListener("pointerup", up); target.removeEventListener("pointercancel", up); this._renderDetailModal(); };
+    const up = () => { this._cropDragging = false; target.removeEventListener("pointermove", move); target.removeEventListener("pointerup", up); target.removeEventListener("pointercancel", up); this._renderDetailModal(); };
     target.addEventListener("pointermove", move);
     target.addEventListener("pointerup", up);
     target.addEventListener("pointercancel", up);
@@ -2178,8 +2428,8 @@ class FraimicPanel extends HTMLElement {
   _requestCloseOverlays() { if (this._overlaysDirty() && !confirm("Discard unsaved overlay changes?")) return; this._discardOverlays(); }
   async _copyOverlays() { const target = this._frames.find((frame) => frame.id !== this._selectedFrameId); if (!target) return; if (!confirm(`Replace overlays on ${target.name}?`)) return; try { await this._api("overlays", this._json({ action: "copy", entry_id: this._selectedFrameId, target_entry_id: target.id })); this._notify(`Copied overlays to ${target.name}.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
 
-  _openModal(title, body, actions = "", options = {}) { this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
-  _closeModal() { this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
+  _openModal(title, body, actions = "", options = {}) { if (options.className !== "detail-dialog") this._disposeDetailPreview(); this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
+  _closeModal() { this._disposeDetailPreview(); this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
 
   _trapModalFocus(event) {
     const focusable = [...this.shadowRoot.querySelectorAll(".dialog button:not([disabled]), .dialog input:not([disabled]), .dialog select:not([disabled]), .dialog textarea:not([disabled]), .dialog a[href]")];
