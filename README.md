@@ -1,610 +1,294 @@
-# Fraimic E-Ink Canvas — Home Assistant integration
+# Fraimic E-Ink Canvas for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-A proper, UI-configured Home Assistant integration for the **Fraimic E-Ink Canvas** colour art frame.
+Browse artwork, build playlists, and manage your Fraimic colour e-ink frames from
+Home Assistant. The integration converts ordinary images for the six-colour
+display and delivers them over your local network or through your Fraimic account.
 
-The frame ships with a local REST API, but Fraimic's official "guide" is just copy-paste
-`rest:` sensors and `shell_command:` curl calls in `configuration.yaml` — no device, no UI
-setup, brittle when the frame sleeps, and you have to hand-convert every image to a raw binary
-file *outside* Home Assistant before you can show it.
+![The Fraimic dashboard showing the artwork gallery](docs/screenshots/gallery.png)
 
-Worse, that official guide is **factually wrong** about the frame (see
-[Accuracy note](#accuracy-note) below). This integration is built against how the frames
-*actually* behave.
-
-- 🔌 **UI setup** — add it from *Settings → Devices & Services*, no YAML. Auto-discovered via mDNS.
-- 🔋 **Rich entities** — battery, voltage, Wi-Fi signal/SSID/channel/IP, firmware, uptime,
-  last/next refresh, charging, cable, connectivity, and more — all on one device with correct
-  device classes. Works with **both** the nested and flat `/api/info` schemas.
-- 🎛️ **Buttons** — refresh display, sleep, restart.
-- 🎨 **`fraimic.upload_image` service** — point it at a **file, URL, or camera/image entity**
-  and it does resize / rotate / **Spectra 6 colour dithering** / nibble-packing and uploads it
-  via the safe `/upload` endpoint. No manual conversion, no `tools/` scripts.
-- 🪞 **Live preview** — an `image` entity shows a colour preview of the artwork on the frame.
-- 😴 **Sleep-aware** — when the frame is in deep sleep (and unreachable), entities go
-  *unavailable* cleanly instead of spamming errors.
-- 📐 **Per-frame resolution** — set each frame's pixel size (the 13.3" frame is 1600×1200;
-  smaller frames differ), so colour conversion always produces the exact buffer the frame wants.
+- **An artwork dashboard:** browse your library, Reframed, Wallhaven, museums,
+  and photography sources. Search, filter, and save favorites.
+- **Playlists and a queue:** create named playlists, assign them to frames, and
+  choose what plays next. Each frame keeps its own playback order.
+- **Picture controls:** position the crop and choose fit, tone, and dithering.
+  Preview the conversion without refreshing the frame.
+- **Home Assistant data on the wall:** add weather, clocks, calendars, sensor
+  values, and other overlays, or render a full dashboard screen.
+- **Battery-aware delivery:** upload locally while the frame is awake, queue
+  for later, or use cloud delivery so it can sleep between scheduled images.
+- **Native Home Assistant integration:** UI setup, discovery, entities, a media
+  player, and actions for automations. No YAML required to get started.
 
 ## Installation
 
-Upgrading from 1.x? Read the [2.0 release and upgrade notes](docs/release-2.0.md),
-including the replacement for removed Home Assistant scene entities.
+Requires **Home Assistant 2025.12 or newer**. Both frame sizes have been tested:
 
-### HACS (recommended)
+| Frame | Native resolution |
+|-------|-------------------|
+| Standard Canvas, 13.3-inch | 1600 × 1200 |
+| Large Canvas, 31.5-inch | 1440 × 2560 |
 
-1. HACS → ⋮ → **Custom repositories**.
+Set the mount rotation in the frame's options for portrait or landscape use.
+
+### HACS
+
+1. In HACS, open **⋮ → Custom repositories**.
 2. Add `https://github.com/kristofferR/ha-fraimic-eink` as an **Integration**.
-3. Install **Fraimic E-Ink Canvas**, then restart Home Assistant.
+3. Install **Fraimic E-Ink Canvas** and restart Home Assistant.
 
-### Manual
+For a manual installation, copy `custom_components/fraimic/` into your Home
+Assistant `config/custom_components/` directory and restart.
 
-Copy `custom_components/fraimic/` into your Home Assistant `config/custom_components/` directory
-and restart.
+### Upgrading to 2.0
+
+Back up Home Assistant, update the integration, restart, and reload the browser
+to load the new panel. Existing frame slides migrate into named playlists.
+
+**The old `scene.*` entities and virtual “Fraimic Scenes” device have been
+removed.** Saved Fraimic scenes remain available through `fraimic.send_scene`;
+update automations that used `scene.turn_on`. See the
+[2.0 upgrade notes](docs/release-2.0.md#upgrading-from-1x).
 
 ## Setup
 
-Make sure the frame is **awake** (tap it — it is unreachable in deep sleep), then:
+1. Wake the frame, then open **Settings → Devices & Services → Add Integration →
+   Fraimic E-Ink Canvas**. Discovered frames can also be added from that page.
+2. Enter `fraimic.local` or the frame's IP address. Add each frame separately;
+   use individual IP addresses when you have several.
+3. Confirm the detected resolution, or select the model if the firmware does
+   not report it.
+4. Open **Fraimic** in the Home Assistant sidebar.
 
-*Settings → Devices & Services → Add Integration → Fraimic E-Ink Canvas*
+Use the integration's **Configure** button to set delivery mode, mount rotation,
+image defaults, power mode, cache, and optional source API keys. These settings
+are separate for each frame.
 
-1. Enter the host (`fraimic.local`, or the frame's IP if mDNS doesn't resolve — common with
-   Docker/VLAN setups). With multiple frames, use IP addresses to tell them apart.
-2. **Resolution is auto-detected** when the frame reports its size or model. If it can't be
-   determined, you pick the model — **Standard Canvas** (13.3", 1600×1200) or **Large Canvas**
-   (31.5", 1440×2560 native) — or choose *Custom* and enter the pixels. Add each frame separately; they
-   can be different models.
+## The Fraimic dashboard
 
-**Multiple frames:** add each one separately — they appear as independent devices with their
-own resolution, entities, and options. Use IP addresses (not `fraimic.local`) to tell them apart
-when you have more than one. The `fraimic.upload_image` service takes a **Frame** picker
-(`config_entry_id`) to target a specific one.
+### Browse and display artwork
 
-Every image setting is **configurable per frame** via the integration's **Configure** button —
-not just YAML/service-call. Each frame stores its own defaults for **dither mode, fit, saturation,
-contrast, sharpen**, plus **power mode**, polling interval and **base rotation** (0/90/180/270,
-to match how that frame is mounted). The `upload_image` service overrides a value only when you
-pass it explicitly; otherwise the frame's configured default is used.
+Select a frame at the top, then choose a source in the left sidebar. Reframed
+includes collections, colours, tags, and artists; Wallhaven includes SFW feeds,
+categories, colours, and top lists. Filters help find artwork that suits the
+selected frame's shape.
+
+Use **Upload** for your own images, or open **Manage library** from the app menu.
+JPEG, PNG, WebP, HEIC/HEIF, AVIF, and other Pillow-supported image formats work.
+Heart an image to keep it in **Favorites**.
+
+Open **Picture details** to adjust the crop, fit, tone, and dithering. Choose
+**Show now**, **Play next**, **Add to queue**, or **Add to playlist**. In cloud
+mode, “Show now” submits the image for a scheduled wake; it cannot wake a sleeping
+frame immediately.
+
+![Picture details with crop and display settings](docs/screenshots/picture-details.png)
+
+### Playlists and the queue
+
+Open **Playlists**, create a playlist, and add artwork from the gallery. Choose
+**Play on…** to assign it to the selected frame. The player bar provides playback
+controls; the frame menu includes shuffle and the change interval.
+
+The **Queue** shows pictures added to play once, followed by the frame's upcoming
+playlist rotation. Reordering or skipping there changes that frame's session.
+Edit the playlist itself to change the saved order. Assignments, playback order,
+and paused state survive Home Assistant restarts.
+
+![A saved playlist in the Fraimic dashboard](docs/screenshots/playlist.png)
+
+### Overlays
+
+Open the player bar's **Frame menu → Overlays** to place information on top of
+artwork. Available types include clock, date, weather, agenda, to-do, sensor
+value, entity list, chart, gauge, text, and caption.
+
+Drag and resize overlays on the canvas, choose a background plate and text size,
+and set visibility by time, weekday, or entity state. Overlays belong to the
+frame; individual playlist slides can override inheritance.
+
+### Dashboard screens
+
+For a full information display, `fraimic.render_screen` renders widgets directly
+from Home Assistant data. Layouts include a full panel, two halves, and four
+quadrants. No browser or screenshot add-on is needed for widget screens.
+
+Picture screens can instead use an image URL, camera/image entity, or online
+artwork provider. A URL must return an image; use a separate screenshot service
+if you want to display a Lovelace webpage.
+
+See [dashboard screens](docs/dashboard-screens.md) for the widget reference,
+stored-screen wizard, and YAML examples. `preview_only: true` renders to the
+**Screen preview** entity without uploading to the physical frame.
+
+## Delivery and battery life
+
+| Mode | How artwork reaches the frame | Requirements |
+|------|-------------------------------|--------------|
+| **Local** (default) | Home Assistant uploads directly; a sleeping frame can defer delivery until it wakes. | Network access from Home Assistant to the frame. No Fraimic account needed for delivery. |
+| **Cloud** | Home Assistant updates a dedicated album in your Fraimic account; the frame downloads the image on a scheduled wake. | Fraimic account and internet access. |
+
+For cloud delivery, choose **cloud** in the frame's options, sign in with the
+account you use at `app.fraimic.com`, and select the frame. The integration turns
+keep-awake off after the first delivery. Switching back to local delivery
+re-enables it and deactivates the integration's album.
+
+**Cloud acceptance means queued, not confirmed on the physical display.** The
+dashboard keeps the last confirmed local artwork separate from the advancing
+playback order. Allow the scheduled wake interval for delivery. Each wake and
+redraw uses battery, so longer playlist intervals help. See the
+[verified cloud scheduling behaviour](docs/fraimic-cloud-api/albums-scheduling.md).
 
 ### Battery-saving modes
 
-New frames default to **Minimum** mode: no startup or periodic requests, no active queued-send
-polling unless the frame advertised its next scheduled wake, and at most one automatic redraw per
-day while unplugged. Use **Refresh frame data** when you want fresh sensors, battery-health data,
-or cloud albums; cached values survive Home Assistant restarts. Opening the Fraimic dashboard
-probes the frame at most every five minutes, so the panel shows whether it is really awake.
+Local delivery has three power profiles:
 
-- **Balanced** polls no faster than hourly and permits up to eight automatic redraws per day.
-- **Responsive** retains the old polling behaviour and permits up to 48 automatic redraws per day.
-- Existing entries migrate to Responsive so an upgrade does not silently change their behaviour.
-- Automatic camera, playlist, and scheduled sends are deferred below 25% battery; charging bypasses
-  cooldowns and budgets. Manual sends always remain available.
-- Every integration upload shares a persisted content hash, so identical output is never redrawn.
-  Native scheduled refreshes invalidate that hash.
-- Queued sends use lightweight liveness probes with exponential backoff and latest-wins delivery.
-  In Minimum mode, wake the frame and press **Try queued send** for immediate delivery.
-- **Sleep after upload** is an experimental opt-in. It waits 45 seconds for rendering, then sleeps
-  an unplugged frame only when no upload/queue work remains and firmware keep-awake is off.
+| Profile | Background polling | Automatic redraw budget while unplugged |
+|---------|--------------------|-----------------------------------------|
+| **Minimum** (new frames) | No startup or periodic polling; queued-send probes depend on a known scheduled wake. | 1 per day |
+| **Balanced** | No faster than hourly. | 8 per day |
+| **Responsive** | Uses the configured polling interval. | 48 per day |
 
-### Cloud delivery (battery mode)
+Existing entries without a power profile migrate to Responsive. Automatic sends
+are deferred below 25% battery; charging bypasses cooldowns and budgets. Manual
+sends remain available. Cloud delivery uses its album schedule instead of these
+local polling and send-queue controls.
 
-Set **Delivery** to **cloud** in the frame's options and sign in with your Fraimic account (the
-same login as the app). Home Assistant then uploads every image to your account and keeps a
-private album named after the frame. The album's schedule wakes the frame from deep sleep for each
-image, so **keep-awake is switched off** after the first delivery and the frame no longer needs
-to be reachable on your network. Playlists, queued sends, screens and the upload service all work
-unchanged; a "show now" appears at the frame's next wake, which is at most one playlist interval
-plus three minutes away. While the frame sleeps, battery and settings come from your account.
-Switching back to **local** re-enables keep-awake and deactivates the album.
+Use **Refresh frame data** for fresh sensors and **Try queued send** after waking
+the frame. Opening the dashboard also probes at most every five minutes. Local
+queued sends are latest-wins: a newer pending image replaces the previous one.
+Identical rendered content is skipped to avoid unnecessary redraws.
 
-Images are pre-dithered here and uploaded exactly on the panel palette, so the cloud's own
-processing leaves them untouched. Each wake costs roughly three minutes of radio and a full
-redraw, so the playlist interval is the battery knob.
+**Sleep after upload** is an experimental option. It waits for rendering to
+finish before sleeping an unplugged frame, provided no upload or queue work
+remains and firmware keep-awake is off.
 
-## Entities
+## Image settings
 
-| Type | Entities |
-|------|----------|
-| Sensor | Battery %, Battery voltage, Battery source, Wi-Fi signal, Wi-Fi SSID, Wi-Fi channel, IP address, Firmware, Uptime, Last refresh, Next refresh |
-| Binary sensor | Charging, Cable connected, Wi-Fi connected, Registered, Time synced, Voice recording, Keep awake |
-| Button | Refresh display, Sleep, Restart |
-| Image | Current artwork (colour preview of the last upload), Screen preview (last rendered [dashboard screen](#dashboard-screens)) |
-| Media player | Display images via the media browser / `play_media` |
+Each frame has defaults for fit, dithering, saturation, contrast, sharpen, and
+tone. Explicit action parameters override those defaults. Previews follow the
+frame's mounted orientation.
 
-Diagnostic / noisy entities (SSID, IP, voltage, uptime, …) are disabled by default — enable
-them on the device page if you want them. Sensors whose field the frame doesn't report simply
-stay unavailable.
+Leave dithering on **Automatic** to select Floyd–Steinberg for photographs or
+Bayer for flat graphics. Other choices are Atkinson, no dithering, and
+**Fraimic official**, which reproduces Fraimic's published converter and ignores
+the normal saturation, contrast, sharpen, and tone sliders.
 
-**Sources & formats:** anything Pillow reads (JPEG, PNG, WebP, GIF, BMP, TIFF, …) plus
-**HEIC/HEIF** (iPhone photos) and **AVIF**. Non-image media (videos, streams) is rejected with
-an error that says what it actually was.
+The frame has six ink colours, so a monitor preview cannot reproduce its physical
+appearance exactly. See [image conversion](docs/image-conversion.md) for the
+palette, processing pipeline, and native buffer formats.
 
-**Cameras:** playing a camera on the frame (media browser or
-`play_media` with `media-source://camera/camera.x` / plain `camera.x`) takes a **still
-snapshot** — a live stream is meaningless on a ~30 s E-Ink panel. By default it takes one
-snapshot only; enable periodic snapshots with the **Camera refresh interval** option per frame
-(min 60 s, `0` = show once).
-Press **Stop** on the media player to end the loop — the last image stays on the frame.
+Downloaded artwork and conversions are cached under `<config>/fraimic_cache/`.
+The default is 30 days with a 2 GB limit. **Forever** disables expiry and size
+eviction; **off** disables the persistent cache. The integration prepares the
+next three fixed playlist pictures by default (configurable from 0 to 12).
+Dynamic dashboards and camera snapshots render at display time.
 
-## Dashboard
+## Automations and entities
 
-Each frame is its own device, so the auto-generated device page already gives you everything.
-For a nicer view, this card shows the **Current artwork** preview (it renders at the frame's real
-aspect ratio and **mounted orientation** — portrait or landscape — automatically, because the
-preview is rotated to match the frame's base rotation), plus battery and one-tap controls:
-
-```yaml
-type: vertical-stack
-cards:
-  - type: picture-entity
-    entity: image.fraimic_e_ink_canvas_current_artwork
-    show_state: false
-    show_name: false
-  - type: glance
-    entities:
-      - entity: sensor.fraimic_e_ink_canvas_battery
-      - entity: binary_sensor.fraimic_e_ink_canvas_charging
-      - entity: sensor.fraimic_e_ink_canvas_wi_fi_signal
-  - type: horizontal-stack
-    cards:
-      - type: button
-        name: Refresh
-        icon: mdi:monitor-shimmer
-        tap_action:
-          action: perform-action
-          perform_action: button.press
-          target: { entity_id: button.fraimic_e_ink_canvas_refresh_display }
-      - type: button
-        name: Sleep
-        icon: mdi:sleep
-        tap_action:
-          action: perform-action
-          perform_action: button.press
-          target: { entity_id: button.fraimic_e_ink_canvas_sleep }
-      - type: button
-        name: Restart
-        icon: mdi:restart
-        tap_action:
-          action: perform-action
-          perform_action: button.press
-          target: { entity_id: button.fraimic_e_ink_canvas_restart }
-```
-
-**Multiple frames:** entity IDs are suffixed per device (e.g.
-`image.fraimic_e_ink_canvas_2_current_artwork`) — duplicate the stack per frame using each
-frame's IDs (check *Settings → Devices* for the exact names). The integration renders the Large frame
-at 1440x2560 and the Standard at 1600x1200; the preview follows the mount rotation you set so each
-card matches the real frame.
-
-## Uploading artwork
-
-### The easy way — media player + media browser
-
-Each frame is also a **`media_player`**, so the simplest way to display an image is the native HA
-media browser: open the frame's media-player card, **Browse media**, pick any image from your
-media sources (e.g. *Local Media* in `/config/media`), and it's sent to the frame — converted with
-that frame's configured settings. No paths, no service YAML.
-
-It also works with the standard service, which is handy for automations:
-
-```yaml
-action: media_player.play_media
-target:
-  entity_id: media_player.fraimic_e_ink_canvas
-data:
-  media_content_type: image
-  media_content_id: media-source://media_source/local/art/sunset.jpg
-```
-
-The media player also shows the current artwork as its cover image.
-
-### Full control — the upload service
-
-For per-call overrides (fit, rotate, dither mode, saturation…), call the `fraimic.upload_image`
-service with **one** image source:
+Open **Developer Tools → Actions** to use the frame picker and available fields.
+For actions targeting one frame, add `config_entry_id` if more than one is
+configured.
 
 ```yaml
 action: fraimic.upload_image
 data:
-  url: https://example.com/poster.jpg
-  fit: cover            # cover (crop) | contain (white) | contain_black (black) | stretch
-  rotate: 0             # 0 | 90 | 180 | 270
-  mode: auto            # auto | official | floyd_steinberg | atkinson | bayer | none
-  saturation: 1.15      # kept modest (real Spectra 6 owners push contrast, not saturation)
-  contrast: 1.4         # pushed hard — the panel has no backlight
-  sharpen: 80           # unsharp-mask strength 0-100
-  tone: 25              # filmic S-curve: midtone contrast + shadow/highlight rolloff
+  url: https://example.com/art.jpg
+  fit: cover
+  mode: auto
 ```
 
-All processing options are optional with sensible defaults — the simple call is just
-`data: { url: ... }`.
+Provide exactly one source: `url`, `path` (inside an allowlisted directory),
+`image_entity_id` (camera or image), or `library_image_id`. Image adjustments are
+optional. Local uploads use `/api/image` on firmware 0.2.28 and newer, with
+multipart `/upload` for older or unknown firmware. A successful upload triggers
+the redraw itself; no extra refresh action is needed.
 
-Other sources:
-
-```yaml
-# A local file (must be in an allowlisted dir, e.g. /config/www/...)
-action: fraimic.upload_image
-data:
-  path: /config/www/art/sunset.jpg
-
-# A camera or image entity (e.g. a generated dashboard, weather snapshot, etc.)
-action: fraimic.upload_image
-data:
-  image_entity_id: camera.front_door
-```
-
-If more than one frame is configured, add `config_entry_id:` (a **Frame** picker is shown in the
-UI service editor). The integration produces the exact buffer the targeted frame's resolution
-requires and uploads it over the safe `/upload` path — the frame renders it by itself
-(~20–30 s, verified on real hardware; no extra refresh call needed).
-
-### Example automation — rotate art each morning
-
-```yaml
-automation:
-  - alias: Fraimic daily art
-    triggers:
-      - trigger: time
-        at: "08:00:00"
-    actions:
-      - action: fraimic.upload_image
-        data:
-          path: >-
-            /config/www/fraimic/{{ ["mon","tue","wed","thu","fri","sat","sun"][now().weekday()] }}.jpg
-```
-
-**Low battery alert** — just a `numeric_state` trigger on `sensor.fraimic_e_ink_canvas_battery`;
-no template sensor needed.
-
-## Dashboard screens
-
-The frame can render **Home Assistant data natively** — sensors, entity lists, templated text —
-as a designed e-ink dashboard, TRMNL-style: widgets composed into layout slots, built as crisp
-vector graphics on the server (no headless browser, works on any HA install) using only the
-panel's six real colours, so the result is pixel-perfect with zero dithering noise.
-
-![Sample dashboard screen](docs/sample-screen.png)
-
-The screen above is exactly what this call produces:
-
-```yaml
-action: fraimic.render_screen
-data:
-  screen:
-    name: Home
-    layout: quadrant          # full | half_horizontal | half_vertical | quadrant
-    widgets:
-      - type: clock
-        slot: top_left
-      - type: stat
-        slot: top_right
-        entity: sensor.outdoor_temperature
-        icon: mdi:thermometer
-        trend: true           # ▲/▼ + change vs 1 h ago (needs recorder)
-      - type: entities
-        slot: bottom_left
-        entities:
-          - sensor.living_room_temperature
-          - sensor.living_room_humidity
-          - light.kitchen
-          - lock.front_door
-      - type: template
-        slot: bottom_right
-        template: >-
-          Energy today: {{ states('sensor.energy_today') }} kWh
-```
-
-Layouts define the slots: `full` (`main`), `half_horizontal` (`top`/`bottom`), `half_vertical`
-(`left`/`right`), `quadrant` (`top_left`/`top_right`/`bottom_left`/`bottom_right`) — one widget
-per slot. Empty slots stay blank.
-
-### Widgets
-
-![Widget showcase](docs/sample-widgets.png)
-
-| Type | What it shows | Key options |
-|------|---------------|-------------|
-| `clock` | Big HH:MM | `format` (strftime, no seconds) |
-| `date` | Weekday + date | `format` (default `%A, %-d %B`) |
-| `stat` | One big value + label + icon + optional trend arrow | `entity` (required), `name`, `icon`, `unit`, `precision`, `trend`, `trend_hours`, `color` |
-| `entities` | Rows of name → state (with icons) | `entities` (list of ids or `{entity, name, icon}`), `max_rows` |
-| `template` | Free-form Jinja-templated text | `template` (required), `align` (`left`/`center`), `size` (`s`/`m`/`l`) |
-| `weather_current` | Condition icon + temperature + condition text | `entity` (weather, required), `name` |
-| `weather_forecast` | Hourly/daily forecast strip (icon, high/low) | `entity` (required), `mode` (`hourly`/`daily`), `count` (1–8) |
-| `calendar` | Agenda grouped by day (Today/Tomorrow/…) with accent bars | `entities` (calendar ids, required), `days` (1–14), `max_events` |
-| `todo` | Checklist with checkboxes (strikethrough when done) | `entity` (todo, required), `max_items`, `show_completed` |
-| `chart` | History line/area/bar chart from recorder data | `entities` (≤3, required), `hours` (1–168), `style`, `min`, `max`, `name` |
-| `gauge` | 270° arc gauge with big value | `entity` (required), `min`, `max`, `unit`, `color`, `thresholds` (`[{from, color}]`) |
-| `progress` | Labelled progress bar | `entity` (required), `min`, `max`, `name`, `color` |
-| `image` | A photo / camera frame inside a slot (dithered) | `url` or `entity` (camera/image), `fit` (`cover`/`contain`) |
-
-### Picture screens — full-bleed image / screenshot URL
-
-`kind: picture` skips the widget renderer entirely and shows one image full-screen through the
-normal photo pipeline (dithered + enhanced). Point it at any URL that returns an image — e.g. the
-[puppet add-on](https://github.com/balloob/home-assistant-addons/tree/main/puppet), which
-screenshots real Lovelace dashboards — or a camera/image entity:
-
-```yaml
-action: fraimic.render_screen
-data:
-  screen:
-    kind: picture
-    url: http://homeassistant.local:10000/lovelace/eink?viewport=1600x1200&kiosk
-```
-
-Screen-level options: `name` (shown in the header), `background` / `accent` / per-stat `color`
-(one of `black`, `white`, `yellow`, `red`, `blue`, `green` — the panel's real palette),
-`padding`, and `show_header: false` to drop the title bar. Icons are any
-[Material Design Icon](https://pictogrammers.com/library/mdi/) (`mdi:...`), same names as
-everywhere in HA.
-
-### Managing screens in the UI
-
-Screens can also be created **without any YAML**: on the frame's device page (Settings →
-Devices & Services → Fraimic), choose **Add dashboard screen**. A short wizard asks for the
-basics (name, layout, colours, rotation interval, optional time-of-day window) and then walks
-through each slot with a widget picker and that widget's options — entity pickers, icon picker,
-template editor, the lot. Screens are stored on the frame's config entry and can be edited or
-deleted there later.
-
-Show a stored screen by its name (or id) instead of an inline definition:
-
-```yaml
-action: fraimic.render_screen
-data:
-  screen_id: Gangen
-```
-
-(Gauge `thresholds` are the one option not exposed in the wizard — use the inline YAML form for
-those.)
-
-### Designing without burning refreshes
-
-Every upload is a full ~30 s e-ink refresh and costs battery. Add `preview_only: true` to the
-service call and the screen renders **only to the `Screen preview` image entity** — exactly what
-the panel would show, including the 6-colour quantisation — so you can iterate on a design from
-Developer Tools with zero uploads, then drop the flag when it's right.
-
-Called from an automation (time pattern, state trigger, …), `render_screen` keeps the frame's
-dashboard current — the same trigger patterns as the artwork examples above.
-
-### The playlist — rotate screens automatically
-
-When a frame has stored screens, it grows four playlist entities: a **Playlist** switch, a
-**Screen** select, and **Next/Previous screen** buttons. Turn the switch on and the frame
-rotates through its screens by itself:
-
-- Each new screen shows for its own **rotation interval** (default 6 hours, min 30 minutes) and only inside its
-  optional **time-of-day window / weekdays** (TRMNL-style scheduling: calendar+weather in the
-  morning, photos in the evening…).
-- Before every upload the freshly rendered panel content is **hashed and compared with what's
-  already on the glass — unchanged screens are skipped entirely.** Data still refreshes every
-  cycle; the ~30 s refresh flash and its battery cost only happen when something actually
-  changed. (The clock widget renders minutes, so a clock-bearing screen changes every cycle by
-  design.)
-- **Sleep-aware:** while the frame is unreachable (deep sleep) cycles are skipped quietly, and
-  the moment it answers a poll again the current screen is re-rendered fresh and pushed.
-- **Manual uploads play nice:** `upload_image`, `render_screen`, or the media browser hold the
-  playlist for one interval (your image gets its screen time), then rotation resumes. Starting
-  a camera loop on the media player turns the playlist off explicitly.
-- Selecting a screen in the **Screen** select (or pressing Next/Previous) shows it immediately
-  and rotation continues from there. Playlist state survives restarts.
-
-### Artwork cache and playlist preparation
-
-Frame options include a persistent cache for online artwork and a configurable look-ahead
-window:
-
-- **Downloaded artwork cache** defaults to `30_days`, with a 2 GB least-recently-used disk
-  limit. It stores provider thumbnails, originals, and finished `.bin`/preview conversions
-  under `<config>/fraimic_cache/`, shared by every frame.
-- Select `forever` to disable both expiry and size eviction. A concrete gallery picture is then
-  downloaded and dithered only once for each frame/settings combination, including across Home
-  Assistant restarts. `off` keeps only the existing short-lived RAM caches.
-- **Playlist items to prepare ahead** defaults to 3 (0-12). While the frame is idle, fixed
-  library/gallery pictures coming up next are downloaded and dithered serially. Dynamic
-  dashboards, camera/URL snapshots, and random-provider slides still render at display time so
-  their data stays fresh.
-
-Changing crop, rotation, fit, tone, dither mode, resolution, or processing defaults creates a
-new content-addressed render; it never reuses a conversion made with different settings.
-
-## Online artwork
-
-The frame can fetch art **by itself** — no keys, no accounts:
+For fresh museum artwork:
 
 ```yaml
 action: fraimic.show_online_image
 data:
-  provider: shuffle     # random masterpiece from a random museum
-  caption: true         # small attribution strip: "The Bedroom — Vincent van Gogh, Art Institute of Chicago"
+  provider: shuffle
+  caption: true
 ```
 
-**Zero-config sources:** `met` (The Met), `aic` (Art Institute of Chicago), `cleveland`
-(Cleveland Museum of Art), `smk` (SMK — National Gallery of Denmark), `dimu`
-(Nasjonalmuseet, via the DigitaltMuseum API — Norwegian paintings by default, or search
-all 250+ Nordic museums with `query: Munch`) — public-domain masterpieces from each
-museum's open-access API, aggressively curated for the panel (highlights only, paintings
-preferred, resolution and aspect-ratio checked against your frame's mounted orientation).
-Plus `reframed` ([Reframed Gallery](https://www.reframed.gallery/) — a curated catalogue
-that can be browsed by collection, color, tag, artist, vertical artwork, or recency),
-`wallhaven` ([Wallhaven](https://wallhaven.cc/) — keyless SFW wallpapers, searchable and
-browsable by latest, random, views, favorites, top lists, category, or color),
-`smithsonian` (Smithsonian Open Access — CC0 American Art paintings by default, or
-search the whole collection with `query`), `wellcome` (Wellcome Collection — open-access
-paintings, botanical and natural-history illustration, searchable), `wikimedia` (Commons
-picture of the day), `bing` (Bing's daily image — unofficial endpoint, personal use),
-`apod` (NASA Astronomy Picture of the Day), `nasa` (the NASA Image Library — searchable
-space photography, e.g. `query: aurora borealis`), and `picsum` (random stock photos).
-`shuffle` picks a random museum.
-
-**In the playlist:** a `kind: picture` screen with a `provider` shows a *fresh* artwork every
-rotation — a set-and-forget art frame:
+Saved Fraimic scenes can send mapped images to several frames:
 
 ```yaml
-# As a stored screen (Add dashboard screen → layout: Picture), or inline:
-action: fraimic.render_screen
+action: fraimic.send_scene
 data:
-  screen:
-    name: Daily art
-    kind: picture
-    provider: shuffle
-    caption: true
-    interval: 3600
+  name: Morning wall
 ```
 
-If an online source is down, the playlist keeps the current image and retries later — a flaky
-API never blanks your wall. Attribution for whatever is showing is returned in the service
-response (`title`, `artist`, `attribution`) and exposed as attributes on the preview image
-entities and the media player.
+| Action | Purpose |
+|--------|---------|
+| `fraimic.upload_image` | Display a file, URL, library image, or camera/image snapshot. |
+| `fraimic.show_online_image` | Fetch and display artwork from an online provider. |
+| `fraimic.render_screen` | Render a widget or picture screen; supports preview-only rendering. |
+| `fraimic.send_scene` | Send a saved scene's images to their assigned frames. |
+| `fraimic.schedule_send` | Schedule a one-shot or recurring image/scene send. |
+| `fraimic.cancel_scheduled_send` / `fraimic.list_scheduled_sends` | Manage scheduled sends. |
+| `fraimic.update_album` | Update a frame's cloud album settings. |
 
-**Browse before you commit:** open the frame's media player → **Browse media** → **Online
-artwork** → pick a source, then click an image to display it. Most sources show 20 fresh picks
-and reshuffle on each visit. Reframed preserves its catalogue folders: Collections, Colors,
-Tags, Artists, Vertical artworks, and Recently added. Wallhaven preserves its sorting and
-filtering too: Latest, Random, Most viewed, Most favorited, Top lists, Categories, and Colors.
+Each frame also exposes battery and device diagnostics, send status, artwork and
+screen-preview image entities, buttons for frame controls, and a **media player**.
+Playlist controls include a screen select, next/previous buttons, and a playlist
+switch when stored screens are present. Many diagnostic entities are disabled
+by default; enable them from the device page as needed.
 
-**Install as art packs:** the Fraimic sidebar's **Art Packs** tab mirrors every Reframed
-collection, color, tag, and artist, plus Vertical and Recently Added. Wallhaven's SFW feeds,
-top-list ranges, categories, and colors are available there too. These live packs resolve when
-installed and add up to 24 current images to the library, with an album and scene, so the
-catalogue stays fresh without downloading every group just to open the tab.
+The media player's **Browse media** supports Home Assistant media sources and
+online artwork. `media_player.play_media` works in automations too. Playing a
+camera takes a still snapshot; the optional camera refresh interval repeats it
+(minimum 60 seconds). **Stop** ends that loop and leaves the last image displayed.
+Use the image entities in ordinary Home Assistant dashboard cards if you want a
+preview outside the Fraimic sidebar.
 
-**One-tap art:** every frame gets a **New artwork** button entity — press it (or automate it)
-for a fresh captioned piece from your default source (options → *Default online-art source*).
+## Artwork sources
 
-**Optional keys** (frame options): a free [api.nasa.gov](https://api.nasa.gov) key raises the
-APOD rate limit, a free [api.data.gov](https://api.data.gov) key raises the Smithsonian
-rate limit (both work keyless on `DEMO_KEY` for daily use), and free
-[Unsplash](https://unsplash.com/developers) / [Pexels](https://www.pexels.com/api/) keys
-unlock keyword-searchable photography (`provider: unsplash, query: northern lights`).
-Unsplash/Pexels stay hidden until a key is set.
+Keyless sources include The Met, Art Institute of Chicago, Cleveland Museum of
+Art, SMK, Nasjonalmuseet/DigitaltMuseum, Smithsonian, Wellcome, Reframed, Wallhaven,
+Wikimedia picture of the day, Bing, NASA APOD, NASA Image Library, and Lorem Picsum.
+`shuffle` selects a random museum source.
 
-[Daily source checks](docs/source-health-checks.md) exercise the live providers in
-GitHub Actions and retry failures once after 30 minutes before failing the job.
+Optional Unsplash and Pexels keys enable additional photography sources. NASA
+APOD and Smithsonian work with demo keys; personal keys raise their limits.
+Configure keys and the default source for the **New artwork** button in the
+frame's options. Source availability and usage rights vary; consult the original
+artwork's attribution and licence.
 
-## How image conversion works
-
-Fraimic frames are **E Ink Spectra 6** colour panels. The display buffer is raw and header-less,
-but its layout depends on the panel. The 13.3" buffer is 960,000 bytes in two column-major
-halves. The 31.5" EL315 is portrait-native 1440×2560 and uses eight padded controller blocks,
-for an exact 2,304,000-byte payload. Pixel values are the E Ink standard Spectra 6 codes
-(`0x4` is unused — the panel renders it as white):
-
-| Nibble | Colour | Calibrated RGB |
-|:------:|--------|:--------------:|
-| 0x0 | Black  | #000000 |
-| 0x1 | White  | #ffffff |
-| 0x2 | Yellow | #f0e050 |
-| 0x3 | Red    | #a02020 |
-| 0x5 | Blue   | #5080b8 |
-| 0x6 | Green  | #608050 |
-
-Getting good results from a tiny-gamut, low-contrast 6-colour panel is as much about
-pre-processing as the dither, so the integration runs a full pipeline (all in an executor):
-
-1. **Orient + fit** — EXIF transpose, your `rotate`, then resize (`cover`/`contain`/`stretch`).
-2. **Tone** — autocontrast (black/white point) + a contrast boost.
-3. **Saturation** — a boost, because the Spectra gamut is small (the single biggest perceptual
-   win after the palette fix).
-4. **Sharpen** — a mild unsharp mask (dithering softens detail).
-5. **Match against a *calibrated* palette** (the muted RGB above, **not** pure primaries — pure
-   primaries are what a Spectra 6 panel can't make, and matching against them looks harsh) in
-   **OKLab**, with **neutral preservation** so near-grey pixels dither between black/white instead
-   of speckling with red/yellow.
-6. **Dither** with the selected `mode`:
-   - **`auto`** (default) — looks at the image and chooses for you: **Floyd-Steinberg** for photos,
-     **Bayer** for flat graphics/UI (lots of solid colour). The mode it picked is shown on the
-     `Current artwork` image entity as the `dither_mode` attribute (and logged).
-   - `official` reproduces [Fraimic's published converter](https://github.com/Fraimic/fraimic_bin_converter):
-     its fixed brightness/contrast/saturation enhancements, EDGE_ENHANCE → SMOOTH → SHARPEN filters,
-     pure-primary RGB+luma matching, and left-to-right Atkinson diffusion. It intentionally ignores
-     the saturation, contrast, sharpen, and tone settings. Choose `contain_black` as the fit mode to
-     match the converter's default black letterboxing as well.
-   - `floyd_steinberg` — best general error diffusion for photos.
-   - `atkinson` — localised, preserves highlights; nice for portraits.
-   - `bayer` — fast ordered dithering, best for flat graphics/dashboards/UI.
-   - `none` — nearest colour, no dithering.
-   The non-official error-diffusion modes use serpentine scanning in linear light;
-   `official` intentionally keeps Fraimic's left-to-right RGB diffusion.
-7. **Pack** into the frame's native controller layout and upload through the firmware-gated
-   `/api/image` path (multipart `/upload` on older firmware). Error-diffusion targets are
-   clamped to the panel's reachable gamut, so
-   out-of-gamut colours degrade gracefully instead of smearing accumulated error across the
-   image (yellow blobs trailing saturated patches — seen on real hardware before the clamp).
-
-**Which mode?** Just leave it on `auto` — it picks per image. Use `official` for compatibility with
-Fraimic's converter, or override with another mode for a specific look.
-
-The calibrated palette comes from community reverse engineering of real Spectra 6 panels
-([Toon-nooT's converter](https://github.com/Toon-nooT/PhotoPainter-E-Ink-Spectra-6-image-converter),
-the [Pimoroni Inky community](https://forums.pimoroni.com/t/what-rgb-colors-are-you-using-for-the-colors-on-the-impression-spectra-6/27942)).
-
-**Speed:** `none`/`bayer` are vectorised (well under a second at 1600×1200); the error-diffusion
-modes are inherently sequential. `official` is the slowest compatibility path and can take tens of
-seconds before upload, especially on low-power Home Assistant hardware. All conversion runs in the
-background.
-
-## Accuracy note
-
-Fraimic's official REST API guide describes the frame as "4-bit **grayscale**, upload via
-`POST /api/image` (octet-stream body)". On real hardware that is wrong on two counts:
-
-- The panel is **Spectra 6 colour**, not grayscale.
-- On firmware **0.2.21**, the documented `POST /api/image` returned 501 and hung the frame for
-  45+ seconds — only **`POST /upload`** (multipart) worked. Firmware **0.2.28** fixed it:
-  `/api/image` with a raw `application/octet-stream` body now works and returns structured
-  errors (`invalid_image_size`, `unsupported_content_type`). The integration uses `/api/image`
-  once it has confirmed firmware >= 0.2.28 and multipart `/upload` otherwise. Note `/api/image`
-  is strict about `Content-Type` — anything but `application/octet-stream` (including
-  multipart) gets a 501, and a large rejected body briefly wedges the frame's HTTP server.
-
-The `.bin` buffer layout was **reverse-engineered on a real 13.3" frame (firmware 0.2.21)**
-with physical test patterns, and it differs from every community write-up we found — including
-[dsackr/fraimic-controller](https://github.com/dsackr/fraimic-controller)'s row-major, 0–5
-sequential-palette description, which renders scrambled on 0.2.21:
-
-- The buffer holds the **bottom half of the panel first**, then the top half.
-- Each half is **column-major**: panel columns left→right, each column scanned **bottom-up**,
-  two vertically-adjacent pixels per byte (high nibble first).
-- Pixel values are the **E Ink standard Spectra 6 codes** (`0x2` yellow, `0x3` red, `0x5` blue,
-  `0x6` green, `0x4` unused) — matching E Ink's EL133UF1 reference driver, not the sequential
-  0–5 palette used by community converters.
-
-Other verified-on-hardware behaviour this integration accounts for:
-
-- A successful `/upload` **renders by itself** (~20–30 s). No follow-up `/api/refresh` is
-  needed; firing one mid-render just gets the connection reset by the busy ESP32.
-- `display.last_refresh` in `/api/info` only tracks the *scheduled* refresh cycle — it does
-  **not** update on uploads (and reads as a bogus 1970 date until the first scheduled cycle).
-- On firmware 0.2.21, `/api/info` reports no display size or model field, so resolution
-  auto-detect has nothing to work with — the config flow asks you to pick the model instead.
-
-This integration follows the verified behaviour and tolerates both the flat and nested
-`/api/info` JSON shapes seen in the wild. The frame's full local HTTP surface (portal pages,
-Developer Mode, logs, cloud endpoints, and the `auto_update` / voice-recording quirks) is
-documented in [`docs/device-http-api.md`](docs/device-http-api.md).
+[Daily source checks](docs/source-health-checks.md) monitor the live providers.
+An upstream outage does not erase the image already displayed on the frame.
 
 ## Troubleshooting
 
-- **Entities "unavailable":** the frame is probably asleep (deep sleep = no network). Tap it.
-  Expected, and resolves itself when the frame wakes.
-- **`fraimic.local` won't resolve:** use the IP address (find it at `http://fraimic.local/info`
-  or in your router's DHCP table).
-- **Colours look wrong:** make sure the frame's configured resolution matches the panel, and
-  keep `dither: true` for photos. Only Black/White/Yellow/Red/Blue/Green can be shown — there is
-  no cyan or magenta ink, so those hues are approximated with dithered mixes.
-- **Uploads suddenly failing (connection reset ~10 s in) while sensors still work:** the frame's
-  upload handler is wedged — this happens after an aborted or timed-out upload. Press the
-  integration's **Restart** button (or `POST /api/restart`); uploads work again after the reboot.
+- **Frame asleep or entities unavailable:** deep sleep turns off the network.
+  Wake the frame and use **Refresh frame data**. In Minimum mode, use **Try queued
+  send** to deliver a pending local image.
+- **Cloud upload accepted but artwork unchanged:** wait for the scheduled wake.
+  Queued cloud delivery is not proof of a physical redraw.
+- **`fraimic.local` does not resolve:** use the frame's IP from your router's DHCP
+  table, especially across VLANs or with container networking.
+- **Wrong orientation or crop:** check model/resolution and mount rotation, then
+  open Picture details to adjust the crop and fit.
+- **Unexpected colours:** start with Automatic dithering. The six inks approximate
+  colours such as cyan and magenta; they cannot match a backlit screen.
+- **Uploads fail while sensors still work:** the firmware upload handler may be
+  stuck. Restart the frame before trying again; avoid repeatedly retrying an
+  upload timeout because the first upload may already have started rendering.
+- **Old dashboard after updating:** reload the browser or Home Assistant frontend
+  after restarting Home Assistant.
+
+For hardware details, see the [local frame API](docs/frame-api/routes.md),
+[device HTTP overview](docs/device-http-api.md), and
+[cloud API and scheduling notes](docs/fraimic-cloud-api/albums-scheduling.md).
 
 ## Credits
 
-- The `/upload` endpoint and the (firmware 0.2.21) `POST /api/image` hang were first
-  documented by [**dsackr/fraimic-controller**](https://github.com/dsackr/fraimic-controller)
-  — thank you.
-  The actual buffer layout and palette codes on firmware 0.2.21 were reverse-engineered for
-  this integration on real hardware (see [Accuracy note](#accuracy-note)).
-- Not affiliated with Fraimic. Unofficial, community-built. MIT licensed.
+Built against real Standard and Large frames. Thanks to
+[dsackr/fraimic-controller](https://github.com/dsackr/fraimic-controller) for early
+upload-endpoint findings, and the Spectra 6 community for palette research linked
+in the [conversion reference](docs/image-conversion.md).
+
+Unofficial, community-built, and not affiliated with Fraimic. MIT licensed.
