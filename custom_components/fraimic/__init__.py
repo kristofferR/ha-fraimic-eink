@@ -236,7 +236,7 @@ async def _async_setup_cloud(
     if entry.options.get(CONF_DELIVERY_MODE) in (DELIVERY_CLOUD, DELIVERY_HYBRID):
         if (
             entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
-            and delivery.upload_id
+            and delivery.has_image
         ):
             # A previous cloud slot may have replaced the last LAN image.
             await entry.runtime_data.power.async_invalidate_display()

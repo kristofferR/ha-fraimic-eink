@@ -27,7 +27,18 @@ async def async_use_cloud(entry: FraimicConfigEntry) -> bool:
         return True
     try:
         async with asyncio.timeout(3):
-            await runtime.client.get_battery()
+            battery = await runtime.client.get_battery()
     except (FraimicConnectionError, TimeoutError):
+        runtime.coordinator.async_set_frame_online(False)
         return True
+    current = dict(runtime.coordinator.data or {})
+    existing = current.get("battery")
+    existing = dict(existing) if isinstance(existing, dict) else {}
+    update = battery.get("battery") if isinstance(battery.get("battery"), dict) else battery
+    for key in ("percent", "voltage_mv", "charging", "cable_connected", "source"):
+        if key in update:
+            existing[key] = update[key]
+    current["battery"] = existing
+    runtime.coordinator.data = current
+    runtime.coordinator.async_set_frame_online(True)
     return False

@@ -139,7 +139,9 @@ re-enables it and deactivates the integration's album.
 Hybrid uses a short local liveness check after rendering, rather than relying on
 the last sensor update. Before a local send, it deactivates any pending cloud
 album delivery so older artwork does not replace the new image later. Local
-sends use the normal power policy; sleeping frames use the cloud schedule. An
+sends use the normal power policy; sleeping frames use the cloud schedule.
+One-shot sends deferred by the local power policy are kept in the cloud schedule
+so a scheduled occurrence is not lost; periodic sends wait for their next cycle. An
 upload that has already started is never retried through the other transport,
 since an upload timeout can mean the frame is already rendering.
 

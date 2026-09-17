@@ -394,7 +394,8 @@ def test_convert_rejects_invalid_height_before_rendering(
 
 
 @pytest.mark.parametrize('outcome', ['awake', 'asleep', 'probe_timeout', 'upload_timeout', 'upload_error', 'cleanup_error', 'deferred'])
-def test_hybrid_selects_once_before_upload(monkeypatch, outcome):
+@pytest.mark.parametrize("one_shot", [True, False])
+def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
     from unittest.mock import AsyncMock, Mock
 
     services = _load_services(monkeypatch)
@@ -433,13 +434,16 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome):
     runtime = SimpleNamespace(
         power=power, cloud=SimpleNamespace(async_deliver=deliver, async_cancel_delivery=cancel),
         client=SimpleNamespace(get_battery=probe, upload_image=upload),
-        scheduler=None, coordinator=SimpleNamespace(data={}), upload_lock=asyncio.Lock(),
+        scheduler=None, coordinator=SimpleNamespace(
+            data={'battery': {'percent': 1, 'cycles': 50}, 'device': {'name': 'Frame'}},
+            async_set_frame_online=Mock(),
+        ), upload_lock=asyncio.Lock(),
         send_queue=Mock(), set_displayed_preview=Mock(), last_preview=None, preview_image=None,
     )
     entry.runtime_data = runtime
     call = services.async_render_and_upload(
         None, entry, b'', rendered=(b'packed', b'preview', 'none'),
-        queue_if_asleep=True, hold_playlist=False,
+        queue_if_asleep=one_shot, hold_playlist=False,
         # A previous locally displayed scheduler hash must not bypass Hybrid's
         # shared power accounting after a cloud image could have replaced it.
         skip_if_hash=hashlib.sha256(b'packed').hexdigest(),
@@ -451,15 +455,20 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome):
         runtime.set_displayed_preview.assert_not_called()
     else:
         result = asyncio.run(call)
-        cloud = outcome in ('asleep', 'probe_timeout')
-        deferred = outcome == 'deferred'
+        cloud = outcome in ('asleep', 'probe_timeout') or (outcome == 'deferred' and one_shot)
+        deferred = outcome == 'deferred' and not one_shot
         assert events == (['probe', 'cloud'] if cloud else ['probe'] if deferred else ['probe', 'cancel', 'local'])
         assert result['uploaded'] is (not cloud and not deferred)
         assert result['queued'] is cloud
         assert runtime.set_displayed_preview.call_count == int(not cloud and not deferred)
         assert power.async_invalidate_display.await_count == int(cloud)
         assert power.async_record_upload.await_count == int(not cloud and not deferred)
-        if cloud:
+        if outcome in ('asleep', 'probe_timeout'):
             power.skip_reason.assert_not_called()
+    online = outcome not in ('asleep', 'probe_timeout')
+    runtime.coordinator.async_set_frame_online.assert_called_once_with(online)
+    if online:
+        snapshot = power.skip_reason.call_args.args[3]
+        assert snapshot == {'battery': {'percent': 90, 'cycles': 50}, 'device': {'name': 'Frame'}}
     power.finish.assert_called_once_with(1)
     runtime.send_queue.async_upload_or_queue.assert_not_called()

@@ -788,7 +788,10 @@ async def async_render_and_upload(
                 )
             content_hash = hashlib.sha256(bin_data).hexdigest()
             use_cloud = await async_use_cloud(entry)
-            hybrid = entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+            hybrid = (
+                entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+                and getattr(runtime, "cloud", None) is not None
+            )
             if (
                 not use_cloud
                 and not hybrid
@@ -807,6 +810,11 @@ async def async_render_and_upload(
                     power_token,
                     runtime.coordinator.data,
                 )
+            if hybrid and queue_if_asleep and reason in DEFER_REASONS:
+                # One-shot occurrences are already marked fired. Preserve them
+                # in the cloud schedule when the LAN power policy defers them.
+                use_cloud = True
+                reason = None
             if reason is not None:
                 if preview_png:
                     if reason == SKIP_DUPLICATE:

@@ -759,7 +759,10 @@ async def async_upload_rendered(
 
             await async_deliver_cloud(entry, bin_data, title=media_title or "image")
             return False
-        hybrid = entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+        hybrid = (
+            entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+            and getattr(runtime, "cloud", None) is not None
+        )
         queue = (
             getattr(runtime, "send_queue", None)
             if queue_if_asleep and not hybrid
@@ -772,7 +775,11 @@ async def async_upload_rendered(
             runtime.coordinator.data,
         )
         if reason is not None:
-            if reason in DEFER_REASONS and queue is not None:
+            if hybrid and queue_if_asleep and reason in DEFER_REASONS:
+                from .services import async_deliver_cloud
+
+                await async_deliver_cloud(entry, bin_data, title=media_title or "image")
+            elif reason in DEFER_REASONS and queue is not None:
                 await queue.async_queue_deferred(
                     bin_data,
                     preview_png,

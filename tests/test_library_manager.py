@@ -383,7 +383,7 @@ def test_cancelled_rename_rolls_back_when_manifest_commit_fails(
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize('outcome', ['awake', 'asleep', 'timeout'])
+@pytest.mark.parametrize('outcome', ['awake', 'asleep', 'timeout', 'deferred'])
 def test_prerendered_hybrid_uses_same_transport_selection(library_module, monkeypatch, outcome):
     from unittest.mock import AsyncMock, Mock
     from fraimic.api import FraimicConnectionError
@@ -394,23 +394,23 @@ def test_prerendered_hybrid_uses_same_transport_selection(library_module, monkey
     services.async_prepare_local_delivery = AsyncMock()
     monkeypatch.setitem(sys.modules, 'fraimic.services', services)
     client = types.SimpleNamespace(
-        get_battery=AsyncMock(side_effect=FraimicConnectionError('asleep') if outcome == 'asleep' else None),
+        get_battery=AsyncMock(return_value={'battery': {'percent': 90}}, side_effect=FraimicConnectionError('asleep') if outcome == 'asleep' else None),
         upload_image=AsyncMock(side_effect=library.FraimicTimeoutError('accepted') if outcome == 'timeout' else None),
     )
     power = types.SimpleNamespace(
-        begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
+        begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value='low_battery' if outcome == 'deferred' else None),
         async_record_upload=AsyncMock(), schedule_sleep=Mock(),
     )
     runtime = types.SimpleNamespace(
         cloud=object(), client=client, power=power, upload_lock=asyncio.Lock(),
-        coordinator=types.SimpleNamespace(data={}, async_update_listeners=Mock()),
+        coordinator=types.SimpleNamespace(data={}, async_update_listeners=Mock(), async_set_frame_online=Mock()),
         send_queue=Mock(), set_displayed_preview=Mock(),
     )
     entry = types.SimpleNamespace(options={'delivery_mode': 'hybrid'}, runtime_data=runtime)
     displayed = asyncio.run(library.async_upload_rendered(
         entry, b'packed', b'preview', 'none', queue_if_asleep=True,
     ))
-    local = outcome != 'asleep'
+    local = outcome not in ('asleep', 'deferred')
     assert displayed is local
     assert client.upload_image.await_count == int(local)
     assert services.async_prepare_local_delivery.await_count == int(local)
