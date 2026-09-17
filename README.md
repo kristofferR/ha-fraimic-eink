@@ -29,6 +29,9 @@ Worse, that official guide is **factually wrong** about the frame (see
 
 ## Installation
 
+Upgrading from 1.x? Read the [2.0 release and upgrade notes](docs/release-2.0.md),
+including the replacement for removed Home Assistant scene entities.
+
 ### HACS (recommended)
 
 1. HACS → ⋮ → **Custom repositories**.
