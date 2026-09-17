@@ -46,6 +46,7 @@ from .overlays import DATA_OVERLAYS, OverlayManager
 from .panel import async_register_panel, async_unregister_panel
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .power import FraimicPowerManager, effective_scan_interval
+from .registry import device_by_identifier
 from .scenes import DATA_SCENES, SceneManager
 from .scheduled_events import DATA_SCHEDULED_EVENTS, ScheduledEventManager
 from .scheduler import FraimicScheduler
@@ -109,8 +110,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
         # The scene entity platform was removed (the panel replaced it); drop
         # the leftover virtual "Fraimic Scenes" device from older installs.
         device_registry = dr.async_get(hass)
-        if stale := device_registry.async_get_device(
-            identifiers={(DOMAIN, "fraimic_scenes")}
+        if stale := device_by_identifier(
+            device_registry, (DOMAIN, "fraimic_scenes"), entry.entry_id
         ):
             device_registry.async_remove_device(stale.id)
     async_register_views(hass)

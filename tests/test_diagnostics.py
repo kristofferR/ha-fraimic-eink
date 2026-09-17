@@ -7,6 +7,8 @@ import sys
 import types
 from unittest.mock import AsyncMock
 
+import pytest
+
 from conftest import load
 from test_services import _load_services
 
@@ -42,8 +44,30 @@ def test_cloud_identifiers_pass_through_redaction(monkeypatch):
     assert any(data is cloud_data and sensitive <= keys for data, keys in redactions)
 
 
-def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatch):
+@pytest.mark.parametrize("nested", [True, False], ids=["nested", "flat"])
+def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatch, nested):
     _load_services(monkeypatch)
+
+    class GenericStub:
+        def __class_getitem__(cls, _item):
+            return cls
+
+    stubs = {
+        "homeassistant.config_entries": {"ConfigEntry": GenericStub},
+        "homeassistant.const": {"CONF_HOST": "host"},
+        "homeassistant.core": {"HomeAssistant": object, "callback": lambda fn: fn},
+        "homeassistant.helpers.aiohttp_client": {"async_get_clientsession": object},
+        "homeassistant.helpers.storage": {"Store": GenericStub},
+        "homeassistant.helpers.update_coordinator": {
+            "DataUpdateCoordinator": GenericStub, "UpdateFailed": RuntimeError,
+        },
+    }
+    for name, attributes in stubs.items():
+        module = types.ModuleType(name)
+        module.__dict__.update(attributes)
+        monkeypatch.setitem(sys.modules, name, module)
+    monkeypatch.delitem(sys.modules, "fraimic.coordinator")
+    normalize_info = load("coordinator").normalize_info
 
     def redact(data, keys):
         # Stand in for HA's recursive redaction in this HA-free test suite.
@@ -61,10 +85,21 @@ def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatc
     monkeypatch.setitem(sys.modules, "homeassistant.components.diagnostics", ha_diagnostics)
     sys.modules.pop("fraimic.diagnostics", None)
     diagnostics = load("diagnostics")
-    wifi = {"mac": "02:11:22:33:44:55", "bssid": "02:AA:BB:CC:DD:EE"}
-    raw = {"wifi": {**wifi, "wifi_mac": "02:66:77:88:99:AA"}}
-    data = {"wifi": wifi, "raw": raw, "battery": {"percent": 80}}
-    logs = "<div class='log-area' id='logOutput'>Connected " + " ".join(wifi.values()) + "</div>"
+    wifi = {
+        "mac": "02:11:22:33:44:55",
+        "bssid": "02:AA:BB:CC:DD:EE",
+        "wifi_mac": "02:66:77:88:99:AA",
+    }
+    raw = {"wifi": wifi} if nested else {
+        "mac_address": wifi["mac"],
+        "bssid": wifi["bssid"],
+        "wifi_mac": wifi["wifi_mac"],
+    }
+    data = normalize_info({**raw, "battery_pct": 80})
+    logs = (
+        "<div class='log-area' id='logOutput'>Connected "
+        + " ".join(wifi.values()) + "</div>"
+    )
     entry = types.SimpleNamespace(
         data={}, options={},
         runtime_data=types.SimpleNamespace(
@@ -80,5 +115,5 @@ def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatc
 
     assert not re.search(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", json.dumps(result))
     assert result["data"]["battery"]["percent"] == 80
-    assert result["logs"]["current"] == ["Connected **REDACTED** **REDACTED**"]
+    assert result["logs"]["current"] == ["Connected **REDACTED** **REDACTED** **REDACTED**"]
     assert data["wifi"]["mac"] == "02:11:22:33:44:55"

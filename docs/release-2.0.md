@@ -17,7 +17,11 @@ delivery lets frames sleep between scheduled images.
   converter compatibility mode.
 - Diagnostics now redact structured MAC/BSSID fields as well as cloud identifiers.
 
-## Upgrading from 1.4.1
+## Upgrading from 1.x
+
+These steps cover published 1.x releases, including 1.4.1, and development
+installations reporting 1.5.0. Migrations already applied by a development build
+are not repeated.
 
 Back up Home Assistant, including the Fraimic library and `.storage` data, before
 upgrading. Update the integration in HACS and restart Home Assistant, then reload
@@ -62,7 +66,8 @@ See the [README](../README.md#battery-saving-modes) for power budgets and contro
 
 Before publishing the tag, verify the release candidate on Home Assistant:
 
-- Upgrade a backed-up 1.4.1 installation and confirm frame settings, library,
+- Upgrade a backed-up 1.x installation (1.4.1 release or 1.5.0 development build)
+  and confirm frame settings, library,
   migrated playlists, and updated scene automations.
 - Restart Home Assistant and confirm playlist assignment, order, paused state,
   and pending delivery persist.

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .const import DOMAIN
+from .registry import device_by_identifier
 
 
 def frame_display_name(hass: Any, entry: Any) -> str:
@@ -12,8 +13,8 @@ def frame_display_name(hass: Any, entry: Any) -> str:
     from homeassistant.helpers import device_registry as dr
 
     registry = dr.async_get(hass)
-    device = registry.async_get_device(
-        identifiers={(DOMAIN, entry.unique_id or entry.entry_id)}
+    device = device_by_identifier(
+        registry, (DOMAIN, entry.unique_id or entry.entry_id), entry.entry_id
     )
     if device is None:
         return entry.title
