@@ -231,7 +231,7 @@ def test_accepted_delivery_updates_only_confirmed_display(
     cloud_deliveries = []
 
     class Cloud:
-        async def async_deliver(self, data, *, title):
+        async def async_deliver(self, data, *, title, preview_png):
             cloud_deliveries.append((data, title))
 
     runtime = SimpleNamespace(
@@ -417,13 +417,15 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
 
     async def upload(_data):
         events.append('local')
+        assert runtime.sending_preview == (b'preview', 'Artwork')
         if outcome == 'upload_timeout':
             raise services.FraimicTimeoutError('redraw timeout')
         if outcome == 'upload_error':
             raise services.FraimicConnectionError('connection lost during upload')
 
-    async def deliver(_data, *, title):
+    async def deliver(_data, *, title, preview_png):
         events.append('cloud')
+        assert runtime.sending_preview == (b'preview', 'Artwork')
 
     power = SimpleNamespace(
         begin=Mock(return_value=1), finish=Mock(),
@@ -473,5 +475,6 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
     if online and outcome != 'cloud_pending':
         snapshot = power.skip_reason.call_args.args[3]
         assert snapshot == {'battery': {'percent': 90, 'cycles': 50}, 'device': {'name': 'Frame'}}
+    assert runtime.sending_preview is None
     power.finish.assert_called_once_with(1)
     runtime.send_queue.async_upload_or_queue.assert_not_called()

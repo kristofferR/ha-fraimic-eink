@@ -8,6 +8,7 @@ auth (``requires_auth`` default), so the frontend panel can call them with
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import time
 from http import HTTPStatus
@@ -746,7 +747,10 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             remaining = min(interval, held_remaining)
             elapsed = max(0, interval - remaining)
 
-    sending = scheduler.busy or scheduler.external_upload_active
+    sending = bool(
+        scheduler.busy or scheduler.external_upload_active
+        or getattr(runtime, "sending_preview", None) is not None
+    )
     sending_progress: int | None = None
     if sending and scheduler.sending_started_at is not None:
         # The firmware blocks the accepted upload response during its roughly
@@ -819,16 +823,38 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     send_queue = runtime.send_queue
     waiting = int(send_queue is not None and send_queue.pending is not None)
     overlay_count = runtime.last_overlay_count
+    preview = None
+    sending_preview = getattr(runtime, "sending_preview", None)
+    sending_screen = getattr(scheduler, "sending_screen", None)
+    cloud = getattr(runtime, "cloud", None)
+    if sending_preview is not None:
+        png, preview_title = sending_preview
+        preview = {
+            "title": preview_title,
+            "status": "sending",
+            "thumbnail_url": f"/api/fraimic/player/artwork/{entry.entry_id}?kind=sending&v={hashlib.sha256(png).hexdigest()}",
+        }
+    elif sending_screen is not None:
+        preview = _slide_payload(sending_screen)
+        preview["thumbnail_url"] = preview["thumbnail_url"] or queue_thumbnail(sending_screen)
+        preview["status"] = "sending"
+    elif not sending and cloud is not None and getattr(cloud, "preview_png", None):
+        preview = {
+            "title": cloud.preview_title or "Artwork",
+            "status": "submitted",
+            "thumbnail_url": f"/api/fraimic/player/artwork/{entry.entry_id}?kind=cloud&v={quote(cloud.upload_id or '', safe='')}",
+        }
     return {
         "frame": frame,
         "state": state,
         "current": {
             "id": current.screen_id if current is not None else None,
-            "title": scheduler.sending_slide_name or title,
+            "title": title,
             "artist": artist,
             "thumbnail_url": artwork_url,
             **_current_art(current, get_library(hass), art),
         },
+        "preview": preview,
         "playlist_id": playlist_id,
         "playlist_name": playlist_name,
         "interval": interval,
@@ -880,7 +906,27 @@ class PlayerArtworkView(_FraimicView):
 
     async def get(self, request: web.Request, entry_id: str) -> web.Response:
         entry = require_loaded_entry(request.app[KEY_HASS], entry_id)
-        preview = entry.runtime_data.displayed_preview
+        runtime = entry.runtime_data
+        kind = request.query.get("kind")
+        if kind == "sending":
+            pending = runtime.sending_preview
+            # An accepted send may finish between the player and image requests.
+            candidates = (
+                pending[0] if pending is not None else None,
+                runtime.cloud.preview_png if runtime.cloud is not None else None,
+                runtime.displayed_preview,
+            )
+            preview = next((png for png in candidates if png is not None
+                            and hashlib.sha256(png).hexdigest() == request.query.get("v")), None)
+        elif kind == "cloud":
+            cloud = runtime.cloud
+            preview = (
+                cloud.preview_png
+                if cloud is not None and request.query.get("v") == cloud.upload_id
+                else None
+            )
+        else:
+            preview = runtime.displayed_preview
         if preview is None:
             raise web.HTTPNotFound(text="No artwork preview is available")
         return web.Response(

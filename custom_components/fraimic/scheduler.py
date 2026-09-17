@@ -98,6 +98,7 @@ class FraimicScheduler:
         self._last_show_permanently_rejected = False
         self._busy_started_at: float | None = None
         self._sending_slide_name: str | None = None
+        self.sending_screen: ScreenConfig | None = None
         self._store: Store[dict[str, Any]] = Store(
             hass, STORE_VERSION, f"{DOMAIN}_playlist_{entry.entry_id}"
         )
@@ -1062,6 +1063,7 @@ class FraimicScheduler:
         self._busy = True
         self._busy_started_at = time.time()
         self._sending_slide_name = screen.name
+        self.sending_screen = screen
         self._notify()
         try:
             try:
@@ -1194,6 +1196,7 @@ class FraimicScheduler:
             self._busy = False
             self._busy_started_at = None
             self._sending_slide_name = None
+            self.sending_screen = None
             self._notify()
             self._schedule_prefetch()
 

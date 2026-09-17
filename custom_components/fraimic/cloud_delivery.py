@@ -8,6 +8,8 @@ for each slot, so keep-awake stays off and the LAN is never needed. See
 
 from __future__ import annotations
 
+import base64
+import binascii
 import logging
 import time
 from datetime import UTC, datetime
@@ -32,7 +34,7 @@ from .const import (
     DEFAULT_WIDTH,
     DOMAIN,
 )
-from .image_convert import indices_to_cloud_png, bin_to_indices
+from .image_convert import indices_to_cloud_png, bin_to_indices, bin_to_png
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -77,6 +79,8 @@ class FraimicCloudDelivery:
         self.keep_awake_released = False
         self.last_anchor: str | None = None
         self.album_active = False
+        self.preview_png: bytes | None = None
+        self.preview_title: str | None = None
 
     async def async_setup(self) -> None:
         data = await self._store.async_load() or {}
@@ -89,6 +93,11 @@ class FraimicCloudDelivery:
         self.keep_awake_released = data.get("keep_awake_released") is True
         self.last_anchor = data.get("last_anchor") or None
         self.album_active = data.get("album_active", self.album_id is not None)
+        try:
+            self.preview_png = base64.b64decode(data.get("preview_png") or "", validate=True) or None
+        except (ValueError, TypeError, binascii.Error):
+            self.preview_png = None
+        self.preview_title = data.get("preview_title")
 
     async def _async_save(self) -> None:
         await self._store.async_save(
@@ -100,6 +109,8 @@ class FraimicCloudDelivery:
                 "keep_awake_released": self.keep_awake_released,
                 "last_anchor": self.last_anchor,
                 "album_active": self.album_active,
+                "preview_png": base64.b64encode(self.preview_png).decode("ascii") if self.preview_png else None,
+                "preview_title": self.preview_title,
             }
         )
 
@@ -160,7 +171,9 @@ class FraimicCloudDelivery:
 
     # ------------------------------------------------------------ delivery
 
-    async def async_deliver(self, bin_data: bytes, *, title: str) -> None:
+    async def async_deliver(
+        self, bin_data: bytes, *, title: str, preview_png: bytes | None = None
+    ) -> None:
         """Upload ``bin_data`` as a PNG and make it the album's image."""
         width = self.entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
         height = self.entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT)
@@ -180,6 +193,10 @@ class FraimicCloudDelivery:
             await self._async_discard(upload_id)
             raise
         self.upload_id = upload_id
+        self.preview_png = preview_png or await self.hass.async_add_executor_job(
+            bin_to_png, bin_data, width, height, rotation
+        )
+        self.preview_title = title
         self._set_anchor(album)
         await self._async_save()
         _LOGGER.debug(
@@ -329,9 +346,17 @@ class FraimicCloudDelivery:
         await self._async_save()
         return ok
 
+    async def async_clear_preview(self) -> None:
+        """A newer local upload supersedes the last cloud-submitted preview."""
+        self.preview_png = None
+        self.preview_title = None
+        await self._async_save()
+
     async def async_forget_album(self) -> None:
         """Drop the stored album so a later switch to cloud starts clean."""
         self.album_id = None
+        self.preview_png = None
+        self.preview_title = None
         self.album_device_id = None
         self.upload_id = None
         self.album_active = False

@@ -354,3 +354,37 @@ def test_hybrid_cancels_pending_album_without_changing_keep_awake(delivery_modul
     client.async_update_album.assert_awaited_once_with('owned-album', {'active': False})
     client.async_set_keep_awake.assert_not_awaited()
     assert delivery.keep_awake_released
+
+
+@pytest.mark.parametrize("accepted", [True, False])
+def test_cloud_preview_persists_only_accepted_artwork(delivery_module, accepted):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    hass = types.SimpleNamespace(async_add_executor_job=AsyncMock(return_value=b"new-preview"))
+    client = types.SimpleNamespace(async_upload_png=AsyncMock(return_value="new-upload"))
+    entry = types.SimpleNamespace(entry_id="frame", data={}, options={})
+    delivery = delivery_module.FraimicCloudDelivery(hass, entry, client, "canvas")
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
+    delivery.preview_png, delivery.preview_title = b"old-preview", "Old artwork"
+    delivery.keep_awake_released = True
+    delivery._async_point_album = AsyncMock(
+        return_value={"updated_at": "2026-09-17T12:00:00+00:00"},
+        side_effect=None if accepted else delivery_module.FraimicCloudError("rejected"),
+    )
+    delivery._async_discard = AsyncMock()
+    if not accepted:
+        with pytest.raises(delivery_module.FraimicCloudError):
+            asyncio.run(delivery.async_deliver(b"packed", title="New artwork", preview_png=b"rendered-preview"))
+        assert (delivery.preview_png, delivery.preview_title) == (b"old-preview", "Old artwork")
+        delivery._store.async_save.assert_not_awaited()
+        return
+    asyncio.run(delivery.async_deliver(b"packed", title="New artwork", preview_png=b"rendered-preview"))
+    saved = delivery._store.async_save.call_args.args[0]
+    restored = delivery_module.FraimicCloudDelivery(hass, entry, client, "canvas")
+    restored._store = types.SimpleNamespace(async_load=AsyncMock(return_value=saved), async_save=AsyncMock())
+    asyncio.run(restored.async_setup())
+    assert (restored.preview_png, restored.preview_title) == (b"rendered-preview", "New artwork")
+    asyncio.run(restored.async_clear_preview())
+    cleared = restored._store.async_save.call_args.args[0]
+    assert cleared["preview_png"] is None and cleared["preview_title"] is None

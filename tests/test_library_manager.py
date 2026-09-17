@@ -67,7 +67,7 @@ def test_prerendered_cloud_send_bypasses_lan_policy(library_module, monkeypatch)
     assert asyncio.run(library.async_upload_rendered(
         entry, b"panel", b"preview", "none", media_title="Art", queue_if_asleep=True
     )) is False
-    deliver.assert_awaited_once_with(entry, b"panel", title="Art")
+    deliver.assert_awaited_once_with(entry, b"panel", title="Art", preview_png=b"preview")
     power.finish.assert_called_once()
 
 

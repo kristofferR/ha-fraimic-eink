@@ -72,6 +72,8 @@ class FraimicRuntimeData:
         # accepted preview keeps the now-playing thumbnail in lockstep with the
         # panel even when the browser retains an older signed URL in memory.
         self.displayed_preview_version = 0
+        # Artwork currently being submitted, separate from the confirmed display.
+        self.sending_preview: tuple[bytes, str] | None = None
         # Playlist scheduler (set during entry setup; None until then).
         self.scheduler: Any = None
         # Queued-send manager (send_queue.FraimicSendQueue; set during setup).

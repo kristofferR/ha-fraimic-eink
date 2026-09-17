@@ -580,6 +580,7 @@ async def async_show_screen(
             }
 
         upload_kwargs = {
+            "title": (art_info or {}).get("title") or screen.name,
             "preprocess": preprocess,
             "skip_if_hash": skip_if_hash,
             "hold_playlist": scheduler is None and hold_playlist,

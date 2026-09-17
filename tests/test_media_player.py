@@ -92,3 +92,34 @@ def test_overlapping_camera_ticks_capture_only_once(monkeypatch):
 
     asyncio.run(run())
     assert captures == [True]
+
+
+def test_camera_submission_keeps_camera_title(monkeypatch):
+    module, player = _player(monkeypatch)
+    camera = types.ModuleType('homeassistant.components.camera')
+    camera.async_get_image = AsyncMock(return_value=types.SimpleNamespace(content=b'camera'))
+    monkeypatch.setitem(sys.modules, 'homeassistant.components.camera', camera)
+    render = AsyncMock(return_value={'uploaded': False, 'cloud_queued': True})
+    monkeypatch.setattr(module, 'async_render_and_upload', render)
+    monkeypatch.setattr(module, 'begin_external_upload', Mock())
+    monkeypatch.setattr(module, 'finish_external_upload', Mock())
+    asyncio.run(module.FraimicMediaPlayer._async_show_camera(player, 'camera.art'))
+    assert render.call_args.kwargs['title'] == 'camera.art'
+
+
+def test_online_submission_keeps_artwork_title(monkeypatch):
+    module, player = _player(monkeypatch)
+    provider = types.ModuleType('fraimic.providers.ha')
+    provider.async_art_by_media_id = AsyncMock(return_value=types.SimpleNamespace(
+        data=b'art', candidate=types.SimpleNamespace(title='Evening mountains'),
+    ))
+    provider.async_art_displayed = AsyncMock()
+    monkeypatch.setitem(sys.modules, 'fraimic.providers.ha', provider)
+    monkeypatch.setattr(module, 'parse_media_id', lambda _: ('provider', 'item'))
+    render = AsyncMock(return_value={'uploaded': False, 'cloud_queued': True})
+    monkeypatch.setattr(module, 'async_render_and_upload', render)
+    monkeypatch.setattr(module, 'begin_external_upload', Mock())
+    monkeypatch.setattr(module, 'finish_external_upload', Mock())
+    player.async_write_ha_state = Mock()
+    asyncio.run(player.async_play_media('image', module.ONLINE_ROOT+'provider/item'))
+    assert render.call_args.kwargs['title'] == 'Evening mountains'
