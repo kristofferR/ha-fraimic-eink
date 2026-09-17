@@ -317,3 +317,39 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
 
     asyncio.run(poll())
     cloud_device.assert_awaited_once()
+
+
+@pytest.mark.parametrize('status', [None, 404, 503])
+def test_hybrid_cancels_pending_album_without_changing_keep_awake(delivery_module, status):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    error = delivery_module.FraimicCloudError('failed', status=status) if status else None
+    client = types.SimpleNamespace(
+        async_update_album=AsyncMock(side_effect=error), async_set_keep_awake=AsyncMock(),
+    )
+    delivery = delivery_module.FraimicCloudDelivery(
+        None, types.SimpleNamespace(entry_id='frame'), client, 'canvas',
+    )
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
+    delivery.album_id = 'owned-album'
+    delivery.album_active = True
+    delivery.last_anchor = '2026-09-17T12:00:00+00:00'
+    deadline = delivery.delivery_deadline
+    assert deadline is not None
+    delivery.keep_awake_released = True
+    if status == 503:
+        with pytest.raises(delivery_module.FraimicCloudError):
+            asyncio.run(delivery.async_cancel_delivery())
+        assert delivery.album_active
+        assert delivery.delivery_deadline == deadline
+        delivery._store.async_save.assert_not_awaited()
+    else:
+        asyncio.run(delivery.async_cancel_delivery())
+        assert not delivery.album_active
+        assert delivery.delivery_deadline is None
+        delivery._store.async_save.assert_awaited_once()
+        asyncio.run(delivery.async_cancel_delivery())
+    client.async_update_album.assert_awaited_once_with('owned-album', {'active': False})
+    client.async_set_keep_awake.assert_not_awaited()
+    assert delivery.keep_awake_released

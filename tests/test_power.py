@@ -243,3 +243,19 @@ def test_experimental_auto_sleep_obeys_safe_guards(
     asyncio.run(manager._async_sleep_after_redraw())
 
     assert slept == [True]
+
+
+def test_cloud_delivery_invalidates_local_duplicate_hash_without_spending_budget():
+    from unittest.mock import AsyncMock
+
+    manager = _manager()
+    manager.last_hash = 'old-local-image'
+    manager.last_upload_at = 123
+    manager.automatic_count = 1
+    manager._store = SimpleNamespace(async_save=AsyncMock())
+    asyncio.run(manager.async_invalidate_display())
+    assert manager.last_hash is None
+    saved = manager._store.async_save.call_args.args[0]
+    assert saved['last_hash'] is None
+    assert saved['last_upload_at'] == 123
+    assert saved['automatic_count'] == 1

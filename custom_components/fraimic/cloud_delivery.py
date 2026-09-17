@@ -136,6 +136,22 @@ class FraimicCloudDelivery:
         self.album_active = False
         await self._async_save()
 
+    async def async_cancel_delivery(self) -> None:
+        """Retire a pending album before Hybrid replaces it over the LAN.
+
+        Keep account ownership and keep-awake unchanged so future cloud sends
+        can reuse the album and the frame can still sleep between deliveries.
+        """
+        if self.album_id is None or not self.album_active:
+            return
+        try:
+            await self.client.async_update_album(self.album_id, {"active": False})
+        except FraimicCloudError as err:
+            if err.status != 404:
+                raise
+        self.album_active = False
+        await self._async_save()
+
     @property
     def album_name(self) -> str:
         return f"Home Assistant: {self.entry.title}"

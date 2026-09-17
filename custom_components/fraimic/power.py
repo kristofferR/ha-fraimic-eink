@@ -256,6 +256,11 @@ class FraimicPowerManager:
             }
         )
 
+    async def async_invalidate_display(self) -> None:
+        """A cloud delivery may replace the last locally confirmed content."""
+        self.last_hash = None
+        await self._async_save()
+
     def begin(self, trigger: str) -> int:
         """Register a send and return its coalescing token."""
         if self._sleep_task is not None:

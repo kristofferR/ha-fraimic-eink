@@ -36,10 +36,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 
-from .api import FraimicError
+from .api import FraimicError, FraimicTimeoutError
 from .const import (
     ATTR_FIT,
     ATTR_ROTATE,
+    CONF_DELIVERY_MODE,
+    DELIVERY_HYBRID,
     DOMAIN,
     LIBRARY_ALBUM_DEFAULT,
     LIBRARY_DIR,
@@ -48,6 +50,7 @@ from .const import (
     MAX_SOURCE_PIXELS,
     PLAYLIST_TONE_VALUES,
 )
+from .delivery import async_use_cloud
 from .helpers import loaded_fraimic_entries, resolve_render_params
 from .image_convert import convert_image
 from .library_model import (
@@ -751,12 +754,17 @@ async def async_upload_rendered(
     power_token = runtime.power.begin(trigger)
 
     async def _upload() -> bool:
-        if getattr(runtime, "cloud", None) is not None:
+        if await async_use_cloud(entry):
             from .services import async_deliver_cloud
 
             await async_deliver_cloud(entry, bin_data, title=media_title or "image")
             return False
-        queue = getattr(runtime, "send_queue", None) if queue_if_asleep else None
+        hybrid = entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+        queue = (
+            getattr(runtime, "send_queue", None)
+            if queue_if_asleep and not hybrid
+            else None
+        )
         reason = runtime.power.skip_reason(
             content_hash,
             trigger,
@@ -798,8 +806,14 @@ async def async_upload_rendered(
                 # Queued: the flush updates preview/title on delivery.
                 return False
         else:
+            from .services import async_prepare_local_delivery
+
+            await async_prepare_local_delivery(entry)
             try:
                 await runtime.client.upload_image(bin_data)
+            except FraimicTimeoutError:
+                # Upload may already be rendering; never fall back to cloud.
+                pass
             except FraimicError as err:
                 raise HomeAssistantError(
                     f"Could not upload to the frame: {err}"
