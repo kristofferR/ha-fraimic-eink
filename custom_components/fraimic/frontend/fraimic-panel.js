@@ -163,8 +163,6 @@ const css = String.raw`
   }
   .row-head { display: flex; align-items: baseline; gap: 10px; margin: 18px 0 9px; }
   .row-head h2 { margin: 0; font-size: 15px; font-weight: 650; }
-  .row-head .sub { color: var(--muted); font-size: 12px; }
-  .strip { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(150px, 190px); gap: 12px; overflow-x: auto; padding: 2px 2px 8px; }
   .masonry { columns: 180px; column-gap: 14px; }
   .tile {
     display: inline-block; width: 100%; margin: 0 0 17px;
@@ -174,7 +172,6 @@ const css = String.raw`
     outline: 0;
     box-shadow: inset 0 0 0 2px var(--accent);
   }
-  .strip .tile { display: block; margin: 0; }
   .art {
     position: relative; width: 100%; aspect-ratio: var(--art-aspect, 4 / 3);
     overflow: hidden; border-radius: 8px; background: #0d0d0d;
@@ -420,7 +417,6 @@ const css = String.raw`
     .search:focus-within { position: absolute; left: 8px; right: 8px; width: auto; z-index: 2; }
     .search:focus-within input { width: 100%; color: var(--text); padding-left: 36px; }
     .masonry, .loading-grid { columns: 140px; }
-    .strip { grid-auto-columns: 145px; }
     .player-art { width: 44px; }
     .player { gap: 6px; }
     .player-copy { flex: 1; max-width: 42vw; }
@@ -818,7 +814,6 @@ class FraimicPanel extends HTMLElement {
     }));
     if (generation !== this._galleryGeneration || entryId !== this._selectedFrameId) return;
     this._galleryLoadedAt = Date.now();
-    if (query) localStorage.setItem("fraimic-last-search", query);
     commit(true);
   }
 
@@ -873,9 +868,14 @@ class FraimicPanel extends HTMLElement {
   get _allGalleryItems() {
     const seen = new Set();
     const items = [];
-    for (const sourceItems of this._galleryBySource.values()) {
+    // Prefer the saved copy, including its crop and library actions, even when
+    // its provider responds first. Provider payloads link back to this ID.
+    const sources = [...this._galleryBySource.entries()].sort(([a], [b]) =>
+      Number(b === "saved") - Number(a === "saved"));
+    for (const [, sourceItems] of sources) {
       for (const item of sourceItems) {
-        const key = `${item.source}:${item.id}`;
+        const key = item.favorite_image_id
+          ? `saved:${item.favorite_image_id}` : `${item.source}:${item.id}`;
         if (!seen.has(key)) { seen.add(key); items.push(item); }
       }
     }
@@ -1169,12 +1169,11 @@ class FraimicPanel extends HTMLElement {
     if (this._galleryLoading && !items.length) return layout(`<div class="content">${this._loadingTemplate()}</div>`);
     if (!items.length && !this._galleryLoading) return layout(`<div class="empty"><h2>Nothing matched</h2><p>Try all sources, or drop the Fits filter to include more art.</p><div class="empty-actions"><button class="btn primary" data-source="all">Search all sources</button><button class="btn" data-clear-filters>Clear filters</button></div></div>`);
     const discovering = !this._query.trim() && !this._colours.size && !this._artist && !this._era && !this._fits && !this._rendersWell;
-    const rows = discovering ? this._discoveryRows(items) : "";
     const adding = this._addingToPlaylist ? this._playlists.find((playlist) => playlist.id === this._addingToPlaylist) : null;
     const firstRun = this._player?.state === "idle" && !localStorage.getItem(`fraimic-shown-${this._selectedFrameId}`)
       ? `<div class="empty" style="padding:44px 24px 20px"><h2>${h(this._frame.name)} is showing nothing yet</h2><p>Tap any picture below to put it on the wall, or start a playlist so it changes through the day.</p></div>` : "";
-    return layout(`${adding ? `<div class="adding-bar"><b>Adding to ${h(adding.name)}</b><span class="spacer"></span><button class="btn quiet small" data-stop-adding>Done</button></div>` : ""}${firstRun}<div class="content">${rows}
-      <div class="row-head"><h2>${discovering ? (this._galleryTitle || "Everything, newest first") : this._query ? this._query : (this._galleryTitle || "Results")}</h2><span class="spacer"></span><button class="btn quiet small" data-save-results>Save as playlist</button></div>
+    return layout(`${adding ? `<div class="adding-bar"><b>Adding to ${h(adding.name)}</b><span class="spacer"></span><button class="btn quiet small" data-stop-adding>Done</button></div>` : ""}${firstRun}<div class="content">
+      <div class="row-head"><h2>${h(this._query || this._galleryTitle || (discovering ? "Discover artwork" : "Results"))}</h2><span class="spacer"></span><button class="btn quiet small" data-save-results>Save as playlist</button></div>
       <div class="masonry">${visibleItems.map((item) => this._tileTemplate(item)).join("")}</div>
       ${visibleItems.length < items.length || [...this._galleryCursorBySource.values()].some((cursor) => cursor != null) ? `<div class="load-more"><button class="btn" data-load-more ${this._loadingMore ? "disabled" : ""}>${this._loadingMore ? "Loading more" : "Load more"}</button></div>` : ""}
     </div>`);
@@ -1185,27 +1184,7 @@ class FraimicPanel extends HTMLElement {
     return `<div class="loading-grid">${aspects.map((aspect) => `<div class="placeholder"><div class="block" style="--skeleton-aspect:${aspect}"></div><div class="block-line"></div></div>`).join("")}</div>`;
   }
 
-  _discoveryRows(items) {
-    const library = items.filter((item) => item.source === "saved").slice(0, 20);
-    const madeFor = [...items].sort((a, b) => {
-      const difference = this._aspectDifference(a) - this._aspectDifference(b);
-      return difference || b.palette_score - a.palette_score;
-    }).slice(0, 20);
-    const facets = this._facets.colours.slice(0, 2).map((facet) => ({ title: facet.value[0].toUpperCase() + facet.value.slice(1), items: items.filter((item) => item.colour === facet.value).slice(0, 20) }));
-    const last = localStorage.getItem("fraimic-last-search");
-    const rows = [
-      { title: `Made for ${this._frame?.name}`, sub: "matched to the frame aspect and source resolution", items: madeFor },
-      ...(last ? [{ title: "Continue where you left off", sub: last, items: items.filter((item) => `${item.title} ${item.artist || ""}`.toLowerCase().includes(last.toLowerCase())).slice(0, 20) }] : []),
-      ...facets,
-      { title: "Your library", sub: `${library.length} pictures`, items: library, manage: true },
-    ];
-    this._rowItemsByTitle = new Map(rows.map((row) => [row.title, row.items]));
-    return rows.filter((row) => row.items.length >= 3).map((row) => `
-      <div class="row-head"><h2>${h(row.title)}</h2>${row.sub ? `<span class="sub">${h(row.sub)}</span>` : ""}<span class="spacer"></span>${row.manage ? `<button class="btn quiet small" data-source="saved">Manage</button>` : `<button class="btn quiet small" data-save-row="${h(row.title)}">Save as playlist</button>`}</div>
-      <div class="strip">${row.items.map((item) => this._tileTemplate(item, true)).join("")}</div>`).join("");
-  }
-
-  _tileTemplate(item, compact = false) {
+  _tileTemplate(item) {
     const aspect = `${Math.max(1, item.width || 4)} / ${Math.max(1, item.height || 3)}`;
     const src = this._imageAttrs(item.thumbnail_url, `${item.title}${item.artist ? `, ${item.artist}` : ""}`);
     return `<article class="tile" tabindex="0" draggable="true" data-item="${h(item.source)}:${h(item.id)}" data-keyboard-item>
@@ -1216,11 +1195,11 @@ class FraimicPanel extends HTMLElement {
         <div class="actions">
           <button class="btn primary" data-art-action="show_now" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">Show now</button>
           <button class="btn" data-art-action="queue" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">${item.queued ? "Queued" : "+ Queue"}</button>
-          ${compact ? "" : `<button class="icon-btn" data-quick-playlist data-source-id="${h(item.source)}" data-item-id="${h(item.id)}" aria-label="Add to playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon></button>`}
+          <button class="icon-btn" data-quick-playlist data-source-id="${h(item.source)}" data-item-id="${h(item.id)}" aria-label="Add to playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon></button>
           <button class="icon-btn" data-detail="${h(item.source)}:${h(item.id)}" aria-label="Picture details"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button>
         </div>
       </div>
-      ${compact ? "" : `<div class="cap"><b>${h(item.title)}</b>${item.artist ? `<span>${h(item.artist)}</span>` : ""}</div>`}
+      <div class="cap"><b>${h(item.title)}</b>${item.artist ? `<span>${h(item.artist)}</span>` : ""}</div>
     </article>`;
   }
 
@@ -1446,7 +1425,6 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-art-action]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); if (node.dataset.artAction === "show_now") this._showNow(node.dataset.sourceId, node.dataset.itemId); else this._artAction(node.dataset.artAction, node.dataset.sourceId, node.dataset.itemId); });
     root.querySelectorAll("[data-quick-playlist]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._quickPlaylist(node.dataset.sourceId, node.dataset.itemId); });
     root.querySelectorAll("[data-save-results]").forEach((node) => node.onclick = () => this._saveAsPlaylist(this._query || "Gallery", this._filteredItems));
-    root.querySelectorAll("[data-save-row]").forEach((node) => node.onclick = () => this._saveAsPlaylist(node.dataset.saveRow, this._rowItemsByTitle?.get(node.dataset.saveRow) || []));
     root.querySelectorAll("[data-load-more]").forEach((node) => node.onclick = () => this._loadMoreGallery());
     root.querySelectorAll("[data-stop-adding]").forEach((node) => node.onclick = () => { this._addingToPlaylist = null; this._render(); });
     root.querySelectorAll("[data-upload]").forEach((node) => node.onclick = () => root.getElementById("upload")?.click());
