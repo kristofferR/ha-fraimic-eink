@@ -20,7 +20,13 @@ from .const import (
 from .coordinator import FraimicConfigEntry
 from .log_page import parse_logs_page
 
+NETWORK_IDENTIFIERS = {
+    "ssid", "wifi_ssid", "ip", "ip_address",
+    "mac", "mac_address", "bssid", "wifi_mac",
+}
+
 TO_REDACT = {
+    *NETWORK_IDENTIFIERS,
     CONF_CLOUD_PASSWORD,
     CONF_CLOUD_EMAIL,
     CONF_CLOUD_DEVICE_ID,
@@ -28,10 +34,6 @@ TO_REDACT = {
     "album_id",
     "upload_id",
     "device_key",
-    "ssid",
-    "ip",
-    "wifi_ssid",
-    "ip_address",
     "device_id",
     CONF_NASA_API_KEY,
     CONF_SMITHSONIAN_KEY,
@@ -41,6 +43,21 @@ TO_REDACT = {
 
 # How many recent log lines per boot to include from the /logs admin page.
 LOG_TAIL = 80
+
+
+def _network_identifiers(data: Any) -> list[str]:
+    """Include raw-only firmware aliases when scrubbing free-text logs."""
+    values: list[str] = []
+    if isinstance(data, dict):
+        for key, value in data.items():
+            if key in NETWORK_IDENTIFIERS and isinstance(value, str) and value:
+                values.append(value)
+            else:
+                values.extend(_network_identifiers(value))
+    elif isinstance(data, list):
+        for item in data:
+            values.extend(_network_identifiers(item))
+    return values
 
 
 def _scrub(lines: list[str], secrets: list[str]) -> list[str]:
@@ -64,18 +81,7 @@ async def _async_logs(coordinator) -> dict[str, Any]:
         parsed = parse_logs_page(await coordinator.client.get_logs(verbose=True))
     except FraimicError as err:
         return {"error": str(err)}
-    data = coordinator.data or {}
-    wifi = data.get("wifi") if isinstance(data, dict) else None
-    secrets = [
-        str(value)
-        for value in (
-            (wifi or {}).get("ssid"),
-            (wifi or {}).get("ip"),
-            (wifi or {}).get("mac"),
-            (wifi or {}).get("bssid"),
-        )
-        if value
-    ]
+    secrets = _network_identifiers(coordinator.data or {})
     return {
         boot: _scrub(lines[-LOG_TAIL:], secrets)
         for boot, lines in parsed.items()
