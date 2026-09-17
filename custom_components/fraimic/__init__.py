@@ -14,7 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
 from .artwork_cache import DATA_ARTWORK_CACHE, ArtworkCache
-from .cloud import FraimicCloudClient
+from .cloud import FraimicCloudClient, FraimicCloudError
 from .cloud_delivery import FraimicCloudDelivery
 from .const import (
     CONF_CAMERA_INTERVAL,
@@ -139,7 +139,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # payload persisted before a restart.
     send_queue = FraimicSendQueue(hass, entry)
     entry.runtime_data.send_queue = send_queue
-    await send_queue.async_setup()
+    try:
+        await send_queue.async_setup()
+    except FraimicCloudError as err:
+        raise ConfigEntryNotReady("Could not migrate queued artwork to Hybrid delivery") from err
     entry.async_on_unload(send_queue.shutdown)
 
     # Playlist scheduler for stored screens; started before the platforms so

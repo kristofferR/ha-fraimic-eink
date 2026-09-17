@@ -393,7 +393,7 @@ def test_convert_rejects_invalid_height_before_rendering(
         )
 
 
-@pytest.mark.parametrize('outcome', ['awake', 'asleep', 'probe_timeout', 'upload_timeout', 'upload_error', 'cleanup_error', 'deferred'])
+@pytest.mark.parametrize('outcome', ['awake', 'asleep', 'probe_timeout', 'upload_timeout', 'upload_error', 'cleanup_error', 'deferred', 'cloud_pending'])
 @pytest.mark.parametrize("one_shot", [True, False])
 def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
     from unittest.mock import AsyncMock, Mock
@@ -432,7 +432,7 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
         schedule_sleep=Mock(),
     )
     runtime = SimpleNamespace(
-        power=power, cloud=SimpleNamespace(async_deliver=deliver, async_cancel_delivery=cancel),
+        power=power, cloud=SimpleNamespace(has_image=outcome == 'cloud_pending', async_deliver=deliver, async_cancel_delivery=cancel),
         client=SimpleNamespace(get_battery=probe, upload_image=upload),
         scheduler=None, coordinator=SimpleNamespace(
             data={'battery': {'percent': 1, 'cycles': 50}, 'device': {'name': 'Frame'}},
@@ -455,19 +455,22 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
         runtime.set_displayed_preview.assert_not_called()
     else:
         result = asyncio.run(call)
-        cloud = outcome in ('asleep', 'probe_timeout') or (outcome == 'deferred' and one_shot)
+        cloud = outcome in ('asleep', 'probe_timeout', 'cloud_pending') or (outcome == 'deferred' and one_shot)
         deferred = outcome == 'deferred' and not one_shot
-        assert events == (['probe', 'cloud'] if cloud else ['probe'] if deferred else ['probe', 'cancel', 'local'])
+        assert events == (['cloud'] if outcome == 'cloud_pending' else ['probe', 'cloud'] if cloud else ['probe'] if deferred else ['probe', 'cancel', 'local'])
         assert result['uploaded'] is (not cloud and not deferred)
         assert result['queued'] is cloud
         assert runtime.set_displayed_preview.call_count == int(not cloud and not deferred)
         assert power.async_invalidate_display.await_count == int(cloud)
         assert power.async_record_upload.await_count == int(not cloud and not deferred)
-        if outcome in ('asleep', 'probe_timeout'):
+        if outcome in ('asleep', 'probe_timeout', 'cloud_pending'):
             power.skip_reason.assert_not_called()
     online = outcome not in ('asleep', 'probe_timeout')
-    runtime.coordinator.async_set_frame_online.assert_called_once_with(online)
-    if online:
+    if outcome == 'cloud_pending':
+        runtime.coordinator.async_set_frame_online.assert_not_called()
+    else:
+        runtime.coordinator.async_set_frame_online.assert_called_once_with(online)
+    if online and outcome != 'cloud_pending':
         snapshot = power.skip_reason.call_args.args[3]
         assert snapshot == {'battery': {'percent': 90, 'cycles': 50}, 'device': {'name': 'Frame'}}
     power.finish.assert_called_once_with(1)

@@ -246,3 +246,51 @@ def test_cloud_setup_discards_lan_queue_without_starting_probes(send_queue_modul
     queue._start_waiting.assert_not_called()
     queue._store.async_save.assert_awaited_once_with({"pending": None})
     assert queue.pending is None
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_hybrid_setup_migrates_local_queue_without_losing_failed_send(
+    send_queue_module, tmp_path, fails,
+):
+    from unittest.mock import AsyncMock, Mock
+
+    payload = tmp_path / "queue.bin"
+    payload.write_bytes(b"1234")
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *parts: str(payload))
+
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    pending = {
+        "title": "Scheduled picture", "queued_at": send_queue_module.time.time(),
+    }
+    cloud = types.SimpleNamespace(
+        async_deliver=AsyncMock(side_effect=RuntimeError("cloud unavailable") if fails else None),
+    )
+    power = types.SimpleNamespace(async_invalidate_display=AsyncMock())
+    entry = types.SimpleNamespace(
+        entry_id="frame", data={"width": 2, "height": 4},
+        options={"delivery_mode": "hybrid"},
+        runtime_data=types.SimpleNamespace(cloud=cloud, power=power),
+    )
+    queue = send_queue_module.FraimicSendQueue(Hass(), entry)
+    queue._store = types.SimpleNamespace(
+        async_load=AsyncMock(return_value={"pending": pending}), async_save=AsyncMock(),
+    )
+    queue._start_waiting = Mock()
+    if fails:
+        with pytest.raises(RuntimeError, match="cloud unavailable"):
+            asyncio.run(queue.async_setup())
+        assert queue.pending == pending
+        queue._store.async_save.assert_not_awaited()
+        power.async_invalidate_display.assert_not_awaited()
+    else:
+        asyncio.run(queue.async_setup())
+        assert queue.pending is None
+        queue._store.async_save.assert_awaited_once_with({"pending": None})
+        power.async_invalidate_display.assert_awaited_once()
+        assert queue.status == "Queued for cloud delivery"
+    cloud.async_deliver.assert_awaited_once_with(b"1234", title="Scheduled picture")
+    queue._start_waiting.assert_not_called()

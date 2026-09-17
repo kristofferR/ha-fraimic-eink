@@ -25,6 +25,11 @@ async def async_use_cloud(entry: FraimicConfigEntry) -> bool:
         return False
     if entry.options.get(CONF_DELIVERY_MODE) != DELIVERY_HYBRID:
         return True
+    # An answering LAN endpoint does not mean a cloud download/redraw is idle.
+    # Keep using the account until the scheduler retires that delivery after
+    # its complete wake window, including for manual sends during the slot.
+    if runtime.cloud.has_image:
+        return True
     try:
         async with asyncio.timeout(3):
             battery = await runtime.client.get_battery()

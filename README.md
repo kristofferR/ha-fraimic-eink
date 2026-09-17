@@ -137,8 +137,10 @@ leave keep-awake unchanged. Switching back to local delivery
 re-enables it and deactivates the integration's album.
 
 Hybrid uses a short local liveness check after rendering, rather than relying on
-the last sensor update. Before a local send, it deactivates any pending cloud
-album delivery so older artwork does not replace the new image later. Local
+the last sensor update. While a cloud delivery is pending, further sends stay
+on cloud until its scheduled download/render window ends, so a local upload
+cannot overlap that redraw. Switching from Local to Hybrid moves an existing
+queued image to the cloud schedule. Local
 sends use the normal power policy; sleeping frames use the cloud schedule.
 One-shot sends deferred by the local power policy are kept in the cloud schedule
 so a scheduled occurrence is not lost; periodic sends wait for their next cycle. An

@@ -402,7 +402,7 @@ def test_prerendered_hybrid_uses_same_transport_selection(library_module, monkey
         async_record_upload=AsyncMock(), schedule_sleep=Mock(),
     )
     runtime = types.SimpleNamespace(
-        cloud=object(), client=client, power=power, upload_lock=asyncio.Lock(),
+        cloud=types.SimpleNamespace(has_image=False), client=client, power=power, upload_lock=asyncio.Lock(),
         coordinator=types.SimpleNamespace(data={}, async_update_listeners=Mock(), async_set_frame_online=Mock()),
         send_queue=Mock(), set_displayed_preview=Mock(),
     )

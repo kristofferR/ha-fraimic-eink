@@ -181,6 +181,7 @@ def test_cloud_album_expires_once_and_reactivates_for_later_send(delivery_module
     delivery.upload_id = "image"
     delivery.last_anchor = "2026-09-08T12:00:00+00:00"
     deadline = delivery.delivery_deadline
+    assert deadline == delivery_module.datetime.fromisoformat(delivery.last_anchor).timestamp() + delivery.wake_interval + 180
     monkeypatch.setattr(delivery_module.time, "time", lambda: deadline - 1)
     asyncio.run(delivery.async_expire_delivery())
     client.async_update_album.assert_not_awaited()
