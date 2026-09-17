@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import sys
 import types
 from types import SimpleNamespace
@@ -251,7 +252,7 @@ def test_accepted_delivery_updates_only_confirmed_display(
         runtime.displayed_preview = preview
 
     runtime.set_displayed_preview = set_displayed_preview
-    entry = SimpleNamespace(data={}, runtime_data=runtime)
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
     monkeypatch.setattr(services, "async_convert_for_entry", convert)
 
     result = asyncio.run(
@@ -296,6 +297,7 @@ def test_deferred_render_does_not_replace_displayed_preview(
 
     entry = SimpleNamespace(
         data={},
+        options={},
         runtime_data=SimpleNamespace(
             scheduler=None,
             power=Power(),
@@ -362,7 +364,7 @@ def test_duplicate_render_refreshes_versioned_displayed_preview(
         runtime.displayed_preview = preview
 
     runtime.set_displayed_preview = set_displayed_preview
-    entry = SimpleNamespace(data={}, runtime_data=runtime)
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
     monkeypatch.setattr(services, "async_convert_for_entry", convert)
 
     result = asyncio.run(
@@ -389,3 +391,87 @@ def test_convert_rejects_invalid_height_before_rendering(
         asyncio.run(
             services.async_convert_for_entry(SimpleNamespace(), entry, b"source")
         )
+
+
+@pytest.mark.parametrize('outcome', ['awake', 'asleep', 'probe_timeout', 'upload_timeout', 'upload_error', 'cleanup_error', 'deferred', 'cloud_pending'])
+@pytest.mark.parametrize("one_shot", [True, False])
+def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    entry = SimpleNamespace(data={}, options={'delivery_mode': 'hybrid'})
+    events = []
+
+    async def probe():
+        events.append('probe')
+        if outcome == 'asleep':
+            raise services.FraimicConnectionError('asleep')
+        if outcome == 'probe_timeout':
+            raise TimeoutError('probe timeout')
+        return {'percent': 90}
+
+    async def cancel():
+        events.append('cancel')
+        if outcome == 'cleanup_error':
+            raise services.FraimicCloudError('cloud unavailable')
+
+    async def upload(_data):
+        events.append('local')
+        if outcome == 'upload_timeout':
+            raise services.FraimicTimeoutError('redraw timeout')
+        if outcome == 'upload_error':
+            raise services.FraimicConnectionError('connection lost during upload')
+
+    async def deliver(_data, *, title):
+        events.append('cloud')
+
+    power = SimpleNamespace(
+        begin=Mock(return_value=1), finish=Mock(),
+        skip_reason=Mock(return_value='low_battery' if outcome == 'deferred' else None),
+        async_record_upload=AsyncMock(), async_invalidate_display=AsyncMock(),
+        schedule_sleep=Mock(),
+    )
+    runtime = SimpleNamespace(
+        power=power, cloud=SimpleNamespace(has_image=outcome == 'cloud_pending', async_deliver=deliver, async_cancel_delivery=cancel),
+        client=SimpleNamespace(get_battery=probe, upload_image=upload),
+        scheduler=None, coordinator=SimpleNamespace(
+            data={'battery': {'percent': 1, 'cycles': 50}, 'device': {'name': 'Frame'}},
+            async_set_frame_online=Mock(),
+        ), upload_lock=asyncio.Lock(),
+        send_queue=Mock(), set_displayed_preview=Mock(), last_preview=None, preview_image=None,
+    )
+    entry.runtime_data = runtime
+    call = services.async_render_and_upload(
+        None, entry, b'', rendered=(b'packed', b'preview', 'none'),
+        queue_if_asleep=one_shot, hold_playlist=False,
+        # A previous locally displayed scheduler hash must not bypass Hybrid's
+        # shared power accounting after a cloud image could have replaced it.
+        skip_if_hash=hashlib.sha256(b'packed').hexdigest(),
+    )
+    if outcome in ('upload_error', 'cleanup_error'):
+        with pytest.raises(services.HomeAssistantError):
+            asyncio.run(call)
+        assert events == ['probe', 'cancel'] + (['local'] if outcome == 'upload_error' else [])
+        runtime.set_displayed_preview.assert_not_called()
+    else:
+        result = asyncio.run(call)
+        cloud = outcome in ('asleep', 'probe_timeout', 'cloud_pending') or (outcome == 'deferred' and one_shot)
+        deferred = outcome == 'deferred' and not one_shot
+        assert events == (['cloud'] if outcome == 'cloud_pending' else ['probe', 'cloud'] if cloud else ['probe'] if deferred else ['probe', 'cancel', 'local'])
+        assert result['uploaded'] is (not cloud and not deferred)
+        assert result['queued'] is cloud
+        assert runtime.set_displayed_preview.call_count == int(not cloud and not deferred)
+        assert power.async_invalidate_display.await_count == int(cloud)
+        assert power.async_record_upload.await_count == int(not cloud and not deferred)
+        if outcome in ('asleep', 'probe_timeout', 'cloud_pending'):
+            power.skip_reason.assert_not_called()
+    online = outcome not in ('asleep', 'probe_timeout')
+    if outcome == 'cloud_pending':
+        runtime.coordinator.async_set_frame_online.assert_not_called()
+    else:
+        runtime.coordinator.async_set_frame_online.assert_called_once_with(online)
+    if online and outcome != 'cloud_pending':
+        snapshot = power.skip_reason.call_args.args[3]
+        assert snapshot == {'battery': {'percent': 90, 'cycles': 50}, 'device': {'name': 'Frame'}}
+    power.finish.assert_called_once_with(1)
+    runtime.send_queue.async_upload_or_queue.assert_not_called()

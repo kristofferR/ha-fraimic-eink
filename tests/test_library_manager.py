@@ -28,6 +28,8 @@ def library_module(monkeypatch: pytest.MonkeyPatch):
     exceptions.HomeAssistantError = type("HomeAssistantError", (Exception,), {})
     api = types.ModuleType("fraimic.api")
     api.FraimicError = type("FraimicError", (Exception,), {})
+    api.FraimicConnectionError = type("FraimicConnectionError", (api.FraimicError,), {})
+    api.FraimicTimeoutError = type("FraimicTimeoutError", (api.FraimicConnectionError,), {})
     helpers = types.ModuleType("fraimic.helpers")
     helpers.loaded_fraimic_entries = lambda _hass: []
     helpers.resolve_render_params = lambda _entry, _overrides=None: {}
@@ -39,10 +41,14 @@ def library_module(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setitem(sys.modules, "fraimic.api", api)
     monkeypatch.setitem(sys.modules, "fraimic.helpers", helpers)
     previous_library = sys.modules.pop("fraimic.library", None)
+    previous_delivery = sys.modules.pop("fraimic.delivery", None)
     try:
         yield load("library")
     finally:
         sys.modules.pop("fraimic.library", None)
+        sys.modules.pop("fraimic.delivery", None)
+        if previous_delivery is not None:
+            sys.modules["fraimic.delivery"] = previous_delivery
         if previous_library is not None:
             sys.modules["fraimic.library"] = previous_library
 
@@ -57,7 +63,7 @@ def test_prerendered_cloud_send_bypasses_lan_policy(library_module, monkeypatch)
     monkeypatch.setitem(sys.modules, "fraimic.services", services)
     power = types.SimpleNamespace(begin=Mock(), finish=Mock())
     runtime = types.SimpleNamespace(cloud=object(), power=power, upload_lock=asyncio.Lock())
-    entry = types.SimpleNamespace(runtime_data=runtime)
+    entry = types.SimpleNamespace(options={}, runtime_data=runtime)
     assert asyncio.run(library.async_upload_rendered(
         entry, b"panel", b"preview", "none", media_title="Art", queue_if_asleep=True
     )) is False
@@ -375,3 +381,39 @@ def test_cancelled_rename_rolls_back_when_manifest_commit_fails(
         assert not (tmp_path / f"{image.image_id}_New Name.png").exists()
 
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize('outcome', ['awake', 'asleep', 'timeout', 'deferred'])
+def test_prerendered_hybrid_uses_same_transport_selection(library_module, monkeypatch, outcome):
+    from unittest.mock import AsyncMock, Mock
+    from fraimic.api import FraimicConnectionError
+
+    library = library_module
+    services = types.ModuleType('fraimic.services')
+    services.async_deliver_cloud = AsyncMock()
+    services.async_prepare_local_delivery = AsyncMock()
+    monkeypatch.setitem(sys.modules, 'fraimic.services', services)
+    client = types.SimpleNamespace(
+        get_battery=AsyncMock(return_value={'battery': {'percent': 90}}, side_effect=FraimicConnectionError('asleep') if outcome == 'asleep' else None),
+        upload_image=AsyncMock(side_effect=library.FraimicTimeoutError('accepted') if outcome == 'timeout' else None),
+    )
+    power = types.SimpleNamespace(
+        begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value='low_battery' if outcome == 'deferred' else None),
+        async_record_upload=AsyncMock(), schedule_sleep=Mock(),
+    )
+    runtime = types.SimpleNamespace(
+        cloud=types.SimpleNamespace(has_image=False), client=client, power=power, upload_lock=asyncio.Lock(),
+        coordinator=types.SimpleNamespace(data={}, async_update_listeners=Mock(), async_set_frame_online=Mock()),
+        send_queue=Mock(), set_displayed_preview=Mock(),
+    )
+    entry = types.SimpleNamespace(options={'delivery_mode': 'hybrid'}, runtime_data=runtime)
+    displayed = asyncio.run(library.async_upload_rendered(
+        entry, b'packed', b'preview', 'none', queue_if_asleep=True,
+    ))
+    local = outcome not in ('asleep', 'deferred')
+    assert displayed is local
+    assert client.upload_image.await_count == int(local)
+    assert services.async_prepare_local_delivery.await_count == int(local)
+    assert services.async_deliver_cloud.await_count == int(not local)
+    assert runtime.set_displayed_preview.call_count == int(local)
+    runtime.send_queue.async_upload_or_queue.assert_not_called()

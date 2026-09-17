@@ -39,6 +39,8 @@ _LOGGER = logging.getLogger(__name__)
 STORE_VERSION = 1
 # Fallback rotation cadence for the album before a playlist interval is known.
 DEFAULT_INTERVAL = 3600
+# Large-frame album wakes take about 2m40s to download, render, and sleep.
+CLOUD_WAKE_WINDOW = 180
 
 
 def _cloud_png(bin_data: bytes, width: int, height: int, rotation: int) -> bytes:
@@ -117,7 +119,7 @@ class FraimicCloudDelivery:
         if not self.album_active or not self.last_anchor:
             return None
         try:
-            return datetime.fromisoformat(self.last_anchor).timestamp() + self.wake_interval + 60
+            return datetime.fromisoformat(self.last_anchor).timestamp() + self.wake_interval + CLOUD_WAKE_WINDOW
         except ValueError:
             return None
 
@@ -133,6 +135,22 @@ class FraimicCloudDelivery:
         if deadline is None or time.time() < deadline:
             return
         await self.client.async_update_album(self.album_id, {"active": False})
+        self.album_active = False
+        await self._async_save()
+
+    async def async_cancel_delivery(self) -> None:
+        """Retire a pending album before Hybrid replaces it over the LAN.
+
+        Keep account ownership and keep-awake unchanged so future cloud sends
+        can reuse the album and the frame can still sleep between deliveries.
+        """
+        if self.album_id is None or not self.album_active:
+            return
+        try:
+            await self.client.async_update_album(self.album_id, {"active": False})
+        except FraimicCloudError as err:
+            if err.status != 404:
+                raise
         self.album_active = False
         await self._async_save()
 

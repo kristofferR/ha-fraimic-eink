@@ -79,7 +79,7 @@ class FraimicRuntimeData:
         # Battery policy / redraw accounting (set during entry setup).
         self.power: Any = None
         # Cloud delivery (cloud_delivery.FraimicCloudDelivery) when the frame's
-        # delivery mode is ``cloud``; None for LAN delivery.
+        # delivery mode is ``cloud`` or ``hybrid``; None for local-only delivery.
         self.cloud: Any = None
         # Serialize uploads; the frame can only process one long refresh.
         self.upload_lock = asyncio.Lock()

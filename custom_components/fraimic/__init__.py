@@ -14,7 +14,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
 from .artwork_cache import DATA_ARTWORK_CACHE, ArtworkCache
-from .cloud import FraimicCloudClient
+from .cloud import FraimicCloudClient, FraimicCloudError
 from .cloud_delivery import FraimicCloudDelivery
 from .const import (
     CONF_CAMERA_INTERVAL,
@@ -29,6 +29,7 @@ from .const import (
     CONF_WIDTH,
     DEFAULT_ROTATION,
     DELIVERY_CLOUD,
+    DELIVERY_HYBRID,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
     ROTATION_OPTIONS,
@@ -138,7 +139,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # payload persisted before a restart.
     send_queue = FraimicSendQueue(hass, entry)
     entry.runtime_data.send_queue = send_queue
-    await send_queue.async_setup()
+    try:
+        await send_queue.async_setup()
+    except FraimicCloudError as err:
+        raise ConfigEntryNotReady("Could not migrate queued artwork to Hybrid delivery") from err
     entry.async_on_unload(send_queue.shutdown)
 
     # Playlist scheduler for stored screens; started before the platforms so
@@ -149,7 +153,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     await scheduler.async_start()
     entry.async_on_unload(scheduler.async_stop)
     cloud = entry.runtime_data.cloud
-    if cloud is not None and not cloud.has_image:
+    if (
+        cloud is not None
+        and entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD
+        and not cloud.has_image
+    ):
         # Nothing on the album yet, so the frame has no wake slot. Forget the
         # displayed hash so the next tick re-sends the current slide.
         scheduler.displayed_hash = None
@@ -224,11 +232,17 @@ async def async_migrate_entry(hass: HomeAssistant, entry: FraimicConfigEntry) ->
 async def _async_setup_cloud(
     hass: HomeAssistant, entry: FraimicConfigEntry
 ) -> FraimicCloudDelivery | None:
-    """Build cloud delivery for ``cloud`` mode; hand the frame back otherwise."""
+    """Keep account delivery for cloud/hybrid; release it for local mode."""
     delivery = await _async_load_cloud(hass, entry)
     if delivery is None:
         return None
-    if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
+    if entry.options.get(CONF_DELIVERY_MODE) in (DELIVERY_CLOUD, DELIVERY_HYBRID):
+        if (
+            entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+            and delivery.has_image
+        ):
+            # A previous cloud slot may have replaced the last LAN image.
+            await entry.runtime_data.power.async_invalidate_display()
         return delivery
     if delivery.album_id is not None or delivery.keep_awake_released:
         if not await delivery.async_release():
@@ -255,7 +269,7 @@ async def _async_load_cloud(
     password = options.get(CONF_CLOUD_PASSWORD)
     device_id = options.get(CONF_CLOUD_DEVICE_ID)
     if not (email and password and device_id):
-        if options.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
+        if options.get(CONF_DELIVERY_MODE) in (DELIVERY_CLOUD, DELIVERY_HYBRID):
             _LOGGER.warning(
                 "Cloud delivery is selected for %s but the account is incomplete; "
                 "falling back to local delivery. Reconfigure the frame to sign in.",

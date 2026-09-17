@@ -41,10 +41,12 @@ from .api import (
     FraimicTimeoutError,
 )
 from .const import (
+    CONF_DELIVERY_MODE,
     CONF_HEIGHT,
     CONF_WIDTH,
     DEFAULT_HEIGHT,
     DEFAULT_WIDTH,
+    DELIVERY_HYBRID,
     DOMAIN,
     MAX_BIN_SIZE,
     frame_bin_size,
@@ -105,7 +107,9 @@ class FraimicSendQueue:
         data = await self._store.async_load()
         if data and data.get("pending"):
             self._pending = data["pending"]
-            if getattr(self._entry.runtime_data, "cloud", None) is not None:
+            cloud = getattr(self._entry.runtime_data, "cloud", None)
+            hybrid = getattr(self._entry, "options", {}).get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+            if cloud is not None and not hybrid:
                 await self.async_discard()
                 return
             queued_size = await self._hass.async_add_executor_job(
@@ -121,6 +125,19 @@ class FraimicSendQueue:
                 await self._async_clear(
                     f"Gave up: frame never woke up for '{self._pending.get('title')}'"
                 )
+            elif cloud is not None:
+                # Preserve a Local-mode one-shot when switching to Hybrid.
+                # Setup precedes the scheduler, so its startup sees this slot.
+                def _read() -> bytes:
+                    with open(self._bin_path, "rb") as file:
+                        return file.read(MAX_BIN_SIZE + 1)
+
+                bin_data = await self._hass.async_add_executor_job(_read)
+                if len(bin_data) != self._expected_payload_size():
+                    raise FraimicApiError("Queued artwork changed during migration")
+                await cloud.async_deliver(bin_data, title=self._pending.get("title") or "image")
+                await self._entry.runtime_data.power.async_invalidate_display()
+                await self._async_clear("Queued for cloud delivery")
             else:
                 self._start_waiting()
 

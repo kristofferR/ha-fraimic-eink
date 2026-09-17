@@ -44,6 +44,7 @@ from .const import (
     ATTR_SHARPEN,
     ATTR_TONE,
     ATTR_URL,
+    CONF_DELIVERY_MODE,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
@@ -54,6 +55,7 @@ from .const import (
     DEFAULT_SHARPEN,
     DEFAULT_TONE,
     DEFAULT_WIDTH,
+    DELIVERY_HYBRID,
     DITHER_MODES,
     DOMAIN,
     FIT_COVER,
@@ -74,6 +76,7 @@ from .const import (
     SERVICE_UPLOAD_IMAGE,
 )
 from .coordinator import FraimicConfigEntry
+from .delivery import async_use_cloud
 from .image_convert import convert_image
 from .library import get_library
 from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
@@ -784,10 +787,19 @@ async def async_render_and_upload(
                     f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
                 )
             content_hash = hashlib.sha256(bin_data).hexdigest()
-            cloud = getattr(runtime, "cloud", None)
-            if cloud is None and skip_if_hash is not None and content_hash == skip_if_hash:
+            use_cloud = await async_use_cloud(entry)
+            hybrid = (
+                entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+                and getattr(runtime, "cloud", None) is not None
+            )
+            if (
+                not use_cloud
+                and not hybrid
+                and skip_if_hash is not None
+                and content_hash == skip_if_hash
+            ):
                 reason = SKIP_DUPLICATE
-            elif cloud is not None:
+            elif use_cloud:
                 # The frame wakes for every album slot regardless, so the
                 # LAN redraw budget does not apply to cloud delivery.
                 reason = None
@@ -798,6 +810,11 @@ async def async_render_and_upload(
                     power_token,
                     runtime.coordinator.data,
                 )
+            if hybrid and queue_if_asleep and reason in DEFER_REASONS:
+                # One-shot occurrences are already marked fired. Preserve them
+                # in the cloud schedule when the LAN power policy defers them.
+                use_cloud = True
+                reason = None
             if reason is not None:
                 if preview_png:
                     if reason == SKIP_DUPLICATE:
@@ -810,7 +827,7 @@ async def async_render_and_upload(
                         runtime.last_preview = preview_png
                         if runtime.preview_image is not None:
                             runtime.preview_image.set_preview(preview_png, used_mode)
-                queue = runtime.send_queue if queue_if_asleep else None
+                queue = runtime.send_queue if queue_if_asleep and not hybrid else None
                 queued = False
                 if reason in DEFER_REASONS and queue is not None:
                     await queue.async_queue_deferred(
@@ -833,8 +850,12 @@ async def async_render_and_upload(
                 }
 
             queued = False
-            queue = runtime.send_queue if queue_if_asleep and cloud is None else None
-            if cloud is not None:
+            queue = (
+                runtime.send_queue
+                if queue_if_asleep and not use_cloud and not hybrid
+                else None
+            )
+            if use_cloud:
                 await async_deliver_cloud(entry, bin_data, title=title or "image")
                 # Album acceptance schedules a future wake; it does not confirm
                 # a redraw. Keep the last known display and its power accounting.
@@ -855,6 +876,7 @@ async def async_render_and_upload(
                     ) from err
                 queued = not uploaded
             else:
+                await async_prepare_local_delivery(entry)
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:
@@ -879,7 +901,7 @@ async def async_render_and_upload(
 
             if uploaded:
                 await runtime.power.async_record_upload(content_hash, trigger)
-                if cloud is None:
+                if not use_cloud:
                     runtime.power.schedule_sleep()
     finally:
         runtime.power.finish(power_token)
@@ -890,7 +912,7 @@ async def async_render_and_upload(
         "content_hash": content_hash,
         "uploaded": uploaded,
         "queued": queued,
-        "cloud_queued": cloud is not None and queued,
+        "cloud_queued": use_cloud and queued,
         "preview_png": preview_png,
         "displayed": uploaded,
     }
@@ -903,8 +925,22 @@ async def async_deliver_cloud(entry, bin_data: bytes, *, title: str) -> None:
         await runtime.cloud.async_deliver(bin_data, title=title)
     except FraimicCloudError as err:
         raise CloudDeliveryError(f"Could not deliver to the Fraimic cloud: {err}") from err
+    if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID:
+        await runtime.power.async_invalidate_display()
     if runtime.scheduler is not None:
         await runtime.scheduler.async_cloud_delivery_accepted()
+
+
+async def async_prepare_local_delivery(entry: FraimicConfigEntry) -> None:
+    """Prevent an older pending cloud image from following a Hybrid LAN send."""
+    cloud = getattr(entry.runtime_data, "cloud", None)
+    if cloud is not None and entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID:
+        try:
+            await cloud.async_cancel_delivery()
+        except FraimicCloudError as err:
+            raise CloudDeliveryError(
+                f"Could not cancel the previous cloud delivery: {err}"
+            ) from err
 
 
 def _convert(

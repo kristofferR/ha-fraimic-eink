@@ -37,6 +37,7 @@ from .const import (
     CONF_DELIVERY_MODE,
     DEFAULT_DELIVERY_MODE,
     DELIVERY_CLOUD,
+    DELIVERY_HYBRID,
     DELIVERY_MODES,
     CONF_ARTWORK_CACHE,
     CONF_ARTWORK_CACHE_MAX_MB,
@@ -339,7 +340,7 @@ class FraimicOptionsFlow(OptionsFlow):
                     if key in self.config_entry.options
                 }
                 merged.update(user_input)
-                if user_input.get(CONF_DELIVERY_MODE) == DELIVERY_CLOUD:
+                if user_input.get(CONF_DELIVERY_MODE) in (DELIVERY_CLOUD, DELIVERY_HYBRID):
                     self._pending = merged
                     return await self.async_step_cloud()
                 return self.async_create_entry(title="", data=merged)
@@ -352,7 +353,7 @@ class FraimicOptionsFlow(OptionsFlow):
                     vol.Required(
                         CONF_DELIVERY_MODE,
                         default=o.get(CONF_DELIVERY_MODE, DEFAULT_DELIVERY_MODE),
-                    ): vol.In(DELIVERY_MODES),
+                    ): vol.In({mode: mode.title() for mode in DELIVERY_MODES}),
                     vol.Required(
                         CONF_POWER_MODE,
                         default=o.get(CONF_POWER_MODE, DEFAULT_POWER_MODE),

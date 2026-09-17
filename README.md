@@ -128,11 +128,24 @@ stored-screen wizard, and YAML examples. `preview_only: true` renders to the
 |------|-------------------------------|--------------|
 | **Local** (default) | Home Assistant uploads directly; a sleeping frame can defer delivery until it wakes. | Network access from Home Assistant to the frame. No Fraimic account needed for delivery. |
 | **Cloud** | Home Assistant updates a dedicated album in your Fraimic account; the frame downloads the image on a scheduled wake. | Fraimic account and internet access. |
+| **Hybrid** | Checks the frame before each send: uploads locally when awake, otherwise uses cloud delivery for a scheduled wake. | Local network access, a Fraimic account, and internet access for cloud delivery. |
 
-For cloud delivery, choose **cloud** in the frame's options, sign in with the
+For Cloud or Hybrid delivery, choose **cloud** or **hybrid** in the frame's options, sign in with the
 account you use at `app.fraimic.com`, and select the frame. The integration turns
-keep-awake off after the first delivery. Switching back to local delivery
+keep-awake off after the first successful cloud submission; Hybrid local sends
+leave keep-awake unchanged. Switching back to local delivery
 re-enables it and deactivates the integration's album.
+
+Hybrid uses a short local liveness check after rendering, rather than relying on
+the last sensor update. While a cloud delivery is pending, further sends stay
+on cloud until its scheduled download/render window ends, so a local upload
+cannot overlap that redraw. Switching from Local to Hybrid moves an existing
+queued image to the cloud schedule. Local
+sends use the normal power policy; sleeping frames use the cloud schedule.
+One-shot sends deferred by the local power policy are kept in the cloud schedule
+so a scheduled occurrence is not lost; periodic sends wait for their next cycle. An
+upload that has already started is never retried through the other transport,
+since an upload timeout can mean the frame is already rendering.
 
 **Cloud acceptance means queued, not confirmed on the physical display.** The
 dashboard keeps the last confirmed local artwork separate from the advancing
@@ -152,7 +165,8 @@ Local delivery has three power profiles:
 
 Existing entries without a power profile migrate to Responsive. Automatic sends
 are deferred below 25% battery; charging bypasses cooldowns and budgets. Manual
-sends remain available. Cloud delivery uses its album schedule instead of these
+sends remain available. These profiles also apply when Hybrid sends locally.
+Cloud delivery uses its album schedule instead of these
 local polling and send-queue controls.
 
 Use **Refresh frame data** for fresh sensors and **Try queued send** after waking

@@ -183,7 +183,7 @@
           "pexels_api_key": "Pexels API key (optional)"
         },
         "data_description": {
-          "delivery_mode": "local: push images to the frame over your network (the frame must be awake). cloud: upload to your Fraimic account and let its album schedule wake the frame for each image, so keep-awake can stay off and the battery lasts.",
+          "delivery_mode": "local: push images to the frame over your network (the frame must be awake). cloud: upload to your Fraimic account and let its album schedule wake the frame for each image, so keep-awake can stay off and the battery lasts. hybrid: check whether the frame is awake before each send; use local delivery when reachable and your Fraimic account otherwise. Local sends leave keep-awake unchanged; the first successful cloud submission turns it off.",
           "power_mode": "minimum: no periodic polling and at most one automatic redraw/day; balanced: hourly polling and up to eight automatic redraws/day; responsive: legacy-style polling and up to 48 automatic redraws/day.",
           "auto_sleep_after_upload": "After a successful redraw, wait 45 seconds and ask an unplugged frame to sleep. Disabled when charging, keep-awake is set, work is queued, or power state is unknown.",
           "scan_interval": "Requested polling interval. Power mode may raise it; Minimum disables periodic polling entirely.",
