@@ -752,12 +752,14 @@ async def async_upload_rendered(
     runtime = entry.runtime_data
     content_hash = hashlib.sha256(bin_data).hexdigest()
     power_token = runtime.power.begin(trigger)
+    sending_preview = (preview_png, media_title or "Artwork") if preview_png else None
 
     async def _upload() -> bool:
+        runtime.sending_preview = sending_preview
         if await async_use_cloud(entry):
             from .services import async_deliver_cloud
 
-            await async_deliver_cloud(entry, bin_data, title=media_title or "image")
+            await async_deliver_cloud(entry, bin_data, title=media_title or "image", preview_png=preview_png)
             return False
         hybrid = (
             entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
@@ -778,7 +780,7 @@ async def async_upload_rendered(
             if hybrid and queue_if_asleep and reason in DEFER_REASONS:
                 from .services import async_deliver_cloud
 
-                await async_deliver_cloud(entry, bin_data, title=media_title or "image")
+                await async_deliver_cloud(entry, bin_data, title=media_title or "image", preview_png=preview_png)
             elif reason in DEFER_REASONS and queue is not None:
                 await queue.async_queue_deferred(
                     bin_data,
@@ -829,6 +831,9 @@ async def async_upload_rendered(
         runtime.media_title = media_title
         if preview_png:
             runtime.set_displayed_preview(preview_png, mode)
+        cloud = getattr(runtime, "cloud", None)
+        if cloud is not None and getattr(cloud, "preview_png", None):
+            await cloud.async_clear_preview()
         await runtime.power.async_record_upload(content_hash, trigger)
         runtime.power.schedule_sleep()
         runtime.coordinator.async_update_listeners()
@@ -841,6 +846,8 @@ async def async_upload_rendered(
         else:
             return await _upload()
     finally:
+        if getattr(runtime, "sending_preview", None) is sending_preview:
+            runtime.sending_preview = None
         runtime.power.finish(power_token)
 
 

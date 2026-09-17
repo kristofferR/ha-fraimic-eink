@@ -279,6 +279,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
         overrides: dict,
         *,
         preprocess: bool,
+        title: str,
         skip_if_hash: str | None,
         hold_playlist: bool,
     ) -> dict:
@@ -349,6 +350,7 @@ def test_upload_path_holds_playlist_before_rendering(
         overrides: dict,
         *,
         preprocess: bool,
+        title: str,
         skip_if_hash: str | None,
         hold_playlist: bool,
     ) -> dict:
@@ -439,6 +441,7 @@ def test_skipped_picture_upload_keeps_current_art_metadata(
         overrides: dict,
         *,
         preprocess: bool,
+        title: str,
         skip_if_hash: str | None,
         hold_playlist: bool,
     ) -> dict:

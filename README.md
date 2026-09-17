@@ -148,9 +148,10 @@ upload that has already started is never retried through the other transport,
 since an upload timeout can mean the frame is already rendering.
 
 **Cloud acceptance means queued, not confirmed on the physical display.** The
-dashboard keeps the last confirmed local artwork separate from the advancing
-playback order. Allow the scheduled wake interval for delivery. Each wake and
-redraw uses battery, so longer playlist intervals help. See the
+dashboard shows the submitted image with a **display unconfirmed** label and
+keeps confirmation separate from playback order. New cloud-submitted previews
+are retained across Home Assistant restarts. Allow the scheduled wake interval
+for delivery. Each wake and redraw uses battery, so longer playlist intervals help. See the
 [verified cloud scheduling behaviour](docs/fraimic-cloud-api/albums-scheduling.md).
 
 ### Battery-saving modes

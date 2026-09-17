@@ -49,24 +49,7 @@ def player_api(monkeypatch):
     return module
 
 
-@pytest.mark.parametrize(
-    ("media_title", "art", "preview", "expected_title", "expected_artist"),
-    [
-        ("camera.front_door", None, b"confirmed-camera", "camera.front_door", None),
-        ("photo.jpg", None, b"confirmed-library", "photo.jpg", None),
-        (
-            "fallback",
-            {"title": "Elk", "artist": "Bierstadt"},
-            b"confirmed-art",
-            "Elk",
-            "Bierstadt",
-        ),
-        (None, None, None, None, None),
-    ],
-)
-def test_manual_display_survives_cleared_scheduler_hash(
-    player_api, media_title, art, preview, expected_title, expected_artist
-):
+def _entry(media_title=None, art=None, preview=None):
     scheduler = SimpleNamespace(
         playlist_id="playlist-1",
         playlist_name="Evening art",
@@ -95,6 +78,29 @@ def test_manual_display_survives_cleared_scheduler_hash(
     )
     entry = SimpleNamespace(entry_id="frame-1", runtime_data=runtime)
 
+    return entry
+
+
+@pytest.mark.parametrize(
+    ("media_title", "art", "preview", "expected_title", "expected_artist"),
+    [
+        ("camera.front_door", None, b"confirmed-camera", "camera.front_door", None),
+        ("photo.jpg", None, b"confirmed-library", "photo.jpg", None),
+        (
+            "fallback",
+            {"title": "Elk", "artist": "Bierstadt"},
+            b"confirmed-art",
+            "Elk",
+            "Bierstadt",
+        ),
+        (None, None, None, None, None),
+    ],
+)
+def test_manual_display_survives_cleared_scheduler_hash(
+    player_api, media_title, art, preview, expected_title, expected_artist
+):
+    entry = _entry(media_title, art, preview)
+
     payload = player_api._player_payload(SimpleNamespace(data={}), entry)
 
     assert payload["current"]["id"] is None
@@ -105,3 +111,66 @@ def test_manual_display_survives_cleared_scheduler_hash(
     )
     assert payload["playlist_id"] == "playlist-1"
     assert payload["transport_available"] is True
+
+
+@pytest.mark.parametrize("kind", ["sending", "cloud", "rendering"])
+def test_player_previews_submission_without_claiming_display(player_api, kind):
+    entry = _entry("Old artwork", preview=b"old-preview")
+    runtime = entry.runtime_data
+    runtime.cloud = SimpleNamespace(preview_png=b"cloud-preview", preview_title="Cloud artwork", upload_id="upload-1")
+    if kind == "sending":
+        runtime.sending_preview = (b"new-preview", "New artwork")
+    elif kind == "rendering":
+        runtime.scheduler.sending_screen = SimpleNamespace(
+            screen_id="slide-2", name="Rendering artwork", kind="picture",
+            source={"library_image": "image-2"},
+        )
+    payload = player_api._player_payload(SimpleNamespace(data={}), entry)
+    assert payload["current"]["title"] == "Old artwork"
+    assert payload["current"]["thumbnail_url"] == "/api/fraimic/player/artwork/frame-1?v=3"
+    preview = payload["preview"]
+    if kind == "rendering":
+        assert preview["thumbnail_url"] == "/api/fraimic/library/thumb/image-2"
+        assert preview["title"] == "Rendering artwork"
+    else:
+        assert f"kind={kind}&v=" in preview["thumbnail_url"]
+        assert preview["title"] == ("New artwork" if kind == "sending" else "Cloud artwork")
+    assert preview["status"] == ("submitted" if kind == "cloud" else "sending")
+
+
+@pytest.mark.parametrize("kind", ["confirmed", "cloud", "sending", "completed", "cloud_completed", "stale"])
+def test_artwork_serves_selected_preview_without_mixing_sends(player_api, monkeypatch, kind):
+    import asyncio
+    import hashlib
+
+    entry = _entry(preview=b"confirmed")
+    runtime = entry.runtime_data
+    runtime.cloud = SimpleNamespace(preview_png=b"cloud")
+    runtime.sending_preview = (b"sending", "New artwork") if kind == "sending" else None
+    monkeypatch.setattr(player_api, "require_loaded_entry", lambda *_: entry)
+    class NotFound(Exception):
+        def __init__(self, *, text):
+            super().__init__(text)
+    monkeypatch.setattr(player_api.web, "HTTPNotFound", NotFound, raising=False)
+    monkeypatch.setattr(player_api.web, "Response", lambda **kwargs: kwargs, raising=False)
+    query = {}
+    expected = b"confirmed"
+    if kind == "cloud":
+        query["kind"] = "cloud"
+        expected = b"cloud"
+    elif kind in ("sending", "completed", "cloud_completed", "stale"):
+        query["kind"] = "sending"
+        expected = b"sending" if kind in ("sending", "stale") else b"confirmed"
+        if kind == "cloud_completed":
+            expected = b"cloud"
+        query["v"] = hashlib.sha256(expected).hexdigest()
+    request = SimpleNamespace(app={player_api.KEY_HASS: object()}, query=query)
+    call = player_api.PlayerArtworkView().get(request, "frame-1")
+    if kind == "stale":
+        with pytest.raises(NotFound):
+            asyncio.run(call)
+    else:
+        response = asyncio.run(call)
+        assert response["body"] == expected
+        assert response["content_type"] == "image/png"
+        assert response["headers"]["Cache-Control"] == "private, no-store"

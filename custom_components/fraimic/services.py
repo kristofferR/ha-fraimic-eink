@@ -770,6 +770,7 @@ async def async_render_and_upload(
     scheduler = begin_external_upload(entry) if hold_playlist else None
     power_token = runtime.power.begin(trigger)
     uploaded = False
+    sending_preview = None
     try:
         async with runtime.upload_lock:
             if rendered is None:
@@ -849,6 +850,9 @@ async def async_render_and_upload(
                     "displayed": reason == SKIP_DUPLICATE,
                 }
 
+            if preview_png:
+                sending_preview = (preview_png, title or "Artwork")
+                runtime.sending_preview = sending_preview
             queued = False
             queue = (
                 runtime.send_queue
@@ -856,7 +860,7 @@ async def async_render_and_upload(
                 else None
             )
             if use_cloud:
-                await async_deliver_cloud(entry, bin_data, title=title or "image")
+                await async_deliver_cloud(entry, bin_data, title=title or "image", preview_png=preview_png)
                 # Album acceptance schedules a future wake; it does not confirm
                 # a redraw. Keep the last known display and its power accounting.
                 queued = True
@@ -900,10 +904,15 @@ async def async_render_and_upload(
                 runtime.set_displayed_preview(preview_png, used_mode)
 
             if uploaded:
+                cloud = getattr(runtime, "cloud", None)
+                if cloud is not None and getattr(cloud, "preview_png", None):
+                    await cloud.async_clear_preview()
                 await runtime.power.async_record_upload(content_hash, trigger)
                 if not use_cloud:
                     runtime.power.schedule_sleep()
     finally:
+        if getattr(runtime, "sending_preview", None) is sending_preview:
+            runtime.sending_preview = None
         runtime.power.finish(power_token)
         finish_external_upload(scheduler, uploaded=uploaded)
 
@@ -918,11 +927,13 @@ async def async_render_and_upload(
     }
 
 
-async def async_deliver_cloud(entry, bin_data: bytes, *, title: str) -> None:
+async def async_deliver_cloud(
+    entry, bin_data: bytes, *, title: str, preview_png: bytes | None = None
+) -> None:
     """Share cloud acceptance handling with already-rendered library/scene sends."""
     runtime = entry.runtime_data
     try:
-        await runtime.cloud.async_deliver(bin_data, title=title)
+        await runtime.cloud.async_deliver(bin_data, title=title, preview_png=preview_png)
     except FraimicCloudError as err:
         raise CloudDeliveryError(f"Could not deliver to the Fraimic cloud: {err}") from err
     if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID:
