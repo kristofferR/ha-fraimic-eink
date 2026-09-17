@@ -717,7 +717,7 @@ class FraimicPanel extends HTMLElement {
   _updatePlayerTiming() {
     const player = this._player;
     const current = player?.preview || player?.current || {};
-    const state = player?.state || "idle";
+    const state = player?.preview?.status === "sending" ? "sending" : player?.state || "idle";
     const meta = this.shadowRoot?.querySelector("[data-player-meta]");
     if (meta && current.title && !player?.preview && !["sending", "asleep", "unreachable"].includes(state)) {
       meta.textContent = [
@@ -1244,7 +1244,7 @@ class FraimicPanel extends HTMLElement {
     const player = this._player;
     if (!this._frame) return `<footer class="player"><div class="player-copy"><b>Nothing playing</b><span>Pick a playlist, or show a picture from the gallery</span></div></footer>`;
     const current = player?.preview || player?.current || {};
-    const state = player?.state || "idle";
+    const state = player?.preview?.status === "sending" ? "sending" : player?.state || "idle";
     let title = current.title || player?.playlist_name || "Nothing playing";
     let meta = player?.playlist_id ? "Displayed artwork not confirmed" : "Pick a playlist, or show a picture from the gallery";
     if (state === "sending") meta = `Sending to ${this._frame.name}. The panel takes about 30 seconds.`;
@@ -1287,7 +1287,7 @@ class FraimicPanel extends HTMLElement {
     const total = player.playlist?.total ?? playlist.length;
     const shuffled = Boolean(player.playlist?.shuffle);
     const current = player.preview || player.current || {};
-    const state = player.state || "idle";
+    const state = player.preview?.status === "sending" ? "sending" : player.state || "idle";
     const interval = this._formatInterval(player.interval).replace(/^every /, "");
     const intervalControl = player.playlist_id ? `<button class="btn queue-interval${this._menu === "interval" ? " selected" : ""}" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button>` : "";
     const chrome = `<span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>`;

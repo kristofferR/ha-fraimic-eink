@@ -34,7 +34,7 @@ from .const import (
     DEFAULT_WIDTH,
     DOMAIN,
 )
-from .image_convert import indices_to_cloud_png, bin_to_indices
+from .image_convert import indices_to_cloud_png, bin_to_indices, bin_to_png
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -193,7 +193,9 @@ class FraimicCloudDelivery:
             await self._async_discard(upload_id)
             raise
         self.upload_id = upload_id
-        self.preview_png = preview_png or png
+        self.preview_png = preview_png or await self.hass.async_add_executor_job(
+            bin_to_png, bin_data, width, height, rotation
+        )
         self.preview_title = title
         self._set_anchor(album)
         await self._async_save()

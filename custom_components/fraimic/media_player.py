@@ -176,6 +176,7 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
                 entry,
                 image.content,
                 hold_playlist=False,
+                title=camera_entity,
                 trigger=trigger,
             )
             uploaded = result.get("uploaded", True)
@@ -413,7 +414,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
             try:
                 art = await async_art_by_media_id(self.hass, entry, *parsed)
                 result = await async_render_and_upload(
-                    self.hass, entry, art.data, hold_playlist=False
+                    self.hass, entry, art.data, hold_playlist=False,
+                    title=art.candidate.title,
                 )
                 uploaded = result.get("uploaded", True)
                 if result.get("displayed", uploaded):

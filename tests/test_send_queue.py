@@ -256,6 +256,7 @@ def test_hybrid_setup_migrates_local_queue_without_losing_failed_send(
 
     payload = tmp_path / "queue.bin"
     payload.write_bytes(b"1234")
+    payload.with_suffix(".bin.png").write_bytes(b"calibrated-preview")
 
     class Hass:
         config = types.SimpleNamespace(path=lambda *parts: str(payload))
@@ -264,7 +265,7 @@ def test_hybrid_setup_migrates_local_queue_without_losing_failed_send(
             return target(*args)
 
     pending = {
-        "title": "Scheduled picture", "queued_at": send_queue_module.time.time(),
+        "title": "Scheduled picture", "queued_at": send_queue_module.time.time(), "has_preview": True,
     }
     cloud = types.SimpleNamespace(
         async_deliver=AsyncMock(side_effect=RuntimeError("cloud unavailable") if fails else None),
@@ -292,5 +293,5 @@ def test_hybrid_setup_migrates_local_queue_without_losing_failed_send(
         queue._store.async_save.assert_awaited_once_with({"pending": None})
         power.async_invalidate_display.assert_awaited_once()
         assert queue.status == "Queued for cloud delivery"
-    cloud.async_deliver.assert_awaited_once_with(b"1234", title="Scheduled picture")
+    cloud.async_deliver.assert_awaited_once_with(b"1234", title="Scheduled picture", preview_png=b"calibrated-preview")
     queue._start_waiting.assert_not_called()

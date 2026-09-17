@@ -64,6 +64,7 @@ def _entry(media_title=None, art=None, preview=None):
         queued_slides=[],
         playlist_up_next=lambda limit: [],
         sending_slide_name=None,
+        sending_started_at=None,
         enabled=True,
         shuffle=False,
     )
@@ -174,3 +175,15 @@ def test_artwork_serves_selected_preview_without_mixing_sends(player_api, monkey
         assert response["body"] == expected
         assert response["content_type"] == "image/png"
         assert response["headers"]["Cache-Control"] == "private, no-store"
+
+
+
+def test_rendering_direct_send_does_not_reuse_prior_cloud_preview(player_api):
+    entry = _entry()
+    entry.runtime_data.scheduler.external_upload_active = True
+    entry.runtime_data.cloud = SimpleNamespace(
+        preview_png=b"old-image", preview_title="Old artwork", upload_id="old-upload",
+    )
+    payload = player_api._player_payload(SimpleNamespace(data={}), entry)
+    assert payload["state"] == "sending"
+    assert payload["preview"] is None

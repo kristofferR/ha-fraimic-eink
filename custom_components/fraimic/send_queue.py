@@ -128,14 +128,25 @@ class FraimicSendQueue:
             elif cloud is not None:
                 # Preserve a Local-mode one-shot when switching to Hybrid.
                 # Setup precedes the scheduler, so its startup sees this slot.
-                def _read() -> bytes:
+                def _read() -> tuple[bytes, bytes | None]:
                     with open(self._bin_path, "rb") as file:
-                        return file.read(MAX_BIN_SIZE + 1)
+                        bin_data = file.read(MAX_BIN_SIZE + 1)
+                    preview = None
+                    if self._pending.get("has_preview"):
+                        try:
+                            with open(self._png_path, "rb") as file:
+                                preview = file.read()
+                        except FileNotFoundError:
+                            pass
+                    return bin_data, preview
 
-                bin_data = await self._hass.async_add_executor_job(_read)
+                bin_data, preview_png = await self._hass.async_add_executor_job(_read)
                 if len(bin_data) != self._expected_payload_size():
                     raise FraimicApiError("Queued artwork changed during migration")
-                await cloud.async_deliver(bin_data, title=self._pending.get("title") or "image")
+                await cloud.async_deliver(
+                    bin_data, title=self._pending.get("title") or "image",
+                    preview_png=preview_png,
+                )
                 await self._entry.runtime_data.power.async_invalidate_display()
                 await self._async_clear("Queued for cloud delivery")
             else:

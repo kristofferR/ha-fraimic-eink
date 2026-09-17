@@ -747,7 +747,10 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             remaining = min(interval, held_remaining)
             elapsed = max(0, interval - remaining)
 
-    sending = scheduler.busy or scheduler.external_upload_active
+    sending = bool(
+        scheduler.busy or scheduler.external_upload_active
+        or getattr(runtime, "sending_preview", None) is not None
+    )
     sending_progress: int | None = None
     if sending and scheduler.sending_started_at is not None:
         # The firmware blocks the accepted upload response during its roughly
@@ -835,7 +838,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         preview = _slide_payload(sending_screen)
         preview["thumbnail_url"] = preview["thumbnail_url"] or queue_thumbnail(sending_screen)
         preview["status"] = "sending"
-    elif cloud is not None and getattr(cloud, "preview_png", None):
+    elif not sending and cloud is not None and getattr(cloud, "preview_png", None):
         preview = {
             "title": cloud.preview_title or "Artwork",
             "status": "submitted",
