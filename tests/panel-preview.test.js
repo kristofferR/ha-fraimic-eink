@@ -124,3 +124,41 @@ test("rotated crop coordinates round-trip and preserve the wall aspect", () => {
     expect(ratio).toBeCloseTo(2560 / 1440);
   }
 });
+
+
+test("disabled source caching warms only the selected mode", async () => {
+  const h = harness();
+  h.panel._detail.warm_previews = false;
+  h.panel._queueDetailPreview();
+  await h.drain();
+  expect(h.requests.map(mode)).toEqual(["auto"]);
+  h.panel._detailOptions.mode = "bayer";
+  h.panel._queueDetailPreview();
+  await h.drain();
+  expect(h.requests.map(mode)).toEqual(["auto", "bayer"]);
+});
+
+test("sending to other frames lets the backend use their own crop and rotation", async () => {
+  const { panel } = harness();
+  const selected = { id: "frame", width: 1440, height: 2560, rotation: 90 };
+  const target = { id: "other", width: 1600, height: 1200, rotation: 0 };
+  panel._frames = [selected, target];
+  panel._detail.saved_rotation = 90;
+  panel._fitDifference = () => 0;
+  panel._openModal = () => {};
+  panel._closeModal = () => {};
+  const buttons = [selected, target].map((frame) => ({ dataset: { showFrame: frame.id } }));
+  let both;
+  panel.shadowRoot = {
+    querySelectorAll: () => buttons,
+    querySelector: () => ({ addEventListener: (_event, fn) => { both = fn; } }),
+  };
+  const sends = [];
+  panel._artAction = async (...args) => sends.push(args);
+  const crop = [.2, 0, .8, 1];
+  panel._showNow("saved", "art", { crop });
+  buttons[1].onclick();
+  await both();
+  expect(sends.map((args) => args[5])).toEqual(["other", "frame", "other"]);
+  expect(sends.map((args) => args[4].crop)).toEqual([null, crop, null]);
+});

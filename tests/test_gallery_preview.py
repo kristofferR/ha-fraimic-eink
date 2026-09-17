@@ -173,3 +173,23 @@ def test_detail_includes_saved_rotation_in_original_crop_coordinates(gallery, mo
     )))
     assert result["saved_rotation"] == 90
     assert result["saved_crop"] == crop
+
+
+@pytest.mark.parametrize("source,cache_mode,expected", [
+    ("met", "off", False), ("met", "30_days", True),
+    ("met", "forever", True), ("saved", "off", True),
+])
+def test_detail_warms_alternatives_only_with_reusable_source(
+    gallery, monkeypatch, source, cache_mode, expected
+):
+    entry = SimpleNamespace(entry_id="frame", data={}, options={"artwork_cache": cache_mode})
+    monkeypatch.setattr(gallery, "require_loaded_entry", lambda *_: entry)
+    monkeypatch.setattr(gallery, "_resolve_item", AsyncMock(return_value={"id": "art"}))
+    image = SimpleNamespace(crop_for=lambda *_: None, rotation_for=lambda *_: 0)
+    monkeypatch.setattr(gallery, "_library", lambda _: SimpleNamespace(get=lambda _: image))
+    view = gallery.GalleryDetailView()
+    view.json = lambda body: body
+    result = asyncio.run(view.get(SimpleNamespace(
+        app={gallery.KEY_HASS: object()}, query={"entry_id": "frame", "source": source, "item_id": "art"}
+    )))
+    assert result["warm_previews"] is expected

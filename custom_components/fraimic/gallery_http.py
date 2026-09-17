@@ -19,7 +19,16 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
 
 from .artwork_cache import get_artwork_cache
-from .const import DITHER_MODES, DOMAIN, LIBRARY_ALBUM_DEFAULT, MODE_AUTO
+from .const import (
+    ARTWORK_CACHE_30_DAYS,
+    ARTWORK_CACHE_FOREVER,
+    CONF_ARTWORK_CACHE,
+    DEFAULT_ARTWORK_CACHE,
+    DITHER_MODES,
+    DOMAIN,
+    LIBRARY_ALBUM_DEFAULT,
+    MODE_AUTO,
+)
 from .helpers import resolve_render_params
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
@@ -724,6 +733,9 @@ class GalleryDetailView(HomeAssistantView):
                     if source == LIBRARY_SOURCE
                     else 0
                 ),
+                "warm_previews": source == LIBRARY_SOURCE
+                or entry.options.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE)
+                in {ARTWORK_CACHE_30_DAYS, ARTWORK_CACHE_FOREVER},
                 "cover_preview_url": f"{preview_base}&fit=cover",
                 "contain_preview_url": f"{preview_base}&fit=contain",
             }

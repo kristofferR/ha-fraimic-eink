@@ -1776,15 +1776,16 @@ class FraimicPanel extends HTMLElement {
     const item = this._detail || this._findItem(source, itemId) || {};
     const frames = [...this._frames].sort((a, b) => this._fitDifference(item, a) - this._fitDifference(item, b));
     this._openModal("Show now", `<div class="queue-list">${frames.map((frame, index) => `<button class="queue-row" data-show-frame="${h(frame.id)}"><b>${h(frame.name)}</b><span class="spacer"></span><span class="counter">${index === 0 ? `${this._frameShape(frame)}, suits this` : `${this._frameShape(frame)}, will crop`}</span></button>`).join("")}${frames.length === 2 ? `<button class="queue-row" data-show-both>Both frames</button>` : ""}</div>`);
+    // Other frames use their own saved crop/rotation or the renderer's default fit.
     this.shadowRoot.querySelectorAll("[data-show-frame]").forEach((node) => node.onclick = () => {
       const frame = this._frames.find((candidate) => candidate.id === node.dataset.showFrame);
-      const targetOptions = { ...options, crop: frame?.id === this._selectedFrameId ? options.crop : this._defaultCrop(item, frame) };
+      const targetOptions = { ...options, crop: frame?.id === this._selectedFrameId ? options.crop : null };
       this._closeModal(); this._artAction("show_now", source, itemId, null, targetOptions, frame.id);
     });
     this.shadowRoot.querySelector("[data-show-both]")?.addEventListener("click", async () => {
       this._closeModal();
       for (const frame of frames) {
-        const targetOptions = { ...options, crop: frame.id === this._selectedFrameId ? options.crop : this._defaultCrop(item, frame) };
+        const targetOptions = { ...options, crop: frame.id === this._selectedFrameId ? options.crop : null };
         await this._artAction("show_now", source, itemId, null, targetOptions, frame.id);
       }
     });
@@ -1836,7 +1837,7 @@ class FraimicPanel extends HTMLElement {
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Fit</h3><p>${h(fitNotes[options.fit])}</p></div><select class="detail-select" data-detail-fit aria-label="Artwork fit"><option value="cover" ${options.fit === "cover" ? "selected" : ""}>Cover</option><option value="contain" ${options.fit === "contain" ? "selected" : ""}>Contain</option><option value="stretch" ${options.fit === "stretch" ? "selected" : ""}>Stretch</option></select></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Tone</h3><p>${options.mode === "official" ? "Fraimic official uses its own fixed tone" : h(toneNotes[options.tone])}</p></div><select class="detail-select" data-detail-tone aria-label="Artwork tone" ${options.mode === "official" ? "disabled" : ""}><option value="vivid" ${options.tone === "vivid" ? "selected" : ""}>Vivid</option><option value="balanced" ${options.tone === "balanced" ? "selected" : ""}>Balanced</option><option value="soft" ${options.tone === "soft" ? "selected" : ""}>Soft</option></select></div>
         <div class="detail-setting"><div class="detail-setting-copy"><h3>Dithering</h3><p>${h(modeNotes[options.mode])}</p></div><select class="detail-select" data-detail-mode aria-label="Artwork dithering"><option value="auto" ${options.mode === "auto" ? "selected" : ""}>Automatic</option><option value="official" ${options.mode === "official" ? "selected" : ""}>Fraimic official</option><option value="none" ${options.mode === "none" ? "selected" : ""}>None</option><option value="bayer" ${options.mode === "bayer" ? "selected" : ""}>Bayer</option><option value="floyd_steinberg" ${options.mode === "floyd_steinberg" ? "selected" : ""}>Floyd-Steinberg</option><option value="atkinson" ${options.mode === "atkinson" ? "selected" : ""}>Atkinson</option></select></div>
-        <div class="preview-tools"><label class="preview-toggle"><input type="checkbox" data-toggle-preview ${this._previewEnabled ? "checked" : ""}>Preview inside the crop</label></div>
+        <div class="preview-tools"><label class="preview-toggle"><input type="checkbox" data-toggle-preview ${this._previewEnabled ? "checked" : ""}>Preview inside the crop (beta)</label></div>
         <div class="preview-status" data-preview-status role="status" aria-live="polite" hidden></div><button class="btn small" data-preview-retry hidden>Retry preview</button>
         <section class="artwork-details"><h3>Artwork details</h3><dl class="detail-meta-list">
           <div class="detail-meta-row"><dt>Artist</dt><dd>${artistLink}</dd></div>
@@ -1943,7 +1944,7 @@ class FraimicPanel extends HTMLElement {
     const state = this._detailPreview ||= { cache: new Map(), bytes: 0, errors: new Map(), warmed: new Set(), pending: null, bitmap: null };
     if (state.context !== context) {
       state.context = context;
-      state.warmKeys = Object.keys(DITHER_LABELS).map(keyFor);
+      state.warmKeys = this._detail.warm_previews === false ? [] : Object.keys(DITHER_LABELS).map(keyFor);
       state.warmed.clear();
       state.errors.clear();
     }
