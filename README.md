@@ -83,10 +83,13 @@ Open **Picture details** to adjust the crop, fit, tone, and dithering. Choose
 mode, “Show now” submits the image for a scheduled wake; it cannot wake a sleeping
 frame immediately.
 
-The original artwork and crop controls appear immediately. Enable **Preview tone
-& dithering inside the frame** to process only the selected area using the actual
+The original artwork and crop controls appear immediately. Enable **Preview inside
+the crop** below Dithering to process only the selected area using the actual
 panel pixels and approximate Spectra 6 colours. Artwork outside the crop stays
 unchanged, and you can keep dragging and resizing the crop with preview enabled.
+Previews warm in the background when the panel opens, starting with the selected
+mode. Changing crop, fit or tone replaces the pending work; your selected mode
+takes priority. Rendering status appears beside the controls and on the crop.
 Use **Fit artwork** for composition, **1:1 pixels** to inspect the dither pattern,
 or **Physical size** to compare at the panel's density (Standard: 150 PPI;
 Large: 94 PPI, per [Fraimic's specifications](https://fraimic.com/)). Calibrate the

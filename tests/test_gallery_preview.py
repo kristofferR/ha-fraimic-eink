@@ -157,3 +157,19 @@ def test_saved_gallery_preview_passes_native_size_and_tone(gallery, monkeypatch)
         overrides={"fit": "cover", "mode": "atkinson", "tone_name": "vivid"},
         full_resolution=True,
     )
+
+
+def test_detail_includes_saved_rotation_in_original_crop_coordinates(gallery, monkeypatch):
+    entry = SimpleNamespace(entry_id="frame", data={"width": 1440, "height": 2560}, options={"rotation": 90})
+    monkeypatch.setattr(gallery, "require_loaded_entry", lambda *_: entry)
+    monkeypatch.setattr(gallery, "_resolve_item", AsyncMock(return_value={"id": "art"}))
+    crop = (0, .25, 1, .75)
+    image = SimpleNamespace(crop_for=lambda *_: crop, rotation_for=lambda *_: 90)
+    monkeypatch.setattr(gallery, "_library", lambda _: SimpleNamespace(get=lambda _: image))
+    view = gallery.GalleryDetailView()
+    view.json = lambda body: body
+    result = asyncio.run(view.get(SimpleNamespace(
+        app={gallery.KEY_HASS: object()}, query={"entry_id": "frame", "source": "saved", "item_id": "art"}
+    )))
+    assert result["saved_rotation"] == 90
+    assert result["saved_crop"] == crop

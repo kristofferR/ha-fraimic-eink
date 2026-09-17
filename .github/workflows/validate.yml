@@ -44,5 +44,8 @@ jobs:
         with:
           persist-credentials: false
       - uses: astral-sh/setup-uv@v5
+      - uses: oven-sh/setup-bun@v2
+      - name: Run panel preview tests
+        run: bun test tests/panel-preview.test.js
       - name: Run conversion + render tests
         run: uv run --with pillow --with numpy --with voluptuous --with resvg-py --with pytest pytest tests/ -q

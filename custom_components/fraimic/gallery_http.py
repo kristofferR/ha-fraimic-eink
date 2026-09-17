@@ -719,6 +719,11 @@ class GalleryDetailView(HomeAssistantView):
                     if source == LIBRARY_SOURCE
                     else None
                 ),
+                "saved_rotation": (
+                    _library(hass).get(item_id).rotation_for(*_viewed_size(entry))
+                    if source == LIBRARY_SOURCE
+                    else 0
+                ),
                 "cover_preview_url": f"{preview_base}&fit=cover",
                 "contain_preview_url": f"{preview_base}&fit=contain",
             }
