@@ -702,12 +702,13 @@ class FraimicScheduler:
                 return False
             except HomeAssistantError as err:
                 self._pending = None
+                if manual:
+                    await self._async_save()
+                    raise
                 # A permanently invalid item must not block the remaining queue.
                 self.queue.advance(screen.screen_id, dt_util.now())
                 self._defer("invalid_item", 60)
                 await self._async_save()
-                if manual:
-                    raise
                 _LOGGER.warning("Queue skipped %r: %s", screen.name, err)
                 return False
             displayed = result.get("displayed", result.get("uploaded", True))

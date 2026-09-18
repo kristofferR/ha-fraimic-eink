@@ -1,11 +1,35 @@
 """Player state keeps confirmed manual artwork separate from playlist position."""
 
 import sys
+import asyncio
 from importlib.util import module_from_spec, spec_from_file_location
 from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import PKG_DIR, load
+
+
+@pytest.mark.parametrize("enabled,exhausted,expected", [
+    (True, True, True), (True, False, False), (False, False, True),
+])
+def test_keyboard_toggle_matches_effective_playback_state(
+    player_api, monkeypatch, enabled, exhausted, expected
+):
+    scheduler = SimpleNamespace(
+        enabled=enabled, exhausted=exhausted, async_set_enabled=AsyncMock()
+    )
+    entry = SimpleNamespace(runtime_data=SimpleNamespace(
+        scheduler=scheduler, stop_camera_loop=None
+    ))
+    monkeypatch.setattr(player_api, "require_loaded_entry", lambda *_: entry)
+    monkeypatch.setattr(player_api, "_player_payload", lambda *_: {})
+    view = player_api.PlayerControlView()
+    view._json_body = AsyncMock(return_value={"action": "toggle"})
+    view.json = lambda payload: payload
+    request = SimpleNamespace(app={player_api.KEY_HASS: object()})
+    asyncio.run(view.post(request))
+    scheduler.async_set_enabled.assert_awaited_once_with(expected)
 
 
 @pytest.fixture

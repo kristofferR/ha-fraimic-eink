@@ -999,7 +999,7 @@ class PlayerControlView(_FraimicView):
                     stopper()
                 await scheduler.async_set_enabled(True)
             elif action == "toggle":
-                enabled = not scheduler.enabled
+                enabled = not scheduler.enabled or scheduler.exhausted
                 if enabled:
                     stopper = runtime.stop_camera_loop
                     if stopper is not None:

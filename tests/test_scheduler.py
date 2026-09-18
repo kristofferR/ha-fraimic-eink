@@ -487,6 +487,18 @@ def test_permanently_invalid_item_does_not_block_following_item(playback):
     assert p.scheduler.current_screen == b
 
 
+def test_failed_manual_selection_preserves_unrelated_upcoming_items(playback):
+    p = playback
+    current, a, b, c = add(p, "current", "a", "b", "c")
+    run(p.scheduler.async_next())
+    p.show.side_effect = p.module.HomeAssistantError("missing image")
+    with pytest.raises(p.module.HomeAssistantError):
+        run(p.scheduler.async_play_queue_item("queue", 1, b.screen_id))
+    assert p.scheduler.current_screen == current
+    assert p.scheduler.queued_slides == [a, b, c]
+    assert p.scheduler.blocked_reason is None
+
+
 def test_cloud_acceptance_advances_delivery_without_claiming_display(playback):
     p = playback
     a, b = add(p, "a", "b")
