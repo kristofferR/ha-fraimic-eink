@@ -158,6 +158,35 @@ stored-screen wizard, and YAML examples. `preview_only: true` renders to the
 | **Cloud** | Home Assistant updates a dedicated album in your Fraimic account; the frame downloads the image on a scheduled wake. | Fraimic account and internet access. |
 | **Hybrid** | Checks the frame before each send: uploads locally when awake, otherwise uses cloud delivery for a scheduled wake. | Local network access, a Fraimic account, and internet access for cloud delivery. |
 
+### Battery, privacy, and dithering tradeoffs
+
+**Local delivery with keep-awake enabled drains the battery quickly.** Keeping
+the frame awake so it can accept uploads prevents its normal deep sleep. The
+integration's polling and redraw budgets cannot offset that cost. Local delivery
+keeps your photos on your own network, but for battery use, let the frame sleep
+and accept that uploads must wait until it wakes.
+
+**Cloud delivery saves standby battery at the cost of photo privacy.** Your
+images are uploaded to Fraimic's servers instead of staying entirely on your
+network. This also applies whenever Hybrid falls back to cloud delivery; Hybrid
+is not a local-only privacy option.
+
+Fraimic's cloud processing also applies its own dithering and does not expose
+custom dithering controls. This integration works around that restriction by
+uploading an image already rendered into the six panel colours, preserving its
+chosen dither pattern through the cloud conversion. It still depends on
+Fraimic's processing pipeline, unlike a direct local upload of the panel data.
+
+The missing piece is a firmware-supported scheduled wake-up for local delivery:
+let the frame sleep, then wake periodically to receive new artwork without
+sending photos through the cloud. In response to this request, Anthony from
+Fraimic confirmed, “We know. We're working on it.” See the
+[Discord discussion](https://discord.com/channels/1385597655576612884/1391637317428707418/1550148359619088405).
+This is planned firmware functionality, not an available fix or a promised
+release date; the limitations above still apply today.
+
+### Configuring delivery
+
 For Cloud or Hybrid delivery, choose **cloud** or **hybrid** in the frame's options, sign in with the
 account you use at `app.fraimic.com`, and select the frame. The integration turns
 keep-awake off after the first successful cloud submission; Hybrid local sends
