@@ -5,9 +5,27 @@ from __future__ import annotations
 import asyncio
 import sys
 import types
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import load
+
+
+def test_pack_deletion_prunes_all_frame_queues_without_playlist_assignment(
+    art_packs_module, monkeypatch
+):
+    module = art_packs_module
+    schedulers = [types.SimpleNamespace(async_prune_library_image=AsyncMock()) for _ in range(2)]
+    entries = [types.SimpleNamespace(runtime_data=types.SimpleNamespace(scheduler=s)) for s in schedulers]
+    monkeypatch.setattr(module, "loaded_fraimic_entries", lambda _: entries)
+    library = types.SimpleNamespace(async_delete_image=AsyncMock())
+    scenes = types.SimpleNamespace(async_prune_image=AsyncMock())
+    manager = module.ArtPackManager(types.SimpleNamespace(data={}), library, scenes)
+    asyncio.run(manager._async_delete_pack_images(["pack-image"]))
+    library.async_delete_image.assert_awaited_once_with("pack-image")
+    scenes.async_prune_image.assert_awaited_once_with("pack-image")
+    for scheduler in schedulers:
+        scheduler.async_prune_library_image.assert_awaited_once_with("pack-image")
 
 
 @pytest.fixture

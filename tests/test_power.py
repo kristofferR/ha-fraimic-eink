@@ -259,3 +259,40 @@ def test_cloud_delivery_invalidates_local_duplicate_hash_without_spending_budget
     assert saved['last_hash'] is None
     assert saved['last_upload_at'] == 123
     assert saved['automatic_count'] == 1
+
+
+@pytest.mark.parametrize("mode,background_reason", [
+    (const.POWER_MODE_MINIMUM, power.SKIP_COOLDOWN),
+    (const.POWER_MODE_BALANCED, power.SKIP_COOLDOWN),
+    (const.POWER_MODE_RESPONSIVE, power.SKIP_DAILY_BUDGET),
+])
+def test_explicit_queue_interval_is_not_overridden_by_power_mode(mode, background_reason):
+    manager = _manager(mode)
+    now = 1789732800
+    manager.last_upload_at = now - 300
+    manager.budget_day = power.datetime.fromtimestamp(now, power.timezone.utc).date().isoformat()
+    manager.automatic_count = 100
+    data = {"battery": {"percent": 51, "charging": False}}
+    token = manager.begin(power.TRIGGER_PLAYLIST)
+    assert manager.skip_reason("new", power.TRIGGER_PLAYLIST, token, data, now=now) is None
+    manager.finish(token)
+    token = manager.begin(power.TRIGGER_CAMERA)
+    assert manager.skip_reason("new", power.TRIGGER_CAMERA, token, data, now=now) == background_reason
+
+
+def test_queue_still_reports_low_battery_and_retry_time():
+    manager = _manager()
+    token = manager.begin(power.TRIGGER_PLAYLIST)
+    assert manager.skip_reason("new", power.TRIGGER_PLAYLIST, token, {"battery": {"percent": 15}}, now=1000) == power.SKIP_LOW_BATTERY
+    assert manager.retry_at(power.SKIP_LOW_BATTERY, now=1000) == 1300
+    assert manager.retry_at(power.SKIP_DAILY_BUDGET, now=1000) == 86400
+
+
+def test_queue_redraw_does_not_consume_background_budget():
+    from unittest.mock import AsyncMock
+    manager = _manager()
+    manager._async_save = AsyncMock()
+    asyncio.run(manager.async_record_upload("queue", power.TRIGGER_PLAYLIST, now=100_000))
+    assert manager.upload_count == 1
+    assert manager.last_hash == "queue"
+    assert manager.automatic_count == 0

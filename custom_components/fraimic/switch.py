@@ -1,4 +1,4 @@
-"""Switch platform — playlist on/off."""
+"""Switch platform for per-frame queue playback."""
 
 from __future__ import annotations
 
@@ -18,15 +18,15 @@ async def async_setup_entry(
     entry: FraimicConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the playlist switch (only when the frame has stored screens)."""
+    """Set up playback control whenever the frame has a scheduler."""
     runtime = entry.runtime_data
-    if runtime.scheduler is None or not runtime.scheduler.screens:
+    if runtime.scheduler is None:
         return
     async_add_entities([FraimicPlaylistSwitch(runtime.coordinator)])
 
 
 class FraimicPlaylistSwitch(FraimicEntity, SwitchEntity):
-    """Enables the playlist: stored screens rotate on the frame."""
+    """Enable or pause this frame's independent playback queue."""
 
     _attr_translation_key = "playlist"
     _attr_icon = "mdi:playlist-play"
@@ -51,7 +51,7 @@ class FraimicPlaylistSwitch(FraimicEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool:
-        return self._scheduler.enabled
+        return self._scheduler.enabled and not self._scheduler.exhausted
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop

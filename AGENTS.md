@@ -152,15 +152,18 @@ fails. Full notes: [`docs/fraimic-cloud-api/albums-scheduling.md`](docs/fraimic-
 
 ## Scheduling
 
-`scheduler.py` rotates the playlist assigned to each frame (60 s tick). Play
-order is a **per-frame session** (`_playback_order`): shuffle lives there, and
-queue-sheet reorders/skips edit it Spotify-style without ever mutating the
-saved playlist (edit the playlist on its own screen instead). The session is
-persisted, rebased when the playlist changes, and rebuilt fresh on
-assignment or shuffle toggle. The hand queue (`_queued_ids`) holds play-once
-slides consumed ahead of the playlist. The media_player camera loop
-(`async_track_time_interval` → `_async_camera_tick`; interval =
-`CONF_CAMERA_INTERVAL`, 0 = once, STOP cancels) is the other periodic push.
+`scheduler.py` owns one persistent per-frame `PlaybackQueue` (`playback_queue.py`).
+Saved playlists are copied into independent queue entries with unique IDs;
+playlist edits/deletion never rebase playback. Queue order, cursor, shuffle,
+repeat, and interval persist separately from the catalog. Legacy assigned
+playlists migrate once into snapshots, preserving current/upcoming order and
+interval, with repeat enabled to retain their existing rotation.
+
+The queue’s explicit interval overrides generic power-mode cooldowns and daily
+budgets. Low battery still defers automatic playback and surfaces a reason and
+retry time through the player API. Accepted cloud sends advance delivery order
+without claiming a confirmed physical display. The media_player camera loop
+is separate (`CONF_CAMERA_INTERVAL`, 0 = once, STOP cancels).
 
 ## Testing
 

@@ -946,8 +946,14 @@ class ArtPackManager:
             await self.scenes.async_prune_image(image_id)
             domain_data = getattr(self.hass, "data", {}).get(DOMAIN, {})
             playlists = domain_data.get(DATA_PLAYLISTS)
+            affected: set[str] = set()
             if isinstance(playlists, PlaylistManager):
                 affected = await playlists.async_prune_image(image_id)
-                for entry in loaded_fraimic_entries(self.hass):
-                    if playlists.assignments.get(entry.entry_id) in affected:
-                        await entry.runtime_data.scheduler.async_refresh_playlist()
+            for entry in loaded_fraimic_entries(self.hass):
+                scheduler = entry.runtime_data.scheduler
+                await scheduler.async_prune_library_image(image_id)
+                if (
+                    isinstance(playlists, PlaylistManager)
+                    and playlists.assignments.get(entry.entry_id) in affected
+                ):
+                    await scheduler.async_refresh_playlist()

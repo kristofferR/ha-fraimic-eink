@@ -10,7 +10,7 @@ display and delivers them over your local network or through your Fraimic accoun
 
 - **An artwork dashboard:** browse your library, Reframed, Wallhaven, museums,
   and photography sources. Search, filter, and save favorites.
-- **Playlists and a queue:** create named playlists, assign them to frames, and
+- **Playlists and a queue:** create named playlists, add them to a frame’s queue, and
   choose what plays next. Each frame keeps its own playback order.
 - **Picture controls:** position the crop and choose fit, tone, and dithering.
   Preview tone and dithering inside the crop without refreshing the frame (beta).
@@ -115,14 +115,20 @@ visual fidelity improvements are tracked in [issue #68](https://github.com/krist
 
 ### Playlists and the queue
 
-Open **Playlists**, create a playlist, and add artwork from the gallery. Choose
-**Play on…** to assign it to the selected frame. The player bar provides playback
-controls; the frame menu includes shuffle and the change interval.
+Open **Playlists**, create a playlist, and add artwork from the gallery.
+**Add to queue** appends its pictures to the selected frame; **Play next** inserts
+its pictures next. **Play now · replace queue** explicitly starts a new session.
 
-The **Queue** shows pictures added to play once, followed by the frame's upcoming
-playlist rotation. Reordering or skipping there changes that frame's session.
-Edit the playlist itself to change the saved order. Assignments, playback order,
-and paused state survive Home Assistant restarts.
+Each frame has one queue. Reorder or remove pictures there without editing any
+saved playlist. Queue entries are snapshots, so editing or deleting the original
+playlist leaves playback alone. The same picture or playlist can be added more
+than once. Shuffle, repeat, and the change interval belong to the frame’s player.
+
+Repeat is off for new sessions. When the queue ends, the last picture stays on
+the frame. **Clear** removes upcoming pictures and turns repeat off. The queue,
+playback settings, and paused state survive Home Assistant restarts. Existing
+assigned playlists migrate once into a queue, retaining their interval and
+repeat behavior.
 
 ![A saved playlist in the Fraimic dashboard](docs/screenshots/playlist.png)
 
@@ -216,11 +222,17 @@ Each wake and redraw uses battery, so longer playlist intervals help. See the
 
 Local delivery has three power profiles:
 
-| Profile | Background polling | Automatic redraw budget while unplugged |
+| Profile | Background polling | Background redraw budget while unplugged |
 |---------|--------------------|-----------------------------------------|
 | **Minimum** (new frames) | No startup or periodic polling; queued-send probes depend on a known scheduled wake. | 1 per day |
 | **Balanced** | No faster than hourly. | 8 per day |
 | **Responsive** | Uses the configured polling interval. | 48 per day |
+
+**The queue’s chosen interval takes precedence over these background redraw
+budgets and cooldowns**, including Hybrid local delivery. You do not need to
+change power mode to play a queue every six hours, or at another custom interval.
+Low battery can still delay playback; the player explains the delay and when it
+will try again.
 
 Existing entries without a power profile migrate to Responsive. Automatic sends
 are deferred below 25% battery; charging bypasses cooldowns and budgets. Manual

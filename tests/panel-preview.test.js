@@ -162,3 +162,33 @@ test("sending to other frames lets the backend use their own crop and rotation",
   expect(sends.map((args) => args[5])).toEqual(["other", "frame", "other"]);
   expect(sends.map((args) => args[4].crop)).toEqual([null, crop, null]);
 });
+
+test("standalone queue exposes Play, frame settings, and a single editable list", () => {
+  const { panel } = harness();
+  panel._frames = [{ id: "frame", name: "Frame" }];
+  panel._player = { state: "playing", transport_available: true, paused: true, interval: 1800,
+    current: {}, queue_count: 1, hand_queue: [{ id: "one", title: "One", meta: "Picture" }] };
+  expect(panel._playerTemplate()).toContain('data-player-action="play"');
+  const queue = panel._queueTemplate();
+  expect(queue).toContain('data-menu="interval"');
+  expect(queue).toContain('data-toggle-repeat');
+  expect(queue).toContain('data-remove-queue="0:one"');
+  expect(queue).not.toContain("Next from");
+  expect(queue).not.toContain("Choose a playlist");
+});
+
+test("queue timing controls use the frame API without a playlist", async () => {
+  const { panel } = harness();
+  const calls = [];
+  panel._player = { shuffle: false };
+  panel._api = async (url, options) => { calls.push([url, JSON.parse(options.body)]); return {}; };
+  panel._render = () => {};
+  await panel._setInterval(21600);
+  expect(calls).toEqual([["player/control", { action: "interval", interval: 21600, entry_id: "frame" }]]);
+});
+
+test("player explains a deferred send and an exhausted queue", () => {
+  const { panel } = harness();
+  expect(panel._playbackStatus({ delay: { message: "Battery low." } })).toBe("Battery low.");
+  expect(panel._playbackStatus({ exhausted: true, paused: true })).toBe("Queue finished · picture stays on frame");
+});

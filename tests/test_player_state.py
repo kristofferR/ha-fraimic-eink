@@ -1,11 +1,35 @@
 """Player state keeps confirmed manual artwork separate from playlist position."""
 
-from importlib.util import module_from_spec, spec_from_file_location
 import sys
+import asyncio
+from importlib.util import module_from_spec, spec_from_file_location
 from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import PKG_DIR, load
+
+
+@pytest.mark.parametrize("enabled,exhausted,expected", [
+    (True, True, True), (True, False, False), (False, False, True),
+])
+def test_keyboard_toggle_matches_effective_playback_state(
+    player_api, monkeypatch, enabled, exhausted, expected
+):
+    scheduler = SimpleNamespace(
+        enabled=enabled, exhausted=exhausted, async_set_enabled=AsyncMock()
+    )
+    entry = SimpleNamespace(runtime_data=SimpleNamespace(
+        scheduler=scheduler, stop_camera_loop=None
+    ))
+    monkeypatch.setattr(player_api, "require_loaded_entry", lambda *_: entry)
+    monkeypatch.setattr(player_api, "_player_payload", lambda *_: {})
+    view = player_api.PlayerControlView()
+    view._json_body = AsyncMock(return_value={"action": "toggle"})
+    view.json = lambda payload: payload
+    request = SimpleNamespace(app={player_api.KEY_HASS: object()})
+    asyncio.run(view.post(request))
+    scheduler.async_set_enabled.assert_awaited_once_with(expected)
 
 
 @pytest.fixture
@@ -67,6 +91,10 @@ def _entry(media_title=None, art=None, preview=None):
         sending_started_at=None,
         enabled=True,
         shuffle=False,
+        exhausted=False,
+        blocked_reason=None,
+        retry_at=None,
+        queue=SimpleNamespace(repeat=False),
     )
     runtime = SimpleNamespace(
         scheduler=scheduler,
@@ -188,3 +216,30 @@ def test_rendering_direct_send_does_not_reuse_prior_cloud_preview(player_api):
     payload = player_api._player_payload(SimpleNamespace(data={}), entry)
     assert payload["state"] == "sending"
     assert payload["preview"] is None
+
+
+def test_queue_without_playlist_has_playback_controls(player_api):
+    entry = _entry()
+    scheduler = entry.runtime_data.scheduler
+    scheduler.playlist_id = scheduler.playlist_name = None
+    scheduler.screens = []
+    scheduler.enabled = False
+    scheduler.queued_slides = [SimpleNamespace(screen_id="queued", name="Queued", source={})]
+    payload = player_api._player_payload(SimpleNamespace(data={}), entry)
+    assert payload["transport_available"]
+    assert payload["paused"]
+    assert payload["queue_count"] == 1
+    assert payload["hand_queue"][0]["id"] == "queued"
+
+
+def test_delayed_playback_explains_wait_instead_of_zero_countdown(player_api):
+    from datetime import datetime, timezone
+    entry = _entry("Displayed")
+    scheduler = entry.runtime_data.scheduler
+    scheduler.blocked_reason = "low_battery"
+    scheduler.retry_at = datetime(2026, 9, 18, 15, tzinfo=timezone.utc)
+    payload = player_api._player_payload(SimpleNamespace(data={}), entry)
+    assert payload["state"] == "waiting"
+    assert payload["seconds_remaining"] is None
+    assert payload["delay"]["reason"] == "low_battery"
+    assert payload["delay"]["retry_at"] == "2026-09-18T15:00:00+00:00"
