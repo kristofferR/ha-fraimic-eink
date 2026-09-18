@@ -6,7 +6,8 @@ import asyncio
 import sys
 import types
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from dataclasses import replace
+from datetime import datetime, time, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -228,6 +229,43 @@ def test_standalone_queue_plays_at_its_own_interval_and_finishes(playback):
     assert p.scheduler.current_screen == second
 
 
+def test_closed_display_window_advances_before_long_interval_elapses(playback):
+    p = playback
+    schema = load("render.schema")
+    p.now[0] = p.now[0].replace(hour=8, minute=55)
+    morning = replace(
+        _screen("morning"),
+        windows=(schema.TimeWindow(after=time(6), before=time(9)),),
+    )
+    run(p.scheduler.async_add_to_queue(morning))
+    (art,) = add(p, "art")[-1:]
+    run(p.scheduler.async_set_playback(interval=21600))
+    run(p.scheduler.async_set_enabled(True))
+    assert p.scheduler.current_screen.name == "morning"
+    p.now[0] += timedelta(minutes=6)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen == art
+
+
+def test_automatic_playback_keeps_window_deferred_item_for_later(playback):
+    p = playback
+    schema = load("render.schema")
+    morning = replace(
+        _screen("morning"),
+        windows=(schema.TimeWindow(after=time(6), before=time(9)),),
+    )
+    run(p.scheduler.async_add_to_queue(morning))
+    add(p, "art")
+    run(p.scheduler.async_set_enabled(True))
+    assert p.scheduler.current_screen.name == "art"
+    assert [s.name for s in p.scheduler.queued_slides] == ["morning"]
+    assert not p.scheduler.exhausted
+    p.now[0] = (p.now[0] + timedelta(days=1)).replace(hour=7)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "morning"
+    assert p.scheduler.exhausted
+
+
 def test_replay_exhausted_queue_is_explicit(playback):
     p = playback
     add(p, "first")
@@ -346,15 +384,38 @@ def test_sleep_retry_preserves_queue_and_manual_intent_across_restart(playback, 
     assert restored._pending is None
 
 
-def test_pending_retry_follows_reorder_and_clear(playback):
+def test_pending_automatic_retry_follows_reorder_and_clear(playback):
     p = playback
     a, b = add(p, "a", "b")
     p.show.side_effect = p.module.FrameUploadError("asleep")
-    run(p.scheduler.async_next())
+    run(p.scheduler.async_set_enabled(True))
     run(p.scheduler.async_reorder_queue([b.screen_id, a.screen_id]))
     assert p.scheduler._pending == b
     run(p.scheduler.async_clear_queue())
     assert p.scheduler._pending is None
+
+
+def test_manual_pending_selection_survives_settings_and_reorder(playback):
+    p = playback
+    a, b, c = add(p, "a", "b", "c")
+    p.show.side_effect = p.module.FrameUploadError("asleep")
+    run(p.scheduler.async_play_queue_item("queue", 1, b.screen_id))
+    run(p.scheduler.async_set_playback(interval=21600, repeat=True))
+    run(p.scheduler.async_reorder_queue([c.screen_id, a.screen_id, b.screen_id]))
+    assert p.scheduler._pending == b
+    p.show.side_effect = None
+    run(p.scheduler._async_retry_pending(b))
+    assert p.scheduler.current_screen == b
+
+
+def test_removing_manual_pending_selection_cancels_retry(playback):
+    p = playback
+    a, b = add(p, "a", "b")
+    p.show.side_effect = p.module.FrameUploadError("asleep")
+    run(p.scheduler.async_play_queue_item("queue", 1, b.screen_id))
+    run(p.scheduler.async_remove_from_queue(1, b.screen_id))
+    assert p.scheduler._pending is None
+    assert p.scheduler.queued_slides == [a]
 
 
 def test_pending_automatic_retry_does_not_run_while_paused(playback):

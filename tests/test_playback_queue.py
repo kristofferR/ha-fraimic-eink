@@ -1,7 +1,7 @@
 """Snapshot isolation, order, and repeat semantics of the frame queue."""
 
 from dataclasses import replace
-from datetime import datetime
+from datetime import datetime, time
 
 import pytest
 from conftest import load
@@ -87,3 +87,29 @@ def test_reorder_rejects_stale_and_duplicate_ids():
         queue.reorder([a.screen.screen_id])
     queue.reorder([b.screen.screen_id, a.screen.screen_id])
     assert queue.items == [b, a]
+
+
+def test_window_deferred_item_survives_consumption_and_restart():
+    queue = model.PlaybackQueue()
+    morning = replace(
+        picture("morning"),
+        windows=(schema.TimeWindow(after=time(6), before=time(9)),),
+    )
+    a, b = queue.add([morning, picture("anytime")])
+    night = datetime(2026, 9, 18, 22)
+    assert queue.candidate(night) == b
+    queue.advance(b.screen.screen_id, night)
+    assert queue.upcoming == [a]
+    restored = model.PlaybackQueue.from_dict(queue.to_dict())
+    assert restored.candidate(night) is None
+    assert restored.candidate(datetime(2026, 9, 19, 7)).screen == a.screen
+
+
+def test_previous_wraps_only_when_repeat_is_enabled():
+    queue = model.PlaybackQueue()
+    a, b = queue.add([picture("a"), picture("b")])
+    now = datetime(2026, 9, 18, 12)
+    queue.cursor = a.screen.screen_id
+    assert queue.candidate(now, previous=True) is None
+    queue.repeat = True
+    assert queue.candidate(now, previous=True) == b

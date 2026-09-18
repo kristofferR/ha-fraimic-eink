@@ -299,7 +299,11 @@ class FraimicScheduler:
 
     async def _queue_changed(self) -> None:
         if self._pending is not None:
-            candidate = self.queue.candidate(dt_util.now())
+            candidate = (
+                self.queue.candidate(dt_util.now())
+                if self._pending_requires_enabled
+                else self.queue.get(self._pending.screen_id)
+            )
             self._pending = candidate.screen if candidate else None
         self.blocked_reason = None
         self.retry_at = None
@@ -626,6 +630,7 @@ class FraimicScheduler:
                 return
             if (
                 self._last_rotation
+                and (self.current_screen is None or eligible(self.current_screen, dt_util.now()))
                 and (now - self._last_rotation).total_seconds() < self.queue.interval
             ):
                 return
@@ -698,7 +703,7 @@ class FraimicScheduler:
             except HomeAssistantError as err:
                 self._pending = None
                 # A permanently invalid item must not block the remaining queue.
-                self.queue.cursor = screen.screen_id
+                self.queue.advance(screen.screen_id, dt_util.now())
                 self._defer("invalid_item", 60)
                 await self._async_save()
                 if manual:
@@ -713,7 +718,7 @@ class FraimicScheduler:
             self._pending_hold_on_success = False
             self.blocked_reason = None
             self.retry_at = None
-            self.queue.cursor = screen.screen_id
+            self.queue.advance(screen.screen_id, dt_util.now())
             if displayed:
                 self._displayed_item = self.queue.get(screen.screen_id)
                 self.current_id = screen.screen_id

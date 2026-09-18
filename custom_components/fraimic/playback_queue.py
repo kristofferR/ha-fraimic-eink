@@ -77,11 +77,30 @@ class PlaybackQueue:
     def candidate(self, now: datetime, *, previous: bool = False) -> QueueItem | None:
         if previous:
             candidates = list(reversed(self.items[: max(0, self.position)]))
+            if self.repeat:
+                candidates.extend(reversed(self.items[max(0, self.position) :]))
         else:
             candidates = self.upcoming
             if self.repeat:
                 candidates = [*candidates, *self.items[: self.position + 1]]
         return next((item for item in candidates if eligible(item.screen, now)), None)
+
+    def advance(self, item_id: str, now: datetime) -> None:
+        """Consume an item while keeping window-deferred items upcoming."""
+        item = self.get(item_id)
+        if item is None:
+            return
+        target = self.items.index(item)
+        deferred = [
+            candidate
+            for candidate in self.items[self.position + 1 : target]
+            if not eligible(candidate.screen, now)
+        ]
+        for candidate in deferred:
+            self.items.remove(candidate)
+        target = self.items.index(item)
+        self.items[target + 1 : target + 1] = deferred
+        self.cursor = item_id
 
     def add(
         self,
