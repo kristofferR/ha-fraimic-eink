@@ -162,9 +162,7 @@ stored-screen wizard, and YAML examples. `preview_only: true` renders to the
 
 **Local delivery with keep-awake enabled drains the battery quickly.** Keeping
 the frame awake so it can accept uploads prevents its normal deep sleep. The
-integration's polling and redraw budgets cannot offset that cost. Local delivery
-keeps your photos on your own network, but for battery use, let the frame sleep
-and accept that uploads must wait until it wakes.
+integration's polling and redraw budgets cannot offset that cost.
 
 **Cloud delivery saves standby battery at the cost of photo privacy.** Your
 images are uploaded to Fraimic's servers instead of staying entirely on your
