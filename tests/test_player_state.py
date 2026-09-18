@@ -1,7 +1,7 @@
 """Player state keeps confirmed manual artwork separate from playlist position."""
 
-from importlib.util import module_from_spec, spec_from_file_location
 import sys
+from importlib.util import module_from_spec, spec_from_file_location
 from types import ModuleType, SimpleNamespace
 
 import pytest
@@ -67,6 +67,10 @@ def _entry(media_title=None, art=None, preview=None):
         sending_started_at=None,
         enabled=True,
         shuffle=False,
+        exhausted=False,
+        blocked_reason=None,
+        retry_at=None,
+        queue=SimpleNamespace(repeat=False),
     )
     runtime = SimpleNamespace(
         scheduler=scheduler,
@@ -188,3 +192,30 @@ def test_rendering_direct_send_does_not_reuse_prior_cloud_preview(player_api):
     payload = player_api._player_payload(SimpleNamespace(data={}), entry)
     assert payload["state"] == "sending"
     assert payload["preview"] is None
+
+
+def test_queue_without_playlist_has_playback_controls(player_api):
+    entry = _entry()
+    scheduler = entry.runtime_data.scheduler
+    scheduler.playlist_id = scheduler.playlist_name = None
+    scheduler.screens = []
+    scheduler.enabled = False
+    scheduler.queued_slides = [SimpleNamespace(screen_id="queued", name="Queued", source={})]
+    payload = player_api._player_payload(SimpleNamespace(data={}), entry)
+    assert payload["transport_available"]
+    assert payload["paused"]
+    assert payload["queue_count"] == 1
+    assert payload["hand_queue"][0]["id"] == "queued"
+
+
+def test_delayed_playback_explains_wait_instead_of_zero_countdown(player_api):
+    from datetime import datetime, timezone
+    entry = _entry("Displayed")
+    scheduler = entry.runtime_data.scheduler
+    scheduler.blocked_reason = "low_battery"
+    scheduler.retry_at = datetime(2026, 9, 18, 15, tzinfo=timezone.utc)
+    payload = player_api._player_payload(SimpleNamespace(data={}), entry)
+    assert payload["state"] == "waiting"
+    assert payload["seconds_remaining"] is None
+    assert payload["delay"]["reason"] == "low_battery"
+    assert payload["delay"]["retry_at"] == "2026-09-18T15:00:00+00:00"

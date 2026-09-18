@@ -201,6 +201,7 @@ const css = String.raw`
   }
   .tile-heart ha-icon { --mdc-icon-size: 22px; }
   .tile:hover .tile-heart, .tile:focus-within .tile-heart, .tile-heart[aria-pressed="true"] { opacity: 1; }
+  .queue-head .icon-btn[aria-pressed="true"] { color: var(--accent); background: var(--surface); }
   .favorite-btn[aria-pressed="true"], .tile-heart[aria-pressed="true"] { color: var(--error-color); }
   .favorites-chip ha-icon { --mdc-icon-size: 15px; }
   .favorites-chip.selected { color: var(--error-color); background: var(--surface); border-color: var(--line); }
@@ -751,7 +752,7 @@ class FraimicPanel extends HTMLElement {
       meta.textContent = [
         current.artist,
         player.playlist_name,
-        player.paused ? "Paused" : this._timeLeft(player.seconds_remaining),
+        this._playbackStatus(player),
       ].filter(Boolean).join(" · ");
     }
     const progress = this.shadowRoot?.querySelector("[data-player-progress]");
@@ -1222,7 +1223,7 @@ class FraimicPanel extends HTMLElement {
         ${this._heartTemplate("tile-heart", item.favorite, `data-favorite data-source-id="${h(item.source)}" data-item-id="${h(item.id)}"`)}
         <div class="actions">
           <button class="btn primary" data-art-action="show_now" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">Show now</button>
-          <button class="btn" data-art-action="queue" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">${item.queued ? "Queued" : "+ Queue"}</button>
+          <button class="btn" data-art-action="queue" data-source-id="${h(item.source)}" data-item-id="${h(item.id)}">+ Queue</button>
           <button class="icon-btn" data-quick-playlist data-source-id="${h(item.source)}" data-item-id="${h(item.id)}" aria-label="Add to playlist"><ha-icon icon="mdi:playlist-plus"></ha-icon></button>
           <button class="icon-btn" data-detail="${h(item.source)}:${h(item.id)}" aria-label="Picture details"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button>
         </div>
@@ -1232,8 +1233,8 @@ class FraimicPanel extends HTMLElement {
   }
 
   _playlistsTemplate() {
-    if (!this._playlists.length) return `<div class="empty"><h2>No playlists yet. A playlist is a list of art that rotates on your frame.</h2><div class="empty-actions"><button class="btn primary" data-create-playlist>Create playlist</button><button class="btn" data-nav="/">Browse art</button></div></div>`;
-    return `<div class="content"><div class="playlist-head"><div><h1>Playlists</h1><p>Art that rotates on your frames.</p></div><span class="spacer"></span><button class="btn primary" data-create-playlist>Create playlist</button></div>
+    if (!this._playlists.length) return `<div class="empty"><h2>No playlists yet. Save collections of art to add to any frame’s queue.</h2><div class="empty-actions"><button class="btn primary" data-create-playlist>Create playlist</button><button class="btn" data-nav="/">Browse art</button></div></div>`;
+    return `<div class="content"><div class="playlist-head"><div><h1>Playlists</h1><p>Saved collections, ready to add to a frame’s queue.</p></div><span class="spacer"></span><button class="btn primary" data-create-playlist>Create playlist</button></div>
       <div class="playlist-grid">${this._playlists.map((playlist) => this._playlistCard(playlist)).join("")}</div></div>`;
   }
 
@@ -1242,10 +1243,10 @@ class FraimicPanel extends HTMLElement {
     return `<article class="playlist-card" data-playlist-drop="${h(playlist.id)}">
       <button data-nav="/playlists/${encodeURIComponent(playlist.id)}" style="width:100%;text-align:left;padding:0">
         <div class="mosaic">${thumbs.map((thumb) => `<div class="glass">${thumb ? `<img ${this._imageAttrs(thumb, "")}>` : ""}</div>`).join("")}</div>
-        <h2>${h(playlist.name)}</h2><p>${playlist.slide_count} pictures · ${this._formatInterval(playlist.interval)}${playlist.shuffle ? " · shuffle" : ""}</p>
+        <h2>${h(playlist.name)}</h2><p>${playlist.slide_count} pictures</p>
         ${playlist.playing?.length ? `<p>Playing on ${h(playlist.playing.map((frame) => frame.name).join(", "))}</p>` : ""}
       </button>
-      <div class="row-actions"><button class="btn small" data-play-playlist="${h(playlist.id)}">Play</button><button class="icon-btn" data-playlist-menu="${h(playlist.id)}" aria-label="Playlist menu"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button></div>
+      <div class="row-actions"><button class="btn small" data-play-playlist="${h(playlist.id)}">Add to queue</button><button class="icon-btn" data-playlist-menu="${h(playlist.id)}" aria-label="Playlist menu"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button></div>
     </article>`;
   }
 
@@ -1253,14 +1254,14 @@ class FraimicPanel extends HTMLElement {
     const playlist = this._playlist;
     if (!playlist) return this._loadingTemplate();
     const slides = playlist.slides || [];
-    return `<div class="content"><div class="playlist-head"><div><h1>${h(playlist.name)}</h1><p>${slides.length} pictures · changes every ${this._formatInterval(playlist.interval)}${playlist.shuffle ? " · shuffle" : ""}</p></div><span class="spacer"></span><button class="btn" data-play-playlist="${h(playlist.id)}">Play on ${h(this._frame?.name)}</button><button class="btn primary" data-add-from-browse="${h(playlist.id)}">Add art</button><button class="icon-btn" data-playlist-menu="${h(playlist.id)}" aria-label="Playlist menu"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button></div>
+    return `<div class="content"><div class="playlist-head"><div><h1>${h(playlist.name)}</h1><p>${slides.length} pictures · saved separately from your queue</p></div><span class="spacer"></span><button class="btn" data-play-playlist="${h(playlist.id)}">Add to queue</button><button class="btn" data-play-playlist="${h(playlist.id)}" data-playlist-action="play_next">Play next</button><button class="btn primary" data-add-from-browse="${h(playlist.id)}">Add art</button><button class="icon-btn" data-playlist-menu="${h(playlist.id)}" aria-label="Playlist menu"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button></div>
       ${slides.length ? `<ol class="queue-list">${slides.map((slide, index) => this._slideTemplate(slide, index, playlist)).join("")}</ol>` : `<div class="empty"><h2>This playlist is empty. Add art from the gallery, or drop pictures here.</h2><div class="empty-actions"><button class="btn primary" data-add-from-browse="${h(playlist.id)}">Add art</button></div></div>`}
     </div>`;
   }
 
   _slideTemplate(slide, index, playlist) {
-    const movement = playlist.shuffle ? "" : `<button class="icon-btn" data-move-slide="top" data-slide-index="${index}" aria-label="Move to top" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-up"></ha-icon></button><button class="icon-btn" data-move-slide="up" data-slide-index="${index}" aria-label="Move up" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-move-slide="down" data-slide-index="${index}" aria-label="Move down" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-move-slide="bottom" data-slide-index="${index}" aria-label="Move to bottom" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-down"></ha-icon></button>`;
-    return `<li class="slide-row" ${playlist.shuffle ? "" : "draggable=\"true\""} data-slide-id="${h(slide.id)}" data-slide-index="${index}">
+    const movement = `<button class="icon-btn" data-move-slide="top" data-slide-index="${index}" aria-label="Move to top" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-up"></ha-icon></button><button class="icon-btn" data-move-slide="up" data-slide-index="${index}" aria-label="Move up" ${index === 0 ? "disabled" : ""}><ha-icon icon="mdi:chevron-up"></ha-icon></button><button class="icon-btn" data-move-slide="down" data-slide-index="${index}" aria-label="Move down" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-down"></ha-icon></button><button class="icon-btn" data-move-slide="bottom" data-slide-index="${index}" aria-label="Move to bottom" ${index === playlist.slides.length - 1 ? "disabled" : ""}><ha-icon icon="mdi:chevron-double-down"></ha-icon></button>`;
+    return `<li class="slide-row" draggable="true" data-slide-id="${h(slide.id)}" data-slide-index="${index}">
       <span class="grip" aria-hidden="true"><ha-icon icon="mdi:drag"></ha-icon></span><span class="number">${index + 1}</span>
       ${this._artPreviewCell(slide)}
       <div class="row-copy"><b>${h(slide.title)}</b><span>${h(slide.meta)}${slide.overlays === "inherit" && this._player?.overlay_count ? ` · Inheriting ${this._player.overlay_count} overlays from ${this._frame?.name}` : ""}</span></div>
@@ -1281,14 +1282,14 @@ class FraimicPanel extends HTMLElement {
     else if (state === "unreachable") {
       title = `Could not reach ${this._frame.name}`;
       meta = `Last seen ${this._lastSeenMinutes(this._frame.last_seen)} minutes ago, check power and wifi.`;
-    } else if (current.title) meta = [current.artist, player.playlist_name, player.paused ? "Paused" : this._timeLeft(player.seconds_remaining)].filter(Boolean).join(" · ");
+    } else if (current.title) meta = [current.artist, player.playlist_name, this._playbackStatus(player)].filter(Boolean).join(" · ");
     const progress = state === "sending"
       ? Number(player.sending_progress || 0)
       : player?.interval ? Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / player.interval * 100)) : 0;
-    const transport = player?.transport_available && !["idle", "unreachable"].includes(state)
+    const transport = player?.transport_available && state !== "unreachable"
       ? `<div class="transport"><button class="icon-btn previous" data-player-action="previous" aria-label="Previous" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-previous"></ha-icon></button><button class="btn primary" data-player-action="${player?.paused ? "play" : "pause"}" aria-label="${player?.paused ? "Play" : "Pause"}" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:${player?.paused ? "play" : "pause"}"></ha-icon></button><button class="icon-btn next" data-player-action="next" aria-label="Next" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-next"></ha-icon></button></div>`
       : "";
-    const stateActions = state === "idle"
+    const stateActions = state === "idle" && !player?.transport_available
       ? `<button class="btn primary" data-change-playlist>Choose a playlist</button>`
       : state === "unreachable"
         ? `<button class="btn" data-player-action="retry">Retry</button><button class="btn quiet" data-device>Device page</button>`
@@ -1310,34 +1311,29 @@ class FraimicPanel extends HTMLElement {
 
   _queueTemplate() {
     const player = this._player || {};
-    const hand = player.hand_queue || [];
-    const playlist = player.playlist?.items || [];
-    const total = player.playlist?.total ?? playlist.length;
-    const shuffled = Boolean(player.playlist?.shuffle);
+    const items = player.hand_queue || [];
     const current = player.preview || player.current || {};
-    const state = player.preview?.status === "sending" ? "sending" : player.state || "idle";
     const interval = this._formatInterval(player.interval).replace(/^every /, "");
-    const intervalControl = player.playlist_id ? `<button class="btn queue-interval${this._menu === "interval" ? " selected" : ""}" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button>` : "";
-    const chrome = `<span class="spacer"></span>${intervalControl}<button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>`;
-    const nowMeta = state === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : player.preview ? "Sent via cloud · display unconfirmed" : state === "asleep" ? `Now showing · ${h(this._frame?.name || "frame")} is asleep` : "Now showing";
-    const handle = `<div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>`;
-    const head = current.title
-      ? `<div class="queue-now queue-toolbar">${handle}<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="${nowMeta}" aria-label="Preview ${h(current.title)}" title="Frame preview">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>${chrome}</div>`
-      : `<div class="queue-head queue-toolbar">${handle}<h2>Queue</h2>${chrome}</div>`;
+    const nowMeta = player.preview?.status === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : player.preview ? "Sent via cloud · display unconfirmed" : "Now showing";
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
-      ${head}
-      ${this._menu === "interval" && player.playlist_id ? this._intervalMenuTemplate("queue-interval-menu") : ""}
-      ${hand.length ? `<div class="queue-head" data-queue-move-drop="queue"><h2>Next in queue</h2><span class="sub">${hand.length}</span><span class="spacer"></span><button class="btn small" data-clear-queue>Clear</button></div><ol class="queue-list" data-art-drop="queue">${hand.map((item, index) => this._queueRow(item, index, "queue")).join("")}</ol>` : `<div class="queue-head counter" data-art-drop="queue" data-queue-move-drop="queue">Drop a picture here to play it next</div>`}
-      ${player.playlist_id ? `<div class="queue-head" data-queue-move-drop="playlist"><h2>Next from ${h(player.playlist_name || "playlist")}</h2><span class="sub">${shuffled ? "shuffled · " : ""}this frame only, playlist unchanged</span><span class="spacer"></span><button class="btn quiet small" data-nav="/playlists/${encodeURIComponent(player.playlist_id)}">Open playlist</button></div>${playlist.length ? `<ol class="queue-list">${playlist.map((item, index) => this._queueRow(item, index, "playlist")).join("")}</ol>` : ""}${total > playlist.length ? `<div class="queue-more">and ${total - playlist.length} more in the playlist</div>` : ""}` : `<div class="empty" style="padding:24px"><p>No playlist on this frame.</p><button class="btn primary" data-change-playlist>Choose a playlist</button></div>`}
+      <div class="queue-now queue-toolbar"><div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>
+        ${current.title ? `<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="${nowMeta}" aria-label="Preview ${h(current.title)}">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>` : `<h2>Queue</h2>`}
+        <span class="spacer"></span><button class="btn queue-interval" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>
+      </div>
+      ${this._menu === "interval" ? this._intervalMenuTemplate("queue-interval-menu") : ""}
+      ${player.delay ? `<div class="failure" role="status"><span>${h(this._playbackStatus(player))}</span><button class="btn small" data-options>Power settings</button></div>` : ""}
+      <div class="queue-head"><h2>Up next</h2><span class="sub">${items.length}</span><span class="spacer"></span>
+        <button class="icon-btn" data-toggle-shuffle aria-label="Shuffle queue" aria-pressed="${Boolean(player.shuffle)}" title="Shuffle queue"><ha-icon icon="mdi:shuffle${player.shuffle ? "" : "-disabled"}"></ha-icon></button>
+        <button class="icon-btn" data-toggle-repeat aria-label="Repeat queue" aria-pressed="${Boolean(player.repeat)}" title="${player.repeat ? "Repeat on" : "Repeat off"}"><ha-icon icon="mdi:repeat${player.repeat ? "" : "-off"}"></ha-icon></button>
+        <button class="btn small" data-clear-queue ${!items.length && !player.repeat ? "disabled" : ""}>Clear</button>
+      </div>
+      <ol class="queue-list" data-art-drop="queue">${items.map((item, index) => this._queueRow(item, index)).join("")}</ol>
+      <div class="queue-more" data-art-drop="queue" data-queue-end>${items.length ? "Drop art here to add it to the queue" : player.repeat ? "Repeat is on. The queue starts again after this picture." : current.title ? "Queue finished. This picture stays on the frame." : "Add pictures or a playlist, then press Play."}</div>
     </section>`;
   }
 
-  _queueRow(item, index, section) {
-    const moveHint = section === "queue" ? "Alt+Right: move to the start of this frame's rotation" : "Alt+Left: move to the start of the queue";
-    const remove = section === "queue"
-      ? `<button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove" title="Remove"><ha-icon icon="mdi:close"></ha-icon></button>`
-      : `<button class="icon-btn" data-skip-queue="${index}:${h(item.id)}" aria-label="Skip this time" title="Skip this time, comes back next cycle"><ha-icon icon="mdi:close"></ha-icon></button>`;
-    return `<li class="queue-row" draggable="true" data-queue-section="${section}" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now" aria-description="${h(moveHint)}" aria-keyshortcuts="${section === "queue" ? "Alt+ArrowRight" : "Alt+ArrowLeft"}" title="${h(moveHint)}"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions">${remove}</div></li>`;
+  _queueRow(item, index) {
+    return `<li class="queue-row" draggable="true" data-queue-section="queue" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now" aria-description="Alt+Up or Alt+Down to reorder" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions"><button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove from queue" title="Remove from queue"><ha-icon icon="mdi:close"></ha-icon></button></div></li>`;
   }
 
   _artPreviewCell(item) {
@@ -1349,7 +1345,7 @@ class FraimicPanel extends HTMLElement {
   _menuTemplate() {
     if (!this._menu) return "";
     if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
-    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Change playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.playlist?.shuffle ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
+    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-toggle-repeat>Repeat queue <span>${this._player?.repeat ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
@@ -1358,8 +1354,8 @@ class FraimicPanel extends HTMLElement {
   }
 
   _intervalMenuTemplate(className) {
-    const values = [[900,"15 minutes"],[1800,"30 minutes"],[2700,"45 minutes"],[3600,"1 hour"],[7200,"2 hours"],[14400,"4 hours"],[43200,"12 hours"],[86400,"Once a day"]];
-    return `<div class="${className}"><h3>Changes every</h3>${values.map(([value,label]) => `<button data-interval="${value}">${label}<span>${value === this._player?.interval ? "current" : ""}</span></button>`).join("")}<div class="failure">Each change costs a 30 second refresh and a little battery.</div></div>`;
+    const values = [[900,"15 minutes"],[1800,"30 minutes"],[2700,"45 minutes"],[3600,"1 hour"],[7200,"2 hours"],[14400,"4 hours"],[21600,"6 hours"],[43200,"12 hours"],[86400,"Once a day"]];
+    return `<div class="${className}"><h3>Changes every</h3>${values.map(([value,label]) => `<button data-interval="${value}">${label}<span>${value === this._player?.interval ? "current" : ""}</span></button>`).join("")}<button data-custom-interval>Custom interval…</button><div class="failure">Playback follows this interval in every power mode. Each change uses battery.</div></div>`;
   }
 
   _facetMenu() {
@@ -1476,9 +1472,8 @@ class FraimicPanel extends HTMLElement {
     });
     root.querySelectorAll("[data-dither-preview]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._openDitherPreview(node.dataset.ditherPreview, node.dataset.previewTitle, node.dataset.previewMeta); });
     root.querySelectorAll("[data-remove-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.removeQueue.split(":"); this._queueAction({ action: "remove", index: Number(index), slide_id: id.join(":") }); });
-    root.querySelectorAll("[data-skip-queue]").forEach((node) => node.onclick = () => { const [index, ...id] = node.dataset.skipQueue.split(":"); this._queueAction({ action: "skip", index: Number(index), slide_id: id.join(":") }); });
     root.querySelectorAll("[data-create-playlist]").forEach((node) => node.onclick = () => this._createPlaylist());
-    root.querySelectorAll("[data-play-playlist]").forEach((node) => node.onclick = () => this._playPlaylist(node.dataset.playPlaylist));
+    root.querySelectorAll("[data-play-playlist]").forEach((node) => node.onclick = () => this._playPlaylist(node.dataset.playPlaylist, node.dataset.playlistAction || "queue"));
     root.querySelectorAll("[data-add-from-browse]").forEach((node) => node.onclick = () => { this._addingToPlaylist = node.dataset.addFromBrowse; this._navigate("/"); this._notify(`Add art to ${this._playlist?.name || "playlist"}.`); });
     root.querySelectorAll("[data-playlist-menu]").forEach((node) => node.onclick = () => this._playlistMenu(node.dataset.playlistMenu));
     root.querySelectorAll("[data-move-slide]").forEach((node) => node.onclick = () => this._moveSlide(Number(node.dataset.slideIndex), node.dataset.moveSlide));
@@ -1488,7 +1483,9 @@ class FraimicPanel extends HTMLElement {
     root.querySelector("[data-modal-backdrop]")?.addEventListener("click", (event) => { if (event.target === event.currentTarget) this._closeModal(); });
     root.querySelectorAll("[data-overlays]").forEach((node) => node.onclick = () => this._openOverlays());
     root.querySelectorAll("[data-change-playlist]").forEach((node) => node.onclick = () => this._changePlaylist());
-    root.querySelector("[data-toggle-shuffle]")?.addEventListener("click", () => this._toggleShuffle());
+    root.querySelectorAll("[data-toggle-shuffle]").forEach((node) => node.onclick = () => this._toggleShuffle());
+    root.querySelectorAll("[data-toggle-repeat]").forEach((node) => node.onclick = () => this._setPlayback("repeat", !this._player?.repeat));
+    root.querySelectorAll("[data-custom-interval]").forEach((node) => node.onclick = () => this._customInterval());
     root.querySelectorAll("[data-interval]").forEach((node) => node.onclick = () => this._setInterval(Number(node.dataset.interval)));
     root.querySelectorAll("[data-options]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/integration/fraimic"));
     root.querySelectorAll("[data-add-frame]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/dashboard/add?domain=fraimic"));
@@ -1606,53 +1603,31 @@ class FraimicPanel extends HTMLElement {
     this._draggedArt = null;
     if (!art) return;
     if (section === "queue") this._artAction("queue", art.source, art.itemId, null, { queueIndex: index });
-    else {
-      const beforeSlideId = Number.isInteger(index)
-        ? this._player?.playlist?.items?.[index]?.id
-        : null;
-      this._artAction("add_playlist", art.source, art.itemId, playlistId || this._player?.playlist_id, { beforeSlideId });
-    }
+    else if (playlistId) this._artAction("add_playlist", art.source, art.itemId, playlistId);
   }
 
   async _moveQueueRowWithKeyboard(event, row) {
-    const from = row.dataset.queueSection;
-    const key = from === "queue" ? "ArrowRight" : "ArrowLeft";
-    if (!event.altKey || event.key !== key || (from === "queue" && !this._player?.playlist_id)) return;
+    if (!event.altKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
     event.preventDefault();
-    const to = from === "queue" ? "playlist" : "queue";
-    const slideId = row.dataset.queueId;
-    await this._queueAction({ action: "move", from_section: from, index: Number(row.dataset.queueIndex), slide_id: slideId, to_section: to, to_index: 0 });
-    const rows = [...this.shadowRoot.querySelectorAll("[data-queue-section]")];
-    (rows.find((node) => node.dataset.queueSection === to && node.dataset.queueId === slideId)
-      || rows.find((node) => node.dataset.queueSection === from && node.dataset.queueId === slideId))?.focus();
+    const index = Number(row.dataset.queueIndex);
+    const itemId = row.dataset.queueId;
+    await this._reorderQueue("queue", index, index + (event.key === "ArrowUp" ? -1 : 1));
+    [...this.shadowRoot.querySelectorAll("[data-queue-id]")].find((node) => node.dataset.queueId === itemId)?.focus();
   }
 
   _bindQueueDnD() {
-    // One drag surface across both queue sections: same-section drops reorder,
-    // cross-section drops move between the hand queue and the session order.
     let dragged = null;
     const clear = () => { dragged = null; this.shadowRoot.querySelectorAll(".drag-over").forEach((node) => node.classList.remove("drag-over")); };
-    const drop = (toSection, toIndex) => {
-      const source = dragged;
-      clear();
-      if (!source) return;
-      const from = source.dataset.queueSection;
-      const fromIndex = Number(source.dataset.queueIndex);
-      if (from === toSection) this._reorderQueue(from, fromIndex, fromIndex < toIndex ? toIndex - 1 : toIndex);
-      else this._queueAction({ action: "move", from_section: from, index: Number(source.dataset.queueIndex), slide_id: source.dataset.queueId, to_section: toSection, to_index: toIndex });
-    };
     this.shadowRoot.querySelectorAll("[data-queue-section]").forEach((row) => {
       row.ondragstart = (event) => { dragged = row; event.dataTransfer.effectAllowed = "move"; };
       row.ondragover = (event) => { if (dragged && dragged !== row) { event.preventDefault(); row.classList.add("drag-over"); } };
       row.ondragleave = () => row.classList.remove("drag-over");
-      row.ondrop = (event) => { event.preventDefault(); if (dragged && dragged !== row) drop(row.dataset.queueSection, Number(row.dataset.queueIndex)); };
+      row.ondrop = (event) => { if (dragged && dragged !== row) { event.preventDefault(); event.stopPropagation(); this._reorderQueue("queue", Number(dragged.dataset.queueIndex), Number(row.dataset.queueIndex)); clear(); } };
       row.ondragend = clear;
     });
-    this.shadowRoot.querySelectorAll("[data-queue-move-drop]").forEach((zone) => {
-      zone.addEventListener("dragover", (event) => { if (dragged) { event.preventDefault(); zone.classList.add("drag-over"); } });
-      zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
-      zone.addEventListener("drop", (event) => { event.preventDefault(); if (dragged) drop(zone.dataset.queueMoveDrop, 0); });
-    });
+    const end = this.shadowRoot.querySelector("[data-queue-end]");
+    end?.addEventListener("dragover", (event) => { if (dragged) event.preventDefault(); });
+    end?.addEventListener("drop", (event) => { if (dragged) { event.preventDefault(); this._reorderQueue("queue", Number(dragged.dataset.queueIndex), this._player.hand_queue.length - 1); clear(); } });
   }
 
   _bindReorder(selector, onDrop) {
@@ -1732,7 +1707,6 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _artAction(action, source, itemId, playlistId = null, options = {}, targetEntryId = null) {
-    if (action === "queue" && this._findItem(source, itemId)?.queued) return;
     try {
       const entryId = targetEntryId || this._selectedFrameId;
       const fit = options.fit || "cover";
@@ -1743,7 +1717,7 @@ class FraimicPanel extends HTMLElement {
       const targetFrame = this._frames.find((frame) => frame.id === entryId) || this._frame;
       if (!options.quiet) {
         if (action === "show_now") { localStorage.setItem(`fraimic-shown-${entryId}`, "1"); this._notify(`Sending to ${targetFrame.name}. The panel takes about 30 seconds.`); }
-        if (action === "queue") this._notify(`Added to the queue, ${(this._player?.waiting_count || 0) + 1} waiting.`, { action: "Open queue", callback: () => { this._queueOpen = true; } });
+        if (action === "queue") this._notify(`Added to the queue, ${(this._player?.queue_count || 0) + 1} upcoming.`, { action: "Open queue", callback: () => { this._queueOpen = true; } });
         if (action === "add_playlist") this._notify(`Added to ${this._playlists.find((playlist) => playlist.id === playlistId)?.name}.`, { action: "Open", callback: () => this._navigate(`/playlists/${encodeURIComponent(playlistId)}`) });
         if (action === "save") this._notify("Saved to your library.");
         if (action === "favorite") this._notify("Added to favorites.");
@@ -1761,7 +1735,7 @@ class FraimicPanel extends HTMLElement {
   _findItem(source, itemId) { return this._allGalleryItems.find((item) => item.source === source && item.id === itemId); }
 
   _quickPlaylist(source, itemId) {
-    const target = this._addingToPlaylist || this._player?.playlist_id || (this._playlists.length === 1 ? this._playlists[0].id : null);
+    const target = this._addingToPlaylist || (this._playlists.length === 1 ? this._playlists[0].id : null);
     if (target) return this._artAction("add_playlist", source, itemId, target);
     this._choosePlaylist(source, itemId);
   }
@@ -2267,7 +2241,7 @@ class FraimicPanel extends HTMLElement {
   async _queueAction(body) {
     try {
       this._player = await this._api("player/queue", this._json({ entry_id: this._selectedFrameId, ...body }));
-      const message = body.action === "clear" ? "Queue cleared." : body.action === "remove" ? "Removed from queue." : body.action === "skip" ? "Skipped. The playlist is unchanged." : body.action === "reorder" ? "Queue reordered." : body.action === "move" ? (body.to_section === "queue" ? "Playing next from the queue." : "Moved into this frame's rotation.") : null;
+      const message = body.action === "clear" ? "Queue cleared. The current picture stays on the frame." : body.action === "remove" ? "Removed from queue." : body.action === "reorder" ? "Queue reordered." : null;
       if (message) this._notify(message); else this._render();
     }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); await this._loadPlayer(); }
@@ -2296,10 +2270,10 @@ class FraimicPanel extends HTMLElement {
   }
 
   _reorderQueue(section, from, to) {
-    if (from === to) return;
-    const items = section === "queue" ? [...(this._player.hand_queue || [])] : [...(this._player.playlist?.items || [])];
+    const items = [...(this._player.hand_queue || [])];
+    if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
     const [item] = items.splice(from, 1); items.splice(to, 0, item);
-    this._queueAction({ action: "reorder", section, ordered_ids: items.map((candidate) => candidate.id) });
+    return this._queueAction({ action: "reorder", section, ordered_ids: items.map((candidate) => candidate.id) });
   }
 
   _dragQueueSheet(event) {
@@ -2318,14 +2292,16 @@ class FraimicPanel extends HTMLElement {
     catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
 
-  async _playPlaylist(id) {
-    try { await this._api(`playlists/${encodeURIComponent(id)}/control`, this._json({ action: "play", entry_id: this._selectedFrameId })); await Promise.all([this._loadPlaylists(), this._loadPlayer(false)]); this._render(); }
+  async _playPlaylist(id, action = "queue") {
+    if (action === "play" && this._player?.queue_count && !confirm("Replace the upcoming queue with this playlist?")) return;
+    try { await this._api(`playlists/${encodeURIComponent(id)}/control`, this._json({ action, entry_id: this._selectedFrameId })); await Promise.all([this._loadPlaylists(), this._loadPlayer(false)]); this._notify(action === "queue" ? "Playlist added to queue." : action === "play_next" ? "Playlist will play next." : "Playing playlist."); this._render(); }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
 
   _playlistMenu(id) {
     const playlist = this._playlists.find((item) => item.id === id) || this._playlist;
-    this._openModal(playlist?.name || "Playlist", `<div class="queue-list"><button class="queue-row" data-playlist-edit="rename">Rename</button><button class="queue-row" data-playlist-edit="duplicate">Duplicate</button><button class="queue-row danger" data-playlist-edit="delete">Delete</button></div>`);
+    this._openModal(playlist?.name || "Playlist", `<div class="queue-list"><button class="queue-row" data-playlist-enqueue="queue">Add to queue</button><button class="queue-row" data-playlist-enqueue="play_next">Play next</button><button class="queue-row" data-playlist-enqueue="play">Play now · replace queue</button><button class="queue-row" data-playlist-edit="rename">Rename</button><button class="queue-row" data-playlist-edit="duplicate">Duplicate</button><button class="queue-row danger" data-playlist-edit="delete">Delete</button></div>`);
+    this.shadowRoot.querySelectorAll("[data-playlist-enqueue]").forEach((node) => node.onclick = () => { this._closeModal(); this._playPlaylist(id, node.dataset.playlistEnqueue); });
     this.shadowRoot.querySelectorAll("[data-playlist-edit]").forEach((node) => node.onclick = () => this._editPlaylist(id, node.dataset.playlistEdit));
   }
 
@@ -2362,9 +2338,31 @@ class FraimicPanel extends HTMLElement {
     this.shadowRoot.querySelector("[data-save-slide]").onclick = async () => { try { const data = await this._api(`playlists/${encodeURIComponent(this._playlist.id)}/slides`, this._json({ action: "settings", slide_id: id, fit: this.shadowRoot.getElementById("slide-fit").value, tone: this.shadowRoot.getElementById("slide-tone").value, mode: this.shadowRoot.getElementById("slide-mode").value, overlays: this.shadowRoot.getElementById("slide-overlays").value, entry_id: this._selectedFrameId })); this._playlist = data.playlist; this._closeModal(); this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } };
   }
 
-  _changePlaylist() { this._openModal("Change playlist", `<div class="queue-list">${this._playlists.map((playlist) => `<button class="queue-row" data-change-to="${h(playlist.id)}">${h(playlist.name)}${playlist.id === this._player?.playlist_id ? `<span class="spacer"></span><span class="counter">current</span>` : ""}</button>`).join("")}</div>`); this.shadowRoot.querySelectorAll("[data-change-to]").forEach((node) => node.onclick = () => { this._closeModal(); this._playPlaylist(node.dataset.changeTo); }); }
-  async _toggleShuffle() { if (!this._player?.playlist_id) return; try { await this._api(`playlists/${encodeURIComponent(this._player.playlist_id)}/control`, this._json({ action: "shuffle", shuffle: !this._player.playlist.shuffle, entry_id: this._selectedFrameId })); await this._loadPlayer(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
-  async _setInterval(interval) { if (!this._player?.playlist_id) return; try { await this._api(`playlists/${encodeURIComponent(this._player.playlist_id)}/control`, this._json({ action: "interval", interval, entry_id: this._selectedFrameId })); this._menu = null; await this._loadPlayer(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
+  _changePlaylist() { this._navigate("/playlists"); }
+  async _setPlayback(action, value) { try { this._player = await this._api("player/control", this._json({ action, [action]: value, entry_id: this._selectedFrameId })); this._menu = null; this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
+  _toggleShuffle() { return this._setPlayback("shuffle", !this._player?.shuffle); }
+  _setInterval(interval) { return this._setPlayback("interval", interval); }
+  _customInterval() {
+    const value = prompt("Change every how many minutes? (minimum 5)", String((this._player?.interval || 1800) / 60));
+    if (value === null) return;
+    const minutes = Number(value);
+    if (!Number.isInteger(minutes) || minutes < 5 || !Number.isSafeInteger(minutes * 60)) {
+      this._notify("Enter a whole number of minutes, at least 5.", { error: true });
+      return;
+    }
+    return this._setInterval(minutes * 60);
+  }
+
+  _playbackStatus(player) {
+    if (player?.paused && !player.exhausted) return "Paused";
+    if (player?.delay) {
+      const retry = player.delay.retry_at ? new Date(player.delay.retry_at).toLocaleString(undefined, { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" }) : null;
+      return `${player.delay.message}${retry ? ` Next attempt: ${retry}.` : ""}`;
+    }
+    if (player?.exhausted) return "Queue finished · picture stays on frame";
+    return this._timeLeft(player?.seconds_remaining);
+  }
+
 
   async _openOverlays() {
     this._menu = null; this._overlaysOpen = true; this._overlayData = null; this._render();

@@ -11,7 +11,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .const import (
@@ -322,6 +322,11 @@ class FraimicPowerManager:
         if not charging and isinstance(percent, (int, float)) and percent < 25:
             return self._count_skip(SKIP_LOW_BATTERY)
 
+        # Playback has an explicit, per-frame interval enforced by the queue.
+        # Generic background budgets must not silently override that schedule.
+        if trigger == TRIGGER_PLAYLIST:
+            return None
+
         if not charging and now - self.last_upload_at < self.profile.automatic_interval:
             return self._count_skip(SKIP_COOLDOWN)
         today = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
@@ -337,7 +342,7 @@ class FraimicPowerManager:
         self.last_hash = content_hash
         self.last_upload_at = now
         self.upload_count += 1
-        if trigger in AUTOMATIC_TRIGGERS:
+        if trigger in AUTOMATIC_TRIGGERS and trigger != TRIGGER_PLAYLIST:
             today = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
             if self.budget_day != today:
                 self.budget_day = today
@@ -396,6 +401,16 @@ class FraimicPowerManager:
             _LOGGER.debug("Automatic post-upload sleep failed: %s", err)
         finally:
             self._sleep_task = None
+
+    def retry_at(self, reason: str, *, now: float | None = None) -> float:
+        """Earliest useful automatic retry after a power-policy deferral."""
+        now = time.time() if now is None else now
+        if reason == SKIP_DAILY_BUDGET:
+            tomorrow = datetime.fromtimestamp(now, timezone.utc).date() + timedelta(days=1)
+            return datetime.combine(tomorrow, datetime.min.time(), timezone.utc).timestamp()
+        if reason == SKIP_COOLDOWN:
+            return max(now, self.last_upload_at + self.profile.automatic_interval)
+        return now + 300
 
     def diagnostics(self) -> dict[str, Any]:
         return {

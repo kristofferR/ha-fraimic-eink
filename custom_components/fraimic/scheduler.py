@@ -1,30 +1,11 @@
-"""Playlist scheduler: rotate stored dashboard screens on the frame.
-
-One scheduler per config entry. A 60 s tick decides whether the current
-screen's interval has elapsed (or its time window closed), renders the next
-eligible screen, and uploads — unless the packed ``.bin`` hash matches what
-is already on the glass, in which case the upload (a full ~30 s e-ink
-refresh + battery) is skipped while the data refresh still happened.
-
-Battery/sleep awareness: when the frame is unreachable the cycle is skipped
-quietly and a pending flag is set; the next successful coordinator poll (the
-frame woke up) triggers an immediate fresh render + push. Manual uploads
-hold the playlist for one interval and clear the known-content hash so the
-next playlist upload is never skipped.
-
-State (enabled, current screen, last rotation, displayed hash) persists in a
-Store — NOT entry options, which would reload the integration every
-rotation.
-"""
+"""Persistent per-frame playback queue and battery-aware delivery."""
 
 from __future__ import annotations
 
 import asyncio
 import json
 import logging
-import random
 import time
-from collections import Counter
 from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
@@ -37,6 +18,7 @@ from homeassistant.util import dt as dt_util
 
 from .const import CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH, DOMAIN
 from .coordinator import FraimicConfigEntry
+from .playback_queue import PlaybackQueue, QueueItem
 from .power import TRIGGER_MANUAL, TRIGGER_PLAYLIST
 from .providers.ha import ArtFetchError
 from .render.display import (
@@ -44,8 +26,8 @@ from .render.display import (
     discard_prepared_thumbnails,
     prepared_thumbnail_fingerprint,
 )
-from .render.playlist import eligible, next_screen
-from .render.schema import KIND_PICTURE, ScreenConfig
+from .render.playlist import eligible
+from .render.schema import KIND_PICTURE, MIN_SCREEN_INTERVAL, ScreenConfig
 from .screens import screens_from_entry
 from .services import CloudDeliveryError, FrameUploadError
 
@@ -53,13 +35,12 @@ if TYPE_CHECKING:
     from .playlists import PlaylistManager
 
 _LOGGER = logging.getLogger(__name__)
-
 TICK = timedelta(seconds=60)
 STORE_VERSION = 1
 
 
 class FraimicScheduler:
-    """Rotates a config entry's stored screens on its frame."""
+    """Owns playback; playlists are only sources of queue snapshots."""
 
     def __init__(
         self,
@@ -70,35 +51,26 @@ class FraimicScheduler:
         self.hass = hass
         self.entry = entry
         self._playlists = playlists
-        self.playlist_id: str | None = None
-        self.shuffle = False
-        self.screens: list[ScreenConfig] = []
-        self._playback_order: list[str] = []
-        self._order_custom = False
-        self._external_queue_data: dict[str, dict[str, Any]] = {}
-        self._external_queue: dict[str, ScreenConfig] = {}
-        self._load_assigned_playlist()
+        self.queue = PlaybackQueue()
         self.enabled = False
         self._stored_enabled = False
         self.current_id: str | None = None
-        self._playlist_cursor_id: str | None = None
+        self._displayed_item: QueueItem | None = None
         self.displayed_hash: str | None = None
         self._last_rotation: datetime | None = None
         self._paused_at: datetime | None = None
         self._hold_until: datetime | None = None
         self._pending: ScreenConfig | None = None
         self._pending_requires_enabled = True
-        self._pending_from_queue = False
         self._pending_hold_on_success = False
-        self._queued_ids: list[str] = []
-        self._playlist_order: list[str] = []
         self._external_upload_count = 0
         self._external_upload_started_at: float | None = None
         self._busy = False
-        self._last_show_permanently_rejected = False
         self._busy_started_at: float | None = None
         self._sending_slide_name: str | None = None
         self.sending_screen: ScreenConfig | None = None
+        self.blocked_reason: str | None = None
+        self.retry_at: datetime | None = None
         self._store: Store[dict[str, Any]] = Store(
             hass, STORE_VERSION, f"{DOMAIN}_playlist_{entry.entry_id}"
         )
@@ -109,138 +81,81 @@ class FraimicScheduler:
         self._prefetch_again = False
         self._playlist_preprocess_done: str | None = None
 
-    def _load_assigned_playlist(self) -> None:
-        """Refresh the assigned catalog playlist and rebase the session order."""
-        previous = (self.playlist_id, self.shuffle)
-        if self._playlists is None:
-            self.screens = screens_from_entry(self.entry)
-        else:
-            playlist = self._playlists.assigned_to(self.entry.entry_id)
-            self.playlist_id = playlist.playlist_id if playlist is not None else None
-            self.shuffle = playlist.shuffle if playlist is not None else False
-            self.screens = self._playlists.render_slides(self.playlist_id)
-        self._rebase_playback_order(fresh=previous != (self.playlist_id, self.shuffle))
+    @property
+    def screens(self) -> list[ScreenConfig]:
+        return [item.screen for item in self.queue.items]
 
-    def _rebase_playback_order(self, *, fresh: bool) -> None:
-        """Recompute the session play order against the current slide list.
+    @property
+    def shuffle(self) -> bool:
+        return self.queue.shuffle
 
-        The session order is this frame's own view of the playlist: shuffle
-        lives here, and queue-sheet reorders/skips edit it without ever
-        touching the saved playlist. ``fresh`` rebuilds it from scratch
-        (assignment or shuffle change); otherwise stale ids are dropped and
-        new playlist slides slotted in while user edits survive.
-        """
-        base = [screen.screen_id for screen in self.screens]
-        if fresh:
-            self._order_custom = False
-        if fresh or (not self._order_custom and not self.shuffle):
-            self._playback_order = base
-            if self.shuffle:
-                random.shuffle(self._playback_order)
-            return
-        order = [
-            slide_id
-            for slide_id in self._playback_order
-            if self._slide_by_id(slide_id) is not None
-        ]
-        kept = set(order)
-        missing = [slide_id for slide_id in base if slide_id not in kept]
-        if self.shuffle:
-            for slide_id in missing:
-                order.insert(random.randint(0, len(order)), slide_id)
-        else:
-            order.extend(missing)
-        self._playback_order = order
+    @property
+    def playlist_id(self) -> str | None:
+        item = self.queue.get(self.queue.cursor)
+        return item.playlist_id if item else None
 
-    def _rotation_screens(self) -> list[ScreenConfig]:
-        """Resolve session slides from the assigned playlist, gallery, or catalog."""
-        if not self._playback_order:
-            return self.screens
-        return [
-            screen
-            for slide_id in self._playback_order
-            if (screen := self._slide_by_id(slide_id)) is not None
-        ]
+    @property
+    def playlist_name(self) -> str | None:
+        item = self.queue.get(self.queue.cursor)
+        return item.playlist_name if item else None
 
-    # -- lifecycle --------------------------------------------------------
+    @property
+    def playlist_interval(self) -> int:
+        return self.queue.interval
+
+    @property
+    def queued_slides(self) -> list[ScreenConfig]:
+        return [item.screen for item in self.queue.upcoming]
+
+    @property
+    def current_screen(self) -> ScreenConfig | None:
+        return self._displayed_item.screen if self._displayed_item else None
+
+    @property
+    def exhausted(self) -> bool:
+        return not self.queue.upcoming and not (self.queue.repeat and self.queue.items)
+
+    def slide_by_id(self, slide_id: str) -> ScreenConfig | None:
+        item = self.queue.get(slide_id)
+        if item:
+            return item.screen
+        if self.current_id == slide_id:
+            return self.current_screen
+        if self._playlists is not None:
+            return self._playlists.render_slide_by_id(slide_id)
+        return None
+
+    def playlist_up_next(self, *, limit: int | None = 10) -> list[ScreenConfig]:
+        """Legacy callers must not append a second playback source."""
+        return []
 
     async def async_start(self) -> None:
-        """Load persisted state and start ticking."""
         data = await self._store.async_load() or {}
-        self.enabled = bool(data.get("enabled", False))
-        self._stored_enabled = self.enabled
-        self.current_id = data.get("current_screen_id")
-        self._playlist_cursor_id = data.get("playlist_cursor_id", self.current_id)
+        self.enabled = self._stored_enabled = bool(data.get("enabled", False))
+        if "playback_queue" in data:
+            self.queue = PlaybackQueue.from_dict(data["playback_queue"])
+            if data.get("displayed_item"):
+                self._displayed_item = QueueItem.from_dict(data["displayed_item"])
+        else:
+            self._migrate_queue(data)
+        self.current_id = self.current_screen.screen_id if self.current_screen else None
         self.displayed_hash = data.get("displayed_hash")
-        raw_external = data.get("external_queue", {})
-        if isinstance(raw_external, dict):
-            for slide_id, raw in raw_external.items():
-                if not isinstance(slide_id, str) or not isinstance(raw, dict):
-                    continue
-                try:
-                    from .render.schema import SCREEN_SCHEMA, screen_from_dict
-
-                    validated = SCREEN_SCHEMA(raw)
-                    screen = screen_from_dict(validated, slide_id)
-                except Exception:  # noqa: BLE001 - corrupt stored queue entry
-                    _LOGGER.warning("Ignoring invalid stored queue slide %s", slide_id)
-                    continue
-                self._external_queue_data[slide_id] = validated
-                self._external_queue[slide_id] = screen
-        self._queued_ids = [
-            slide_id
-            for slide_id in data.get("queued_slide_ids", [])
-            if isinstance(slide_id, str)
-        ]
-        self._playlist_order = [
-            slide_id
-            for slide_id in data.get("playlist_order", [])
-            if isinstance(slide_id, str)
-        ]
-        if self._playlists is None:
-            self._apply_playlist_order()
-        session = data.get("session")
-        if (
-            isinstance(session, dict)
-            and session.get("playlist_id") == self.playlist_id
-            and bool(session.get("shuffle")) == self.shuffle
+        for attr, key in (
+            ("_hold_until", "hold_until"),
+            ("_last_rotation", "last_rotation"),
+            ("_paused_at", "paused_at"),
         ):
-            order = [
-                slide_id
-                for slide_id in session.get("order") or []
-                if isinstance(slide_id, str)
-            ]
-            if order:
-                self._playback_order = order
-                self._order_custom = bool(session.get("custom"))
-        self._rebase_playback_order(fresh=False)
-        valid_ids = {screen.screen_id for screen in self._rotation_screens()} | set(
-            self._external_queue
+            if data.get(key):
+                setattr(self, attr, dt_util.parse_datetime(data[key]))
+        if self.enabled:
+            self._paused_at = None
+        pending_id = data.get("pending_queue_id")
+        self._pending = self.slide_by_id(pending_id) if pending_id else None
+        self._pending_requires_enabled = bool(
+            data.get("pending_requires_enabled", True)
         )
-        self._queued_ids = [
-            slide_id
-            for slide_id in self._queued_ids
-            if self._slide_by_id(slide_id) is not None
-        ]
-        pending_queue_id = data.get("pending_queue_id")
-        if pending_queue_id in self._queued_ids:
-            self._pending = self._slide_by_id(pending_queue_id)
-            if self._pending is not None:
-                self._pending_from_queue = True
-                self._pending_requires_enabled = bool(
-                    data.get("pending_requires_enabled", True)
-                )
-        if self._playlist_cursor_id not in valid_ids:
-            self._playlist_cursor_id = (
-                self.current_id if self.current_id in valid_ids else None
-            )
-        if raw := data.get("hold_until"):
-            self._hold_until = dt_util.parse_datetime(raw)
-        if raw := data.get("last_rotation"):
-            self._last_rotation = dt_util.parse_datetime(raw)
-        if not self.enabled and (raw := data.get("paused_at")):
-            self._paused_at = dt_util.parse_datetime(raw)
         await self._async_sync_cloud_interval()
+        await self._async_save()
         self._unsub_timer = async_track_time_interval(self.hass, self._async_tick, TICK)
         self._unsub_coordinator = (
             self.entry.runtime_data.coordinator.async_add_listener(
@@ -248,6 +163,71 @@ class FraimicScheduler:
             )
         )
         self._schedule_prefetch()
+
+    def _migrate_queue(self, data: dict) -> None:
+        """Snapshot the old assigned rotation and its priority queue once."""
+        playlist = (
+            self._playlists.assigned_to(self.entry.entry_id)
+            if self._playlists
+            else None
+        )
+        screens = (
+            self._playlists.render_slides(playlist.playlist_id)
+            if playlist
+            else screens_from_entry(self.entry)
+        )
+        lookup = {screen.screen_id: screen for screen in screens}
+        from .render.schema import SCREEN_SCHEMA, screen_from_dict
+
+        for item_id, raw in data.get("external_queue", {}).items():
+            try:
+                lookup[item_id] = screen_from_dict(SCREEN_SCHEMA(raw), item_id)
+            except (ValueError, TypeError, KeyError):
+                _LOGGER.warning("Ignoring invalid legacy queue item %s", item_id)
+
+        def resolve(item_id):
+            return lookup.get(item_id) or (
+                self._playlists.render_slide_by_id(item_id)
+                if self._playlists and item_id
+                else None
+            )
+
+        order = (
+            (data.get("session") or {}).get("order")
+            or data.get("playlist_order")
+            or [screen.screen_id for screen in screens]
+        )
+        cursor = data.get("playlist_cursor_id", data.get("current_screen_id"))
+        if cursor in order:
+            at = order.index(cursor)
+            order = order[at + 1 :] + order[:at]
+        current = resolve(data.get("current_screen_id"))
+        origin = (
+            {"playlist_id": playlist.playlist_id, "playlist_name": playlist.name}
+            if playlist
+            else {}
+        )
+        pending_id = data.get("pending_queue_id")
+        if current:
+            item = self.queue.add([current], **origin)[0]
+            self.queue.cursor = item.screen.screen_id
+            self._displayed_item = item
+            if pending_id == data.get("current_screen_id"):
+                data["pending_queue_id"] = self.queue.cursor
+                pending_id = None
+        for item_id in [*data.get("queued_slide_ids", []), *order]:
+            screen = resolve(item_id)
+            if screen:
+                item = self.queue.add([screen], **origin)[0]
+                if item_id == pending_id:
+                    data["pending_queue_id"] = item.screen.screen_id
+                    pending_id = None
+        if playlist:
+            self.queue.interval = playlist.interval
+            self.queue.shuffle = playlist.shuffle
+        elif screens:
+            self.queue.interval = screens[0].interval
+        self.queue.repeat = bool(screens)
 
     @callback
     def async_stop(self) -> None:
@@ -313,74 +293,182 @@ class FraimicScheduler:
         """When a one-off manual display stops holding rotation."""
         return self._hold_until
 
-    @property
-    def current_screen(self) -> ScreenConfig | None:
-        return self._slide_by_id(self.current_id) if self.current_id else None
-
-    @property
-    def playlist_name(self) -> str | None:
-        if self._playlists is None:
-            return self.entry.title if self.screens else None
-        playlist = self._playlists.get(self.playlist_id)
-        return playlist.name if playlist is not None else None
-
-    @property
-    def playlist_interval(self) -> int | None:
-        if self._playlists is not None:
-            playlist = self._playlists.get(self.playlist_id)
-            return playlist.interval if playlist is not None else None
-        return self.screens[0].interval if self.screens else None
-
-    @property
-    def queued_slides(self) -> list[ScreenConfig]:
-        """Hand-added, play-once slides in their persisted order."""
-        return [
-            screen
-            for slide_id in self._queued_ids
-            if (screen := self._slide_by_id(slide_id)) is not None
-        ]
-
-    def slide_by_id(self, slide_id: str) -> ScreenConfig | None:
-        """Resolve a queue-sheet slide id (playlist, external, or catalog)."""
-        return self._slide_by_id(slide_id)
-
-    def _slide_by_id(self, slide_id: str) -> ScreenConfig | None:
-        screen = next(
-            (item for item in self.screens if item.screen_id == slide_id), None
-        )
-        if screen is not None:
-            return screen
-        if external := self._external_queue.get(slide_id):
-            return external
-        if self._playlists is None:
-            return None
-        return self._playlists.render_slide_by_id(slide_id)
-
-    def playlist_up_next(self, *, limit: int | None = 10) -> list[ScreenConfig]:
-        """Return the next distinct eligible playlist slides after the current one."""
-        if limit is not None and limit <= 0:
-            return []
-        upcoming: list[ScreenConfig] = []
-        cursor = self._playlist_cursor_id or self.current_id
-        seen = {cursor} if cursor is not None else set()
-        now = dt_util.now()
-        rotation = self._rotation_screens()
-        for _ in range(len(rotation)):
-            candidate = next_screen(rotation, cursor, now)
-            if candidate is None or candidate.screen_id in seen:
-                break
-            upcoming.append(candidate)
-            seen.add(candidate.screen_id)
-            cursor = candidate.screen_id
-            if limit is not None and len(upcoming) >= limit:
-                break
-        return upcoming
-
     def raise_if_upload_active(self) -> None:
         if self._busy or self.external_upload_active:
             raise HomeAssistantError("An upload is already in progress")
 
-    # -- controls ----------------------------------------------------------
+    async def _queue_changed(self) -> None:
+        if self._pending is not None:
+            candidate = self.queue.candidate(dt_util.now())
+            self._pending = candidate.screen if candidate else None
+        self.blocked_reason = None
+        self.retry_at = None
+        await self._async_save()
+        self._notify()
+        self._schedule_prefetch()
+
+    async def async_add_to_queue(
+        self,
+        slide: ScreenConfig,
+        *,
+        play_next: bool = False,
+        insert_at: int | None = None,
+        raw_data: dict | None = None,
+    ) -> None:
+        self.raise_if_upload_active()
+        if insert_at is not None and (
+            isinstance(insert_at, bool) or not isinstance(insert_at, int)
+        ):
+            raise HomeAssistantError("Queue position must be a number")
+        self.queue.add(
+            [slide],
+            index=insert_at if insert_at is not None else (0 if play_next else None),
+        )
+        await self._queue_changed()
+
+    async def async_enqueue_playlist(self, playlist_id: str, *, action: str) -> None:
+        self.raise_if_upload_active()
+        playlist = self._playlists.require(playlist_id)
+        screens = self._playlists.render_slides(playlist_id)
+        if not screens:
+            raise HomeAssistantError("This playlist is empty")
+        if action == "play":
+            self.queue = PlaybackQueue(
+                interval=self.queue.interval,
+                shuffle=self.queue.shuffle,
+                repeat=self.queue.repeat,
+            )
+            self._pending = None
+        self.queue.add(
+            screens,
+            index=0 if action == "play_next" else None,
+            playlist_id=playlist_id,
+            playlist_name=playlist.name,
+        )
+        if action == "play" and self.queue.shuffle:
+            self.queue.set_shuffle(True)
+        await self._queue_changed()
+        if action == "play":
+            self.enabled = self._stored_enabled = True
+            self._paused_at = None
+            self._hold_until = None
+            await self._async_save()
+            await self.async_next()
+
+    async def async_set_playback(
+        self,
+        *,
+        interval: int | None = None,
+        shuffle: bool | None = None,
+        repeat: bool | None = None,
+    ) -> None:
+        self.raise_if_upload_active()
+        if interval is not None:
+            if (
+                isinstance(interval, bool)
+                or not isinstance(interval, int)
+                or interval < MIN_SCREEN_INTERVAL
+            ):
+                raise HomeAssistantError(
+                    f"Interval must be at least {MIN_SCREEN_INTERVAL} seconds"
+                )
+            self.queue.interval = interval
+            await self._async_sync_cloud_interval()
+        if shuffle is not None:
+            if not isinstance(shuffle, bool):
+                raise HomeAssistantError("Shuffle must be a boolean")
+            self.queue.set_shuffle(shuffle)
+        if repeat is not None:
+            if not isinstance(repeat, bool):
+                raise HomeAssistantError("Repeat must be a boolean")
+            self.queue.repeat = repeat
+        await self._queue_changed()
+
+    async def async_remove_from_queue(self, index: int, slide_id: str) -> None:
+        self.raise_if_upload_active()
+        try:
+            self.queue.remove(index, slide_id)
+        except ValueError as err:
+            raise HomeAssistantError(str(err)) from err
+        await self._queue_changed()
+
+    async def async_clear_queue(self) -> None:
+        self.raise_if_upload_active()
+        self.queue.clear()
+        await self._queue_changed()
+
+    async def async_reorder_queue(self, ordered_ids: list[str]) -> None:
+        self.raise_if_upload_active()
+        try:
+            self.queue.reorder(ordered_ids)
+        except ValueError as err:
+            raise HomeAssistantError(str(err)) from err
+        await self._queue_changed()
+
+    async def async_play_queue_item(
+        self, section: str, index: int, slide_id: str
+    ) -> None:
+        self.raise_if_upload_active()
+        upcoming = self.queue.upcoming
+        if (
+            section != "queue"
+            or not 0 <= index < len(upcoming)
+            or upcoming[index].screen.screen_id != slide_id
+        ):
+            raise HomeAssistantError("That queue item is no longer available")
+        await self._async_show(upcoming[index].screen, manual=True)
+
+    async def async_prune_library_image(self, image_id: str) -> bool:
+        removed = {
+            item.screen.screen_id
+            for item in self.queue.items
+            if (item.screen.source or {}).get("library_image") == image_id
+        }
+        if not removed:
+            return False
+        position = self.queue.position
+        previous = self.queue.items[: position + 1]
+        self.queue.items = [
+            item for item in self.queue.items if item.screen.screen_id not in removed
+        ]
+        if self.queue.cursor in removed:
+            self.queue.cursor = next(
+                (
+                    item.screen.screen_id
+                    for item in reversed(previous)
+                    if item.screen.screen_id not in removed
+                ),
+                None,
+            )
+        await self._queue_changed()
+        return True
+
+    async def async_refresh_playlist(
+        self, *, reset: bool = False, start: bool = False
+    ) -> None:
+        """Catalog edits do not mutate snapshots already in playback."""
+        self.invalidate_preprocessing()
+
+    async def async_next(self) -> bool:
+        self.raise_if_upload_active()
+        candidate = self.queue.candidate(dt_util.now())
+        if candidate is None:
+            return False
+        return await self._async_show(candidate.screen, manual=True)
+
+    async def async_previous(self) -> bool:
+        self.raise_if_upload_active()
+        candidate = self.queue.candidate(dt_util.now(), previous=True)
+        if candidate is None:
+            return False
+        return await self._async_show(candidate.screen, manual=True)
+
+    async def async_select(self, screen: ScreenConfig, *, hold: bool = False) -> None:
+        self.raise_if_upload_active()
+        if self.queue.get(screen.screen_id) is None:
+            screen = self.queue.add([screen], index=0)[0].screen
+            await self._async_save()
+        await self._async_show(screen, manual=True, hold_on_success=hold)
 
     async def async_set_enabled(
         self,
@@ -390,7 +478,11 @@ class FraimicScheduler:
         clear_hold: bool = True,
         persist: bool = True,
     ) -> None:
-        changed = enabled != self.enabled
+        restart = enabled and rotate and self.exhausted and bool(self.queue.items)
+        if restart:
+            self.queue.cursor = None
+            self._last_rotation = None
+        changed = enabled != self.enabled or restart
         hold_changed = clear_hold and self._hold_until is not None
         if persist:
             self._stored_enabled = enabled
@@ -419,419 +511,6 @@ class FraimicScheduler:
                 return
             await self._async_rotate(force=False)
 
-    async def async_next(self) -> bool:
-        return await self._async_step(1)
-
-    async def async_previous(self) -> bool:
-        return await self._async_step(-1)
-
-    async def async_select(self, screen: ScreenConfig, *, hold: bool = False) -> None:
-        """Show a specific screen now and pin rotation to it."""
-        await self._async_show(
-            screen,
-            manual=True,
-            advance_playlist=not hold,
-            clear_hold_on_success=not hold,
-            hold_on_success=hold,
-        )
-
-    async def _async_step(self, step: int) -> bool:
-        if step > 0 and self.queued_slides:
-            return await self._async_show_queued(
-                self.queued_slides[0], manual=True
-            )
-        if (
-            step < 0
-            and self._playlist_cursor_id is not None
-            and self.current_id != self._playlist_cursor_id
-        ):
-            previous = next(
-                (
-                    screen
-                    for screen in self._rotation_screens()
-                    if screen.screen_id == self._playlist_cursor_id
-                ),
-                None,
-            )
-            if previous is not None:
-                return await self._async_show(previous, manual=True)
-        candidate = next_screen(
-            self._rotation_screens(),
-            self._playlist_cursor_id or self.current_id,
-            dt_util.now(),
-            step=step,
-        )
-        if candidate is None:
-            raise HomeAssistantError("No screen is eligible to show right now")
-        return await self._async_show(candidate, manual=True)
-
-    async def async_add_to_queue(
-        self,
-        slide: ScreenConfig,
-        *,
-        play_next: bool = False,
-        insert_at: int | None = None,
-        raw_data: dict[str, Any] | None = None,
-    ) -> None:
-        """Add a stored slide to the hand-added, play-once queue."""
-        if raw_data is not None:
-            if self._slide_by_id(slide.screen_id) is not None:
-                raise HomeAssistantError("That queue slide id is already in use")
-            from .render.schema import SCREEN_SCHEMA, screen_from_dict
-
-            validated = SCREEN_SCHEMA(raw_data)
-            slide = screen_from_dict(validated, slide.screen_id)
-            self._external_queue_data[slide.screen_id] = validated
-            self._external_queue[slide.screen_id] = slide
-        elif self._slide_by_id(slide.screen_id) is None:
-            raise HomeAssistantError("That slide is no longer available")
-        if insert_at is not None:
-            if isinstance(insert_at, bool) or not isinstance(insert_at, int):
-                raise HomeAssistantError("Queue position must be a number")
-            self._queued_ids.insert(
-                max(0, min(insert_at, len(self._queued_ids))), slide.screen_id
-            )
-            self._sync_pending_queue_head()
-        elif play_next:
-            self._queued_ids.insert(0, slide.screen_id)
-            if self._pending is not None:
-                was_pending_from_queue = self._pending_from_queue
-                self._pending_from_queue = True
-                if not was_pending_from_queue:
-                    self._pending_requires_enabled = True
-            self._sync_pending_queue_head()
-        else:
-            self._queued_ids.append(slide.screen_id)
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-
-    async def async_remove_from_queue(self, index: int, slide_id: str) -> None:
-        """Remove one hand-added queue item by its visible position."""
-        if (
-            not 0 <= index < len(self._queued_ids)
-            or self._queued_ids[index] != slide_id
-        ):
-            raise HomeAssistantError("That queue item is no longer available")
-        self._queued_ids.pop(index)
-        self._prune_external()
-        self._sync_pending_queue_head()
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-
-    async def async_play_queue_item(
-        self, section: str, index: int, slide_id: str
-    ) -> None:
-        """Play one visible hand-queue or upcoming playlist item now."""
-        self.raise_if_upload_active()
-        if section == "queue":
-            if (
-                not 0 <= index < len(self._queued_ids)
-                or self._queued_ids[index] != slide_id
-            ):
-                raise HomeAssistantError("That queue item is no longer available")
-            slide = self._slide_by_id(slide_id)
-            if slide is None:
-                raise HomeAssistantError("That queue item is no longer available")
-            if index:
-                # Moving only the chosen occurrence to the head lets the existing
-                # display/retry path consume that exact row. Surviving rows keep
-                # their relative order, including duplicate slide ids.
-                self._queued_ids.insert(0, self._queued_ids.pop(index))
-                await self._async_save()
-                self._notify()
-            await self._async_show_queued(slide, manual=True)
-            return
-        if section != "playlist":
-            raise HomeAssistantError("section must be queue or playlist")
-        items = self.playlist_up_next(limit=index + 1)
-        if not 0 <= index < len(items) or items[index].screen_id != slide_id:
-            raise HomeAssistantError("That queue item is no longer available")
-        if self._pending_from_queue:
-            self._pending = None
-            self._pending_from_queue = False
-            self._pending_hold_on_success = False
-        await self.async_select(items[index])
-
-    async def async_clear_queue(self) -> None:
-        """Clear every hand-added queue item."""
-        if not self._queued_ids:
-            return
-        self._queued_ids.clear()
-        self._prune_external()
-        self._sync_pending_queue_head()
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-
-    async def async_prune_library_image(self, image_id: str) -> bool:
-        """Remove scheduler-owned references to a deleted library image."""
-
-        def uses_image(screen: ScreenConfig | None) -> bool:
-            source = getattr(screen, "source", None) or {}
-            return source.get("library_image") == image_id
-
-        screen_ids = {
-            screen.screen_id for screen in self.screens if uses_image(screen)
-        }
-        matching_ids = screen_ids | {
-            slide_id
-            for slide_id in {
-                *self._queued_ids,
-                *self._external_queue,
-                self.current_id,
-                self._pending.screen_id if self._pending is not None else None,
-            }
-            if slide_id is not None and uses_image(self._slide_by_id(slide_id))
-        }
-        if not matching_ids and not uses_image(self._pending):
-            return False
-
-        subentries = getattr(self.entry, "subentries", {})
-        for screen_id in screen_ids:
-            if screen_id in subentries:
-                self.hass.config_entries.async_remove_subentry(
-                    self.entry, screen_id
-                )
-        self.screens = [screen for screen in self.screens if not uses_image(screen)]
-        self._playback_order = [
-            slide_id
-            for slide_id in self._playback_order
-            if slide_id not in matching_ids
-        ]
-        self._playlist_order = [
-            slide_id
-            for slide_id in self._playlist_order
-            if slide_id not in screen_ids
-        ]
-        self._queued_ids = [
-            slide_id for slide_id in self._queued_ids if slide_id not in matching_ids
-        ]
-        if self.current_id in matching_ids:
-            self.current_id = None
-        if self._playlist_cursor_id in matching_ids:
-            self._playlist_cursor_id = None
-        if uses_image(self._pending):
-            self._pending = None
-            self._pending_requires_enabled = True
-            self._pending_from_queue = False
-            self._pending_hold_on_success = False
-        for slide_id in matching_ids:
-            self._external_queue.pop(slide_id, None)
-            self._external_queue_data.pop(slide_id, None)
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-        return True
-
-    async def async_reorder_queue(self, ordered_ids: list[str]) -> None:
-        """Replace the hand-added order after validating an optimistic reorder."""
-        if Counter(ordered_ids) != Counter(self._queued_ids):
-            raise HomeAssistantError("The queue changed before it could be reordered")
-        self._queued_ids = list(ordered_ids)
-        self._sync_pending_queue_head()
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-
-    def _sync_pending_queue_head(self) -> None:
-        """Keep a sleeping frame's pending retry aligned with the queue head."""
-        if not self._pending_from_queue:
-            return
-        queued = self.queued_slides
-        if queued:
-            self._pending = queued[0]
-            catalog_ids = {screen.screen_id for screen in self.screens}
-            self._pending_hold_on_success = self._pending.screen_id not in catalog_ids
-            return
-        self._pending = None
-        self._pending_from_queue = False
-        self._pending_hold_on_success = False
-
-    async def async_reorder_upcoming(self, ordered_ids: list[str]) -> None:
-        """Reorder the visible upcoming window in this frame's session only.
-
-        The saved playlist is never touched; the change lives in the session
-        play order until another playlist (or shuffle change) replaces it.
-        """
-        expected = [
-            slide.screen_id for slide in self.playlist_up_next(limit=len(ordered_ids))
-        ]
-        if Counter(ordered_ids) != Counter(expected):
-            raise HomeAssistantError("The queue changed before it could be reordered")
-        order = list(self._playback_order) or [
-            screen.screen_id for screen in self.screens
-        ]
-        positions = {slide_id: index for index, slide_id in enumerate(order)}
-        for expected_id, ordered_id in zip(expected, ordered_ids, strict=True):
-            order[positions[expected_id]] = ordered_id
-        self._playback_order = order
-        self._order_custom = True
-        self._sync_pending_playlist_head()
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-
-    async def async_skip_upcoming(self, index: int, slide_id: str) -> None:
-        """Defer one upcoming playlist slide to the end of the rotation cycle.
-
-        Session-only, like reordering: the slide comes back after everything
-        else has played, and the saved playlist is unchanged.
-        """
-        items = self.playlist_up_next(limit=index + 1)
-        if not 0 <= index < len(items) or items[index].screen_id != slide_id:
-            raise HomeAssistantError("That queue item is no longer available")
-        self._defer_in_session(slide_id)
-        self._order_custom = True
-        self._sync_pending_playlist_head()
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-
-    def _sync_pending_playlist_head(self) -> None:
-        """Apply session edits to an automatic retry waiting for the frame to wake."""
-        if (
-            self._pending is not None
-            and not self._pending_from_queue
-            and self._pending_requires_enabled
-        ):
-            self._pending = next_screen(
-                self._rotation_screens(),
-                self._playlist_cursor_id or self.current_id,
-                dt_util.now(),
-            )
-
-    def _session_order_without(self, slide_id: str) -> list[str]:
-        """The session order (seeded from the slides if empty) minus one id."""
-        return [
-            candidate
-            for candidate in (
-                self._playback_order
-                or [screen.screen_id for screen in self.screens]
-            )
-            if candidate != slide_id
-        ]
-
-    def _defer_in_session(self, slide_id: str) -> None:
-        """Move a slide to the last upcoming slot of the session cycle."""
-        order = self._session_order_without(slide_id)
-        cursor = self._playlist_cursor_id or self.current_id
-        # Just before the cursor in circular order = last upcoming slot.
-        if cursor is not None and cursor in order:
-            at = order.index(cursor)
-        else:
-            at = len(order)
-        order.insert(at, slide_id)
-        self._playback_order = order
-
-    def _place_in_session(self, slide_id: str, to_index: int) -> None:
-        """Insert a slide into the session order at a visible upcoming position."""
-        upcoming = self.playlist_up_next(limit=to_index + 1)
-        anchor = upcoming[to_index].screen_id if to_index < len(upcoming) else None
-        if anchor == slide_id:
-            return
-        order = self._session_order_without(slide_id)
-        if anchor is not None and anchor in order:
-            order.insert(order.index(anchor), slide_id)
-            self._playback_order = order
-        else:
-            self._playback_order = order
-            self._defer_in_session(slide_id)
-
-    async def async_move_queue_item(
-        self,
-        from_section: str,
-        index: int,
-        slide_id: str,
-        to_section: str,
-        to_index: int,
-    ) -> None:
-        """Move one visible row between the hand queue and the session order.
-
-        Playlist row dragged into the hand queue: plays once from the queue
-        and is deferred to the end of the session cycle so it does not come
-        up again right away. Queue row dragged into the upcoming block: joins
-        this frame's rotation at that position (one-off slides included);
-        the saved playlist is never touched.
-        """
-        if {from_section, to_section} != {"queue", "playlist"}:
-            raise HomeAssistantError("Move must cross between queue and playlist")
-        if from_section == "queue":
-            if (
-                not 0 <= index < len(self._queued_ids)
-                or self._queued_ids[index] != slide_id
-                or self._slide_by_id(slide_id) is None
-            ):
-                raise HomeAssistantError("That queue item is no longer available")
-            self._queued_ids.pop(index)
-            self._place_in_session(slide_id, to_index)
-            if self._pending_from_queue and not self._queued_ids:
-                # The pending send now belongs to the session, not the hand queue.
-                self._pending_from_queue = False
-                self._pending_hold_on_success = False
-        else:
-            items = self.playlist_up_next(limit=index + 1)
-            if not 0 <= index < len(items) or items[index].screen_id != slide_id:
-                raise HomeAssistantError("That queue item is no longer available")
-            self._queued_ids.insert(
-                max(0, min(to_index, len(self._queued_ids))), slide_id
-            )
-            self._defer_in_session(slide_id)
-            if self._pending is not None and self._pending_requires_enabled:
-                self._pending_from_queue = True
-        self._order_custom = True
-        self._sync_pending_queue_head()
-        self._sync_pending_playlist_head()
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-
-    async def async_refresh_playlist(
-        self, *, reset: bool = False, start: bool = False
-    ) -> None:
-        """Apply catalog assignment/settings changes to this frame scheduler."""
-        if self._playlists is None:
-            return
-        self._load_assigned_playlist()
-        if reset:
-            self._rebase_playback_order(fresh=True)
-        valid_ids = {screen.screen_id for screen in self._rotation_screens()} | set(
-            self._external_queue
-        )
-        self._queued_ids = [
-            slide_id
-            for slide_id in self._queued_ids
-            if self._slide_by_id(slide_id) is not None
-        ]
-        if reset or self.current_id not in valid_ids:
-            self.current_id = None
-            self._playlist_cursor_id = None
-            self._last_rotation = None
-            self.displayed_hash = None
-            self._pending = None
-            self._pending_from_queue = False
-            self._pending_hold_on_success = False
-        elif self._pending is not None:
-            replacement = self._slide_by_id(self._pending.screen_id)
-            if replacement is None:
-                self._pending = None
-                self._pending_from_queue = False
-                self._pending_hold_on_success = False
-            else:
-                self._pending = replacement
-        self._prune_external()
-        if start:
-            self.enabled = True
-            self._stored_enabled = True
-            self._hold_until = None
-        await self._async_sync_cloud_interval()
-        await self._async_save()
-        self._notify()
-        self._schedule_prefetch()
-        if start and (self._rotation_screens() or self.queued_slides):
-            await self._async_rotate(force=True)
-
     async def _async_sync_cloud_interval(self) -> None:
         """Cloud delivery: the album slot cadence must follow the playlist."""
         cloud = getattr(self.entry.runtime_data, "cloud", None)
@@ -841,20 +520,8 @@ class FraimicScheduler:
             await cloud.async_sync_interval(self.playlist_interval)
             if cloud.delivery_deadline is not None:
                 self._hold_until = dt_util.utc_from_timestamp(cloud.delivery_deadline)
-        except Exception:  # noqa: BLE001 - cloud hiccups must not break startup
+        except Exception:
             _LOGGER.debug("Cloud album interval sync failed", exc_info=True)
-
-    def _apply_playlist_order(self) -> None:
-        """Apply the persisted order and append newly created slides."""
-        if not self._playlist_order:
-            return
-        positions = {
-            slide_id: index for index, slide_id in enumerate(self._playlist_order)
-        }
-        fallback = len(positions)
-        self.screens.sort(key=lambda screen: positions.get(screen.screen_id, fallback))
-
-    # -- external-upload interplay ------------------------------------------
 
     @callback
     def begin_external_upload(self) -> None:
@@ -894,12 +561,10 @@ class FraimicScheduler:
     def _mark_external_upload(self, *, hold: bool) -> None:
         """Reset scheduler state after external content reaches the frame."""
         self._pending = None
-        self._pending_from_queue = False
         self._pending_hold_on_success = False
         self.displayed_hash = None
         if hold:
-            screen = self.current_screen
-            interval = screen.interval if screen else 1800
+            interval = self.queue.interval
             self._hold_until = dt_util.utcnow() + timedelta(seconds=interval)
 
     async def async_notify_external_upload(self, *, hold: bool = True) -> None:
@@ -913,7 +578,6 @@ class FraimicScheduler:
         if self._pending is None:
             return
         self._pending = None
-        self._pending_from_queue = False
         self._pending_hold_on_success = False
         await self._async_save()
         self._notify()
@@ -923,8 +587,6 @@ class FraimicScheduler:
         cloud = self.entry.runtime_data.cloud
         self._pending = None
         self._pending_hold_on_success = False
-        if not self._busy:
-            self._pending_from_queue = False
         # Every album edit reanchors the wake. Allow the scheduled slot to pass
         # before the next automatic upload replaces its image.
         self._hold_until = dt_util.utcnow() + timedelta(
@@ -935,8 +597,6 @@ class FraimicScheduler:
         await self._async_save()
         self._notify()
 
-    # -- the loop ------------------------------------------------------------
-
     async def _async_tick(self, _now: datetime | None = None) -> None:
         runtime = self.entry.runtime_data
         cloud = getattr(runtime, "cloud", None)
@@ -944,7 +604,7 @@ class FraimicScheduler:
             try:
                 async with runtime.upload_lock:
                     await cloud.async_expire_delivery()
-            except Exception:  # noqa: BLE001 - retry cleanup on the next tick
+            except Exception:
                 _LOGGER.debug("Could not retire the cloud image", exc_info=True)
         await self._async_rotate(force=False)
 
@@ -953,113 +613,47 @@ class FraimicScheduler:
             not self.enabled
             or self._busy
             or self.external_upload_active
-            or (not self._rotation_screens() and not self.queued_slides)
+            or self.exhausted
         ):
             return
-        now = dt_util.now()
+        now = dt_util.utcnow()
         if not force:
-            if self._pending is not None:
+            if self._pending is not None or (
+                self._hold_until and now < self._hold_until
+            ):
                 return
-            if self._hold_until and dt_util.utcnow() < self._hold_until:
+            if self.retry_at and now < self.retry_at:
                 return
-            current = self.current_screen
-            due = (
-                current is None
-                or not eligible(current, now)
-                or self.displayed_hash is None
-                or self._last_rotation is None
-                or (dt_util.utcnow() - self._last_rotation).total_seconds()
-                >= (
-                    (self.playlist_interval or current.interval)
-                    if current.screen_id in self._playback_order
-                    else current.interval
-                )
-            )
-            if not due:
+            if (
+                self._last_rotation
+                and (now - self._last_rotation).total_seconds() < self.queue.interval
+            ):
                 return
-        if self.queued_slides:
-            await self._async_show_queued(self.queued_slides[0], manual=False)
-            return
-        candidate = next_screen(
-            self._rotation_screens(), self._playlist_cursor_id or self.current_id, now
-        )
-        if candidate is None:
-            return  # nothing in window right now; leave the frame as-is
-        await self._async_show(candidate)
+        candidate = self.queue.candidate(dt_util.now())
+        if candidate:
+            await self._async_show(candidate.screen)
 
-    async def _async_show_queued(self, slide: ScreenConfig, *, manual: bool) -> bool:
-        """Show the first hand-added slide and consume it only once displayed."""
-        self._pending_from_queue = True
-        try:
-            displayed = await self._async_show(
-                slide,
-                manual=manual,
-                advance_playlist=False,
-                hold_on_success=slide.screen_id
-                not in {screen.screen_id for screen in self.screens},
-            )
-        except Exception:
-            self._pending_from_queue = False
-            if self._last_show_permanently_rejected:
-                await self._async_consume_queued(slide.screen_id)
-            raise
-        if self._last_show_permanently_rejected:
-            await self._async_consume_queued(slide.screen_id)
-        elif self._pending is not slide:
-            self._pending_from_queue = False
-        return displayed
-
-    async def _async_consume_queued(self, slide_id: str) -> None:
-        """Consume the first matching queue occurrence after a confirmed display."""
-        try:
-            self._queued_ids.remove(slide_id)
-        except ValueError:
-            pass
-        self._pending_from_queue = False
-        self._pending_hold_on_success = False
-        self._prune_external()
-        await self._async_save()
+    def _defer(self, reason: str, seconds: int | None = None) -> None:
+        self.blocked_reason = reason
+        if seconds is not None:
+            self.retry_at = dt_util.utcnow() + timedelta(seconds=seconds)
+        else:
+            power = self.entry.runtime_data.power
+            retry = power.retry_at(reason)
+            self.retry_at = dt_util.utc_from_timestamp(retry) if retry else None
         self._notify()
-
-    def _prune_external(self) -> None:
-        """Drop one-off definitions once neither displayed, queued, nor in session."""
-        keep = set(self._queued_ids) | set(self._playback_order)
-        if self.current_id:
-            keep.add(self.current_id)
-        if self._pending is not None:
-            keep.add(self._pending.screen_id)
-        for slide_id in list(self._external_queue):
-            if slide_id not in keep:
-                self._external_queue.pop(slide_id, None)
-                self._external_queue_data.pop(slide_id, None)
-                discard_prepared_thumbnails(
-                    self.hass,
-                    entry_id=self.entry.entry_id,
-                    screen_id=slide_id,
-                )
-
-    @callback
-    def invalidate_preprocessing(self) -> None:
-        """Retry the serial pass after an external render dependency changes."""
-        self._playlist_preprocess_done = None
-        self._schedule_prefetch()
 
     async def _async_show(
         self,
         screen: ScreenConfig,
         *,
         manual: bool = False,
-        clear_hold_on_success: bool | None = None,
-        advance_playlist: bool = True,
         hold_on_success: bool = False,
     ) -> bool:
-        self._last_show_permanently_rejected = False
         if self._busy or self.external_upload_active:
             if manual:
                 self.raise_if_upload_active()
             return False
-        if clear_hold_on_success is None:
-            clear_hold_on_success = manual
         self._busy = True
         self._busy_started_at = time.time()
         self._sending_slide_name = screen.name
@@ -1075,123 +669,66 @@ class FraimicScheduler:
                     hold_playlist=False,
                     trigger=TRIGGER_MANUAL if manual else TRIGGER_PLAYLIST,
                 )
-            except ArtFetchError as err:
-                # The online image source failed — the frame itself is fine. Keep
-                # the current slide, back off so the 60 s tick doesn't hammer a
-                # struggling API, and leave the sleep-pending machinery alone.
+            except (ArtFetchError, CloudDeliveryError) as err:
+                self._pending = None
+                self._defer(
+                    "source_unavailable"
+                    if isinstance(err, ArtFetchError)
+                    else "cloud_unavailable",
+                    300,
+                )
                 if manual:
                     raise
-                self._pending = None
-                _LOGGER.warning(
-                    "Playlist: online image for %r unavailable, keeping current "
-                    "slide: %s",
-                    screen.name,
-                    err,
-                )
-                self._hold_until = dt_util.utcnow() + timedelta(seconds=300)
+                _LOGGER.warning("Queue could not show %r: %s", screen.name, err)
                 return False
-            except CloudDeliveryError as err:
-                # Cloud hiccup: keep the slide and retry on a later tick rather
-                # than skipping it or treating the frame as asleep.
-                if manual:
-                    raise
-                self._pending = None
-                _LOGGER.warning(
-                    "Playlist: cloud delivery of %r failed, retrying later: %s",
-                    screen.name,
-                    err,
-                )
-                self._hold_until = dt_util.utcnow() + timedelta(seconds=120)
-                return False
-            except FrameUploadError as err:
+            except FrameUploadError:
                 send_queue = getattr(self.entry.runtime_data, "send_queue", None)
-                if (
-                    not manual
-                    and send_queue is not None
-                    and send_queue.pending is not None
-                ):
-                    # A direct send is explicit and owns the next wake. Do not
-                    # create a second retry that would redraw over it.
-                    self._pending = None
-                    self._pending_from_queue = False
-                    await self._async_save()
-                    return False
-                if self._pending is not screen or manual:
-                    self._pending_requires_enabled = not manual
-                self._pending = screen
-                self._pending_hold_on_success = hold_on_success
-                if (
-                    manual
-                    and send_queue is not None
-                    and send_queue.pending is not None
-                ):
+                if send_queue is not None and send_queue.pending is not None:
+                    if not manual:
+                        self._pending = None
+                        return False
                     await send_queue.async_discard()
+                self._pending = screen
+                self._pending_requires_enabled = not manual
+                self._pending_hold_on_success = hold_on_success
+                self.blocked_reason = "asleep"
                 self.entry.runtime_data.coordinator.async_set_frame_online(False)
                 await self._async_save()
-                _LOGGER.debug(
-                    "Playlist could not show %r (frame asleep?): %s", screen.name, err
-                )
                 return False
             except HomeAssistantError as err:
                 self._pending = None
-                self._pending_hold_on_success = False
-                self._last_show_permanently_rejected = True
+                # A permanently invalid item must not block the remaining queue.
+                self.queue.cursor = screen.screen_id
+                self._defer("invalid_item", 60)
+                await self._async_save()
                 if manual:
                     raise
-                if advance_playlist:
-                    self._playlist_cursor_id = screen.screen_id
-                    self._last_rotation = dt_util.utcnow()
-                    await self._async_save()
-                    self._notify()
-                _LOGGER.warning("Playlist skipped %r: %s", screen.name, err)
+                _LOGGER.warning("Queue skipped %r: %s", screen.name, err)
                 return False
             displayed = result.get("displayed", result.get("uploaded", True))
-            if result.get("cloud_queued"):
-                # Advance delivery order separately from the last confirmed
-                # screen/hash. The cloud owns this queued send from here.
-                if advance_playlist:
-                    self._playlist_cursor_id = screen.screen_id
-                if self._pending_from_queue:
-                    await self._async_consume_queued(screen.screen_id)
-                await self._async_save()
-                self._notify()
-                return False
-            if not displayed:
-                # Power policy/coalescing skipped this redraw. Never claim its hash
-                # is on the glass or count the skipped work as a completed rotation.
-                _LOGGER.debug(
-                    "Playlist deferred %r without changing the display (%s)",
-                    screen.name,
-                    result.get("skip_reason", "power policy"),
-                )
+            if not displayed and not result.get("cloud_queued"):
+                self._defer(result.get("skip_reason", "power_policy"))
                 return False
             self._pending = None
             self._pending_hold_on_success = False
-            if self._pending_from_queue:
-                try:
-                    self._queued_ids.remove(screen.screen_id)
-                except ValueError:
-                    pass
-                self._pending_from_queue = False
-            self.current_id = screen.screen_id
-            if advance_playlist:
-                self._playlist_cursor_id = screen.screen_id
-            self.displayed_hash = result.get("content_hash")
-            self._last_rotation = dt_util.utcnow()
-            self._prune_external()
-            if not self.enabled:
-                self._paused_at = self._last_rotation
-            if hold_on_success:
-                self._hold_until = dt_util.utcnow() + timedelta(seconds=screen.interval)
-            elif clear_hold_on_success:
-                self._hold_until = None
-            if not result.get("uploaded", True):
-                _LOGGER.debug(
-                    "Playlist: %r content unchanged, upload skipped", screen.name
+            self.blocked_reason = None
+            self.retry_at = None
+            self.queue.cursor = screen.screen_id
+            if displayed:
+                self._displayed_item = self.queue.get(screen.screen_id)
+                self.current_id = screen.screen_id
+                self.displayed_hash = result.get("content_hash")
+                self._last_rotation = dt_util.utcnow()
+                if not self.enabled:
+                    self._paused_at = self._last_rotation
+                self._hold_until = (
+                    dt_util.utcnow() + timedelta(seconds=self.queue.interval)
+                    if hold_on_success
+                    else None
                 )
             await self._async_save()
             self._notify()
-            return True
+            return bool(displayed)
         finally:
             self._busy = False
             self._busy_started_at = None
@@ -1200,14 +737,16 @@ class FraimicScheduler:
             self._notify()
             self._schedule_prefetch()
 
-    # -- background preparation -------------------------------------------
+    @callback
+    def invalidate_preprocessing(self) -> None:
+        """Refresh prepared snapshots after render dependencies change."""
+        self._playlist_preprocess_done = None
+        self._schedule_prefetch()
 
     def _prefetch_limit(self) -> int:
         options = getattr(self.entry, "options", {})
         try:
-            return int(
-                options.get(CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH)
-            )
+            return int(options.get(CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH))
         except (TypeError, ValueError):
             return DEFAULT_PLAYLIST_PREFETCH
 
@@ -1223,11 +762,7 @@ class FraimicScheduler:
         seen: set[str] = set()
         candidates = [
             *queued,
-            *(
-                self.playlist_up_next(limit=len(self.screens))
-                if self.enabled
-                else []
-            ),
+            *(self.playlist_up_next(limit=len(self.screens)) if self.enabled else []),
         ]
         for screen in candidates:
             if screen.screen_id in seen or not self._is_preparable_picture(screen):
@@ -1253,7 +788,7 @@ class FraimicScheduler:
             return []
         result: list[ScreenConfig] = []
         seen: set[str] = set()
-        for screen in self.screens:
+        for screen in self.queued_slides:
             if screen.screen_id in seen or not self._is_preparable_picture(screen):
                 continue
             result.append(screen)
@@ -1272,7 +807,7 @@ class FraimicScheduler:
                         screen.screen_id,
                         prepared_thumbnail_fingerprint(self.hass, self.entry, screen),
                     ]
-                    for screen in self.screens
+                    for screen in self.queued_slides
                     if self._is_preparable_picture(screen)
                 ],
             },
@@ -1327,7 +862,7 @@ class FraimicScheduler:
                             screen.name,
                             err,
                         )
-                    except Exception as err:  # noqa: BLE001 - best-effort worker
+                    except Exception as err:  # noqa: BLE001 - best-effort preparation
                         _LOGGER.warning(
                             "Preparing playlist picture %r failed unexpectedly: %s",
                             screen.name,
@@ -1342,15 +877,21 @@ class FraimicScheduler:
 
     @callback
     def _coordinator_updated(self) -> None:
-        """Frame answered a poll — if a push failed while it slept, retry now."""
         if self._can_retry_pending():
-            screen = self._pending
-            assert screen is not None
             self.entry.async_create_task(
                 self.hass,
-                self._async_retry_pending(screen),
-                "fraimic_playlist_wake_push",
+                self._async_retry_pending(self._pending),
+                "fraimic_queue_wake_push",
             )
+        # Charging or a changed power profile can release a previously blocked send.
+        if self.blocked_reason in {"daily_budget", "cooldown", "low_battery"}:
+            battery = (self.entry.runtime_data.coordinator.data or {}).get(
+                "battery"
+            ) or {}
+            if battery.get("charging") or battery.get("cable_connected"):
+                self.blocked_reason = None
+                self.retry_at = None
+                self._notify()
 
     def _can_retry_pending(self, screen: ScreenConfig | None = None) -> bool:
         return (
@@ -1365,54 +906,35 @@ class FraimicScheduler:
     async def _async_retry_pending(self, screen: ScreenConfig) -> None:
         if not self._can_retry_pending(screen):
             return
-        pending_requires_enabled = self._pending_requires_enabled
-        if pending_requires_enabled and not eligible(screen, dt_util.now()):
+        requires_enabled = self._pending_requires_enabled
+        if requires_enabled and not eligible(screen, dt_util.now()):
             self._pending = None
             await self._async_rotate(force=True)
             return
-        pending_from_queue = self._pending_from_queue
-        pending_hold_on_success = self._pending_hold_on_success
-        displayed = await self._async_show(
+        await self._async_show(
             screen,
-            manual=False,
-            clear_hold_on_success=not pending_requires_enabled,
-            advance_playlist=not pending_from_queue and not pending_hold_on_success,
-            hold_on_success=pending_hold_on_success,
+            manual=not requires_enabled,
+            hold_on_success=self._pending_hold_on_success,
         )
-        if self._last_show_permanently_rejected and pending_from_queue:
-            await self._async_consume_queued(screen.screen_id)
-        if self._pending is screen:
-            self._pending_requires_enabled = pending_requires_enabled
-        elif not displayed:
-            self._pending_from_queue = False
-            self._pending_hold_on_success = False
 
     async def _async_save(self) -> None:
-        data = {
-            "enabled": self._stored_enabled,
-            "current_screen_id": self.current_id,
-            "playlist_cursor_id": self._playlist_cursor_id,
-            "displayed_hash": self.displayed_hash,
-            "hold_until": self._hold_until.isoformat() if self._hold_until else None,
-            "last_rotation": (
-                self._last_rotation.isoformat() if self._last_rotation else None
-            ),
-            "paused_at": self._paused_at.isoformat() if self._paused_at else None,
-            "queued_slide_ids": self._queued_ids,
-            "external_queue": self._external_queue_data,
-            "pending_queue_id": (
-                self._pending.screen_id
-                if self._pending_from_queue and self._pending is not None
-                else None
-            ),
-            "pending_requires_enabled": self._pending_requires_enabled,
-            "session": {
-                "playlist_id": self.playlist_id,
-                "shuffle": self.shuffle,
-                "order": self._playback_order,
-                "custom": self._order_custom,
-            },
-        }
-        if self._playlists is None:
-            data["playlist_order"] = [screen.screen_id for screen in self.screens]
-        await self._store.async_save(data)
+        await self._store.async_save(
+            {
+                "enabled": self._stored_enabled,
+                "playback_queue": self.queue.to_dict(),
+                "displayed_item": self._displayed_item.to_dict()
+                if self._displayed_item
+                else None,
+                "current_screen_id": self.current_id,
+                "displayed_hash": self.displayed_hash,
+                "last_rotation": self._last_rotation.isoformat()
+                if self._last_rotation
+                else None,
+                "hold_until": self._hold_until.isoformat()
+                if self._hold_until
+                else None,
+                "paused_at": self._paused_at.isoformat() if self._paused_at else None,
+                "pending_queue_id": self._pending.screen_id if self._pending else None,
+                "pending_requires_enabled": self._pending_requires_enabled,
+            }
+        )

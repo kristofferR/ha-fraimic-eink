@@ -72,9 +72,9 @@ def _playing_frames(
     for entry in loaded_fraimic_entries(hass):
         scheduler = entry.runtime_data.scheduler
         if (
-            manager.assignments.get(entry.entry_id) != playlist_id
+            scheduler.playlist_id != playlist_id
             or not scheduler.enabled
-            or not scheduler.screens
+            or scheduler.exhausted
         ):
             continue
         playing.append(
@@ -448,20 +448,14 @@ class PlaylistView(_PlaylistView):
         hass = request.app[KEY_HASS]
         manager = _manager(hass)
         try:
-            affected = await manager.async_delete(playlist_id)
+            await manager.async_delete(playlist_id)
         except PlaylistNotFoundError as err:
             return self._error(err)
-        for entry in loaded_fraimic_entries(hass):
-            if entry.entry_id in affected:
-                await entry.runtime_data.scheduler.async_set_enabled(False)
-                await entry.runtime_data.scheduler.async_refresh_playlist(reset=True)
-            else:
-                await entry.runtime_data.scheduler.async_refresh_playlist()
         return self.json({"deleted": playlist_id})
 
 
 class PlaylistControlView(_PlaylistView):
-    """Assign playback or change playlist-wide timing and shuffle."""
+    """Copy playlists into playback, with legacy frame-setting controls."""
 
     url = "/api/fraimic/playlists/{playlist_id}/control"
     name = "api:fraimic:playlist:control"
@@ -474,36 +468,20 @@ class PlaylistControlView(_PlaylistView):
         action = body.get("action")
         try:
             playlist = manager.require(playlist_id)
-            if action == "play":
-                entry = require_loaded_entry(hass, body.get("entry_id"))
-                await _stop_camera_loop(entry)
-                await manager.async_assign(entry.entry_id, playlist_id)
-                await entry.runtime_data.scheduler.async_refresh_playlist(
-                    reset=True, start=True
-                )
+            entry = require_loaded_entry(hass, body.get("entry_id"))
+            scheduler = entry.runtime_data.scheduler
+            if action in {"play", "play_next", "queue"}:
+                if action == "play":
+                    await _stop_camera_loop(entry)
+                await scheduler.async_enqueue_playlist(playlist_id, action=action)
             elif action == "stop":
-                entry = require_loaded_entry(hass, body.get("entry_id"))
-                if manager.assignments.get(entry.entry_id) == playlist_id:
-                    await entry.runtime_data.scheduler.async_set_enabled(False)
-            elif action == "shuffle":
-                if not isinstance(body.get("shuffle"), bool):
+                await scheduler.async_set_enabled(False)
+            elif action in {"shuffle", "interval"}:
+                if action not in body or body[action] is None:
                     return self.json_message(
-                        "shuffle must be a boolean", HTTPStatus.BAD_REQUEST
+                        f"{action} is required", HTTPStatus.BAD_REQUEST
                     )
-                playlist = await manager.async_set_options(
-                    playlist_id, shuffle=body["shuffle"]
-                )
-                await _refresh_assigned(hass, manager, playlist_id)
-            elif action == "interval":
-                interval = body.get("interval")
-                if not isinstance(interval, int) or isinstance(interval, bool):
-                    return self.json_message(
-                        "interval must be seconds", HTTPStatus.BAD_REQUEST
-                    )
-                playlist = await manager.async_set_options(
-                    playlist_id, interval=interval
-                )
-                await _refresh_assigned(hass, manager, playlist_id)
+                await scheduler.async_set_playback(**{action: body[action]})
             else:
                 return self.json_message("Unknown action", HTTPStatus.BAD_REQUEST)
         except (PlaylistNotFoundError, ValueError, HomeAssistantError) as err:
@@ -635,10 +613,6 @@ class PlaylistSlidesView(_PlaylistView):
             await scheduler.async_add_to_queue(slide, play_next=True)
             await scheduler.async_next()
         else:
-            if not scheduler.screens:
-                raise PlaylistRequestError(
-                    "Choose a playlist on this frame before playing next"
-                )
             await scheduler.async_add_to_queue(slide, play_next=True)
         return {}
 

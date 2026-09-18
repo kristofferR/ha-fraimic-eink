@@ -39,7 +39,6 @@ from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, async_delete_library_image, get_library
 from .overlays_http import overlay_views
-from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .playlists_http import async_picture_thumbnail_response, playlist_views
 from .render.schema import ScreenConfig
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
@@ -726,7 +725,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     # Manual uploads confirm runtime metadata without a scheduler screen/hash.
     title = art.get("title") or runtime.media_title or (current.name if current else None)
     artist = art.get("artist")
-    transport_available = current is not None or bool(playlist_id and scheduler.screens)
+    transport_available = bool(scheduler.screens or scheduler.queued_slides)
     interval = scheduler.playlist_interval
     if interval is None and current is not None:
         interval = current.interval
@@ -778,47 +777,15 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         else None
     )
     queued = scheduler.queued_slides
-    full_upcoming = scheduler.playlist_up_next(limit=None)
-    upcoming = full_upcoming[:10]
-    playlist_queue_count = len(full_upcoming)
     current_thumbnail = artwork_url if current is not None else None
-    playlists = hass.data.get(DOMAIN, {}).get(DATA_PLAYLISTS)
-    active_playlist = (
-        playlists.get(playlist_id)
-        if isinstance(playlists, PlaylistManager) and playlist_id is not None
-        else None
-    )
-    active_slide_ids = (
-        {slide.slide_id for slide in active_playlist.slides}
-        if active_playlist is not None
-        else set()
-    )
-
     def queue_thumbnail(slide: ScreenConfig) -> str | None:
         if current is not None and slide.screen_id == current.screen_id:
             return current_thumbnail
         source = slide.source or {}
-        fixed_picture = source.get("library_image") or (
-            source.get("provider") and source.get("provider_item")
-        )
-        if not fixed_picture:
+        if not (source.get("library_image") or (source.get("provider") and source.get("provider_item"))):
             return None
-        if playlist_id is None or slide.screen_id not in active_slide_ids:
-            query = urlencode({"entry_id": entry.entry_id})
-            return (
-                f"/api/fraimic/player/thumbnail/"
-                f"{quote(slide.screen_id, safe='')}?{query}"
-            )
-        query = urlencode(
-            {
-                "entry_id": entry.entry_id,
-                "v": f"{active_playlist.modified_at if active_playlist else 0:.6f}",
-            }
-        )
-        return (
-            f"/api/fraimic/playlists/{quote(playlist_id, safe='')}"
-            f"/slides/{quote(slide.screen_id, safe='')}/thumbnail?{query}"
-        )
+        query = urlencode({"entry_id": entry.entry_id})
+        return f"/api/fraimic/player/thumbnail/{quote(slide.screen_id, safe='')}?{query}"
 
     send_queue = runtime.send_queue
     waiting = int(send_queue is not None and send_queue.pending is not None)
@@ -844,6 +811,23 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "status": "submitted",
             "thumbnail_url": f"/api/fraimic/player/artwork/{entry.entry_id}?kind=cloud&v={quote(cloud.upload_id or '', safe='')}",
         }
+    delay_messages = {
+        "daily_budget": "Daily redraw limit reached. Playback resumes when the budget resets.",
+        "cooldown": "Waiting between redraws to save battery.",
+        "low_battery": "Playback is waiting for sufficient battery or charging.",
+        "source_unavailable": "Artwork source unavailable. Retrying shortly.",
+        "cloud_unavailable": "Cloud delivery unavailable. Retrying shortly.",
+        "invalid_item": "An unavailable queue item was skipped.",
+        "asleep": "Waiting for the frame to wake.",
+    }
+    reason = scheduler.blocked_reason if scheduler.enabled else None
+    delay = ({"reason": reason, "message": delay_messages.get(reason, "Playback is delayed by power settings."),
+              "retry_at": scheduler.retry_at.isoformat() if scheduler.retry_at else None}
+             if reason else None)
+    if delay:
+        remaining = None
+        if state == "playing":
+            state = "waiting"
     return {
         "frame": frame,
         "state": state,
@@ -860,28 +844,22 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "interval": interval,
         "seconds_elapsed": elapsed,
         "seconds_remaining": remaining,
-        "paused": bool(transport_available and not scheduler.enabled),
+        "paused": bool(transport_available and (not scheduler.enabled or scheduler.exhausted)),
+        "exhausted": scheduler.exhausted,
+        "delay": delay,
+        "shuffle": scheduler.shuffle,
+        "repeat": scheduler.queue.repeat,
         "transport_available": transport_available,
         "sending": sending,
         "sending_progress": sending_progress,
         "overlay_count": overlay_count,
-        "queue_count": len(queued) + playlist_queue_count,
+        "queue_count": len(queued),
         "waiting_count": waiting,
         "hand_queue": [
             _slide_payload(slide, thumbnail_url=queue_thumbnail(slide))
             for slide in queued
         ],
-        "playlist": {
-            "id": playlist_id,
-            "name": playlist_name,
-            "interval": interval,
-            "shuffle": scheduler.shuffle,
-            "total": playlist_queue_count,
-            "items": [
-                _slide_payload(slide, thumbnail_url=queue_thumbnail(slide))
-                for slide in upcoming
-            ],
-        },
+
     }
 
 
@@ -1004,6 +982,15 @@ class PlayerControlView(_FraimicView):
                     stopper()
                 if await scheduler.async_next():
                     runtime.coordinator.async_set_frame_online(True)
+            elif action in {"shuffle", "repeat", "interval"}:
+                if action not in body or body[action] is None:
+                    return self.json_message(
+                        f"{action} is required", HTTPStatus.BAD_REQUEST
+                    )
+                try:
+                    await scheduler.async_set_playback(**{action: body[action]})
+                except HomeAssistantError as err:
+                    return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
             elif action == "pause":
                 await scheduler.async_set_enabled(False)
             elif action == "play":
@@ -1041,7 +1028,7 @@ class PlayerControlView(_FraimicView):
 
 
 class PlayerQueueView(_FraimicView):
-    """Mutate the scheduler's hand queue or visible playlist order."""
+    """Mutate the frame's independent playback queue."""
 
     url = "/api/fraimic/player/queue"
     name = "api:fraimic:player:queue"
@@ -1084,12 +1071,12 @@ class PlayerQueueView(_FraimicView):
             elif action == "clear":
                 await scheduler.async_clear_queue()
             elif action == "play":
-                section = body.get("section")
+                section = body.get("section", "queue")
                 index = body.get("index")
                 slide_id = body.get("slide_id")
-                if section not in {"queue", "playlist"}:
+                if section != "queue":
                     return self.json_message(
-                        "section must be queue or playlist", HTTPStatus.BAD_REQUEST
+                        "section must be queue", HTTPStatus.BAD_REQUEST
                     )
                 if not isinstance(index, int) or isinstance(index, bool):
                     return self.json_message(
@@ -1103,45 +1090,8 @@ class PlayerQueueView(_FraimicView):
                 if stopper is not None:
                     stopper()
                 await scheduler.async_play_queue_item(section, index, slide_id)
-            elif action == "skip":
-                index = body.get("index")
-                slide_id = body.get("slide_id")
-                if not isinstance(index, int) or isinstance(index, bool):
-                    return self.json_message(
-                        "index is required", HTTPStatus.BAD_REQUEST
-                    )
-                if not isinstance(slide_id, str):
-                    return self.json_message(
-                        "slide_id is required", HTTPStatus.BAD_REQUEST
-                    )
-                await scheduler.async_skip_upcoming(index, slide_id)
-            elif action == "move":
-                from_section = body.get("from_section")
-                to_section = body.get("to_section")
-                index = body.get("index")
-                to_index = body.get("to_index")
-                slide_id = body.get("slide_id")
-                if {from_section, to_section} != {"queue", "playlist"}:
-                    return self.json_message(
-                        "move must cross between queue and playlist",
-                        HTTPStatus.BAD_REQUEST,
-                    )
-                if any(
-                    not isinstance(value, int) or isinstance(value, bool)
-                    for value in (index, to_index)
-                ):
-                    return self.json_message(
-                        "index and to_index are required", HTTPStatus.BAD_REQUEST
-                    )
-                if not isinstance(slide_id, str):
-                    return self.json_message(
-                        "slide_id is required", HTTPStatus.BAD_REQUEST
-                    )
-                await scheduler.async_move_queue_item(
-                    from_section, index, slide_id, to_section, to_index
-                )
             elif action == "reorder":
-                section = body.get("section")
+                section = body.get("section", "queue")
                 ordered_ids = body.get("ordered_ids")
                 if not isinstance(ordered_ids, list) or not all(
                     isinstance(slide_id, str) for slide_id in ordered_ids
@@ -1152,11 +1102,9 @@ class PlayerQueueView(_FraimicView):
                     )
                 if section == "queue":
                     await scheduler.async_reorder_queue(ordered_ids)
-                elif section == "playlist":
-                    await scheduler.async_reorder_upcoming(ordered_ids)
                 else:
                     return self.json_message(
-                        "section must be queue or playlist",
+                        "section must be queue",
                         HTTPStatus.BAD_REQUEST,
                     )
             else:

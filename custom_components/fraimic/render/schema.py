@@ -443,3 +443,25 @@ def screen_from_dict(data: dict, screen_id: str = "adhoc") -> ScreenConfig:
         ),
         enabled=data["enabled"],
     )
+
+
+def screen_to_dict(screen: ScreenConfig) -> dict:
+    """Serialize a screen snapshot in the input shape accepted by SCREEN_SCHEMA."""
+    return {
+        "name": screen.name, "kind": screen.kind,
+        **({"layout": screen.layout} if screen.kind == KIND_DASHBOARD else {}),
+        "widgets": [
+            {"type": widget.type, "slot": widget.slot, **widget.options}
+            for widget in screen.widgets
+        ],
+        **(screen.source or {}),
+        "background": screen.background, "accent": screen.accent,
+        "padding": screen.padding, "show_header": screen.show_header,
+        "interval": screen.interval, "enabled": screen.enabled,
+        "windows": [
+            {"after": window.after.strftime("%H:%M"),
+             "before": window.before.strftime("%H:%M"),
+             "days": [DAYS[day] for day in sorted(window.days)]}
+            for window in screen.windows
+        ],
+    }
