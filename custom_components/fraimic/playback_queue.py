@@ -67,7 +67,7 @@ class PlaybackQueue:
 
     @property
     def upcoming(self) -> list[QueueItem]:
-        return self.items[self.position + 1 :]
+        return [item for item in self.items[self.position + 1 :] if item.screen.enabled]
 
     def get(self, item_id: str | None) -> QueueItem | None:
         return next(
@@ -94,7 +94,7 @@ class PlaybackQueue:
         deferred = [
             candidate
             for candidate in self.items[self.position + 1 : target]
-            if not eligible(candidate.screen, now)
+            if candidate.screen.enabled and not eligible(candidate.screen, now)
         ]
         for candidate in deferred:
             self.items.remove(candidate)
@@ -120,11 +120,10 @@ class PlaybackQueue:
             )
             for i, screen in enumerate(screens)
         ]
-        at = (
-            len(self.items)
-            if index is None
-            else self.position + 1 + max(0, min(index, len(self.upcoming)))
-        )
+        upcoming = self.upcoming
+        at = len(self.items)
+        if index is not None and upcoming and index < len(upcoming):
+            at = self.items.index(upcoming[max(0, index)])
         self.items[at:at] = added
         return added
 
@@ -152,6 +151,15 @@ class PlaybackQueue:
             item.sequence = sequence
 
     def set_shuffle(self, enabled: bool) -> None:
+        if self.repeat and (current := self.get(self.cursor)):
+            if enabled:
+                future = [item for item in self.items if item is not current]
+                random.shuffle(future)
+                self.items = [current, *future]
+            else:
+                self.items.sort(key=lambda item: item.sequence)
+            self.shuffle = enabled
+            return
         upcoming = self.upcoming
         if enabled:
             random.shuffle(upcoming)

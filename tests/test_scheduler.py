@@ -337,6 +337,40 @@ def test_play_now_replaces_queue_but_keeps_last_confirmed_display_on_failure(pla
     assert p.scheduler._pending == p.scheduler.queued_slides[0]
 
 
+def test_play_now_notifies_and_waits_only_for_new_playlist_window(playback):
+    p = playback
+    add(p, "old")
+    run(p.scheduler.async_set_playback(interval=21600))
+    run(p.scheduler.async_next())
+    schema = load("render.schema")
+    scheduled = replace(
+        _screen("scheduled"),
+        windows=(schema.TimeWindow(after=time(13), before=time(14)),),
+    )
+    p.scheduler._playlists = SimpleNamespace(
+        require=lambda _: SimpleNamespace(name="Scheduled"),
+        render_slides=lambda _: [scheduled],
+    )
+    observed = []
+    p.scheduler.async_add_listener(lambda: observed.append(p.scheduler.enabled))
+    run(p.scheduler.async_enqueue_playlist("saved", action="play"))
+    assert observed[-1] is True
+    assert p.scheduler.current_screen.name == "old"
+    p.now[0] += timedelta(hours=1)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "scheduled"
+
+
+@pytest.mark.parametrize("repeat", [False, True])
+def test_disabled_only_queue_is_exhausted(playback, repeat):
+    p = playback
+    run(p.scheduler.async_add_to_queue(replace(_screen("disabled"), enabled=False)))
+    run(p.scheduler.async_set_playback(repeat=repeat))
+    run(p.scheduler.async_set_enabled(True))
+    assert p.scheduler.exhausted
+    p.show.assert_not_awaited()
+
+
 def test_remove_and_reorder_have_no_hidden_rotation(playback):
     p = playback
     a, b, c = add(p, "a", "b", "c")
@@ -497,6 +531,18 @@ def test_failed_manual_selection_preserves_unrelated_upcoming_items(playback):
     assert p.scheduler.current_screen == current
     assert p.scheduler.queued_slides == [a, b, c]
     assert p.scheduler.blocked_reason is None
+
+
+@pytest.mark.parametrize("repeat", [False, True])
+def test_final_invalid_item_finishes_without_a_stale_retry(playback, repeat):
+    p = playback
+    add(p, "invalid")
+    run(p.scheduler.async_set_playback(repeat=repeat))
+    p.show.side_effect = p.module.HomeAssistantError("missing image")
+    run(p.scheduler.async_set_enabled(True))
+    assert p.scheduler.exhausted
+    assert p.scheduler.blocked_reason is None
+    assert p.scheduler.retry_at is None
 
 
 def test_cloud_acceptance_advances_delivery_without_claiming_display(playback):

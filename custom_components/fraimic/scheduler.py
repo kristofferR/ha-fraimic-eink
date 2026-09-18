@@ -113,7 +113,9 @@ class FraimicScheduler:
 
     @property
     def exhausted(self) -> bool:
-        return not self.queue.upcoming and not (self.queue.repeat and self.queue.items)
+        return not self.queue.upcoming and not (
+            self.queue.repeat and any(item.screen.enabled for item in self.queue.items)
+        )
 
     def slide_by_id(self, slide_id: str) -> ScreenConfig | None:
         item = self.queue.get(slide_id)
@@ -343,6 +345,10 @@ class FraimicScheduler:
                 repeat=self.queue.repeat,
             )
             self._pending = None
+            self._last_rotation = None
+            self.enabled = self._stored_enabled = True
+            self._paused_at = None
+            self._hold_until = None
         self.queue.add(
             screens,
             index=0 if action == "play_next" else None,
@@ -353,10 +359,6 @@ class FraimicScheduler:
             self.queue.set_shuffle(True)
         await self._queue_changed()
         if action == "play":
-            self.enabled = self._stored_enabled = True
-            self._paused_at = None
-            self._hold_until = None
-            await self._async_save()
             await self.async_next()
 
     async def async_set_playback(
@@ -706,8 +708,15 @@ class FraimicScheduler:
                     await self._async_save()
                     raise
                 # A permanently invalid item must not block the remaining queue.
-                self.queue.advance(screen.screen_id, dt_util.now())
-                self._defer("invalid_item", 60)
+                if item := self.queue.get(screen.screen_id):
+                    self.queue.items.remove(item)
+                    if self.queue.cursor == screen.screen_id:
+                        self.queue.cursor = None
+                if self.exhausted:
+                    self.blocked_reason = None
+                    self.retry_at = None
+                else:
+                    self._defer("invalid_item", 60)
                 await self._async_save()
                 _LOGGER.warning("Queue skipped %r: %s", screen.name, err)
                 return False

@@ -113,3 +113,28 @@ def test_previous_wraps_only_when_repeat_is_enabled():
     assert queue.candidate(now, previous=True) is None
     queue.repeat = True
     assert queue.candidate(now, previous=True) == b
+
+
+def test_shuffle_changes_include_next_repeat_cycle(monkeypatch):
+    queue = model.PlaybackQueue(repeat=True)
+    a, b, c = queue.add([picture(name) for name in ("a", "b", "c")])
+    queue.cursor = c.screen.screen_id
+    monkeypatch.setattr(model.random, "shuffle", lambda items: items.reverse())
+    queue.set_shuffle(True)
+    assert queue.upcoming == [b, a]
+    assert queue.get(queue.cursor) == c
+    queue.set_shuffle(False)
+    assert queue.items == [a, b, c]
+    assert queue.candidate(datetime(2026, 9, 18, 12)) == a
+
+
+def test_disabled_snapshots_do_not_count_as_future_playback():
+    queue = model.PlaybackQueue()
+    disabled, a, b = queue.add([
+        replace(picture("disabled"), enabled=False), picture("a"), picture("b")
+    ])
+    (next_item,) = queue.add([picture("next")], index=1)
+    assert queue.upcoming == [a, next_item, b]
+    queue.advance(b.screen.screen_id, datetime(2026, 9, 18, 12))
+    assert queue.upcoming == []
+    assert queue.position > queue.items.index(disabled)
