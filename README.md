@@ -6,7 +6,7 @@ Browse artwork, build playlists, and manage your Fraimic colour e-ink frames fro
 Home Assistant. The integration converts ordinary images for the six-colour
 display and delivers them over your local network or through your Fraimic account.
 
-![The Fraimic dashboard showing the artwork gallery](docs/screenshots/gallery.png)
+![The Fraimic artwork gallery with the current artwork thumbnail in the bottom-left player](docs/screenshots/gallery-2.1.png)
 
 - **An artwork dashboard:** browse your library, Reframed, Wallhaven, museums,
   and photography sources. Search, filter, and save favorites.
