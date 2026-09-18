@@ -177,11 +177,9 @@ Fraimic's processing pipeline, unlike a direct local upload of the panel data.
 
 The missing piece is a firmware-supported scheduled wake-up for local delivery:
 let the frame sleep, then wake periodically to receive new artwork without
-sending photos through the cloud. In response to this request, Anthony from
-Fraimic confirmed, “We know. We're working on it.” See the
-[Discord discussion](https://discord.com/channels/1385597655576612884/1391637317428707418/1550148359619088405).
-This is planned firmware functionality, not an available fix or a promised
-release date; the limitations above still apply today.
+sending photos through the cloud. **Fraimic has confirmed that it is working on
+scheduled wake-ups to fix this limitation.** See
+[Anthony's confirmation on Discord](https://discord.com/channels/1385597655576612884/1391637317428707418/1550148359619088405).
 
 ### Configuring delivery
 
