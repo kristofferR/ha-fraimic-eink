@@ -6,10 +6,12 @@ from .agenda import render_calendar, render_todo
 from .base import WidgetRenderer
 from .charts import render_chart, render_gauge, render_progress
 from .core import CORE_WIDGETS
+from .briefing import render_briefing
 from .picture import render_image
 from .weather import render_weather_current, render_weather_forecast
 
 WIDGET_REGISTRY: dict[str, WidgetRenderer] = {
+    "briefing": render_briefing,
     **CORE_WIDGETS,
     "weather_current": render_weather_current,
     "weather_forecast": render_weather_forecast,

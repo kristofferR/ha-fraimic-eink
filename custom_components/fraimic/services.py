@@ -896,6 +896,14 @@ async def async_render_and_upload(
                         return {"uploaded": False, "deferred": True, "skip_reason": "cloud_pending"}
                     if time.time() + cloud.wake_interval >= overlay_controller.expires_at:
                         return {"uploaded": False, "deferred": True, "skip_reason": "overlay_expires_before_wake"}
+            # A transport probe or rasterisation can outlive the data snapshot.
+            # Never queue a brief that will already be stale at the next wake.
+            snapshot_deadline = getattr(overlay_controller, "composed_valid_until", None)
+            if snapshot_deadline is not None:
+                arrival = time.time() + (cloud.wake_interval if use_cloud else 0)
+                if arrival >= snapshot_deadline:
+                    return {"uploaded": False, "deferred": True,
+                            "skip_reason": "briefing_expires_before_delivery"}
             hybrid = (
                 entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
                 and getattr(runtime, "cloud", None) is not None
@@ -923,6 +931,9 @@ async def async_render_and_upload(
                 # in the cloud schedule when the LAN power policy defers them.
                 use_cloud = True
                 reason = None
+                if snapshot_deadline is not None and time.time() + cloud.wake_interval >= snapshot_deadline:
+                    return {"uploaded": False, "deferred": True,
+                            "skip_reason": "briefing_expires_before_delivery"}
             if reason is not None:
                 if preview_png:
                     if reason == SKIP_DUPLICATE:
@@ -990,6 +1001,9 @@ async def async_render_and_upload(
                 queued = not uploaded
             else:
                 await async_prepare_local_delivery(entry)
+                if snapshot_deadline is not None and time.time() >= snapshot_deadline:
+                    return {"uploaded": False, "deferred": True,
+                            "skip_reason": "briefing_expired"}
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:

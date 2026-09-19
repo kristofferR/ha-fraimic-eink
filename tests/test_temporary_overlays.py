@@ -171,7 +171,7 @@ def test_composition_uses_full_panel_pixels_not_thumbnail(controller, monkeypatc
     obj.expires_at = 2000
     seen = []
 
-    async def compose(_hass, _entry, png, _art, *, overlays):
+    async def compose(_hass, _entry, png, _art, *, overlays, snapshot_deadlines=None):
         seen.append(Image.open(io.BytesIO(png)).size)
         return png, len(overlays)
 

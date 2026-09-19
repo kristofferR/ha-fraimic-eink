@@ -55,6 +55,7 @@ class TemporaryOverlays:
         self.temporary = []
         self.expires_at = 0.0
         self.refresh_interval = DEFAULT_REFRESH_INTERVAL
+        self.composed_valid_until = None
         self._next_refresh_at = 0.0
         self.last_signature = ""
         self.submitted_hash = None
@@ -148,6 +149,7 @@ class TemporaryOverlays:
         return json.dumps(self.visible(inherit), sort_keys=True)
 
     async def async_compose(self, base, art=None, inherit=True):
+        self.composed_valid_until = None
         overlays = self.visible(inherit)
         signature = json.dumps(overlays, sort_keys=True)
         if not overlays:
@@ -163,9 +165,12 @@ class TemporaryOverlays:
         png = await self.hass.async_add_executor_job(
             bin_to_png, base[0], width, height, (-rotation) % 360
         )
+        deadlines = []
         composed, count = await async_apply_frame_overlays(
-            self.hass, self.entry, png, art, overlays=overlays
+            self.hass, self.entry, png, art, overlays=overlays,
+            snapshot_deadlines=deadlines,
         )
+        self.composed_valid_until = min(deadlines) if deadlines else None
         rendered = await async_convert_for_entry(
             self.hass, self.entry, composed, _NEUTRAL_OVERRIDES, preprocess=False
         )

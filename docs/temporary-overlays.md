@@ -106,3 +106,59 @@ from an empty task list: upstream selection and templates should omit stale
 content, not turn it into zero progress.
 
 Ref #70.
+
+## Morning briefing strip (layout A)
+
+The `briefing` overlay reads a structured snapshot from an ordinary HA entity.
+It draws a white bottom strip with a greeting/date, weather, and available
+agenda/routine/tasks/focus columns. Missing columns collapse. A routine uses
+completed/total counts for its green ring; skipped steps remain separate.
+Optional progress entries draw coloured bars. No sleep section or running clock
+is included. Labels support `nb` and `en`; the producer supplies localized titles.
+
+```yaml
+action: fraimic.show_temporary_overlay
+data:
+  config_entry_id: YOUR_FRAME_ENTRY_ID
+  duration: 5400
+  refresh_interval: 60
+  overlays:
+    - id: morning
+      type: briefing
+      options:
+        entity: sensor.fraimic_morning_content
+        attribute: brief
+```
+
+Keep the default full-frame overlay geometry: the renderer itself positions the
+strip at the bottom. Artwork remains visible above it. Preview with
+`preview_only: true` before sending.
+
+The attribute must be a dictionary with `generated_at` and `valid_until` (ISO
+8601 with timezone), `greeting`, and `date_label`. `locale` defaults to `en`.
+Optional fields:
+
+| Field | Content |
+| --- | --- |
+| `agenda` | Up to 3 `{title, time, all_day, icon}` entries. No invented times. |
+| `routine` | `{label, completed, total, skipped, next_step, icon}`. Total must be positive; completed + skipped cannot exceed total. |
+| `tasks` | Up to 3 `{title, icon}` entries. |
+| `focus` | `{title, label, detail, icon, color}`. An explicitly chosen priority. |
+| `progress` | Up to 3 `{label, value, max, unit, icon, color}` entries. |
+| `weather` | `{temperature, unit, icon}`. Unit is °C or °F. |
+
+Icons use `mdi:name`. Accents are `blue`, `green`, `yellow`, or `red`. Text is
+bounded to 240 characters and visually truncated where needed. Snapshots may
+be valid for at most five minutes. Malformed, expired, unavailable, and entirely
+empty snapshots produce clean artwork rather than an error panel.
+
+The [KrisHQ package](https://github.com/kristofferR/krisHQ/blob/main/homeassistant/packages/fraimic_morning.yaml)
+assembles existing HA entities into two-minute snapshots, refreshes them during
+a 90-minute timer, and provides preview/start/clear scripts. It performs source
+availability, age and effective-date checks before including KrisHQ content.
+Fraimic does not fetch KrisHQ APIs or rank personal content.
+
+**Delivery:** a brief whose validity would end before the predicted cloud wake
+is deferred. Use reachable LAN delivery for minute-scale changes; neither this
+overlay nor the package silently enables keep-awake. Clearing stale pixels on
+a sleeping/offline frame still requires a later successful delivery.

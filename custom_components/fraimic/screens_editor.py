@@ -28,6 +28,13 @@ def _field(key: str, ftype: str, label: str, **extra: Any) -> dict[str, Any]:
 
 
 WIDGET_FIELDS: Final[dict[str, dict[str, Any]]] = {
+    "briefing": {
+        "label": "Briefing strip",
+        "fields": [
+            _field("entity", "entity", "Snapshot entity", required=True),
+            _field("attribute", "text", "Snapshot attribute", default="brief"),
+        ],
+    },
     "clock": {
         "label": "Clock",
         "fields": [
