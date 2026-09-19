@@ -267,10 +267,12 @@ def test_preview_only_preserves_active_overlay_deadline(
         return b"bin-data", b"preview-png", "none"
 
     entry = _entry()
-    controller = types.SimpleNamespace(composed_valid_until=1030)
+    controller = types.SimpleNamespace(composed_valid_until=1030, candidate_valid_until=1040)
+    entry.runtime_data.upload_lock = asyncio.Lock()
 
     async def compose(*_args: object) -> tuple[tuple[bytes, bytes, str], str, int]:
-        controller.composed_valid_until = 1060
+        assert entry.runtime_data.upload_lock.locked()
+        controller.candidate_valid_until = 1060
         return (b"composite", b"composite-preview", "none"), "signature", 1
 
     controller.async_compose = compose
@@ -291,6 +293,7 @@ def test_preview_only_preserves_active_overlay_deadline(
 
     assert result["content_hash"]
     assert controller.composed_valid_until == 1030
+    assert controller.candidate_valid_until == 1040
     assert entry.runtime_data.screen_preview_image.calls == [
         (b"composite-preview", "none")
     ]

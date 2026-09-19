@@ -626,20 +626,32 @@ def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monke
     assert controller.base[0] == b"same art"
 
 
-def test_regular_send_defers_when_overlay_changes_during_transport_probe(monkeypatch):
+@pytest.mark.parametrize("change_during", ["composition", "transport_probe"])
+def test_regular_send_recomposes_when_overlay_changes(monkeypatch, change_during):
     from unittest.mock import AsyncMock, Mock
 
     services = _load_services(monkeypatch)
     signature = {"value": "active"}
+    clean = (b"clean", b"clean-preview", "none")
+
+    async def compose(source, *_args):
+        assert source == clean
+        if signature["value"] == "expired":
+            return clean, "expired", 0
+        if change_during == "composition":
+            signature["value"] = "expired"
+        return (b"composite", b"preview", "none"), "active", 1
+
     controller = SimpleNamespace(
         composed_valid_until=None,
-        async_compose=AsyncMock(
-            return_value=((b"composite", b"preview", "none"), "active", 1)
-        ),
+        async_compose=AsyncMock(side_effect=compose),
         async_accept=AsyncMock(),
         signature=lambda *_: signature["value"],
     )
-    power = SimpleNamespace(begin=Mock(return_value=1), finish=Mock())
+    power = SimpleNamespace(
+        begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
+        async_record_upload=AsyncMock(), schedule_sleep=Mock(),
+    )
     client = SimpleNamespace(upload_image=AsyncMock())
     runtime = SimpleNamespace(
         temporary_overlays=controller,
@@ -650,6 +662,7 @@ def test_regular_send_defers_when_overlay_changes_during_transport_probe(monkeyp
         upload_lock=asyncio.Lock(),
         coordinator=SimpleNamespace(data={}),
         sending_preview=None,
+        set_displayed_preview=Mock(),
     )
 
     async def choose_transport(_entry):
@@ -670,6 +683,8 @@ def test_regular_send_defers_when_overlay_changes_during_transport_probe(monkeyp
         )
     )
 
-    assert result["deferred"] is True
-    client.upload_image.assert_not_awaited()
-    controller.async_accept.assert_not_awaited()
+    assert result["uploaded"] is True
+    assert controller.async_compose.await_count == 2
+    client.upload_image.assert_awaited_once_with(b"clean")
+    assert controller.async_accept.await_args.args[0] == clean
+    assert controller.async_accept.await_args.args[4] == "expired"

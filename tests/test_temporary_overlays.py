@@ -148,9 +148,11 @@ def test_preview_restores_active_composition_deadline(controller, monkeypatch):
     obj.temporary = [overlay("Active briefing")]
     obj.expires_at = 2000
     obj.composed_valid_until = 1030
+    obj.candidate_valid_until = 1040
 
     async def compose(*_args):
         obj.composed_valid_until = None
+        obj.candidate_valid_until = None
         return (b"preview buffer", b"png", "none"), "sig", 1
 
     obj.async_compose = compose
@@ -163,6 +165,7 @@ def test_preview_restores_active_composition_deadline(controller, monkeypatch):
     assert obj.temporary == [overlay("Active briefing")]
     assert obj.expires_at == 2000
     assert obj.composed_valid_until == 1030
+    assert obj.candidate_valid_until == 1040
 
 
 def test_composition_deadline_is_committed_only_after_acceptance(

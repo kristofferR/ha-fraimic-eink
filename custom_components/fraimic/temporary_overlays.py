@@ -281,6 +281,7 @@ class TemporaryOverlays:
                 self.temporary,
                 self.expires_at,
                 self.composed_valid_until,
+                self.candidate_valid_until,
             )
             self.temporary, self.expires_at = normalized, time.time() + duration
             if preview_only:
@@ -303,6 +304,7 @@ class TemporaryOverlays:
                         self.temporary,
                         self.expires_at,
                         self.composed_valid_until,
+                        self.candidate_valid_until,
                     ) = previous
             self.dirty = True
             self.refresh_interval = refresh_interval
