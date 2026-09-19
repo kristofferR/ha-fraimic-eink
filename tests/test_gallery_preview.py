@@ -20,6 +20,7 @@ def gallery(monkeypatch):
     imports = {
         "homeassistant.components.http": "KEY_HASS HomeAssistantView",
         "homeassistant.exceptions": "HomeAssistantError",
+        "fraimic.art_packs": "get_pack_manager",
         "fraimic.artwork_cache": "get_artwork_cache",
         "fraimic.http_helpers": "require_loaded_entry",
         "fraimic.library": "FraimicLibrary get_library",
@@ -247,3 +248,43 @@ def test_detail_warms_alternatives_only_with_reusable_source(
         app={gallery.KEY_HASS: object()}, query={"entry_id": "frame", "source": source, "item_id": "art"}
     )))
     assert result["warm_previews"] is expected
+
+
+def test_uploads_folder_count_search_and_pagination(gallery, monkeypatch):
+    model = load("library_model")
+    images = {
+        "old": model.LibraryImage("old", "photo-old.jpg", "image/jpeg", 1),
+        "new": model.LibraryImage(
+            "new", "photo-new.jpg", "image/jpeg", 3,
+            albums=[gallery.FAVORITES_ALBUM, "Holiday"],
+        ),
+        "saved": model.LibraryImage(
+            "saved", "photo-saved.jpg", "image/jpeg", 2,
+            source_url="https://museum.example/art",
+        ),
+        "pack": model.LibraryImage("pack", "photo-pack.jpg", "image/jpeg", 4),
+    }
+    library = SimpleNamespace(images=images)
+    manager = SimpleNamespace(installed={"art": {"images": {"https://art.example/image": "pack"}}})
+    monkeypatch.setattr(gallery, "get_pack_manager", lambda _: manager)
+    upload_ids = gallery._upload_ids(None, library)
+    uploads = next(folder for folder in gallery._library_folders(library, upload_ids) if folder["id"] == "uploads")
+    assert uploads == {"id": "uploads", "title": "Uploads", "count": 2}
+    monkeypatch.setattr(gallery, "_library", lambda _: library)
+    entry = SimpleNamespace(runtime_data=SimpleNamespace(scheduler=SimpleNamespace(
+        queued_slides=[], screens=[], playlist_up_next=lambda **_: [], current_screen=None,
+    )))
+    monkeypatch.setattr(gallery, "require_loaded_entry", lambda *_: entry)
+    view = gallery.GalleryBrowseView()
+    view.json = lambda data: data
+    query = {"source": "saved", "browse_id": "uploads", "q": "PHOTO", "cursor": "1"}
+    request = SimpleNamespace(app={gallery.KEY_HASS: object()}, query=query)
+    result = asyncio.run(view.get(request))
+    assert result["title"] == "Uploads"
+    assert result["total"] == 2
+    assert [item["id"] for item in result["results"]] == ["old"]
+    assert result["next_cursor"] is None
+    query["q"] = "new"
+    query["cursor"] = "0"
+    result = asyncio.run(view.get(request))
+    assert [item["id"] for item in result["results"]] == ["new"]
