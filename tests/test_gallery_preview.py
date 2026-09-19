@@ -103,6 +103,7 @@ def test_native_preview_decodes_upload_buffer_and_keys_every_setting(
             "tone": 0.0,
             "crop": (0, 0, 0.5, 1),
         }
+        assert "cache_id" not in convert.call_args.kwargs
         # Each visible control and the panel settings must invalidate the result.
         for field, value in (
             ("tone", "vivid"),
@@ -152,7 +153,7 @@ def test_saved_gallery_and_queue_preview_match_and_invalidate_transforms(gallery
         render.assert_awaited_once_with("art", entry, {
             "fit": "cover", "mode": "atkinson", "tone": load("const").PLAYLIST_TONE_VALUES["vivid"],
             "crop": (0, 0, .5, 1),
-        })
+        }, persist=False)
         screen = gallery.screen_from_dict(gallery._slide_data(
             {"source": "saved", "id": "art", "title": "Queued art"},
             fit="cover", mode="atkinson", tone="vivid", crop=(0, 0, .5, 1),
@@ -168,6 +169,46 @@ def test_saved_gallery_and_queue_preview_match_and_invalidate_transforms(gallery
         image.crops["8x4"] = [0, 0, 1, 1]
         await view.get(request)
         assert render.await_count == count + 2
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("change_during", ["wait", "render"])
+def test_gallery_cache_tracks_settings_changed_during_request(gallery, monkeypatch, change_during):
+    entry = SimpleNamespace(entry_id="frame", data={}, options={"rotation": 0})
+    monkeypatch.setattr(gallery, "require_loaded_entry", lambda *_: entry)
+
+    async def run():
+        semaphore = asyncio.Semaphore(0 if change_during == "wait" else 1)
+        hass = SimpleNamespace(data={gallery.DOMAIN: {"gallery_preview_semaphore": semaphore}})
+        request = SimpleNamespace(app={gallery.KEY_HASS: hass}, query={
+            "entry_id": "frame", "source": "met", "item_id": "art", "resolution": "native",
+        })
+        calls = []
+
+        async def render(*_args):
+            rotation = entry.options["rotation"]
+            calls.append(rotation)
+            if change_during == "render" and len(calls) == 1:
+                entry.options["rotation"] = 90
+            return str(rotation).encode()
+
+        view = gallery.GalleryPreviewView()
+        monkeypatch.setattr(view, "_render", render)
+        pending = asyncio.create_task(view.get(request))
+        if change_during == "wait":
+            await asyncio.sleep(0)
+            entry.options["rotation"] = 90
+            semaphore.release()
+        assert (await pending).body == b"90"
+        assert calls == ([90] if change_during == "wait" else [0, 90])
+        count = len(calls)
+        assert (await view.get(request)).body == b"90"
+        assert len(calls) == count
+        # Returning to the old settings must not find pixels cached under a stale key.
+        entry.options["rotation"] = 0
+        assert (await view.get(request)).body == b"0"
+        assert len(calls) == count + 1
 
     asyncio.run(run())
 

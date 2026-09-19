@@ -109,7 +109,8 @@ def test_native_adhoc_preview_preserves_panel_pixels(library_module, monkeypatch
 
 
 @pytest.mark.parametrize("fit", ["cover", "contain", "stretch"])
-def test_library_send_crop_matches_preview_fit(library_module, monkeypatch, tmp_path, fit):
+@pytest.mark.parametrize("persist", [False, True])
+def test_library_send_crop_matches_preview_fit(library_module, monkeypatch, tmp_path, fit, persist):
     from unittest.mock import Mock
 
     library = library_module
@@ -127,12 +128,13 @@ def test_library_send_crop_matches_preview_fit(library_module, monkeypatch, tmp_
     manager.hass = Hass()
     manager.originals_dir = manager.renders_dir = tmp_path
     manager._read_render_sync = lambda *_: None
-    manager._write_render_sync = lambda *_: None
+    manager._write_render_sync = Mock()
     image = library.LibraryImage("art", "art.png", "image/png", 1.0, crops={"8x4": [0, 0, .5, 1]})
     manager.images = {image.image_id: image}
     manager.original_path(image).write_bytes(b"original")
-    asyncio.run(manager.async_render_for_entry("art", object(), {"fit": fit}))
+    asyncio.run(manager.async_render_for_entry("art", object(), {"fit": fit}, persist=persist))
     assert convert.call_args.kwargs["crop"] == ((0, 0, .5, 1) if fit == "cover" else None)
+    assert manager._write_render_sync.call_count == int(persist)
 
 
 @pytest.mark.parametrize("invalid_entry", [False, True])

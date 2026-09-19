@@ -492,8 +492,10 @@ class FraimicLibrary:
         image_id: str,
         entry: ConfigEntry,
         overrides: dict | None = None,
+        *,
+        persist: bool = True,
     ) -> tuple[bytes, bytes | None, str]:
-        """Return ``(bin, preview_png, mode)`` for one frame, via the cache."""
+        """Render for one frame; drafts may reuse cache hits without writing new ones."""
         image = self.get(image_id)
         params = resolve_render_params(entry, overrides)
         crop_width, crop_height = _crop_key_size(params)
@@ -539,6 +541,9 @@ class FraimicLibrary:
             )
         except Exception as err:  # noqa: BLE001 - Pillow raises a variety of errors
             raise HomeAssistantError(f"Could not convert library image: {err}") from err
+
+        if not persist:
+            return bin_data, preview_png, used_mode
 
         try:
             await self.hass.async_add_executor_job(

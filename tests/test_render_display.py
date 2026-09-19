@@ -157,7 +157,7 @@ def test_picture_preview_uses_shared_sources_without_changing_display(monkeypatc
     with Image.open(io.BytesIO(png)) as preview:
         assert preview.size == (480, 800)
     if "library_image" in source:
-        library_render.assert_awaited_once_with("saved-art", entry, {"fit": "contain", "mode": "none"})
+        library_render.assert_awaited_once_with("saved-art", entry, {"fit": "contain", "mode": "none"}, persist=True)
         resolve.assert_not_awaited()
         convert.assert_not_awaited()
     else:
@@ -746,10 +746,11 @@ def test_library_prepared_preview_decodes_native_panel_pixels(
 
     class Library:
         async def async_render_for_entry(
-            self, image_id: str, _entry: object, overrides: dict
+            self, image_id: str, _entry: object, overrides: dict, *, persist: bool
         ) -> tuple[bytes, bytes, str]:
             assert image_id == "image-1"
             assert overrides == {"fit": "contain", "tone": 0.0}
+            assert persist
             return bytes(800 * 480 // 2), b"unused-small-preview", "none"
 
     library = types.ModuleType("fraimic.library")
@@ -810,8 +811,9 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
             return self.image
 
         async def async_render_for_entry(
-            self, _image_id: str, _entry: object, _overrides: dict
+            self, _image_id: str, _entry: object, _overrides: dict, *, persist: bool
         ) -> tuple[bytes, bytes, str]:
+            assert persist
             return b"\x33" * (1600 * 1200 // 2), b"unused-small-preview", "none"
 
     library = types.ModuleType("fraimic.library")

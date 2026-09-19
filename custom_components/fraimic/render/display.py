@@ -397,7 +397,7 @@ async def async_prepare_screen(
 
 
 async def async_preview_screen(
-    hass: HomeAssistant, entry, screen: ScreenConfig
+    hass: HomeAssistant, entry, screen: ScreenConfig, *, persist: bool = True,
 ) -> tuple[bytes, str]:
     """Dithered frame preview of one slide; no upload, no runtime side effects.
 
@@ -405,6 +405,7 @@ async def async_preview_screen(
     artwork/library caches), but skips overlay compositing: this answers
     "how will this art dither", not "what exact pixels ship next".
     Returns ``(preview_png, used_mode)``.
+    ``persist=False`` keeps draft renders out of the persistent render caches.
     """
     from ..services import async_convert_for_entry
 
@@ -417,12 +418,12 @@ async def async_preview_screen(
             if library is None:
                 raise HomeAssistantError("The Fraimic library is not set up")
             rendered = await library.async_render_for_entry(
-                image_id, entry, _picture_overrides(source)
+                image_id, entry, _picture_overrides(source), persist=persist
             )
         else:
             png, overrides, _art = await _async_picture_source(hass, entry, screen)
             convert_kwargs = {"preprocess": True}
-            if (cache_id := _picture_cache_id(screen)) is not None:
+            if persist and (cache_id := _picture_cache_id(screen)) is not None:
                 convert_kwargs["cache_id"] = cache_id
             rendered = await async_convert_for_entry(
                 hass, entry, png, overrides, **convert_kwargs

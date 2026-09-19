@@ -814,17 +814,19 @@ class GalleryPreviewView(HomeAssistantView):
             )
         except vol.Invalid as err:
             raise web.HTTPBadRequest(text=str(err)) from err
-        key = (
-            entry.entry_id, prepared_thumbnail_fingerprint(hass, entry, screen),
-            resolution,
-        )
         async with semaphore:
-            cached = cache.get(key, 600)
-            if cached is not None:
-                png = cached[0]
-            else:
+            while True:
+                fingerprint = prepared_thumbnail_fingerprint(hass, entry, screen)
+                key = (entry.entry_id, fingerprint, resolution)
+                cached = cache.get(key, 600)
+                if cached is not None:
+                    png = cached[0]
+                    break
                 png = await self._render(hass, entry, screen, resolution)
+                if fingerprint != prepared_thumbnail_fingerprint(hass, entry, screen):
+                    continue
                 cache.set(key, png, "image/png")
+                break
         return web.Response(
             body=png,
             content_type="image/png",
@@ -838,7 +840,7 @@ class GalleryPreviewView(HomeAssistantView):
         from .render.display import async_preview_screen, thumbnail_preview
 
         try:
-            png, _ = await async_preview_screen(hass, entry, screen)
+            png, _ = await async_preview_screen(hass, entry, screen, persist=False)
             if resolution == "thumbnail":
                 png = await hass.async_add_executor_job(thumbnail_preview, png)
         except (ArtFetchError, HomeAssistantError) as err:
