@@ -91,6 +91,8 @@ from .source import async_get_source_bytes
 
 _LOGGER = logging.getLogger(__name__)
 
+_LOCAL_REDRAW_SECONDS = 30
+
 ERR_NO_FRAIMIC_FRAME = "No Fraimic frame is set up"
 
 
@@ -921,7 +923,9 @@ async def async_render_and_upload(
             # Never queue a brief that will already be stale at the next wake.
             snapshot_deadline = getattr(overlay_controller, "composed_valid_until", None)
             if snapshot_deadline is not None:
-                arrival = time.time() + (cloud.wake_interval if use_cloud else 0)
+                arrival = time.time() + (
+                    cloud.wake_interval if use_cloud else _LOCAL_REDRAW_SECONDS
+                )
                 if arrival >= snapshot_deadline:
                     return deferred_result("briefing_expires_before_delivery")
             hybrid = (
@@ -1020,7 +1024,10 @@ async def async_render_and_upload(
                 queued = not uploaded
             else:
                 await async_prepare_local_delivery(entry)
-                if snapshot_deadline is not None and time.time() >= snapshot_deadline:
+                if (
+                    snapshot_deadline is not None
+                    and time.time() + _LOCAL_REDRAW_SECONDS >= snapshot_deadline
+                ):
                     return deferred_result("briefing_expired")
                 try:
                     await runtime.client.upload_image(bin_data)

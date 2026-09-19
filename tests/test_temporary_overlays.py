@@ -412,6 +412,25 @@ def test_briefing_deadline_triggers_refresh_and_survives_restart(
     asyncio.run(run())
 
 
+def test_briefing_deadline_bypasses_refresh_retry_guard(controller, monkeypatch):
+    module, obj, clock, _ = controller
+    calls = install_delivery(monkeypatch, obj)
+    obj.temporary = [module.normalize_overlay(overlay())]
+    obj.expires_at = 2000
+    obj.refresh_interval = 0
+    obj._next_refresh_at = 2000
+    obj.composed_valid_until = 1030
+    obj.last_signature = obj.signature()
+    obj._retry_at = 1060
+
+    async def run():
+        clock.now = 1030
+        await obj._async_tick()
+        assert len(calls) == 1
+
+    asyncio.run(run())
+
+
 def test_expiry_bypasses_refresh_retry_guard(controller, monkeypatch):
     _, obj, clock, _ = controller
     calls = install_delivery(monkeypatch, obj)

@@ -392,17 +392,17 @@ class TemporaryOverlays:
     async def _async_tick(self, _now=None):
         now = time.time()
         expired = bool(self.temporary) and now >= self.expires_at
-        if (
-            self.base is None
-            or self._refreshing
-            or (now < self._retry_at and not expired)
-        ):
-            return
-        changed = self.signature() != self.last_signature
         briefing_due = (
             self.composed_valid_until is not None
             and now >= self.composed_valid_until
         )
+        if (
+            self.base is None
+            or self._refreshing
+            or (now < self._retry_at and not expired and not briefing_due)
+        ):
+            return
+        changed = self.signature() != self.last_signature
         refresh_due = (
             self.active
             and (
