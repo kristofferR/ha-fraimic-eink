@@ -327,6 +327,38 @@ def test_expiry_bypasses_refresh_retry_guard(controller, monkeypatch):
     asyncio.run(run())
 
 
+def test_failed_delivery_retries_before_normal_refresh(controller, monkeypatch):
+    module, obj, clock, _ = controller
+    calls = 0
+
+    async def deliver(*_args, **_kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            raise module.HomeAssistantError("offline")
+        await obj.async_accept(
+            obj.base, obj.art, obj.title, obj.inherit, obj.signature(), "pixels"
+        )
+        return {"displayed": True}
+
+    services = types.ModuleType("fraimic.services")
+    services.async_render_and_upload = deliver
+    monkeypatch.setitem(sys.modules, "fraimic.services", services)
+
+    async def run():
+        with pytest.raises(module.HomeAssistantError, match="offline"):
+            await obj.async_show([overlay()], 7200, refresh_interval=3600)
+        assert obj._next_refresh_at == obj._retry_at == 1060
+        clock.now = 1059
+        await obj._async_tick()
+        assert calls == 1
+        clock.now = 1060
+        await obj._async_tick()
+        assert calls == 2
+
+    asyncio.run(run())
+
+
 def test_update_coalesces_latest_content_and_cannot_revive_expired_overlay(
     controller, monkeypatch
 ):

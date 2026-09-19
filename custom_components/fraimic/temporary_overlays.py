@@ -340,6 +340,7 @@ class TemporaryOverlays:
         self._next_refresh_at = time.time() + max(60, self.refresh_interval)
         if scheduler:
             scheduler.begin_external_upload()
+        failed = False
         try:
             # Read the retained base under the upload lock, after any preceding
             # manual artwork change. Never queue a time-sensitive rendered image.
@@ -360,9 +361,12 @@ class TemporaryOverlays:
             return {key: value for key, value in result.items() if key != "preview_png"}
         except HomeAssistantError:
             self.dirty = True
+            failed = True
             raise
         finally:
             self._retry_at = time.time() + 60
+            if failed:
+                self._next_refresh_at = self._retry_at
             self._refreshing = False
             if scheduler:
                 scheduler.finish_external_upload(uploaded=False, hold=False)
