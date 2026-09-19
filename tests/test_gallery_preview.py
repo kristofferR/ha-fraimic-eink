@@ -11,25 +11,25 @@ import pytest
 from PIL import Image
 
 from conftest import PKG_DIR, load
+from test_render_display import _load_display
 
 
 @pytest.fixture
 def gallery(monkeypatch):
-    load("const")
+    _load_display(monkeypatch)
     imports = {
         "homeassistant.components.http": "KEY_HASS HomeAssistantView",
         "homeassistant.exceptions": "HomeAssistantError",
         "fraimic.artwork_cache": "get_artwork_cache",
-        "fraimic.helpers": "resolve_render_params",
         "fraimic.http_helpers": "require_loaded_entry",
         "fraimic.library": "FraimicLibrary get_library",
         "fraimic.playlists": "DATA_PLAYLISTS PlaylistManager",
         "fraimic.providers": "PROVIDERS available_provider_keys get_provider",
         "fraimic.providers.ha": (
-            "ArtFetchError artwork_source_cache_id async_art_by_media_id "
+            "ArtFetchError async_art_by_media_id async_fetch_art "
             "async_browse_candidates async_browse_provider async_candidate_by_media_id"
         ),
-        "fraimic.render.schema": "SCREEN_SCHEMA screen_from_dict",
+        "fraimic.source": "async_get_source_bytes",
     }
     for name, attributes in imports.items():
         stub = ModuleType(name)
@@ -66,15 +66,12 @@ def test_native_preview_decodes_upload_buffer_and_keys_every_setting(
     services = ModuleType("fraimic.services")
     services.async_convert_for_entry = convert
     monkeypatch.setitem(sys.modules, "fraimic.services", services)
-    entry = SimpleNamespace(entry_id="frame", data={}, options={})
-    params = {"width": 8, "height": 4, "preview_rotate": 90}
-    monkeypatch.setattr(gallery, "resolve_render_params", lambda *_: params.copy())
+    entry = SimpleNamespace(entry_id="frame", data={"width": 8, "height": 4}, options={"rotation": 270})
     monkeypatch.setattr(gallery, "require_loaded_entry", lambda *_: entry)
-    monkeypatch.setattr(gallery, "artwork_source_cache_id", lambda *_: "source")
     monkeypatch.setattr(
-        gallery,
+        sys.modules["fraimic.providers.ha"],
         "async_art_by_media_id",
-        AsyncMock(return_value=SimpleNamespace(data=b"original")),
+        AsyncMock(return_value=SimpleNamespace(data=b"original", candidate=SimpleNamespace(attribution=None))),
     )
 
     async def executor(function, *args):
@@ -103,9 +100,10 @@ def test_native_preview_decodes_upload_buffer_and_keys_every_setting(
         assert convert.call_args.args[3] == {
             "fit": "cover",
             "mode": "bayer",
-            "tone_name": "soft",
+            "tone": 0.0,
             "crop": (0, 0, 0.5, 1),
         }
+        assert "cache_id" not in convert.call_args.kwargs
         # Each visible control and the panel settings must invalidate the result.
         for field, value in (
             ("tone", "vivid"),
@@ -116,47 +114,103 @@ def test_native_preview_decodes_upload_buffer_and_keys_every_setting(
             query[field] = value
             await view.get(request)
         assert convert.await_count == 5
-        params["preview_rotate"] = 0
+        entry.options["rotation"] = 0
         assert Image.open(io.BytesIO((await view.get(request)).body)).size == (8, 4)
         query["resolution"] = "thumbnail"
-        assert (await view.get(request)).body == b"small-preview"
+        assert (await view.get(request)).body == load("render.display").thumbnail_preview(
+            ic.bin_to_png(packed, 8, 4)
+        )
         assert convert.await_count == 7
 
     asyncio.run(run())
 
 
-def test_saved_gallery_preview_passes_native_size_and_tone(gallery, monkeypatch):
+def test_saved_gallery_and_queue_preview_match_and_invalidate_transforms(gallery, monkeypatch):
     services = ModuleType("fraimic.services")
     services.async_convert_for_entry = AsyncMock()
     monkeypatch.setitem(sys.modules, "fraimic.services", services)
-    render = AsyncMock(return_value=b"native-preview")
+    packed = bytes(8 * 4 // 2)
+    render = AsyncMock(return_value=(packed, b"unused-thumbnail", "atkinson"))
+    image = SimpleNamespace(crops={"8x4": [0, 0, .5, 1]}, rotations={})
+    library = SimpleNamespace(async_render_for_entry=render, get=lambda _: image)
     monkeypatch.setattr(
-        gallery,
-        "_library",
-        lambda _: SimpleNamespace(async_render_adhoc_preview=render),
+        sys.modules["fraimic.library"], "get_library", lambda _: library,
     )
-    entry = object()
-    result = asyncio.run(
-        gallery.GalleryPreviewView()._render(
-            object(),
-            entry,
-            "saved",
-            "art",
-            "cover",
-            "atkinson",
-            "vivid",
-            (0, 0, 0.5, 1),
-            "native",
-        )
-    )
-    assert result == b"native-preview"
-    render.assert_awaited_once_with(
-        "art",
-        entry,
-        [0, 0, 0.5, 1],
-        overrides={"fit": "cover", "mode": "atkinson", "tone_name": "vivid"},
-        full_resolution=True,
-    )
+    entry = SimpleNamespace(entry_id="frame", data={"width": 8, "height": 4}, options={})
+    monkeypatch.setattr(gallery, "require_loaded_entry", lambda *_: entry)
+
+    async def executor(function, *args):
+        return function(*args)
+
+    hass = SimpleNamespace(data={}, async_add_executor_job=executor)
+    query = dict(entry_id="frame", source="saved", item_id="art", fit="cover",
+                 mode="atkinson", tone="vivid", crop="[0,0,0.5,1]", resolution="native")
+    request = SimpleNamespace(app={gallery.KEY_HASS: hass}, query=query)
+
+    async def run():
+        view = gallery.GalleryPreviewView()
+        result = await view.get(request)
+        render.assert_awaited_once_with("art", entry, {
+            "fit": "cover", "mode": "atkinson", "tone": load("const").PLAYLIST_TONE_VALUES["vivid"],
+            "crop": (0, 0, .5, 1),
+        }, persist=False)
+        screen = gallery.screen_from_dict(gallery._slide_data(
+            {"source": "saved", "id": "art", "title": "Queued art"},
+            fit="cover", mode="atkinson", tone="vivid", crop=(0, 0, .5, 1),
+        ))
+        display = load("render.display")
+        queued, _ = await display.async_preview_screen(hass, entry, screen)
+        assert result.body == queued == await display.async_prepared_preview(hass, entry, screen)
+        count = render.await_count
+        await view.get(request)
+        assert render.await_count == count
+        image.rotations["8x4"] = 90
+        await view.get(request)
+        image.crops["8x4"] = [0, 0, 1, 1]
+        await view.get(request)
+        assert render.await_count == count + 2
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("change_during", ["wait", "render"])
+def test_gallery_cache_tracks_settings_changed_during_request(gallery, monkeypatch, change_during):
+    entry = SimpleNamespace(entry_id="frame", data={}, options={"rotation": 0})
+    monkeypatch.setattr(gallery, "require_loaded_entry", lambda *_: entry)
+
+    async def run():
+        semaphore = asyncio.Semaphore(0 if change_during == "wait" else 1)
+        hass = SimpleNamespace(data={gallery.DOMAIN: {"gallery_preview_semaphore": semaphore}})
+        request = SimpleNamespace(app={gallery.KEY_HASS: hass}, query={
+            "entry_id": "frame", "source": "met", "item_id": "art", "resolution": "native",
+        })
+        calls = []
+
+        async def render(*_args):
+            rotation = entry.options["rotation"]
+            calls.append(rotation)
+            if change_during == "render" and len(calls) == 1:
+                entry.options["rotation"] = 90
+            return str(rotation).encode()
+
+        view = gallery.GalleryPreviewView()
+        monkeypatch.setattr(view, "_render", render)
+        pending = asyncio.create_task(view.get(request))
+        if change_during == "wait":
+            await asyncio.sleep(0)
+            entry.options["rotation"] = 90
+            semaphore.release()
+        assert (await pending).body == b"90"
+        assert calls == ([90] if change_during == "wait" else [0, 90])
+        count = len(calls)
+        assert (await view.get(request)).body == b"90"
+        assert len(calls) == count
+        # Returning to the old settings must not find pixels cached under a stale key.
+        entry.options["rotation"] = 0
+        assert (await view.get(request)).body == b"0"
+        assert len(calls) == count + 1
+
+    asyncio.run(run())
 
 
 def test_detail_includes_saved_rotation_in_original_crop_coordinates(gallery, monkeypatch):
