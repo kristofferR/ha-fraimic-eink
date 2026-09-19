@@ -16,6 +16,9 @@ display and delivers them over your local network or through your Fraimic accoun
   Preview tone and dithering inside the crop without refreshing the frame (beta).
 - **Home Assistant data on the wall:** add weather, clocks, calendars, sensor
   values, and other overlays, or render a full dashboard screen.
+- **Morning briefings over your artwork:** show a temporary colour strip with
+  icons, priorities, and routine progress. Refresh changed content during the
+  morning window, then return to the artwork.
 - **Battery-aware delivery:** upload locally while the frame is awake, queue
   for later, or choose **Hybrid** to use local delivery when awake and cloud
   delivery for a scheduled wake when asleep.
@@ -142,10 +145,68 @@ Drag and resize overlays on the canvas, choose a background plate and text size,
 and set visibility by time, weekday, or entity state. Overlays belong to the
 frame; individual playlist slides can override inheritance.
 
-For a morning briefing, [temporary overlays](docs/temporary-overlays.md) retain
-the current artwork, refresh changed content during a fixed window, and restore
-the artwork when the window ends. Routine progress can update without extending
-the end time or advancing the playlist.
+Saved overlay edits appear on the next picture change. Choose **Apply now** to
+apply them to the current artwork; automatic temporary-overlay refreshes keep
+using the permanent settings already applied to that picture.
+
+### Temporary overlays and morning briefings
+
+These actions are available on `main` but are not included in release 2.2.0.
+Until a release includes them, use a manual installation from `main`.
+
+[Temporary overlays](docs/temporary-overlays.md) add information to the current
+artwork for a fixed window, preserving its crop, rotation, and processed pixels.
+Entity-backed content is reread during the window, so checking off a routine
+step can update its progress and next step. Identical pixels skip the redraw;
+updates do not extend the window or advance the playback queue. The window
+holds playback, then restores the artwork with its permanent overlays. A manual
+picture change becomes the new underlying artwork.
+
+The `briefing` overlay draws a bottom strip with a greeting, date, optional
+weather, and ordered content blocks. It uses the frame's ink colours, icons,
+routine progress rings, and optional progress bars. The first four blocks appear
+in columns, with up to two more in a compact footer; missing content is omitted.
+
+```yaml
+action: fraimic.show_temporary_overlay
+data:
+  config_entry_id: YOUR_FRAME_ENTRY_ID
+  duration: 5400
+  refresh_interval: 60
+  overlays:
+    - id: morning
+      type: briefing
+      options:
+        entity: sensor.fraimic_morning_content
+        attribute: brief
+```
+
+This example starts a 90-minute window and checks for changes every 60 seconds.
+Use your own entity providing the [briefing data format](docs/temporary-overlays.md#morning-briefing-strip-layout-a).
+Add `preview_only: true` to render to **Screen preview** without starting a
+window or uploading to the frame. Show a picture through this integration first
+so it has a clean source; it cannot reconstruct artwork selected outside HA.
+
+For KrisHQ, enable **Shared morning brief from KrisHQ** in the integration's
+content options. Use that sensor's entity ID, such as
+`sensor.krishq_morning_brief`, in the example above with `attribute: brief`.
+Choose content categories, their order, and priority tasks in KrisHQ's web or
+iOS settings. KrisHQ selects and ranks the content; an HA template can add
+weather while preserving its order and freshness. Fraimic renders the result
+without KrisHQ credentials. Sleep is optional. See the
+[shared-brief format](docs/temporary-overlays.md#ordered-shared-briefs).
+
+Call `fraimic.update_temporary_overlay` to refresh an active window or replace
+literal content without extending it; `fraimic.clear_temporary_overlay` ends it
+early. Do not repeat the show action for every checkbox, since that starts a new
+window. The retained artwork and expiry survive HA restarts.
+
+Every changed composite requires a full e-ink redraw. Prompt updates need a
+reachable frame; the integration does not turn on keep-awake. Cloud/Hybrid can
+upload the brief's personal content to Fraimic's servers and wait for a scheduled
+wake. Expired data is not submitted as fresh, but removing already displayed
+content still requires a successful delivery. See [temporary-overlay delivery](docs/temporary-overlays.md#delivery-and-power)
+for refresh, battery, and expiry behavior.
 
 ### Dashboard screens
 
@@ -317,6 +378,9 @@ data:
 | `fraimic.upload_image` | Display a file, URL, library image, or camera/image snapshot. |
 | `fraimic.show_online_image` | Fetch and display artwork from an online provider. |
 | `fraimic.render_screen` | Render a widget or picture screen; supports preview-only rendering. |
+| `fraimic.show_temporary_overlay` | Show overlays on the retained artwork for a fixed window, or preview them. |
+| `fraimic.update_temporary_overlay` | Refresh or replace active temporary content without extending the window. |
+| `fraimic.clear_temporary_overlay` | End the temporary window and restore artwork with its permanent overlays. |
 | `fraimic.send_scene` | Send a saved scene's images to their assigned frames. |
 | `fraimic.schedule_send` | Schedule a one-shot or recurring image/scene send. |
 | `fraimic.cancel_scheduled_send` / `fraimic.list_scheduled_sends` | Manage scheduled sends. |
