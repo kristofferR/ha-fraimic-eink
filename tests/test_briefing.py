@@ -42,6 +42,102 @@ def snapshot():
     }
 
 
+def ordered_snapshot():
+    source = snapshot()
+    return {
+        **{
+            key: source[key]
+            for key in (
+                "generated_at",
+                "valid_until",
+                "locale",
+                "greeting",
+                "date_label",
+            )
+        },
+        "blocks": [
+            {
+                "type": "tasks",
+                "label": "Din prioritet",
+                "color": "blue",
+                "items": [{"title": "Priority first"}],
+            },
+            {"type": "routine", **source["routine"]},
+            {
+                "type": "agenda",
+                "label": "Avtaler",
+                "items": [{"title": "Appointment third", "all_day": True}],
+            },
+            {
+                "type": "agenda",
+                "label": "Trening",
+                "color": "green",
+                "items": [
+                    {"title": "Workout fourth", "time": "10:30", "icon": "mdi:dumbbell"}
+                ],
+            },
+            {
+                "type": "focus",
+                "label": "Fra i går",
+                "title": "Achievement fifth",
+                "icon": "mdi:trophy-outline",
+                "color": "green",
+            },
+            {
+                "type": "focus",
+                "label": "Søvn",
+                "title": "Sleep sixth",
+                "icon": "mdi:weather-night",
+            },
+        ],
+    }
+
+
+@pytest.mark.parametrize("with_progress", [False, True])
+def test_ordered_blocks_keep_all_six_groups_and_do_not_extend_freshness(with_progress):
+    raw = ordered_snapshot()
+    if with_progress:
+        raw["progress"] = snapshot()["progress"]
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    assert data is not None
+    svg = load("render.svg")
+    doc = svg.SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc, load("render.layout").Rect(0, 0, 2560, 1440), {}, data, None, None
+    )
+    rendered = doc.to_string()
+    titles = [
+        "Priority first",
+        "Dusj og stell",
+        "Appointment third",
+        "Workout fourth",
+        "Achievement fifth",
+        "Sleep sixth",
+    ]
+    positions = [rendered.index(title) for title in titles]
+    assert positions == sorted(positions)
+    assert "#5080b8" in rendered and "#608050" in rendered
+    if with_progress:
+        from xml.etree import ElementTree
+
+        root = ElementTree.fromstring(rendered)
+        text_y = {
+            node.text: float(node.attrib["y"])
+            for node in root.iter("{http://www.w3.org/2000/svg}text")
+        }
+        assert text_y["Achievement fifth"] < text_y["Dagens vaner"] < 1440
+        assert text_y["Workout fourth"] < text_y["Achievement fifth"]
+    assert (
+        load("render.briefing").validate_briefing(
+            ordered_snapshot(), NOW + timedelta(seconds=120)
+        )
+        is None
+    )
+    raw = ordered_snapshot()
+    raw["blocks"][1]["skipped"] = 6
+    assert load("render.briefing").validate_briefing(raw, NOW) is None
+
+
 @pytest.mark.parametrize(
     "change",
     [
@@ -60,8 +156,9 @@ def test_invalid_or_expired_snapshots_are_omitted(change):
 
 
 @pytest.mark.parametrize("locale", ["nb", "en"])
+@pytest.mark.parametrize("ordered", [False, True])
 def test_real_compositor_refresh_preserves_artwork_and_deduplicates_timestamps(
-    monkeypatch, tmp_path, locale
+    monkeypatch, tmp_path, locale, ordered
 ):
     _install_ha_stubs(monkeypatch)
     storage = ModuleType("homeassistant.helpers.storage")
@@ -73,7 +170,7 @@ def test_real_compositor_refresh_preserves_artwork_and_deduplicates_timestamps(
     fetch = load("render.fetch")
     monkeypatch.setattr(fetch.dt_util, "now", lambda: NOW)
     monkeypatch.setattr(overlays.dt_util, "now", lambda: NOW)
-    data = snapshot()
+    data = ordered_snapshot() if ordered else snapshot()
     data["locale"] = locale
     state = SimpleNamespace(state="ready", attributes={"brief": data})
 
@@ -119,7 +216,9 @@ def test_real_compositor_refresh_preserves_artwork_and_deduplicates_timestamps(
     data["generated_at"] = (NOW + timedelta(seconds=10)).isoformat()
     data["valid_until"] = (NOW + timedelta(seconds=130)).isoformat()
     assert asyncio.run(render())[0] == first
-    data["routine"].update(completed=3, next_step="Frokost")
+    (data["blocks"][1] if ordered else data["routine"]).update(
+        completed=3, next_step="Frokost"
+    )
     second, _ = asyncio.run(render())
     assert first != second
     before = np.array(Image.open(io.BytesIO(first)))[:800, :, :3]
