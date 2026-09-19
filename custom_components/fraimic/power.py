@@ -365,7 +365,10 @@ class FraimicPowerManager:
         marker = str(marker)
         if marker == self.last_display_marker:
             return
-        if self.last_display_marker:
+        refreshed_at = _timestamp(marker)
+        if self.last_display_marker and (
+            refreshed_at is None or refreshed_at > self.last_upload_at
+        ):
             self.last_hash = None
             runtime = getattr(self.entry, "runtime_data", None)
             overlays = getattr(runtime, "temporary_overlays", None)

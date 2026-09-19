@@ -218,7 +218,8 @@ def test_pending_send_is_recomposed_after_expiry(controller):
     asyncio.run(run())
 
 
-def test_composition_uses_full_panel_pixels_not_thumbnail(controller, monkeypatch):
+@pytest.mark.parametrize("snapshot_deadline,expected", [(None, 2000), (1800, 1800), (2100, 2000)])
+def test_composition_preserves_panel_pixels_and_delivery_deadline(controller, monkeypatch, snapshot_deadline, expected):
     module, obj, _, _ = controller
     from PIL import Image
     import io
@@ -229,6 +230,8 @@ def test_composition_uses_full_panel_pixels_not_thumbnail(controller, monkeypatc
 
     async def compose(_hass, _entry, png, _art, *, overlays, snapshot_deadlines=None):
         seen.append(Image.open(io.BytesIO(png)).size)
+        if snapshot_deadline is not None:
+            snapshot_deadlines.append(snapshot_deadline)
         return png, len(overlays)
 
     monkeypatch.setattr(module, "async_apply_frame_overlays", compose)
@@ -241,6 +244,7 @@ def test_composition_uses_full_panel_pixels_not_thumbnail(controller, monkeypatc
     asyncio.run(obj.async_compose(obj.base))
     assert seen == [(4, 8)]
     assert obj.base[1] == b"thumbnail"
+    assert obj.candidate_valid_until == expected
 
 
 def test_visibility_boundaries_require_refresh_even_without_temporary_overlay(

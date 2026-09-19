@@ -173,7 +173,9 @@ class TemporaryOverlays:
         png = await self.hass.async_add_executor_job(
             bin_to_png, base[0], width, height, (-rotation) % 360
         )
-        deadlines = []
+        # Every temporary composition expires, even without a briefing widget.
+        # Delivery uses this boundary to reserve wake/redraw time on all paths.
+        deadlines = [self.expires_at] if self.active else []
         composed, count = await async_apply_frame_overlays(
             self.hass, self.entry, png, art, overlays=overlays,
             snapshot_deadlines=deadlines,
