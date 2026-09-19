@@ -18,6 +18,7 @@ from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.exceptions import HomeAssistantError
 
+from .art_packs import get_pack_manager
 from .artwork_cache import get_artwork_cache
 from .const import (
     ARTWORK_CACHE_30_DAYS,
@@ -321,7 +322,24 @@ def _source_payload(provider, available: set[str]) -> dict[str, Any]:
     }
 
 
-def _library_folders(library: FraimicLibrary) -> list[dict[str, Any]]:
+def _upload_ids(hass, library: FraimicLibrary) -> set[str]:
+    """Separate local uploads from saved online art and installed art packs."""
+    manager = get_pack_manager(hass)
+    pack_ids = {
+        image_id
+        for record in (manager.installed.values() if manager else ())
+        for image_id in (record.get("images") or {}).values()
+    }
+    return {
+        image.image_id
+        for image in library.images.values()
+        if not image.source_url and image.image_id not in pack_ids
+    }
+
+
+def _library_folders(
+    library: FraimicLibrary, upload_ids: set[str]
+) -> list[dict[str, Any]]:
     """Return the compact My Library tree shown in the source rail."""
     images = list(library.images.values())
     favorite_count = sum(
@@ -336,6 +354,7 @@ def _library_folders(library: FraimicLibrary) -> list[dict[str, Any]]:
     return [
         {"id": "", "title": "All pictures", "count": len(images)},
         {"id": "favorites", "title": "Favorites", "count": favorite_count},
+        {"id": "uploads", "title": "Uploads", "count": len(upload_ids)},
         *[
             {"id": f"album:{name}", "title": name, "count": count}
             for name, count in sorted(
@@ -477,7 +496,7 @@ class GallerySourcesView(HomeAssistantView):
                         "hierarchical": True,
                         "group": "library",
                         "count": len(library.images),
-                        "children": _library_folders(library),
+                        "children": _library_folders(library, _upload_ids(hass, library)),
                     },
                     *[
                         _source_payload(provider, available)
@@ -504,7 +523,7 @@ class GallerySourceTreeView(HomeAssistantView):
             return self.json(
                 {
                     "title": "My library",
-                    "folders": _library_folders(library),
+                    "folders": _library_folders(library, _upload_ids(hass, library)),
                     "has_items": bool(library.images),
                 }
             )
@@ -556,8 +575,9 @@ class GalleryBrowseView(HomeAssistantView):
         except ValueError:
             raise web.HTTPBadRequest(text="limit must be a number") from None
         if source == LIBRARY_SOURCE:
+            library = _library(hass)
             images = sorted(
-                _library(hass).images.values(),
+                library.images.values(),
                 key=lambda image: image.uploaded_at,
                 reverse=True,
             )
@@ -569,6 +589,10 @@ class GalleryBrowseView(HomeAssistantView):
                     if FAVORITES_ALBUM in image.normalized_albums()
                 ]
                 title = "Favorites"
+            elif browse_id == "uploads":
+                upload_ids = _upload_ids(hass, library)
+                images = [image for image in images if image.image_id in upload_ids]
+                title = "Uploads"
             elif browse_id.startswith("album:"):
                 album = browse_id.removeprefix("album:").strip()
                 images = [
