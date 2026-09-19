@@ -6,6 +6,7 @@ import base64
 import json
 import logging
 import time
+from contextlib import nullcontext
 from datetime import timedelta
 
 from homeassistant.exceptions import HomeAssistantError
@@ -436,16 +437,13 @@ class TemporaryOverlays:
         )
         return rendered, signature, count
 
-    async def async_invalidate(self):
+    async def async_invalidate(self, *, upload_lock_held=False):
         """An untracked device refresh replaced the retained artwork."""
-        async with self.entry.runtime_data.upload_lock:
-            queue = getattr(self.entry.runtime_data, "send_queue", None)
-            if (
-                queue is not None
-                and queue.pending
-                and queue.pending.get("content_hash") == self.submitted_hash
-            ):
-                await queue.async_discard()
+        async with (
+            nullcontext()
+            if upload_lock_held
+            else self.entry.runtime_data.upload_lock
+        ):
             self.base = None
             self.submitted_hash = None
             self.submitted_via_cloud = False

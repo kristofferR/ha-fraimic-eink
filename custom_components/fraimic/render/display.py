@@ -557,10 +557,16 @@ async def async_show_screen(
                 )
             bin_data, preview_png, used_mode = rendered
             if overlay_controller is not None:
-                rendered, _, _ = await overlay_controller.async_compose(
-                    rendered, art_info,
-                    screen.kind == KIND_PICTURE and getattr(screen, "overlay_mode", "inherit") == "inherit",
+                composed_valid_until = getattr(
+                    overlay_controller, "composed_valid_until", None
                 )
+                try:
+                    rendered, _, _ = await overlay_controller.async_compose(
+                        rendered, art_info,
+                        screen.kind == KIND_PICTURE and getattr(screen, "overlay_mode", "inherit") == "inherit",
+                    )
+                finally:
+                    overlay_controller.composed_valid_until = composed_valid_until
                 bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
             return {

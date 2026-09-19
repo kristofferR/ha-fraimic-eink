@@ -543,7 +543,7 @@ def test_empty_or_failed_content_can_disappear_without_hiding_zero(
     assert load("overlays")._empty_payload(payload) is empty
 
 
-def test_invalidation_discards_only_the_pending_composite_for_that_artwork(controller):
+def test_invalidation_preserves_pending_send_for_the_wake_flush(controller):
     _, obj, _, _ = controller
     obj.submitted_hash = "old composite"
     queue = SimpleNamespace(
@@ -551,5 +551,5 @@ def test_invalidation_discards_only_the_pending_composite_for_that_artwork(contr
     )
     obj.entry.runtime_data.send_queue = queue
     asyncio.run(obj.async_invalidate())
-    queue.async_discard.assert_awaited_once()
+    queue.async_discard.assert_not_awaited()
     assert obj.base is None
