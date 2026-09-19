@@ -153,12 +153,36 @@ be valid for at most five minutes. Malformed, expired, unavailable, and entirely
 empty snapshots produce clean artwork rather than an error panel.
 
 The [KrisHQ package](https://github.com/kristofferR/krisHQ/blob/main/homeassistant/packages/fraimic_morning.yaml)
-assembles existing HA entities into two-minute snapshots, refreshes them during
-a 90-minute timer, and provides preview/start/clear scripts. It performs source
-availability, age and effective-date checks before including KrisHQ content.
+uses the shared morning-brief sensor, adds optional HA weather, refreshes during
+a 90-minute timer, and provides preview/start/clear scripts. The sensor checks source
+availability, age and effective date before including KrisHQ content.
 Fraimic does not fetch KrisHQ APIs or rank personal content.
 
 **Delivery:** a brief whose validity would end before the predicted cloud wake
 is deferred. Use reachable LAN delivery for minute-scale changes; neither this
 overlay nor the package silently enables keep-awake. Clearing stale pixels on
 a sleeping/offline frame still requires a later successful delivery.
+
+### Ordered shared briefs
+
+A briefing entity may supply `blocks` instead of the older fixed `agenda`, `routine`,
+`tasks` and `focus` fields. Blocks remain in provider order. The first four occupy
+main columns; up to two more occupy the compact footer. Optional `progress` bars
+occupy a separate footer row if both are supplied. No content is re-ranked.
+
+Each block has `type: agenda | tasks | routine | focus`. Agenda/tasks blocks have
+`label`, optional `color` and one to three `items`, using the existing agenda/task
+row schema. Routine/focus blocks use the corresponding existing fields plus `type`.
+The shared snapshot still requires `generated_at`, `valid_until`, `greeting`,
+and `date_label`; `locale` defaults to `en`. Weather can be added by HA without changing those times.
+Use one format per snapshot; when `blocks` is present it owns the main content.
+
+KrisHQ's morning-brief sensor exposes this payload in its `brief` attribute and the
+source contract in `snapshot`. Enable the shared brief in KrisHQ's HA content options,
+then use the updated `homeassistant/packages/fraimic_morning.yaml` from KrisHQ. The
+backend endpoint, HA adapter and this renderer must all be available. Fraimic holds
+no KrisHQ credentials and does not select tasks or infer user priorities.
+
+The existing temporary-window controller re-reads this entity, skips identical
+pixels, refuses expired data, and restores the retained artwork at the original
+end time. No timer, queue, transport or artwork ownership rules change.

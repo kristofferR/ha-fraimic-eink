@@ -39,11 +39,19 @@ def render_briefing(doc, rect, options, data, ctx, theme):
     ink, white = PALETTE_HEX["black"], PALETTE_HEX["white"]
     scale = rect.w / 100
     px = lambda n: round(n * scale)
-    blocks = [
-        (k, data[k]) for k in ("agenda", "routine", "tasks", "focus") if data.get(k)
-    ]
+    blocks = (
+        [(block["type"], block) for block in data["blocks"]]
+        if "blocks" in data
+        else [
+            (k, data[k]) for k in ("agenda", "routine", "tasks", "focus") if data.get(k)
+        ]
+    )
+    overflow = blocks[4:]
+    blocks = blocks[:4]
     progress = data.get("progress", [])
-    height = px(24.2 if progress else 20.3 if len(blocks) >= 3 else 18)
+    height = px(24.2 if progress or overflow else 20.3 if len(blocks) >= 3 else 18)
+    if progress and overflow:
+        height += px(5.25)
     top = rect.y + rect.h - height
     left, right = rect.x + px(2.4), rect.x + rect.w - px(2.4)
     doc.rect(rect.x, top, rect.w, height, white)
@@ -93,18 +101,22 @@ def render_briefing(doc, rect, options, data, ctx, theme):
         x = round(left + index * (width + gap))
         w = round(width)
         if kind == "agenda":
-            tag(x, y, labels["agenda"], "blue", w)
-            for n, item in enumerate(value):
+            ordered = isinstance(value, dict)
+            color = value["color"] if ordered else "blue"
+            tag(x, y, value["label"] if ordered else labels["agenda"], color, w)
+            for n, item in enumerate(value["items"] if ordered else value):
                 row = y + px(1.2 + n * 3.35)
-                icon(item["icon"], x, row, 2.85, tile=True)
+                icon(item["icon"], x, row, 2.85, color, tile=True)
                 time = labels["today"] if item["all_day"] else item["time"]
                 text(x + px(3.6), row + px(1.65), time, 1.05, 600, px(4))
                 text(x + px(7.9), row + px(1.65), item["title"], 1.3, width=w - px(7.9))
         elif kind == "tasks":
-            tag(x, y, labels["tasks"], "yellow", w)
-            for n, item in enumerate(value):
+            ordered = isinstance(value, dict)
+            color = value["color"] if ordered else "yellow"
+            tag(x, y, value["label"] if ordered else labels["tasks"], color, w)
+            for n, item in enumerate(value["items"] if ordered else value):
                 row = y + px(1.2 + n * 3.05)
-                icon(item["icon"], x, row, 2.35, "yellow", tile=True)
+                icon(item["icon"], x, row, 2.35, color, tile=True)
                 text(x + px(3), row + px(1.65), item["title"], 1.35, width=w - px(3))
         elif kind == "routine":
             tag(x, y, value["label"], "green", w)
@@ -158,6 +170,55 @@ def render_briefing(doc, rect, options, data, ctx, theme):
             for n, line in enumerate(wrap(value["title"], w, px(1.65), 700)[:2]):
                 text(x, y + px(6.5 + n * 1.8), line, 1.65, 700)
             text(x, y + px(10.25), value["detail"], 1.05, width=w)
+    if overflow:
+        # Lower-ranked content uses the mockup's compact footer, preserving the
+        # complete ordered prefix without squeezing the four main columns.
+        footer = rect.y + rect.h - px(10.5 if progress else 5.25)
+        doc.line(left, footer, right, footer, ink, max(1, px(0.08)))
+        width = (right - left - px(3) * (len(overflow) - 1)) / len(overflow)
+        for i, (kind, value) in enumerate(overflow):
+            x = round(left + i * (width + px(3)))
+            color = value.get("color", "green")
+            name = value.get("icon", "mdi:check")
+            title = value.get("title", value.get("next_step", ""))
+            if kind == "routine" and not title:
+                title = labels["finished"]
+            if kind in ("agenda", "tasks"):
+                title = " · ".join(
+                    (
+                        (labels["today"] if row.get("all_day") else row.get("time", ""))
+                        + " "
+                        + row["title"]
+                    ).strip()
+                    for row in value["items"]
+                )
+                name = value["items"][0]["icon"]
+            icon(name, x, footer + px(1), 2, color)
+            text(
+                x + px(2.7),
+                footer + px(1.65),
+                value["label"] or labels["focus"],
+                1.0,
+                600,
+                round(width) - px(10 if kind == "routine" else 2.7),
+            )
+            text(
+                x + px(2.7), footer + px(3.4), title, 1.35, 600, round(width) - px(2.7)
+            )
+            if kind == "routine":
+                text(
+                    round(x + width),
+                    footer + px(1.65),
+                    f"{value['completed']}/{value['total']}",
+                    1.05,
+                    anchor="end",
+                )
+                doc.rect(x, footer + px(4.15), round(width), px(0.45), ink)
+                filled = round(width * value["completed"] / value["total"])
+                if filled:
+                    doc.rect(
+                        x, footer + px(4.15), filled, px(0.45), PALETTE_HEX["green"]
+                    )
     if progress:
         footer = rect.y + rect.h - px(5.25)
         doc.line(left, footer, right, footer, ink, max(1, px(0.08)))

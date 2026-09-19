@@ -38,6 +38,25 @@ _AGENDA = vol.Schema(
     }
 )
 _COUNT = vol.All(int, vol.Range(min=0, max=10000))
+_ROUTINE = vol.Schema(
+    {
+        vol.Required("label"): _text,
+        vol.Required("completed"): _COUNT,
+        vol.Required("total"): vol.All(int, vol.Range(min=1, max=10000)),
+        vol.Optional("skipped", default=0): _COUNT,
+        vol.Optional("next_step", default=""): _text,
+        vol.Optional("icon", default="mdi:format-list-checks"): _ICON,
+    }
+)
+_FOCUS = vol.Schema(
+    {
+        vol.Required("title"): _text,
+        vol.Optional("label", default=""): _text,
+        vol.Optional("detail", default=""): _text,
+        vol.Optional("icon", default="mdi:bullseye-arrow"): _ICON,
+        vol.Optional("color", default="blue"): _COLOR,
+    }
+)
 _SCHEMA = vol.Schema(
     {
         vol.Required("generated_at"): str,
@@ -47,25 +66,8 @@ _SCHEMA = vol.Schema(
         vol.Optional("locale", default="en"): vol.In(("en", "nb")),
         vol.Optional("agenda", default=list): vol.All([_AGENDA], vol.Length(max=3)),
         vol.Optional("tasks", default=list): vol.All([_ITEM], vol.Length(max=3)),
-        vol.Optional("routine"): vol.Schema(
-            {
-                vol.Required("label"): _text,
-                vol.Required("completed"): _COUNT,
-                vol.Required("total"): vol.All(int, vol.Range(min=1, max=10000)),
-                vol.Optional("skipped", default=0): _COUNT,
-                vol.Optional("next_step", default=""): _text,
-                vol.Optional("icon", default="mdi:format-list-checks"): _ICON,
-            }
-        ),
-        vol.Optional("focus"): vol.Schema(
-            {
-                vol.Required("title"): _text,
-                vol.Optional("label", default=""): _text,
-                vol.Optional("detail", default=""): _text,
-                vol.Optional("icon", default="mdi:bullseye-arrow"): _ICON,
-                vol.Optional("color", default="blue"): _COLOR,
-            }
-        ),
+        vol.Optional("routine"): _ROUTINE,
+        vol.Optional("focus"): _FOCUS,
         vol.Optional("progress", default=list): vol.All(
             [
                 vol.Schema(
@@ -98,6 +100,29 @@ _SCHEMA = vol.Schema(
 )
 
 
+# Ordered blocks let content providers retain their own ranking. Older fixed-field
+# snapshots remain supported; Fraimic does not know any provider's business rules.
+_BLOCK = vol.Any(
+    vol.Schema({vol.Required("type"): "routine", **_ROUTINE.schema}),
+    vol.Schema({vol.Required("type"): "focus", **_FOCUS.schema}),
+    *[
+        vol.Schema(
+            {
+                vol.Required("type"): kind,
+                vol.Required("label"): _text,
+                vol.Optional("color", default=color): _COLOR,
+                vol.Required("items"): vol.All([item], vol.Length(min=1, max=3)),
+            }
+        )
+        for kind, item, color in (
+            ("tasks", _ITEM, "yellow"),
+            ("agenda", _AGENDA, "blue"),
+        )
+    ],
+)
+_SCHEMA = _SCHEMA.extend({vol.Optional("blocks"): vol.All([_BLOCK], vol.Length(max=6))})
+
+
 def validate_briefing(raw, now: datetime):
     """Omit expired/malformed snapshots, never render their content as current."""
     try:
@@ -110,13 +135,20 @@ def validate_briefing(raw, now: datetime):
             return None
         if not 0 < (expires - generated).total_seconds() <= 300:
             return None
-        routine = data.get("routine")
-        if routine and routine["completed"] + routine["skipped"] > routine["total"]:
-            return None
-        if not any(
-            data.get(k)
-            for k in ("agenda", "tasks", "routine", "focus", "progress", "weather")
+        routines = [data["routine"]] if data.get("routine") else []
+        routines.extend(
+            block for block in data.get("blocks", []) if block["type"] == "routine"
+        )
+        if any(
+            routine["completed"] + routine["skipped"] > routine["total"]
+            for routine in routines
         ):
+            return None
+        # Count only the content format the renderer will actually display.
+        content_keys = (
+            ("blocks",) if "blocks" in data else ("agenda", "tasks", "routine", "focus")
+        )
+        if not any(data.get(k) for k in (*content_keys, "progress", "weather")):
             return None
         return data
     except (vol.Invalid, TypeError, ValueError, OverflowError):
