@@ -520,6 +520,8 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
         choose_transport.assert_not_awaited()
     else:
         assert result["deferred"]
+        assert result["mode"] == "none"
+        assert result["content_hash"] == hashlib.sha256(packed).hexdigest()
         controller.async_accept.assert_not_awaited()
 
 

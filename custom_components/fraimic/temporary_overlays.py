@@ -179,19 +179,42 @@ class TemporaryOverlays:
     async def async_accept(
         self, base, art, title, inherit, signature, content_hash, *, via_cloud=False
     ):
+        title = title or "Artwork"
+        active = self.active
+        dirty = self.signature(inherit) != signature
+        temporary = self.temporary if active else []
+        expires_at = self.expires_at if active else 0
+        unchanged = (
+            self.base == base
+            and self.art == art
+            and self.title == title
+            and self.inherit == inherit
+            and self.last_signature == signature
+            and self.submitted_hash == content_hash
+            and self.submitted_via_cloud == via_cloud
+            and self.dirty == dirty
+            and self.temporary == temporary
+            and self.expires_at == expires_at
+        )
         self.base, self.art, self.title, self.inherit = (
             base,
             art,
-            title or "Artwork",
+            title,
             inherit,
         )
         self.last_signature = signature
         self.submitted_hash = content_hash
         self.submitted_via_cloud = via_cloud
-        self.dirty = self.signature() != signature
-        if not self.active:
-            self.temporary = []
-            self.expires_at = 0
+        self.dirty = dirty
+        self.temporary = temporary
+        self.expires_at = expires_at
+        if not unchanged:
+            await self._async_save()
+
+    async def async_mark_dirty(self):
+        """Persist that the retained artwork needs fresh composition."""
+        self.dirty = True
+        self._next_refresh_at = 0
         await self._async_save()
 
     async def _async_save(self):
@@ -345,17 +368,23 @@ class TemporaryOverlays:
                 scheduler.finish_external_upload(uploaded=False, hold=False)
 
     async def _async_tick(self, _now=None):
-        if self.base is None or self._refreshing or time.time() < self._retry_at:
+        now = time.time()
+        expired = bool(self.temporary) and now >= self.expires_at
+        if (
+            self.base is None
+            or self._refreshing
+            or (now < self._retry_at and not expired)
+        ):
             return
         changed = self.signature() != self.last_signature
         refresh_due = (
             self.active
             and self.refresh_interval
-            and time.time() >= self._next_refresh_at
+            and now >= self._next_refresh_at
         )
         # Content updates coalesce until the next refresh. Expiry/visibility
         # changes still remove the overlay even with periodic refresh disabled.
-        if self.active and time.time() < self._next_refresh_at:
+        if self.active and now < self._next_refresh_at:
             return
         if not self.dirty and not changed and not refresh_due:
             return

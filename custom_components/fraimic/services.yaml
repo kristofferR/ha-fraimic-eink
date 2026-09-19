@@ -601,6 +601,7 @@ show_temporary_overlay:
         number:
           min: 0
           max: 3600
+          step: 60
           unit_of_measurement: s
           mode: box
     preview_only:

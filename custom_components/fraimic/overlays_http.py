@@ -14,7 +14,7 @@ from .helpers import loaded_fraimic_entries
 from .http_helpers import require_loaded_entry
 from .overlays import (
     ANCHORS,
-    OVERLAY_TYPES,
+    PERMANENT_OVERLAY_TYPES,
     PLATES,
     SIZES,
     OverlayManager,
@@ -93,7 +93,7 @@ def _payload(hass, entry) -> dict[str, Any]:
         "overlays": manager.for_frame(entry.entry_id),
         "preview_thumbnails": _preview_items(entry),
         "entities": overlay_entities(hass),
-        "types": list(OVERLAY_TYPES),
+        "types": list(PERMANENT_OVERLAY_TYPES),
         "anchors": list(ANCHORS),
         "sizes": list(SIZES),
         "plates": list(PLATES),
@@ -134,7 +134,19 @@ class FrameOverlaysView(HomeAssistantView):
             else:
                 raise ValueError("Unknown overlay action")
             if body.get("apply_now"):
-                await entry.runtime_data.temporary_overlays.async_refresh()
+                controller = entry.runtime_data.temporary_overlays
+                if controller.base is not None:
+                    await controller.async_refresh()
+                else:
+                    scheduler = entry.runtime_data.scheduler
+                    if (
+                        scheduler.current_screen is None
+                        or scheduler.displayed_hash is None
+                    ):
+                        raise HomeAssistantError(
+                            "Apply now is unavailable for the picture currently on the frame"
+                        )
+                    await scheduler.async_select(scheduler.current_screen, hold=True)
         except (TypeError, ValueError, HomeAssistantError) as err:
             return self.json_message(str(err), HTTPStatus.CONFLICT)
         return self.json(_payload(hass, entry))

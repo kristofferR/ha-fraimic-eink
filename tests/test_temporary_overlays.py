@@ -266,6 +266,67 @@ def test_active_overlay_rereads_data_on_interval_without_extending_expiry(
     asyncio.run(run())
 
 
+def test_duplicate_refresh_does_not_rewrite_retained_framebuffer(controller):
+    module, obj, _, _ = controller
+
+    async def run():
+        obj.temporary = [module.normalize_overlay(overlay())]
+        obj.expires_at = 2000
+        signature = obj.signature()
+        await obj.async_accept(
+            obj.base, None, obj.title, True, signature, "same-pixels"
+        )
+        obj._store.async_save = AsyncMock()
+        obj._next_refresh_at = 1120
+        await obj.async_accept(
+            obj.base, None, obj.title, True, signature, "same-pixels"
+        )
+        obj._store.async_save.assert_not_awaited()
+
+    asyncio.run(run())
+
+
+def test_accept_uses_incoming_permanent_overlay_preference(controller):
+    module, obj, _, _ = controller
+    permanent = module.normalize_overlay(overlay("Permanent"))
+    obj.hass.data["fraimic"] = {
+        "overlays": SimpleNamespace(for_frame=lambda _id: [permanent])
+    }
+
+    asyncio.run(
+        obj.async_accept(
+            obj.base, None, obj.title, False, obj.signature(False), "same-pixels"
+        )
+    )
+    assert not obj.dirty
+
+
+def test_mark_dirty_requests_immediate_persisted_refresh(controller):
+    _, obj, _, _ = controller
+    obj._next_refresh_at = 2000
+    obj._store.async_save = AsyncMock()
+
+    asyncio.run(obj.async_mark_dirty())
+
+    assert obj.dirty
+    assert obj._next_refresh_at == 0
+    obj._store.async_save.assert_awaited_once()
+
+
+def test_expiry_bypasses_refresh_retry_guard(controller, monkeypatch):
+    _, obj, clock, _ = controller
+    calls = install_delivery(monkeypatch, obj)
+
+    async def run():
+        await obj.async_show([overlay()], 30)
+        assert obj._retry_at == 1060
+        clock.now = 1030
+        await obj._async_tick()
+        assert calls[-1] == []
+
+    asyncio.run(run())
+
+
 def test_update_coalesces_latest_content_and_cannot_revive_expired_overlay(
     controller, monkeypatch
 ):
@@ -320,6 +381,20 @@ def test_invalid_refresh_interval_is_rejected(controller, interval):
     _, obj, _, _ = controller
     with pytest.raises(ValueError, match="Refresh interval"):
         asyncio.run(obj.async_show([overlay()], 60, refresh_interval=interval))
+
+
+def test_briefing_cannot_be_saved_as_permanent_overlay(controller):
+    _, obj, _, _ = controller
+    overlays = load("overlays")
+    manager = overlays.OverlayManager(obj.hass)
+    briefing = {
+        "type": "briefing",
+        "options": {"entity": "sensor.morning_brief"},
+    }
+
+    with pytest.raises(ValueError, match="temporary overlay"):
+        asyncio.run(manager.async_replace(obj.entry.entry_id, [briefing]))
+    assert "briefing" not in overlays.PERMANENT_OVERLAY_TYPES
 
 
 @pytest.mark.parametrize(

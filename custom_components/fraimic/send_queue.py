@@ -131,7 +131,7 @@ class FraimicSendQueue:
                 if controller is not None and controller.base is not None and self._pending.get("content_hash") == controller.submitted_hash:
                     # Let the overlay lifecycle recompose and validate expiry
                     # after setup, rather than migrating stale rendered bytes.
-                    controller.dirty = True
+                    await controller.async_mark_dirty()
                     await self.async_discard()
                     return
                 # Preserve a Local-mode one-shot when switching to Hybrid.

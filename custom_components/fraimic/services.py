@@ -868,10 +868,25 @@ async def async_render_and_upload(
                     f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
                 )
             content_hash = hashlib.sha256(bin_data).hexdigest()
+
+            def deferred_result(skip_reason=None):
+                result = {
+                    "mode": used_mode,
+                    "content_hash": content_hash,
+                    "uploaded": False,
+                    "queued": False,
+                    "preview_png": preview_png,
+                    "displayed": False,
+                    "deferred": True,
+                }
+                if skip_reason is not None:
+                    result["skip_reason"] = skip_reason
+                return result
+
             if overlay_refresh and overlay_controller.signature(overlay_inherit) != overlay_signature:
                 # Expiry can occur during the CPU-bound render. Never send that
                 # stale composite; the next attempt will remove it instead.
-                return {"uploaded": False, "deferred": True}
+                return deferred_result()
             cloud = getattr(runtime, "cloud", None)
             if (
                 overlay_refresh and cloud is not None
@@ -887,23 +902,22 @@ async def async_render_and_upload(
             use_cloud = await async_use_cloud(entry)
             if overlay_refresh:
                 if overlay_controller.signature(overlay_inherit) != overlay_signature:
-                    return {"uploaded": False, "deferred": True}
+                    return deferred_result()
                 if use_cloud and overlay_controller.active:
                     deadline = cloud.delivery_deadline
                     if cloud.has_image and deadline is not None and time.time() < deadline:
                         # Coalesce updates while a cloud delivery is pending.
                         # Replacing it every minute would postpone wake forever.
-                        return {"uploaded": False, "deferred": True, "skip_reason": "cloud_pending"}
+                        return deferred_result("cloud_pending")
                     if time.time() + cloud.wake_interval >= overlay_controller.expires_at:
-                        return {"uploaded": False, "deferred": True, "skip_reason": "overlay_expires_before_wake"}
+                        return deferred_result("overlay_expires_before_wake")
             # A transport probe or rasterisation can outlive the data snapshot.
             # Never queue a brief that will already be stale at the next wake.
             snapshot_deadline = getattr(overlay_controller, "composed_valid_until", None)
             if snapshot_deadline is not None:
                 arrival = time.time() + (cloud.wake_interval if use_cloud else 0)
                 if arrival >= snapshot_deadline:
-                    return {"uploaded": False, "deferred": True,
-                            "skip_reason": "briefing_expires_before_delivery"}
+                    return deferred_result("briefing_expires_before_delivery")
             hybrid = (
                 entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
                 and getattr(runtime, "cloud", None) is not None
@@ -932,8 +946,7 @@ async def async_render_and_upload(
                 use_cloud = True
                 reason = None
                 if snapshot_deadline is not None and time.time() + cloud.wake_interval >= snapshot_deadline:
-                    return {"uploaded": False, "deferred": True,
-                            "skip_reason": "briefing_expires_before_delivery"}
+                    return deferred_result("briefing_expires_before_delivery")
             if reason is not None:
                 if preview_png:
                     if reason == SKIP_DUPLICATE:
@@ -1002,8 +1015,7 @@ async def async_render_and_upload(
             else:
                 await async_prepare_local_delivery(entry)
                 if snapshot_deadline is not None and time.time() >= snapshot_deadline:
-                    return {"uploaded": False, "deferred": True,
-                            "skip_reason": "briefing_expired"}
+                    return deferred_result("briefing_expired")
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:

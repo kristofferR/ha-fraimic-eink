@@ -309,7 +309,16 @@ def test_hybrid_migration_defers_retained_overlay_to_fresh_composition(send_queu
         async def async_add_executor_job(self, target, *args):
             return target(*args)
 
-    controller = types.SimpleNamespace(base=(b"art!", b"preview", "none"), submitted_hash="overlay", dirty=False)
+    events = []
+    controller = types.SimpleNamespace(
+        base=(b"art!", b"preview", "none"), submitted_hash="overlay", dirty=False
+    )
+
+    async def mark_dirty():
+        controller.dirty = True
+        events.append("dirty persisted")
+
+    controller.async_mark_dirty = AsyncMock(side_effect=mark_dirty)
     cloud = types.SimpleNamespace(async_deliver=AsyncMock())
     entry = types.SimpleNamespace(
         entry_id="frame", data={"width": 2, "height": 4}, options={"delivery_mode": "hybrid"},
@@ -318,9 +327,11 @@ def test_hybrid_migration_defers_retained_overlay_to_fresh_composition(send_queu
     queue = send_queue_module.FraimicSendQueue(Hass(), entry)
     queue._store = types.SimpleNamespace(
         async_load=AsyncMock(return_value={"pending": {"queued_at": send_queue_module.time.time(), "content_hash": "overlay"}}),
-        async_save=AsyncMock(),
+        async_save=AsyncMock(side_effect=lambda _data: events.append("queue discarded")),
     )
     asyncio.run(queue.async_setup())
     assert controller.dirty
+    controller.async_mark_dirty.assert_awaited_once()
+    assert events == ["dirty persisted", "queue discarded"]
     assert queue.pending is None
     cloud.async_deliver.assert_not_awaited()

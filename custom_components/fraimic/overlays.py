@@ -46,6 +46,9 @@ OVERLAY_TYPES = (
     "text",
     "caption",
 )
+PERMANENT_OVERLAY_TYPES = tuple(
+    overlay_type for overlay_type in OVERLAY_TYPES if overlay_type != "briefing"
+)
 ANCHORS = (
     "top_left",
     "top",
@@ -311,6 +314,11 @@ class OverlayManager:
                 continue
             parsed = []
             for raw in raw_overlays:
+                if isinstance(raw, dict) and raw.get("type") == "briefing":
+                    _LOGGER.warning(
+                        "Ignoring temporary-only briefing overlay on %s", frame_id
+                    )
+                    continue
                 try:
                     parsed.append(normalize_overlay(raw))
                 except (TypeError, ValueError) as err:
@@ -324,6 +332,8 @@ class OverlayManager:
         self, frame_id: str, raw_overlays: list[Any]
     ) -> list[dict[str, Any]]:
         overlays = [normalize_overlay(raw) for raw in raw_overlays]
+        if any(overlay["type"] not in PERMANENT_OVERLAY_TYPES for overlay in overlays):
+            raise ValueError("Briefing overlays must use the temporary overlay service")
         ids = [overlay["id"] for overlay in overlays]
         if len(ids) != len(set(ids)):
             raise ValueError("Overlay ids must be unique")
