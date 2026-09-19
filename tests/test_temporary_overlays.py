@@ -313,6 +313,60 @@ def test_mark_dirty_requests_immediate_persisted_refresh(controller):
     obj._store.async_save.assert_awaited_once()
 
 
+def test_busy_scheduler_deferral_requests_immediate_persisted_retry(
+    controller, monkeypatch
+):
+    _, obj, _, _ = controller
+    calls = install_delivery(monkeypatch, obj)
+    scheduler = SimpleNamespace(
+        busy=True,
+        external_upload_active=False,
+        begin_external_upload=lambda: None,
+        finish_external_upload=lambda **_kwargs: None,
+    )
+    obj.entry.runtime_data.scheduler = scheduler
+    obj._next_refresh_at = 2000
+    obj._store.async_save = AsyncMock()
+
+    async def run():
+        assert (await obj.async_refresh())["deferred"]
+        assert obj.dirty
+        assert obj._next_refresh_at == 0
+        obj._store.async_save.assert_awaited_once()
+        scheduler.busy = False
+        await obj._async_tick()
+        assert len(calls) == 1
+
+    asyncio.run(run())
+
+
+def test_briefing_deadline_triggers_refresh_and_survives_restart(
+    controller, monkeypatch
+):
+    module, obj, clock, _ = controller
+    calls = install_delivery(monkeypatch, obj)
+    obj.temporary = [module.normalize_overlay(overlay())]
+    obj.expires_at = 2000
+    obj.refresh_interval = 0
+    obj._next_refresh_at = 2000
+    obj.composed_valid_until = 1030
+    obj.last_signature = obj.signature()
+
+    async def run():
+        await obj._async_save()
+        restored = module.TemporaryOverlays(obj.hass, obj.entry)
+        await restored.async_setup()
+        assert restored.composed_valid_until == 1030
+        clock.now = 1029
+        await obj._async_tick()
+        assert not calls
+        clock.now = 1030
+        await obj._async_tick()
+        assert len(calls) == 1
+
+    asyncio.run(run())
+
+
 def test_expiry_bypasses_refresh_retry_guard(controller, monkeypatch):
     _, obj, clock, _ = controller
     calls = install_delivery(monkeypatch, obj)

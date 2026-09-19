@@ -56,6 +56,7 @@ class TemporaryOverlays:
         self.expires_at = 0.0
         self.refresh_interval = DEFAULT_REFRESH_INTERVAL
         self.composed_valid_until = None
+        self._saved_composed_valid_until = None
         self._next_refresh_at = 0.0
         self.last_signature = ""
         self.submitted_hash = None
@@ -94,6 +95,11 @@ class TemporaryOverlays:
             self.refresh_interval = validate_refresh_interval(
                 saved.get("refresh_interval", DEFAULT_REFRESH_INTERVAL)
             )
+            deadline = saved.get("composed_valid_until")
+            self.composed_valid_until = (
+                float(deadline) if deadline is not None else None
+            )
+            self._saved_composed_valid_until = self.composed_valid_until
             self._next_refresh_at = float(saved.get("next_refresh_at", 0))
         except (ValueError, TypeError, KeyError):
             _LOGGER.warning(
@@ -195,6 +201,7 @@ class TemporaryOverlays:
             and self.dirty == dirty
             and self.temporary == temporary
             and self.expires_at == expires_at
+            and self.composed_valid_until == self._saved_composed_valid_until
         )
         self.base, self.art, self.title, self.inherit = (
             base,
@@ -236,6 +243,7 @@ class TemporaryOverlays:
                 "temporary": self.temporary,
                 "expires_at": self.expires_at,
                 "refresh_interval": self.refresh_interval,
+                "composed_valid_until": self.composed_valid_until,
                 "next_refresh_at": self._next_refresh_at,
                 "signature": self.last_signature,
                 "submitted_hash": self.submitted_hash,
@@ -243,6 +251,7 @@ class TemporaryOverlays:
                 "dirty": self.dirty,
             }
         )
+        self._saved_composed_valid_until = self.composed_valid_until
 
     async def async_show(
         self,
@@ -328,7 +337,7 @@ class TemporaryOverlays:
         if self._refreshing or (
             scheduler and (scheduler.busy or scheduler.external_upload_active)
         ):
-            self.dirty = True
+            await self.async_mark_dirty()
             return {"uploaded": False, "deferred": True}
         if self.base is None:
             raise HomeAssistantError(
@@ -381,14 +390,20 @@ class TemporaryOverlays:
         ):
             return
         changed = self.signature() != self.last_signature
+        briefing_due = (
+            self.composed_valid_until is not None
+            and now >= self.composed_valid_until
+        )
         refresh_due = (
             self.active
-            and self.refresh_interval
-            and now >= self._next_refresh_at
+            and (
+                briefing_due
+                or (self.refresh_interval and now >= self._next_refresh_at)
+            )
         )
         # Content updates coalesce until the next refresh. Expiry/visibility
         # changes still remove the overlay even with periodic refresh disabled.
-        if self.active and now < self._next_refresh_at:
+        if self.active and now < self._next_refresh_at and not briefing_due:
             return
         if not self.dirty and not changed and not refresh_due:
             return
