@@ -132,16 +132,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.runtime_data.temporary_overlays = temporary_overlays
     await temporary_overlays.async_setup()
     entry.async_on_unload(temporary_overlays.shutdown)
-    # Do NOT use async_config_entry_first_refresh here: it raises
-    # ConfigEntryNotReady on a failed first poll, which would abort setup whenever
-    # the (battery-powered) frame is in deep sleep on restart — the entities would
-    # then never be created. Instead refresh non-fatally and set up regardless, so
-    # entities exist and show unavailable until the frame next wakes.
-    if power.startup_poll:
-        await coordinator.async_refresh()
-
     # Queued delivery for sends that target a sleeping frame; resumes any
-    # payload persisted before a restart.
+    # payload persisted before a restart. Load before polling so native-refresh
+    # detection can distinguish a queued composite from replaced artwork.
     send_queue = FraimicSendQueue(hass, entry)
     entry.runtime_data.send_queue = send_queue
     try:
@@ -149,6 +142,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     except FraimicCloudError as err:
         raise ConfigEntryNotReady("Could not migrate queued artwork to Hybrid delivery") from err
     entry.async_on_unload(send_queue.shutdown)
+
+    # A failed first poll must not abort setup while the frame is asleep.
+    if power.startup_poll:
+        await coordinator.async_refresh()
 
     # Playlist scheduler for stored screens; started before the platforms so
     # the switch/select/button entities can see it. Subentry changes reload
