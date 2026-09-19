@@ -261,8 +261,9 @@ def test_flush_caps_queued_payload_read(
     assert queue._store.saved == {"pending": None}
 
 
+@pytest.mark.parametrize("next_refresh", [None, 900, 4000])
 def test_flush_reserves_redraw_time_for_recomposed_briefing(
-    send_queue_module, monkeypatch: pytest.MonkeyPatch, tmp_path
+    send_queue_module, monkeypatch: pytest.MonkeyPatch, tmp_path, next_refresh
 ) -> None:
     from unittest.mock import Mock
 
@@ -288,12 +289,14 @@ def test_flush_reserves_redraw_time_for_recomposed_briefing(
     )
     client = types.SimpleNamespace(upload_image=AsyncMock())
     runtime = types.SimpleNamespace(
-        upload_lock=asyncio.Lock(), temporary_overlays=controller, client=client
+        upload_lock=asyncio.Lock(), temporary_overlays=controller, client=client,
+        coordinator=types.SimpleNamespace(data={"display": {"next_refresh": next_refresh}}),
     )
     entry = types.SimpleNamespace(
         entry_id="frame",
         title="Frame",
         data={"width": 2, "height": 4},
+        options={"power_mode": "minimum"},
         runtime_data=runtime,
     )
     queue = send_queue_module.FraimicSendQueue(Hass(), entry)
@@ -304,13 +307,17 @@ def test_flush_reserves_redraw_time_for_recomposed_briefing(
         "has_preview": False,
         "content_hash": "queued",
     }
-    queue._schedule_probe = Mock()
+    previous_probe = Mock()
+    queue._unsub_probe = previous_probe
+    schedule = Mock()
+    monkeypatch.setattr(send_queue_module, "async_call_later", schedule)
     monkeypatch.setattr(send_queue_module.time, "time", lambda: 1000)
 
     asyncio.run(queue._async_flush())
 
     client.upload_image.assert_not_awaited()
-    queue._schedule_probe.assert_called_once()
+    previous_probe.assert_called_once()
+    schedule.assert_called_once_with(queue._hass, 29, queue._async_probe)
     assert queue.pending is not None
 
 

@@ -875,10 +875,6 @@ async def async_render_and_upload(
                 content_hash = hashlib.sha256(bin_data).hexdigest()
 
                 def deferred_result(skip_reason=None):
-                    if not overlay_refresh:
-                        raise HomeAssistantError(
-                            "Overlay content expires before delivery; retry the artwork send"
-                        )
                     result = {
                         "mode": used_mode,
                         "content_hash": content_hash,
@@ -938,6 +934,21 @@ async def async_render_and_upload(
                 "candidate_valid_until",
                 getattr(overlay_controller, "composed_valid_until", None),
             )
+
+            def use_clean_artwork():
+                nonlocal bin_data, preview_png, used_mode, content_hash
+                nonlocal overlay_signature, overlay_count, snapshot_deadline, sending_preview
+                # One-shot sends must survive a brief that cannot arrive fresh.
+                # Retain this source and leave its overlays dirty for refresh.
+                bin_data, preview_png, used_mode = overlay_source
+                content_hash = hashlib.sha256(bin_data).hexdigest()
+                overlay_signature, overlay_count = "", 0
+                snapshot_deadline = None
+                overlay_controller.candidate_valid_until = None
+                if sending_preview is not None:
+                    sending_preview = (preview_png, title or "Artwork")
+                    runtime.sending_preview = sending_preview
+
             if snapshot_deadline is not None:
                 arrival = time.time() + (
                     cloud.wake_interval + CLOUD_WAKE_WINDOW
@@ -945,7 +956,9 @@ async def async_render_and_upload(
                     else LOCAL_REDRAW_SECONDS
                 )
                 if arrival >= snapshot_deadline:
-                    return deferred_result("briefing_expires_before_delivery")
+                    if overlay_refresh:
+                        return deferred_result("briefing_expires_before_delivery")
+                    use_clean_artwork()
             hybrid = (
                 entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
                 and getattr(runtime, "cloud", None) is not None
@@ -978,7 +991,9 @@ async def async_render_and_upload(
                     and time.time() + cloud.wake_interval + CLOUD_WAKE_WINDOW
                     >= snapshot_deadline
                 ):
-                    return deferred_result("briefing_expires_before_delivery")
+                    if overlay_refresh:
+                        return deferred_result("briefing_expires_before_delivery")
+                    use_clean_artwork()
             if reason is not None:
                 if preview_png:
                     if reason == SKIP_DUPLICATE:
@@ -1050,7 +1065,9 @@ async def async_render_and_upload(
                     snapshot_deadline is not None
                     and time.time() + LOCAL_REDRAW_SECONDS >= snapshot_deadline
                 ):
-                    return deferred_result("briefing_expired")
+                    if overlay_refresh:
+                        return deferred_result("briefing_expired")
+                    use_clean_artwork()
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:
