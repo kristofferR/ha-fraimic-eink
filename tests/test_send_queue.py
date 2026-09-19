@@ -282,7 +282,7 @@ def test_flush_reserves_redraw_time_for_recomposed_briefing(
         title="Art",
         inherit=True,
         candidate_valid_until=1029,
-        signature=lambda: "active",
+        signature=lambda *_args: "active",
         async_recompose_pending=AsyncMock(
             return_value=((b"new!", None, "none"), "active", 1)
         ),

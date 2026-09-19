@@ -405,12 +405,12 @@ class FraimicSendQueue:
                         "candidate_valid_until",
                         getattr(controller, "composed_valid_until", None),
                     )
-                    if controller.signature() != signature or (
+                    if controller.signature(None, True) != signature or (
                         deadline is not None
                         and time.time() + LOCAL_REDRAW_SECONDS >= deadline
                     ):
                         self._schedule_probe(retry_at=(
-                            deadline if controller.signature() == signature and deadline is not None
+                            deadline if controller.signature(None, True) == signature and deadline is not None
                             else time.time()
                         ))
                         return

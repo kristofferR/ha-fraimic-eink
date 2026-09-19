@@ -561,6 +561,7 @@ async def async_show_screen(
                     candidate_valid_until = getattr(
                         overlay_controller, "candidate_valid_until", None
                     )
+                    candidate_permanent = getattr(overlay_controller, "candidate_permanent", None)
                     try:
                         rendered, _, _ = await overlay_controller.async_compose(
                             rendered, art_info,
@@ -568,6 +569,7 @@ async def async_show_screen(
                         )
                     finally:
                         overlay_controller.candidate_valid_until = candidate_valid_until
+                        overlay_controller.candidate_permanent = candidate_permanent
                 bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
             return {
