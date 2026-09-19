@@ -302,8 +302,11 @@ class FraimicPowerManager:
         next_native_refresh = _timestamp(
             display.get("next_refresh") if isinstance(display, dict) else None
         )
+        # Firmware can retain a past deadline. A later confirmed upload is
+        # newer than the native refresh that deadline describes.
         native_refresh_may_have_run = (
-            next_native_refresh is not None and next_native_refresh <= now
+            next_native_refresh is not None
+            and self.last_upload_at < next_native_refresh <= now
         )
         if content_hash == self.last_hash and not native_refresh_may_have_run:
             return self._count_skip(SKIP_DUPLICATE)

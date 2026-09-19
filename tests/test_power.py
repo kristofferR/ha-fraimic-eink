@@ -312,3 +312,14 @@ def test_overlay_interval_keeps_low_battery_protection_without_background_cooldo
         "new", power.TRIGGER_OVERLAY, token,
         {"battery": {"percent": 20, "charging": False}}, now=10_000,
     ) == power.SKIP_LOW_BATTERY
+
+@pytest.mark.parametrize("trigger", [power.TRIGGER_MANUAL, power.TRIGGER_OVERLAY])
+def test_stale_native_schedule_does_not_repeat_an_already_confirmed_upload(trigger):
+    manager = _manager()
+    asyncio.run(manager.async_record_upload("same", trigger, now=1005))
+    token = manager.begin(trigger)
+    data = {"battery": {"percent": 80}, "display": {"next_refresh": "1970-01-01T00:16:40+00:00"}}
+    assert manager.skip_reason("same", trigger, token, data, now=1010) == power.SKIP_DUPLICATE
+    # A newer native deadline can still replace that upload.
+    data["display"]["next_refresh"] = "1970-01-01T00:16:48+00:00"
+    assert manager.skip_reason("same", trigger, token, data, now=1010) is None
