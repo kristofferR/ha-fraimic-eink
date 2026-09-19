@@ -197,7 +197,7 @@ def render_briefing(doc, rect, options, data, ctx, theme):
             text(
                 x + px(2.7),
                 footer + px(1.65),
-                value["label"],
+                value["label"] or labels["focus"],
                 1.0,
                 600,
                 round(width) - px(10 if kind == "routine" else 2.7),

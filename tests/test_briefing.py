@@ -67,6 +67,21 @@ def test_overflow_routine_without_next_step_shows_finished(locale, finished):
     assert f">{finished}</text>" in doc.to_string()
 
 
+@pytest.mark.parametrize(
+    "locale,label", [("en", "Today's focus"), ("nb", "Dagens fokus")]
+)
+def test_overflow_focus_without_label_uses_localized_default(locale, label):
+    raw = ordered_snapshot()
+    raw["blocks"][-1].pop("label")
+    raw["locale"] = locale
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc, load("render.layout").Rect(0, 0, 2560, 1440), {}, data, None, None
+    )
+    assert f">{label}</text>" in doc.to_string()
+
+
 def ordered_snapshot():
     source = snapshot()
     return {
