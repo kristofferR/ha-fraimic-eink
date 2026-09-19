@@ -2,9 +2,8 @@
 
 The editor renders its forms from this hand-authored description of the
 widget option schemas (voluptuous schemas aren't introspectable enough to
-generate forms from). A test asserts the keys stay in sync with
-``render.schema.WIDGET_OPTION_SCHEMAS`` so a new widget type can't silently
-miss the editor.
+generate forms from). A test asserts the keys stay in sync with the persistent
+screen widget types so a new widget type can't silently miss the editor.
 
 Field ``type`` vocabulary understood by the frontend form renderer:
 ``text``, ``textarea``, ``number``, ``bool``, ``select`` (with ``options``),

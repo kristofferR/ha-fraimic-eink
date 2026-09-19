@@ -81,6 +81,10 @@ def _exactly_one_image_source(data: dict) -> dict:
 
 # Per-widget-type option schemas (the widget dict minus ``type`` and ``slot``).
 WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
+    "briefing": vol.Schema({
+        vol.Required("entity"): _ENTITY_ID,
+        vol.Optional("attribute", default="brief"): str,
+    }),
     "clock": vol.Schema(
         {vol.Optional("format", default="%H:%M"): vol.All(str, _clock_format)}
     ),
@@ -219,6 +223,10 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
     ),
 }
 
+# Briefings carry short-lived snapshots and rely on the temporary-overlay
+# scheduler to remove stale content. Persistent screens must not use them.
+SCREEN_WIDGET_TYPES = frozenset(WIDGET_OPTION_SCHEMAS) - {"briefing"}
+
 WINDOW_SCHEMA = vol.Schema(
     {
         vol.Optional("after", default="00:00"): _time_str,
@@ -278,10 +286,14 @@ def _validate_screen(data: dict) -> dict:
         if not isinstance(raw, dict):
             raise vol.Invalid("each widget must be a mapping")
         wtype = raw.get("type")
-        if wtype not in WIDGET_OPTION_SCHEMAS:
+        if wtype not in SCREEN_WIDGET_TYPES:
+            if wtype in WIDGET_OPTION_SCHEMAS:
+                raise vol.Invalid(
+                    f"widget type {wtype!r} is only available as a temporary overlay"
+                )
             raise vol.Invalid(
                 f"unknown widget type {wtype!r}; expected one of "
-                f"{', '.join(sorted(WIDGET_OPTION_SCHEMAS))}"
+                f"{', '.join(sorted(SCREEN_WIDGET_TYPES))}"
             )
         slot = raw.get("slot")
         if slot not in layout_slots:

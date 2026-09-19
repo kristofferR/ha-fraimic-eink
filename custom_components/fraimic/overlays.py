@@ -33,6 +33,7 @@ GRID_COLUMNS = 12
 GRID_ROWS = 8
 
 OVERLAY_TYPES = (
+    "briefing",
     "clock",
     "date",
     "todo",
@@ -44,6 +45,9 @@ OVERLAY_TYPES = (
     "gauge",
     "text",
     "caption",
+)
+PERMANENT_OVERLAY_TYPES = tuple(
+    overlay_type for overlay_type in OVERLAY_TYPES if overlay_type != "briefing"
 )
 ANCHORS = (
     "top_left",
@@ -63,6 +67,7 @@ VISIBILITY_MODES = ("always", "times", "condition")
 _LOGGER = logging.getLogger(__name__)
 
 _TYPE_TO_WIDGET = {
+    "briefing": "briefing",
     "clock": "clock",
     "date": "date",
     "todo": "todo",
@@ -76,6 +81,7 @@ _TYPE_TO_WIDGET = {
     "caption": "template",
 }
 _DEFAULT_GEOMETRY = {
+    "briefing": ("bottom", "l"),
     "clock": ("top_left", "s"),
     "date": ("top_left", "s"),
     "todo": ("bottom_right", "l"),
@@ -137,6 +143,12 @@ def _widget_options(overlay_type: str, raw: Any) -> dict[str, Any]:
             ]
         }
     schema = WIDGET_OPTION_SCHEMAS[widget_type]
+    if overlay_type == "text" and "literal" in options:
+        schema = vol.Schema({
+            vol.Required("literal"): str,
+            vol.Optional("align", default="left"): vol.In(("left", "center")),
+            vol.Optional("size", default="m"): vol.In(("s", "m", "l")),
+        })
     try:
         validated = schema(options)
         if weather_view is not None:
@@ -156,6 +168,8 @@ def normalize_overlay(raw: Any) -> dict[str, Any]:
     anchor = raw.get("anchor") if raw.get("anchor") in ANCHORS else default_anchor
     size = raw.get("size") if raw.get("size") in SIZES else default_size
     default_w, default_h = _SIZE_CELLS[size]
+    if overlay_type == "briefing":
+        default_w, default_h = GRID_COLUMNS, GRID_ROWS
 
     def grid_value(key: str, default: int, maximum: int) -> int:
         value = raw.get(key, default)
@@ -181,7 +195,7 @@ def normalize_overlay(raw: Any) -> dict[str, Any]:
         "y": y,
         "w": max(1, w),
         "h": max(1, h),
-        "plate": raw.get("plate") if raw.get("plate") in PLATES else "panel",
+        "plate": "none" if overlay_type == "briefing" else raw.get("plate") if raw.get("plate") in PLATES else "panel",
         "plate_color": (
             raw.get("plate_color")
             if raw.get("plate_color") in PALETTE_NAMES
@@ -300,6 +314,11 @@ class OverlayManager:
                 continue
             parsed = []
             for raw in raw_overlays:
+                if isinstance(raw, dict) and raw.get("type") == "briefing":
+                    _LOGGER.warning(
+                        "Ignoring temporary-only briefing overlay on %s", frame_id
+                    )
+                    continue
                 try:
                     parsed.append(normalize_overlay(raw))
                 except (TypeError, ValueError) as err:
@@ -313,6 +332,8 @@ class OverlayManager:
         self, frame_id: str, raw_overlays: list[Any]
     ) -> list[dict[str, Any]]:
         overlays = [normalize_overlay(raw) for raw in raw_overlays]
+        if any(overlay["type"] not in PERMANENT_OVERLAY_TYPES for overlay in overlays):
+            raise ValueError("Briefing overlays must use the temporary overlay service")
         ids = [overlay["id"] for overlay in overlays]
         if len(ids) != len(set(ids)):
             raise ValueError("Overlay ids must be unique")
@@ -411,6 +432,12 @@ def _render_specs(
 def _empty_payload(data: Any) -> bool:
     if not isinstance(data, dict):
         return False
+    if data.get("empty"):
+        return True
+    if "error" in data:
+        return True
+    if "text" in data:
+        return not str(data["text"]).strip()
     for key in ("rows", "events", "items", "forecast"):
         if key in data:
             return not bool(data[key])
@@ -448,7 +475,7 @@ def _render_overlay_png(
             doc.rect(x, y + h - stroke, w, stroke, color)
             doc.rect(x, y, stroke, h, color)
             doc.rect(x + w - stroke, y, stroke, h, color)
-        pad = max(8, round(min(width, height) / 75))
+        pad = 0 if overlay["type"] == "briefing" else max(8, round(min(width, height) / 75))
         rect = Rect(x + pad, y + pad, max(1, w - pad * 2), max(1, h - pad * 2))
         theme = Theme.for_screen(
             width,
@@ -493,14 +520,17 @@ async def async_apply_frame_overlays(
     entry,
     base_png: bytes,
     art: dict[str, Any] | None,
+    *,
+    overlays: list[dict[str, Any]] | None = None,
+    snapshot_deadlines: list[float] | None = None,
 ) -> tuple[bytes, int]:
     manager = get_overlay_manager(hass)
-    if manager is None:
+    if manager is None and overlays is None:
         return base_png, 0
     now = dt_util.now()
     overlays = [
         overlay
-        for overlay in manager.for_frame(entry.entry_id)
+        for overlay in (overlays if overlays is not None else manager.for_frame(entry.entry_id))
         if _visible(hass, overlay, now)
     ]
     if not overlays:
@@ -509,6 +539,11 @@ async def async_apply_frame_overlays(
     if not specs:
         return base_png, 0
     ctx = await async_build_context(hass, screen)
+    if snapshot_deadlines is not None:
+        for index, widget in enumerate(screen.widgets):
+            data = ctx.widget_data.get(index) or {}
+            if widget.type == "briefing" and "valid_until" in data:
+                snapshot_deadlines.append(datetime.fromisoformat(data["valid_until"]).timestamp())
     from .render.display import viewed_size
 
     width, height = viewed_size(entry)

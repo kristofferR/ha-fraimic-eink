@@ -597,6 +597,52 @@
           "description": "Full schedule object; the cloud replaces the whole schedule."
         }
       }
+    },
+    "show_temporary_overlay": {
+      "name": "Show temporary overlay",
+      "description": "Overlay the current artwork for a fixed period, refreshing changed content while active.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame"
+        },
+        "overlays": {
+          "name": "Overlays",
+          "description": "One to twelve overlay definitions, using the same types and grid positions as frame overlays."
+        },
+        "duration": {
+          "name": "Duration"
+        },
+        "refresh_interval": {
+          "name": "Refresh interval",
+          "description": "Recheck live data every 60–3600 seconds; 0 disables periodic checks. Only changed pixels are sent."
+        },
+        "preview_only": {
+          "name": "Preview only",
+          "description": "Render without activating the window or sending to the frame."
+        }
+      }
+    },
+    "update_temporary_overlay": {
+      "name": "Update temporary overlay",
+      "description": "Refresh or replace active content without extending its end time. Expired windows stay closed.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame"
+        },
+        "overlays": {
+          "name": "Replacement overlays",
+          "description": "Optionally replace the entire temporary set. Omit to reread current widget data."
+        }
+      }
+    },
+    "clear_temporary_overlay": {
+      "name": "Clear temporary overlay",
+      "description": "End the temporary window and restore the current artwork with its permanent overlays.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame"
+        }
+      }
     }
   },
   "issues": {

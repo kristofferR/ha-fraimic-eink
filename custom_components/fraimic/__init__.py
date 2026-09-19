@@ -52,6 +52,7 @@ from .scenes import DATA_SCENES, SceneManager
 from .scheduled_events import DATA_SCHEDULED_EVENTS, ScheduledEventManager
 from .scheduler import FraimicScheduler
 from .send_queue import FraimicSendQueue
+from .temporary_overlays import TemporaryOverlays
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
@@ -127,16 +128,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Cloud delivery (album schedule wakes the sleeping frame) when selected;
     # must exist before the scheduler starts so it can sync the album cadence.
     entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
-    # Do NOT use async_config_entry_first_refresh here: it raises
-    # ConfigEntryNotReady on a failed first poll, which would abort setup whenever
-    # the (battery-powered) frame is in deep sleep on restart — the entities would
-    # then never be created. Instead refresh non-fatally and set up regardless, so
-    # entities exist and show unavailable until the frame next wakes.
-    if power.startup_poll:
-        await coordinator.async_refresh()
-
+    temporary_overlays = TemporaryOverlays(hass, entry)
+    entry.runtime_data.temporary_overlays = temporary_overlays
+    await temporary_overlays.async_setup()
+    entry.async_on_unload(temporary_overlays.shutdown)
     # Queued delivery for sends that target a sleeping frame; resumes any
-    # payload persisted before a restart.
+    # payload persisted before a restart. Load before polling so native-refresh
+    # detection can distinguish a queued composite from replaced artwork.
     send_queue = FraimicSendQueue(hass, entry)
     entry.runtime_data.send_queue = send_queue
     try:
@@ -145,12 +143,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
         raise ConfigEntryNotReady("Could not migrate queued artwork to Hybrid delivery") from err
     entry.async_on_unload(send_queue.shutdown)
 
+    # A failed first poll must not abort setup while the frame is asleep.
+    if power.startup_poll:
+        await coordinator.async_refresh()
+
     # Playlist scheduler for stored screens; started before the platforms so
     # the switch/select/button entities can see it. Subentry changes reload
     # the entry, rebuilding it with the fresh screen list.
     scheduler = FraimicScheduler(hass, entry, playlists)
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()
+    temporary_overlays.start()
     entry.async_on_unload(scheduler.async_stop)
     cloud = entry.runtime_data.cloud
     if (

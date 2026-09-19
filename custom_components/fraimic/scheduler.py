@@ -615,6 +615,9 @@ class FraimicScheduler:
         await self._async_rotate(force=False)
 
     async def _async_rotate(self, *, force: bool) -> None:
+        overlays = getattr(self.entry.runtime_data, "temporary_overlays", None)
+        if not force and overlays is not None and overlays.holds_playback:
+            return
         if (
             not self.enabled
             or self._busy

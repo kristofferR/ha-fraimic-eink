@@ -253,6 +253,52 @@ def test_preview_only_converts_without_upload(monkeypatch: pytest.MonkeyPatch) -
     assert entry.runtime_data.last_overlay_count == 3
 
 
+def test_preview_only_preserves_active_overlay_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    display, _ = _load_display(monkeypatch)
+
+    async def build_context(_hass: object, _screen: object) -> object:
+        return object()
+
+    async def convert_for_entry(
+        *_args: object, **_kwargs: object
+    ) -> tuple[bytes, bytes, str]:
+        return b"bin-data", b"preview-png", "none"
+
+    entry = _entry()
+    controller = types.SimpleNamespace(composed_valid_until=1030, candidate_valid_until=1040)
+    entry.runtime_data.upload_lock = asyncio.Lock()
+
+    async def compose(*_args: object) -> tuple[tuple[bytes, bytes, str], str, int]:
+        assert entry.runtime_data.upload_lock.locked()
+        controller.candidate_valid_until = 1060
+        return (b"composite", b"composite-preview", "none"), "signature", 1
+
+    controller.async_compose = compose
+    entry.runtime_data.temporary_overlays = controller
+    monkeypatch.setattr(display, "async_build_context", build_context)
+    monkeypatch.setattr(
+        display, "render_screen", lambda *_args: (b"screen-png", "none")
+    )
+    _install_services(
+        monkeypatch,
+        async_convert_for_entry=convert_for_entry,
+        async_render_and_upload=None,
+    )
+
+    result = asyncio.run(
+        display.async_show_screen(_Hass(), entry, _screen(), preview_only=True)
+    )
+
+    assert result["content_hash"]
+    assert controller.composed_valid_until == 1030
+    assert controller.candidate_valid_until == 1040
+    assert entry.runtime_data.screen_preview_image.calls == [
+        (b"composite-preview", "none")
+    ]
+
+
 def test_upload_path_uploads_and_updates_screen_preview(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

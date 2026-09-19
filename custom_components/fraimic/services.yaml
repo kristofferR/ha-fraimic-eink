@@ -568,3 +568,70 @@ update_album:
       required: false
       selector:
         object:
+
+show_temporary_overlay:
+  name: Show temporary overlay
+  description: Overlay the current artwork for a fixed period, refreshing changed content while active.
+  fields:
+    config_entry_id:
+      name: Frame
+      selector:
+        config_entry:
+          integration: fraimic
+    overlays:
+      name: Overlays
+      description: One to twelve overlay definitions, using the same types and grid positions as frame overlays.
+      required: true
+      selector:
+        object:
+    duration:
+      name: Duration
+      default: 5400
+      selector:
+        number:
+          min: 1
+          max: 86400
+          unit_of_measurement: s
+          mode: box
+    refresh_interval:
+      name: Refresh interval
+      description: Recheck live data every 60–3600 seconds; 0 disables periodic checks. Only changed pixels are sent.
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 3600
+          step: 60
+          unit_of_measurement: s
+          mode: box
+    preview_only:
+      name: Preview only
+      description: Render without activating the window or sending to the frame.
+      default: false
+      selector:
+        boolean:
+
+update_temporary_overlay:
+  name: Update temporary overlay
+  description: Refresh or replace active content without extending its end time. Expired windows stay closed.
+  fields:
+    config_entry_id:
+      name: Frame
+      selector:
+        config_entry:
+          integration: fraimic
+    overlays:
+      name: Replacement overlays
+      description: Optionally replace the entire temporary set. Omit to reread current widget data.
+      selector:
+        object:
+
+clear_temporary_overlay:
+  name: Clear temporary overlay
+  description: End the temporary window and restore the current artwork with its permanent overlays.
+  fields:
+    config_entry_id:
+      name: Frame
+      selector:
+        config_entry:
+          integration: fraimic

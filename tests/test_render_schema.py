@@ -73,6 +73,21 @@ def test_unknown_widget_type_rejected() -> None:
         schema.SCREEN_SCHEMA(_minimal(widgets=[{"type": "sparkline", "slot": "main"}]))
 
 
+def test_briefing_widget_is_temporary_overlay_only() -> None:
+    with pytest.raises(vol.Invalid, match="only available as a temporary overlay"):
+        schema.SCREEN_SCHEMA(
+            _minimal(
+                widgets=[
+                    {
+                        "type": "briefing",
+                        "slot": "main",
+                        "entity": "sensor.morning_brief",
+                    }
+                ]
+            )
+        )
+
+
 def test_seconds_in_clock_format_rejected() -> None:
     with pytest.raises(vol.Invalid, match="%S"):
         schema.SCREEN_SCHEMA(

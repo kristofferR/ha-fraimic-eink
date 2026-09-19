@@ -33,13 +33,15 @@ TRIGGER_MANUAL = "manual"
 TRIGGER_SCHEDULED = "scheduled"
 TRIGGER_PLAYLIST = "playlist"
 TRIGGER_CAMERA = "camera"
+TRIGGER_OVERLAY = "overlay"
 AUTOMATIC_TRIGGERS = frozenset(
-    {TRIGGER_SCHEDULED, TRIGGER_PLAYLIST, TRIGGER_CAMERA}
+    {TRIGGER_SCHEDULED, TRIGGER_PLAYLIST, TRIGGER_CAMERA, TRIGGER_OVERLAY}
 )
 TRIGGER_PRIORITY = {
     TRIGGER_CAMERA: 1,
     TRIGGER_PLAYLIST: 2,
     TRIGGER_SCHEDULED: 3,
+    TRIGGER_OVERLAY: 3,
     TRIGGER_MANUAL: 4,
 }
 
@@ -300,8 +302,11 @@ class FraimicPowerManager:
         next_native_refresh = _timestamp(
             display.get("next_refresh") if isinstance(display, dict) else None
         )
+        # Firmware can retain a past deadline. A later confirmed upload is
+        # newer than the native refresh that deadline describes.
         native_refresh_may_have_run = (
-            next_native_refresh is not None and next_native_refresh <= now
+            next_native_refresh is not None
+            and self.last_upload_at < next_native_refresh <= now
         )
         if content_hash == self.last_hash and not native_refresh_may_have_run:
             return self._count_skip(SKIP_DUPLICATE)
@@ -322,9 +327,9 @@ class FraimicPowerManager:
         if not charging and isinstance(percent, (int, float)) and percent < 25:
             return self._count_skip(SKIP_LOW_BATTERY)
 
-        # Playback has an explicit, per-frame interval enforced by the queue.
+        # Playback and temporary overlays enforce their own explicit intervals.
         # Generic background budgets must not silently override that schedule.
-        if trigger == TRIGGER_PLAYLIST:
+        if trigger in (TRIGGER_PLAYLIST, TRIGGER_OVERLAY):
             return None
 
         if not charging and now - self.last_upload_at < self.profile.automatic_interval:
@@ -342,7 +347,7 @@ class FraimicPowerManager:
         self.last_hash = content_hash
         self.last_upload_at = now
         self.upload_count += 1
-        if trigger in AUTOMATIC_TRIGGERS and trigger != TRIGGER_PLAYLIST:
+        if trigger in AUTOMATIC_TRIGGERS and trigger not in (TRIGGER_PLAYLIST, TRIGGER_OVERLAY):
             today = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
             if self.budget_day != today:
                 self.budget_day = today
@@ -360,8 +365,27 @@ class FraimicPowerManager:
         marker = str(marker)
         if marker == self.last_display_marker:
             return
-        if self.last_display_marker:
+        refreshed_at = _timestamp(marker)
+        if self.last_display_marker and (
+            refreshed_at is None or refreshed_at > self.last_upload_at
+        ):
             self.last_hash = None
+            runtime = getattr(self.entry, "runtime_data", None)
+            overlays = getattr(runtime, "temporary_overlays", None)
+            cloud = getattr(runtime, "cloud", None)
+            queue = getattr(runtime, "send_queue", None)
+            pending = getattr(queue, "pending", None)
+            queued_overlay = (
+                overlays is not None
+                and isinstance(pending, dict)
+                and pending.get("content_hash") == overlays.submitted_hash
+            )
+            if (
+                overlays is not None
+                and not queued_overlay
+                and not (cloud is not None and cloud.has_image)
+            ):
+                await overlays.async_invalidate()
         self.last_display_marker = marker
         await self._async_save()
 

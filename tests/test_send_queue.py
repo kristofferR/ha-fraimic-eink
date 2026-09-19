@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import types
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import load
@@ -131,16 +132,47 @@ def test_discard_clears_superseded_pending_send(send_queue_module) -> None:
         async def async_save(self, data) -> None:
             self.saved = data
 
-    entry = types.SimpleNamespace(entry_id="small-frame", data={})
+    controller = types.SimpleNamespace(
+        submitted_hash="old-hash", async_invalidate=AsyncMock()
+    )
+    entry = types.SimpleNamespace(
+        entry_id="small-frame",
+        data={},
+        runtime_data=types.SimpleNamespace(temporary_overlays=controller),
+    )
     queue = send_queue.FraimicSendQueue(Hass(), entry)
     queue._store = Store()
-    queue._pending = {"title": "Older picture"}
+    queue._pending = {"title": "Older picture", "content_hash": "old-hash"}
 
     asyncio.run(queue.async_discard())
 
     assert queue.pending is None
     assert queue._store.saved == {"pending": None}
     assert queue.status == "Idle"
+    controller.async_invalidate.assert_awaited_once_with(upload_lock_held=False)
+
+
+def test_delivered_queue_item_keeps_retained_base(send_queue_module) -> None:
+    send_queue = send_queue_module
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: "/unused/queue.bin")
+
+    controller = types.SimpleNamespace(
+        submitted_hash="delivered-hash", async_invalidate=AsyncMock()
+    )
+    entry = types.SimpleNamespace(
+        entry_id="small-frame",
+        data={},
+        runtime_data=types.SimpleNamespace(temporary_overlays=controller),
+    )
+    queue = send_queue.FraimicSendQueue(Hass(), entry)
+    queue._store = types.SimpleNamespace(async_save=AsyncMock())
+    queue._pending = {"content_hash": "delivered-hash"}
+
+    asyncio.run(queue.async_discard(delivered=True))
+
+    controller.async_invalidate.assert_not_awaited()
 
 
 def test_queueing_direct_send_discards_scheduler_retry(send_queue_module) -> None:
@@ -229,6 +261,66 @@ def test_flush_caps_queued_payload_read(
     assert queue._store.saved == {"pending": None}
 
 
+@pytest.mark.parametrize("next_refresh", [None, 900, 4000])
+def test_flush_reserves_redraw_time_for_recomposed_briefing(
+    send_queue_module, monkeypatch: pytest.MonkeyPatch, tmp_path, next_refresh
+) -> None:
+    from unittest.mock import Mock
+
+    payload = tmp_path / "queue.bin"
+    payload.write_bytes(b"old!")
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: str(payload))
+
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    controller = types.SimpleNamespace(
+        base=(b"art!", b"preview", "none"),
+        art=None,
+        title="Art",
+        inherit=True,
+        candidate_valid_until=1029,
+        signature=lambda *_args: "active",
+        async_recompose_pending=AsyncMock(
+            return_value=((b"new!", None, "none"), "active", 1)
+        ),
+    )
+    client = types.SimpleNamespace(upload_image=AsyncMock())
+    runtime = types.SimpleNamespace(
+        upload_lock=asyncio.Lock(), temporary_overlays=controller, client=client,
+        coordinator=types.SimpleNamespace(data={"display": {"next_refresh": next_refresh}}),
+    )
+    entry = types.SimpleNamespace(
+        entry_id="frame",
+        title="Frame",
+        data={"width": 2, "height": 4},
+        options={"power_mode": "minimum"},
+        runtime_data=runtime,
+    )
+    queue = send_queue_module.FraimicSendQueue(Hass(), entry)
+    queue._pending = {
+        "title": "Briefing",
+        "token": 1,
+        "queued_at": 1000,
+        "has_preview": False,
+        "content_hash": "queued",
+    }
+    previous_probe = Mock()
+    queue._unsub_probe = previous_probe
+    schedule = Mock()
+    monkeypatch.setattr(send_queue_module, "async_call_later", schedule)
+    monkeypatch.setattr(send_queue_module.time, "time", lambda: 1000)
+
+    asyncio.run(queue._async_flush())
+
+    client.upload_image.assert_not_awaited()
+    previous_probe.assert_called_once()
+    schedule.assert_called_once_with(queue._hass, 29, queue._async_probe)
+    assert queue.pending is not None
+
+
 def test_cloud_setup_discards_lan_queue_without_starting_probes(send_queue_module):
     from unittest.mock import AsyncMock, Mock
 
@@ -295,3 +387,43 @@ def test_hybrid_setup_migrates_local_queue_without_losing_failed_send(
         assert queue.status == "Queued for cloud delivery"
     cloud.async_deliver.assert_awaited_once_with(b"1234", title="Scheduled picture", preview_png=b"calibrated-preview")
     queue._start_waiting.assert_not_called()
+
+
+def test_hybrid_migration_defers_retained_overlay_to_fresh_composition(send_queue_module, tmp_path):
+    from unittest.mock import AsyncMock
+
+    payload = tmp_path / "queue.bin"
+    payload.write_bytes(b"old!")
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *parts: str(payload))
+
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    events = []
+    controller = types.SimpleNamespace(
+        base=(b"art!", b"preview", "none"), submitted_hash="overlay", dirty=False
+    )
+
+    async def mark_dirty():
+        controller.dirty = True
+        events.append("dirty persisted")
+
+    controller.async_mark_dirty = AsyncMock(side_effect=mark_dirty)
+    cloud = types.SimpleNamespace(async_deliver=AsyncMock())
+    entry = types.SimpleNamespace(
+        entry_id="frame", data={"width": 2, "height": 4}, options={"delivery_mode": "hybrid"},
+        runtime_data=types.SimpleNamespace(cloud=cloud, temporary_overlays=controller),
+    )
+    queue = send_queue_module.FraimicSendQueue(Hass(), entry)
+    queue._store = types.SimpleNamespace(
+        async_load=AsyncMock(return_value={"pending": {"queued_at": send_queue_module.time.time(), "content_hash": "overlay"}}),
+        async_save=AsyncMock(side_effect=lambda _data: events.append("queue discarded")),
+    )
+    asyncio.run(queue.async_setup())
+    assert controller.dirty
+    controller.async_mark_dirty.assert_awaited_once()
+    assert events == ["dirty persisted", "queue discarded"]
+    assert queue.pending is None
+    cloud.async_deliver.assert_not_awaited()

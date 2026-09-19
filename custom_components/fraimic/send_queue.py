@@ -22,6 +22,7 @@ Delivery semantics (hardware-informed, see #28/#33):
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import time
@@ -48,6 +49,7 @@ from .const import (
     DEFAULT_WIDTH,
     DELIVERY_HYBRID,
     DOMAIN,
+    LOCAL_REDRAW_SECONDS,
     MAX_BIN_SIZE,
     frame_bin_size,
 )
@@ -126,6 +128,13 @@ class FraimicSendQueue:
                     f"Gave up: frame never woke up for '{self._pending.get('title')}'"
                 )
             elif cloud is not None:
+                controller = getattr(self._entry.runtime_data, "temporary_overlays", None)
+                if controller is not None and controller.base is not None and self._pending.get("content_hash") == controller.submitted_hash:
+                    # Let the overlay lifecycle recompose and validate expiry
+                    # after setup, rather than migrating stale rendered bytes.
+                    await controller.async_mark_dirty()
+                    await self.async_discard(delivered=True)
+                    return
                 # Preserve a Local-mode one-shot when switching to Hybrid.
                 # Setup precedes the scheduler, so its startup sees this slot.
                 def _read() -> tuple[bytes, bytes | None]:
@@ -278,9 +287,13 @@ class FraimicSendQueue:
         self._apply_battery(battery)
         await self._async_flush()
 
-    async def async_discard(self) -> None:
+    async def async_discard(
+        self, *, delivered: bool = False, upload_lock_held: bool = False
+    ) -> None:
         """Discard a queued send that has been superseded by newer content."""
-        await self._async_clear("Idle")
+        await self._async_clear(
+            "Idle", delivered=delivered, upload_lock_held=upload_lock_held
+        )
 
     async def _async_probe(self, _now: Any = None) -> None:
         self._unsub_probe = None
@@ -383,6 +396,35 @@ class FraimicSendQueue:
                 if self._pending is None or self._pending["token"] != token:
                     return
                 content_hash = pending.get("content_hash") or ""
+                controller = getattr(runtime, "temporary_overlays", None)
+                recomposed = await controller.async_recompose_pending(pending) if controller is not None else None
+                if recomposed is not None:
+                    (bin_data, preview_png, mode), signature, overlay_count = recomposed
+                    deadline = getattr(
+                        controller,
+                        "candidate_valid_until",
+                        getattr(controller, "composed_valid_until", None),
+                    )
+                    if controller.signature(None, True) != signature or (
+                        deadline is not None
+                        and time.time() + LOCAL_REDRAW_SECONDS >= deadline
+                    ):
+                        self._schedule_probe(retry_at=(
+                            deadline if controller.signature(None, True) == signature and deadline is not None
+                            else time.time()
+                        ))
+                        return
+                    content_hash = hashlib.sha256(bin_data).hexdigest()
+                    pending = {**pending, "mode": mode}
+
+                async def accept_overlay():
+                    if recomposed is not None:
+                        await controller.async_accept(
+                            controller.base, controller.art, controller.title,
+                            controller.inherit, signature, content_hash,
+                        )
+                        runtime.last_overlay_count = overlay_count
+
                 trigger = pending.get("trigger") or TRIGGER_MANUAL
                 power_token = runtime.power.begin(trigger)
                 reason = runtime.power.skip_reason(
@@ -399,9 +441,14 @@ class FraimicSendQueue:
                         )
                     runtime.last_art = None
                     runtime.media_title = title
+                    await accept_overlay()
                     await runtime.scheduler.async_notify_external_upload()
                     runtime.coordinator.async_update_listeners()
-                    await self._async_clear(f"Already displaying {title}")
+                    await self._async_clear(
+                        f"Already displaying {title}",
+                        delivered=True,
+                        upload_lock_held=True,
+                    )
                     return
                 if reason in DEFER_REASONS:
                     self._dispatch(f"Deferred {title} to save battery ({reason})")
@@ -417,11 +464,14 @@ class FraimicSendQueue:
                         )
                     runtime.last_art = None
                     runtime.media_title = title
+                    await accept_overlay()
                     await runtime.power.async_record_upload(content_hash, trigger)
                     await runtime.scheduler.async_notify_external_upload()
                     runtime.coordinator.async_update_listeners()
                     await self._async_clear(
-                        f"Sent {title} (unconfirmed — the frame's reply timed out)"
+                        f"Sent {title} (unconfirmed — the frame's reply timed out)",
+                        delivered=True,
+                        upload_lock_held=True,
                     )
                     runtime.power.schedule_sleep()
                     return
@@ -434,7 +484,9 @@ class FraimicSendQueue:
                     self._schedule_probe()
                     return
                 except (FraimicApiError, FraimicError) as err:
-                    await self._async_clear(f"Failed to send {title}: {err}")
+                    await self._async_clear(
+                        f"Failed to send {title}: {err}", upload_lock_held=True
+                    )
                     return
 
                 runtime.coordinator.async_set_frame_online(True)
@@ -445,9 +497,14 @@ class FraimicSendQueue:
                     )
                 runtime.last_art = None
                 runtime.media_title = title
+                await accept_overlay()
                 await runtime.scheduler.async_notify_external_upload()
                 runtime.coordinator.async_update_listeners()
-                await self._async_clear(f"Sent {self._now_str()}")
+                await self._async_clear(
+                    f"Sent {self._now_str()}",
+                    delivered=True,
+                    upload_lock_held=True,
+                )
                 _LOGGER.info(
                     "Delivered queued image '%s' to %s", title, self._entry.title
                 )
@@ -468,7 +525,25 @@ class FraimicSendQueue:
         except OSError:
             return None
 
-    async def _async_clear(self, status: str) -> None:
+    async def _async_clear(
+        self,
+        status: str,
+        *,
+        delivered: bool = False,
+        upload_lock_held: bool = False,
+    ) -> None:
+        pending_hash = (
+            self._pending.get("content_hash") if self._pending is not None else None
+        )
+        runtime = getattr(self._entry, "runtime_data", None)
+        controller = getattr(runtime, "temporary_overlays", None)
+        if (
+            not delivered
+            and pending_hash
+            and controller is not None
+            and controller.submitted_hash == pending_hash
+        ):
+            await controller.async_invalidate(upload_lock_held=upload_lock_held)
         await self._async_drop_pending()
         self._dispatch(status)
 
@@ -502,12 +577,17 @@ class FraimicSendQueue:
             self._hass, max(0, remaining), self._async_expire
         )
 
-    def _schedule_probe(self) -> None:
-        if self._pending is None or self._unsub_probe is not None:
+    def _schedule_probe(self, *, retry_at: float | None = None) -> None:
+        if self._pending is None:
             return
+        if self._unsub_probe is not None:
+            if retry_at is None:
+                return
+            self._unsub_probe()
+            self._unsub_probe = None
         coordinator = self._entry.runtime_data.coordinator
         display = (coordinator.data or {}).get("display") or {}
-        delay = queue_probe_delay(
+        delay = max(1, retry_at - time.time()) if retry_at is not None else queue_probe_delay(
             power_mode(dict(self._entry.options)),
             self._probe_attempt,
             next_refresh=display.get("next_refresh"),
