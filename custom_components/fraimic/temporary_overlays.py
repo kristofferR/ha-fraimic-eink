@@ -272,7 +272,11 @@ class TemporaryOverlays:
                 raise HomeAssistantError(
                     "The clean artwork is unavailable. Show a picture through Fraimic first."
                 )
-            previous = self.temporary, self.expires_at
+            previous = (
+                self.temporary,
+                self.expires_at,
+                self.composed_valid_until,
+            )
             self.temporary, self.expires_at = normalized, time.time() + duration
             if preview_only:
                 try:
@@ -290,7 +294,11 @@ class TemporaryOverlays:
                         "overlay_count": count,
                     }
                 finally:
-                    self.temporary, self.expires_at = previous
+                    (
+                        self.temporary,
+                        self.expires_at,
+                        self.composed_valid_until,
+                    ) = previous
             self.dirty = True
             self.refresh_interval = refresh_interval
             self._next_refresh_at = 0
@@ -403,7 +411,12 @@ class TemporaryOverlays:
         )
         # Content updates coalesce until the next refresh. Expiry/visibility
         # changes still remove the overlay even with periodic refresh disabled.
-        if self.active and now < self._next_refresh_at and not briefing_due:
+        if (
+            self.active
+            and now < self._next_refresh_at
+            and not briefing_due
+            and not changed
+        ):
             return
         if not self.dirty and not changed and not refresh_due:
             return

@@ -143,6 +143,28 @@ def test_preview_does_not_activate_save_or_send(controller, monkeypatch):
     assert previews == [(b"png", "none")]
 
 
+def test_preview_restores_active_composition_deadline(controller, monkeypatch):
+    _, obj, _, _ = controller
+    obj.temporary = [overlay("Active briefing")]
+    obj.expires_at = 2000
+    obj.composed_valid_until = 1030
+
+    async def compose(*_args):
+        obj.composed_valid_until = None
+        return (b"preview buffer", b"png", "none"), "sig", 1
+
+    obj.async_compose = compose
+    display = types.ModuleType("fraimic.render.display")
+    display._set_screen_preview = lambda *_args: None
+    monkeypatch.setitem(sys.modules, "fraimic.render.display", display)
+
+    asyncio.run(obj.async_show([overlay("Preview")], 60, preview_only=True))
+
+    assert obj.temporary == [overlay("Active briefing")]
+    assert obj.expires_at == 2000
+    assert obj.composed_valid_until == 1030
+
+
 def test_pending_send_is_recomposed_after_expiry(controller):
     _, obj, clock, _ = controller
     obj.async_refresh = AsyncMock(return_value={"displayed": False})
@@ -264,6 +286,29 @@ def test_active_overlay_rereads_data_on_interval_without_extending_expiry(
         assert len(calls) == count
 
     asyncio.run(run())
+
+
+def test_visibility_change_bypasses_refresh_interval(controller, monkeypatch):
+    module, obj, clock, _ = controller
+    calls = install_delivery(monkeypatch, obj)
+    value = module.normalize_overlay(
+        {
+            **overlay(),
+            "visibility": {"mode": "times", "from": "06:00", "to": "09:00"},
+        }
+    )
+    obj.temporary = [value]
+    obj.expires_at = 5000
+    obj.refresh_interval = 3600
+    obj._next_refresh_at = 4600
+    monkeypatch.setattr(module.dt_util, "now", lambda: datetime(2026, 9, 19, 8, 50))
+    obj.last_signature = obj.signature()
+    monkeypatch.setattr(module.dt_util, "now", lambda: datetime(2026, 9, 19, 9, 1))
+    clock.now = 1090
+
+    asyncio.run(obj._async_tick())
+
+    assert calls == [[]]
 
 
 def test_duplicate_refresh_does_not_rewrite_retained_framebuffer(controller):
