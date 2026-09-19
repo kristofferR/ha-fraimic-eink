@@ -261,6 +261,59 @@ def test_flush_caps_queued_payload_read(
     assert queue._store.saved == {"pending": None}
 
 
+def test_flush_reserves_redraw_time_for_recomposed_briefing(
+    send_queue_module, monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    from unittest.mock import Mock
+
+    payload = tmp_path / "queue.bin"
+    payload.write_bytes(b"old!")
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: str(payload))
+
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    controller = types.SimpleNamespace(
+        base=(b"art!", b"preview", "none"),
+        art=None,
+        title="Art",
+        inherit=True,
+        candidate_valid_until=1029,
+        signature=lambda: "active",
+        async_recompose_pending=AsyncMock(
+            return_value=((b"new!", None, "none"), "active", 1)
+        ),
+    )
+    client = types.SimpleNamespace(upload_image=AsyncMock())
+    runtime = types.SimpleNamespace(
+        upload_lock=asyncio.Lock(), temporary_overlays=controller, client=client
+    )
+    entry = types.SimpleNamespace(
+        entry_id="frame",
+        title="Frame",
+        data={"width": 2, "height": 4},
+        runtime_data=runtime,
+    )
+    queue = send_queue_module.FraimicSendQueue(Hass(), entry)
+    queue._pending = {
+        "title": "Briefing",
+        "token": 1,
+        "queued_at": 1000,
+        "has_preview": False,
+        "content_hash": "queued",
+    }
+    queue._schedule_probe = Mock()
+    monkeypatch.setattr(send_queue_module.time, "time", lambda: 1000)
+
+    asyncio.run(queue._async_flush())
+
+    client.upload_image.assert_not_awaited()
+    queue._schedule_probe.assert_called_once()
+    assert queue.pending is not None
+
+
 def test_cloud_setup_discards_lan_queue_without_starting_probes(send_queue_module):
     from unittest.mock import AsyncMock, Mock
 

@@ -49,6 +49,7 @@ from .const import (
     DEFAULT_WIDTH,
     DELIVERY_HYBRID,
     DOMAIN,
+    LOCAL_REDRAW_SECONDS,
     MAX_BIN_SIZE,
     frame_bin_size,
 )
@@ -399,8 +400,15 @@ class FraimicSendQueue:
                 recomposed = await controller.async_recompose_pending(pending) if controller is not None else None
                 if recomposed is not None:
                     (bin_data, preview_png, mode), signature, overlay_count = recomposed
-                    deadline = getattr(controller, "composed_valid_until", None)
-                    if controller.signature() != signature or (deadline is not None and time.time() >= deadline):
+                    deadline = getattr(
+                        controller,
+                        "candidate_valid_until",
+                        getattr(controller, "composed_valid_until", None),
+                    )
+                    if controller.signature() != signature or (
+                        deadline is not None
+                        and time.time() + LOCAL_REDRAW_SECONDS >= deadline
+                    ):
                         self._schedule_probe()
                         return
                     content_hash = hashlib.sha256(bin_data).hexdigest()

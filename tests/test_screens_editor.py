@@ -15,7 +15,7 @@ FIELD_TYPES = {"text", "textarea", "number", "bool", "select", "entity", "entity
 
 
 def test_every_widget_type_has_editor_fields() -> None:
-    assert set(editor.WIDGET_FIELDS) == set(schema.WIDGET_OPTION_SCHEMAS), (
+    assert set(editor.WIDGET_FIELDS) == set(schema.SCREEN_WIDGET_TYPES), (
         "a widget type exists without editor form fields (or vice versa) — "
         "update screens_editor.WIDGET_FIELDS"
     )

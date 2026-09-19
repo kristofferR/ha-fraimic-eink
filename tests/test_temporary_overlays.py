@@ -165,6 +165,40 @@ def test_preview_restores_active_composition_deadline(controller, monkeypatch):
     assert obj.composed_valid_until == 1030
 
 
+def test_composition_deadline_is_committed_only_after_acceptance(
+    controller, monkeypatch
+):
+    module, obj, _, _ = controller
+    obj.temporary = [module.normalize_overlay(overlay())]
+    obj.expires_at = 2000
+    obj.composed_valid_until = 1030
+
+    async def compose(
+        _hass, _entry, png, _art, *, overlays, snapshot_deadlines=None
+    ):
+        snapshot_deadlines.append(1060)
+        return png, len(overlays)
+
+    monkeypatch.setattr(module, "async_apply_frame_overlays", compose)
+    display = types.ModuleType("fraimic.render.display")
+    display._NEUTRAL_OVERRIDES = {}
+    services = types.ModuleType("fraimic.services")
+    services.async_convert_for_entry = AsyncMock(return_value=obj.base)
+    monkeypatch.setitem(sys.modules, "fraimic.render.display", display)
+    monkeypatch.setitem(sys.modules, "fraimic.services", services)
+
+    async def run():
+        _, signature, _ = await obj.async_compose(obj.base)
+        assert obj.composed_valid_until == 1030
+        assert obj.candidate_valid_until == 1060
+        await obj.async_accept(
+            obj.base, obj.art, obj.title, obj.inherit, signature, "new-pixels"
+        )
+
+    asyncio.run(run())
+    assert obj.composed_valid_until == 1060
+
+
 def test_pending_send_is_recomposed_after_expiry(controller):
     _, obj, clock, _ = controller
     obj.async_refresh = AsyncMock(return_value={"displayed": False})
@@ -405,6 +439,25 @@ def test_briefing_deadline_triggers_refresh_and_survives_restart(
         clock.now = 1029
         await obj._async_tick()
         assert not calls
+        clock.now = 1030
+        await obj._async_tick()
+        assert len(calls) == 1
+
+    asyncio.run(run())
+
+
+def test_briefing_deadline_bypasses_refresh_retry_guard(controller, monkeypatch):
+    module, obj, clock, _ = controller
+    calls = install_delivery(monkeypatch, obj)
+    obj.temporary = [module.normalize_overlay(overlay())]
+    obj.expires_at = 2000
+    obj.refresh_interval = 0
+    obj._next_refresh_at = 2000
+    obj.composed_valid_until = 1030
+    obj.last_signature = obj.signature()
+    obj._retry_at = 1060
+
+    async def run():
         clock.now = 1030
         await obj._async_tick()
         assert len(calls) == 1

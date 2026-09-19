@@ -57,6 +57,7 @@ class TemporaryOverlays:
         self.expires_at = 0.0
         self.refresh_interval = DEFAULT_REFRESH_INTERVAL
         self.composed_valid_until = None
+        self.candidate_valid_until = None
         self._saved_composed_valid_until = None
         self._next_refresh_at = 0.0
         self.last_signature = ""
@@ -156,7 +157,7 @@ class TemporaryOverlays:
         return json.dumps(self.visible(inherit), sort_keys=True)
 
     async def async_compose(self, base, art=None, inherit=True):
-        self.composed_valid_until = None
+        self.candidate_valid_until = None
         overlays = self.visible(inherit)
         signature = json.dumps(overlays, sort_keys=True)
         if not overlays:
@@ -177,7 +178,7 @@ class TemporaryOverlays:
             self.hass, self.entry, png, art, overlays=overlays,
             snapshot_deadlines=deadlines,
         )
-        self.composed_valid_until = min(deadlines) if deadlines else None
+        self.candidate_valid_until = min(deadlines) if deadlines else None
         rendered = await async_convert_for_entry(
             self.hass, self.entry, composed, _NEUTRAL_OVERRIDES, preprocess=False
         )
@@ -202,7 +203,7 @@ class TemporaryOverlays:
             and self.dirty == dirty
             and self.temporary == temporary
             and self.expires_at == expires_at
-            and self.composed_valid_until == self._saved_composed_valid_until
+            and self.candidate_valid_until == self._saved_composed_valid_until
         )
         self.base, self.art, self.title, self.inherit = (
             base,
@@ -216,6 +217,7 @@ class TemporaryOverlays:
         self.dirty = dirty
         self.temporary = temporary
         self.expires_at = expires_at
+        self.composed_valid_until = self.candidate_valid_until
         if not unchanged:
             await self._async_save()
 
@@ -392,17 +394,17 @@ class TemporaryOverlays:
     async def _async_tick(self, _now=None):
         now = time.time()
         expired = bool(self.temporary) and now >= self.expires_at
-        if (
-            self.base is None
-            or self._refreshing
-            or (now < self._retry_at and not expired)
-        ):
-            return
-        changed = self.signature() != self.last_signature
         briefing_due = (
             self.composed_valid_until is not None
             and now >= self.composed_valid_until
         )
+        if (
+            self.base is None
+            or self._refreshing
+            or (now < self._retry_at and not expired and not briefing_due)
+        ):
+            return
+        changed = self.signature() != self.last_signature
         refresh_due = (
             self.active
             and (

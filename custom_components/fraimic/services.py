@@ -46,6 +46,7 @@ from .const import (
     ATTR_SHARPEN,
     ATTR_TONE,
     ATTR_URL,
+    CLOUD_WAKE_WINDOW,
     CONF_DELIVERY_MODE,
     CONF_HEIGHT,
     CONF_ROTATION,
@@ -62,6 +63,7 @@ from .const import (
     DOMAIN,
     FIT_COVER,
     FIT_MODES,
+    LOCAL_REDRAW_SECONDS,
     MAX_BIN_SIZE,
     MODE_AUTO,
     MODE_NONE,
@@ -919,9 +921,17 @@ async def async_render_and_upload(
                         return deferred_result("overlay_expires_before_wake")
             # A transport probe or rasterisation can outlive the data snapshot.
             # Never queue a brief that will already be stale at the next wake.
-            snapshot_deadline = getattr(overlay_controller, "composed_valid_until", None)
+            snapshot_deadline = getattr(
+                overlay_controller,
+                "candidate_valid_until",
+                getattr(overlay_controller, "composed_valid_until", None),
+            )
             if snapshot_deadline is not None:
-                arrival = time.time() + (cloud.wake_interval if use_cloud else 0)
+                arrival = time.time() + (
+                    cloud.wake_interval + CLOUD_WAKE_WINDOW
+                    if use_cloud
+                    else LOCAL_REDRAW_SECONDS
+                )
                 if arrival >= snapshot_deadline:
                     return deferred_result("briefing_expires_before_delivery")
             hybrid = (
@@ -951,7 +961,11 @@ async def async_render_and_upload(
                 # in the cloud schedule when the LAN power policy defers them.
                 use_cloud = True
                 reason = None
-                if snapshot_deadline is not None and time.time() + cloud.wake_interval >= snapshot_deadline:
+                if (
+                    snapshot_deadline is not None
+                    and time.time() + cloud.wake_interval + CLOUD_WAKE_WINDOW
+                    >= snapshot_deadline
+                ):
                     return deferred_result("briefing_expires_before_delivery")
             if reason is not None:
                 if preview_png:
@@ -1020,7 +1034,10 @@ async def async_render_and_upload(
                 queued = not uploaded
             else:
                 await async_prepare_local_delivery(entry)
-                if snapshot_deadline is not None and time.time() >= snapshot_deadline:
+                if (
+                    snapshot_deadline is not None
+                    and time.time() + LOCAL_REDRAW_SECONDS >= snapshot_deadline
+                ):
                     return deferred_result("briefing_expired")
                 try:
                     await runtime.client.upload_image(bin_data)
