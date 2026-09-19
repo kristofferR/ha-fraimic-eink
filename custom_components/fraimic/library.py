@@ -776,6 +776,20 @@ async def async_upload_rendered(
     failing when it is unreachable (user-initiated sends).
     """
     runtime = entry.runtime_data
+    controller = getattr(runtime, "temporary_overlays", None)
+    if controller is not None:
+        from .services import async_render_and_upload
+
+        result = await async_render_and_upload(
+            controller.hass, entry, b"", rendered=(bin_data, preview_png, mode),
+            title=media_title, trigger=trigger, queue_if_asleep=queue_if_asleep,
+            hold_playlist=False, upload_lock_held=not lock,
+        )
+        if result.get("displayed"):
+            runtime.last_art = None
+            runtime.media_title = media_title
+            runtime.coordinator.async_update_listeners()
+        return result.get("displayed", False)
     content_hash = hashlib.sha256(bin_data).hexdigest()
     power_token = runtime.power.begin(trigger)
     sending_preview = (preview_png, media_title or "Artwork") if preview_png else None

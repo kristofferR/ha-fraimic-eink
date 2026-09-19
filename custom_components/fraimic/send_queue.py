@@ -22,6 +22,7 @@ Delivery semantics (hardware-informed, see #28/#33):
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import time
@@ -126,6 +127,13 @@ class FraimicSendQueue:
                     f"Gave up: frame never woke up for '{self._pending.get('title')}'"
                 )
             elif cloud is not None:
+                controller = getattr(self._entry.runtime_data, "temporary_overlays", None)
+                if controller is not None and controller.base is not None and self._pending.get("content_hash") == controller.submitted_hash:
+                    # Let the overlay lifecycle recompose and validate expiry
+                    # after setup, rather than migrating stale rendered bytes.
+                    controller.dirty = True
+                    await self.async_discard()
+                    return
                 # Preserve a Local-mode one-shot when switching to Hybrid.
                 # Setup precedes the scheduler, so its startup sees this slot.
                 def _read() -> tuple[bytes, bytes | None]:
@@ -383,6 +391,25 @@ class FraimicSendQueue:
                 if self._pending is None or self._pending["token"] != token:
                     return
                 content_hash = pending.get("content_hash") or ""
+                controller = getattr(runtime, "temporary_overlays", None)
+                recomposed = await controller.async_recompose_pending(pending) if controller is not None else None
+                if recomposed is not None:
+                    (bin_data, preview_png, mode), signature, overlay_count = recomposed
+                    deadline = getattr(controller, "composed_valid_until", None)
+                    if controller.signature() != signature or (deadline is not None and time.time() >= deadline):
+                        self._schedule_probe()
+                        return
+                    content_hash = hashlib.sha256(bin_data).hexdigest()
+                    pending = {**pending, "mode": mode}
+
+                async def accept_overlay():
+                    if recomposed is not None:
+                        await controller.async_accept(
+                            controller.base, controller.art, controller.title,
+                            controller.inherit, signature, content_hash,
+                        )
+                        runtime.last_overlay_count = overlay_count
+
                 trigger = pending.get("trigger") or TRIGGER_MANUAL
                 power_token = runtime.power.begin(trigger)
                 reason = runtime.power.skip_reason(
@@ -399,6 +426,7 @@ class FraimicSendQueue:
                         )
                     runtime.last_art = None
                     runtime.media_title = title
+                    await accept_overlay()
                     await runtime.scheduler.async_notify_external_upload()
                     runtime.coordinator.async_update_listeners()
                     await self._async_clear(f"Already displaying {title}")
@@ -417,6 +445,7 @@ class FraimicSendQueue:
                         )
                     runtime.last_art = None
                     runtime.media_title = title
+                    await accept_overlay()
                     await runtime.power.async_record_upload(content_hash, trigger)
                     await runtime.scheduler.async_notify_external_upload()
                     runtime.coordinator.async_update_listeners()
@@ -445,6 +474,7 @@ class FraimicSendQueue:
                     )
                 runtime.last_art = None
                 runtime.media_title = title
+                await accept_overlay()
                 await runtime.scheduler.async_notify_external_upload()
                 runtime.coordinator.async_update_listeners()
                 await self._async_clear(f"Sent {self._now_str()}")

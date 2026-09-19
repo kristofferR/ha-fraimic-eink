@@ -81,6 +81,10 @@ def _exactly_one_image_source(data: dict) -> dict:
 
 # Per-widget-type option schemas (the widget dict minus ``type`` and ``slot``).
 WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
+    "briefing": vol.Schema({
+        vol.Required("entity"): _ENTITY_ID,
+        vol.Optional("attribute", default="brief"): str,
+    }),
     "clock": vol.Schema(
         {vol.Optional("format", default="%H:%M"): vol.All(str, _clock_format)}
     ),

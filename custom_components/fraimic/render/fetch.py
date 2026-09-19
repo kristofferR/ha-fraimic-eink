@@ -483,8 +483,18 @@ async def _async_fetch_image(
     return {"bytes": raw}
 
 
+async def _async_fetch_briefing(hass, options, ctx):
+    from .briefing import validate_briefing
+
+    state = hass.states.get(options["entity"])
+    if state is None or state.state in ("unknown", "unavailable"):
+        return {"empty": True}
+    return validate_briefing(state.attributes.get(options["attribute"]), ctx.now) or {"empty": True}
+
+
 _NO_FETCH_WIDGETS = frozenset({"clock", "date"})
 _WIDGET_FETCHERS: dict[str, WidgetFetcher] = {
+    "briefing": _async_fetch_briefing,
     "stat": _async_fetch_stat,
     "entities": _async_fetch_entities,
     "template": _async_fetch_template,

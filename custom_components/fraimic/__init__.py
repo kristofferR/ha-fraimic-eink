@@ -52,6 +52,7 @@ from .scenes import DATA_SCENES, SceneManager
 from .scheduled_events import DATA_SCHEDULED_EVENTS, ScheduledEventManager
 from .scheduler import FraimicScheduler
 from .send_queue import FraimicSendQueue
+from .temporary_overlays import TemporaryOverlays
 from .services import async_setup_services
 
 _LOGGER = logging.getLogger(__name__)
@@ -127,6 +128,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Cloud delivery (album schedule wakes the sleeping frame) when selected;
     # must exist before the scheduler starts so it can sync the album cadence.
     entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
+    temporary_overlays = TemporaryOverlays(hass, entry)
+    entry.runtime_data.temporary_overlays = temporary_overlays
+    await temporary_overlays.async_setup()
+    entry.async_on_unload(temporary_overlays.shutdown)
     # Do NOT use async_config_entry_first_refresh here: it raises
     # ConfigEntryNotReady on a failed first poll, which would abort setup whenever
     # the (battery-powered) frame is in deep sleep on restart — the entities would
@@ -151,6 +156,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     scheduler = FraimicScheduler(hass, entry, playlists)
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()
+    temporary_overlays.start()
     entry.async_on_unload(scheduler.async_stop)
     cloud = entry.runtime_data.cloud
     if (

@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import time
+from contextlib import nullcontext
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
@@ -416,6 +418,30 @@ def async_setup_services(hass: HomeAssistant) -> None:
     if hass.services.has_service(DOMAIN, SERVICE_UPLOAD_IMAGE):
         return
     hass.services.async_register(
+        DOMAIN, "show_temporary_overlay", _async_handle_temporary_overlay,
+        schema=vol.Schema({
+            vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+            vol.Required("overlays"): [dict],
+            vol.Optional("duration", default=5400): vol.All(vol.Coerce(int), vol.Range(min=1, max=86400)),
+            vol.Optional("preview_only", default=False): cv.boolean,
+            vol.Optional("refresh_interval", default=60): vol.All(vol.Coerce(int), vol.Any(0, vol.Range(min=60, max=3600))),
+        }),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, "update_temporary_overlay", _async_handle_update_overlay,
+        schema=vol.Schema({
+            vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+            vol.Optional("overlays"): [dict],
+        }),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, "clear_temporary_overlay", _async_handle_clear_overlay,
+        schema=vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
         DOMAIN,
         SERVICE_UPLOAD_IMAGE,
         _async_handle_upload_image,
@@ -469,6 +495,30 @@ def async_setup_services(hass: HomeAssistant) -> None:
         schema=UPDATE_ALBUM_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
+
+
+async def _async_handle_temporary_overlay(call: ServiceCall) -> ServiceResponse:
+    entry = _resolve_entry(call.hass, call)
+    try:
+        return await entry.runtime_data.temporary_overlays.async_show(
+            call.data["overlays"], call.data["duration"],
+            preview_only=call.data["preview_only"],
+            refresh_interval=call.data["refresh_interval"],
+        )
+    except (ValueError, TypeError) as err:
+        raise ServiceValidationError(str(err)) from err
+
+
+async def _async_handle_clear_overlay(call: ServiceCall) -> ServiceResponse:
+    return await _resolve_entry(call.hass, call).runtime_data.temporary_overlays.async_clear()
+
+
+async def _async_handle_update_overlay(call: ServiceCall) -> ServiceResponse:
+    entry = _resolve_entry(call.hass, call)
+    try:
+        return await entry.runtime_data.temporary_overlays.async_update(call.data.get("overlays"))
+    except (ValueError, TypeError) as err:
+        raise ServiceValidationError(str(err)) from err
 
 
 def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> FraimicConfigEntry:
@@ -736,6 +786,10 @@ async def async_render_and_upload(
     trigger: str = TRIGGER_MANUAL,
     rendered: tuple[bytes, bytes | None, str] | None = None,
     cache_id: str | None = None,
+    overlay_refresh: bool = False,
+    overlay_inherit: bool = True,
+    overlay_art: dict | None = None,
+    upload_lock_held: bool = False,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
 
@@ -771,8 +825,29 @@ async def async_render_and_upload(
     power_token = runtime.power.begin(trigger)
     uploaded = False
     sending_preview = None
+    overlay_controller = getattr(runtime, "temporary_overlays", None)
+    overlay_source = None
+    overlay_signature = ""
+    overlay_count = 0
+
+    async def accept_overlay(content_hash):
+        if overlay_controller is not None and overlay_source is not None:
+            await overlay_controller.async_accept(
+                overlay_source, overlay_art, title, overlay_inherit,
+                overlay_signature, content_hash,
+                via_cloud=use_cloud,
+            )
+            runtime.last_overlay_count = overlay_count
+
     try:
-        async with runtime.upload_lock:
+        async with (nullcontext() if upload_lock_held else runtime.upload_lock):
+            if overlay_refresh:
+                if overlay_controller is None or overlay_controller.base is None:
+                    raise HomeAssistantError("The clean artwork is unavailable")
+                rendered = overlay_controller.base
+                overlay_art = overlay_controller.art
+                overlay_inherit = overlay_controller.inherit
+                title = overlay_controller.title
             if rendered is None:
                 rendered = await async_convert_for_entry(
                     hass,
@@ -782,13 +857,53 @@ async def async_render_and_upload(
                     preprocess=preprocess,
                     cache_id=cache_id,
                 )
+            if overlay_controller is not None:
+                overlay_source = rendered
+                rendered, overlay_signature, overlay_count = await overlay_controller.async_compose(
+                    rendered, overlay_art, overlay_inherit,
+                )
             bin_data, preview_png, used_mode = rendered
             if len(bin_data) > MAX_BIN_SIZE:
                 raise HomeAssistantError(
                     f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
                 )
             content_hash = hashlib.sha256(bin_data).hexdigest()
+            if overlay_refresh and overlay_controller.signature(overlay_inherit) != overlay_signature:
+                # Expiry can occur during the CPU-bound render. Never send that
+                # stale composite; the next attempt will remove it instead.
+                return {"uploaded": False, "deferred": True}
+            cloud = getattr(runtime, "cloud", None)
+            if (
+                overlay_refresh and cloud is not None
+                and overlay_controller.submitted_via_cloud
+                and content_hash == overlay_controller.submitted_hash
+            ):
+                # Re-editing an unchanged cloud album restarts its wake timer.
+                # Acceptance is still not evidence of a physical redraw.
+                use_cloud = True
+                await accept_overlay(content_hash)
+                return {"uploaded": False, "displayed": False, "unchanged": True,
+                        "cloud_queued": cloud.has_image, "skip_reason": SKIP_DUPLICATE}
             use_cloud = await async_use_cloud(entry)
+            if overlay_refresh:
+                if overlay_controller.signature(overlay_inherit) != overlay_signature:
+                    return {"uploaded": False, "deferred": True}
+                if use_cloud and overlay_controller.active:
+                    deadline = cloud.delivery_deadline
+                    if cloud.has_image and deadline is not None and time.time() < deadline:
+                        # Coalesce updates while a cloud delivery is pending.
+                        # Replacing it every minute would postpone wake forever.
+                        return {"uploaded": False, "deferred": True, "skip_reason": "cloud_pending"}
+                    if time.time() + cloud.wake_interval >= overlay_controller.expires_at:
+                        return {"uploaded": False, "deferred": True, "skip_reason": "overlay_expires_before_wake"}
+            # A transport probe or rasterisation can outlive the data snapshot.
+            # Never queue a brief that will already be stale at the next wake.
+            snapshot_deadline = getattr(overlay_controller, "composed_valid_until", None)
+            if snapshot_deadline is not None:
+                arrival = time.time() + (cloud.wake_interval if use_cloud else 0)
+                if arrival >= snapshot_deadline:
+                    return {"uploaded": False, "deferred": True,
+                            "skip_reason": "briefing_expires_before_delivery"}
             hybrid = (
                 entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
                 and getattr(runtime, "cloud", None) is not None
@@ -816,6 +931,9 @@ async def async_render_and_upload(
                 # in the cloud schedule when the LAN power policy defers them.
                 use_cloud = True
                 reason = None
+                if snapshot_deadline is not None and time.time() + cloud.wake_interval >= snapshot_deadline:
+                    return {"uploaded": False, "deferred": True,
+                            "skip_reason": "briefing_expires_before_delivery"}
             if reason is not None:
                 if preview_png:
                     if reason == SKIP_DUPLICATE:
@@ -840,6 +958,8 @@ async def async_render_and_upload(
                         trigger,
                     )
                     queued = True
+                if queued or reason == SKIP_DUPLICATE:
+                    await accept_overlay(content_hash)
                 return {
                     "mode": used_mode,
                     "content_hash": content_hash,
@@ -881,6 +1001,9 @@ async def async_render_and_upload(
                 queued = not uploaded
             else:
                 await async_prepare_local_delivery(entry)
+                if snapshot_deadline is not None and time.time() >= snapshot_deadline:
+                    return {"uploaded": False, "deferred": True,
+                            "skip_reason": "briefing_expired"}
                 try:
                     await runtime.client.upload_image(bin_data)
                 except FraimicTimeoutError:
@@ -910,6 +1033,12 @@ async def async_render_and_upload(
                 await runtime.power.async_record_upload(content_hash, trigger)
                 if not use_cloud:
                     runtime.power.schedule_sleep()
+            if uploaded or queued:
+                await accept_overlay(content_hash)
+                if overlay_refresh:
+                    queue = getattr(runtime, "send_queue", None)
+                    if queue is not None and queue.pending is not None:
+                        await queue.async_discard()
     finally:
         if getattr(runtime, "sending_preview", None) is sending_preview:
             runtime.sending_preview = None

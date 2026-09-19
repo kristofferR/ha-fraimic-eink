@@ -94,6 +94,7 @@ class FraimicRuntimeData:
         self.media_title: str | None = None
         # Count of frame-owned overlays in the last composed picture.
         self.last_overlay_count = 0
+        self.temporary_overlays: Any = None
 
     def set_displayed_preview(
         self, preview_png: bytes, mode: str, *, overlay_count: int = 0
