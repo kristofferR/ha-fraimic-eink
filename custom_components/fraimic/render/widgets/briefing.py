@@ -181,6 +181,8 @@ def render_briefing(doc, rect, options, data, ctx, theme):
             color = value.get("color", "green")
             name = value.get("icon", "mdi:check")
             title = value.get("title", value.get("next_step", ""))
+            if kind == "routine" and not title:
+                title = labels["finished"]
             if kind in ("agenda", "tasks"):
                 title = " · ".join(
                     (

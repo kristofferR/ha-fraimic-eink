@@ -144,18 +144,11 @@ def validate_briefing(raw, now: datetime):
             for routine in routines
         ):
             return None
-        if not any(
-            data.get(k)
-            for k in (
-                "blocks",
-                "agenda",
-                "tasks",
-                "routine",
-                "focus",
-                "progress",
-                "weather",
-            )
-        ):
+        # Count only the content format the renderer will actually display.
+        content_keys = (
+            ("blocks",) if "blocks" in data else ("agenda", "tasks", "routine", "focus")
+        )
+        if not any(data.get(k) for k in (*content_keys, "progress", "weather")):
             return None
         return data
     except (vol.Invalid, TypeError, ValueError, OverflowError):

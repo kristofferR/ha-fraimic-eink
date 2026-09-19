@@ -42,6 +42,31 @@ def snapshot():
     }
 
 
+def test_empty_ordered_blocks_do_not_validate_hidden_legacy_content():
+    raw = snapshot()
+    raw.update(blocks=[], progress=[])
+    raw.pop("weather")
+    assert load("render.briefing").validate_briefing(raw, NOW) is None
+    # HA can legitimately enrich an empty shared brief with weather alone.
+    raw["weather"] = {"temperature": 12}
+    assert load("render.briefing").validate_briefing(raw, NOW) is not None
+
+
+@pytest.mark.parametrize("locale,finished", [("en", "Finished"), ("nb", "Ferdig")])
+def test_overflow_routine_without_next_step_shows_finished(locale, finished):
+    raw = ordered_snapshot()
+    routine = raw["blocks"].pop(1)
+    routine.pop("next_step")
+    raw["blocks"].append(routine)
+    raw["locale"] = locale
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc, load("render.layout").Rect(0, 0, 2560, 1440), {}, data, None, None
+    )
+    assert f">{finished}</text>" in doc.to_string()
+
+
 def ordered_snapshot():
     source = snapshot()
     return {

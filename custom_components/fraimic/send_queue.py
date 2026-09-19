@@ -132,7 +132,7 @@ class FraimicSendQueue:
                     # Let the overlay lifecycle recompose and validate expiry
                     # after setup, rather than migrating stale rendered bytes.
                     await controller.async_mark_dirty()
-                    await self.async_discard()
+                    await self.async_discard(delivered=True)
                     return
                 # Preserve a Local-mode one-shot when switching to Hybrid.
                 # Setup precedes the scheduler, so its startup sees this slot.
@@ -286,9 +286,13 @@ class FraimicSendQueue:
         self._apply_battery(battery)
         await self._async_flush()
 
-    async def async_discard(self) -> None:
+    async def async_discard(
+        self, *, delivered: bool = False, upload_lock_held: bool = False
+    ) -> None:
         """Discard a queued send that has been superseded by newer content."""
-        await self._async_clear("Idle")
+        await self._async_clear(
+            "Idle", delivered=delivered, upload_lock_held=upload_lock_held
+        )
 
     async def _async_probe(self, _now: Any = None) -> None:
         self._unsub_probe = None
@@ -429,7 +433,11 @@ class FraimicSendQueue:
                     await accept_overlay()
                     await runtime.scheduler.async_notify_external_upload()
                     runtime.coordinator.async_update_listeners()
-                    await self._async_clear(f"Already displaying {title}")
+                    await self._async_clear(
+                        f"Already displaying {title}",
+                        delivered=True,
+                        upload_lock_held=True,
+                    )
                     return
                 if reason in DEFER_REASONS:
                     self._dispatch(f"Deferred {title} to save battery ({reason})")
@@ -450,7 +458,9 @@ class FraimicSendQueue:
                     await runtime.scheduler.async_notify_external_upload()
                     runtime.coordinator.async_update_listeners()
                     await self._async_clear(
-                        f"Sent {title} (unconfirmed — the frame's reply timed out)"
+                        f"Sent {title} (unconfirmed — the frame's reply timed out)",
+                        delivered=True,
+                        upload_lock_held=True,
                     )
                     runtime.power.schedule_sleep()
                     return
@@ -463,7 +473,9 @@ class FraimicSendQueue:
                     self._schedule_probe()
                     return
                 except (FraimicApiError, FraimicError) as err:
-                    await self._async_clear(f"Failed to send {title}: {err}")
+                    await self._async_clear(
+                        f"Failed to send {title}: {err}", upload_lock_held=True
+                    )
                     return
 
                 runtime.coordinator.async_set_frame_online(True)
@@ -477,7 +489,11 @@ class FraimicSendQueue:
                 await accept_overlay()
                 await runtime.scheduler.async_notify_external_upload()
                 runtime.coordinator.async_update_listeners()
-                await self._async_clear(f"Sent {self._now_str()}")
+                await self._async_clear(
+                    f"Sent {self._now_str()}",
+                    delivered=True,
+                    upload_lock_held=True,
+                )
                 _LOGGER.info(
                     "Delivered queued image '%s' to %s", title, self._entry.title
                 )
@@ -498,7 +514,25 @@ class FraimicSendQueue:
         except OSError:
             return None
 
-    async def _async_clear(self, status: str) -> None:
+    async def _async_clear(
+        self,
+        status: str,
+        *,
+        delivered: bool = False,
+        upload_lock_held: bool = False,
+    ) -> None:
+        pending_hash = (
+            self._pending.get("content_hash") if self._pending is not None else None
+        )
+        runtime = getattr(self._entry, "runtime_data", None)
+        controller = getattr(runtime, "temporary_overlays", None)
+        if (
+            not delivered
+            and pending_hash
+            and controller is not None
+            and controller.submitted_hash == pending_hash
+        ):
+            await controller.async_invalidate(upload_lock_held=upload_lock_held)
         await self._async_drop_pending()
         self._dispatch(status)
 

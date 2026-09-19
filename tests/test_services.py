@@ -566,3 +566,52 @@ def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monke
     asyncio.run(run())
     assert [call.args[0] for call in client.upload_image.await_args_list] == [b"routine 1/6", b"routine 2/6"]
     assert controller.base[0] == b"same art"
+
+
+def test_regular_send_defers_when_overlay_changes_during_transport_probe(monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    signature = {"value": "active"}
+    controller = SimpleNamespace(
+        composed_valid_until=None,
+        async_compose=AsyncMock(
+            return_value=((b"composite", b"preview", "none"), "active", 1)
+        ),
+        async_accept=AsyncMock(),
+        signature=lambda *_: signature["value"],
+    )
+    power = SimpleNamespace(begin=Mock(return_value=1), finish=Mock())
+    client = SimpleNamespace(upload_image=AsyncMock())
+    runtime = SimpleNamespace(
+        temporary_overlays=controller,
+        scheduler=None,
+        cloud=None,
+        power=power,
+        client=client,
+        upload_lock=asyncio.Lock(),
+        coordinator=SimpleNamespace(data={}),
+        sending_preview=None,
+    )
+
+    async def choose_transport(_entry):
+        signature["value"] = "expired"
+        return False
+
+    monkeypatch.setattr(services, "async_use_cloud", choose_transport)
+    monkeypatch.setattr(
+        services,
+        "async_convert_for_entry",
+        AsyncMock(return_value=(b"clean", b"clean-preview", "none")),
+    )
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
+
+    result = asyncio.run(
+        services.async_render_and_upload(
+            SimpleNamespace(), entry, b"source", hold_playlist=False
+        )
+    )
+
+    assert result["deferred"] is True
+    client.upload_image.assert_not_awaited()
+    controller.async_accept.assert_not_awaited()

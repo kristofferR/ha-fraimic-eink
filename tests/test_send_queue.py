@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import types
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import load
@@ -131,16 +132,47 @@ def test_discard_clears_superseded_pending_send(send_queue_module) -> None:
         async def async_save(self, data) -> None:
             self.saved = data
 
-    entry = types.SimpleNamespace(entry_id="small-frame", data={})
+    controller = types.SimpleNamespace(
+        submitted_hash="old-hash", async_invalidate=AsyncMock()
+    )
+    entry = types.SimpleNamespace(
+        entry_id="small-frame",
+        data={},
+        runtime_data=types.SimpleNamespace(temporary_overlays=controller),
+    )
     queue = send_queue.FraimicSendQueue(Hass(), entry)
     queue._store = Store()
-    queue._pending = {"title": "Older picture"}
+    queue._pending = {"title": "Older picture", "content_hash": "old-hash"}
 
     asyncio.run(queue.async_discard())
 
     assert queue.pending is None
     assert queue._store.saved == {"pending": None}
     assert queue.status == "Idle"
+    controller.async_invalidate.assert_awaited_once_with(upload_lock_held=False)
+
+
+def test_delivered_queue_item_keeps_retained_base(send_queue_module) -> None:
+    send_queue = send_queue_module
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: "/unused/queue.bin")
+
+    controller = types.SimpleNamespace(
+        submitted_hash="delivered-hash", async_invalidate=AsyncMock()
+    )
+    entry = types.SimpleNamespace(
+        entry_id="small-frame",
+        data={},
+        runtime_data=types.SimpleNamespace(temporary_overlays=controller),
+    )
+    queue = send_queue.FraimicSendQueue(Hass(), entry)
+    queue._store = types.SimpleNamespace(async_save=AsyncMock())
+    queue._pending = {"content_hash": "delivered-hash"}
+
+    asyncio.run(queue.async_discard(delivered=True))
+
+    controller.async_invalidate.assert_not_awaited()
 
 
 def test_queueing_direct_send_discards_scheduler_retry(send_queue_module) -> None:

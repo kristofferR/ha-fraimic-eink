@@ -6,6 +6,7 @@ import base64
 import json
 import logging
 import time
+from contextlib import nullcontext
 from datetime import timedelta
 
 from homeassistant.exceptions import HomeAssistantError
@@ -56,6 +57,7 @@ class TemporaryOverlays:
         self.expires_at = 0.0
         self.refresh_interval = DEFAULT_REFRESH_INTERVAL
         self.composed_valid_until = None
+        self._saved_composed_valid_until = None
         self._next_refresh_at = 0.0
         self.last_signature = ""
         self.submitted_hash = None
@@ -94,6 +96,11 @@ class TemporaryOverlays:
             self.refresh_interval = validate_refresh_interval(
                 saved.get("refresh_interval", DEFAULT_REFRESH_INTERVAL)
             )
+            deadline = saved.get("composed_valid_until")
+            self.composed_valid_until = (
+                float(deadline) if deadline is not None else None
+            )
+            self._saved_composed_valid_until = self.composed_valid_until
             self._next_refresh_at = float(saved.get("next_refresh_at", 0))
         except (ValueError, TypeError, KeyError):
             _LOGGER.warning(
@@ -195,6 +202,7 @@ class TemporaryOverlays:
             and self.dirty == dirty
             and self.temporary == temporary
             and self.expires_at == expires_at
+            and self.composed_valid_until == self._saved_composed_valid_until
         )
         self.base, self.art, self.title, self.inherit = (
             base,
@@ -236,6 +244,7 @@ class TemporaryOverlays:
                 "temporary": self.temporary,
                 "expires_at": self.expires_at,
                 "refresh_interval": self.refresh_interval,
+                "composed_valid_until": self.composed_valid_until,
                 "next_refresh_at": self._next_refresh_at,
                 "signature": self.last_signature,
                 "submitted_hash": self.submitted_hash,
@@ -243,6 +252,7 @@ class TemporaryOverlays:
                 "dirty": self.dirty,
             }
         )
+        self._saved_composed_valid_until = self.composed_valid_until
 
     async def async_show(
         self,
@@ -263,7 +273,11 @@ class TemporaryOverlays:
                 raise HomeAssistantError(
                     "The clean artwork is unavailable. Show a picture through Fraimic first."
                 )
-            previous = self.temporary, self.expires_at
+            previous = (
+                self.temporary,
+                self.expires_at,
+                self.composed_valid_until,
+            )
             self.temporary, self.expires_at = normalized, time.time() + duration
             if preview_only:
                 try:
@@ -281,7 +295,11 @@ class TemporaryOverlays:
                         "overlay_count": count,
                     }
                 finally:
-                    self.temporary, self.expires_at = previous
+                    (
+                        self.temporary,
+                        self.expires_at,
+                        self.composed_valid_until,
+                    ) = previous
             self.dirty = True
             self.refresh_interval = refresh_interval
             self._next_refresh_at = 0
@@ -328,7 +346,7 @@ class TemporaryOverlays:
         if self._refreshing or (
             scheduler and (scheduler.busy or scheduler.external_upload_active)
         ):
-            self.dirty = True
+            await self.async_mark_dirty()
             return {"uploaded": False, "deferred": True}
         if self.base is None:
             raise HomeAssistantError(
@@ -340,6 +358,7 @@ class TemporaryOverlays:
         self._next_refresh_at = time.time() + max(60, self.refresh_interval)
         if scheduler:
             scheduler.begin_external_upload()
+        failed = False
         try:
             # Read the retained base under the upload lock, after any preceding
             # manual artwork change. Never queue a time-sensitive rendered image.
@@ -360,9 +379,12 @@ class TemporaryOverlays:
             return {key: value for key, value in result.items() if key != "preview_png"}
         except HomeAssistantError:
             self.dirty = True
+            failed = True
             raise
         finally:
             self._retry_at = time.time() + 60
+            if failed:
+                self._next_refresh_at = self._retry_at
             self._refreshing = False
             if scheduler:
                 scheduler.finish_external_upload(uploaded=False, hold=False)
@@ -377,14 +399,25 @@ class TemporaryOverlays:
         ):
             return
         changed = self.signature() != self.last_signature
+        briefing_due = (
+            self.composed_valid_until is not None
+            and now >= self.composed_valid_until
+        )
         refresh_due = (
             self.active
-            and self.refresh_interval
-            and now >= self._next_refresh_at
+            and (
+                briefing_due
+                or (self.refresh_interval and now >= self._next_refresh_at)
+            )
         )
         # Content updates coalesce until the next refresh. Expiry/visibility
         # changes still remove the overlay even with periodic refresh disabled.
-        if self.active and now < self._next_refresh_at:
+        if (
+            self.active
+            and now < self._next_refresh_at
+            and not briefing_due
+            and not changed
+        ):
             return
         if not self.dirty and not changed and not refresh_due:
             return
@@ -404,16 +437,13 @@ class TemporaryOverlays:
         )
         return rendered, signature, count
 
-    async def async_invalidate(self):
+    async def async_invalidate(self, *, upload_lock_held=False):
         """An untracked device refresh replaced the retained artwork."""
-        async with self.entry.runtime_data.upload_lock:
-            queue = getattr(self.entry.runtime_data, "send_queue", None)
-            if (
-                queue is not None
-                and queue.pending
-                and queue.pending.get("content_hash") == self.submitted_hash
-            ):
-                await queue.async_discard()
+        async with (
+            nullcontext()
+            if upload_lock_held
+            else self.entry.runtime_data.upload_lock
+        ):
             self.base = None
             self.submitted_hash = None
             self.submitted_via_cloud = False

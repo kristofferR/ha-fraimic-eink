@@ -883,7 +883,10 @@ async def async_render_and_upload(
                     result["skip_reason"] = skip_reason
                 return result
 
-            if overlay_refresh and overlay_controller.signature(overlay_inherit) != overlay_signature:
+            if (
+                overlay_source is not None
+                and overlay_controller.signature(overlay_inherit) != overlay_signature
+            ):
                 # Expiry can occur during the CPU-bound render. Never send that
                 # stale composite; the next attempt will remove it instead.
                 return deferred_result()
@@ -900,9 +903,12 @@ async def async_render_and_upload(
                 return {"uploaded": False, "displayed": False, "unchanged": True,
                         "cloud_queued": cloud.has_image, "skip_reason": SKIP_DUPLICATE}
             use_cloud = await async_use_cloud(entry)
+            if (
+                overlay_source is not None
+                and overlay_controller.signature(overlay_inherit) != overlay_signature
+            ):
+                return deferred_result()
             if overlay_refresh:
-                if overlay_controller.signature(overlay_inherit) != overlay_signature:
-                    return deferred_result()
                 if use_cloud and overlay_controller.active:
                     deadline = cloud.delivery_deadline
                     if cloud.has_image and deadline is not None and time.time() < deadline:
@@ -1050,7 +1056,9 @@ async def async_render_and_upload(
                 if overlay_refresh:
                     queue = getattr(runtime, "send_queue", None)
                     if queue is not None and queue.pending is not None:
-                        await queue.async_discard()
+                        await queue.async_discard(
+                            delivered=True, upload_lock_held=True
+                        )
     finally:
         if getattr(runtime, "sending_preview", None) is sending_preview:
             runtime.sending_preview = None
