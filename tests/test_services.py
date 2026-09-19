@@ -539,7 +539,8 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
         controller.async_accept.assert_not_awaited()
 
 
-def test_temporary_briefing_reserves_local_redraw_time(monkeypatch):
+@pytest.mark.parametrize("overlay_refresh", [True, False])
+def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refresh):
     from unittest.mock import AsyncMock, Mock
 
     services = _load_services(monkeypatch)
@@ -549,14 +550,17 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch):
         inherit=True,
         title="Art",
         submitted_via_cloud=False,
-        composed_valid_until=1_029,
+        candidate_valid_until=1_029,
         signature=lambda *_: "active",
         async_compose=AsyncMock(
             return_value=((b"new pixels", b"png", "none"), "active", 1)
         ),
         async_accept=AsyncMock(),
     )
-    power = SimpleNamespace(begin=Mock(return_value=1), finish=Mock())
+    power = SimpleNamespace(
+        begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
+        async_record_upload=AsyncMock(), schedule_sleep=Mock(),
+    )
     client = SimpleNamespace(upload_image=AsyncMock())
     runtime = SimpleNamespace(
         temporary_overlays=controller,
@@ -566,6 +570,8 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch):
         client=client,
         upload_lock=asyncio.Lock(),
         sending_preview=None,
+        coordinator=SimpleNamespace(data={}),
+        set_displayed_preview=Mock(),
     )
     monkeypatch.setattr(services.time, "time", lambda: 1_000)
     monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
@@ -573,14 +579,22 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch):
 
     result = asyncio.run(
         services.async_render_and_upload(
-            SimpleNamespace(), entry, b"", hold_playlist=False, overlay_refresh=True
+            SimpleNamespace(), entry, b"", hold_playlist=False, overlay_refresh=overlay_refresh,
+            rendered=controller.base,
         )
     )
 
-    assert result["skip_reason"] == "briefing_expires_before_delivery"
-    assert result["deferred"] is True
-    client.upload_image.assert_not_awaited()
-    controller.async_accept.assert_not_awaited()
+    if overlay_refresh:
+        assert result["skip_reason"] == "briefing_expires_before_delivery"
+        assert result["deferred"] is True
+        client.upload_image.assert_not_awaited()
+        controller.async_accept.assert_not_awaited()
+    else:
+        assert result["uploaded"] is True
+        client.upload_image.assert_awaited_once_with(b"clean art")
+        assert controller.candidate_valid_until is None
+        assert controller.async_accept.await_args.args[0] == controller.base
+        assert controller.async_accept.await_args.args[4] != controller.signature()
 
 
 def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monkeypatch):

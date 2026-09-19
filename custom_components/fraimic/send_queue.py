@@ -409,7 +409,10 @@ class FraimicSendQueue:
                         deadline is not None
                         and time.time() + LOCAL_REDRAW_SECONDS >= deadline
                     ):
-                        self._schedule_probe()
+                        self._schedule_probe(retry_at=(
+                            deadline if controller.signature() == signature and deadline is not None
+                            else time.time()
+                        ))
                         return
                     content_hash = hashlib.sha256(bin_data).hexdigest()
                     pending = {**pending, "mode": mode}
@@ -574,12 +577,17 @@ class FraimicSendQueue:
             self._hass, max(0, remaining), self._async_expire
         )
 
-    def _schedule_probe(self) -> None:
-        if self._pending is None or self._unsub_probe is not None:
+    def _schedule_probe(self, *, retry_at: float | None = None) -> None:
+        if self._pending is None:
             return
+        if self._unsub_probe is not None:
+            if retry_at is None:
+                return
+            self._unsub_probe()
+            self._unsub_probe = None
         coordinator = self._entry.runtime_data.coordinator
         display = (coordinator.data or {}).get("display") or {}
-        delay = queue_probe_delay(
+        delay = max(1, retry_at - time.time()) if retry_at is not None else queue_probe_delay(
             power_mode(dict(self._entry.options)),
             self._probe_attempt,
             next_refresh=display.get("next_refresh"),
