@@ -260,6 +260,7 @@ def test_visibility_boundaries_require_refresh_even_without_temporary_overlay(
     obj.hass.data["fraimic"] = {
         "overlays": SimpleNamespace(for_frame=lambda _id: [value])
     }
+    obj.permanent = [value]
     monkeypatch.setattr(module.dt_util, "now", lambda: datetime(2026, 9, 19, 5, 59))
     obj.last_signature = obj.signature()
     assert not obj.holds_playback
@@ -613,3 +614,62 @@ def test_invalidation_preserves_pending_send_for_the_wake_flush(controller):
     asyncio.run(obj.async_invalidate())
     queue.async_discard.assert_not_awaited()
     assert obj.base is None
+
+
+def test_saved_permanent_edits_wait_for_a_new_picture(controller, monkeypatch):
+    module, obj, _, _ = controller
+    old = module.normalize_overlay(overlay("Applied"))
+    edited = module.normalize_overlay(overlay("Saved for later"))
+    obj.permanent = [old]
+    obj.last_signature = obj.signature(None, True)
+    obj.hass.data["fraimic"] = {
+        "overlays": SimpleNamespace(for_frame=lambda _id: [edited])
+    }
+    obj.async_refresh = AsyncMock()
+    applied = []
+
+    async def apply(_hass, _entry, png, _art, *, overlays, snapshot_deadlines):
+        applied.append(overlays)
+        return png, len(overlays)
+
+    monkeypatch.setattr(module, "async_apply_frame_overlays", apply)
+    services = types.ModuleType("fraimic.services")
+    services.async_convert_for_entry = AsyncMock(return_value=obj.base)
+    monkeypatch.setitem(sys.modules, "fraimic.services", services)
+
+    async def run():
+        assert not obj.holds_playback
+        await obj._async_tick()
+        obj.async_refresh.assert_not_awaited()
+        # Temporary refreshes and restarts preserve the applied configuration.
+        _, signature, _ = await obj.async_compose(obj.base, None, True, True)
+        await obj.async_accept(obj.base, None, obj.title, True, signature, "old")
+        assert applied[-1] == [old]
+        restored = module.TemporaryOverlays(obj.hass, obj.entry)
+        await restored.async_setup()
+        assert restored.permanent == [old]
+        assert not restored.holds_playback
+        # A new picture picks up the saved settings and commits that snapshot.
+        _, signature, _ = await restored.async_compose(restored.base)
+        await restored.async_accept(restored.base, None, obj.title, True, signature, "new")
+        assert applied[-1] == [edited]
+        assert restored.permanent == [edited]
+        assert not restored.dirty
+
+    asyncio.run(run())
+
+
+def test_apply_now_retains_settings_when_the_frame_is_busy(controller):
+    _, obj, _, saved = controller
+    edited = load("overlays").normalize_overlay(overlay("Apply now"))
+    obj.hass.data["fraimic"] = {
+        "overlays": SimpleNamespace(for_frame=lambda _id: [edited])
+    }
+    obj.entry.runtime_data.scheduler = SimpleNamespace(busy=True)
+
+    result = asyncio.run(obj.async_refresh(apply_settings=True))
+
+    assert result["deferred"]
+    assert obj.permanent == [edited]
+    assert obj.dirty
+    assert saved[obj._store.key]["permanent"] == [edited]

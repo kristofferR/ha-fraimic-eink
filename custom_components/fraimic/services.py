@@ -865,7 +865,7 @@ async def async_render_and_upload(
             for _attempt in range(3):
                 if overlay_source is not None:
                     rendered, overlay_signature, overlay_count = await overlay_controller.async_compose(
-                        overlay_source, overlay_art, overlay_inherit,
+                        overlay_source, overlay_art, overlay_inherit, overlay_refresh,
                     )
                 bin_data, preview_png, used_mode = rendered
                 if len(bin_data) > MAX_BIN_SIZE:
@@ -890,7 +890,7 @@ async def async_render_and_upload(
 
                 if (
                     overlay_source is not None
-                    and overlay_controller.signature(overlay_inherit) != overlay_signature
+                    and overlay_controller.signature(overlay_inherit, overlay_refresh) != overlay_signature
                 ):
                     if overlay_refresh:
                         return deferred_result()
@@ -910,7 +910,7 @@ async def async_render_and_upload(
                 use_cloud = await async_use_cloud(entry)
                 if (
                     overlay_source is not None
-                    and overlay_controller.signature(overlay_inherit) != overlay_signature
+                    and overlay_controller.signature(overlay_inherit, overlay_refresh) != overlay_signature
                 ):
                     if overlay_refresh:
                         return deferred_result()

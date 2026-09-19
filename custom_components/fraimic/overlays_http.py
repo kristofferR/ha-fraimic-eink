@@ -136,7 +136,7 @@ class FrameOverlaysView(HomeAssistantView):
             if body.get("apply_now"):
                 controller = entry.runtime_data.temporary_overlays
                 if controller.base is not None:
-                    await controller.async_refresh()
+                    await controller.async_refresh(apply_settings=True)
                 else:
                     scheduler = entry.runtime_data.scheduler
                     if (

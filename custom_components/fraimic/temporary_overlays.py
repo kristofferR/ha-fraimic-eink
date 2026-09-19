@@ -53,6 +53,8 @@ class TemporaryOverlays:
         self.art = None
         self.title = "Artwork"
         self.inherit = True
+        self.permanent = []
+        self.candidate_permanent = None
         self.temporary = []
         self.expires_at = 0.0
         self.refresh_interval = DEFAULT_REFRESH_INTERVAL
@@ -112,6 +114,7 @@ class TemporaryOverlays:
         self.art = saved.get("art")
         self.title = saved.get("title") or "Artwork"
         self.inherit = saved.get("inherit", True)
+        self.permanent = saved.get("permanent", self._configured_permanent())
         self.last_signature = saved.get("signature", "")
         self.submitted_hash = saved.get("submitted_hash")
         self.submitted_via_cloud = saved.get("submitted_via_cloud", False)
@@ -136,14 +139,17 @@ class TemporaryOverlays:
         return (
             self.active
             or self.dirty
-            or (self.base is not None and self.signature() != self.last_signature)
+            or (self.base is not None and self.signature(None, True) != self.last_signature)
         )
 
-    def visible(self, inherit=None):
+    def _configured_permanent(self):
         manager = get_overlay_manager(self.hass)
+        return manager.for_frame(self.entry.entry_id) if manager else []
+
+    def visible(self, inherit=None, refresh=False):
         permanent = (
-            manager.for_frame(self.entry.entry_id)
-            if manager and (self.inherit if inherit is None else inherit)
+            (self.permanent if refresh else self._configured_permanent())
+            if (self.inherit if inherit is None else inherit)
             else []
         )
         # Earlier entries render on top of later entries in the compositor.
@@ -151,14 +157,15 @@ class TemporaryOverlays:
         now = dt_util.now()
         return [item for item in overlays if _visible(self.hass, item, now)]
 
-    def signature(self, inherit=None):
-        # Configuration/visibility changes are immediate. While active, the
-        # refresh timer also reads live widget data; delivery deduplicates pixels.
-        return json.dumps(self.visible(inherit), sort_keys=True)
+    def signature(self, inherit=None, refresh=False):
+        return json.dumps(self.visible(inherit, refresh), sort_keys=True)
 
-    async def async_compose(self, base, art=None, inherit=True):
+    async def async_compose(self, base, art=None, inherit=True, refresh=False):
         self.candidate_valid_until = None
-        overlays = self.visible(inherit)
+        self.candidate_permanent = (
+            self.permanent if refresh else self._configured_permanent()
+        )
+        overlays = self.visible(inherit, refresh)
         signature = json.dumps(overlays, sort_keys=True)
         if not overlays:
             return base, signature, 0
@@ -191,11 +198,18 @@ class TemporaryOverlays:
     ):
         title = title or "Artwork"
         active = self.active
-        dirty = self.signature(inherit) != signature
+        permanent_changed = (
+            self.candidate_permanent is not None
+            and self.permanent != self.candidate_permanent
+        )
+        if self.candidate_permanent is not None:
+            self.permanent = self.candidate_permanent
+        dirty = self.signature(inherit, True) != signature
         temporary = self.temporary if active else []
         expires_at = self.expires_at if active else 0
         unchanged = (
             self.base == base
+            and not permanent_changed
             and self.art == art
             and self.title == title
             and self.inherit == inherit
@@ -245,6 +259,7 @@ class TemporaryOverlays:
                 "art": self.art,
                 "title": self.title,
                 "inherit": self.inherit,
+                "permanent": self.permanent,
                 "temporary": self.temporary,
                 "expires_at": self.expires_at,
                 "refresh_interval": self.refresh_interval,
@@ -282,12 +297,13 @@ class TemporaryOverlays:
                 self.expires_at,
                 self.composed_valid_until,
                 self.candidate_valid_until,
+                self.candidate_permanent,
             )
             self.temporary, self.expires_at = normalized, time.time() + duration
             if preview_only:
                 try:
                     rendered, _, count = await self.async_compose(
-                        self.base, self.art, self.inherit
+                        self.base, self.art, self.inherit, True
                     )
                     from .render.display import _set_screen_preview
 
@@ -305,6 +321,7 @@ class TemporaryOverlays:
                         self.expires_at,
                         self.composed_valid_until,
                         self.candidate_valid_until,
+                        self.candidate_permanent,
                     ) = previous
             self.dirty = True
             self.refresh_interval = refresh_interval
@@ -341,13 +358,18 @@ class TemporaryOverlays:
             self.temporary = []
             self.expires_at = 0
             self.dirty = (
-                self.base is not None and self.signature() != self.last_signature
+                self.base is not None and self.signature(None, True) != self.last_signature
             )
             await self._async_save()
         return await self.async_refresh() if self.dirty else {"uploaded": False}
 
-    async def async_refresh(self):
+    async def async_refresh(self, *, apply_settings=False):
         runtime = self.entry.runtime_data
+        if apply_settings:
+            async with runtime.upload_lock:
+                self.permanent = self._configured_permanent()
+                self.dirty = True
+                await self._async_save()
         scheduler = runtime.scheduler
         if self._refreshing or (
             scheduler and (scheduler.busy or scheduler.external_upload_active)
@@ -408,7 +430,7 @@ class TemporaryOverlays:
             or (now < self._retry_at and not expired and not briefing_due)
         ):
             return
-        changed = self.signature() != self.last_signature
+        changed = self.signature(None, True) != self.last_signature
         refresh_due = (
             self.active
             and (
@@ -439,7 +461,7 @@ class TemporaryOverlays:
         if self.base is None or pending.get("content_hash") != self.submitted_hash:
             return None
         rendered, signature, count = await self.async_compose(
-            self.base, self.art, self.inherit
+            self.base, self.art, self.inherit, True
         )
         return rendered, signature, count
 
