@@ -29,17 +29,15 @@ from .const import (
     LIBRARY_ALBUM_DEFAULT,
     MODE_AUTO,
 )
-from .helpers import resolve_render_params
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
-from .library_model import LibraryImage, normalize_crop, render_cache_key
+from .library_model import LibraryImage, normalize_crop
 from .playlists import DATA_PLAYLISTS, PlaylistManager
 from .providers import PROVIDERS, available_provider_keys, get_provider
 from .providers.base import ArtCandidate
 from .providers.cache import ByteCache
 from .providers.ha import (
     ArtFetchError,
-    artwork_source_cache_id,
     async_art_by_media_id,
     async_browse_candidates,
     async_browse_provider,
@@ -805,25 +803,27 @@ class GalleryPreviewView(HomeAssistantView):
         # Full-panel diffusion is expensive; coalesce identical requests after
         # waiting and keep simultaneous comparisons off the executor pool.
         semaphore = data.setdefault("gallery_preview_semaphore", asyncio.Semaphore(1))
-        render_settings = render_cache_key(
-            resolve_render_params(entry, {"fit": fit, "mode": mode})
-        )
-        saved_rotation = (
-            _library(hass).get(item_id).rotation_for(*_viewed_size(entry))
-            if source == LIBRARY_SOURCE else 0
-        )
+        from .render.display import prepared_thumbnail_fingerprint
+
+        try:
+            screen = screen_from_dict(
+                _slide_data(
+                    {"source": source, "id": item_id, "title": "Preview"},
+                    fit=fit, mode=mode, tone=tone, crop=crop,
+                )
+            )
+        except vol.Invalid as err:
+            raise web.HTTPBadRequest(text=str(err)) from err
         key = (
-            entry.entry_id, source, item_id, fit, mode, tone, crop,
-            render_settings, resolution, saved_rotation,
+            entry.entry_id, prepared_thumbnail_fingerprint(hass, entry, screen),
+            resolution,
         )
         async with semaphore:
             cached = cache.get(key, 600)
             if cached is not None:
                 png = cached[0]
             else:
-                png = await self._render(
-                    hass, entry, source, item_id, fit, mode, tone, crop, resolution
-                )
+                png = await self._render(hass, entry, screen, resolution)
                 cache.set(key, png, "image/png")
         return web.Response(
             body=png,
@@ -833,44 +833,14 @@ class GalleryPreviewView(HomeAssistantView):
         )
 
     async def _render(
-        self, hass, entry, source: str, item_id: str, fit: str, mode: str,
-        tone: str, crop: tuple[float, float, float, float] | None, resolution: str,
+        self, hass, entry, screen, resolution: str,
     ) -> bytes:
-        from .image_convert import bin_to_png
-        from .services import async_convert_for_entry
+        from .render.display import async_preview_screen, thumbnail_preview
 
         try:
-            if source == LIBRARY_SOURCE:
-                png = await _library(hass).async_render_adhoc_preview(
-                    item_id,
-                    entry,
-                    list(crop) if crop is not None else None,
-                    overrides={"fit": fit, "mode": mode, "tone_name": tone},
-                    full_resolution=resolution == "native",
-                )
-            else:
-                art = await async_art_by_media_id(hass, entry, source, item_id)
-                packed, png, _ = await async_convert_for_entry(
-                    hass,
-                    entry,
-                    art.data,
-                    {
-                        "fit": fit,
-                        "mode": mode,
-                        "tone_name": tone,
-                        "crop": crop,
-                    },
-                    cache_id=artwork_source_cache_id(source, item_id),
-                )
-                if resolution == "native":
-                    params = resolve_render_params(entry)
-                    png = await hass.async_add_executor_job(
-                        bin_to_png,
-                        packed,
-                        params["width"],
-                        params["height"],
-                        params["preview_rotate"],
-                    )
+            png, _ = await async_preview_screen(hass, entry, screen)
+            if resolution == "thumbnail":
+                png = await hass.async_add_executor_job(thumbnail_preview, png)
         except (ArtFetchError, HomeAssistantError) as err:
             raise web.HTTPBadGateway(text=str(err)) from err
         if png is None:

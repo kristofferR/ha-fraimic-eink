@@ -340,12 +340,12 @@ def discard_prepared_thumbnails(
     cache.discard_where(matches)
 
 
-def _small_preview(preview: bytes) -> bytes:
-    """Shrink an e-ink preview while preserving its exact panel colours."""
+def thumbnail_preview(preview: bytes) -> bytes:
+    """Downscale a native panel preview once, averaging the dither pixels."""
     from PIL import Image
 
     with Image.open(io.BytesIO(preview)) as image:
-        image.thumbnail((320, 320), Image.Resampling.NEAREST)
+        image.thumbnail((320, 320), Image.Resampling.LANCZOS)
         output = io.BytesIO()
         image.save(output, format="PNG", optimize=True)
     return output.getvalue()
@@ -363,36 +363,20 @@ async def async_prepared_preview(
     if screen.kind != KIND_PICTURE:
         return None
     source = screen.source or {}
-    overrides = _picture_overrides(source)
-    if image_id := source.get("library_image"):
+    if source.get("library_image"):
         from ..library import get_library
 
         library = get_library(hass)
         if library is None:
             return None
-        _, preview, _ = await library.async_render_for_entry(
-            image_id, entry, overrides
-        )
-        return preview
-    if entry.options.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE) not in {
+    elif entry.options.get(CONF_ARTWORK_CACHE, DEFAULT_ARTWORK_CACHE) not in {
         ARTWORK_CACHE_30_DAYS,
         ARTWORK_CACHE_FOREVER,
     }:
         return None
-    cache_id = _picture_cache_id(screen)
-    if cache_id is None:
+    elif _picture_cache_id(screen) is None:
         return None
-    from ..services import async_convert_for_entry
-
-    raw, overrides, _art = await _async_picture_source(hass, entry, screen)
-    _, preview, _ = await async_convert_for_entry(
-        hass,
-        entry,
-        raw,
-        overrides,
-        preprocess=True,
-        cache_id=cache_id,
-    )
+    preview, _ = await async_preview_screen(hass, entry, screen)
     return preview
 
 
@@ -405,7 +389,7 @@ async def async_prepare_screen(
         preview = await async_prepared_preview(hass, entry, screen)
         if preview is None:
             return False
-        thumbnail = await hass.async_add_executor_job(_small_preview, preview)
+        thumbnail = await hass.async_add_executor_job(thumbnail_preview, preview)
         if key != _prepared_thumbnail_key(hass, entry, screen):
             continue
         _prepared_thumbnail_cache(hass).set(key, thumbnail, "image/png")

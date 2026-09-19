@@ -738,10 +738,11 @@ def test_provider_prefetch_is_skipped_when_artwork_cache_is_off(
     assert asyncio.run(display.async_prepare_screen(_Hass(), entry, screen)) is False
 
 
-def test_library_prepared_preview_returns_dithered_thumbnail(
+def test_library_prepared_preview_decodes_native_panel_pixels(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     display, _ = _load_display(monkeypatch)
+    _install_services(monkeypatch, async_convert_for_entry=AsyncMock())
 
     class Library:
         async def async_render_for_entry(
@@ -749,7 +750,7 @@ def test_library_prepared_preview_returns_dithered_thumbnail(
         ) -> tuple[bytes, bytes, str]:
             assert image_id == "image-1"
             assert overrides == {"fit": "contain", "tone": 0.0}
-            return b"panel", b"eink-preview", "none"
+            return bytes(800 * 480 // 2), b"unused-small-preview", "none"
 
     library = types.ModuleType("fraimic.library")
     library.get_library = lambda _hass: Library()
@@ -768,7 +769,26 @@ def test_library_prepared_preview_returns_dithered_thumbnail(
         display.async_prepared_preview(_Hass(), _entry(), screen)
     )
 
-    assert preview == b"eink-preview"
+    assert preview == load("image_convert").bin_to_png(bytes(800 * 480 // 2), 800, 480)
+
+
+def test_thumbnail_averages_native_dither_pixels_once(monkeypatch):
+    import numpy as np
+    from PIL import Image
+
+    display, _ = _load_display(monkeypatch)
+    ic = load("image_convert")
+    # Fine black/white dithering must average to gray at thumbnail size.
+    indices = np.indices((480, 800)).sum(axis=0).astype(np.uint8) % 2
+    packed = ic._pack_nibbles(indices.reshape(-1), 800, 480)
+    native = ic.bin_to_png(packed, 800, 480)
+    thumbnail = display.thumbnail_preview(native)
+    with Image.open(io.BytesIO(native)) as expected:
+        expected.thumbnail((320, 320), Image.Resampling.LANCZOS)
+        with Image.open(io.BytesIO(thumbnail)) as actual:
+            assert actual.size == expected.size == (320, 192)
+            assert actual.tobytes() == expected.tobytes()
+            assert all(120 <= channel <= 135 for channel in actual.getpixel((160, 96)))
 
 
 @pytest.mark.parametrize("current_one_off", [False, True])
@@ -781,8 +801,7 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
     from PIL import Image
 
     display, _ = _load_display(monkeypatch)
-    source = io.BytesIO()
-    Image.new("RGB", (1600, 1200), (160, 32, 32)).save(source, format="PNG")
+    _install_services(monkeypatch, async_convert_for_entry=AsyncMock())
 
     class Library:
         image = types.SimpleNamespace(crops={}, rotations={})
@@ -793,7 +812,7 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
         async def async_render_for_entry(
             self, _image_id: str, _entry: object, _overrides: dict
         ) -> tuple[bytes, bytes, str]:
-            return b"panel", source.getvalue(), "none"
+            return b"\x33" * (1600 * 1200 // 2), b"unused-small-preview", "none"
 
     library = types.ModuleType("fraimic.library")
     library.get_library = lambda _hass: Library()
@@ -801,6 +820,7 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
     hass = _Hass()
     hass.data = {}
     entry = _entry()
+    entry.data = {"width": 1600, "height": 1200}
     screen = types.SimpleNamespace(
         screen_id="slide-1",
         name="Library",
@@ -825,7 +845,7 @@ def test_prepare_screen_exposes_only_small_matching_thumbnail(
     assert display.cached_prepared_thumbnail(hass, entry, screen) is None
     assert asyncio.run(display.async_prepared_thumbnail(hass, entry, screen)) == thumbnail
 
-    Library.image.crops = {"800x480": [0.0, 0.0, 0.5, 1.0]}
+    Library.image.crops = {"1600x1200": [0.0, 0.0, 0.5, 1.0]}
     assert display.cached_prepared_thumbnail(hass, entry, screen) is None
     Library.image.crops = {}
     screen.source["mode"] = "atkinson"
