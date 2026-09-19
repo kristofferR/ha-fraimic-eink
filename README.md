@@ -142,6 +142,11 @@ Drag and resize overlays on the canvas, choose a background plate and text size,
 and set visibility by time, weekday, or entity state. Overlays belong to the
 frame; individual playlist slides can override inheritance.
 
+For a morning briefing, [temporary overlays](docs/temporary-overlays.md) retain
+the current artwork, refresh changed content during a fixed window, and restore
+the artwork when the window ends. Routine progress can update without extending
+the end time or advancing the playlist.
+
 ### Dashboard screens
 
 For a full information display, `fraimic.render_screen` renders widgets directly

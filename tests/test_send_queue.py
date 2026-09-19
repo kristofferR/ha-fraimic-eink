@@ -295,3 +295,32 @@ def test_hybrid_setup_migrates_local_queue_without_losing_failed_send(
         assert queue.status == "Queued for cloud delivery"
     cloud.async_deliver.assert_awaited_once_with(b"1234", title="Scheduled picture", preview_png=b"calibrated-preview")
     queue._start_waiting.assert_not_called()
+
+
+def test_hybrid_migration_defers_retained_overlay_to_fresh_composition(send_queue_module, tmp_path):
+    from unittest.mock import AsyncMock
+
+    payload = tmp_path / "queue.bin"
+    payload.write_bytes(b"old!")
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *parts: str(payload))
+
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    controller = types.SimpleNamespace(base=(b"art!", b"preview", "none"), submitted_hash="overlay", dirty=False)
+    cloud = types.SimpleNamespace(async_deliver=AsyncMock())
+    entry = types.SimpleNamespace(
+        entry_id="frame", data={"width": 2, "height": 4}, options={"delivery_mode": "hybrid"},
+        runtime_data=types.SimpleNamespace(cloud=cloud, temporary_overlays=controller),
+    )
+    queue = send_queue_module.FraimicSendQueue(Hass(), entry)
+    queue._store = types.SimpleNamespace(
+        async_load=AsyncMock(return_value={"pending": {"queued_at": send_queue_module.time.time(), "content_hash": "overlay"}}),
+        async_save=AsyncMock(),
+    )
+    asyncio.run(queue.async_setup())
+    assert controller.dirty
+    assert queue.pending is None
+    cloud.async_deliver.assert_not_awaited()

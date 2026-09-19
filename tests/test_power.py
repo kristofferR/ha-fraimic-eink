@@ -296,3 +296,19 @@ def test_queue_redraw_does_not_consume_background_budget():
     assert manager.upload_count == 1
     assert manager.last_hash == "queue"
     assert manager.automatic_count == 0
+
+
+def test_overlay_interval_keeps_low_battery_protection_without_background_cooldown():
+    manager = _manager(const.POWER_MODE_BALANCED)
+    manager.last_upload_at = 9_999
+    manager.budget_day = "1970-01-01"
+    manager.automatic_count = 999
+    token = manager.begin(power.TRIGGER_OVERLAY)
+    assert manager.skip_reason(
+        "new", power.TRIGGER_OVERLAY, token,
+        {"battery": {"percent": 70, "charging": False}}, now=10_000,
+    ) is None
+    assert manager.skip_reason(
+        "new", power.TRIGGER_OVERLAY, token,
+        {"battery": {"percent": 20, "charging": False}}, now=10_000,
+    ) == power.SKIP_LOW_BATTERY

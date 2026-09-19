@@ -509,6 +509,7 @@ async def async_show_screen(
         width, height = viewed_size(entry)
         runtime = entry.runtime_data
         overlay_count = 0
+        overlay_controller = getattr(runtime, "temporary_overlays", None)
         overlay_manager = None
         if getattr(hass, "data", None) is not None:
             from ..overlays import get_overlay_manager
@@ -518,6 +519,7 @@ async def async_show_screen(
             screen.kind == KIND_PICTURE
             and getattr(screen, "overlay_mode", "inherit") == "inherit"
             and overlay_manager is not None
+            and overlay_controller is None
         ):
             from ..overlays import async_apply_frame_overlays
 
@@ -554,6 +556,12 @@ async def async_show_screen(
                     hass, entry, png, overrides, **convert_kwargs
                 )
             bin_data, preview_png, used_mode = rendered
+            if overlay_controller is not None:
+                rendered, _, _ = await overlay_controller.async_compose(
+                    rendered, art_info,
+                    screen.kind == KIND_PICTURE and getattr(screen, "overlay_mode", "inherit") == "inherit",
+                )
+                bin_data, preview_png, used_mode = rendered
             _set_screen_preview(runtime, preview_png, used_mode)
             return {
                 "uploaded": False,
@@ -576,6 +584,9 @@ async def async_show_screen(
             upload_kwargs["cache_id"] = picture_cache_id
         if trigger != TRIGGER_MANUAL:
             upload_kwargs["trigger"] = trigger
+        if overlay_controller is not None:
+            upload_kwargs["overlay_art"] = art_info
+            upload_kwargs["overlay_inherit"] = screen.kind == KIND_PICTURE and getattr(screen, "overlay_mode", "inherit") == "inherit"
         result = await async_render_and_upload(
             hass, entry, png, overrides, **upload_kwargs
         )
@@ -586,7 +597,8 @@ async def async_show_screen(
         if displayed or (
             not result.get("cloud_queued") and result.get("content_hash") == skip_if_hash
         ):
-            runtime.last_overlay_count = overlay_count
+            if overlay_controller is None:
+                runtime.last_overlay_count = overlay_count
             # Attribution for whatever is now on the glass (None for
             # non-provider content, so stale credits never outlive their image).
             runtime.last_art = (

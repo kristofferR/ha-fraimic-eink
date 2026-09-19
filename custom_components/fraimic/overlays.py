@@ -137,6 +137,12 @@ def _widget_options(overlay_type: str, raw: Any) -> dict[str, Any]:
             ]
         }
     schema = WIDGET_OPTION_SCHEMAS[widget_type]
+    if overlay_type == "text" and "literal" in options:
+        schema = vol.Schema({
+            vol.Required("literal"): str,
+            vol.Optional("align", default="left"): vol.In(("left", "center")),
+            vol.Optional("size", default="m"): vol.In(("s", "m", "l")),
+        })
     try:
         validated = schema(options)
         if weather_view is not None:
@@ -411,6 +417,10 @@ def _render_specs(
 def _empty_payload(data: Any) -> bool:
     if not isinstance(data, dict):
         return False
+    if "error" in data:
+        return True
+    if "text" in data:
+        return not str(data["text"]).strip()
     for key in ("rows", "events", "items", "forecast"):
         if key in data:
             return not bool(data[key])
@@ -493,14 +503,16 @@ async def async_apply_frame_overlays(
     entry,
     base_png: bytes,
     art: dict[str, Any] | None,
+    *,
+    overlays: list[dict[str, Any]] | None = None,
 ) -> tuple[bytes, int]:
     manager = get_overlay_manager(hass)
-    if manager is None:
+    if manager is None and overlays is None:
         return base_png, 0
     now = dt_util.now()
     overlays = [
         overlay
-        for overlay in manager.for_frame(entry.entry_id)
+        for overlay in (overlays if overlays is not None else manager.for_frame(entry.entry_id))
         if _visible(hass, overlay, now)
     ]
     if not overlays:

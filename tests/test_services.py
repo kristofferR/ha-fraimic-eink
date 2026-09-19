@@ -478,3 +478,88 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
     assert runtime.sending_preview is None
     power.finish.assert_called_once_with(1)
     runtime.send_queue.async_upload_or_queue.assert_not_called()
+
+
+@pytest.mark.parametrize("state", ["unchanged", "pending", "too_late", "expired_during_render"])
+def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_content(monkeypatch, state):
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    packed = b"same pixels" if state == "unchanged" else b"new pixels"
+    controller = SimpleNamespace(
+        base=(b"clean art", b"clean preview", "none"), art=None, inherit=True, title="Art",
+        submitted_hash=hashlib.sha256(b"same pixels").hexdigest(), submitted_via_cloud=True,
+        active=True, expires_at=1_200 if state == "too_late" else 4_000,
+        signature=lambda *_: "expired" if state == "expired_during_render" else "active",
+        async_compose=AsyncMock(return_value=((packed, b"png", "none"), "active", 1)),
+        async_accept=AsyncMock(),
+    )
+    cloud = SimpleNamespace(
+        has_image=state == "pending", delivery_deadline=1_500, wake_interval=300,
+        async_deliver=AsyncMock(),
+    )
+    power = SimpleNamespace(begin=Mock(return_value=1), finish=Mock())
+    runtime = SimpleNamespace(
+        temporary_overlays=controller, scheduler=None, cloud=cloud, power=power,
+        upload_lock=asyncio.Lock(), sending_preview=None,
+    )
+    monkeypatch.setattr(services.time, "time", lambda: 1_000)
+    choose_transport = AsyncMock(return_value=True)
+    monkeypatch.setattr(services, "async_use_cloud", choose_transport)
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
+    result = asyncio.run(services.async_render_and_upload(
+        SimpleNamespace(), entry, b"", hold_playlist=False, overlay_refresh=True,
+    ))
+    assert result["uploaded"] is False
+    assert not result.get("displayed")
+    cloud.async_deliver.assert_not_awaited()
+    if state == "unchanged":
+        assert result["unchanged"]
+        controller.async_accept.assert_awaited_once()
+        choose_transport.assert_not_awaited()
+    else:
+        assert result["deferred"]
+        controller.async_accept.assert_not_awaited()
+
+
+def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    progress = {"completed": 1}
+    power = SimpleNamespace(
+        last_hash=None, begin=Mock(return_value=1), finish=Mock(), schedule_sleep=Mock(),
+    )
+    power.skip_reason = lambda content_hash, *_: services.SKIP_DUPLICATE if power.last_hash == content_hash else None
+
+    async def record(content_hash, _trigger):
+        power.last_hash = content_hash
+
+    power.async_record_upload = record
+
+    async def compose(*_args):
+        return (f"routine {progress['completed']}/6".encode(), b"png", "none"), "config", 1
+
+    controller = SimpleNamespace(
+        base=(b"same art", b"preview", "none"), art=None, inherit=True, title="Art",
+        async_compose=compose, async_accept=AsyncMock(), signature=lambda *_: "config",
+    )
+    client = SimpleNamespace(upload_image=AsyncMock())
+    runtime = SimpleNamespace(
+        temporary_overlays=controller, scheduler=None, cloud=None, power=power,
+        client=client, upload_lock=asyncio.Lock(), coordinator=SimpleNamespace(data={}),
+        send_queue=None, set_displayed_preview=Mock(),
+    )
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
+
+    async def run():
+        for value in (1, 1, 2):
+            progress["completed"] = value
+            await services.async_render_and_upload(
+                SimpleNamespace(), entry, b"", hold_playlist=False, overlay_refresh=True,
+            )
+
+    asyncio.run(run())
+    assert [call.args[0] for call in client.upload_image.await_args_list] == [b"routine 1/6", b"routine 2/6"]
+    assert controller.base[0] == b"same art"
