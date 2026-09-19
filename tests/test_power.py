@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from conftest import load
@@ -174,6 +175,23 @@ def test_native_display_change_invalidates_persisted_hash() -> None:
         manager.async_observe_frame({"display": {"last_refresh": "new"}})
     )
     assert manager.last_hash is None
+
+
+def test_native_display_change_preserves_base_for_matching_queued_overlay() -> None:
+    manager = _manager()
+    manager.last_display_marker = "old"
+    overlays = SimpleNamespace(
+        submitted_hash="queued-composite", async_invalidate=AsyncMock()
+    )
+    manager.entry.runtime_data = SimpleNamespace(
+        temporary_overlays=overlays,
+        cloud=None,
+        send_queue=SimpleNamespace(pending={"content_hash": "queued-composite"}),
+    )
+
+    asyncio.run(manager.async_observe_frame({"display": {"last_refresh": "new"}}))
+
+    overlays.async_invalidate.assert_not_awaited()
 
 
 def test_minimum_daily_budget_blocks_second_automatic_redraw() -> None:

@@ -25,6 +25,7 @@ from .cloud import (
     album_schedule,
 )
 from .const import (
+    CLOUD_WAKE_WINDOW,
     CONF_HEIGHT,
     CONF_CLOUD_EMAIL,
     CONF_ROTATION,
@@ -41,8 +42,6 @@ _LOGGER = logging.getLogger(__name__)
 STORE_VERSION = 1
 # Fallback rotation cadence for the album before a playlist interval is known.
 DEFAULT_INTERVAL = 3600
-# Large-frame album wakes take about 2m40s to download, render, and sleep.
-CLOUD_WAKE_WINDOW = 180
 
 
 def _cloud_png(bin_data: bytes, width: int, height: int, rotation: int) -> bytes:

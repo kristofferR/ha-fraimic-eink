@@ -370,7 +370,18 @@ class FraimicPowerManager:
             runtime = getattr(self.entry, "runtime_data", None)
             overlays = getattr(runtime, "temporary_overlays", None)
             cloud = getattr(runtime, "cloud", None)
-            if overlays is not None and not (cloud is not None and cloud.has_image):
+            queue = getattr(runtime, "send_queue", None)
+            pending = getattr(queue, "pending", None)
+            queued_overlay = (
+                overlays is not None
+                and isinstance(pending, dict)
+                and pending.get("content_hash") == overlays.submitted_hash
+            )
+            if (
+                overlays is not None
+                and not queued_overlay
+                and not (cloud is not None and cloud.has_image)
+            ):
                 await overlays.async_invalidate()
         self.last_display_marker = marker
         await self._async_save()

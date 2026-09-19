@@ -480,16 +480,30 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
     runtime.send_queue.async_upload_or_queue.assert_not_called()
 
 
-@pytest.mark.parametrize("state", ["unchanged", "pending", "too_late", "expired_during_render", "briefing_stale_at_wake"])
+@pytest.mark.parametrize(
+    "state",
+    [
+        "unchanged",
+        "pending",
+        "too_late",
+        "expired_during_render",
+        "briefing_stale_at_wake",
+        "briefing_stale_during_wake",
+    ],
+)
 def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_content(monkeypatch, state):
     from unittest.mock import AsyncMock, Mock
 
     services = _load_services(monkeypatch)
     packed = b"same pixels" if state == "unchanged" else b"new pixels"
+    briefing_deadlines = {
+        "briefing_stale_at_wake": 1_120,
+        "briefing_stale_during_wake": 1_400,
+    }
     controller = SimpleNamespace(
         base=(b"clean art", b"clean preview", "none"), art=None, inherit=True, title="Art",
         submitted_hash=hashlib.sha256(b"same pixels").hexdigest(), submitted_via_cloud=True,
-        composed_valid_until=1_120 if state == "briefing_stale_at_wake" else None,
+        composed_valid_until=briefing_deadlines.get(state),
         active=True, expires_at=1_200 if state == "too_late" else 4_000,
         signature=lambda *_: "expired" if state == "expired_during_render" else "active",
         async_compose=AsyncMock(return_value=((packed, b"png", "none"), "active", 1)),

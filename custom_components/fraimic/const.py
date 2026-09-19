@@ -91,6 +91,10 @@ DEFAULT_HOST: Final = "fraimic.local"
 DEFAULT_SCAN_INTERVAL: Final = 3600
 MIN_SCAN_INTERVAL: Final = 30
 
+# Delivery-time allowances for a panel redraw after image bytes are accepted.
+LOCAL_REDRAW_SECONDS: Final = 30
+CLOUD_WAKE_WINDOW: Final = 180
+
 # How often a camera "playing" on the frame re-snapshots (seconds). Every
 # update is a full ~30 s E-Ink refresh cycle and costs battery, so this is
 # opt-in. 0 = snapshot once, no auto-refresh.
