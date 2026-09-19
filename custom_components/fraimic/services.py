@@ -859,57 +859,69 @@ async def async_render_and_upload(
                     preprocess=preprocess,
                     cache_id=cache_id,
                 )
-            if overlay_controller is not None:
-                overlay_source = rendered
-                rendered, overlay_signature, overlay_count = await overlay_controller.async_compose(
-                    rendered, overlay_art, overlay_inherit,
-                )
-            bin_data, preview_png, used_mode = rendered
-            if len(bin_data) > MAX_BIN_SIZE:
-                raise HomeAssistantError(
-                    f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
-                )
-            content_hash = hashlib.sha256(bin_data).hexdigest()
+            overlay_source = rendered if overlay_controller is not None else None
+            # Preserve one-shot artwork if an overlay changes while rendering or
+            # probing transport. Only retry composition, never a frame upload.
+            for _attempt in range(3):
+                if overlay_source is not None:
+                    rendered, overlay_signature, overlay_count = await overlay_controller.async_compose(
+                        overlay_source, overlay_art, overlay_inherit,
+                    )
+                bin_data, preview_png, used_mode = rendered
+                if len(bin_data) > MAX_BIN_SIZE:
+                    raise HomeAssistantError(
+                        f"Rendered frame buffer exceeds {MAX_BIN_SIZE} bytes"
+                    )
+                content_hash = hashlib.sha256(bin_data).hexdigest()
 
-            def deferred_result(skip_reason=None):
-                result = {
-                    "mode": used_mode,
-                    "content_hash": content_hash,
-                    "uploaded": False,
-                    "queued": False,
-                    "preview_png": preview_png,
-                    "displayed": False,
-                    "deferred": True,
-                }
-                if skip_reason is not None:
-                    result["skip_reason"] = skip_reason
-                return result
+                def deferred_result(skip_reason=None):
+                    if not overlay_refresh:
+                        raise HomeAssistantError(
+                            "Overlay content expires before delivery; retry the artwork send"
+                        )
+                    result = {
+                        "mode": used_mode,
+                        "content_hash": content_hash,
+                        "uploaded": False,
+                        "queued": False,
+                        "preview_png": preview_png,
+                        "displayed": False,
+                        "deferred": True,
+                    }
+                    if skip_reason is not None:
+                        result["skip_reason"] = skip_reason
+                    return result
 
-            if (
-                overlay_source is not None
-                and overlay_controller.signature(overlay_inherit) != overlay_signature
-            ):
-                # Expiry can occur during the CPU-bound render. Never send that
-                # stale composite; the next attempt will remove it instead.
-                return deferred_result()
-            cloud = getattr(runtime, "cloud", None)
-            if (
-                overlay_refresh and cloud is not None
-                and overlay_controller.submitted_via_cloud
-                and content_hash == overlay_controller.submitted_hash
-            ):
-                # Re-editing an unchanged cloud album restarts its wake timer.
-                # Acceptance is still not evidence of a physical redraw.
-                use_cloud = True
-                await accept_overlay(content_hash)
-                return {"uploaded": False, "displayed": False, "unchanged": True,
-                        "cloud_queued": cloud.has_image, "skip_reason": SKIP_DUPLICATE}
-            use_cloud = await async_use_cloud(entry)
-            if (
-                overlay_source is not None
-                and overlay_controller.signature(overlay_inherit) != overlay_signature
-            ):
-                return deferred_result()
+                if (
+                    overlay_source is not None
+                    and overlay_controller.signature(overlay_inherit) != overlay_signature
+                ):
+                    if overlay_refresh:
+                        return deferred_result()
+                    continue
+                cloud = getattr(runtime, "cloud", None)
+                if (
+                    overlay_refresh and cloud is not None
+                    and overlay_controller.submitted_via_cloud
+                    and content_hash == overlay_controller.submitted_hash
+                ):
+                    # Re-editing an unchanged cloud album restarts its wake timer.
+                    # Acceptance is still not evidence of a physical redraw.
+                    use_cloud = True
+                    await accept_overlay(content_hash)
+                    return {"uploaded": False, "displayed": False, "unchanged": True,
+                            "cloud_queued": cloud.has_image, "skip_reason": SKIP_DUPLICATE}
+                use_cloud = await async_use_cloud(entry)
+                if (
+                    overlay_source is not None
+                    and overlay_controller.signature(overlay_inherit) != overlay_signature
+                ):
+                    if overlay_refresh:
+                        return deferred_result()
+                    continue
+                break
+            else:
+                raise HomeAssistantError("Overlays kept changing while rendering; retry the artwork send")
             if overlay_refresh:
                 if use_cloud and overlay_controller.active:
                     deadline = cloud.delivery_deadline
