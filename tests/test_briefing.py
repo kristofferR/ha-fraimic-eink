@@ -186,7 +186,7 @@ def test_ordered_blocks_keep_all_six_groups_and_do_not_extend_freshness(with_pro
         {"valid_until": (NOW + timedelta(hours=1)).isoformat()},
         {"routine": {"label": "Routine", "completed": 4, "skipped": 3, "total": 6}},
         {"weather": {"temperature": float("nan")}},
-        {"tasks": [{"title": "x"}] * 4},
+        {"tasks": [{"title": "x"}] * 13},
     ],
 )
 def test_invalid_or_expired_snapshots_are_omitted(change):
@@ -288,11 +288,20 @@ def test_real_compositor_refresh_preserves_artwork_and_deduplicates_timestamps(
 @pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
 def test_selectable_layouts_render_the_supplied_guidance(layout):
     raw = ordered_snapshot()
-    raw["guidance"] = {"title": "Start med ett steg", "body": "Gjør det viktigste først.", "action": "Gå en tur"}
+    raw["guidance"] = {
+        "title": "Start med ett steg",
+        "body": "Gjør det viktigste først.",
+        "action": "Gå en tur",
+    }
     data = load("render.briefing").validate_briefing(raw, NOW)
     doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
     load("render.widgets.briefing").render_briefing(
-        doc, load("render.layout").Rect(0, 0, 2560, 1440), {"layout": layout}, data, None, None
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": layout},
+        data,
+        None,
+        None,
     )
     svg = doc.to_string()
     assert "VEILEDER" in svg
@@ -301,13 +310,56 @@ def test_selectable_layouts_render_the_supplied_guidance(layout):
     assert "Gå en tur" in svg
     assert "Priority first" in svg
     assert "Sleep sixth" in svg
-    assert load("render.briefing").validate_briefing(raw, NOW + timedelta(minutes=3)) is None
+    assert (
+        load("render.briefing").validate_briefing(raw, NOW + timedelta(minutes=3))
+        is None
+    )
 
 
 def test_guidance_can_be_headline_only_but_not_entirely_blank():
-    raw = {**ordered_snapshot(), "blocks": [], "guidance": {"title": "Ett steg", "body": "  "}}
+    raw = {
+        **ordered_snapshot(),
+        "blocks": [],
+        "guidance": {"title": "Ett steg", "body": "  "},
+    }
     data = load("render.briefing").validate_briefing(raw, NOW)
     assert data["guidance"]["title"] == "Ett steg"
     assert data["guidance"]["body"] == ""
     raw["guidance"]["title"] = " "
+    assert load("render.briefing").validate_briefing(raw, NOW) is None
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
+    raw = ordered_snapshot()
+    raw["blocks"] = [
+        {
+            "type": "focus",
+            "label": "Neste",
+            "title": "En konkret handling",
+            "detail": "Fra Today",
+        },
+        {
+            "type": "tasks",
+            "label": "Oppgaver",
+            "items": [{"title": f"Oppgave {index:02d}"} for index in range(1, 13)],
+        },
+    ]
+    raw["guidance"] = {"title": "Ett steg", "body": "Gjør det viktigste først."}
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    assert data is not None
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": layout},
+        data,
+        None,
+        None,
+    )
+    svg = doc.to_string()
+    for index in range(1, 13):
+        assert f"Oppgave {index:02d}" in svg
+    assert "NESTE" in svg and "En konkret handling" in svg and "VEILEDER" in svg
+    raw["blocks"][1]["items"].append({"title": "Too many"})
     assert load("render.briefing").validate_briefing(raw, NOW) is None

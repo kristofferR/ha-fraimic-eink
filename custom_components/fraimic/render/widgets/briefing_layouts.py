@@ -296,3 +296,141 @@ def render_briefing_layout(doc, rect, options, data):
             600,
             PALETTE_HEX[value["color"]],
         )
+
+
+def render_dense_briefing(doc, rect, options, data):
+    """Give long lists the lower half of the canvas, with column-major reading."""
+    nb = data["locale"] == "nb"
+    side = options.get("layout") == "side_panel"
+    strip = options.get("layout", "strip") == "strip"
+    unit = rect.w / 100
+    px = lambda value: max(1, round(value * unit))
+    ink, white, green = (PALETTE_HEX[key] for key in ("black", "white", "green"))
+    top = rect.y + (rect.h * 0.2 if strip else 0)
+    left = rect.x + (rect.w * 0.4 if side else 0)
+    doc.rect(
+        round(left),
+        round(top),
+        round(rect.x + rect.w - left),
+        round(rect.y + rect.h - top),
+        white,
+    )
+    if side and data.get("_artwork_png"):
+        from PIL import Image, ImageOps
+
+        with Image.open(io.BytesIO(data["_artwork_png"])) as source:
+            crop = ImageOps.fit(source.convert("RGB"), (round(rect.w * 0.4), rect.h))
+            encoded = io.BytesIO()
+            crop.save(encoded, format="PNG")
+        doc.image(encoded.getvalue(), rect.x, rect.y, round(rect.w * 0.4), rect.h)
+    # The compositor already retained the full artwork behind the strip.
+    margin = px(2.4)
+    left += margin
+    right = rect.x + rect.w - margin
+    width = right - left
+    y = top + px(3.7)
+
+    def text(x, y, value, size, width, weight=400, color=ink):
+        doc.text(
+            round(x),
+            round(y),
+            truncate(value, round(width), px(size), weight),
+            size=px(size),
+            fill=color,
+            weight=weight,
+        )
+
+    def lines(x, y, value, size, width, count, weight=400):
+        rows = wrap(value, width, px(size), weight)
+        for index, row in enumerate(rows[:count]):
+            if index == count - 1 and len(rows) > count:
+                row = truncate(row + " …", width, px(size), weight)
+            text(x, y + px(size * 1.3) * index, row, size, width, weight)
+        return min(len(rows), count) * px(size * 1.3)
+
+    text(left, y, data["greeting"], 2.3, width * 0.52, 700)
+    weather = data.get("weather")
+    date = data["date_label"]
+    if weather:
+        date += f" · {weather['temperature']:g}{weather['unit']}"
+    text(left + width * 0.54, y, date, 1.1, width * 0.46)
+    y += px(3)
+    guidance = data.get("guidance")
+    guide_width = width if side or strip else width * 0.67
+    if guidance:
+        text(left, y, "VEILEDER" if nb else "GUIDANCE", 1.05, guide_width, 700, green)
+        y += px(2.7)
+        y += lines(left, y, guidance["title"], 2.1, guide_width, 1, 700)
+        y += lines(left, y, guidance["body"], 1.4, guide_width, 2)
+        if guidance["action"]:
+            text(left, y, guidance["action"], 1.3, guide_width, 600, green)
+            y += px(2)
+    if not side and not strip and data.get("_artwork_png"):
+        from PIL import Image, ImageOps
+
+        art_width = round(width * 0.28)
+        art_height = px(12)
+        with Image.open(io.BytesIO(data["_artwork_png"])) as source:
+            crop = ImageOps.fit(source.convert("RGB"), (art_width, art_height))
+            encoded = io.BytesIO()
+            crop.save(encoded, format="PNG")
+        doc.image(
+            encoded.getvalue(),
+            round(right - art_width),
+            round(top + px(6)),
+            art_width,
+            art_height,
+        )
+    blocks = list(data.get("blocks", []))
+    if "blocks" not in data:
+        for kind in ("tasks", "agenda"):
+            if data.get(kind):
+                blocks.append(
+                    {
+                        "type": kind,
+                        "label": "Husk" if kind == "tasks" and nb else kind.title(),
+                        "items": data[kind],
+                    }
+                )
+        if data.get("focus"):
+            blocks.insert(0, {"type": "focus", **data["focus"]})
+    # Keep Next together above the lists; routine progress is never recreated here.
+    if blocks and blocks[0]["type"] == "focus":
+        next_action = blocks.pop(0)
+        y += px(1.5)
+        text(left, y, next_action["label"].upper(), 1.05, width, 700, green)
+        y += px(2.3)
+        y += lines(left, y, next_action["title"], 1.65, width, 1, 700)
+        y += lines(left, y, next_action["detail"], 1.2, width, 1)
+    y += px(1.6)
+    doc.line(round(left), round(y), round(right), round(y), ink, px(0.08))
+    y += px(2.5)
+    rows = []
+    for value in blocks:
+        if value["type"] in ("tasks", "agenda"):
+            for item in value["items"]:
+                title = item["title"]
+                if value["type"] == "agenda" and not item["all_day"]:
+                    title = f"{item['time']} · {title}"
+                rows.append((value["label"], title, item["icon"]))
+        else:
+            rows.append(
+                (
+                    value["label"],
+                    value.get("title", value.get("next_step", "")),
+                    value["icon"],
+                )
+            )
+    columns = 2 if side else 3
+    count = math.ceil(len(rows) / columns) or 1
+    bottom = rect.y + rect.h - data.get("_bottom_inset", 0) - px(1.5)
+    step = min(px(5), (bottom - y) / count)
+    gap = px(2)
+    cell_width = (width - gap * (columns - 1)) / columns
+    for index, (label, title, icon) in enumerate(rows):
+        x = left + (index // count) * (cell_width + gap)
+        row_y = y + (index % count) * step
+        if index % count == 0 or rows[index - 1][0] != label:
+            text(x, row_y, label.upper(), 0.9, cell_width, 700, green)
+        doc.icon(icon_path(icon), round(x), round(row_y + px(0.6)), px(1.5), ink)
+        text(x + px(2), row_y + px(2), title, 1.3, cell_width - px(2), 600)

@@ -208,3 +208,5 @@ bottom-left of the viewed panel when the reported battery is below 30%. It is
 omitted at 30% and above, and when the battery is unknown. It remains on restored
 artwork after temporary content expires. It uses a fixed warning rather than a
 percentage that could become stale; normal delivery rules still apply.
+
+Task blocks support up to 12 rows. Longer todo lists use a compact column layout in all three briefing styles, keeping guidance and the leading focus card above the list. Ordered snapshots support up to eight blocks.

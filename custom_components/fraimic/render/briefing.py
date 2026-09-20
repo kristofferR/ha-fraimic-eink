@@ -64,13 +64,15 @@ _SCHEMA = vol.Schema(
         vol.Required("date_label"): _text,
         vol.Required("greeting"): _text,
         vol.Optional("locale", default="en"): vol.In(("en", "nb")),
-        vol.Optional("guidance"): vol.Schema({
-            vol.Optional("title", default=""): _text,
-            vol.Required("body"): vol.All(str, vol.Length(max=2400), str.strip),
-            vol.Optional("action", default=""): _text,
-        }),
+        vol.Optional("guidance"): vol.Schema(
+            {
+                vol.Optional("title", default=""): _text,
+                vol.Required("body"): vol.All(str, vol.Length(max=2400), str.strip),
+                vol.Optional("action", default=""): _text,
+            }
+        ),
         vol.Optional("agenda", default=list): vol.All([_AGENDA], vol.Length(max=3)),
-        vol.Optional("tasks", default=list): vol.All([_ITEM], vol.Length(max=3)),
+        vol.Optional("tasks", default=list): vol.All([_ITEM], vol.Length(max=12)),
         vol.Optional("routine"): _ROUTINE,
         vol.Optional("focus"): _FOCUS,
         vol.Optional("progress", default=list): vol.All(
@@ -116,7 +118,9 @@ _BLOCK = vol.Any(
                 vol.Required("type"): kind,
                 vol.Required("label"): _text,
                 vol.Optional("color", default=color): _COLOR,
-                vol.Required("items"): vol.All([item], vol.Length(min=1, max=3)),
+                vol.Required("items"): vol.All(
+                    [item], vol.Length(min=1, max=12 if kind == "tasks" else 3)
+                ),
             }
         )
         for kind, item, color in (
@@ -125,7 +129,7 @@ _BLOCK = vol.Any(
         )
     ],
 )
-_SCHEMA = _SCHEMA.extend({vol.Optional("blocks"): vol.All([_BLOCK], vol.Length(max=6))})
+_SCHEMA = _SCHEMA.extend({vol.Optional("blocks"): vol.All([_BLOCK], vol.Length(max=8))})
 
 
 def validate_briefing(raw, now: datetime):
@@ -156,7 +160,9 @@ def validate_briefing(raw, now: datetime):
         content_keys = (
             ("blocks",) if "blocks" in data else ("agenda", "tasks", "routine", "focus")
         )
-        if not any(data.get(k) for k in (*content_keys, "progress", "weather", "guidance")):
+        if not any(
+            data.get(k) for k in (*content_keys, "progress", "weather", "guidance")
+        ):
             return None
         return data
     except (vol.Invalid, TypeError, ValueError, OverflowError):

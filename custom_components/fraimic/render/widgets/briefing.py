@@ -35,6 +35,20 @@ LABELS = {
 def render_briefing(doc, rect, options, data, ctx, theme):
     if not data or data.get("empty") or "error" in data:
         return
+    task_count = (
+        sum(
+            len(block["items"])
+            for block in data.get("blocks", [])
+            if block["type"] == "tasks"
+        )
+        if "blocks" in data
+        else len(data.get("tasks", []))
+    )
+    if task_count > 3:
+        from .briefing_layouts import render_dense_briefing
+
+        render_dense_briefing(doc, rect, options, data)
+        return
     if options.get("layout", "strip") != "strip":
         from .briefing_layouts import render_briefing_layout
 
@@ -106,13 +120,26 @@ def render_briefing(doc, rect, options, data, ctx, theme):
     )
     y = top + px(6.25)
     if guidance:
-        tag(left, y, "Veileder" if data["locale"] == "nb" else "Guidance", "green", right - left)
+        tag(
+            left,
+            y,
+            "Veileder" if data["locale"] == "nb" else "Guidance",
+            "green",
+            right - left,
+        )
         text(left, y + px(3), guidance["title"], 2.1, 700, right - left)
         for n, line in enumerate(wrap(guidance["body"], right - left, px(1.5))[:3]):
             text(left, y + px(5.7 + n * 1.8), line, 1.5, width=right - left)
         if guidance["action"]:
-            text(left, y + px(12), guidance["action"], 1.5, 600, right - left,
-                 color=PALETTE_HEX["green"])
+            text(
+                left,
+                y + px(12),
+                guidance["action"],
+                1.5,
+                600,
+                right - left,
+                color=PALETTE_HEX["green"],
+            )
         y += guidance_height
     gap = px(2.1)
     count = max(1, len(blocks))
