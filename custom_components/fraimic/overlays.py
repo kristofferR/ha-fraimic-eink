@@ -22,7 +22,7 @@ from .render.fetch import async_build_context
 from .render.layout import Rect
 from .render.icons import icon_path
 from .render.schema import WIDGET_OPTION_SCHEMAS, ScreenConfig, WidgetConfig
-from .render.svg import SvgDoc, measure, rasterize, snap_to_colors
+from .render.svg import SvgDoc, rasterize, snap_to_colors
 from .render.theme import PALETTE_HEX, Theme
 from .render.widgets import WIDGET_REGISTRY
 from .render.widgets.base import render_error
@@ -145,11 +145,13 @@ def _widget_options(overlay_type: str, raw: Any) -> dict[str, Any]:
         }
     schema = WIDGET_OPTION_SCHEMAS[widget_type]
     if overlay_type == "text" and "literal" in options:
-        schema = vol.Schema({
-            vol.Required("literal"): str,
-            vol.Optional("align", default="left"): vol.In(("left", "center")),
-            vol.Optional("size", default="m"): vol.In(("s", "m", "l")),
-        })
+        schema = vol.Schema(
+            {
+                vol.Required("literal"): str,
+                vol.Optional("align", default="left"): vol.In(("left", "center")),
+                vol.Optional("size", default="m"): vol.In(("s", "m", "l")),
+            }
+        )
     try:
         validated = schema(options)
         if weather_view is not None:
@@ -196,7 +198,11 @@ def normalize_overlay(raw: Any) -> dict[str, Any]:
         "y": y,
         "w": max(1, w),
         "h": max(1, h),
-        "plate": "none" if overlay_type == "briefing" else raw.get("plate") if raw.get("plate") in PLATES else "panel",
+        "plate": "none"
+        if overlay_type == "briefing"
+        else raw.get("plate")
+        if raw.get("plate") in PLATES
+        else "panel",
         "plate_color": (
             raw.get("plate_color")
             if raw.get("plate_color") in PALETTE_NAMES
@@ -475,11 +481,9 @@ def _render_overlay_png(
         overlay = specs[index]
         data = ctx.widget_data.get(index)
         if overlay["type"] == "briefing" and data:
-            size = max(12, round(width * 0.0125))
             data = {
                 **data,
                 "_artwork_png": base_png,
-                "_bottom_inset": size + 2 * max(3, round(size * 0.3)) if battery_warning else 0,
             }
         if overlay["visibility"].get("hide_when_empty") and _empty_payload(data):
             continue
@@ -497,7 +501,11 @@ def _render_overlay_png(
             doc.rect(x, y + h - stroke, w, stroke, color)
             doc.rect(x, y, stroke, h, color)
             doc.rect(x + w - stroke, y, stroke, h, color)
-        pad = 0 if overlay["type"] == "briefing" else max(8, round(min(width, height) / 75))
+        pad = (
+            0
+            if overlay["type"] == "briefing"
+            else max(8, round(min(width, height) / 75))
+        )
         rect = Rect(x + pad, y + pad, max(1, w - pad * 2), max(1, h - pad * 2))
         theme = Theme.for_screen(
             width,
@@ -537,15 +545,13 @@ def _render_overlay_png(
     if battery_warning:
         # Last layer, anchored to the physical bottom-left, outside widget slots.
         size = max(12, round(width * 0.0125))
-        pad = max(3, round(size * 0.3))
-        label = "Lavt batteri" if ctx.language in ("nb", "nn", "no") else "Low battery"
-        warning_height = size + 2 * pad
-        warning_width = round(measure(label, size, 600)) + size + 4 * pad
-        top = height - warning_height
-        doc.rect(0, top, warning_width, warning_height, PALETTE_HEX["white"])
-        doc.icon(icon_path("mdi:battery-alert-variant-outline"), pad, top + pad, size, PALETTE_HEX["red"])
-        doc.text(size + 2 * pad, height - pad - round(size * 0.15), label,
-                 size=size, weight=600, fill=PALETTE_HEX["red"])
+        doc.icon(
+            icon_path("mdi:battery-alert-variant-outline"),
+            0,
+            height - size,
+            size,
+            PALETTE_HEX["red"],
+        )
     return snap_to_colors(rasterize(doc.to_string(), width, height), doc.colors)
 
 
@@ -565,7 +571,13 @@ async def async_apply_frame_overlays(
     now = dt_util.now()
     overlays = [
         overlay
-        for overlay in (overlays if overlays is not None else manager.for_frame(entry.entry_id) if manager else [])
+        for overlay in (
+            overlays
+            if overlays is not None
+            else manager.for_frame(entry.entry_id)
+            if manager
+            else []
+        )
         if _visible(hass, overlay, now)
     ]
     if not overlays and not battery_warning:
@@ -578,13 +590,22 @@ async def async_apply_frame_overlays(
         for index, widget in enumerate(screen.widgets):
             data = ctx.widget_data.get(index) or {}
             if widget.type == "briefing" and "valid_until" in data:
-                snapshot_deadlines.append(datetime.fromisoformat(data["valid_until"]).timestamp())
+                snapshot_deadlines.append(
+                    datetime.fromisoformat(data["valid_until"]).timestamp()
+                )
     from .render.display import viewed_size
 
     width, height = viewed_size(entry)
     try:
         rendered = await hass.async_add_executor_job(
-            _render_overlay_png, base_png, specs, screen, ctx, width, height, battery_warning
+            _render_overlay_png,
+            base_png,
+            specs,
+            screen,
+            ctx,
+            width,
+            height,
+            battery_warning,
         )
     except Exception as err:
         raise HomeAssistantError(f"Could not render frame overlays: {err}") from err

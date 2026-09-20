@@ -75,8 +75,6 @@ def render_briefing(doc, rect, options, data, ctx, theme):
     guidance_height = px(15.5 if guidance and guidance["action"] else 13)
     if guidance:
         height += guidance_height
-    bottom_inset = data.get("_bottom_inset", 0)
-    height += bottom_inset
     top = rect.y + rect.h - height
     left, right = rect.x + px(2.4), rect.x + rect.w - px(2.4)
     doc.rect(rect.x, top, rect.w, height, white)
@@ -220,7 +218,7 @@ def render_briefing(doc, rect, options, data, ctx, theme):
     if overflow:
         # Lower-ranked content uses the mockup's compact footer, preserving the
         # complete ordered prefix without squeezing the four main columns.
-        footer = rect.y + rect.h - bottom_inset - px(10.5 if progress else 5.25)
+        footer = rect.y + rect.h - px(10.5 if progress else 5.25)
         doc.line(left, footer, right, footer, ink, max(1, px(0.08)))
         width = (right - left - px(3) * (len(overflow) - 1)) / len(overflow)
         for i, (kind, value) in enumerate(overflow):
@@ -267,7 +265,7 @@ def render_briefing(doc, rect, options, data, ctx, theme):
                         x, footer + px(4.15), filled, px(0.45), PALETTE_HEX["green"]
                     )
     if progress:
-        footer = rect.y + rect.h - bottom_inset - px(5.25)
+        footer = rect.y + rect.h - px(5.25)
         doc.line(left, footer, right, footer, ink, max(1, px(0.08)))
         width = (right - left - px(3) * (len(progress) - 1)) / len(progress)
         for i, item in enumerate(progress):

@@ -273,10 +273,7 @@ def render_briefing_layout(doc, rect, options, data):
     columns = 2 if side else 3
     rows = math.ceil(len(blocks) / columns) or 1
     progress = data.get("progress", [])
-    bottom_inset = data.get("_bottom_inset", 0)
-    available = (
-        rect.y + rect.h - bottom_inset - footer_top - px(3.5 + (4 if progress else 0))
-    )
+    available = rect.y + rect.h - footer_top - px(3.5 + (4 if progress else 0))
     gap = px(2)
     cell_width = (width - gap * (columns - 1)) / columns
     for index, value in enumerate(blocks):
@@ -286,7 +283,7 @@ def render_briefing_layout(doc, rect, options, data):
     for index, value in enumerate(progress):
         progress_width = width / len(progress)
         x = left + index * progress_width
-        y = rect.y + rect.h - bottom_inset - px(2.5)
+        y = rect.y + rect.h - px(2.5)
         text(
             x,
             y,
@@ -308,7 +305,7 @@ def render_dense_briefing(doc, rect, options, data):
     ink, white, green, blue = (
         PALETTE_HEX[key] for key in ("black", "white", "green", "blue")
     )
-    top = rect.y + (rect.h * 0.16 if strip else 0)
+    top = rect.y + (rect.h * 0.30 if strip else 0)
     left = rect.x + (rect.w * 0.35 if side else 0)
     doc.rect(
         round(left),
@@ -331,6 +328,8 @@ def render_dense_briefing(doc, rect, options, data):
 
     if side:
         artwork(rect.x, rect.y, rect.w * 0.35, rect.h)
+    if strip:
+        doc.rect(rect.x, round(top), rect.w, px(0.35), blue)
     margin = px(2.4)
     left += margin
     right = rect.x + rect.w - margin
@@ -358,6 +357,28 @@ def render_dense_briefing(doc, rect, options, data):
         doc.rect(round(x), round(y - px(0.8)), px(0.3), px(0.85), color)
         text(x + px(0.8), y, value.upper(), 1, width - px(0.8), 700, ink)
 
+    def tile(name, x, y, size, color):
+        doc.rect(round(x), round(y), px(size), px(size), color, rx=px(0.25))
+        doc.icon(
+            icon_path(name),
+            round(x + px(size * 0.17)),
+            round(y + px(size * 0.17)),
+            px(size * 0.66),
+            ink if color == PALETTE_HEX["yellow"] else white,
+        )
+
+    next_card = (
+        next(
+            (
+                block
+                for block in data.get("blocks", [])
+                if block["type"] == "focus" and block["label"] in ("Neste", "Next")
+            ),
+            None,
+        )
+        if strip
+        else None
+    )
     y = top + px(3.7)
     text(left, y, data["greeting"], 2.3, width * 0.54, 700)
     weather = data.get("weather")
@@ -381,15 +402,38 @@ def render_dense_briefing(doc, rect, options, data):
         )
     y += px(3.3)
     guidance = data.get("guidance")
-    guide_width = width if side or strip else width * 0.7
+    guide_width = width * 0.60 if next_card else width if side or strip else width * 0.7
+    guide_top = y
     if guidance:
         label(left, y, "Veileder" if nb else "Guidance", guide_width)
         y += px(2.5)
-        y += lines(left, y, guidance["title"], 1.9, guide_width, 1, 700)
+        tile("mdi:compass-outline", left, y - px(1.7), 2.8, green)
+        y += lines(
+            left + px(3.7), y, guidance["title"], 1.8, guide_width - px(3.7), 1, 700
+        )
         y += lines(left, y, guidance["body"], 1.25, guide_width, 2)
         if guidance["action"]:
             text(left, y, guidance["action"], 1.2, guide_width, 600, green)
             y += px(1.8)
+    if next_card:
+        next_left = left + width * 0.65
+        next_width = right - next_left
+        label(next_left, guide_top, next_card["label"], next_width, blue)
+        tile(next_card["icon"], next_left, guide_top + px(1), 2.8, blue)
+        used = lines(
+            next_left + px(3.7),
+            guide_top + px(2.5),
+            next_card["title"],
+            1.5,
+            next_width - px(3.7),
+            2,
+            700,
+        )
+        end = guide_top + px(2.5) + used
+        end += lines(
+            next_left + px(3.7), end, next_card["detail"], 1.1, next_width - px(3.7), 2
+        )
+        y = max(y, end)
     if not side and not strip:
         artwork(right - width * 0.25, top + px(6), width * 0.25, px(8))
     y = max(y + px(1.5), top + px(16) if not side and not strip else y + px(1.5))
@@ -413,9 +457,11 @@ def render_dense_briefing(doc, rect, options, data):
             if data.get(kind):
                 blocks.append({"type": kind, **data[kind]})
     tasks = [block for block in blocks if block["type"] == "tasks"]
-    supporting = [block for block in blocks if block["type"] != "tasks"]
+    supporting = [
+        block for block in blocks if block["type"] != "tasks" and block is not next_card
+    ]
     progress = data.get("progress", [])
-    bottom = rect.y + rect.h - data.get("_bottom_inset", 0) - px(1.5)
+    bottom = rect.y + rect.h - px(1.5)
     content_bottom = bottom - (px(5.5) if progress else 0)
     gap = px(2.5)
     support_width = width * (0.4 if side else 0.33) if supporting else 0
@@ -429,7 +475,9 @@ def render_dense_briefing(doc, rect, options, data):
             weights.append(3 + 2.1 * len(value["items"]))
         else:
             title = value.get("title", value.get("next_step", ""))
-            title_rows = min(2, len(wrap(title, support_width, px(1.35), 700)))
+            title_rows = min(
+                2, len(wrap(title, support_width - px(3.7), px(1.35), 700))
+            )
             weights.append(
                 3
                 + title_rows * 1.8
@@ -445,11 +493,11 @@ def render_dense_briefing(doc, rect, options, data):
         cursor = support_y + px(2 * support_scale)
         if value["type"] == "agenda":
             for item in value["items"]:
-                doc.icon(
-                    icon_path(item["icon"]),
-                    round(left),
-                    round(cursor - px(1.1 * support_scale)),
-                    px(1.5 * support_scale),
+                tile(
+                    item["icon"],
+                    left,
+                    cursor - px(1.3 * support_scale),
+                    1.9 * support_scale,
                     color,
                 )
                 time = ("I dag" if nb else "Today") if item["all_day"] else item["time"]
@@ -467,36 +515,57 @@ def render_dense_briefing(doc, rect, options, data):
             detail = value.get("detail", "")
             if value["type"] == "routine":
                 detail = f"{value['completed']}/{value['total']}"
-            used = lines(
-                left, cursor, title, 1.35 * support_scale, support_width, 2, 700
+            tile(
+                value["icon"],
+                left,
+                cursor - px(1.3 * support_scale),
+                2.8 * support_scale,
+                color,
             )
-            text(left, cursor + used, detail, 1.05 * support_scale, support_width)
+            used = lines(
+                left + px(3.7 * support_scale),
+                cursor,
+                title,
+                1.35 * support_scale,
+                support_width - px(3.7 * support_scale),
+                2,
+                700,
+            )
+            text(
+                left + px(3.7 * support_scale),
+                cursor + used,
+                detail,
+                1.05 * support_scale,
+                support_width - px(3.7 * support_scale),
+            )
         support_y += height
 
     rows = [(value, item) for value in tasks for item in value["items"]]
-    columns = 2 if len(rows) > 6 else 1
+    columns = 2 if len(rows) > 3 else 1
     count = math.ceil(len(rows) / columns) or 1
     cell_width = (task_width - gap * (columns - 1)) / columns
-    step = min(px(4), (content_bottom - y) / count)
+    step = min(px(3.3), (content_bottom - y - px(2.4)) / count)
     for index, (value, item) in enumerate(rows):
         x = task_left + (index // count) * (cell_width + gap)
-        row_y = y + (index % count) * step
+        row_y = y + px(2.4) + (index % count) * step
         color = PALETTE_HEX[value.get("color", "blue")]
-        if index % count == 0 or rows[index - 1][0]["label"] != value["label"]:
-            label(x, row_y, value["label"], cell_width, color)
-        doc.icon(
-            icon_path(item["icon"]),
-            round(x),
-            round(row_y + px(0.6)),
-            px(1.6),
-            ink if value.get("color") == "yellow" else color,
-        )
+        if index % count == 0:
+            column_labels = {row[0]["label"] for row in rows[index : index + count]}
+            heading = (
+                value["label"]
+                if len(column_labels) == 1
+                else "Oppgaver"
+                if nb
+                else "Tasks"
+            )
+            label(x, y, heading, cell_width, color)
+        tile(item["icon"], x, row_y - px(1.3), min(1.8, step / unit * 0.8), color)
         text(
-            x + px(2),
-            row_y + px(2),
+            x + px(2.7),
+            row_y,
             item["title"],
             1.1 if side else 1.25,
-            cell_width - px(2),
+            cell_width - px(2.7),
             600,
         )
 
@@ -514,14 +583,46 @@ def render_dense_briefing(doc, rect, options, data):
         for index, item in enumerate(progress):
             x = left + index * (cell_width + gap)
             color = PALETTE_HEX[item["color"]]
+            doc.icon(
+                icon_path(item["icon"]),
+                round(x),
+                round(footer_y - px(1.3)),
+                px(1.7),
+                color,
+            )
             text(
-                x,
+                x + px(2.3),
                 footer_y,
                 f"{item['label']}  {item['value']:g}/{item['max']:g} {item['unit']}".strip(),
                 1.1,
-                cell_width,
+                cell_width - px(2.3),
                 600,
             )
+            if (
+                not item["unit"]
+                and float(item["max"]).is_integer()
+                and item["max"] <= 12
+            ):
+                segments = int(item["max"])
+                segment_gap = px(0.45)
+                segment_width = (cell_width - segment_gap * (segments - 1)) / segments
+                for segment in range(segments):
+                    segment_x = x + segment * (segment_width + segment_gap)
+                    doc.rect(
+                        round(segment_x),
+                        round(footer_y + px(1)),
+                        round(segment_width),
+                        px(0.9),
+                        ink,
+                    )
+                    doc.rect(
+                        round(segment_x + 1),
+                        round(footer_y + px(1) + 1),
+                        max(1, round(segment_width - 2)),
+                        max(1, px(0.9) - 2),
+                        color if segment < item["value"] else white,
+                    )
+                continue
             doc.rect(round(x), round(footer_y + px(1)), round(cell_width), px(0.7), ink)
             doc.rect(
                 round(x + 1),

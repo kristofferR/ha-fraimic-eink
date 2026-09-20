@@ -176,9 +176,7 @@ def test_composition_deadline_is_committed_only_after_acceptance(
     obj.expires_at = 2000
     obj.composed_valid_until = 1030
 
-    async def compose(
-        _hass, _entry, png, _art, *, overlays, snapshot_deadlines=None
-    ):
+    async def compose(_hass, _entry, png, _art, *, overlays, snapshot_deadlines=None):
         snapshot_deadlines.append(1060)
         return png, len(overlays)
 
@@ -221,8 +219,12 @@ def test_pending_send_is_recomposed_after_expiry(controller):
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("snapshot_deadline,expected", [(None, 2000), (1800, 1800), (2100, 2000)])
-def test_composition_preserves_panel_pixels_and_delivery_deadline(controller, monkeypatch, snapshot_deadline, expected):
+@pytest.mark.parametrize(
+    "snapshot_deadline,expected", [(None, 2000), (1800, 1800), (2100, 2000)]
+)
+def test_composition_preserves_panel_pixels_and_delivery_deadline(
+    controller, monkeypatch, snapshot_deadline, expected
+):
     module, obj, _, _ = controller
     from PIL import Image
     import io
@@ -651,7 +653,9 @@ def test_saved_permanent_edits_wait_for_a_new_picture(controller, monkeypatch):
         assert not restored.holds_playback
         # A new picture picks up the saved settings and commits that snapshot.
         _, signature, _ = await restored.async_compose(restored.base)
-        await restored.async_accept(restored.base, None, obj.title, True, signature, "new")
+        await restored.async_accept(
+            restored.base, None, obj.title, True, signature, "new"
+        )
         assert applied[-1] == [edited]
         assert restored.permanent == [edited]
         assert not restored.dirty
@@ -700,10 +704,26 @@ def test_expired_overlay_failure_respects_retry_interval(controller, monkeypatch
     asyncio.run(run())
 
 
-@pytest.mark.parametrize("percent,visible", [(29.9, True), (18, True), (0, True), (30, False), (50, False), (None, False), (float('nan'), False), (True, False)])
-def test_battery_warning_threshold_changes_composition_signature(controller, percent, visible):
+@pytest.mark.parametrize(
+    "percent,visible",
+    [
+        (29.9, True),
+        (18, True),
+        (0, True),
+        (30, False),
+        (50, False),
+        (None, False),
+        (float("nan"), False),
+        (True, False),
+    ],
+)
+def test_battery_warning_threshold_changes_composition_signature(
+    controller, percent, visible
+):
     _, obj, _, _ = controller
-    obj.entry.runtime_data.coordinator = SimpleNamespace(data={"battery": {"percent": percent}})
+    obj.entry.runtime_data.coordinator = SimpleNamespace(
+        data={"battery": {"percent": percent}}
+    )
     assert ("low_battery" in obj.signature()) is visible
 
 
@@ -714,8 +734,12 @@ def test_battery_warning_is_red_and_at_the_bottom_left(controller):
     from datetime import timezone
 
     overlays = load("overlays")
-    screen = load("render.schema").ScreenConfig(screen_id="test", name="Test", layout="full", widgets=())
-    ctx = load("render.context").RenderContext(now=datetime(2026, 9, 20, tzinfo=timezone.utc), language="nb")
+    screen = load("render.schema").ScreenConfig(
+        screen_id="test", name="Test", layout="full", widgets=()
+    )
+    ctx = load("render.context").RenderContext(
+        now=datetime(2026, 9, 20, tzinfo=timezone.utc), language="nb"
+    )
     base = io.BytesIO()
     Image.new("RGB", (800, 450), "#000000").save(base, format="PNG")
     png = overlays._render_overlay_png(base.getvalue(), [], screen, ctx, 800, 450, True)
@@ -723,5 +747,44 @@ def test_battery_warning_is_red_and_at_the_bottom_left(controller):
     red = np.all(pixels == (160, 32, 32), axis=2)
     ys, xs = np.where(red)
     assert len(xs) > 0
-    assert xs.max() < 150 and ys.min() > 425
+    assert xs.max() < 12 and ys.min() >= 438
+    assert set(map(tuple, pixels.reshape(-1, 3))) <= {(0, 0, 0), (160, 32, 32)}
     assert np.array_equal(pixels[0, 0], [0, 0, 0])
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+def test_battery_icon_does_not_move_or_change_briefing_content(controller, layout):
+    import io
+    from PIL import Image
+    from test_briefing import NOW, ordered_snapshot
+
+    overlays = load("overlays")
+    raw = ordered_snapshot()
+    raw["blocks"] = [block for block in raw["blocks"] if block["type"] != "routine"]
+    raw["blocks"][0]["items"] = [{"title": f"Task {index}"} for index in range(12)]
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    spec = overlays.normalize_overlay(
+        {"type": "briefing", "options": {"entity": "sensor.test", "layout": layout}}
+    )
+    specs, screen = overlays._render_specs([spec], None)
+    ctx = load("render.context").RenderContext(
+        now=NOW, language="nb", widget_data={0: data}
+    )
+    base = io.BytesIO()
+    Image.new("RGB", (1600, 900), "white").save(base, format="PNG")
+    results = [
+        np.asarray(
+            Image.open(
+                io.BytesIO(
+                    overlays._render_overlay_png(
+                        base.getvalue(), specs, screen, ctx, 1600, 900, warning
+                    )
+                )
+            ).convert("RGB")
+        )
+        for warning in (False, True)
+    ]
+    changed = np.any(results[0] != results[1], axis=2)
+    ys, xs = np.where(changed)
+    assert len(xs) > 0
+    assert xs.max() < 20 and ys.min() >= 880

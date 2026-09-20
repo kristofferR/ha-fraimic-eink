@@ -203,12 +203,15 @@ Update the layout through `update_temporary_overlay` to change an active window
 without extending its expiry. The companion morning package provides a persistent
 Home Assistant layout selector for this.
 
-A red low-battery warning is drawn over every composition at the absolute
+A red low-battery icon is drawn over every composition at the absolute
 bottom-left of the viewed panel when the reported battery is below 30%. It is
 omitted at 30% and above, and when the battery is unknown. It remains on restored
-artwork after temporary content expires. It uses a fixed warning rather than a
-percentage that could become stale; normal delivery rules still apply.
+artwork after temporary content expires. It has no text or background plate and
+reserves no layout space: only the corner icon pixels change. Normal delivery
+rules still apply.
 
 Task blocks support up to 12 rows. Longer todo lists use a compact column layout in all three briefing styles, keeping guidance and the leading focus card above the list. Ordered snapshots support up to eight blocks.
 
 Long lists retain agenda times, supporting focus details and the graphical progress footer. The tasks expand into their own columns rather than consuming the other briefing sections.
+
+Dense briefings retain the colored icon tiles and blue strip rule from the original design. Count progress uses discrete segments; minute-based progress keeps a continuous meter. The strip places Veileder and Neste side by side to leave more of the artwork visible.
