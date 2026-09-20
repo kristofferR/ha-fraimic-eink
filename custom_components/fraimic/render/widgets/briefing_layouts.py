@@ -739,7 +739,7 @@ def render_dense_briefing(doc, rect, options, data):
             rect.x + rect.w - p(8),
             rect.y + rect.h - p(18),
             f"{label} {data['updated_time']}",
-            p(64),
+            p(24),
             rect.w * 0.45,
             anchor="end",
         )
