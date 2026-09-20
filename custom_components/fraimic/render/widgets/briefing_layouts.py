@@ -299,15 +299,17 @@ def render_briefing_layout(doc, rect, options, data):
 
 
 def render_dense_briefing(doc, rect, options, data):
-    """Give long lists the lower half of the canvas, with column-major reading."""
+    """Expand tasks without replacing agenda, focus cards, or progress diagrams."""
     nb = data["locale"] == "nb"
     side = options.get("layout") == "side_panel"
     strip = options.get("layout", "strip") == "strip"
     unit = rect.w / 100
     px = lambda value: max(1, round(value * unit))
-    ink, white, green = (PALETTE_HEX[key] for key in ("black", "white", "green"))
-    top = rect.y + (rect.h * 0.2 if strip else 0)
-    left = rect.x + (rect.w * 0.4 if side else 0)
+    ink, white, green, blue = (
+        PALETTE_HEX[key] for key in ("black", "white", "green", "blue")
+    )
+    top = rect.y + (rect.h * 0.16 if strip else 0)
+    left = rect.x + (rect.w * 0.35 if side else 0)
     doc.rect(
         round(left),
         round(top),
@@ -315,26 +317,30 @@ def render_dense_briefing(doc, rect, options, data):
         round(rect.y + rect.h - top),
         white,
     )
-    if side and data.get("_artwork_png"):
+
+    def artwork(x, y, width, height):
+        if not data.get("_artwork_png"):
+            return
         from PIL import Image, ImageOps
 
         with Image.open(io.BytesIO(data["_artwork_png"])) as source:
-            crop = ImageOps.fit(source.convert("RGB"), (round(rect.w * 0.4), rect.h))
+            crop = ImageOps.fit(source.convert("RGB"), (round(width), round(height)))
             encoded = io.BytesIO()
             crop.save(encoded, format="PNG")
-        doc.image(encoded.getvalue(), rect.x, rect.y, round(rect.w * 0.4), rect.h)
-    # The compositor already retained the full artwork behind the strip.
+        doc.image(encoded.getvalue(), round(x), round(y), round(width), round(height))
+
+    if side:
+        artwork(rect.x, rect.y, rect.w * 0.35, rect.h)
     margin = px(2.4)
     left += margin
     right = rect.x + rect.w - margin
     width = right - left
-    y = top + px(3.7)
 
     def text(x, y, value, size, width, weight=400, color=ink):
         doc.text(
             round(x),
             round(y),
-            truncate(value, round(width), px(size), weight),
+            truncate(str(value), round(width), px(size), weight),
             size=px(size),
             fill=color,
             weight=weight,
@@ -348,89 +354,188 @@ def render_dense_briefing(doc, rect, options, data):
             text(x, y + px(size * 1.3) * index, row, size, width, weight)
         return min(len(rows), count) * px(size * 1.3)
 
-    text(left, y, data["greeting"], 2.3, width * 0.52, 700)
+    def label(x, y, value, width, color=green):
+        doc.rect(round(x), round(y - px(0.8)), px(0.3), px(0.85), color)
+        text(x + px(0.8), y, value.upper(), 1, width - px(0.8), 700, ink)
+
+    y = top + px(3.7)
+    text(left, y, data["greeting"], 2.3, width * 0.54, 700)
     weather = data.get("weather")
     date = data["date_label"]
+    text(left + width * 0.56, y - px(1), date, 1.05, width * 0.44)
     if weather:
-        date += f" · {weather['temperature']:g}{weather['unit']}"
-    text(left + width * 0.54, y, date, 1.1, width * 0.46)
-    y += px(3)
-    guidance = data.get("guidance")
-    guide_width = width if side or strip else width * 0.67
-    if guidance:
-        text(left, y, "VEILEDER" if nb else "GUIDANCE", 1.05, guide_width, 700, green)
-        y += px(2.7)
-        y += lines(left, y, guidance["title"], 2.1, guide_width, 1, 700)
-        y += lines(left, y, guidance["body"], 1.4, guide_width, 2)
-        if guidance["action"]:
-            text(left, y, guidance["action"], 1.3, guide_width, 600, green)
-            y += px(2)
-    if not side and not strip and data.get("_artwork_png"):
-        from PIL import Image, ImageOps
-
-        art_width = round(width * 0.28)
-        art_height = px(12)
-        with Image.open(io.BytesIO(data["_artwork_png"])) as source:
-            crop = ImageOps.fit(source.convert("RGB"), (art_width, art_height))
-            encoded = io.BytesIO()
-            crop.save(encoded, format="PNG")
-        doc.image(
-            encoded.getvalue(),
-            round(right - art_width),
-            round(top + px(6)),
-            art_width,
-            art_height,
+        doc.icon(
+            icon_path(weather["icon"]),
+            round(right - px(8)),
+            round(y - px(0.5)),
+            px(1.8),
+            ink,
         )
+        text(
+            right - px(5.5),
+            y + px(1),
+            f"{weather['temperature']:g}{weather['unit']}",
+            1.2,
+            px(5.5),
+            600,
+        )
+    y += px(3.3)
+    guidance = data.get("guidance")
+    guide_width = width if side or strip else width * 0.7
+    if guidance:
+        label(left, y, "Veileder" if nb else "Guidance", guide_width)
+        y += px(2.5)
+        y += lines(left, y, guidance["title"], 1.9, guide_width, 1, 700)
+        y += lines(left, y, guidance["body"], 1.25, guide_width, 2)
+        if guidance["action"]:
+            text(left, y, guidance["action"], 1.2, guide_width, 600, green)
+            y += px(1.8)
+    if not side and not strip:
+        artwork(right - width * 0.25, top + px(6), width * 0.25, px(8))
+    y = max(y + px(1.5), top + px(16) if not side and not strip else y + px(1.5))
+    doc.line(round(left), round(y), round(right), round(y), ink, px(0.08))
+    y += px(2.5)
+
     blocks = list(data.get("blocks", []))
     if "blocks" not in data:
-        for kind in ("tasks", "agenda"):
+        for kind in ("agenda", "tasks"):
             if data.get(kind):
                 blocks.append(
                     {
                         "type": kind,
-                        "label": "Husk" if kind == "tasks" and nb else kind.title(),
+                        "label": ("Dagen din" if kind == "agenda" else "Husk")
+                        if nb
+                        else kind.title(),
                         "items": data[kind],
                     }
                 )
-        if data.get("focus"):
-            blocks.insert(0, {"type": "focus", **data["focus"]})
-    # Keep Next together above the lists; routine progress is never recreated here.
-    if blocks and blocks[0]["type"] == "focus":
-        next_action = blocks.pop(0)
-        y += px(1.5)
-        text(left, y, next_action["label"].upper(), 1.05, width, 700, green)
-        y += px(2.3)
-        y += lines(left, y, next_action["title"], 1.65, width, 1, 700)
-        y += lines(left, y, next_action["detail"], 1.2, width, 1)
-    y += px(1.6)
-    doc.line(round(left), round(y), round(right), round(y), ink, px(0.08))
-    y += px(2.5)
-    rows = []
-    for value in blocks:
-        if value["type"] in ("tasks", "agenda"):
-            for item in value["items"]:
-                title = item["title"]
-                if value["type"] == "agenda" and not item["all_day"]:
-                    title = f"{item['time']} · {title}"
-                rows.append((value["label"], title, item["icon"]))
-        else:
-            rows.append(
-                (
-                    value["label"],
-                    value.get("title", value.get("next_step", "")),
-                    value["icon"],
-                )
-            )
-    columns = 2 if side else 3
-    count = math.ceil(len(rows) / columns) or 1
+        for kind in ("routine", "focus"):
+            if data.get(kind):
+                blocks.append({"type": kind, **data[kind]})
+    tasks = [block for block in blocks if block["type"] == "tasks"]
+    supporting = [block for block in blocks if block["type"] != "tasks"]
+    progress = data.get("progress", [])
     bottom = rect.y + rect.h - data.get("_bottom_inset", 0) - px(1.5)
-    step = min(px(5), (bottom - y) / count)
-    gap = px(2)
-    cell_width = (width - gap * (columns - 1)) / columns
-    for index, (label, title, icon) in enumerate(rows):
-        x = left + (index // count) * (cell_width + gap)
+    content_bottom = bottom - (px(5.5) if progress else 0)
+    gap = px(2.5)
+    support_width = width * (0.4 if side else 0.33) if supporting else 0
+    task_left = left + support_width + (gap if supporting else 0)
+    task_width = right - task_left
+
+    # Supporting cards keep their original meaning, color, detail, and timing.
+    weights = []
+    for value in supporting:
+        if value["type"] == "agenda":
+            weights.append(3 + 2.1 * len(value["items"]))
+        else:
+            title = value.get("title", value.get("next_step", ""))
+            title_rows = min(2, len(wrap(title, support_width, px(1.35), 700)))
+            weights.append(
+                3
+                + title_rows * 1.8
+                + (1.4 if value.get("detail") or value["type"] == "routine" else 0)
+            )
+    total_weight = sum(weights) or 1
+    support_scale = min(1, (content_bottom - y) / px(total_weight))
+    support_y = y
+    for value, weight in zip(supporting, weights):
+        height = (content_bottom - y) * weight / total_weight
+        color = PALETTE_HEX[value.get("color", "blue")]
+        label(left, support_y, value["label"], support_width, color)
+        cursor = support_y + px(2 * support_scale)
+        if value["type"] == "agenda":
+            for item in value["items"]:
+                doc.icon(
+                    icon_path(item["icon"]),
+                    round(left),
+                    round(cursor - px(1.1 * support_scale)),
+                    px(1.5 * support_scale),
+                    color,
+                )
+                time = ("I dag" if nb else "Today") if item["all_day"] else item["time"]
+                text(
+                    left + px(2),
+                    cursor,
+                    f"{time} · {item['title']}",
+                    1.15 * support_scale,
+                    support_width - px(2),
+                    600,
+                )
+                cursor += px(2.1 * support_scale)
+        else:
+            title = value.get("title", value.get("next_step", ""))
+            detail = value.get("detail", "")
+            if value["type"] == "routine":
+                detail = f"{value['completed']}/{value['total']}"
+            used = lines(
+                left, cursor, title, 1.35 * support_scale, support_width, 2, 700
+            )
+            text(left, cursor + used, detail, 1.05 * support_scale, support_width)
+        support_y += height
+
+    rows = [(value, item) for value in tasks for item in value["items"]]
+    columns = 2 if len(rows) > 6 else 1
+    count = math.ceil(len(rows) / columns) or 1
+    cell_width = (task_width - gap * (columns - 1)) / columns
+    step = min(px(4), (content_bottom - y) / count)
+    for index, (value, item) in enumerate(rows):
+        x = task_left + (index // count) * (cell_width + gap)
         row_y = y + (index % count) * step
-        if index % count == 0 or rows[index - 1][0] != label:
-            text(x, row_y, label.upper(), 0.9, cell_width, 700, green)
-        doc.icon(icon_path(icon), round(x), round(row_y + px(0.6)), px(1.5), ink)
-        text(x + px(2), row_y + px(2), title, 1.3, cell_width - px(2), 600)
+        color = PALETTE_HEX[value.get("color", "blue")]
+        if index % count == 0 or rows[index - 1][0]["label"] != value["label"]:
+            label(x, row_y, value["label"], cell_width, color)
+        doc.icon(
+            icon_path(item["icon"]),
+            round(x),
+            round(row_y + px(0.6)),
+            px(1.6),
+            ink if value.get("color") == "yellow" else color,
+        )
+        text(
+            x + px(2),
+            row_y + px(2),
+            item["title"],
+            1.1 if side else 1.25,
+            cell_width - px(2),
+            600,
+        )
+
+    if progress:
+        footer_y = bottom - px(3.5)
+        doc.line(
+            round(left),
+            round(footer_y - px(1.5)),
+            round(right),
+            round(footer_y - px(1.5)),
+            ink,
+            px(0.08),
+        )
+        cell_width = (width - gap * (len(progress) - 1)) / len(progress)
+        for index, item in enumerate(progress):
+            x = left + index * (cell_width + gap)
+            color = PALETTE_HEX[item["color"]]
+            text(
+                x,
+                footer_y,
+                f"{item['label']}  {item['value']:g}/{item['max']:g} {item['unit']}".strip(),
+                1.1,
+                cell_width,
+                600,
+            )
+            doc.rect(round(x), round(footer_y + px(1)), round(cell_width), px(0.7), ink)
+            doc.rect(
+                round(x + 1),
+                round(footer_y + px(1) + 1),
+                round(cell_width - 2),
+                max(1, px(0.7) - 2),
+                white,
+            )
+            fill = round((cell_width - 2) * min(1, item["value"] / item["max"]))
+            if fill:
+                doc.rect(
+                    round(x + 1),
+                    round(footer_y + px(1) + 1),
+                    fill,
+                    max(1, px(0.7) - 2),
+                    color,
+                )

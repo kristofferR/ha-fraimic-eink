@@ -346,6 +346,28 @@ def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
         },
     ]
     raw["guidance"] = {"title": "Ett steg", "body": "Gjør det viktigste først."}
+    raw["blocks"].extend(
+        [
+            {
+                "type": "agenda",
+                "label": "Dagen din",
+                "items": [
+                    {"title": "Prosjektmøte", "time": "09:30"},
+                    {"title": "Styrke", "all_day": True},
+                ],
+            },
+            {
+                "type": "focus",
+                "label": "Dagens fokus",
+                "title": "Les litt",
+                "detail": "Din valgte bok",
+            },
+        ]
+    )
+    raw["progress"] = [
+        {"label": "Vaner", "value": 2, "max": 5},
+        {"label": "Læring", "value": 5, "max": 15, "unit": "min"},
+    ]
     data = load("render.briefing").validate_briefing(raw, NOW)
     assert data is not None
     doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
@@ -361,5 +383,18 @@ def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
     for index in range(1, 13):
         assert f"Oppgave {index:02d}" in svg
     assert "NESTE" in svg and "En konkret handling" in svg and "VEILEDER" in svg
+    for content in (
+        "Prosjektmøte",
+        "09:30",
+        "Styrke",
+        "Les litt",
+        "Din valgte bok",
+        "Fra Today",
+        "Vaner",
+        "2/5",
+        "Læring",
+        "5/15",
+    ):
+        assert content in svg
     raw["blocks"][1]["items"].append({"title": "Too many"})
     assert load("render.briefing").validate_briefing(raw, NOW) is None

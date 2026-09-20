@@ -210,3 +210,5 @@ artwork after temporary content expires. It uses a fixed warning rather than a
 percentage that could become stale; normal delivery rules still apply.
 
 Task blocks support up to 12 rows. Longer todo lists use a compact column layout in all three briefing styles, keeping guidance and the leading focus card above the list. Ordered snapshots support up to eight blocks.
+
+Long lists retain agenda times, supporting focus details and the graphical progress footer. The tasks expand into their own columns rather than consuming the other briefing sections.
