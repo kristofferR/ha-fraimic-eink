@@ -26,6 +26,8 @@ _COLOR = vol.In(("blue", "green", "yellow", "red"))
 _ITEM = vol.Schema(
     {
         vol.Required("title"): _text,
+        vol.Optional("priority", default=False): bool,
+        vol.Optional("deadline", default=""): _text,
         vol.Optional("icon", default="mdi:checkbox-blank-outline"): _ICON,
     }
 )
@@ -64,6 +66,13 @@ _SCHEMA = vol.Schema(
         vol.Required("date_label"): _text,
         vol.Required("greeting"): _text,
         vol.Optional("locale", default="en"): vol.In(("en", "nb")),
+        vol.Optional("updated_time"): vol.Match(r"^(?:[01]\d|2[0-3]):[0-5]\d$"),
+        vol.Optional("weekly_focus"): vol.Schema(
+            {
+                vol.Required("text"): _text,
+                vol.Optional("done", default=False): bool,
+            }
+        ),
         vol.Optional("guidance"): vol.Schema(
             {
                 vol.Optional("title", default=""): _text,
@@ -161,7 +170,8 @@ def validate_briefing(raw, now: datetime):
             ("blocks",) if "blocks" in data else ("agenda", "tasks", "routine", "focus")
         )
         if not any(
-            data.get(k) for k in (*content_keys, "progress", "weather", "guidance")
+            data.get(k)
+            for k in (*content_keys, "progress", "weather", "guidance", "weekly_focus")
         ):
             return None
         return data

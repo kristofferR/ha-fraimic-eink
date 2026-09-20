@@ -47,7 +47,13 @@ def render_briefing(doc, rect, options, data, ctx, theme):
     from .briefing_layouts import find_next_card
 
     has_next = find_next_card(data.get("blocks", [])) is not None
-    if task_count > 3 or data.get("guidance") or has_next:
+    if (
+        task_count > 3
+        or data.get("guidance")
+        or has_next
+        or data.get("weekly_focus")
+        or data.get("updated_time")
+    ):
         from .briefing_layouts import render_dense_briefing
 
         render_dense_briefing(doc, rect, options, data)

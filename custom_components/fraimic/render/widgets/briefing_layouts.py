@@ -445,7 +445,8 @@ def render_dense_briefing(doc, rect, options, data):
     )
     main_height = max(supporting_height, p(54) + task_count * p(58))
     footer_height = p(126) if progress else 0
-    header_height = p(100)
+    weekly = data.get("weekly_focus")
+    header_height = p(158) if weekly else p(100)
     required = (
         pad * 2
         + header_height
@@ -515,6 +516,12 @@ def render_dense_briefing(doc, rect, options, data):
             600,
             anchor="end",
         )
+    if weekly:
+        label = "Ukens fokus" if nb else "Weekly focus"
+        value = f"{label}: {weekly['text']}"
+        if weekly["done"]:
+            value += " · Fullført" if nb else " · Done"
+        text(left, y + p(112), value, p(30), width, 400, green)
     y += header_height
 
     def feature(value, x, top, width, label, color, icon):
@@ -630,16 +637,37 @@ def render_dense_briefing(doc, rect, options, data):
         )
         for index, (block, item) in enumerate(column_rows):
             row = y + p(54) + index * p(58)
-            color = PALETTE_HEX[block.get("color", "yellow")]
+            color = (
+                blue
+                if item.get("priority")
+                else PALETTE_HEX[block.get("color", "yellow")]
+            )
             doc.rect(round(x), round(row + p(5)), p(32), p(32), color, rx=p(4))
             doc.icon(
-                icon_path(item["icon"]),
+                icon_path("mdi:flag" if item.get("priority") else item["icon"]),
                 round(x + p(6)),
                 round(row + p(11)),
                 p(20),
                 ink if color == PALETTE_HEX["yellow"] else white,
             )
-            text(x + p(48), row + body, item["title"], body, task_width - p(48))
+            deadline = item.get("deadline", "")
+            meta_width = p(144) if deadline else 0
+            text(
+                x + p(48),
+                row + body,
+                item["title"],
+                body,
+                task_width - p(48) - meta_width,
+            )
+            if deadline:
+                text(
+                    x + task_width,
+                    row + body,
+                    deadline,
+                    p(24),
+                    meta_width - p(12),
+                    anchor="end",
+                )
 
     if progress:
         footer_top = y + main_height + p(40)
@@ -704,3 +732,14 @@ def render_dense_briefing(doc, rect, options, data):
                 fill = round((cell_width - p(2)) * min(1, item["value"] / item["max"]))
                 if fill:
                     doc.rect(round(x + p(1)), round(bar_y + p(1)), fill, p(16), color)
+
+    if data.get("updated_time"):
+        label = "Oppdatert" if nb else "Updated"
+        text(
+            rect.x + rect.w - p(8),
+            rect.y + rect.h - p(18),
+            f"{label} {data['updated_time']}",
+            p(64),
+            rect.w * 0.45,
+            anchor="end",
+        )

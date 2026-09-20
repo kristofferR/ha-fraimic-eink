@@ -406,6 +406,8 @@ def test_rich_briefing_text_stays_on_canvas_without_collisions(layout, task_coun
     from xml.etree import ElementTree
 
     raw = ordered_snapshot()
+    raw["weekly_focus"] = {"text": "Gjør plass til det viktigste", "done": False}
+    raw["updated_time"] = "08:30"
     raw["guidance"] = {
         "title": "Gjør starten liten. La resten komme etterpå.",
         "body": "Velg ett konkret steg før du åpner resten av dagen. Du trenger ikke fullføre hele listen for å få en god start. Ta deg tid til å gjøre ferdig én ting før du går videre.",
@@ -430,7 +432,11 @@ def test_rich_briefing_text_stays_on_canvas_without_collisions(layout, task_coun
             "type": "tasks",
             "label": "Dine oppgaver",
             "items": [
-                {"title": f"Avtal neste ukes aktivitet {index}"}
+                {
+                    "title": f"Avtal neste ukes aktivitet {index}",
+                    "priority": index == 0,
+                    "deadline": "I dag",
+                }
                 for index in range(task_count)
             ],
         },

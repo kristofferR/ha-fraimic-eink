@@ -217,3 +217,5 @@ Long lists retain agenda times, supporting focus details and the graphical progr
 Dense briefings retain the colored icon tiles and blue strip rule from the original design. Count progress uses discrete segments; minute-based progress keeps a continuous meter. The strip places Veileder and Neste side by side to leave more of the artwork visible.
 
 Rich briefings use measured text blocks and fixed type sizes rather than shrinking supporting sections. Short lists arrange supporting cards alongside the task column; longer lists use two task columns. Agenda times and progress values have dedicated aligned positions.
+
+Optional `weekly_focus` (`text`, `done`) appears beneath the greeting. Task rows accept `priority` and a display-ready `deadline` label. `updated_time` (`HH:mm`) shows the source snapshot's local time at the bottom-right, matching the battery icon's size without reserving layout space. Consumers should derive it from `generated_at` in the source account timezone, never the polling time.
