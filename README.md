@@ -190,8 +190,10 @@ so it has a clean source; it cannot reconstruct artwork selected outside HA.
 For KrisHQ, enable **Shared morning brief from KrisHQ** in the integration's
 content options. Use that sensor's entity ID, such as
 `sensor.krishq_morning_brief`, in the example above with `attribute: brief`.
-Choose content categories, their order, and priority tasks in KrisHQ's web or
-iOS settings. KrisHQ selects and ranks the content; an HA template can add
+Choose content categories and their order in KrisHQ's web or iOS settings.
+Tasks are selected automatically from their priority and due date in Todo;
+there is no separate daily task selection in settings. KrisHQ selects and ranks
+the content; an HA template can add
 weather while preserving its order and freshness. Fraimic renders the result
 without KrisHQ credentials. Sleep is optional. See the
 [shared-brief format](docs/temporary-overlays.md#ordered-shared-briefs).
