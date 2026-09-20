@@ -187,16 +187,13 @@ Add `preview_only: true` to render to **Screen preview** without starting a
 window or uploading to the frame. Show a picture through this integration first
 so it has a clean source; it cannot reconstruct artwork selected outside HA.
 
-For KrisHQ, enable **Shared morning brief from KrisHQ** in the integration's
-content options. Use that sensor's entity ID, such as
-`sensor.krishq_morning_brief`, in the example above with `attribute: brief`.
-Choose content categories and their order in KrisHQ's web or iOS settings.
-Tasks are selected automatically from their priority and due date in Todo;
-there is no separate daily task selection in settings. KrisHQ selects and ranks
-the content; an HA template can add
-weather while preserving its order and freshness. Fraimic renders the result
-without KrisHQ credentials. Sleep is optional. See the
-[shared-brief format](docs/temporary-overlays.md#ordered-shared-briefs).
+Any Home Assistant sensor or template can provide the
+[shared-brief format](docs/temporary-overlays.md#ordered-shared-briefs). Use its
+entity ID and the attribute containing the payload in the example above.
+Prepare content selection and ordering in the source integration or template;
+Home Assistant can add weather while preserving the source order and freshness.
+Fraimic renders the supplied content without credentials for the services behind
+the sensor.
 
 Call `fraimic.update_temporary_overlay` to refresh an active window or replace
 literal content without extending it; `fraimic.clear_temporary_overlay` ends it

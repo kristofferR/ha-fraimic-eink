@@ -5,7 +5,7 @@ artwork. Its timer starts once. During that window, entity-backed widgets and
 stored templates are read again every `refresh_interval` seconds. The default
 is 60 seconds; choose 60–3600, or 0 to disable periodic updates.
 
-Completing a KrisHQ morning-routine item can therefore change the progress gauge
+Completing a morning-routine item can therefore change the progress gauge
 and next-step text while the artwork stays the same. The interval is a minimum
 between refresh attempts, not a guarantee of physical delivery. HA's source
 polling and the panel redraw add latency. Identical rendered pixels are not sent
@@ -27,7 +27,7 @@ data:
       w: 3
       h: 3
       options:
-        entity: sensor.krishq_morning
+        entity: sensor.morning_routine
         name: Morgenrutinen
         min: 0
         max: 100
@@ -42,10 +42,10 @@ data:
       options:
         template: >-
           {% raw %}
-          {% if has_value('sensor.krishq_morning') %}
-          {{ state_attr('sensor.krishq_morning', 'completed_steps') }} /
-          {{ state_attr('sensor.krishq_morning', 'total_steps') }} fullført.
-          {{ state_attr('sensor.krishq_morning', 'next_step') or 'Ferdig' }}
+          {% if has_value('sensor.morning_routine') %}
+          {{ state_attr('sensor.morning_routine', 'completed_steps') }} /
+          {{ state_attr('sensor.morning_routine', 'total_steps') }} fullført.
+          {{ state_attr('sensor.morning_routine', 'next_step') or 'Ferdig' }}
           {% endif %}
           {% endraw %}
 ```
@@ -53,8 +53,8 @@ data:
 The outer `{% raw %}` block prevents the calling HA automation from evaluating
 that template once at activation. Fraimic receives the inner template and reads
 current values on each refresh. `options.literal` is also supported for text,
-but literal content stays unchanged until replaced. This is a service example,
-not the final KrisHQ morning-brief layout.
+but literal content stays unchanged until replaced. For a ready-made strip layout,
+see [Morning briefing strip](#morning-briefing-strip-layout-a).
 
 Add `preview_only: true` to render a preview without activating a timer or sending
 an image. A clean source must already have been shown through this integration;
@@ -100,8 +100,9 @@ do not advance the playback queue.
 - Permanent overlays still follow their own visibility rules. This periodic
   refresh option belongs to the active temporary window.
 
-KrisHQ owns content selection and freshness. Fraimic owns composition, change
-detection, expiry and transport. A source becoming unavailable is different
+The source integration or template owns content selection and freshness. Fraimic
+owns composition, change detection, expiry and transport. A source becoming
+unavailable is different
 from an empty task list: upstream selection and templates should omit stale
 content, not turn it into zero progress.
 
@@ -152,15 +153,14 @@ bounded to 240 characters and visually truncated where needed. Snapshots may
 be valid for at most five minutes. Malformed, expired, unavailable, and entirely
 empty snapshots produce clean artwork rather than an error panel.
 
-The [KrisHQ package](https://github.com/kristofferR/krisHQ/blob/main/homeassistant/packages/fraimic_morning.yaml)
-uses the shared morning-brief sensor, adds optional HA weather, refreshes during
-a 90-minute timer, and provides preview/start/clear scripts. The sensor checks source
-availability, age and effective date before including KrisHQ content.
-Fraimic does not fetch KrisHQ APIs or rank personal content.
+Use a Home Assistant automation or package to combine your sensor data, add
+optional weather, and start the temporary window. Check source availability,
+age and effective date before including content. Fraimic reads the prepared
+snapshot; it does not fetch external task APIs or rank personal content.
 
 **Delivery:** a brief whose validity would end before the predicted cloud wake
 is deferred. Use reachable LAN delivery for minute-scale changes; neither this
-overlay nor the package silently enables keep-awake. Clearing stale pixels on
+overlay nor its refresh mechanism enables keep-awake. Clearing stale pixels on
 a sleeping/offline frame still requires a later successful delivery.
 
 ### Ordered shared briefs
@@ -177,11 +177,10 @@ The shared snapshot still requires `generated_at`, `valid_until`, `greeting`,
 and `date_label`; `locale` defaults to `en`. Weather can be added by HA without changing those times.
 Use one format per snapshot; when `blocks` is present it owns the main content.
 
-KrisHQ's morning-brief sensor exposes this payload in its `brief` attribute and the
-source contract in `snapshot`. Enable the shared brief in KrisHQ's HA content options,
-then use the updated `homeassistant/packages/fraimic_morning.yaml` from KrisHQ. The
-backend endpoint, HA adapter and this renderer must all be available. Fraimic holds
-no KrisHQ credentials and does not select tasks or infer user priorities.
+Expose this payload in an entity attribute, such as `brief`, and reference that
+entity and attribute in the overlay options. The source integration or template
+selects the content and supplies its validity timestamps. Fraimic does not need
+credentials for the upstream service, select tasks, or infer user priorities.
 
 The existing temporary-window controller re-reads this entity, skips identical
 pixels, refuses expired data, and restores the retained artwork at the original
