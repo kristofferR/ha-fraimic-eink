@@ -64,6 +64,11 @@ _SCHEMA = vol.Schema(
         vol.Required("date_label"): _text,
         vol.Required("greeting"): _text,
         vol.Optional("locale", default="en"): vol.In(("en", "nb")),
+        vol.Optional("guidance"): vol.Schema({
+            vol.Optional("title", default=""): _text,
+            vol.Required("body"): vol.All(str, vol.Length(max=2400), str.strip),
+            vol.Optional("action", default=""): _text,
+        }),
         vol.Optional("agenda", default=list): vol.All([_AGENDA], vol.Length(max=3)),
         vol.Optional("tasks", default=list): vol.All([_ITEM], vol.Length(max=3)),
         vol.Optional("routine"): _ROUTINE,
@@ -127,6 +132,9 @@ def validate_briefing(raw, now: datetime):
     """Omit expired/malformed snapshots, never render their content as current."""
     try:
         data = _SCHEMA(raw)
+        guidance = data.get("guidance")
+        if guidance and not (guidance["title"] or guidance["body"]):
+            data.pop("guidance")
         generated = datetime.fromisoformat(data["generated_at"])
         expires = datetime.fromisoformat(data["valid_until"])
         if generated.tzinfo is None or expires.tzinfo is None:
@@ -148,7 +156,7 @@ def validate_briefing(raw, now: datetime):
         content_keys = (
             ("blocks",) if "blocks" in data else ("agenda", "tasks", "routine", "focus")
         )
-        if not any(data.get(k) for k in (*content_keys, "progress", "weather")):
+        if not any(data.get(k) for k in (*content_keys, "progress", "weather", "guidance")):
             return None
         return data
     except (vol.Invalid, TypeError, ValueError, OverflowError):

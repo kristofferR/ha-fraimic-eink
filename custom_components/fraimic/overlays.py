@@ -20,8 +20,9 @@ from .const import DOMAIN, PALETTE_NAMES
 from .render.context import RenderContext
 from .render.fetch import async_build_context
 from .render.layout import Rect
+from .render.icons import icon_path
 from .render.schema import WIDGET_OPTION_SCHEMAS, ScreenConfig, WidgetConfig
-from .render.svg import SvgDoc, rasterize, snap_to_colors
+from .render.svg import SvgDoc, measure, rasterize, snap_to_colors
 from .render.theme import PALETTE_HEX, Theme
 from .render.widgets import WIDGET_REGISTRY
 from .render.widgets.base import render_error
@@ -444,6 +445,19 @@ def _empty_payload(data: Any) -> bool:
     return False
 
 
+def low_battery_warning(entry) -> bool:
+    """Use the normalized frame snapshot; missing battery is not a low battery."""
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    data = getattr(coordinator, "data", None) or {}
+    battery = data.get("battery") if isinstance(data, dict) else None
+    percent = battery.get("percent") if isinstance(battery, dict) else None
+    return (
+        isinstance(percent, (int, float))
+        and not isinstance(percent, bool)
+        and 0 <= percent < 30
+    )
+
+
 def _render_overlay_png(
     base_png: bytes,
     specs: list[dict[str, Any]],
@@ -451,6 +465,7 @@ def _render_overlay_png(
     ctx: RenderContext,
     width: int,
     height: int,
+    battery_warning: bool = False,
 ) -> bytes:
     doc = SvgDoc(width, height, PALETTE_HEX["black"])
     doc.image(base_png, 0, 0, width, height)
@@ -459,6 +474,13 @@ def _render_overlay_png(
     for index in reversed(range(len(specs))):
         overlay = specs[index]
         data = ctx.widget_data.get(index)
+        if overlay["type"] == "briefing" and data:
+            size = max(12, round(width * 0.0125))
+            data = {
+                **data,
+                "_artwork_png": base_png,
+                "_bottom_inset": size + 2 * max(3, round(size * 0.3)) if battery_warning else 0,
+            }
         if overlay["visibility"].get("hide_when_empty") and _empty_payload(data):
             continue
         x = round(overlay["x"] * cell_w)
@@ -512,6 +534,18 @@ def _render_overlay_png(
         except Exception:
             _LOGGER.exception("Overlay %s could not render", overlay["id"])
             render_error(doc, rect, "Overlay unavailable", theme)
+    if battery_warning:
+        # Last layer, anchored to the physical bottom-left, outside widget slots.
+        size = max(12, round(width * 0.0125))
+        pad = max(3, round(size * 0.3))
+        label = "Lavt batteri" if ctx.language in ("nb", "nn", "no") else "Low battery"
+        warning_height = size + 2 * pad
+        warning_width = round(measure(label, size, 600)) + size + 4 * pad
+        top = height - warning_height
+        doc.rect(0, top, warning_width, warning_height, PALETTE_HEX["white"])
+        doc.icon(icon_path("mdi:battery-alert-variant-outline"), pad, top + pad, size, PALETTE_HEX["red"])
+        doc.text(size + 2 * pad, height - pad - round(size * 0.15), label,
+                 size=size, weight=600, fill=PALETTE_HEX["red"])
     return snap_to_colors(rasterize(doc.to_string(), width, height), doc.colors)
 
 
@@ -525,18 +559,19 @@ async def async_apply_frame_overlays(
     snapshot_deadlines: list[float] | None = None,
 ) -> tuple[bytes, int]:
     manager = get_overlay_manager(hass)
-    if manager is None and overlays is None:
+    battery_warning = low_battery_warning(entry)
+    if manager is None and overlays is None and not battery_warning:
         return base_png, 0
     now = dt_util.now()
     overlays = [
         overlay
-        for overlay in (overlays if overlays is not None else manager.for_frame(entry.entry_id))
+        for overlay in (overlays if overlays is not None else manager.for_frame(entry.entry_id) if manager else [])
         if _visible(hass, overlay, now)
     ]
-    if not overlays:
+    if not overlays and not battery_warning:
         return base_png, 0
     specs, screen = _render_specs(overlays, art)
-    if not specs:
+    if not specs and not battery_warning:
         return base_png, 0
     ctx = await async_build_context(hass, screen)
     if snapshot_deadlines is not None:
@@ -549,7 +584,7 @@ async def async_apply_frame_overlays(
     width, height = viewed_size(entry)
     try:
         rendered = await hass.async_add_executor_job(
-            _render_overlay_png, base_png, specs, screen, ctx, width, height
+            _render_overlay_png, base_png, specs, screen, ctx, width, height, battery_warning
         )
     except Exception as err:
         raise HomeAssistantError(f"Could not render frame overlays: {err}") from err

@@ -673,3 +673,55 @@ def test_apply_now_retains_settings_when_the_frame_is_busy(controller):
     assert obj.permanent == [edited]
     assert obj.dirty
     assert saved[obj._store.key]["permanent"] == [edited]
+
+
+def test_expired_overlay_failure_respects_retry_interval(controller, monkeypatch):
+    module, obj, clock, _ = controller
+    services = types.ModuleType("fraimic.services")
+    services.async_render_and_upload = AsyncMock(return_value={"deferred": True})
+    monkeypatch.setitem(sys.modules, "fraimic.services", services)
+    obj.temporary = [module.normalize_overlay(overlay())]
+    obj.expires_at = 1030
+    obj.composed_valid_until = 1030
+    obj.last_signature = obj.signature()
+    obj._retry_at = 1060
+
+    async def run():
+        clock.now = 1030
+        await obj._async_tick()
+        assert services.async_render_and_upload.await_count == 1
+        clock.now = 1060
+        await obj._async_tick()
+        assert services.async_render_and_upload.await_count == 1
+        clock.now = 1090
+        await obj._async_tick()
+        assert services.async_render_and_upload.await_count == 2
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("percent,visible", [(29.9, True), (18, True), (0, True), (30, False), (50, False), (None, False), (float('nan'), False), (True, False)])
+def test_battery_warning_threshold_changes_composition_signature(controller, percent, visible):
+    _, obj, _, _ = controller
+    obj.entry.runtime_data.coordinator = SimpleNamespace(data={"battery": {"percent": percent}})
+    assert ("low_battery" in obj.signature()) is visible
+
+
+def test_battery_warning_is_red_and_at_the_bottom_left(controller):
+    _, obj, _, _ = controller
+    import io
+    from PIL import Image
+    from datetime import timezone
+
+    overlays = load("overlays")
+    screen = load("render.schema").ScreenConfig(screen_id="test", name="Test", layout="full", widgets=())
+    ctx = load("render.context").RenderContext(now=datetime(2026, 9, 20, tzinfo=timezone.utc), language="nb")
+    base = io.BytesIO()
+    Image.new("RGB", (800, 450), "#000000").save(base, format="PNG")
+    png = overlays._render_overlay_png(base.getvalue(), [], screen, ctx, 800, 450, True)
+    pixels = np.asarray(Image.open(io.BytesIO(png)).convert("RGB"))
+    red = np.all(pixels == (160, 32, 32), axis=2)
+    ys, xs = np.where(red)
+    assert len(xs) > 0
+    assert xs.max() < 150 and ys.min() > 425
+    assert np.array_equal(pixels[0, 0], [0, 0, 0])

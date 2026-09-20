@@ -84,6 +84,7 @@ WIDGET_OPTION_SCHEMAS: dict[str, vol.Schema] = {
     "briefing": vol.Schema({
         vol.Required("entity"): _ENTITY_ID,
         vol.Optional("attribute", default="brief"): str,
+        vol.Optional("layout", default="strip"): vol.In(("strip", "overview", "side_panel")),
     }),
     "clock": vol.Schema(
         {vol.Optional("format", default="%H:%M"): vol.All(str, _clock_format)}

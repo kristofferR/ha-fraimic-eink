@@ -87,7 +87,11 @@ do not advance the playback queue.
 
 - Each changed image is a full e-ink redraw. The explicit overlay interval takes
   precedence over generic automatic-send cooldowns, like a playback interval.
-  Local delivery still respects low-battery protection and send coalescing.
+  Local updates still respect low-battery protection and send coalescing.
+  Restoring artwork after an accepted temporary display expires or is cleared
+  is allowed below the 25% battery threshold: cleanup completes that display
+  rather than leaving stale information on the wall. This permits one final
+  redraw, not continued live updates. An unreachable frame still needs to wake.
 - The frame must be awake/reachable for prompt LAN updates. Refreshing an overlay
   does not enable keep-awake or change the device's power settings.
 - Cloud/Hybrid delivery can be delayed until a cloud wake. Changes are held
@@ -185,3 +189,22 @@ credentials for the upstream service, select tasks, or infer user priorities.
 The existing temporary-window controller re-reads this entity, skips identical
 pixels, refuses expired data, and restores the retained artwork at the original
 end time. No timer, queue, transport or artwork ownership rules change.
+
+### Choosing a briefing layout
+
+Set `options.layout` on a `briefing` overlay to `overview` (Veileder and day
+summary), `side_panel` (artwork alongside Veileder), or `strip` (the existing
+bottom strip, still the default). All three read the same snapshot. An optional
+`guidance` object supplies `title` (up to 240 characters), `body` (up to 2400),
+and `action` (optional, up to 240). The producer supplies existing advice; Fraimic
+does not generate it. Missing guidance leaves the other available content visible.
+
+Update the layout through `update_temporary_overlay` to change an active window
+without extending its expiry. The companion morning package provides a persistent
+Home Assistant layout selector for this.
+
+A red low-battery warning is drawn over every composition at the absolute
+bottom-left of the viewed panel when the reported battery is below 30%. It is
+omitted at 30% and above, and when the battery is unknown. It remains on restored
+artwork after temporary content expires. It uses a fixed warning rather than a
+percentage that could become stale; normal delivery rules still apply.

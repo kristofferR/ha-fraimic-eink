@@ -283,3 +283,31 @@ def test_real_compositor_refresh_preserves_artwork_and_deduplicates_timestamps(
     )
     state.state = "unavailable"
     assert asyncio.run(render())[0] == clean
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+def test_selectable_layouts_render_the_supplied_guidance(layout):
+    raw = ordered_snapshot()
+    raw["guidance"] = {"title": "Start med ett steg", "body": "Gjør det viktigste først.", "action": "Gå en tur"}
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc, load("render.layout").Rect(0, 0, 2560, 1440), {"layout": layout}, data, None, None
+    )
+    svg = doc.to_string()
+    assert "VEILEDER" in svg
+    assert "Start med ett steg" in svg
+    assert "Gjør det viktigste først." in svg
+    assert "Gå en tur" in svg
+    assert "Priority first" in svg
+    assert "Sleep sixth" in svg
+    assert load("render.briefing").validate_briefing(raw, NOW + timedelta(minutes=3)) is None
+
+
+def test_guidance_can_be_headline_only_but_not_entirely_blank():
+    raw = {**ordered_snapshot(), "blocks": [], "guidance": {"title": "Ett steg", "body": "  "}}
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    assert data["guidance"]["title"] == "Ett steg"
+    assert data["guidance"]["body"] == ""
+    raw["guidance"]["title"] = " "
+    assert load("render.briefing").validate_briefing(raw, NOW) is None

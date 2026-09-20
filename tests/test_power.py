@@ -358,3 +358,19 @@ def test_stale_native_schedule_does_not_repeat_an_already_confirmed_upload(trigg
     # A newer native deadline can still replace that upload.
     data["display"]["next_refresh"] = "1970-01-01T00:16:48+00:00"
     assert manager.skip_reason("same", trigger, token, data, now=1010) is None
+
+
+def test_expired_overlay_restores_once_below_low_battery_threshold():
+    manager = _manager()
+    manager._async_save = AsyncMock()
+    trigger = power.TRIGGER_OVERLAY_RESTORE
+    token = manager.begin(trigger)
+    data = {"battery": {"percent": 18}}
+    assert manager.skip_reason("clean", trigger, token, data) is None
+    asyncio.run(manager.async_record_upload("clean", trigger))
+    assert manager.skip_reason("clean", trigger, token, data) == power.SKIP_DUPLICATE
+    assert manager.automatic_count == 0
+    token = manager.begin(power.TRIGGER_OVERLAY)
+    assert manager.skip_reason("new brief", power.TRIGGER_OVERLAY, token, data) == power.SKIP_LOW_BATTERY
+    manager.begin(power.TRIGGER_OVERLAY)
+    assert manager.skip_reason("other", trigger, token, data) == power.SKIP_COALESCED
