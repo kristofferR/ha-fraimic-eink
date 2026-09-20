@@ -402,7 +402,10 @@ def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
 
 @pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
 @pytest.mark.parametrize("task_count", [3, 12])
-def test_rich_briefing_text_stays_on_canvas_without_collisions(layout, task_count):
+@pytest.mark.parametrize("overflow", [False, True])
+def test_rich_briefing_text_stays_on_canvas_without_collisions(
+    layout, task_count, overflow
+):
     from xml.etree import ElementTree
 
     raw = ordered_snapshot()
@@ -447,6 +450,16 @@ def test_rich_briefing_text_stays_on_canvas_without_collisions(layout, task_coun
             "detail": "Én uforstyrret økt",
         },
     ]
+    if overflow:
+        raw["blocks"] = [raw["blocks"][0], raw["blocks"][2]] + [
+            {
+                "type": "focus",
+                "label": "Fokus",
+                "title": "En lang overskrift som trenger to linjer med tekst",
+                "detail": "Detaljer som også bruker god plass på skjermen og trenger flere linjer",
+            }
+            for _ in range(6)
+        ]
     raw["progress"] = [
         {"label": "Mobilitet", "value": 4, "max": 9},
         {"label": "Læring", "value": 5, "max": 15, "unit": "min"},
@@ -485,3 +498,24 @@ def test_rich_briefing_text_stays_on_canvas_without_collisions(layout, task_coun
                 box[3], other[3]
             ) <= max(box[1], other[1]), (content, other_content)
         boxes.append((box, content))
+
+
+def test_rich_routine_counts_and_fractional_progress_are_preserved():
+    from xml.etree import ElementTree
+
+    raw = snapshot()
+    raw["updated_time"] = "09:00"
+    raw["routine"]["skipped"] = 1
+    raw["progress"] = [{"label": "Delvis", "value": 2.5, "max": 5}]
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc, load("render.layout").Rect(0, 0, 2560, 1440), {"layout": "strip"},
+        load("render.briefing").validate_briefing(raw, NOW), None, None,
+    )
+    svg = doc.to_string()
+    assert "2/6 fullført · 1 hoppet over" in svg
+    assert "2.5/5" in svg
+    rects = list(ElementTree.fromstring(svg).iter("{http://www.w3.org/2000/svg}rect"))
+    # The final meter is continuous, and its inner fill is exactly half its track.
+    track, fill = rects[-2:]
+    assert abs(float(fill.attrib["width"]) * 2 - float(track.attrib["width"])) <= 1

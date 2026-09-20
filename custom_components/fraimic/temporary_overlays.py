@@ -61,6 +61,7 @@ class TemporaryOverlays:
         self.refresh_interval = DEFAULT_REFRESH_INTERVAL
         self.composed_valid_until = None
         self.candidate_valid_until = None
+        self.candidate_briefing_valid_until = None
         self._saved_composed_valid_until = None
         self._next_refresh_at = 0.0
         self.last_signature = ""
@@ -165,6 +166,7 @@ class TemporaryOverlays:
 
     async def async_compose(self, base, art=None, inherit=True, refresh=False):
         self.candidate_valid_until = None
+        self.candidate_briefing_valid_until = None
         self.candidate_permanent = (
             self.permanent if refresh else self._configured_permanent()
         )
@@ -185,11 +187,14 @@ class TemporaryOverlays:
         )
         # Every temporary composition expires, even without a briefing widget.
         # Delivery uses this boundary to reserve wake/redraw time on all paths.
-        deadlines = [self.expires_at] if self.active else []
+        deadlines = []
         composed, count = await async_apply_frame_overlays(
             self.hass, self.entry, png, art, overlays=overlays,
             snapshot_deadlines=deadlines,
         )
+        self.candidate_briefing_valid_until = min(deadlines) if deadlines else None
+        if self.active:
+            deadlines.append(self.expires_at)
         self.candidate_valid_until = min(deadlines) if deadlines else None
         rendered = await async_convert_for_entry(
             self.hass, self.entry, composed, _NEUTRAL_OVERRIDES, preprocess=False

@@ -147,7 +147,7 @@ Optional fields:
 | --- | --- |
 | `agenda` | Up to 3 `{title, time, all_day, icon}` entries. No invented times. |
 | `routine` | `{label, completed, total, skipped, next_step, icon}`. Total must be positive; completed + skipped cannot exceed total. |
-| `tasks` | Up to 3 `{title, icon}` entries. |
+| `tasks` | Up to 12 `{title, icon, priority, deadline}` entries. |
 | `focus` | `{title, label, detail, icon, color}`. An explicitly chosen priority. |
 | `progress` | Up to 3 `{label, value, max, unit, icon, color}` entries. |
 | `weather` | `{temperature, unit, icon}`. Unit is °C or °F. |
@@ -175,7 +175,7 @@ main columns; up to two more occupy the compact footer. Optional `progress` bars
 occupy a separate footer row if both are supplied. No content is re-ranked.
 
 Each block has `type: agenda | tasks | routine | focus`. Agenda/tasks blocks have
-`label`, optional `color` and one to three `items`, using the existing agenda/task
+`label`, optional `color` and one to three agenda `items` or up to twelve task `items`, using the existing agenda/task
 row schema. Routine/focus blocks use the corresponding existing fields plus `type`.
 The shared snapshot still requires `generated_at`, `valid_until`, `greeting`,
 and `date_label`; `locale` defaults to `en`. Weather can be added by HA without changing those times.
@@ -219,3 +219,5 @@ Dense briefings retain the colored icon tiles and blue strip rule from the origi
 Rich briefings use measured text blocks and fixed type sizes rather than shrinking supporting sections. Short lists arrange supporting cards alongside the task column; longer lists use two task columns. Agenda times and progress values have dedicated aligned positions.
 
 Optional `weekly_focus` (`text`, `done`) appears beneath the greeting. Task rows accept `priority` and a display-ready `deadline` label. `updated_time` (`HH:mm`) shows the source snapshot's local time at the bottom-right, using small supporting text without reserving layout space. Consumers should derive it from `generated_at` in the source account timezone, never the polling time.
+
+Rich layouts show at most twelve task rows. When supporting cards exceed the available height, the lowest-ranked cards become a `+N more` notice so the progress footer stays on the canvas. Fractional progress uses a continuous meter; routine blocks supplied by other providers retain their completion and skipped counts.

@@ -80,10 +80,6 @@ def render_briefing(doc, rect, options, data, ctx, theme):
     height = px(24.2 if progress or overflow else 20.3 if len(blocks) >= 3 else 18)
     if progress and overflow:
         height += px(5.25)
-    guidance = data.get("guidance")
-    guidance_height = px(15.5 if guidance and guidance["action"] else 13)
-    if guidance:
-        height += guidance_height
     top = rect.y + rect.h - height
     left, right = rect.x + px(2.4), rect.x + rect.w - px(2.4)
     doc.rect(rect.x, top, rect.w, height, white)
@@ -126,28 +122,6 @@ def render_briefing(doc, rect, options, data, ctx, theme):
         date_right, top + px(3.55), data["date_label"], 1.25, width=px(32), anchor="end"
     )
     y = top + px(6.25)
-    if guidance:
-        tag(
-            left,
-            y,
-            "Veileder" if data["locale"] == "nb" else "Guidance",
-            "green",
-            right - left,
-        )
-        text(left, y + px(3), guidance["title"], 2.1, 700, right - left)
-        for n, line in enumerate(wrap(guidance["body"], right - left, px(1.5))[:3]):
-            text(left, y + px(5.7 + n * 1.8), line, 1.5, width=right - left)
-        if guidance["action"]:
-            text(
-                left,
-                y + px(12),
-                guidance["action"],
-                1.5,
-                600,
-                right - left,
-                color=PALETTE_HEX["green"],
-            )
-        y += guidance_height
     gap = px(2.1)
     count = max(1, len(blocks))
     width = (right - left - gap * (count - 1)) / count

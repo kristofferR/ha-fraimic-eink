@@ -965,9 +965,14 @@ async def async_render_and_upload(
             if (
                 overlay_refresh
                 and trigger == TRIGGER_OVERLAY
-                and not overlay_controller.active
                 and overlay_controller.composed_valid_until is not None
-                and snapshot_deadline is None
+                and (
+                    not overlay_controller.active
+                    or overlay_controller.composed_valid_until <= time.time()
+                )
+                and getattr(
+                    overlay_controller, "candidate_briefing_valid_until", snapshot_deadline
+                ) is None
             ):
                 # Only restoration of an accepted temporary composition may
                 # bypass low-battery protection. Decide under the upload lock.

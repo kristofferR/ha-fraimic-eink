@@ -211,55 +211,16 @@ def render_briefing_layout(doc, rect, options, data):
         0.58 if side and len(blocks) > 2 else 0.66 if len(blocks) > 3 else 0.72
     )
     guide_width = width if side else width * 0.64
-    guidance = data.get("guidance")
-    if guidance:
-        label(left, main_top, "Veileder" if nb else "Guidance", guide_width)
-        y = main_top + px(3.7)
-        used = (
-            lines(
-                left,
-                y,
-                guidance["title"],
-                3.1 if not side else 2.7,
-                guide_width,
-                px(9),
-                700,
-            )
-            if guidance["title"]
-            else 0
+    # Sparse mornings still use the available content at a readable size.
+    text(left, main_top, "Dagen din" if nb else "Your day", 3, guide_width, 700)
+    if blocks:
+        block(
+            blocks.pop(0),
+            left,
+            main_top + px(5),
+            guide_width,
+            footer_top - main_top - px(7),
         )
-        y += used + px(1)
-        body_space = footer_top - y - px(3.5 if guidance["action"] else 1)
-        body_size = 1.8 if not side else 1.65
-        while (
-            body_size > 1.35
-            and len(wrap(guidance["body"], guide_width, px(body_size)))
-            * px(body_size * 1.35)
-            > body_space
-        ):
-            body_size -= 0.1
-        lines(left, y, guidance["body"], body_size, guide_width, body_space)
-        if guidance["action"]:
-            text(
-                left,
-                footer_top - px(1.6),
-                guidance["action"],
-                1.45,
-                guide_width,
-                600,
-                green,
-            )
-    else:
-        # Sparse mornings still use the available content at a readable size.
-        text(left, main_top, "Dagen din" if nb else "Your day", 3, guide_width, 700)
-        if blocks:
-            block(
-                blocks.pop(0),
-                left,
-                main_top + px(5),
-                guide_width,
-                footer_top - main_top - px(7),
-            )
 
     if not side:
         art_x = left + width * 0.69
@@ -319,7 +280,7 @@ def render_dense_briefing(doc, rect, options, data):
     body, title, small = p(32), p(42), p(25)
     leading, title_leading = p(44), p(54)
     pad, gap = p(64), p(56)
-    blocks = list(data.get("blocks", []))
+    blocks = [dict(block) for block in data.get("blocks", [])]
     if "blocks" not in data:
         for kind in ("agenda", "tasks"):
             if data.get(kind):
@@ -345,6 +306,15 @@ def render_dense_briefing(doc, rect, options, data):
         if block["type"] == "tasks"
         for item in block["items"]
     ]
+    omitted_tasks = max(0, len(task_rows) - 12)
+    task_rows = task_rows[:12]
+    for block in supporting:
+        if block["type"] == "routine":
+            done = "fullført" if nb else "complete"
+            skipped = "hoppet over" if nb else "skipped"
+            block["detail"] = f"{block['completed']}/{block['total']} {done}"
+            if block["skipped"]:
+                block["detail"] += f" · {block['skipped']} {skipped}"
     progress = data.get("progress", [])
     panel_left = rect.x + (round(rect.w * 0.27) if mode == "side_panel" else 0)
     left, right = panel_left + pad, rect.x + rect.w - pad
@@ -435,26 +405,39 @@ def render_dense_briefing(doc, rect, options, data):
                     rows(block["detail"], support_width, p(28), 2)
                 ) * p(38)
             support_heights.append(height)
-    supporting_height = max(
-        (
-            sum(support_heights[column::support_columns])
-            + max(0, len(support_heights[column::support_columns]) - 1) * p(36)
-            for column in range(support_columns)
-        ),
-        default=0,
-    )
-    main_height = max(supporting_height, p(54) + task_count * p(58))
     footer_height = p(126) if progress else 0
     weekly = data.get("weekly_focus")
     header_height = p(158) if weekly else p(100)
-    required = (
+    fixed_height = (
         pad * 2
         + header_height
         + feature_height_px
         + (p(64) if feature_height_px else 0)
-        + main_height
         + footer_height
     )
+    main_budget = max(0, rect.h - fixed_height)
+
+    def support_height():
+        return max(
+            (
+                sum(support_heights[column::support_columns])
+                + max(0, len(support_heights[column::support_columns]) - 1) * p(36)
+                for column in range(support_columns)
+            ),
+            default=0,
+        )
+
+    omitted_support = 0
+    while (
+        support_heights
+        and support_height() + (p(42) if omitted_support else 0) > main_budget
+    ):
+        support_heights.pop()
+        supporting.pop()
+        omitted_support += 1
+    supporting_height = support_height() + (p(42) if omitted_support else 0)
+    main_height = max(supporting_height, p(54) + task_count * p(58))
+    required = fixed_height + main_height
     top = max(rect.y, rect.y + rect.h - required) if mode == "strip" else rect.y
     doc.rect(
         round(panel_left),
@@ -632,6 +615,8 @@ def render_dense_briefing(doc, rect, options, data):
         label = (
             next(iter(labels)) if len(labels) == 1 else "Oppgaver" if nb else "Tasks"
         )
+        if omitted_tasks and column == task_columns - 1:
+            label += f" (+{omitted_tasks})"
         heading(
             x, y, label, task_width, PALETTE_HEX[column_rows[0][0].get("color", "blue")]
         )
@@ -669,6 +654,10 @@ def render_dense_briefing(doc, rect, options, data):
                     anchor="end",
                 )
 
+    if omitted_support:
+        label = f"+{omitted_support} flere" if nb else f"+{omitted_support} more"
+        text(left, y + supporting_height - p(8), label, p(25), support_width)
+
     if progress:
         footer_top = y + main_height + p(40)
         doc.line(
@@ -705,6 +694,7 @@ def render_dense_briefing(doc, rect, options, data):
             if (
                 not item["unit"]
                 and float(item["max"]).is_integer()
+                and float(item["value"]).is_integer()
                 and 0 < item["max"] <= 12
             ):
                 count = int(item["max"])
