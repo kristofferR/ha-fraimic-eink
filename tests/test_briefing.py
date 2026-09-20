@@ -398,3 +398,84 @@ def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
         assert content in svg
     raw["blocks"][1]["items"].append({"title": "Too many"})
     assert load("render.briefing").validate_briefing(raw, NOW) is None
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+@pytest.mark.parametrize("task_count", [3, 12])
+def test_rich_briefing_text_stays_on_canvas_without_collisions(layout, task_count):
+    from xml.etree import ElementTree
+
+    raw = ordered_snapshot()
+    raw["guidance"] = {
+        "title": "Gjør starten liten. La resten komme etterpå.",
+        "body": "Velg ett konkret steg før du åpner resten av dagen. Du trenger ikke fullføre hele listen for å få en god start. Ta deg tid til å gjøre ferdig én ting før du går videre.",
+        "action": "Ta ett konkret steg.",
+    }
+    raw["blocks"] = [
+        {
+            "type": "focus",
+            "label": "Neste",
+            "title": "Sett av 20 minutter til dagens viktigste oppgave",
+            "detail": "Begynn med én oppgave og gjør den ferdig.",
+        },
+        {
+            "type": "agenda",
+            "label": "Dagen din",
+            "items": [
+                {"title": "Prosjektmøte", "time": "09:30"},
+                {"title": "Styrketrening", "time": "17:30"},
+            ],
+        },
+        {
+            "type": "tasks",
+            "label": "Dine oppgaver",
+            "items": [
+                {"title": f"Avtal neste ukes aktivitet {index}"}
+                for index in range(task_count)
+            ],
+        },
+        {
+            "type": "focus",
+            "label": "Dagens fokus",
+            "title": "25 min med prosjektet",
+            "detail": "Én uforstyrret økt",
+        },
+    ]
+    raw["progress"] = [
+        {"label": "Mobilitet", "value": 4, "max": 9},
+        {"label": "Læring", "value": 5, "max": 15, "unit": "min"},
+        {"label": "Vaner", "value": 2, "max": 5},
+    ]
+    svg = load("render.svg")
+    doc = svg.SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": layout},
+        load("render.briefing").validate_briefing(raw, NOW),
+        None,
+        None,
+    )
+    boxes = []
+    for node in ElementTree.fromstring(doc.to_string()).iter(
+        "{http://www.w3.org/2000/svg}text"
+    ):
+        content = node.text or ""
+        if not content.strip():
+            continue
+        size, weight = (
+            int(node.attrib["font-size"]),
+            int(node.attrib.get("font-weight", 400)),
+        )
+        font = svg._pil_font(size, weight)
+        x, y = float(node.attrib["x"]), float(node.attrib["y"])
+        if node.attrib.get("text-anchor") == "end":
+            x -= svg.measure(content, size, weight)
+        left, top, right, bottom = font.getbbox(content, anchor="ls")
+        box = (x + left, y + top, x + right, y + bottom)
+        assert 0 <= box[0] < box[2] <= 2560 and 0 <= box[1] < box[3] <= 1440, content
+        for other, other_content in boxes:
+            assert min(box[2], other[2]) <= max(box[0], other[0]) or min(
+                box[3], other[3]
+            ) <= max(box[1], other[1]), (content, other_content)
+        boxes.append((box, content))

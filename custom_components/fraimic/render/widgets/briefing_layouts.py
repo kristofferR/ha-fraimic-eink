@@ -10,6 +10,18 @@ from ..svg import truncate, wrap
 from ..theme import PALETTE_HEX
 
 
+def find_next_card(blocks):
+    """Match the localized Next card consistently for routing and layout."""
+    return next(
+        (
+            block
+            for block in blocks
+            if block["type"] == "focus" and block.get("label") in ("Neste", "Next")
+        ),
+        None,
+    )
+
+
 def render_briefing_layout(doc, rect, options, data):
     nb = data["locale"] == "nb"
     ink, white = PALETTE_HEX["black"], PALETTE_HEX["white"]
@@ -296,150 +308,17 @@ def render_briefing_layout(doc, rect, options, data):
 
 
 def render_dense_briefing(doc, rect, options, data):
-    """Expand tasks without replacing agenda, focus cards, or progress diagrams."""
+    """A measured editorial grid: stable type sizes and space for every section."""
     nb = data["locale"] == "nb"
-    side = options.get("layout") == "side_panel"
-    strip = options.get("layout", "strip") == "strip"
-    unit = rect.w / 100
-    px = lambda value: max(1, round(value * unit))
-    ink, white, green, blue = (
-        PALETTE_HEX[key] for key in ("black", "white", "green", "blue")
+    mode = options.get("layout", "strip")
+    unit = rect.w / 2560
+    p = lambda value: max(1, round(value * unit))
+    ink, white, blue, green = (
+        PALETTE_HEX[key] for key in ("black", "white", "blue", "green")
     )
-    top = rect.y + (rect.h * 0.30 if strip else 0)
-    left = rect.x + (rect.w * 0.35 if side else 0)
-    doc.rect(
-        round(left),
-        round(top),
-        round(rect.x + rect.w - left),
-        round(rect.y + rect.h - top),
-        white,
-    )
-
-    def artwork(x, y, width, height):
-        if not data.get("_artwork_png"):
-            return
-        from PIL import Image, ImageOps
-
-        with Image.open(io.BytesIO(data["_artwork_png"])) as source:
-            crop = ImageOps.fit(source.convert("RGB"), (round(width), round(height)))
-            encoded = io.BytesIO()
-            crop.save(encoded, format="PNG")
-        doc.image(encoded.getvalue(), round(x), round(y), round(width), round(height))
-
-    if side:
-        artwork(rect.x, rect.y, rect.w * 0.35, rect.h)
-    if strip:
-        doc.rect(rect.x, round(top), rect.w, px(0.35), blue)
-    margin = px(2.4)
-    left += margin
-    right = rect.x + rect.w - margin
-    width = right - left
-
-    def text(x, y, value, size, width, weight=400, color=ink):
-        doc.text(
-            round(x),
-            round(y),
-            truncate(str(value), round(width), px(size), weight),
-            size=px(size),
-            fill=color,
-            weight=weight,
-        )
-
-    def lines(x, y, value, size, width, count, weight=400):
-        rows = wrap(value, width, px(size), weight)
-        for index, row in enumerate(rows[:count]):
-            if index == count - 1 and len(rows) > count:
-                row = truncate(row + " …", width, px(size), weight)
-            text(x, y + px(size * 1.3) * index, row, size, width, weight)
-        return min(len(rows), count) * px(size * 1.3)
-
-    def label(x, y, value, width, color=green):
-        doc.rect(round(x), round(y - px(0.8)), px(0.3), px(0.85), color)
-        text(x + px(0.8), y, value.upper(), 1, width - px(0.8), 700, ink)
-
-    def tile(name, x, y, size, color):
-        doc.rect(round(x), round(y), px(size), px(size), color, rx=px(0.25))
-        doc.icon(
-            icon_path(name),
-            round(x + px(size * 0.17)),
-            round(y + px(size * 0.17)),
-            px(size * 0.66),
-            ink if color == PALETTE_HEX["yellow"] else white,
-        )
-
-    next_card = (
-        next(
-            (
-                block
-                for block in data.get("blocks", [])
-                if block["type"] == "focus" and block["label"] in ("Neste", "Next")
-            ),
-            None,
-        )
-        if strip
-        else None
-    )
-    y = top + px(3.7)
-    text(left, y, data["greeting"], 2.3, width * 0.54, 700)
-    weather = data.get("weather")
-    date = data["date_label"]
-    text(left + width * 0.56, y - px(1), date, 1.05, width * 0.44)
-    if weather:
-        doc.icon(
-            icon_path(weather["icon"]),
-            round(right - px(8)),
-            round(y - px(0.5)),
-            px(1.8),
-            ink,
-        )
-        text(
-            right - px(5.5),
-            y + px(1),
-            f"{weather['temperature']:g}{weather['unit']}",
-            1.2,
-            px(5.5),
-            600,
-        )
-    y += px(3.3)
-    guidance = data.get("guidance")
-    guide_width = width * 0.60 if next_card else width if side or strip else width * 0.7
-    guide_top = y
-    if guidance:
-        label(left, y, "Veileder" if nb else "Guidance", guide_width)
-        y += px(2.5)
-        tile("mdi:compass-outline", left, y - px(1.7), 2.8, green)
-        y += lines(
-            left + px(3.7), y, guidance["title"], 1.8, guide_width - px(3.7), 1, 700
-        )
-        y += lines(left, y, guidance["body"], 1.25, guide_width, 2)
-        if guidance["action"]:
-            text(left, y, guidance["action"], 1.2, guide_width, 600, green)
-            y += px(1.8)
-    if next_card:
-        next_left = left + width * 0.65
-        next_width = right - next_left
-        label(next_left, guide_top, next_card["label"], next_width, blue)
-        tile(next_card["icon"], next_left, guide_top + px(1), 2.8, blue)
-        used = lines(
-            next_left + px(3.7),
-            guide_top + px(2.5),
-            next_card["title"],
-            1.5,
-            next_width - px(3.7),
-            2,
-            700,
-        )
-        end = guide_top + px(2.5) + used
-        end += lines(
-            next_left + px(3.7), end, next_card["detail"], 1.1, next_width - px(3.7), 2
-        )
-        y = max(y, end)
-    if not side and not strip:
-        artwork(right - width * 0.25, top + px(6), width * 0.25, px(8))
-    y = max(y + px(1.5), top + px(16) if not side and not strip else y + px(1.5))
-    doc.line(round(left), round(y), round(right), round(y), ink, px(0.08))
-    y += px(2.5)
-
+    body, title, small = p(32), p(42), p(25)
+    leading, title_leading = p(44), p(54)
+    pad, gap = p(64), p(56)
     blocks = list(data.get("blocks", []))
     if "blocks" not in data:
         for kind in ("agenda", "tasks"):
@@ -456,187 +335,372 @@ def render_dense_briefing(doc, rect, options, data):
         for kind in ("routine", "focus"):
             if data.get(kind):
                 blocks.append({"type": kind, **data[kind]})
-    tasks = [block for block in blocks if block["type"] == "tasks"]
+    next_card = find_next_card(blocks)
     supporting = [
         block for block in blocks if block["type"] != "tasks" and block is not next_card
     ]
+    task_rows = [
+        (block, item)
+        for block in blocks
+        if block["type"] == "tasks"
+        for item in block["items"]
+    ]
     progress = data.get("progress", [])
-    bottom = rect.y + rect.h - px(1.5)
-    content_bottom = bottom - (px(5.5) if progress else 0)
-    gap = px(2.5)
-    support_width = width * (0.4 if side else 0.33) if supporting else 0
-    task_left = left + support_width + (gap if supporting else 0)
-    task_width = right - task_left
+    panel_left = rect.x + (round(rect.w * 0.27) if mode == "side_panel" else 0)
+    left, right = panel_left + pad, rect.x + rect.w - pad
+    width = right - left
+    guidance = data.get("guidance")
+    feature_gap = p(80)
+    guide_width = round((width - feature_gap) * 0.60) if next_card else width
+    next_left = left + guide_width + feature_gap if guidance else left
+    next_width = right - next_left
+    support_columns = min(2, len(supporting)) if len(task_rows) <= 3 else 1
+    if not task_rows:
+        support_columns = min(3, len(supporting))
+    support_columns = max(1, support_columns)
+    if supporting and (support_columns > 1 or not task_rows):
+        column_count = support_columns + bool(task_rows)
+        support_width = (width - gap * (column_count - 1)) / column_count
+    else:
+        support_width = round((width - gap) * 0.28) if supporting else 0
+    tasks_left = left + support_columns * (support_width + gap) if supporting else left
+    tasks_width = right - tasks_left
+    task_columns = 2 if len(task_rows) > 3 else 1
+    task_width = (tasks_width - gap * (task_columns - 1)) / task_columns
+    task_count = math.ceil(len(task_rows) / task_columns)
 
-    # Supporting cards keep their original meaning, color, detail, and timing.
-    weights = []
-    for value in supporting:
-        if value["type"] == "agenda":
-            weights.append(3 + 2.1 * len(value["items"]))
-        else:
-            title = value.get("title", value.get("next_step", ""))
-            title_rows = min(
-                2, len(wrap(title, support_width - px(3.7), px(1.35), 700))
-            )
-            weights.append(
-                3
-                + title_rows * 1.8
-                + (1.4 if value.get("detail") or value["type"] == "routine" else 0)
-            )
-    total_weight = sum(weights) or 1
-    support_scale = min(1, (content_bottom - y) / px(total_weight))
-    support_y = y
-    for value, weight in zip(supporting, weights):
-        height = (content_bottom - y) * weight / total_weight
-        color = PALETTE_HEX[value.get("color", "blue")]
-        label(left, support_y, value["label"], support_width, color)
-        cursor = support_y + px(2 * support_scale)
-        if value["type"] == "agenda":
-            for item in value["items"]:
-                tile(
-                    item["icon"],
-                    left,
-                    cursor - px(1.3 * support_scale),
-                    1.9 * support_scale,
-                    color,
-                )
-                time = ("I dag" if nb else "Today") if item["all_day"] else item["time"]
-                text(
-                    left + px(2),
-                    cursor,
-                    f"{time} · {item['title']}",
-                    1.15 * support_scale,
-                    support_width - px(2),
-                    600,
-                )
-                cursor += px(2.1 * support_scale)
-        else:
-            title = value.get("title", value.get("next_step", ""))
-            detail = value.get("detail", "")
-            if value["type"] == "routine":
-                detail = f"{value['completed']}/{value['total']}"
-            tile(
-                value["icon"],
-                left,
-                cursor - px(1.3 * support_scale),
-                2.8 * support_scale,
-                color,
-            )
-            used = lines(
-                left + px(3.7 * support_scale),
-                cursor,
-                title,
-                1.35 * support_scale,
-                support_width - px(3.7 * support_scale),
-                2,
-                700,
-            )
-            text(
-                left + px(3.7 * support_scale),
-                cursor + used,
-                detail,
-                1.05 * support_scale,
-                support_width - px(3.7 * support_scale),
-            )
-        support_y += height
+    def rows(value, width, size, count, weight=400):
+        result = wrap(str(value), width, size, weight)
+        if len(result) > count:
+            result = result[:count]
+            result[-1] = truncate(result[-1] + " …", width, size, weight)
+        return result
 
-    rows = [(value, item) for value in tasks for item in value["items"]]
-    columns = 2 if len(rows) > 3 else 1
-    count = math.ceil(len(rows) / columns) or 1
-    cell_width = (task_width - gap * (columns - 1)) / columns
-    step = min(px(3.3), (content_bottom - y - px(2.4)) / count)
-    for index, (value, item) in enumerate(rows):
-        x = task_left + (index // count) * (cell_width + gap)
-        row_y = y + px(2.4) + (index % count) * step
-        color = PALETTE_HEX[value.get("color", "blue")]
-        if index % count == 0:
-            column_labels = {row[0]["label"] for row in rows[index : index + count]}
-            heading = (
-                value["label"]
-                if len(column_labels) == 1
-                else "Oppgaver"
-                if nb
-                else "Tasks"
-            )
-            label(x, y, heading, cell_width, color)
-        tile(item["icon"], x, row_y - px(1.3), min(1.8, step / unit * 0.8), color)
-        text(
-            x + px(2.7),
-            row_y,
-            item["title"],
-            1.1 if side else 1.25,
-            cell_width - px(2.7),
-            600,
+    def text(x, baseline, value, size, width, weight=400, color=ink, anchor="start"):
+        doc.text(
+            round(x),
+            round(baseline),
+            truncate(str(value), width, size, weight),
+            size=size,
+            weight=weight,
+            fill=color,
+            anchor=anchor,
         )
 
+    def paragraph(x, top, value, width, size=body, line=leading, limit=3, weight=400):
+        lines = rows(value, width, size, limit, weight)
+        for index, value in enumerate(lines):
+            text(x, top + size + index * line, value, size, width, weight)
+        return len(lines) * line
+
+    def heading(x, top, label, width, color=blue, icon=None):
+        if icon:
+            doc.icon(icon_path(icon), round(x), round(top), p(28), color)
+            x += p(40)
+            width -= p(40)
+        else:
+            doc.rect(round(x), round(top + p(3)), p(5), p(22), color)
+            x += p(18)
+            width -= p(18)
+        text(x, top + small, label.upper(), small, width, 600)
+
+    def feature_height(value, width):
+        if not value:
+            return 0
+        height = p(54)
+        if value.get("title"):
+            height += len(
+                rows(value["title"], width, title, 2, 600)
+            ) * title_leading + p(16)
+        prose = value.get("body", value.get("detail", ""))
+        height += len(rows(prose, width, body, 3)) * leading
+        if value.get("action"):
+            height += p(54)
+        return height
+
+    feature_height_px = max(
+        feature_height(guidance, guide_width), feature_height(next_card, next_width)
+    )
+    support_heights = []
+    for block in supporting:
+        if block["type"] == "agenda":
+            support_heights.append(p(54) + len(block["items"]) * p(60))
+        else:
+            block_title = block.get("title", block.get("next_step", ""))
+            height = p(54) + len(rows(block_title, support_width, p(36), 2, 600)) * p(
+                46
+            )
+            if block.get("detail"):
+                height += p(12) + len(
+                    rows(block["detail"], support_width, p(28), 2)
+                ) * p(38)
+            support_heights.append(height)
+    supporting_height = max(
+        (
+            sum(support_heights[column::support_columns])
+            + max(0, len(support_heights[column::support_columns]) - 1) * p(36)
+            for column in range(support_columns)
+        ),
+        default=0,
+    )
+    main_height = max(supporting_height, p(54) + task_count * p(58))
+    footer_height = p(126) if progress else 0
+    header_height = p(100)
+    required = (
+        pad * 2
+        + header_height
+        + feature_height_px
+        + (p(64) if feature_height_px else 0)
+        + main_height
+        + footer_height
+    )
+    top = max(rect.y, rect.y + rect.h - required) if mode == "strip" else rect.y
+    doc.rect(
+        round(panel_left),
+        round(top),
+        round(rect.x + rect.w - panel_left),
+        round(rect.y + rect.h - top),
+        white,
+    )
+
+    def artwork(x, y, width, height):
+        if not data.get("_artwork_png") or width <= 0 or height <= 0:
+            return
+        from PIL import Image, ImageOps
+
+        with Image.open(io.BytesIO(data["_artwork_png"])) as source:
+            crop = ImageOps.fit(source.convert("RGB"), (round(width), round(height)))
+            encoded = io.BytesIO()
+            crop.save(encoded, format="PNG")
+        doc.image(encoded.getvalue(), round(x), round(y), round(width), round(height))
+
+    if mode == "side_panel":
+        artwork(rect.x, rect.y, panel_left - rect.x, rect.h)
+    elif mode == "strip":
+        doc.rect(rect.x, round(top), rect.w, p(5), blue)
+    # Overview uses a small artwork masthead rather than squeezing text beside a thumbnail.
+    if mode == "overview":
+        art_height = max(0, min(p(200), rect.h - required))
+        if art_height:
+            artwork(rect.x, rect.y, rect.w, art_height)
+            top += art_height
+    if mode == "side_panel":
+        top += max(0, (rect.h - required) / 2)
+    y = top + pad
+    text(left, y + p(52), data["greeting"], p(52), width * 0.52, 600)
+    weather = data.get("weather")
+    date_right = right - (p(214) if weather else 0)
+    text(
+        date_right,
+        y + p(43),
+        data["date_label"],
+        p(28),
+        width * 0.44 - (p(214) if weather else 0),
+        anchor="end",
+    )
+    if weather:
+        doc.icon(
+            icon_path(weather["icon"]),
+            round(right - p(176)),
+            round(y + p(12)),
+            p(36),
+            ink,
+        )
+        text(
+            right,
+            y + p(43),
+            f"{weather['temperature']:g}{weather['unit']}",
+            p(32),
+            p(128),
+            600,
+            anchor="end",
+        )
+    y += header_height
+
+    def feature(value, x, top, width, label, color, icon):
+        if not value:
+            return
+        heading(x, top, label, width, color, icon)
+        cursor = top + p(54)
+        if value.get("title"):
+            cursor += paragraph(
+                x, cursor, value["title"], width, title, title_leading, 2, 600
+            ) + p(16)
+        cursor += paragraph(
+            x, cursor, value.get("body", value.get("detail", "")), width
+        )
+        if value.get("action"):
+            text(x, cursor + p(46), value["action"], p(30), width, 600, color)
+
+    feature(
+        guidance,
+        left,
+        y,
+        guide_width,
+        "Veileder" if nb else "Guidance",
+        green,
+        "mdi:compass-outline",
+    )
+    if next_card:
+        feature(
+            next_card,
+            next_left,
+            y,
+            next_width,
+            next_card["label"],
+            blue,
+            next_card["icon"],
+        )
+    y += feature_height_px
+    if feature_height_px:
+        doc.line(
+            round(left), round(y + p(30)), round(right), round(y + p(30)), ink, p(1)
+        )
+        y += p(64)
+    support_cursors = [y] * support_columns
+    for index, (block, height) in enumerate(zip(supporting, support_heights)):
+        column = index % support_columns
+        support_x = left + column * (support_width + gap)
+        support_y = support_cursors[column]
+        color = PALETTE_HEX[block.get("color", "blue")]
+        heading(
+            support_x,
+            support_y,
+            block.get("label") or ("Dagens fokus" if nb else "Today's focus"),
+            support_width,
+            color,
+        )
+        cursor = support_y + p(54)
+        if block["type"] == "agenda":
+            for item in block["items"]:
+                doc.rect(
+                    round(support_x), round(cursor + p(4)), p(36), p(36), color, rx=p(4)
+                )
+                doc.icon(
+                    icon_path(item["icon"]),
+                    round(support_x + p(6)),
+                    round(cursor + p(10)),
+                    p(24),
+                    white,
+                )
+                time = ("I dag" if nb else "Today") if item["all_day"] else item["time"]
+                text(support_x + p(52), cursor + p(30), time, p(26), p(92), 600)
+                text(
+                    support_x + p(150),
+                    cursor + p(30),
+                    item["title"],
+                    p(30),
+                    support_width - p(150),
+                )
+                cursor += p(60)
+        else:
+            cursor += paragraph(
+                support_x,
+                cursor,
+                block.get("title", block.get("next_step", "")),
+                support_width,
+                p(36),
+                p(46),
+                2,
+                600,
+            )
+            if block.get("detail"):
+                paragraph(
+                    support_x,
+                    cursor + p(12),
+                    block["detail"],
+                    support_width,
+                    p(28),
+                    p(38),
+                    2,
+                )
+        support_cursors[column] += height + p(36)
+
+    for column in range(task_columns):
+        column_rows = task_rows[column * task_count : (column + 1) * task_count]
+        if not column_rows:
+            continue
+        x = tasks_left + column * (task_width + gap)
+        labels = {block["label"] for block, _ in column_rows}
+        label = (
+            next(iter(labels)) if len(labels) == 1 else "Oppgaver" if nb else "Tasks"
+        )
+        heading(
+            x, y, label, task_width, PALETTE_HEX[column_rows[0][0].get("color", "blue")]
+        )
+        for index, (block, item) in enumerate(column_rows):
+            row = y + p(54) + index * p(58)
+            color = PALETTE_HEX[block.get("color", "yellow")]
+            doc.rect(round(x), round(row + p(5)), p(32), p(32), color, rx=p(4))
+            doc.icon(
+                icon_path(item["icon"]),
+                round(x + p(6)),
+                round(row + p(11)),
+                p(20),
+                ink if color == PALETTE_HEX["yellow"] else white,
+            )
+            text(x + p(48), row + body, item["title"], body, task_width - p(48))
+
     if progress:
-        footer_y = bottom - px(3.5)
+        footer_top = y + main_height + p(40)
         doc.line(
             round(left),
-            round(footer_y - px(1.5)),
+            round(footer_top - p(24)),
             round(right),
-            round(footer_y - px(1.5)),
+            round(footer_top - p(24)),
             ink,
-            px(0.08),
+            p(1),
         )
         cell_width = (width - gap * (len(progress) - 1)) / len(progress)
         for index, item in enumerate(progress):
             x = left + index * (cell_width + gap)
             color = PALETTE_HEX[item["color"]]
-            doc.icon(
-                icon_path(item["icon"]),
-                round(x),
-                round(footer_y - px(1.3)),
-                px(1.7),
-                color,
-            )
+            doc.icon(icon_path(item["icon"]), round(x), round(footer_top), p(30), color)
+            value = f"{item['value']:g}/{item['max']:g} {item['unit']}".strip()
             text(
-                x + px(2.3),
-                footer_y,
-                f"{item['label']}  {item['value']:g}/{item['max']:g} {item['unit']}".strip(),
-                1.1,
-                cell_width - px(2.3),
+                x + p(44),
+                footer_top + p(28),
+                item["label"],
+                p(28),
+                cell_width * 0.56 - p(44),
                 600,
             )
+            text(
+                x + cell_width,
+                footer_top + p(28),
+                value,
+                p(28),
+                cell_width * 0.44,
+                anchor="end",
+            )
+            bar_y = footer_top + p(52)
             if (
                 not item["unit"]
                 and float(item["max"]).is_integer()
-                and item["max"] <= 12
+                and 0 < item["max"] <= 12
             ):
-                segments = int(item["max"])
-                segment_gap = px(0.45)
-                segment_width = (cell_width - segment_gap * (segments - 1)) / segments
-                for segment in range(segments):
-                    segment_x = x + segment * (segment_width + segment_gap)
+                count = int(item["max"])
+                segment_gap = p(10)
+                segment_width = (cell_width - segment_gap * (count - 1)) / count
+                for segment in range(count):
+                    sx = x + segment * (segment_width + segment_gap)
+                    doc.rect(round(sx), round(bar_y), round(segment_width), p(18), ink)
                     doc.rect(
-                        round(segment_x),
-                        round(footer_y + px(1)),
-                        round(segment_width),
-                        px(0.9),
-                        ink,
-                    )
-                    doc.rect(
-                        round(segment_x + 1),
-                        round(footer_y + px(1) + 1),
-                        max(1, round(segment_width - 2)),
-                        max(1, px(0.9) - 2),
+                        round(sx + p(1)),
+                        round(bar_y + p(1)),
+                        max(1, round(segment_width - p(2))),
+                        p(16),
                         color if segment < item["value"] else white,
                     )
-                continue
-            doc.rect(round(x), round(footer_y + px(1)), round(cell_width), px(0.7), ink)
-            doc.rect(
-                round(x + 1),
-                round(footer_y + px(1) + 1),
-                round(cell_width - 2),
-                max(1, px(0.7) - 2),
-                white,
-            )
-            fill = round((cell_width - 2) * min(1, item["value"] / item["max"]))
-            if fill:
+            else:
+                doc.rect(round(x), round(bar_y), round(cell_width), p(18), ink)
                 doc.rect(
-                    round(x + 1),
-                    round(footer_y + px(1) + 1),
-                    fill,
-                    max(1, px(0.7) - 2),
-                    color,
+                    round(x + p(1)),
+                    round(bar_y + p(1)),
+                    round(cell_width - p(2)),
+                    p(16),
+                    white,
                 )
+                fill = round((cell_width - p(2)) * min(1, item["value"] / item["max"]))
+                if fill:
+                    doc.rect(round(x + p(1)), round(bar_y + p(1)), fill, p(16), color)

@@ -215,3 +215,5 @@ Task blocks support up to 12 rows. Longer todo lists use a compact column layout
 Long lists retain agenda times, supporting focus details and the graphical progress footer. The tasks expand into their own columns rather than consuming the other briefing sections.
 
 Dense briefings retain the colored icon tiles and blue strip rule from the original design. Count progress uses discrete segments; minute-based progress keeps a continuous meter. The strip places Veileder and Neste side by side to leave more of the artwork visible.
+
+Rich briefings use measured text blocks and fixed type sizes rather than shrinking supporting sections. Short lists arrange supporting cards alongside the task column; longer lists use two task columns. Agenda times and progress values have dedicated aligned positions.
