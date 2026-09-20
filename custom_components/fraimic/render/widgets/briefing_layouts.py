@@ -478,9 +478,9 @@ def render_dense_briefing(doc, rect, options, data):
         artwork(rect.x, rect.y, panel_left - rect.x, rect.h)
     elif mode == "strip":
         doc.rect(rect.x, round(top), rect.w, p(5), blue)
-    # Overview uses a small artwork masthead rather than squeezing text beside a thumbnail.
+    # Give spare height to the artwork so the overview ends at the bottom padding.
     if mode == "overview":
-        art_height = max(0, min(p(200), rect.h - required))
+        art_height = max(0, rect.h - required)
         if art_height:
             artwork(rect.x, rect.y, rect.w, art_height)
             top += art_height

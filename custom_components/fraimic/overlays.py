@@ -544,7 +544,7 @@ def _render_overlay_png(
             render_error(doc, rect, "Overlay unavailable", theme)
     if battery_warning:
         # Last layer, anchored to the physical bottom-left, outside widget slots.
-        size = max(12, round(width * 0.0125))
+        size = max(24, round(width * 0.025))
         doc.icon(
             icon_path("mdi:battery-alert-variant-outline"),
             0,

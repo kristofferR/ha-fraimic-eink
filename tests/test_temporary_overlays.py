@@ -747,7 +747,7 @@ def test_battery_warning_is_red_and_at_the_bottom_left(controller):
     red = np.all(pixels == (160, 32, 32), axis=2)
     ys, xs = np.where(red)
     assert len(xs) > 0
-    assert xs.max() < 12 and ys.min() >= 438
+    assert xs.max() < 24 and ys.min() >= 426
     assert set(map(tuple, pixels.reshape(-1, 3))) <= {(0, 0, 0), (160, 32, 32)}
     assert np.array_equal(pixels[0, 0], [0, 0, 0])
 
@@ -787,4 +787,4 @@ def test_battery_icon_does_not_move_or_change_briefing_content(controller, layou
     changed = np.any(results[0] != results[1], axis=2)
     ys, xs = np.where(changed)
     assert len(xs) > 0
-    assert xs.max() < 20 and ys.min() >= 880
+    assert xs.max() < 40 and ys.min() >= 860
