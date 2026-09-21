@@ -443,12 +443,20 @@ def render_dense_briefing(doc, rect, options, data):
             feature_metrics(value)
         )
         unlimited = value is guidance
-        height = p(54)
+        height = 0
         if value.get("title"):
             height += len(
-                rows(value["title"], width, title_size, None if unlimited else 2, 600)
+                rows(
+                    value["title"],
+                    width - p(44),
+                    title_size,
+                    None if unlimited else 2,
+                    600,
+                )
             ) * title_line + p(16)
         prose = value.get("body", value.get("detail", ""))
+        if not value.get("title"):
+            width -= p(44)
         height += (
             len(rows(prose, width, body_size, None if unlimited else 3)) * body_line
         )
@@ -638,23 +646,34 @@ def render_dense_briefing(doc, rect, options, data):
     def feature(value, x, top, width, color, icon):
         if not value:
             return
-        doc.icon(icon_path(icon), round(x), round(top), p(28), color)
         title_size, title_line, body_size, body_line, action_size, action_line = (
             feature_metrics(value)
         )
         unlimited = value is guidance
-        cursor = top + p(54)
+        icon_size = min(p(28), title_size if value.get("title") else body_size)
+        first_size = title_size if value.get("title") else body_size
+        doc.icon(
+            icon_path(icon),
+            round(x),
+            round(top + first_size - icon_size),
+            icon_size,
+            color,
+        )
+        cursor = top
         if value.get("title"):
             cursor += paragraph(
-                x,
+                x + p(44),
                 cursor,
                 value["title"],
-                width,
+                width - p(44),
                 title_size,
                 title_line,
                 None if unlimited else 2,
                 600,
             ) + p(16)
+        else:
+            x += p(44)
+            width -= p(44)
         cursor += paragraph(
             x,
             cursor,
