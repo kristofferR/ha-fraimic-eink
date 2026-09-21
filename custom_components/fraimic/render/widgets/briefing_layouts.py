@@ -277,8 +277,8 @@ def render_dense_briefing(doc, rect, options, data):
     ink, white, blue, green = (
         PALETTE_HEX[key] for key in ("black", "white", "blue", "green")
     )
-    body, title, small = p(32), p(42), p(25)
-    leading, title_leading = p(44), p(54)
+    body, title, small = p(32), p(52), p(25)
+    leading, title_leading = p(44), p(64)
     pad, gap = p(64), p(56)
     blocks = [dict(block) for block in data.get("blocks", [])]
     if "blocks" not in data:
@@ -431,9 +431,10 @@ def render_dense_briefing(doc, rect, options, data):
 
     def feature_metrics(value):
         scale = guidance_scale if value is guidance else 1.0
-        return tuple(
-            max(1, round(size * scale))
-            for size in (title, title_leading, body, leading, p(30), p(42))
+        return (
+            title,
+            title_leading,
+            *(max(1, round(size * scale)) for size in (body, leading, p(30), p(42))),
         )
 
     def feature_height(value, width):
@@ -522,7 +523,7 @@ def render_dense_briefing(doc, rect, options, data):
         p(126) if progress and progress_agenda is None and not progress_column else 0
     )
     weekly = data.get("weekly_focus")
-    header_height = p(158) if weekly else p(100)
+    header_height = p(112) if weekly else p(48)
     # Give guidance the artwork's height first; only reduce its type when the
     # complete text would otherwise displace the agenda and task rows.
     feature_budget = max(
@@ -607,7 +608,6 @@ def render_dense_briefing(doc, rect, options, data):
     if mode == "side_panel":
         top += max(0, (rect.h - required) / 2)
     y = top + pad
-    text(left, y + p(52), data["greeting"], p(52), width * 0.52, 600)
     weather = data.get("weather")
     date_right = right - (p(214) if weather else 0)
     text(
@@ -640,7 +640,7 @@ def render_dense_briefing(doc, rect, options, data):
         value = f"{label}: {weekly['text']}"
         if weekly["done"]:
             value += " · Fullført" if nb else " · Done"
-        text(left, y + p(112), value, p(30), width, 400, green)
+        text(left, y + p(88), value, p(30), width, 400, green)
     y += header_height
 
     def feature(value, x, top, width, color, icon):
