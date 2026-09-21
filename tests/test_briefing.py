@@ -382,7 +382,19 @@ def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
     svg = doc.to_string()
     for index in range(1, 13):
         assert f"Oppgave {index:02d}" in svg
-    assert "NESTE" not in svg and "En konkret handling" in svg and "VEILEDER" not in svg
+    from xml.etree import ElementTree
+
+    text_nodes = list(
+        ElementTree.fromstring(svg).iter("{http://www.w3.org/2000/svg}text")
+    )
+    rendered_text = " ".join(node.text or "" for node in text_nodes)
+    assert "NESTE" not in rendered_text and "VEILEDER" not in rendered_text
+    assert "En konkret handling" in rendered_text
+    date = next(node for node in text_nodes if (node.text or "").startswith("Lør."))
+    next_title = next(
+        node for node in text_nodes if (node.text or "").startswith("En konkret")
+    )
+    assert date.attrib["y"] == next_title.attrib["y"]
     for content in (
         "Prosjektmøte",
         "09:30",

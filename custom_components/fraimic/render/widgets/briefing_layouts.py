@@ -6,7 +6,7 @@ import io
 import math
 
 from ..icons import icon_path
-from ..svg import truncate, wrap
+from ..svg import measure, truncate, wrap
 from ..theme import PALETTE_HEX
 
 
@@ -320,8 +320,52 @@ def render_dense_briefing(doc, rect, options, data):
     left, right = panel_left + pad, rect.x + rect.w - pad
     width = right - left
     guidance = data.get("guidance")
+    weather = data.get("weather")
+    weekdays = dict(
+        zip(
+            (
+                "mandag",
+                "tirsdag",
+                "onsdag",
+                "torsdag",
+                "fredag",
+                "lørdag",
+                "søndag",
+                "monday",
+                "tuesday",
+                "wednesday",
+                "thursday",
+                "friday",
+                "saturday",
+                "sunday",
+            ),
+            (
+                "Man.",
+                "Tir.",
+                "Ons.",
+                "Tor.",
+                "Fre.",
+                "Lør.",
+                "Søn.",
+                "Mon.",
+                "Tue.",
+                "Wed.",
+                "Thu.",
+                "Fri.",
+                "Sat.",
+                "Sun.",
+            ),
+        )
+    )
+    weekday, separator, rest = data["date_label"].partition(" ")
+    date_label = weekdays.get(weekday.rstrip(",").lower(), weekday) + separator + rest
+    date_width = min(p(300), math.ceil(measure(date_label, p(28))))
+    metadata_width = date_width + (p(214) if weather else 0) + p(32)
+    metadata_card = next_card or guidance
     feature_gap = p(80)
     guide_width = round((width - feature_gap) * 0.60) if next_card else width
+    if next_card and guidance:
+        guide_width = min(guide_width, width - feature_gap - metadata_width - p(420))
     next_left = left + guide_width + feature_gap if guidance else left
     next_width = right - next_left
     support_columns = min(2, len(supporting)) if len(task_rows) <= 3 else 1
@@ -444,12 +488,13 @@ def render_dense_briefing(doc, rect, options, data):
             feature_metrics(value)
         )
         unlimited = value is guidance
+        title_width = width - p(44) - (metadata_width if value is metadata_card else 0)
         height = 0
         if value.get("title"):
             height += len(
                 rows(
                     value["title"],
-                    width - p(44),
+                    title_width,
                     title_size,
                     None if unlimited else 2,
                     600,
@@ -457,7 +502,7 @@ def render_dense_briefing(doc, rect, options, data):
             ) * title_line + p(16)
         prose = value.get("body", value.get("detail", ""))
         if not value.get("title"):
-            width -= p(44)
+            width = title_width
         height += (
             len(rows(prose, width, body_size, None if unlimited else 3)) * body_line
         )
@@ -523,13 +568,17 @@ def render_dense_briefing(doc, rect, options, data):
         p(126) if progress and progress_agenda is None and not progress_column else 0
     )
     weekly = data.get("weekly_focus")
-    header_height = p(112) if weekly else p(48)
+    top_pad = p(24)
+    header_height = p(56) if weekly else 0
+    if not (guidance or next_card):
+        header_height += p(64)
     # Give guidance the artwork's height first; only reduce its type when the
     # complete text would otherwise displace the agenda and task rows.
     feature_budget = max(
         p(200),
         rect.h
-        - pad * 2
+        - pad
+        - top_pad
         - header_height
         - p(64)
         - footer_height
@@ -547,7 +596,8 @@ def render_dense_briefing(doc, rect, options, data):
         feature_height(guidance, guide_width), feature_height(next_card, next_width)
     )
     fixed_height = (
-        pad * 2
+        pad
+        + top_pad
         + header_height
         + feature_height_px
         + (p(64) if feature_height_px else 0)
@@ -607,28 +657,28 @@ def render_dense_briefing(doc, rect, options, data):
             top += art_height
     if mode == "side_panel":
         top += max(0, (rect.h - required) / 2)
-    y = top + pad
-    weather = data.get("weather")
+    y = top + top_pad
+    metadata_y = y + (p(56) if weekly else 0)
     date_right = right - (p(214) if weather else 0)
     text(
         date_right,
-        y + p(43),
-        data["date_label"],
+        metadata_y + title,
+        date_label,
         p(28),
-        width * 0.44 - (p(214) if weather else 0),
+        date_width,
         anchor="end",
     )
     if weather:
         doc.icon(
             icon_path(weather["icon"]),
             round(right - p(176)),
-            round(y + p(12)),
+            round(metadata_y + title - p(36)),
             p(36),
             ink,
         )
         text(
             right,
-            y + p(43),
+            metadata_y + title,
             f"{weather['temperature']:g}{weather['unit']}",
             p(32),
             p(128),
@@ -640,7 +690,7 @@ def render_dense_briefing(doc, rect, options, data):
         value = f"{label}: {weekly['text']}"
         if weekly["done"]:
             value += " · Fullført" if nb else " · Done"
-        text(left, y + p(88), value, p(30), width, 400, green)
+        text(left, y + p(30), value, p(30), width, 400, green)
     y += header_height
 
     def feature(value, x, top, width, color, icon):
@@ -659,13 +709,14 @@ def render_dense_briefing(doc, rect, options, data):
             icon_size,
             color,
         )
+        title_width = width - p(44) - (metadata_width if value is metadata_card else 0)
         cursor = top
         if value.get("title"):
             cursor += paragraph(
                 x + p(44),
                 cursor,
                 value["title"],
-                width - p(44),
+                title_width,
                 title_size,
                 title_line,
                 None if unlimited else 2,
@@ -673,7 +724,7 @@ def render_dense_briefing(doc, rect, options, data):
             ) + p(16)
         else:
             x += p(44)
-            width -= p(44)
+            width = title_width
         cursor += paragraph(
             x,
             cursor,
