@@ -702,3 +702,69 @@ def test_regular_send_recomposes_when_overlay_changes(monkeypatch, change_during
     client.upload_image.assert_awaited_once_with(b"clean")
     assert controller.async_accept.await_args.args[0] == clean
     assert controller.async_accept.await_args.args[4] == "expired"
+
+
+@pytest.mark.parametrize(
+    "active,accepted,fresh",
+    [
+        (False, True, False),
+        (True, True, False),
+        (False, False, False),
+        (True, True, True),
+    ],
+)
+def test_only_accepted_expired_overlay_bypasses_low_battery(
+    monkeypatch, active, accepted, fresh
+):
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    monkeypatch.setattr(services.time, "time", lambda: 1000)
+    power_module = load("power")
+    controller = SimpleNamespace(
+        base=(b"clean", b"png", "none"),
+        art=None,
+        inherit=True,
+        title="Art",
+        active=active,
+        composed_valid_until=900 if accepted else None,
+        candidate_valid_until=2000 if active else None,
+        candidate_briefing_valid_until=1500 if fresh else None,
+        signature=lambda *_: "[]",
+        async_compose=AsyncMock(return_value=((b"clean", b"png", "none"), "[]", 0)),
+        async_accept=AsyncMock(),
+    )
+    client = SimpleNamespace(upload_image=AsyncMock())
+    runtime = SimpleNamespace(
+        temporary_overlays=controller,
+        scheduler=None,
+        cloud=None,
+        client=client,
+        upload_lock=asyncio.Lock(),
+        coordinator=SimpleNamespace(data={"battery": {"percent": 18}}),
+        send_queue=None,
+        set_displayed_preview=Mock(),
+        preview_image=None,
+    )
+    entry = SimpleNamespace(entry_id="frame", data={}, options={}, runtime_data=runtime)
+    power = power_module.FraimicPowerManager(SimpleNamespace(), entry)
+    power._async_save = AsyncMock()
+    power.schedule_sleep = Mock()
+    runtime.power = power
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+    result = asyncio.run(
+        services.async_render_and_upload(
+            SimpleNamespace(),
+            entry,
+            b"",
+            hold_playlist=False,
+            overlay_refresh=True,
+            trigger=power_module.TRIGGER_OVERLAY,
+        )
+    )
+    restores = accepted and not fresh
+    assert result["uploaded"] == restores
+    assert client.upload_image.await_count == int(restores)
+    assert controller.async_accept.await_count == int(restores)
+    if not restores:
+        assert result["skip_reason"] == power_module.SKIP_LOW_BATTERY

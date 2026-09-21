@@ -186,7 +186,7 @@ def test_ordered_blocks_keep_all_six_groups_and_do_not_extend_freshness(with_pro
         {"valid_until": (NOW + timedelta(hours=1)).isoformat()},
         {"routine": {"label": "Routine", "completed": 4, "skipped": 3, "total": 6}},
         {"weather": {"temperature": float("nan")}},
-        {"tasks": [{"title": "x"}] * 4},
+        {"tasks": [{"title": "x"}] * 13},
     ],
 )
 def test_invalid_or_expired_snapshots_are_omitted(change):
@@ -283,3 +283,239 @@ def test_real_compositor_refresh_preserves_artwork_and_deduplicates_timestamps(
     )
     state.state = "unavailable"
     assert asyncio.run(render())[0] == clean
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+def test_selectable_layouts_render_the_supplied_guidance(layout):
+    raw = ordered_snapshot()
+    raw["guidance"] = {
+        "title": "Start med ett steg",
+        "body": "Gjør det viktigste først.",
+        "action": "Gå en tur",
+    }
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": layout},
+        data,
+        None,
+        None,
+    )
+    svg = doc.to_string()
+    assert "VEILEDER" in svg
+    assert "Start med ett steg" in svg
+    assert "Gjør det viktigste først." in svg
+    assert "Gå en tur" in svg
+    assert "Priority first" in svg
+    assert "Sleep sixth" in svg
+    assert (
+        load("render.briefing").validate_briefing(raw, NOW + timedelta(minutes=3))
+        is None
+    )
+
+
+def test_guidance_can_be_headline_only_but_not_entirely_blank():
+    raw = {
+        **ordered_snapshot(),
+        "blocks": [],
+        "guidance": {"title": "Ett steg", "body": "  "},
+    }
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    assert data["guidance"]["title"] == "Ett steg"
+    assert data["guidance"]["body"] == ""
+    raw["guidance"]["title"] = " "
+    assert load("render.briefing").validate_briefing(raw, NOW) is None
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
+    raw = ordered_snapshot()
+    raw["blocks"] = [
+        {
+            "type": "focus",
+            "label": "Neste",
+            "title": "En konkret handling",
+            "detail": "Fra Today",
+        },
+        {
+            "type": "tasks",
+            "label": "Oppgaver",
+            "items": [{"title": f"Oppgave {index:02d}"} for index in range(1, 13)],
+        },
+    ]
+    raw["guidance"] = {"title": "Ett steg", "body": "Gjør det viktigste først."}
+    raw["blocks"].extend(
+        [
+            {
+                "type": "agenda",
+                "label": "Dagen din",
+                "items": [
+                    {"title": "Prosjektmøte", "time": "09:30"},
+                    {"title": "Styrke", "all_day": True},
+                ],
+            },
+            {
+                "type": "focus",
+                "label": "Dagens fokus",
+                "title": "Les litt",
+                "detail": "Din valgte bok",
+            },
+        ]
+    )
+    raw["progress"] = [
+        {"label": "Vaner", "value": 2, "max": 5},
+        {"label": "Læring", "value": 5, "max": 15, "unit": "min"},
+    ]
+    data = load("render.briefing").validate_briefing(raw, NOW)
+    assert data is not None
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": layout},
+        data,
+        None,
+        None,
+    )
+    svg = doc.to_string()
+    for index in range(1, 13):
+        assert f"Oppgave {index:02d}" in svg
+    assert "NESTE" in svg and "En konkret handling" in svg and "VEILEDER" in svg
+    for content in (
+        "Prosjektmøte",
+        "09:30",
+        "Styrke",
+        "Les litt",
+        "Din valgte bok",
+        "Fra Today",
+        "Vaner",
+        "2/5",
+        "Læring",
+        "5/15",
+    ):
+        assert content in svg
+    raw["blocks"][1]["items"].append({"title": "Too many"})
+    assert load("render.briefing").validate_briefing(raw, NOW) is None
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+@pytest.mark.parametrize("task_count", [3, 12])
+@pytest.mark.parametrize("overflow", [False, True])
+def test_rich_briefing_text_stays_on_canvas_without_collisions(
+    layout, task_count, overflow
+):
+    from xml.etree import ElementTree
+
+    raw = ordered_snapshot()
+    raw["weekly_focus"] = {"text": "Gjør plass til det viktigste", "done": False}
+    raw["updated_time"] = "08:30"
+    raw["guidance"] = {
+        "title": "Gjør starten liten. La resten komme etterpå.",
+        "body": "Velg ett konkret steg før du åpner resten av dagen. Du trenger ikke fullføre hele listen for å få en god start. Ta deg tid til å gjøre ferdig én ting før du går videre.",
+        "action": "Ta ett konkret steg.",
+    }
+    raw["blocks"] = [
+        {
+            "type": "focus",
+            "label": "Neste",
+            "title": "Sett av 20 minutter til dagens viktigste oppgave",
+            "detail": "Begynn med én oppgave og gjør den ferdig.",
+        },
+        {
+            "type": "agenda",
+            "label": "Dagen din",
+            "items": [
+                {"title": "Prosjektmøte", "time": "09:30"},
+                {"title": "Styrketrening", "time": "17:30"},
+            ],
+        },
+        {
+            "type": "tasks",
+            "label": "Dine oppgaver",
+            "items": [
+                {
+                    "title": f"Avtal neste ukes aktivitet {index}",
+                    "priority": index == 0,
+                    "deadline": "I dag",
+                }
+                for index in range(task_count)
+            ],
+        },
+        {
+            "type": "focus",
+            "label": "Dagens fokus",
+            "title": "25 min med prosjektet",
+            "detail": "Én uforstyrret økt",
+        },
+    ]
+    if overflow:
+        raw["blocks"] = [raw["blocks"][0], raw["blocks"][2]] + [
+            {
+                "type": "focus",
+                "label": "Fokus",
+                "title": "En lang overskrift som trenger to linjer med tekst",
+                "detail": "Detaljer som også bruker god plass på skjermen og trenger flere linjer",
+            }
+            for _ in range(6)
+        ]
+    raw["progress"] = [
+        {"label": "Mobilitet", "value": 4, "max": 9},
+        {"label": "Læring", "value": 5, "max": 15, "unit": "min"},
+        {"label": "Vaner", "value": 2, "max": 5},
+    ]
+    svg = load("render.svg")
+    doc = svg.SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": layout},
+        load("render.briefing").validate_briefing(raw, NOW),
+        None,
+        None,
+    )
+    boxes = []
+    for node in ElementTree.fromstring(doc.to_string()).iter(
+        "{http://www.w3.org/2000/svg}text"
+    ):
+        content = node.text or ""
+        if not content.strip():
+            continue
+        size, weight = (
+            int(node.attrib["font-size"]),
+            int(node.attrib.get("font-weight", 400)),
+        )
+        font = svg._pil_font(size, weight)
+        x, y = float(node.attrib["x"]), float(node.attrib["y"])
+        if node.attrib.get("text-anchor") == "end":
+            x -= svg.measure(content, size, weight)
+        left, top, right, bottom = font.getbbox(content, anchor="ls")
+        box = (x + left, y + top, x + right, y + bottom)
+        assert 0 <= box[0] < box[2] <= 2560 and 0 <= box[1] < box[3] <= 1440, content
+        for other, other_content in boxes:
+            assert min(box[2], other[2]) <= max(box[0], other[0]) or min(
+                box[3], other[3]
+            ) <= max(box[1], other[1]), (content, other_content)
+        boxes.append((box, content))
+
+
+def test_rich_routine_counts_and_fractional_progress_are_preserved():
+    from xml.etree import ElementTree
+
+    raw = snapshot()
+    raw["updated_time"] = "09:00"
+    raw["routine"]["skipped"] = 1
+    raw["progress"] = [{"label": "Delvis", "value": 2.5, "max": 5}]
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc, load("render.layout").Rect(0, 0, 2560, 1440), {"layout": "strip"},
+        load("render.briefing").validate_briefing(raw, NOW), None, None,
+    )
+    svg = doc.to_string()
+    assert "2/6 fullført · 1 hoppet over" in svg
+    assert "2.5/5" in svg
+    rects = list(ElementTree.fromstring(svg).iter("{http://www.w3.org/2000/svg}rect"))
+    # The final meter is continuous, and its inner fill is exactly half its track.
+    track, fill = rects[-2:]
+    assert abs(float(fill.attrib["width"]) * 2 - float(track.attrib["width"])) <= 1

@@ -26,6 +26,8 @@ _COLOR = vol.In(("blue", "green", "yellow", "red"))
 _ITEM = vol.Schema(
     {
         vol.Required("title"): _text,
+        vol.Optional("priority", default=False): bool,
+        vol.Optional("deadline", default=""): _text,
         vol.Optional("icon", default="mdi:checkbox-blank-outline"): _ICON,
     }
 )
@@ -64,8 +66,22 @@ _SCHEMA = vol.Schema(
         vol.Required("date_label"): _text,
         vol.Required("greeting"): _text,
         vol.Optional("locale", default="en"): vol.In(("en", "nb")),
+        vol.Optional("updated_time"): vol.Match(r"^(?:[01]\d|2[0-3]):[0-5]\d$"),
+        vol.Optional("weekly_focus"): vol.Schema(
+            {
+                vol.Required("text"): _text,
+                vol.Optional("done", default=False): bool,
+            }
+        ),
+        vol.Optional("guidance"): vol.Schema(
+            {
+                vol.Optional("title", default=""): _text,
+                vol.Required("body"): vol.All(str, vol.Length(max=2400), str.strip),
+                vol.Optional("action", default=""): _text,
+            }
+        ),
         vol.Optional("agenda", default=list): vol.All([_AGENDA], vol.Length(max=3)),
-        vol.Optional("tasks", default=list): vol.All([_ITEM], vol.Length(max=3)),
+        vol.Optional("tasks", default=list): vol.All([_ITEM], vol.Length(max=12)),
         vol.Optional("routine"): _ROUTINE,
         vol.Optional("focus"): _FOCUS,
         vol.Optional("progress", default=list): vol.All(
@@ -111,7 +127,9 @@ _BLOCK = vol.Any(
                 vol.Required("type"): kind,
                 vol.Required("label"): _text,
                 vol.Optional("color", default=color): _COLOR,
-                vol.Required("items"): vol.All([item], vol.Length(min=1, max=3)),
+                vol.Required("items"): vol.All(
+                    [item], vol.Length(min=1, max=12 if kind == "tasks" else 3)
+                ),
             }
         )
         for kind, item, color in (
@@ -120,13 +138,16 @@ _BLOCK = vol.Any(
         )
     ],
 )
-_SCHEMA = _SCHEMA.extend({vol.Optional("blocks"): vol.All([_BLOCK], vol.Length(max=6))})
+_SCHEMA = _SCHEMA.extend({vol.Optional("blocks"): vol.All([_BLOCK], vol.Length(max=8))})
 
 
 def validate_briefing(raw, now: datetime):
     """Omit expired/malformed snapshots, never render their content as current."""
     try:
         data = _SCHEMA(raw)
+        guidance = data.get("guidance")
+        if guidance and not (guidance["title"] or guidance["body"]):
+            data.pop("guidance")
         generated = datetime.fromisoformat(data["generated_at"])
         expires = datetime.fromisoformat(data["valid_until"])
         if generated.tzinfo is None or expires.tzinfo is None:
@@ -148,7 +169,10 @@ def validate_briefing(raw, now: datetime):
         content_keys = (
             ("blocks",) if "blocks" in data else ("agenda", "tasks", "routine", "focus")
         )
-        if not any(data.get(k) for k in (*content_keys, "progress", "weather")):
+        if not any(
+            data.get(k)
+            for k in (*content_keys, "progress", "weather", "guidance", "weekly_focus")
+        ):
             return None
         return data
     except (vol.Invalid, TypeError, ValueError, OverflowError):

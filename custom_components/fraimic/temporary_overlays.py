@@ -19,6 +19,7 @@ from .overlays import (
     _visible,
     async_apply_frame_overlays,
     get_overlay_manager,
+    low_battery_warning,
     normalize_overlay,
 )
 from .power import TRIGGER_OVERLAY
@@ -60,6 +61,7 @@ class TemporaryOverlays:
         self.refresh_interval = DEFAULT_REFRESH_INTERVAL
         self.composed_valid_until = None
         self.candidate_valid_until = None
+        self.candidate_briefing_valid_until = None
         self._saved_composed_valid_until = None
         self._next_refresh_at = 0.0
         self.last_signature = ""
@@ -68,6 +70,7 @@ class TemporaryOverlays:
         self.dirty = False
         self._refreshing = False
         self._retry_at = 0.0
+        self._last_refresh_started_at = 0.0
         self._unsub = None
 
     def _geometry(self):
@@ -158,16 +161,18 @@ class TemporaryOverlays:
         return [item for item in overlays if _visible(self.hass, item, now)]
 
     def signature(self, inherit=None, refresh=False):
-        return json.dumps(self.visible(inherit, refresh), sort_keys=True)
+        signature = json.dumps(self.visible(inherit, refresh), sort_keys=True)
+        return signature + ("|low_battery" if low_battery_warning(self.entry) else "")
 
     async def async_compose(self, base, art=None, inherit=True, refresh=False):
         self.candidate_valid_until = None
+        self.candidate_briefing_valid_until = None
         self.candidate_permanent = (
             self.permanent if refresh else self._configured_permanent()
         )
         overlays = self.visible(inherit, refresh)
-        signature = json.dumps(overlays, sort_keys=True)
-        if not overlays:
+        signature = self.signature(inherit, refresh)
+        if not overlays and not low_battery_warning(self.entry):
             return base, signature, 0
         from .render.display import _NEUTRAL_OVERRIDES
         from .services import async_convert_for_entry
@@ -182,11 +187,14 @@ class TemporaryOverlays:
         )
         # Every temporary composition expires, even without a briefing widget.
         # Delivery uses this boundary to reserve wake/redraw time on all paths.
-        deadlines = [self.expires_at] if self.active else []
+        deadlines = []
         composed, count = await async_apply_frame_overlays(
             self.hass, self.entry, png, art, overlays=overlays,
             snapshot_deadlines=deadlines,
         )
+        self.candidate_briefing_valid_until = min(deadlines) if deadlines else None
+        if self.active:
+            deadlines.append(self.expires_at)
         self.candidate_valid_until = min(deadlines) if deadlines else None
         rendered = await async_convert_for_entry(
             self.hass, self.entry, composed, _NEUTRAL_OVERRIDES, preprocess=False
@@ -383,7 +391,8 @@ class TemporaryOverlays:
         from .services import async_render_and_upload
 
         self._refreshing = True
-        self._next_refresh_at = time.time() + max(60, self.refresh_interval)
+        self._last_refresh_started_at = time.time()
+        self._next_refresh_at = self._last_refresh_started_at + max(60, self.refresh_interval)
         if scheduler:
             scheduler.begin_external_upload()
         failed = False
@@ -424,10 +433,16 @@ class TemporaryOverlays:
             self.composed_valid_until is not None
             and now >= self.composed_valid_until
         )
+        newly_expired = (
+            expired and self.expires_at > self._last_refresh_started_at
+        ) or (
+            briefing_due
+            and self.composed_valid_until > self._last_refresh_started_at
+        )
         if (
             self.base is None
             or self._refreshing
-            or (now < self._retry_at and not expired and not briefing_due)
+            or (now < self._retry_at and not newly_expired)
         ):
             return
         changed = self.signature(None, True) != self.last_signature

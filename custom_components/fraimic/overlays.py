@@ -20,6 +20,7 @@ from .const import DOMAIN, PALETTE_NAMES
 from .render.context import RenderContext
 from .render.fetch import async_build_context
 from .render.layout import Rect
+from .render.icons import icon_path
 from .render.schema import WIDGET_OPTION_SCHEMAS, ScreenConfig, WidgetConfig
 from .render.svg import SvgDoc, rasterize, snap_to_colors
 from .render.theme import PALETTE_HEX, Theme
@@ -144,11 +145,13 @@ def _widget_options(overlay_type: str, raw: Any) -> dict[str, Any]:
         }
     schema = WIDGET_OPTION_SCHEMAS[widget_type]
     if overlay_type == "text" and "literal" in options:
-        schema = vol.Schema({
-            vol.Required("literal"): str,
-            vol.Optional("align", default="left"): vol.In(("left", "center")),
-            vol.Optional("size", default="m"): vol.In(("s", "m", "l")),
-        })
+        schema = vol.Schema(
+            {
+                vol.Required("literal"): str,
+                vol.Optional("align", default="left"): vol.In(("left", "center")),
+                vol.Optional("size", default="m"): vol.In(("s", "m", "l")),
+            }
+        )
     try:
         validated = schema(options)
         if weather_view is not None:
@@ -195,7 +198,11 @@ def normalize_overlay(raw: Any) -> dict[str, Any]:
         "y": y,
         "w": max(1, w),
         "h": max(1, h),
-        "plate": "none" if overlay_type == "briefing" else raw.get("plate") if raw.get("plate") in PLATES else "panel",
+        "plate": "none"
+        if overlay_type == "briefing"
+        else raw.get("plate")
+        if raw.get("plate") in PLATES
+        else "panel",
         "plate_color": (
             raw.get("plate_color")
             if raw.get("plate_color") in PALETTE_NAMES
@@ -444,6 +451,19 @@ def _empty_payload(data: Any) -> bool:
     return False
 
 
+def low_battery_warning(entry) -> bool:
+    """Use the normalized frame snapshot; missing battery is not a low battery."""
+    coordinator = getattr(getattr(entry, "runtime_data", None), "coordinator", None)
+    data = getattr(coordinator, "data", None) or {}
+    battery = data.get("battery") if isinstance(data, dict) else None
+    percent = battery.get("percent") if isinstance(battery, dict) else None
+    return (
+        isinstance(percent, (int, float))
+        and not isinstance(percent, bool)
+        and 0 <= percent < 30
+    )
+
+
 def _render_overlay_png(
     base_png: bytes,
     specs: list[dict[str, Any]],
@@ -451,6 +471,7 @@ def _render_overlay_png(
     ctx: RenderContext,
     width: int,
     height: int,
+    battery_warning: bool = False,
 ) -> bytes:
     doc = SvgDoc(width, height, PALETTE_HEX["black"])
     doc.image(base_png, 0, 0, width, height)
@@ -459,6 +480,11 @@ def _render_overlay_png(
     for index in reversed(range(len(specs))):
         overlay = specs[index]
         data = ctx.widget_data.get(index)
+        if overlay["type"] == "briefing" and data:
+            data = {
+                **data,
+                "_artwork_png": base_png,
+            }
         if overlay["visibility"].get("hide_when_empty") and _empty_payload(data):
             continue
         x = round(overlay["x"] * cell_w)
@@ -475,7 +501,11 @@ def _render_overlay_png(
             doc.rect(x, y + h - stroke, w, stroke, color)
             doc.rect(x, y, stroke, h, color)
             doc.rect(x + w - stroke, y, stroke, h, color)
-        pad = 0 if overlay["type"] == "briefing" else max(8, round(min(width, height) / 75))
+        pad = (
+            0
+            if overlay["type"] == "briefing"
+            else max(8, round(min(width, height) / 75))
+        )
         rect = Rect(x + pad, y + pad, max(1, w - pad * 2), max(1, h - pad * 2))
         theme = Theme.for_screen(
             width,
@@ -512,6 +542,16 @@ def _render_overlay_png(
         except Exception:
             _LOGGER.exception("Overlay %s could not render", overlay["id"])
             render_error(doc, rect, "Overlay unavailable", theme)
+    if battery_warning:
+        # Last layer, anchored to the physical bottom-left, outside widget slots.
+        size = max(24, round(width * 0.025))
+        doc.icon(
+            icon_path("mdi:battery-alert-variant-outline"),
+            0,
+            height - size,
+            size,
+            PALETTE_HEX["red"],
+        )
     return snap_to_colors(rasterize(doc.to_string(), width, height), doc.colors)
 
 
@@ -525,31 +565,47 @@ async def async_apply_frame_overlays(
     snapshot_deadlines: list[float] | None = None,
 ) -> tuple[bytes, int]:
     manager = get_overlay_manager(hass)
-    if manager is None and overlays is None:
+    battery_warning = low_battery_warning(entry)
+    if manager is None and overlays is None and not battery_warning:
         return base_png, 0
     now = dt_util.now()
     overlays = [
         overlay
-        for overlay in (overlays if overlays is not None else manager.for_frame(entry.entry_id))
+        for overlay in (
+            overlays
+            if overlays is not None
+            else manager.for_frame(entry.entry_id)
+            if manager
+            else []
+        )
         if _visible(hass, overlay, now)
     ]
-    if not overlays:
+    if not overlays and not battery_warning:
         return base_png, 0
     specs, screen = _render_specs(overlays, art)
-    if not specs:
+    if not specs and not battery_warning:
         return base_png, 0
     ctx = await async_build_context(hass, screen)
     if snapshot_deadlines is not None:
         for index, widget in enumerate(screen.widgets):
             data = ctx.widget_data.get(index) or {}
             if widget.type == "briefing" and "valid_until" in data:
-                snapshot_deadlines.append(datetime.fromisoformat(data["valid_until"]).timestamp())
+                snapshot_deadlines.append(
+                    datetime.fromisoformat(data["valid_until"]).timestamp()
+                )
     from .render.display import viewed_size
 
     width, height = viewed_size(entry)
     try:
         rendered = await hass.async_add_executor_job(
-            _render_overlay_png, base_png, specs, screen, ctx, width, height
+            _render_overlay_png,
+            base_png,
+            specs,
+            screen,
+            ctx,
+            width,
+            height,
+            battery_warning,
         )
     except Exception as err:
         raise HomeAssistantError(f"Could not render frame overlays: {err}") from err

@@ -83,7 +83,10 @@ from .coordinator import FraimicConfigEntry
 from .delivery import async_use_cloud
 from .image_convert import convert_image
 from .library import get_library
-from .power import DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL
+from .power import (
+    DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL,
+    TRIGGER_OVERLAY, TRIGGER_OVERLAY_RESTORE,
+)
 from .render.display import async_show_screen
 from .render.schema import SCREEN_SCHEMA, screen_from_dict
 from .scenes import get_scene_manager
@@ -959,6 +962,21 @@ async def async_render_and_upload(
                     if overlay_refresh:
                         return deferred_result("briefing_expires_before_delivery")
                     use_clean_artwork()
+            if (
+                overlay_refresh
+                and trigger == TRIGGER_OVERLAY
+                and overlay_controller.composed_valid_until is not None
+                and (
+                    not overlay_controller.active
+                    or overlay_controller.composed_valid_until <= time.time()
+                )
+                and getattr(
+                    overlay_controller, "candidate_briefing_valid_until", snapshot_deadline
+                ) is None
+            ):
+                # Only restoration of an accepted temporary composition may
+                # bypass low-battery protection. Decide under the upload lock.
+                trigger = TRIGGER_OVERLAY_RESTORE
             hybrid = (
                 entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
                 and getattr(runtime, "cloud", None) is not None

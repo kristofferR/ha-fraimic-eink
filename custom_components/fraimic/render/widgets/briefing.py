@@ -35,6 +35,34 @@ LABELS = {
 def render_briefing(doc, rect, options, data, ctx, theme):
     if not data or data.get("empty") or "error" in data:
         return
+    task_count = (
+        sum(
+            len(block["items"])
+            for block in data.get("blocks", [])
+            if block["type"] == "tasks"
+        )
+        if "blocks" in data
+        else len(data.get("tasks", []))
+    )
+    from .briefing_layouts import find_next_card
+
+    has_next = find_next_card(data.get("blocks", [])) is not None
+    if (
+        task_count > 3
+        or data.get("guidance")
+        or has_next
+        or data.get("weekly_focus")
+        or data.get("updated_time")
+    ):
+        from .briefing_layouts import render_dense_briefing
+
+        render_dense_briefing(doc, rect, options, data)
+        return
+    if options.get("layout", "strip") != "strip":
+        from .briefing_layouts import render_briefing_layout
+
+        render_briefing_layout(doc, rect, options, data)
+        return
     labels = LABELS[data["locale"]]
     ink, white = PALETTE_HEX["black"], PALETTE_HEX["white"]
     scale = rect.w / 100

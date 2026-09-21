@@ -34,14 +34,16 @@ TRIGGER_SCHEDULED = "scheduled"
 TRIGGER_PLAYLIST = "playlist"
 TRIGGER_CAMERA = "camera"
 TRIGGER_OVERLAY = "overlay"
+TRIGGER_OVERLAY_RESTORE = "overlay_restore"
 AUTOMATIC_TRIGGERS = frozenset(
-    {TRIGGER_SCHEDULED, TRIGGER_PLAYLIST, TRIGGER_CAMERA, TRIGGER_OVERLAY}
+    {TRIGGER_SCHEDULED, TRIGGER_PLAYLIST, TRIGGER_CAMERA, TRIGGER_OVERLAY, TRIGGER_OVERLAY_RESTORE}
 )
 TRIGGER_PRIORITY = {
     TRIGGER_CAMERA: 1,
     TRIGGER_PLAYLIST: 2,
     TRIGGER_SCHEDULED: 3,
     TRIGGER_OVERLAY: 3,
+    TRIGGER_OVERLAY_RESTORE: 3,
     TRIGGER_MANUAL: 4,
 }
 
@@ -316,6 +318,11 @@ class FraimicPowerManager:
         if token != self._latest_automatic_token:
             return self._count_skip(SKIP_COALESCED)
 
+        # Finish an accepted temporary display even after the battery drops.
+        # Successful restoration clears its deadline, so this is one redraw.
+        if trigger == TRIGGER_OVERLAY_RESTORE:
+            return None
+
         battery = data.get("battery") if isinstance(data, dict) else {}
         battery = battery if isinstance(battery, dict) else {}
         charging = battery.get("charging") is True or battery.get("cable_connected") is True
@@ -347,7 +354,9 @@ class FraimicPowerManager:
         self.last_hash = content_hash
         self.last_upload_at = now
         self.upload_count += 1
-        if trigger in AUTOMATIC_TRIGGERS and trigger not in (TRIGGER_PLAYLIST, TRIGGER_OVERLAY):
+        if trigger in AUTOMATIC_TRIGGERS and trigger not in (
+            TRIGGER_PLAYLIST, TRIGGER_OVERLAY, TRIGGER_OVERLAY_RESTORE
+        ):
             today = datetime.fromtimestamp(now, timezone.utc).date().isoformat()
             if self.budget_day != today:
                 self.budget_day = today

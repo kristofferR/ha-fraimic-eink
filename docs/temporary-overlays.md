@@ -87,7 +87,11 @@ do not advance the playback queue.
 
 - Each changed image is a full e-ink redraw. The explicit overlay interval takes
   precedence over generic automatic-send cooldowns, like a playback interval.
-  Local delivery still respects low-battery protection and send coalescing.
+  Local updates still respect low-battery protection and send coalescing.
+  Restoring artwork after an accepted temporary display expires or is cleared
+  is allowed below the 25% battery threshold: cleanup completes that display
+  rather than leaving stale information on the wall. This permits one final
+  redraw, not continued live updates. An unreachable frame still needs to wake.
 - The frame must be awake/reachable for prompt LAN updates. Refreshing an overlay
   does not enable keep-awake or change the device's power settings.
 - Cloud/Hybrid delivery can be delayed until a cloud wake. Changes are held
@@ -143,7 +147,7 @@ Optional fields:
 | --- | --- |
 | `agenda` | Up to 3 `{title, time, all_day, icon}` entries. No invented times. |
 | `routine` | `{label, completed, total, skipped, next_step, icon}`. Total must be positive; completed + skipped cannot exceed total. |
-| `tasks` | Up to 3 `{title, icon}` entries. |
+| `tasks` | Up to 12 `{title, icon, priority, deadline}` entries. |
 | `focus` | `{title, label, detail, icon, color}`. An explicitly chosen priority. |
 | `progress` | Up to 3 `{label, value, max, unit, icon, color}` entries. |
 | `weather` | `{temperature, unit, icon}`. Unit is °C or °F. |
@@ -171,7 +175,7 @@ main columns; up to two more occupy the compact footer. Optional `progress` bars
 occupy a separate footer row if both are supplied. No content is re-ranked.
 
 Each block has `type: agenda | tasks | routine | focus`. Agenda/tasks blocks have
-`label`, optional `color` and one to three `items`, using the existing agenda/task
+`label`, optional `color` and one to three agenda `items` or up to twelve task `items`, using the existing agenda/task
 row schema. Routine/focus blocks use the corresponding existing fields plus `type`.
 The shared snapshot still requires `generated_at`, `valid_until`, `greeting`,
 and `date_label`; `locale` defaults to `en`. Weather can be added by HA without changing those times.
@@ -185,3 +189,35 @@ credentials for the upstream service, select tasks, or infer user priorities.
 The existing temporary-window controller re-reads this entity, skips identical
 pixels, refuses expired data, and restores the retained artwork at the original
 end time. No timer, queue, transport or artwork ownership rules change.
+
+### Choosing a briefing layout
+
+Set `options.layout` on a `briefing` overlay to `overview` (Veileder and day
+summary), `side_panel` (artwork alongside Veileder), or `strip` (the existing
+bottom strip, still the default). All three read the same snapshot. An optional
+`guidance` object supplies `title` (up to 240 characters), `body` (up to 2400),
+and `action` (optional, up to 240). The producer supplies existing advice; Fraimic
+does not generate it. Missing guidance leaves the other available content visible.
+
+Update the layout through `update_temporary_overlay` to change an active window
+without extending its expiry. The companion morning package provides a persistent
+Home Assistant layout selector for this.
+
+A red low-battery icon is drawn over every composition at the absolute
+bottom-left of the viewed panel when the reported battery is below 30%. It is
+omitted at 30% and above, and when the battery is unknown. It remains on restored
+artwork after temporary content expires. It has no text or background plate and
+reserves no layout space: only the corner icon pixels change. Normal delivery
+rules still apply.
+
+Task blocks support up to 12 rows. Longer todo lists use a compact column layout in all three briefing styles, keeping guidance and the leading focus card above the list. Ordered snapshots support up to eight blocks.
+
+Long lists retain agenda times, supporting focus details and the graphical progress footer. The tasks expand into their own columns rather than consuming the other briefing sections.
+
+Dense briefings retain the colored icon tiles and blue strip rule from the original design. Count progress uses discrete segments; minute-based progress keeps a continuous meter. The strip places Veileder and Neste side by side to leave more of the artwork visible.
+
+Rich briefings use measured text blocks and fixed type sizes rather than shrinking supporting sections. Short lists arrange supporting cards alongside the task column; longer lists use two task columns. Agenda times and progress values have dedicated aligned positions.
+
+Optional `weekly_focus` (`text`, `done`) appears beneath the greeting. Task rows accept `priority` and a display-ready `deadline` label. `updated_time` (`HH:mm`) shows the source snapshot's local time at the bottom-right, using small supporting text without reserving layout space. Consumers should derive it from `generated_at` in the source account timezone, never the polling time.
+
+Rich layouts show at most twelve task rows. When supporting cards exceed the available height, the lowest-ranked cards become a `+N more` notice so the progress footer stays on the canvas. Fractional progress uses a continuous meter; routine blocks supplied by other providers retain their completion and skipped counts.
