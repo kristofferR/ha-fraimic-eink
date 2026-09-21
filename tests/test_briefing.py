@@ -304,7 +304,7 @@ def test_selectable_layouts_render_the_supplied_guidance(layout):
         None,
     )
     svg = doc.to_string()
-    assert "VEILEDER" in svg
+    assert "VEILEDER" not in svg
     assert "Start med ett steg" in svg
     assert "Gjør det viktigste først." in svg
     assert "Gå en tur" in svg
@@ -382,7 +382,7 @@ def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
     svg = doc.to_string()
     for index in range(1, 13):
         assert f"Oppgave {index:02d}" in svg
-    assert "NESTE" in svg and "En konkret handling" in svg and "VEILEDER" in svg
+    assert "NESTE" not in svg and "En konkret handling" in svg and "VEILEDER" not in svg
     for content in (
         "Prosjektmøte",
         "09:30",
@@ -403,8 +403,9 @@ def test_dense_layout_shows_twelve_tasks_and_next_with_guidance(layout):
 @pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
 @pytest.mark.parametrize("task_count", [3, 12])
 @pytest.mark.parametrize("overflow", [False, True])
+@pytest.mark.parametrize("guidance_repeats", [1, 8])
 def test_rich_briefing_text_stays_on_canvas_without_collisions(
-    layout, task_count, overflow
+    layout, task_count, overflow, guidance_repeats
 ):
     from xml.etree import ElementTree
 
@@ -416,6 +417,7 @@ def test_rich_briefing_text_stays_on_canvas_without_collisions(
         "body": "Velg ett konkret steg før du åpner resten av dagen. Du trenger ikke fullføre hele listen for å få en god start. Ta deg tid til å gjøre ferdig én ting før du går videre.",
         "action": "Ta ett konkret steg.",
     }
+    raw["guidance"]["body"] = " ".join([raw["guidance"]["body"]] * guidance_repeats)
     raw["blocks"] = [
         {
             "type": "focus",
@@ -475,6 +477,13 @@ def test_rich_briefing_text_stays_on_canvas_without_collisions(
         None,
         None,
     )
+    rendered_text = " ".join(
+        node.text or ""
+        for node in ElementTree.fromstring(doc.to_string()).iter(
+            "{http://www.w3.org/2000/svg}text"
+        )
+    )
+    assert raw["guidance"]["body"] in rendered_text
     boxes = []
     for node in ElementTree.fromstring(doc.to_string()).iter(
         "{http://www.w3.org/2000/svg}text"

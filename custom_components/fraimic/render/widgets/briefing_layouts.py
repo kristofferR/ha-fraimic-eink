@@ -341,7 +341,7 @@ def render_dense_briefing(doc, rect, options, data):
 
     def rows(value, width, size, count, weight=400):
         result = wrap(str(value), width, size, weight)
-        if len(result) > count:
+        if count is not None and len(result) > count:
             result = result[:count]
             result[-1] = truncate(result[-1] + " …", width, size, weight)
         return result
@@ -427,23 +427,39 @@ def render_dense_briefing(doc, rect, options, data):
             if fill:
                 doc.rect(round(x + p(1)), round(bar_y + p(1)), fill, p(16), color)
 
+    guidance_scale = 1.0
+
+    def feature_metrics(value):
+        scale = guidance_scale if value is guidance else 1.0
+        return tuple(
+            max(1, round(size * scale))
+            for size in (title, title_leading, body, leading, p(30), p(42))
+        )
+
     def feature_height(value, width):
         if not value:
             return 0
+        title_size, title_line, body_size, body_line, action_size, action_line = (
+            feature_metrics(value)
+        )
+        unlimited = value is guidance
         height = p(54)
         if value.get("title"):
             height += len(
-                rows(value["title"], width, title, 2, 600)
-            ) * title_leading + p(16)
+                rows(value["title"], width, title_size, None if unlimited else 2, 600)
+            ) * title_line + p(16)
         prose = value.get("body", value.get("detail", ""))
-        height += len(rows(prose, width, body, 3)) * leading
+        height += (
+            len(rows(prose, width, body_size, None if unlimited else 3)) * body_line
+        )
         if value.get("action"):
-            height += p(54)
+            height += (
+                p(12)
+                + len(rows(value["action"], width, action_size, None, 600))
+                * action_line
+            )
         return height
 
-    feature_height_px = max(
-        feature_height(guidance, guide_width), feature_height(next_card, next_width)
-    )
     support_heights = []
     for block in supporting:
         if block["type"] == "agenda":
@@ -499,6 +515,28 @@ def render_dense_briefing(doc, rect, options, data):
     )
     weekly = data.get("weekly_focus")
     header_height = p(158) if weekly else p(100)
+    # Give guidance the artwork's height first; only reduce its type when the
+    # complete text would otherwise displace the agenda and task rows.
+    feature_budget = max(
+        p(200),
+        rect.h
+        - pad * 2
+        - header_height
+        - p(64)
+        - footer_height
+        - max(
+            min(support_height(), p(402)),
+            p(54) + task_count * p(58),
+            p(54) + progress_height if progress_column else 0,
+        ),
+    )
+    while (
+        guidance_scale > 0.5 and feature_height(guidance, guide_width) > feature_budget
+    ):
+        guidance_scale = max(0.5, guidance_scale - 0.025)
+    feature_height_px = max(
+        feature_height(guidance, guide_width), feature_height(next_card, next_width)
+    )
     fixed_height = (
         pad * 2
         + header_height
@@ -597,40 +635,52 @@ def render_dense_briefing(doc, rect, options, data):
         text(left, y + p(112), value, p(30), width, 400, green)
     y += header_height
 
-    def feature(value, x, top, width, label, color, icon):
+    def feature(value, x, top, width, color, icon):
         if not value:
             return
-        heading(x, top, label, width, color, icon)
+        doc.icon(icon_path(icon), round(x), round(top), p(28), color)
+        title_size, title_line, body_size, body_line, action_size, action_line = (
+            feature_metrics(value)
+        )
+        unlimited = value is guidance
         cursor = top + p(54)
         if value.get("title"):
             cursor += paragraph(
-                x, cursor, value["title"], width, title, title_leading, 2, 600
+                x,
+                cursor,
+                value["title"],
+                width,
+                title_size,
+                title_line,
+                None if unlimited else 2,
+                600,
             ) + p(16)
         cursor += paragraph(
-            x, cursor, value.get("body", value.get("detail", "")), width
+            x,
+            cursor,
+            value.get("body", value.get("detail", "")),
+            width,
+            body_size,
+            body_line,
+            None if unlimited else 3,
         )
         if value.get("action"):
-            text(x, cursor + p(46), value["action"], p(30), width, 600, color)
+            for index, line in enumerate(
+                rows(value["action"], width, action_size, None, 600)
+            ):
+                text(
+                    x,
+                    cursor + p(12) + action_size + index * action_line,
+                    line,
+                    action_size,
+                    width,
+                    600,
+                    color,
+                )
 
-    feature(
-        guidance,
-        left,
-        y,
-        guide_width,
-        "Veileder" if nb else "Guidance",
-        green,
-        "mdi:compass-outline",
-    )
+    feature(guidance, left, y, guide_width, green, "mdi:compass-outline")
     if next_card:
-        feature(
-            next_card,
-            next_left,
-            y,
-            next_width,
-            next_card["label"],
-            blue,
-            next_card["icon"],
-        )
+        feature(next_card, next_left, y, next_width, blue, next_card["icon"])
     y += feature_height_px
     if feature_height_px:
         doc.line(
