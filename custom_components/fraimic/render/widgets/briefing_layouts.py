@@ -374,6 +374,59 @@ def render_dense_briefing(doc, rect, options, data):
             width -= p(18)
         text(x, top + small, label.upper(), small, width, 600)
 
+    def progress_item(item, x, footer_top, cell_width):
+        color = PALETTE_HEX[item["color"]]
+        doc.icon(icon_path(item["icon"]), round(x), round(footer_top), p(30), color)
+        value = f"{item['value']:g}/{item['max']:g} {item['unit']}".strip()
+        text(
+            x + p(44),
+            footer_top + p(28),
+            item["label"],
+            p(28),
+            cell_width * 0.56 - p(44),
+            600,
+        )
+        text(
+            x + cell_width,
+            footer_top + p(28),
+            value,
+            p(28),
+            cell_width * 0.44,
+            anchor="end",
+        )
+        bar_y = footer_top + p(52)
+        if (
+            not item["unit"]
+            and float(item["max"]).is_integer()
+            and float(item["value"]).is_integer()
+            and 0 < item["max"] <= 12
+        ):
+            count = int(item["max"])
+            segment_gap = p(10)
+            segment_width = (cell_width - segment_gap * (count - 1)) / count
+            for segment in range(count):
+                sx = x + segment * (segment_width + segment_gap)
+                doc.rect(round(sx), round(bar_y), round(segment_width), p(18), ink)
+                doc.rect(
+                    round(sx + p(1)),
+                    round(bar_y + p(1)),
+                    max(1, round(segment_width - p(2))),
+                    p(16),
+                    color if segment < item["value"] else white,
+                )
+        else:
+            doc.rect(round(x), round(bar_y), round(cell_width), p(18), ink)
+            doc.rect(
+                round(x + p(1)),
+                round(bar_y + p(1)),
+                round(cell_width - p(2)),
+                p(16),
+                white,
+            )
+            fill = round((cell_width - p(2)) * min(1, item["value"] / item["max"]))
+            if fill:
+                doc.rect(round(x + p(1)), round(bar_y + p(1)), fill, p(16), color)
+
     def feature_height(value, width):
         if not value:
             return 0
@@ -405,17 +458,6 @@ def render_dense_briefing(doc, rect, options, data):
                     rows(block["detail"], support_width, p(28), 2)
                 ) * p(38)
             support_heights.append(height)
-    footer_height = p(126) if progress else 0
-    weekly = data.get("weekly_focus")
-    header_height = p(158) if weekly else p(100)
-    fixed_height = (
-        pad * 2
-        + header_height
-        + feature_height_px
-        + (p(64) if feature_height_px else 0)
-        + footer_height
-    )
-    main_budget = max(0, rect.h - fixed_height)
 
     def support_height():
         return max(
@@ -427,16 +469,64 @@ def render_dense_briefing(doc, rect, options, data):
             default=0,
         )
 
+    # Use spare space beside tasks before allocating a separate progress row.
+    progress_height = len(progress) * p(90)
+    progress_agenda = None
+    progress_column = False
+    main_rows_height = max(support_height(), p(54) + task_count * p(58))
+    if progress:
+        for index, block in enumerate(supporting):
+            column_heights = support_heights[index % support_columns :: support_columns]
+            column_height = sum(column_heights) + max(0, len(column_heights) - 1) * p(
+                36
+            )
+            if (
+                block["type"] == "agenda"
+                and column_height + progress_height <= main_rows_height
+            ):
+                progress_agenda = block
+                support_heights[index] += progress_height
+                break
+        if progress_agenda is None and task_rows and support_columns == 1:
+            progress_width = p(480)
+            remaining = tasks_width - progress_width - gap
+            if (remaining - gap * (task_columns - 1)) / task_columns >= p(600):
+                progress_column = True
+                tasks_width = remaining
+                task_width = (tasks_width - gap * (task_columns - 1)) / task_columns
+    footer_height = (
+        p(126) if progress and progress_agenda is None and not progress_column else 0
+    )
+    weekly = data.get("weekly_focus")
+    header_height = p(158) if weekly else p(100)
+    fixed_height = (
+        pad * 2
+        + header_height
+        + feature_height_px
+        + (p(64) if feature_height_px else 0)
+        + footer_height
+    )
+    main_budget = max(0, rect.h - fixed_height)
+
     omitted_support = 0
     while (
         support_heights
         and support_height() + (p(42) if omitted_support else 0) > main_budget
     ):
         support_heights.pop()
-        supporting.pop()
+        removed = supporting.pop()
+        if removed is progress_agenda:
+            progress_agenda = None
+            footer_height = p(126)
+            fixed_height += footer_height
+            main_budget = max(0, rect.h - fixed_height)
         omitted_support += 1
     supporting_height = support_height() + (p(42) if omitted_support else 0)
-    main_height = max(supporting_height, p(54) + task_count * p(58))
+    main_height = max(
+        supporting_height,
+        p(54) + task_count * p(58),
+        p(54) + progress_height if progress_column else 0,
+    )
     required = fixed_height + main_height
     top = max(rect.y, rect.y + rect.h - required) if mode == "strip" else rect.y
     doc.rect(
@@ -604,6 +694,11 @@ def render_dense_briefing(doc, rect, options, data):
                     p(38),
                     2,
                 )
+        if block is progress_agenda:
+            for progress_index, item in enumerate(progress):
+                progress_item(
+                    item, support_x, cursor + progress_index * p(90), support_width
+                )
         support_cursors[column] += height + p(36)
 
     for column in range(task_columns):
@@ -658,70 +753,17 @@ def render_dense_briefing(doc, rect, options, data):
         label = f"+{omitted_support} flere" if nb else f"+{omitted_support} more"
         text(left, y + supporting_height - p(8), label, p(25), support_width)
 
-    if progress:
+    if progress_column:
+        progress_x = right - progress_width
+        for index, item in enumerate(progress):
+            progress_item(item, progress_x, y + p(54) + index * p(90), progress_width)
+    elif footer_height:
         footer_top = y + main_height + p(40)
-        doc.line(
-            round(left),
-            round(footer_top - p(24)),
-            round(right),
-            round(footer_top - p(24)),
-            ink,
-            p(1),
-        )
         cell_width = (width - gap * (len(progress) - 1)) / len(progress)
         for index, item in enumerate(progress):
-            x = left + index * (cell_width + gap)
-            color = PALETTE_HEX[item["color"]]
-            doc.icon(icon_path(item["icon"]), round(x), round(footer_top), p(30), color)
-            value = f"{item['value']:g}/{item['max']:g} {item['unit']}".strip()
-            text(
-                x + p(44),
-                footer_top + p(28),
-                item["label"],
-                p(28),
-                cell_width * 0.56 - p(44),
-                600,
+            progress_item(
+                item, left + index * (cell_width + gap), footer_top, cell_width
             )
-            text(
-                x + cell_width,
-                footer_top + p(28),
-                value,
-                p(28),
-                cell_width * 0.44,
-                anchor="end",
-            )
-            bar_y = footer_top + p(52)
-            if (
-                not item["unit"]
-                and float(item["max"]).is_integer()
-                and float(item["value"]).is_integer()
-                and 0 < item["max"] <= 12
-            ):
-                count = int(item["max"])
-                segment_gap = p(10)
-                segment_width = (cell_width - segment_gap * (count - 1)) / count
-                for segment in range(count):
-                    sx = x + segment * (segment_width + segment_gap)
-                    doc.rect(round(sx), round(bar_y), round(segment_width), p(18), ink)
-                    doc.rect(
-                        round(sx + p(1)),
-                        round(bar_y + p(1)),
-                        max(1, round(segment_width - p(2))),
-                        p(16),
-                        color if segment < item["value"] else white,
-                    )
-            else:
-                doc.rect(round(x), round(bar_y), round(cell_width), p(18), ink)
-                doc.rect(
-                    round(x + p(1)),
-                    round(bar_y + p(1)),
-                    round(cell_width - p(2)),
-                    p(16),
-                    white,
-                )
-                fill = round((cell_width - p(2)) * min(1, item["value"] / item["max"]))
-                if fill:
-                    doc.rect(round(x + p(1)), round(bar_y + p(1)), fill, p(16), color)
 
     if data.get("updated_time"):
         label = "Oppdatert" if nb else "Updated"

@@ -509,8 +509,12 @@ def test_rich_routine_counts_and_fractional_progress_are_preserved():
     raw["progress"] = [{"label": "Delvis", "value": 2.5, "max": 5}]
     doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
     load("render.widgets.briefing").render_briefing(
-        doc, load("render.layout").Rect(0, 0, 2560, 1440), {"layout": "strip"},
-        load("render.briefing").validate_briefing(raw, NOW), None, None,
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": "strip"},
+        load("render.briefing").validate_briefing(raw, NOW),
+        None,
+        None,
     )
     svg = doc.to_string()
     assert "2/6 fullført · 1 hoppet over" in svg
@@ -519,3 +523,50 @@ def test_rich_routine_counts_and_fractional_progress_are_preserved():
     # The final meter is continuous, and its inner fill is exactly half its track.
     track, fill = rects[-2:]
     assert abs(float(fill.attrib["width"]) * 2 - float(track.attrib["width"])) <= 1
+
+
+@pytest.mark.parametrize("layout", ["strip", "overview", "side_panel"])
+@pytest.mark.parametrize("agenda_count", [1, 3])
+def test_progress_uses_agenda_space_or_a_readable_right_column(layout, agenda_count):
+    from xml.etree import ElementTree
+
+    raw = ordered_snapshot()
+    raw["updated_time"] = "08:30"
+    raw["blocks"] = [
+        {
+            "type": "agenda",
+            "label": "I dag",
+            "items": [
+                {"title": f"Avtale {index}", "time": "09:30"}
+                for index in range(agenda_count)
+            ],
+        },
+        {
+            "type": "tasks",
+            "label": "Oppgaver",
+            "items": [{"title": f"Oppgave {index}"} for index in range(3)],
+        },
+    ]
+    raw["progress"] = [{"label": "Vaner", "value": 0, "max": 2}]
+    doc = load("render.svg").SvgDoc(2560, 1440, "#ffffff")
+    load("render.widgets.briefing").render_briefing(
+        doc,
+        load("render.layout").Rect(0, 0, 2560, 1440),
+        {"layout": layout},
+        load("render.briefing").validate_briefing(raw, NOW),
+        None,
+        None,
+    )
+    nodes = {
+        node.text: node.attrib
+        for node in ElementTree.fromstring(doc.to_string()).iter(
+            "{http://www.w3.org/2000/svg}text"
+        )
+    }
+    habits, task = nodes["Vaner"], nodes["Oppgave 0"]
+    # A short agenda has room underneath; a full agenda uses the right column.
+    assert (float(habits["x"]) < float(task["x"])) == (agenda_count == 1)
+    assert float(habits["y"]) <= float(nodes["Oppgave 2"]["y"])
+    assert all(f"Oppgave {index}" in nodes for index in range(3))
+    if agenda_count == 1:
+        assert float(habits["y"]) > float(nodes["Avtale 0"]["y"])
