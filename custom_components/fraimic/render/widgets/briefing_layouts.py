@@ -568,7 +568,7 @@ def render_dense_briefing(doc, rect, options, data):
         p(126) if progress and progress_agenda is None and not progress_column else 0
     )
     weekly = data.get("weekly_focus")
-    top_pad = p(24)
+    top_pad = p(40)
     header_height = p(56) if weekly else 0
     if not (guidance or next_card):
         header_height += p(64)
