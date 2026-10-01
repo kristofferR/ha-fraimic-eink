@@ -293,10 +293,11 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         are still alive. Polling modes already fall back to it on failed polls.
         """
         if self._needs_cloud_check_in():
-            seen = self.last_seen
+            before = self.data
+            self._cloud_snapshot = None  # judge expiry on a fresh account read
             cloud_data = await self._async_cloud_snapshot()
-            # A LAN poll that landed meanwhile is fresher; keep its snapshot.
-            if cloud_data is not None and self.last_seen == seen:
+            # A LAN poll that stored data meanwhile is fresher; keep it.
+            if cloud_data is not None and self.data is before:
                 self.data = cloud_data
                 await self._async_save_cache()
         self._async_notify_availability()
