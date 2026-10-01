@@ -355,7 +355,7 @@ class ReframedProvider(ArtProvider):
         ):
             raise ArtFetchError("Invalid Reframed browse path")
         cache_key = f"reframed_page_{normalized}"
-        cached = cache.get(cache_key, PAGE_TTL)
+        cached: str | None = cache.get(cache_key, PAGE_TTL)
         if cached is not None:
             return cached
         await cache.async_throttle(self.key, self.min_interval)

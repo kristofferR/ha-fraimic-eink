@@ -217,7 +217,7 @@ class FraimicPowerManager:
         self._token = 0
         self._latest_automatic_token: int | None = None
         self._latest_automatic_priority = 0
-        self._sleep_task: asyncio.Task | None = None
+        self._sleep_task: asyncio.Task[None] | None = None
 
     @property
     def startup_poll(self) -> bool:

@@ -39,7 +39,7 @@ def _condition_icon(condition: str | None) -> str | None:
 
 
 def render_weather_current(
-    doc: SvgDoc, rect: Rect, options: dict, data: Any, ctx: RenderContext, theme: Theme
+    doc: SvgDoc, rect: Rect, options: dict[str, Any], data: Any, ctx: RenderContext, theme: Theme
 ) -> None:
     if (err := fetch_error(data)) is not None:
         render_error(doc, rect, err, theme)
@@ -82,7 +82,7 @@ def render_weather_current(
 
 
 def render_weather_forecast(
-    doc: SvgDoc, rect: Rect, options: dict, data: Any, ctx: RenderContext, theme: Theme
+    doc: SvgDoc, rect: Rect, options: dict[str, Any], data: Any, ctx: RenderContext, theme: Theme
 ) -> None:
     if (err := fetch_error(data)) is not None:
         render_error(doc, rect, err, theme)

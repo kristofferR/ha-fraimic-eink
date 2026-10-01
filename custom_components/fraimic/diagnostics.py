@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
@@ -19,6 +19,9 @@ from .const import (
 )
 from .coordinator import FraimicConfigEntry
 from .log_page import parse_logs_page
+
+if TYPE_CHECKING:
+    from .coordinator import FraimicDataUpdateCoordinator
 
 NETWORK_IDENTIFIERS = {
     "ssid", "wifi_ssid", "ip", "ip_address",
@@ -75,7 +78,7 @@ def _scrub(lines: list[str], secrets: list[str]) -> list[str]:
     return result
 
 
-async def _async_logs(coordinator) -> dict[str, Any]:
+async def _async_logs(coordinator: FraimicDataUpdateCoordinator) -> dict[str, Any]:
     """Best-effort recent frame logs; never raises."""
     try:
         parsed = parse_logs_page(await coordinator.client.get_logs(verbose=True))

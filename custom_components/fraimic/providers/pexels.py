@@ -16,7 +16,7 @@ CURATED_URL = "https://api.pexels.com/v1/curated"
 API_TIMEOUT = 20.0
 
 
-def parse_pexels_photo(item: dict) -> ArtCandidate | None:
+def parse_pexels_photo(item: dict[str, Any]) -> ArtCandidate | None:
     src = item.get("src") or {}
     image_url = src.get("original") or src.get("large2x")
     if not image_url:

@@ -15,7 +15,8 @@ def device_by_identifier(
 ) -> DeviceEntry | None:
     """Scope identifiers to their owning entry on HA 2026.8 and newer."""
     if lookup := getattr(registry, "async_get_device_by_identifier", None):
-        return lookup(identifier, config_entry_id)
+        device: DeviceEntry | None = lookup(identifier, config_entry_id)
+        return device
     # HA 2025.12–2026.7 still uses globally unique identifiers.
     return registry.async_get_device(identifiers={identifier})
 

@@ -354,7 +354,7 @@ async def async_browse_provider(
 
 async def async_candidate_by_media_id(
     hass: HomeAssistant, entry, provider_key: str, item_id: str
-) -> object:
+) -> ArtCandidate:
     """Resolve metadata for an item exposed by browse without downloading it."""
     provider = get_provider(provider_key)
     if provider is None:
@@ -370,7 +370,12 @@ async def async_candidate_by_media_id(
     candidate = stash.get(item_id)
     disk_cache = get_artwork_cache(hass)
     policy = disk_cache.policy_for(entry) if disk_cache is not None else None
-    if candidate is None and policy is not None and policy.enabled:
+    if (
+        candidate is None
+        and disk_cache is not None
+        and policy is not None
+        and policy.enabled
+    ):
         cached_candidate = await disk_cache.async_get_metadata(
             _candidate_cache_id(provider_key, item_id),
             entry,

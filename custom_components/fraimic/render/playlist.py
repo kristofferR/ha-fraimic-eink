@@ -55,9 +55,9 @@ def next_screen(
     if not screens:
         return None
     ids = [screen.screen_id for screen in screens]
-    try:
+    if current_id in ids:
         start = ids.index(current_id)
-    except ValueError:
+    else:
         # Unknown/removed current screen: begin just before the first so the
         # first eligible screen comes up next.
         start = -step if step > 0 else 0

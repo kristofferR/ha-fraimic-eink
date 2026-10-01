@@ -125,7 +125,8 @@ class ArtPackNotFoundError(HomeAssistantError):
 @callback
 def get_pack_manager(hass: HomeAssistant) -> ArtPackManager | None:
     """Return the domain-wide pack manager, if initialized."""
-    return hass.data.get(DOMAIN, {}).get(DATA_PACKS)
+    manager: ArtPackManager | None = hass.data.get(DOMAIN, {}).get(DATA_PACKS)
+    return manager
 
 
 class ArtPackManager:
@@ -155,7 +156,7 @@ class ArtPackManager:
         self._active_install_progress: dict[str, tuple[int, int]] = {}
         # pack_id -> installed image ids plus catalog metadata used after restart.
         self.installed: dict[str, dict[str, Any]] = {}
-        self._store: Store = Store(hass, STORAGE_VERSION, STORAGE_KEY)
+        self._store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, STORAGE_KEY)
         self._install_lock = asyncio.Lock()
 
     async def async_setup(self) -> None:

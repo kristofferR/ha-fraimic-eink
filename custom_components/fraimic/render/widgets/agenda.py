@@ -12,7 +12,7 @@ from .base import fetch_error, render_error
 
 
 def render_calendar(
-    doc: SvgDoc, rect: Rect, options: dict, data: Any, ctx: RenderContext, theme: Theme
+    doc: SvgDoc, rect: Rect, options: dict[str, Any], data: Any, ctx: RenderContext, theme: Theme
 ) -> None:
     if (err := fetch_error(data)) is not None:
         render_error(doc, rect, err, theme)
@@ -74,7 +74,7 @@ def render_calendar(
 
 
 def render_todo(
-    doc: SvgDoc, rect: Rect, options: dict, data: Any, ctx: RenderContext, theme: Theme
+    doc: SvgDoc, rect: Rect, options: dict[str, Any], data: Any, ctx: RenderContext, theme: Theme
 ) -> None:
     if (err := fetch_error(data)) is not None:
         render_error(doc, rect, err, theme)

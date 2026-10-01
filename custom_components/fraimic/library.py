@@ -933,8 +933,8 @@ def _make_thumbnail(original: Path) -> bytes:
     from .image_convert import _ensure_extra_decoders
 
     _ensure_extra_decoders()
-    with Image.open(original) as img:
-        img = ImageOps.exif_transpose(img)
+    with Image.open(original) as source:
+        img = ImageOps.exif_transpose(source)
         img.thumbnail((LIBRARY_THUMB_SIZE, LIBRARY_THUMB_SIZE))
         if img.mode not in ("RGB", "L"):
             img = img.convert("RGB")

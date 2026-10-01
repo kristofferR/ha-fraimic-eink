@@ -16,6 +16,7 @@ def frame_display_name(hass: Any, entry: Any) -> str:
     device = device_by_identifier(
         registry, (DOMAIN, entry.unique_id or entry.entry_id), entry.entry_id
     )
+    title: str = entry.title
     if device is None:
-        return entry.title
-    return device.name_by_user or device.name or entry.title
+        return title
+    return device.name_by_user or device.name or title

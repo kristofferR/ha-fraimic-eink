@@ -19,7 +19,7 @@ API_TIMEOUT = 20.0
 _LOGGER = logging.getLogger(__name__)
 
 
-def parse_unsplash_photo(item: dict, target_width: int) -> ArtCandidate | None:
+def parse_unsplash_photo(item: dict[str, Any], target_width: int) -> ArtCandidate | None:
     urls = item.get("urls") or {}
     raw = urls.get("raw")
     if not raw:

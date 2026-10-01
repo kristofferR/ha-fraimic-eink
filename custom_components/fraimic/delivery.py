@@ -39,7 +39,8 @@ async def async_use_cloud(entry: FraimicConfigEntry) -> bool:
     current = dict(runtime.coordinator.data or {})
     existing = current.get("battery")
     existing = dict(existing) if isinstance(existing, dict) else {}
-    update = battery.get("battery") if isinstance(battery.get("battery"), dict) else battery
+    nested = battery.get("battery")
+    update = nested if isinstance(nested, dict) else battery
     for key in ("percent", "voltage_mv", "charging", "cable_connected", "source"):
         if key in update:
             existing[key] = update[key]

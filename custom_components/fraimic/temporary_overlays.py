@@ -8,6 +8,7 @@ import logging
 import time
 from contextlib import nullcontext
 from datetime import timedelta
+from typing import Any
 
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_track_time_interval
@@ -49,7 +50,9 @@ class TemporaryOverlays:
 
     def __init__(self, hass, entry):
         self.hass, self.entry = hass, entry
-        self._store = Store(hass, 1, f"{DOMAIN}_current_artwork_{entry.entry_id}")
+        self._store: Store[dict[str, Any]] = Store(
+            hass, 1, f"{DOMAIN}_current_artwork_{entry.entry_id}"
+        )
         self.base = None
         self.art = None
         self.title = "Artwork"
@@ -187,7 +190,7 @@ class TemporaryOverlays:
         )
         # Every temporary composition expires, even without a briefing widget.
         # Delivery uses this boundary to reserve wake/redraw time on all paths.
-        deadlines = []
+        deadlines: list[float] = []
         composed, count = await async_apply_frame_overlays(
             self.hass, self.entry, png, art, overlays=overlays,
             snapshot_deadlines=deadlines,
@@ -429,15 +432,14 @@ class TemporaryOverlays:
     async def _async_tick(self, _now=None):
         now = time.time()
         expired = bool(self.temporary) and now >= self.expires_at
-        briefing_due = (
-            self.composed_valid_until is not None
-            and now >= self.composed_valid_until
-        )
+        valid_until = self.composed_valid_until
+        briefing_due = valid_until is not None and now >= valid_until
         newly_expired = (
             expired and self.expires_at > self._last_refresh_started_at
         ) or (
-            briefing_due
-            and self.composed_valid_until > self._last_refresh_started_at
+            valid_until is not None
+            and briefing_due
+            and valid_until > self._last_refresh_started_at
         )
         if (
             self.base is None

@@ -49,3 +49,14 @@ jobs:
         run: bun test tests/*.test.js
       - name: Run conversion + render tests
         run: uv run --with pillow --with numpy --with voluptuous --with resvg-py --with pytest pytest tests/ -q
+
+  mypy:
+    name: Mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+      - name: Type-check the integration
+        run: uv run --python 3.14 --with-requirements requirements_test.txt mypy

@@ -21,7 +21,7 @@ from ..layout import Rect
 from ..svg import SvgDoc, wrap
 from ..theme import Theme
 
-WidgetRenderer = Callable[[SvgDoc, Rect, dict, Any, RenderContext, Theme], None]
+WidgetRenderer = Callable[[SvgDoc, Rect, dict[str, Any], Any, RenderContext, Theme], None]
 
 
 def fetch_error(data: Any) -> str | None:

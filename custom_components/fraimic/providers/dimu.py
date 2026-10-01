@@ -36,12 +36,12 @@ API_TIMEOUT = 20.0
 DEMO_KEY = "demo"  # documented public test key; KulturIT issues real keys on request
 
 # Nasjonalmuseet's fine-art collection, paintings only.
-DEFAULT_FILTERS = (
+DEFAULT_FILTERS: tuple[str, ...] = (
     "identifier.owner:NMK-B",
     "artifact.ingress.names:Maleri",
     "artifact.hasPictures:true",
 )
-QUERY_FILTERS = ("artifact.type:Fineart", "artifact.hasPictures:true")
+QUERY_FILTERS: tuple[str, ...] = ("artifact.type:Fineart", "artifact.hasPictures:true")
 
 _BRACKET_SUFFIX = re.compile(r"\s*\[[^\]]*\]\s*$")  # "Kyss [Maleri]" -> "Kyss"
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x1f\x7f]+")
