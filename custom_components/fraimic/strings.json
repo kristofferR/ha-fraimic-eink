@@ -187,7 +187,7 @@
           "power_mode": "minimum: no periodic polling and one background redraw/day; balanced: hourly polling and eight background redraws/day; responsive: frequent polling and 48 background redraws/day. Queue playback follows its own interval in every mode.",
           "auto_sleep_after_upload": "After a successful redraw, wait 45 seconds and ask an unplugged frame to sleep. Disabled when charging, keep-awake is set, work is queued, or power state is unknown.",
           "scan_interval": "Requested polling interval. Power mode may raise it; Minimum disables periodic polling entirely.",
-          "rotation": "Base rotation applied to every uploaded image — use it to match how this frame is mounted (portrait/landscape).",
+          "rotation": "How this frame hangs on the wall. Each choice shows the resulting orientation; the Large Canvas is portrait at 0°.",
           "camera_refresh_interval": "How often a camera ‘playing’ on this frame takes a fresh snapshot. Each update is a full ~30 s E-Ink refresh and costs battery — minimum 60. 0 = show once, no auto-refresh.",
           "artwork_cache": "off keeps only short-lived RAM data; 30_days stores downloaded originals, thumbnails, and converted frame files for 30 days; forever never expires or size-evicts them.",
           "artwork_cache_max_mb": "Disk limit for 30_days mode (default 2048 MB). Least-recently-used artwork is removed first. Forever mode deliberately ignores this limit.",

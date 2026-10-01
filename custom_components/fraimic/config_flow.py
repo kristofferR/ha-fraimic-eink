@@ -82,9 +82,9 @@ from .const import (
     PROVIDER_KEYS,
     PROVIDER_SHUFFLE,
     POWER_MODES,
-    ROTATION_OPTIONS,
     canonical_frame_resolution,
     frame_bin_size,
+    rotation_choices,
 )
 from .coordinator import normalize_info
 from .providers import PROVIDERS
@@ -340,6 +340,7 @@ class FraimicOptionsFlow(OptionsFlow):
                     if key in self.config_entry.options
                 }
                 merged.update(user_input)
+                merged[CONF_ROTATION] = int(user_input[CONF_ROTATION])
                 if user_input.get(CONF_DELIVERY_MODE) in (DELIVERY_CLOUD, DELIVERY_HYBRID):
                     self._pending = merged
                     return await self.async_step_cloud()
@@ -367,8 +368,14 @@ class FraimicOptionsFlow(OptionsFlow):
                         default=o.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
                     vol.Required(
-                        CONF_ROTATION, default=o.get(CONF_ROTATION, DEFAULT_ROTATION)
-                    ): vol.In(ROTATION_OPTIONS),
+                        CONF_ROTATION,
+                        default=str(o.get(CONF_ROTATION, DEFAULT_ROTATION)),
+                    ): vol.In(
+                        rotation_choices(
+                            self.config_entry.data[CONF_WIDTH],
+                            self.config_entry.data[CONF_HEIGHT],
+                        )
+                    ),
                     # How often a "playing" camera re-snapshots onto the frame.
                     # 0 disables the loop (snapshot once). Each update is a full
                     # E-Ink refresh, so a slow floor keeps battery/panel sane.

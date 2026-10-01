@@ -368,6 +368,18 @@ def test_canonical_frame_settings_preserve_viewed_orientation(
     assert new_viewed == old_viewed
 
 
+def test_rotation_choices_name_wall_orientation_per_model() -> None:
+    assert const.rotation_choices(*const.FRAME_MODELS["large"]) == {
+        "0": "0° portrait",
+        "90": "90° landscape",
+        "180": "180° portrait",
+        "270": "270° landscape",
+    }
+    assert const.rotation_choices(*const.FRAME_MODELS["standard"])["90"] == (
+        "90° portrait"
+    )
+
+
 @pytest.mark.parametrize(("width", "height"), [(1200, 1600), (2560, 1440)])
 def test_legacy_panel_orientation_cannot_use_generic_packer(
     width: int, height: int
