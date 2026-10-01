@@ -60,3 +60,17 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - name: Type-check the integration
         run: uv run --python 3.14 --with-requirements requirements_test.txt mypy
+
+  ha-tests:
+    name: Home Assistant tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v5
+      - name: Run entity-layer tests with coverage gate
+        run: >-
+          uv run --python 3.14 --with-requirements requirements_test.txt
+          pytest tests_ha --cov=custom_components.fraimic --cov-report=term
+          --cov-fail-under=29
