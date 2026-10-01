@@ -305,6 +305,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.async_set_updated_data(cloud_data)
                 await self._async_save_cache()
             return
+        # The frame answered: confirmed contact even if the full poll fails.
+        self.async_set_frame_online(True)
         await self.async_request_refresh()
 
     async def _async_update_data(self) -> dict[str, Any]:
