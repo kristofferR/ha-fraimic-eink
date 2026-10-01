@@ -148,8 +148,10 @@ def async_start_sweep(hass: HomeAssistant) -> CALLBACK_TYPE:
         nonlocal task
         if task is not None and not task.done():
             return
+        # Not eager: started from entry setup, the first sweep must run after
+        # Home Assistant marks that entry loaded.
         task = hass.async_create_background_task(
-            _async_sweep(hass), "fraimic-discovery-sweep"
+            _async_sweep(hass), "fraimic-discovery-sweep", eager_start=False
         )
 
     cancel_started = async_at_started(hass, _run)
