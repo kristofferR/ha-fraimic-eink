@@ -201,6 +201,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _async_contact_seen(self) -> None:
         """Any frame response: persist it, move the deadline, refresh entities."""
+        self.frame_online = True
+        self._expected_asleep = False
         if self.data is not None:
             self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
         self._async_schedule_expiry()

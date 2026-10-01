@@ -149,6 +149,12 @@ async def test_unpolled_frame_goes_unavailable_when_grace_expires(
     await hass.async_block_till_done()
 
     assert state() == "81"
+    connectivity = er.async_get(hass).async_get_entity_id(
+        "binary_sensor", DOMAIN, f"{config_entry.entry_id}_wifi_connected"
+    )
+    assert connectivity is not None
+    connected = hass.states.get(connectivity)
+    assert connected is not None and connected.state == "on"
     data_listener.assert_not_called()
 
 
