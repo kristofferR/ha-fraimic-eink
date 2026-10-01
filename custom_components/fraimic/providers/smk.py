@@ -24,7 +24,7 @@ COUNT_TTL = 24 * 3600
 API_TIMEOUT = 20.0
 
 
-def parse_smk_item(item: dict) -> ArtCandidate | None:
+def parse_smk_item(item: dict[str, Any]) -> ArtCandidate | None:
     iiif_id = item.get("image_iiif_id")
     object_number = item.get("object_number")
     if not iiif_id or not object_number:
@@ -80,7 +80,7 @@ class SmkProvider(ArtProvider):
             else SEARCH_URL
         )
         cache_key = f"smk_total_{(query or '*').casefold()}"
-        total = cache.get(cache_key, COUNT_TTL)
+        total: int | None = cache.get(cache_key, COUNT_TTL)
         if total is None:
             payload = await async_fetch_json(
                 session,

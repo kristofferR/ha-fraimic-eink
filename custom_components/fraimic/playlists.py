@@ -62,7 +62,8 @@ def _validated_slide_data(raw: dict[str, Any]) -> dict[str, Any]:
             else widget
             for widget in widgets
         ]
-    return SCREEN_SCHEMA(candidate)
+    validated: dict[str, Any] = SCREEN_SCHEMA(candidate)
+    return validated
 
 
 @dataclass
@@ -237,12 +238,13 @@ class PlaylistManager:
                 return
             slides = self._legacy_slides(entry)
             if slides:
-                legacy_state = await Store(
+                legacy_store: Store[dict[str, Any]] = Store(
                     self.hass,
                     LEGACY_SCHEDULER_STORE_VERSION,
                     f"{DOMAIN}_playlist_{entry.entry_id}",
-                ).async_load()
-                legacy_order = (
+                )
+                legacy_state = await legacy_store.async_load()
+                legacy_order: Any = (
                     legacy_state.get("playlist_order", [])
                     if isinstance(legacy_state, dict)
                     else []

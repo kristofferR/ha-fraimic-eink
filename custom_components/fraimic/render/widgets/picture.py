@@ -10,6 +10,7 @@ palette-exact and deterministic.
 from __future__ import annotations
 
 import io
+from typing import Any
 
 from ...const import MAX_SOURCE_PIXELS, MODE_FLOYD_STEINBERG
 from ...image_convert import _ensure_extra_decoders, quantize_image_to_png
@@ -23,7 +24,7 @@ from .base import fetch_error, render_error
 def render_image(
     doc: SvgDoc,
     rect: Rect,
-    options: dict,
+    options: dict[str, Any],
     data: object,
     _ctx: RenderContext,
     theme: Theme,

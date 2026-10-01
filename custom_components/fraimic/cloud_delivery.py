@@ -142,7 +142,7 @@ class FraimicCloudDelivery:
     async def async_expire_delivery(self) -> None:
         """Retire each image after its slot so an idle producer cannot repeat it."""
         deadline = self.delivery_deadline
-        if deadline is None or time.time() < deadline:
+        if deadline is None or self.album_id is None or time.time() < deadline:
             return
         await self.client.async_update_album(self.album_id, {"active": False})
         self.album_active = False

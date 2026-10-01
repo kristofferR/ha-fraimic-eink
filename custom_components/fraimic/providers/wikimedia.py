@@ -37,7 +37,7 @@ def sized_thumb(thumb_url: str, width: int) -> str:
     )
 
 
-def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate | None:
+def parse_potd(payload: dict[str, Any], date_key: str, target_width: int) -> ArtCandidate | None:
     image = payload.get("image") or {}
     thumb = (image.get("thumbnail") or {}).get("source")
     original = image.get("image") or {}
@@ -48,7 +48,7 @@ def parse_potd(payload: dict, date_key: str, target_width: int) -> ArtCandidate 
     if thumb and "px-" in thumb:
         image_url = sized_thumb(thumb, round(target_width * 1.5))
     else:
-        image_url = original.get("source") or thumb
+        image_url = str(original.get("source") or thumb)
     artist = ((image.get("artist") or {}).get("text") or "").strip() or None
     license_type = (image.get("license") or {}).get("type")
     description = ((image.get("description") or {}).get("text") or "").strip()

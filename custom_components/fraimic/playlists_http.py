@@ -631,7 +631,7 @@ class PlaylistSlidesView(_PlaylistView):
             "show_now": self._play,
             "play_next": self._play,
         }
-        handler = handlers.get(action)
+        handler = handlers.get(action) if isinstance(action, str) else None
         if handler is None:
             return self.json_message("Unknown action", HTTPStatus.BAD_REQUEST)
         try:

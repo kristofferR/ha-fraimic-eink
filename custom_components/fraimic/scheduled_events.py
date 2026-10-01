@@ -68,7 +68,10 @@ def _next_occurrence(when: datetime, recurrence: str) -> datetime:
 
 def get_scheduled_events(hass: HomeAssistant) -> ScheduledEventManager | None:
     """Return the domain's scheduled-event manager, if set up."""
-    return hass.data.get(DOMAIN, {}).get(DATA_SCHEDULED_EVENTS)
+    manager: ScheduledEventManager | None = hass.data.get(DOMAIN, {}).get(
+        DATA_SCHEDULED_EVENTS
+    )
+    return manager
 
 
 class ScheduledEventManager:
@@ -212,7 +215,7 @@ class ScheduledEventManager:
                         scene = scenes.find_by_name(scene_name)
                     except HomeAssistantError:
                         scene = None
-            if scene is None:
+            if scenes is None or scene is None:
                 await self._async_mark_missing(event, f"scene {scene_name!r} not found")
                 return
             await scenes.async_send(scene.scene_id, trigger=TRIGGER_SCHEDULED)

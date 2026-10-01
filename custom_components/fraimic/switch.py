@@ -41,7 +41,8 @@ class FraimicPlaylistSwitch(FraimicEntity, SwitchEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        self.async_on_remove(self._scheduler.async_add_listener(self.async_write_ha_state))
+        if (scheduler := self._scheduler) is not None:
+            self.async_on_remove(scheduler.async_add_listener(self.async_write_ha_state))
 
     @property
     def available(self) -> bool:
@@ -51,13 +52,18 @@ class FraimicPlaylistSwitch(FraimicEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool:
-        return self._scheduler.enabled and not self._scheduler.exhausted
+        scheduler = self._scheduler
+        return scheduler is not None and scheduler.enabled and not scheduler.exhausted
 
     async def async_turn_on(self, **kwargs: Any) -> None:
+        # Unavailable (no scheduler) entities never receive service calls.
+        if (scheduler := self._scheduler) is None:
+            return
         stopper = self.coordinator.config_entry.runtime_data.stop_camera_loop
         if stopper is not None:
             stopper()
-        await self._scheduler.async_set_enabled(True)
+        await scheduler.async_set_enabled(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await self._scheduler.async_set_enabled(False)
+        if (scheduler := self._scheduler) is not None:
+            await scheduler.async_set_enabled(False)

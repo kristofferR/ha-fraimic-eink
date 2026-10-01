@@ -168,8 +168,8 @@ def normalize_overlay(raw: Any) -> dict[str, Any]:
     if overlay_type not in OVERLAY_TYPES:
         raise ValueError("Unknown overlay type")
     default_anchor, default_size = _DEFAULT_GEOMETRY[overlay_type]
-    anchor = raw.get("anchor") if raw.get("anchor") in ANCHORS else default_anchor
-    size = raw.get("size") if raw.get("size") in SIZES else default_size
+    anchor = raw["anchor"] if raw.get("anchor") in ANCHORS else default_anchor
+    size = raw["size"] if raw.get("size") in SIZES else default_size
     default_w, default_h = _SIZE_CELLS[size]
     if overlay_type == "briefing":
         default_w, default_h = GRID_COLUMNS, GRID_ROWS

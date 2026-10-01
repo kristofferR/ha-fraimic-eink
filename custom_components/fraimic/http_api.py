@@ -15,6 +15,7 @@ from http import HTTPStatus
 from typing import Any
 from urllib.parse import quote, urlencode
 
+import aiohttp
 from aiohttp import web
 from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.config_entries import ConfigEntry
@@ -150,6 +151,8 @@ class LibraryUploadView(_FraimicView):
         filename = "image"
         albums: list[str] = []
         async for part in reader:
+            if not isinstance(part, aiohttp.BodyPartReader):
+                continue  # nested multipart bodies carry no form fields we use
             if part.name == "file":
                 filename = part.filename or filename
                 chunks: list[bytes] = []

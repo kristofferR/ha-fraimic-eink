@@ -76,9 +76,11 @@ def _ensure_extra_decoders() -> None:
     try:
         # pillow-heif < 1.0 shipped AVIF support; 1.0+ removed it in favour of
         # Pillow's native AVIF (11.2+). Register it only where it still exists.
-        from pillow_heif import register_avif_opener
+        import pillow_heif
 
-        register_avif_opener()
+        register_avif_opener = getattr(pillow_heif, "register_avif_opener", None)
+        if register_avif_opener is not None:
+            register_avif_opener()
     except Exception:  # noqa: BLE001
         pass
 

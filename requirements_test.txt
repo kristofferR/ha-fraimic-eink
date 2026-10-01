@@ -1,0 +1,8 @@
+# Home Assistant-backed checks: mypy and the tests_ha/ suite (Python 3.14).
+# The harness pins homeassistant itself; bump it to move the HA version.
+pytest-homeassistant-custom-component==0.13.367
+mypy==2.3.1
+# Integration requirements from manifest.json.
+numpy
+pillow-heif>=0.16.0
+resvg-py>=0.3.2

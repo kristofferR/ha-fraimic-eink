@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import time
+from collections.abc import Callable
 from datetime import timedelta
 from urllib.parse import quote, unquote, urlsplit
 
@@ -88,8 +89,8 @@ class FraimicMediaPlayer(FraimicEntity, MediaPlayerEntity):
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_media_player"
         self._camera_entity: str | None = None
-        self._camera_unsub = None
-        self._camera_retry_unsub = None
+        self._camera_unsub: Callable[[], None] | None = None
+        self._camera_retry_unsub: Callable[[], None] | None = None
         self._camera_tick_busy = False
         self._camera_generation = 0
 

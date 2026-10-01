@@ -40,6 +40,7 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `art_packs.py` / `pack_model.py` | Bundled + community + live Reframed art-pack catalogs. Reframed rows are lazy and resolve at most 24 current images on install. |
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |
 | `tests/test_image_convert.py` | Standalone pipeline tests (no HA import). |
+| `tests_ha/` | Entity-layer tests against a real Home Assistant (see Testing). |
 
 ## Frame REST API (`api.py`) — verified on firmware 0.2.21 + 0.2.28
 
@@ -180,16 +181,41 @@ is separate (`CONF_CAMERA_INTERVAL`, 0 = once, STOP cancels).
 
 ## Testing
 
-`tests/test_image_convert.py` covers only the pure pipeline (loads `const` +
-`image_convert` directly, no HA).
+Two pytest suites that must never share a process. CI runs all of these in
+`.github/workflows/validate.yml`.
 
-Run:
+- `tests/`: HA-free. `tests/conftest.py` loads modules through a synthetic
+  `fraimic` package and many tests stub `homeassistant` in `sys.modules`.
+  Bare `pytest` runs only this suite (root `pytest.ini`).
+
+  ```bash
+  uv run --with pillow --with numpy --with pytest --with voluptuous --with resvg_py pytest
+  bun test tests/*.test.js
+  ```
+
+- `tests_ha/`: real Home Assistant via pytest-homeassistant-custom-component
+  (own `pytest.ini`, asyncio auto mode). The frame is mocked by patching
+  `FraimicClient` methods; `frontend`, panel registration, and the catalog
+  warm-up are stubbed in `tests_ha/conftest.py`. Covers diagnostics,
+  coordinator polling, and the config/options flows. CI fails below 29%
+  coverage; raise the gate as coverage grows.
+
+  ```bash
+  uv run --python 3.14 --with-requirements requirements_test.txt \
+    pytest tests_ha --cov=custom_components.fraimic --cov-fail-under=29
+  ```
+
+Type checking uses the same requirements (`requirements_test.txt` pins the
+harness, which pins `homeassistant`):
 
 ```bash
-uv run --with pillow --with numpy --with pytest --with voluptuous --with resvg_py pytest
+uv run --python 3.14 --with-requirements requirements_test.txt mypy
 ```
 
-No tests yet for api/services/config_flow/entities. CI: `.github/workflows/validate.yml`.
+`mypy.ini` has three tiers: a baseline for every module, an explicit strict
+list, and relaxed per-module `disable_error_code` sections. Ratchet only:
+add modules to the strict list once they pass, and delete relaxed sections
+once fixed.
 
 ## Conventions / gotchas
 

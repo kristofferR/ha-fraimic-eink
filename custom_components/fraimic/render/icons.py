@@ -22,7 +22,8 @@ _MDI_FILE = Path(__file__).parent / "mdi" / "mdi-paths.json"
 @lru_cache(maxsize=1)
 def _load_paths() -> dict[str, str]:
     try:
-        return json.loads(_MDI_FILE.read_text(encoding="utf-8"))
+        paths: dict[str, str] = json.loads(_MDI_FILE.read_text(encoding="utf-8"))
+        return paths
     except (OSError, ValueError):
         return {}
 

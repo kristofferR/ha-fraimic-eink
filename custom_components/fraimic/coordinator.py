@@ -147,7 +147,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_seen: float | None = None
         self._last_probe_attempt = 0.0
         self._cloud_snapshot: tuple[float, dict[str, Any]] | None = None
-        self._last_rediscovery = 0.0
+        self._last_rediscovery: float | None = None
         self._rediscovery_task: asyncio.Task | None = None
 
     async def async_restore(self) -> None:
@@ -384,7 +384,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._rediscovery_task is not None and not self._rediscovery_task.done():
             return
         now = time.monotonic()
-        if now - self._last_rediscovery < REDISCOVERY_MIN_INTERVAL:
+        if (
+            self._last_rediscovery is not None
+            and now - self._last_rediscovery < REDISCOVERY_MIN_INTERVAL
+        ):
             return
         self._last_rediscovery = now
         self._rediscovery_task = self.config_entry.async_create_background_task(

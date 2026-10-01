@@ -72,11 +72,11 @@ async def async_get_source_bytes(
     if domain == "camera":
         from homeassistant.components.camera import async_get_image
 
-        image = await async_get_image(hass, entity_id)
-        return checked_size(image.content)
+        return checked_size((await async_get_image(hass, entity_id)).content)
     if domain == "image":
-        from homeassistant.components.image import async_get_image
+        from homeassistant.components.image import (
+            async_get_image as async_get_entity_image,
+        )
 
-        image = await async_get_image(hass, entity_id)
-        return checked_size(image.content)
+        return checked_size((await async_get_entity_image(hass, entity_id)).content)
     raise ServiceValidationError(f"{entity_id} must be a camera or image entity")

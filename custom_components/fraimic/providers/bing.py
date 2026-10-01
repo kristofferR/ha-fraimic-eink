@@ -18,7 +18,7 @@ ARCHIVE_TTL = 6 * 3600
 API_TIMEOUT = 20.0
 
 
-def parse_bing_archive(payload: dict) -> list[ArtCandidate]:
+def parse_bing_archive(payload: dict[str, Any]) -> list[ArtCandidate]:
     candidates = []
     for image in payload.get("images", []):
         urlbase = image.get("urlbase")
@@ -50,7 +50,7 @@ class BingProvider(ArtProvider):
     async def async_candidates(
         self, session: Any, cache: Any, request: FetchRequest, count: int
     ) -> list[ArtCandidate]:
-        candidates = cache.get("bing_archive", ARCHIVE_TTL)
+        candidates: list[ArtCandidate] | None = cache.get("bing_archive", ARCHIVE_TTL)
         if candidates is None:
             payload = await async_fetch_json(
                 session,

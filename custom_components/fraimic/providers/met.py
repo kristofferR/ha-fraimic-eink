@@ -20,7 +20,7 @@ POOL_TTL = 24 * 3600
 API_TIMEOUT = 20.0
 
 
-def parse_met_object(payload: dict) -> ArtCandidate | None:
+def parse_met_object(payload: dict[str, Any]) -> ArtCandidate | None:
     """Build a candidate from a /objects/{id} payload, or None if unusable."""
     if not payload.get("isPublicDomain"):
         return None
@@ -53,7 +53,7 @@ class MetProvider(ArtProvider):
     ) -> list[int]:
         term = (query or "*").strip() or "*"
         cache_key = f"met_ids_{term.casefold()}"
-        pool = cache.get(cache_key, POOL_TTL)
+        pool: list[int] | None = cache.get(cache_key, POOL_TTL)
         if pool is None:
             payload = await async_fetch_json(
                 session,
