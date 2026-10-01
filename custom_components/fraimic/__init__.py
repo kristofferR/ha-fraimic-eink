@@ -128,10 +128,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Cloud delivery (album schedule wakes the sleeping frame) when selected;
     # must exist before the scheduler starts so it can sync the album cadence.
     entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
-    if not power.startup_poll and not coordinator.device_reachable:
-        # A restored window may have lapsed while HA was down; Minimum mode
-        # never polls, so a cloud frame asks the account (and keeps retrying)
-        # before leaving entities unavailable.
+    if not power.startup_poll:
+        # Minimum mode never polls, and the restored snapshot may be stale or
+        # for a previously selected cloud device: a cloud frame asks the
+        # account once now (and keeps retrying while its window is lapsed).
         entry.async_create_background_task(
             hass, coordinator.async_refresh_availability(), "fraimic-cloud-check-in"
         )
