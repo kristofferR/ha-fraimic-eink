@@ -53,6 +53,8 @@ CACHE_VERSION = 1
 # Contact seen outside a poll (uploads, commands) is batched into one cache
 # write; Store flushes pending delayed saves when Home Assistant stops.
 CONTACT_SAVE_DELAY = 60
+# How often a non-polling cloud frame past its window re-asks the account.
+CLOUD_CHECK_IN_RETRY = 1800
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -264,25 +266,36 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._unsub_expiry()
             self._unsub_expiry = None
         expires = self._reachable_until()
-        if expires is None or (delay := expires - time.time()) <= 0:
-            return
-
-        @callback
-        def _expired(_now: Any) -> None:
-            self._unsub_expiry = None
-            self.config_entry.async_create_task(
-                self.hass, self.async_refresh_availability(), "fraimic-availability-expiry"
+        if expires is not None and (delay := expires - time.time()) > 0:
+            self._unsub_expiry = async_call_later(self.hass, delay, self._async_expired)
+        elif self._needs_cloud_check_in():
+            # The account check-in is the only evidence left; keep asking.
+            self._unsub_expiry = async_call_later(
+                self.hass, CLOUD_CHECK_IN_RETRY, self._async_expired
             )
 
-        self._unsub_expiry = async_call_later(self.hass, delay, _expired)
+    @callback
+    def _async_expired(self, _now: Any) -> None:
+        self._unsub_expiry = None
+        self.config_entry.async_create_task(
+            self.hass, self.async_refresh_availability(), "fraimic-availability-expiry"
+        )
+
+    def _needs_cloud_check_in(self) -> bool:
+        """Cloud frame that no poll will ever revisit (Minimum power mode)."""
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        return getattr(runtime, "cloud", None) is not None and self.update_interval is None
 
     async def async_refresh_availability(self) -> None:
-        """Re-evaluate availability, re-reading the cloud check-in first.
+        """Re-evaluate availability, re-reading the cloud check-in if needed.
 
         Cloud-delivered frames wake for album slots without any LAN poll, so
-        the account's check-in is the only evidence they are still alive.
+        in non-polling modes the account's check-in is the only evidence they
+        are still alive. Polling modes already fall back to it on failed polls.
         """
-        if (cloud_data := await self._async_cloud_snapshot()) is not None:
+        if self._needs_cloud_check_in() and (
+            cloud_data := await self._async_cloud_snapshot()
+        ) is not None:
             self.data = cloud_data
             await self._async_save_cache()
         self._async_notify_availability()
