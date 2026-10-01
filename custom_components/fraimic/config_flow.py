@@ -18,6 +18,7 @@ from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
+from homeassistant.helpers.typing import DiscoveryInfoType
 
 from .api import FraimicClient, FraimicError, normalize_host
 from .cloud import FraimicCloudAuthError, FraimicCloudClient, FraimicCloudError
@@ -45,6 +46,7 @@ from .const import (
     CONF_FRAME_MODEL,
     CONF_HEIGHT,
     CONF_NASA_API_KEY,
+    CONF_NETWORK_SCAN,
     CONF_PEXELS_KEY,
     CONF_PLAYLIST_PREFETCH,
     CONF_ROTATION,
@@ -59,6 +61,7 @@ from .const import (
     DEFAULT_ARTWORK_CACHE_MAX_MB,
     DEFAULT_CONTRAST,
     DEFAULT_HOST,
+    DEFAULT_NETWORK_SCAN,
     DEFAULT_ROTATION,
     DEFAULT_PLAYLIST_PREFETCH,
     DEFAULT_POWER_MODE,
@@ -168,6 +171,33 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
         self._info = info
         self.context["title_placeholders"] = {"name": _title(host)}
         return await self._async_resolution_or_create()
+
+    async def async_step_integration_discovery(
+        self, discovery_info: DiscoveryInfoType
+    ) -> ConfigFlowResult:
+        """Handle a frame found by the periodic subnet sweep (discovery.py)."""
+        host = discovery_info[CONF_HOST]
+        info = await _async_probe(self.hass, host)
+        if info is None:
+            return self.async_abort(reason="cannot_connect")
+
+        await self._async_set_unique_id(host, info, updates={CONF_HOST: host})
+        self._host = host
+        self._info = info
+        self.context["title_placeholders"] = {"name": _title(host)}
+        return await self.async_step_discovery_confirm()
+
+    async def async_step_discovery_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Ask before adding a swept frame; it may not be meant for this HA."""
+        if user_input is not None:
+            return await self._async_resolution_or_create()
+        self._set_confirm_only()
+        return self.async_show_form(
+            step_id="discovery_confirm",
+            description_placeholders={"host": self._host or ""},
+        )
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -367,6 +397,10 @@ class FraimicOptionsFlow(OptionsFlow):
                         CONF_SCAN_INTERVAL,
                         default=o.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     ): vol.All(vol.Coerce(int), vol.Range(min=MIN_SCAN_INTERVAL)),
+                    vol.Required(
+                        CONF_NETWORK_SCAN,
+                        default=o.get(CONF_NETWORK_SCAN, DEFAULT_NETWORK_SCAN),
+                    ): bool,
                     vol.Required(
                         CONF_ROTATION,
                         default=str(o.get(CONF_ROTATION, DEFAULT_ROTATION)),

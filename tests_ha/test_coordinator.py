@@ -146,7 +146,7 @@ async def test_rescan_rewrites_host_when_frame_moved(
     session = Mock(get=get)
     with (
         patch(
-            "custom_components.fraimic.coordinator.async_get_clientsession",
+            "custom_components.fraimic.discovery.async_get_clientsession",
             return_value=session,
         ),
         # The entry update listener would reload onto the new host.

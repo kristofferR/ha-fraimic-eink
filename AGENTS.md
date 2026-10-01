@@ -25,7 +25,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `services.py` | `fraimic.upload_image` service + `async_render_and_upload()` shared render+upload orchestration. |
 | `coordinator.py` | Coordinator (polls `/api/info`), `FraimicRuntimeData` (coordinator, client, `preview_image`, `last_preview`), `normalize_info()` (flat/nested firmware JSON → one shape). |
 | `entity.py` | `FraimicEntity` base (device_info, model naming from resolution). |
-| `config_flow.py` | Config flow (host/zeroconf/DHCP, reconfigure, resolution detect/pick) + options flow (per-frame settings). |
+| `config_flow.py` | Config flow (host/zeroconf/DHCP/integration discovery, reconfigure, resolution detect/pick) + options flow (per-frame settings). |
+| `discovery.py` | Shared `/24` `/api/info` scan (`async_scan_subnet`) used by IP-change self-healing and the periodic new-frame sweep. |
 | `media_player.py` | Display images via media browser / `play_media`; camera snapshot refresh loop. |
 | `image.py` | Write-only `image` entity showing the last-uploaded preview PNG. |
 | `sensor.py` / `binary_sensor.py` / `button.py` | Description-driven diagnostic entities + Refresh/Sleep/Restart buttons. |
@@ -144,6 +145,13 @@ not primaries.
 - IP-change self-healing: after 3 consecutive failed polls the coordinator
   scans the local /24 (rate-limited to 1/hour, only when the host is an IP
   literal) for the entry's device_key and rewrites `CONF_HOST` on a match.
+- New-frame sweep (`discovery.py`): one per HA instance while any entry is
+  loaded. Runs once HA has started, then every 20 min (1 s probes, 32
+  concurrent), over the private /24s of HA's enabled network adapters.
+  Frames whose device_key (or host) matches no entry, ignored ones included,
+  become `integration_discovery` flows that wait for confirmation in the
+  Discovered card. The `network_scan` option (default on) is global: any
+  frame turning it off stops the sweep.
 - Options (per frame):
   - `scan_interval` (min 30s)
   - `rotation` (base mount 0/90/180/270)

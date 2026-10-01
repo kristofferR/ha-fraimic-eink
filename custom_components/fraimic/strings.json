@@ -21,6 +21,10 @@
           "height": "Height (px, Custom only)"
         }
       },
+      "discovery_confirm": {
+        "title": "Add discovered frame?",
+        "description": "Home Assistant found a Fraimic frame at {host} on your network. Add it?"
+      },
       "reconfigure": {
         "title": "Update frame address",
         "description": "Point this entry at the frame's new address. The frame must be awake, and it must be the same physical frame.",
@@ -165,6 +169,7 @@
           "power_mode": "Power mode",
           "auto_sleep_after_upload": "Sleep after upload (experimental)",
           "scan_interval": "Polling interval (seconds)",
+          "network_scan": "Scan the network for new frames",
           "rotation": "Rotation (degrees)",
           "camera_refresh_interval": "Camera refresh interval (seconds)",
           "artwork_cache": "Downloaded artwork cache",
@@ -187,6 +192,7 @@
           "power_mode": "minimum: no periodic polling and one background redraw/day; balanced: hourly polling and eight background redraws/day; responsive: frequent polling and 48 background redraws/day. Queue playback follows its own interval in every mode.",
           "auto_sleep_after_upload": "After a successful redraw, wait 45 seconds and ask an unplugged frame to sleep. Disabled when charging, keep-awake is set, work is queued, or power state is unknown.",
           "scan_interval": "Requested polling interval. Power mode may raise it; Minimum disables periodic polling entirely.",
+          "network_scan": "Every 20 minutes, look for unconfigured frames on Home Assistant's local network and offer them under Discovered. Shared by all frames: turning it off on any frame stops it.",
           "rotation": "How this frame hangs on the wall. Each choice shows the resulting orientation; the Large Canvas is portrait at 0°.",
           "camera_refresh_interval": "How often a camera ‘playing’ on this frame takes a fresh snapshot. Each update is a full ~30 s E-Ink refresh and costs battery — minimum 60. 0 = show once, no auto-refresh.",
           "artwork_cache": "off keeps only short-lived RAM data; 30_days stores downloaded originals, thumbnails, and converted frame files for 30 days; forever never expires or size-evicts them.",
