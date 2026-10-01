@@ -331,6 +331,15 @@ upload_image:
           max: 100
           step: 5
           mode: slider
+    preview_only:
+      name: Preview only
+      description: >-
+        Convert and show the result on the Screen preview image entity
+        without uploading to the frame.
+      required: false
+      default: false
+      selector:
+        boolean:
 
 schedule_send:
   name: Schedule a send

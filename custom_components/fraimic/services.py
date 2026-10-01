@@ -169,6 +169,7 @@ UPLOAD_IMAGE_SCHEMA = vol.All(
             ),
             # Deprecated boolean kept for backward compatibility; superseded by `mode`.
             vol.Optional(ATTR_DITHER): cv.boolean,
+            vol.Optional(ATTR_PREVIEW_ONLY, default=False): cv.boolean,
         }
     ),
     _require_one_source,
@@ -565,6 +566,9 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
     """Handle the ``fraimic.upload_image`` service call."""
     hass = call.hass
     entry = _resolve_entry(hass, call)
+    if call.data.get(ATTR_PREVIEW_ONLY):
+        await _async_preview_upload_image(hass, entry, call.data)
+        return
     scheduler = begin_external_upload(entry)
     uploaded = False
     try:
@@ -597,6 +601,31 @@ async def _async_handle_upload_image(call: ServiceCall) -> None:
             entry.runtime_data.coordinator.async_update_listeners()
     finally:
         finish_external_upload(scheduler, uploaded=uploaded)
+
+
+async def _async_preview_upload_image(hass, entry, data: dict) -> None:
+    """Convert an ``upload_image`` source for the screen preview only.
+
+    Nothing reaches the frame: no upload, queue, playlist hold, or
+    send_status change. The main preview keeps showing what is on the glass.
+    """
+    if image_id := data.get(ATTR_LIBRARY_IMAGE):
+        library = get_library(hass)
+        if library is None:
+            raise ServiceValidationError("The Fraimic library is not set up")
+        rendered = await library.async_render_for_entry(image_id, entry, dict(data))
+    else:
+        raw = await async_get_source_bytes(
+            hass,
+            path=data.get(ATTR_PATH),
+            url=data.get(ATTR_URL),
+            entity_id=data.get(ATTR_IMAGE_ENTITY),
+        )
+        rendered = await async_convert_for_entry(hass, entry, raw, dict(data))
+    _bin, preview_png, mode = rendered
+    preview = entry.runtime_data.screen_preview_image
+    if preview_png and preview is not None:
+        preview.set_preview(preview_png, mode)
 
 
 async def _async_handle_render_screen(call: ServiceCall) -> ServiceResponse:

@@ -194,6 +194,50 @@ def test_upload_image_library_branch_releases_hold_when_library_missing(
     assert entry.scheduler.events == [("begin", None), ("finish", False)]
 
 
+def test_upload_image_preview_only_never_touches_the_frame(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    services = _load_services(monkeypatch)
+    entry = _entry(services)
+    previews: list[tuple[bytes, str]] = []
+    entry.runtime_data.screen_preview_image = SimpleNamespace(
+        set_preview=lambda png, mode: previews.append((png, mode))
+    )
+    hass = SimpleNamespace(
+        config_entries=SimpleNamespace(
+            async_entries=lambda _domain: [entry],
+            async_get_entry=lambda _entry_id: entry,
+        )
+    )
+
+    async def source_bytes(_hass, **kwargs):
+        return b"raw:" + kwargs["url"].encode()
+
+    async def convert(_hass, _entry, raw, overrides):
+        assert raw == b"raw:https://example.com/a.png"
+        return b"bin", b"png", overrides[services.ATTR_MODE]
+
+    async def fail_upload(*_args, **_kwargs):
+        raise AssertionError("preview_only must not upload")
+
+    monkeypatch.setattr(services, "async_get_source_bytes", source_bytes)
+    monkeypatch.setattr(services, "async_convert_for_entry", convert)
+    monkeypatch.setattr(services, "async_render_and_upload", fail_upload)
+
+    asyncio.run(
+        services._async_handle_upload_image(
+            _call(hass, {
+                services.ATTR_URL: "https://example.com/a.png",
+                services.ATTR_MODE: "bayer",
+                services.ATTR_PREVIEW_ONLY: True,
+            })
+        )
+    )
+
+    assert previews == [(b"png", "bayer")]
+    assert entry.scheduler.events == []
+
+
 @pytest.mark.parametrize("delivery", ["lan_timeout", "cloud"])
 def test_accepted_delivery_updates_only_confirmed_display(
     monkeypatch: pytest.MonkeyPatch,

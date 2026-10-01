@@ -425,6 +425,10 @@
         "tone": {
           "name": "Tone curve",
           "description": "Filmic S-curve 0-100 (default 25): midtone contrast with shadow/highlight rolloff. 0 disables."
+        },
+        "preview_only": {
+          "name": "Preview only",
+          "description": "Convert and show the result on the Screen preview image entity without uploading to the frame."
         }
       }
     },

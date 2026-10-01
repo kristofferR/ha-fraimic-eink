@@ -353,7 +353,8 @@ Provide exactly one source: `url`, `path` (inside an allowlisted directory),
 `image_entity_id` (camera or image), or `library_image_id`. Image adjustments are
 optional. Local uploads use `/api/image` on firmware 0.2.28 and newer, with
 multipart `/upload` for older or unknown firmware. A successful upload triggers
-the redraw itself; no extra refresh action is needed.
+the redraw itself; no extra refresh action is needed. Add `preview_only: true` to
+check the dithered result on **Screen preview** without touching the frame.
 
 For fresh museum artwork:
 
