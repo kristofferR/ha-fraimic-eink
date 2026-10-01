@@ -49,13 +49,6 @@ BINARY_SENSORS: tuple[FraimicBinaryDescription, ...] = (
         value_fn=lambda d: _g(d, "battery", "cable_connected"),
     ),
     FraimicBinaryDescription(
-        key="wifi_connected",
-        translation_key="wifi_connected",
-        device_class=BinarySensorDeviceClass.CONNECTIVITY,
-        entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda d: _g(d, "wifi", "connected"),
-    ),
-    FraimicBinaryDescription(
         key="registered",
         translation_key="registered",
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -120,7 +113,33 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fraimic binary sensors from a config entry."""
     coordinator = entry.runtime_data.coordinator
-    async_add_entities(FraimicBinarySensor(coordinator, desc) for desc in BINARY_SENSORS)
+    entities: list[BinarySensorEntity] = [
+        FraimicBinarySensor(coordinator, desc) for desc in BINARY_SENSORS
+    ]
+    entities.append(FraimicConnectivitySensor(coordinator))
+    async_add_entities(entities)
+
+
+class FraimicConnectivitySensor(FraimicEntity, BinarySensorEntity):
+    """Whether the frame answers right now; off while it deep-sleeps.
+
+    The frame can only report Wi-Fi when it is connected, so instantaneous
+    reachability is the meaningful signal. Always available, unlike the
+    grace-windowed entities that keep last-known values through sleep.
+    """
+
+    _attr_translation_key = "wifi_connected"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _fraimic_always_available = True
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_wifi_connected"
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.frame_online
 
 
 class FraimicBinarySensor(FraimicEntity, BinarySensorEntity):

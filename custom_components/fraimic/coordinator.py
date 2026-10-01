@@ -43,6 +43,9 @@ REDISCOVERY_CONCURRENCY = 32
 DASHBOARD_PROBE_MAX_AGE = 300
 # Reuse the account's device record this long between failed LAN polls.
 CLOUD_SNAPSHOT_TTL = 300
+# Entities keep their last-known values while the frame sleeps and only go
+# unavailable after this long without any confirmed contact.
+UNAVAILABLE_AFTER = 72 * 3600
 
 CACHE_VERSION = 1
 
@@ -196,6 +199,22 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self._last_seen
 
     @property
+    def device_reachable(self) -> bool:
+        """Entity-availability verdict that rides out normal deep sleep.
+
+        Only availability is affected; failed polls still raise UpdateFailed
+        and count towards rediscovery.
+        """
+        if self.data is None:
+            return False
+        if self.last_update_success:
+            return True
+        return (
+            self._last_seen is not None
+            and time.time() - self._last_seen < UNAVAILABLE_AFTER
+        )
+
+    @property
     def expected_asleep(self) -> bool:
         """Whether Home Assistant intentionally put the frame to sleep."""
         return self._expected_asleep
@@ -250,8 +269,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:
-            # The frame is unreachable — most likely in deep sleep. Surface this
-            # as a (non-noisy) UpdateFailed so entities go unavailable cleanly.
+            # The frame is unreachable, most likely in deep sleep. Raise a
+            # (non-noisy) UpdateFailed; entities ride it out via device_reachable.
             self._consecutive_failures += 1
             self.frame_online = False
             cloud_data = await self._async_cloud_snapshot()

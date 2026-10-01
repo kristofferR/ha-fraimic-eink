@@ -55,6 +55,31 @@ async def test_setup_polls_and_exposes_frame_state(
     assert state.state == "81"
 
 
+async def test_sleeping_frame_keeps_last_known_state(
+    hass: HomeAssistant,
+    loaded_entry: MockConfigEntry,
+    frame_client: dict[str, AsyncMock],
+) -> None:
+    registry = er.async_get(hass)
+
+    def state(domain: str, key: str) -> str:
+        entity_id = registry.async_get_entity_id(
+            domain, DOMAIN, f"{loaded_entry.entry_id}_{key}"
+        )
+        assert entity_id is not None
+        current = hass.states.get(entity_id)
+        assert current is not None
+        return current.state
+
+    frame_client["get_info"].side_effect = FraimicConnectionError("asleep")
+    await _coordinator(loaded_entry).async_refresh()
+    await hass.async_block_till_done()
+
+    assert state("sensor", "battery_percent") == "81"
+    assert state("binary_sensor", "wifi_connected") == "off"
+    assert state("sensor", "last_seen") not in ("unknown", "unavailable")
+
+
 async def test_nested_payload_is_normalized(
     loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
 ) -> None:

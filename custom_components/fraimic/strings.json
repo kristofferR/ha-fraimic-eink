@@ -282,6 +282,9 @@
       "send_status": {
         "name": "Send status"
       },
+      "last_seen": {
+        "name": "Last seen"
+      },
       "albums": {
         "name": "Albums"
       }

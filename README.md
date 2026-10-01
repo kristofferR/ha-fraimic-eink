@@ -418,8 +418,11 @@ An upstream outage does not erase the image already displayed on the frame.
 ## Troubleshooting
 
 - **Frame asleep or entities unavailable:** deep sleep turns off the network.
-  Wake the frame and use **Refresh frame data**. In Minimum mode, use **Try queued
-  send** to deliver a pending local image.
+  Entities keep their last values while it sleeps and go unavailable only after
+  three days without contact. **Wi-Fi connected** shows whether the frame answers
+  right now; **Last seen** shows when it last did. Wake the frame and use
+  **Refresh frame data**. In Minimum mode, use **Try queued send** to deliver a
+  pending local image.
 - **Cloud upload accepted but artwork unchanged:** wait for the scheduled wake.
   Queued cloud delivery is not proof of a physical redraw.
 - **`fraimic.local` does not resolve:** use the frame's IP from your router's DHCP
