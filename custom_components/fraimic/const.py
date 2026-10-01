@@ -85,6 +85,22 @@ DEFAULT_AUTO_SLEEP: Final = False
 DEFAULT_ROTATION: Final = 0
 ROTATION_OPTIONS: Final = (0, 90, 180, 270)
 
+
+def rotation_choices(width: int, height: int) -> dict[str, str]:
+    """Options-form rotation choices, labelled with the wall orientation.
+
+    Keys are strings because some Home Assistant frontends submit integer
+    select values as strings, which an int ``vol.In`` then rejects. Labels name
+    the resulting shape since native orientation differs per model (the Large
+    is portrait at 0°, the Standard landscape).
+    """
+    return {
+        str(degrees): f"{degrees}° "
+        + ("portrait" if (height > width) != (degrees in (90, 270)) else "landscape")
+        for degrees in ROTATION_OPTIONS
+    }
+
+
 DEFAULT_HOST: Final = "fraimic.local"
 # Balanced/responsive modes use this requested interval as a floor; Minimum
 # mode disables periodic polling completely.
