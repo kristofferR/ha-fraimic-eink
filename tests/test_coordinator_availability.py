@@ -42,6 +42,7 @@ def coordinator_module(monkeypatch):
 
 def _coordinator(module, *, data, success, seen_hours_ago):
     coordinator = object.__new__(module.FraimicDataUpdateCoordinator)
+    coordinator.client = types.SimpleNamespace(last_response=None)
     coordinator.data = data
     coordinator.last_update_success = success
     coordinator._last_seen = (
@@ -89,6 +90,7 @@ def test_sleeping_frame_still_fails_poll_but_stays_available(coordinator_module)
     coordinator = _coordinator(coordinator_module, data={}, success=True, seen_hours_ago=1)
     coordinator.config_entry = types.SimpleNamespace(runtime_data=None)
     coordinator.client = types.SimpleNamespace(
+        last_response=None,
         get_info=AsyncMock(side_effect=coordinator_module.FraimicConnectionError("asleep"))
     )
     coordinator.frame_online = True

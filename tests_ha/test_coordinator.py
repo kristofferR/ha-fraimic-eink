@@ -8,6 +8,7 @@ from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
@@ -266,3 +267,32 @@ async def test_first_poll_backfills_device_key_unique_id(
     await setup_entry(hass, entry)
 
     assert entry.unique_id == DEVICE_KEY
+
+
+async def test_error_response_still_counts_as_contact() -> None:
+    """A 503 proves the frame is awake; a refused connection does not."""
+
+    class Busy:
+        status = 503
+
+        async def __aenter__(self) -> Busy:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def json(self, **_kwargs: object) -> dict[str, str]:
+            return {"error": "busy"}
+
+    session = Mock(request=AsyncMock(return_value=Busy()))
+    client = FraimicClient(HOST, session)
+
+    with pytest.raises(FraimicApiError):
+        await client.get_info()
+    assert client.last_response is not None
+
+    session.request.side_effect = aiohttp.ClientConnectionError("refused")
+    seen = client.last_response
+    with pytest.raises(FraimicConnectionError):
+        await client.get_info()
+    assert client.last_response == seen

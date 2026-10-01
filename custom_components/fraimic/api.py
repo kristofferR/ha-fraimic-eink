@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 import aiohttp
@@ -112,6 +113,9 @@ class FraimicClient:
         # confirmed a firmware that supports it, else multipart /upload. False
         # until the first successful poll (e.g. frame asleep at startup).
         self.prefer_api_image = False
+        # Epoch of the frame's latest HTTP response of any status. An error
+        # response still proves the frame is awake and reachable.
+        self.last_response: float | None = None
         self._session = session
         # Bracket bare IPv6 literals (2+ colons, not already bracketed) so the URL
         # is valid; a normal "host" or "host:port" is left untouched.
@@ -129,7 +133,7 @@ class FraimicClient:
         url = f"{self._base}{path}"
         timeout = aiohttp.ClientTimeout(total=kwargs.pop("timeout", DEFAULT_TIMEOUT))
         try:
-            return await self._session.request(method, url, timeout=timeout, **kwargs)
+            resp = await self._session.request(method, url, timeout=timeout, **kwargs)
         except asyncio.TimeoutError as err:
             raise FraimicTimeoutError(
                 f"Request to Fraimic at {self._host} timed out"
@@ -138,6 +142,8 @@ class FraimicClient:
             raise FraimicConnectionError(f"Cannot reach Fraimic at {self._host}: {err}") from err
         except aiohttp.ClientError as err:
             raise FraimicError(f"Unexpected error talking to {self._host}: {err}") from err
+        self.last_response = time.time()
+        return resp
 
     async def _json(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
         resp = await self._request(method, path, **kwargs)

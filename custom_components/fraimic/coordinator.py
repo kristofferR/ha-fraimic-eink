@@ -187,7 +187,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "data": self.data,
                 "info_page": self.info_page,
                 "albums": self.albums,
-                "last_seen": self._last_seen,
+                "last_seen": self.last_seen,
                 "expected_asleep": self._expected_asleep,
             }
         )
@@ -200,7 +200,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @property
     def last_seen(self) -> float | None:
         """Epoch timestamp of the latest confirmed frame response."""
-        return self._last_seen
+        seen = [t for t in (self._last_seen, self.client.last_response) if t is not None]
+        return max(seen) if seen else None
 
     @property
     def device_reachable(self) -> bool:
@@ -220,7 +221,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _reachable_until(self) -> float | None:
         contacts = [
             seen
-            for seen in (self._last_seen, _cloud_last_seen(self.data or {}))
+            for seen in (self.last_seen, _cloud_last_seen(self.data or {}))
             if seen is not None
         ]
         return max(contacts) + UNAVAILABLE_AFTER if contacts else None
