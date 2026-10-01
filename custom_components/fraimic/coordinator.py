@@ -50,6 +50,9 @@ CLOUD_SNAPSHOT_TTL = 300
 UNAVAILABLE_AFTER = 72 * 3600
 
 CACHE_VERSION = 1
+# Contact seen outside a poll (uploads, commands) is batched into one cache
+# write; Store flushes pending delayed saves when Home Assistant stops.
+CONTACT_SAVE_DELAY = 60
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -155,6 +158,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_rediscovery: float | None = None
         self._rediscovery_task: asyncio.Task | None = None
         self._unsub_expiry: Callable[[], None] | None = None
+        self._availability_listeners: set[Callable[[], None]] = set()
+        client.on_response = self._async_contact_seen
 
     async def async_restore(self) -> None:
         """Restore the last snapshot without contacting a sleeping frame."""
@@ -181,16 +186,22 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._expected_asleep = cached.get("expected_asleep") is True
         self._async_schedule_expiry()
 
+    def _cache_payload(self) -> dict[str, Any]:
+        return {
+            "data": self.data,
+            "info_page": self.info_page,
+            "albums": self.albums,
+            "last_seen": self.last_seen,
+            "expected_asleep": self._expected_asleep,
+        }
+
     async def _async_save_cache(self) -> None:
-        await self._store.async_save(
-            {
-                "data": self.data,
-                "info_page": self.info_page,
-                "albums": self.albums,
-                "last_seen": self.last_seen,
-                "expected_asleep": self._expected_asleep,
-            }
-        )
+        await self._store.async_save(self._cache_payload())
+
+    @callback
+    def _async_contact_seen(self) -> None:
+        if self.data is not None:
+            self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
 
     @property
     def consecutive_failures(self) -> int:
@@ -247,10 +258,21 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         @callback
         def _expired(_now: Any) -> None:
+            # Entities only: data listeners (scheduler, send queue) would read
+            # this as fresh frame data and retry sends.
             self._unsub_expiry = None
-            self.async_update_listeners()
+            for listener in list(self._availability_listeners):
+                listener()
 
         self._unsub_expiry = async_call_later(self.hass, delay, _expired)
+
+    @callback
+    def async_add_availability_listener(
+        self, listener: Callable[[], None]
+    ) -> Callable[[], None]:
+        """Call ``listener`` when the grace window lapses without new data."""
+        self._availability_listeners.add(listener)
+        return lambda: self._availability_listeners.discard(listener)
 
     async def async_shutdown(self) -> None:
         await super().async_shutdown()

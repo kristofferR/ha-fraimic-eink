@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from collections.abc import Callable
 from typing import Any
 
 import aiohttp
@@ -116,6 +117,8 @@ class FraimicClient:
         # Epoch of the frame's latest HTTP response of any status. An error
         # response still proves the frame is awake and reachable.
         self.last_response: float | None = None
+        # Called after every response; the coordinator persists the contact.
+        self.on_response: Callable[[], None] | None = None
         self._session = session
         # Bracket bare IPv6 literals (2+ colons, not already bracketed) so the URL
         # is valid; a normal "host" or "host:port" is left untouched.
@@ -143,6 +146,8 @@ class FraimicClient:
         except aiohttp.ClientError as err:
             raise FraimicError(f"Unexpected error talking to {self._host}: {err}") from err
         self.last_response = time.time()
+        if self.on_response is not None:
+            self.on_response()
         return resp
 
     async def _json(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:

@@ -129,12 +129,16 @@ async def test_unpolled_frame_goes_unavailable_when_grace_expires(
         return current.state if current is not None else None
 
     assert state() == "81"
+    # Data listeners (scheduler, send queue) must not mistake expiry for data.
+    data_listener = Mock()
+    config_entry.runtime_data.coordinator.async_add_listener(data_listener)
 
     freezer.tick(timedelta(hours=2))
     async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert state() == "unavailable"
+    data_listener.assert_not_called()
 
 
     # A command the frame answers is confirmed contact again.
