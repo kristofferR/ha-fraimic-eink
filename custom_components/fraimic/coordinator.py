@@ -330,6 +330,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         except FraimicError as err:
             self.frame_online = False
+            # An error response is still contact; keep it across restarts.
+            await self._async_save_cache()
             raise UpdateFailed(str(err)) from err
         self._consecutive_failures = 0
         self.frame_online = True
