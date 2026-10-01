@@ -203,6 +203,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Any frame response: persist it, move the deadline, refresh entities."""
         self.frame_online = True
         self._expected_asleep = False
+        self._consecutive_failures = 0
         if self.data is not None:
             self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
         self._async_schedule_expiry()
@@ -287,9 +288,15 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_shutdown(self) -> None:
         await super().async_shutdown()
+        # A reload builds a new coordinator on the same cache key; late
+        # responses must not reach this one. async_save also cancels any
+        # pending delayed save.
+        self.client.on_response = None
         if self._unsub_expiry is not None:
             self._unsub_expiry()
             self._unsub_expiry = None
+        if self.data is not None:
+            await self._async_save_cache()
 
     @property
     def expected_asleep(self) -> bool:
@@ -300,10 +307,13 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def async_set_frame_online(
         self, online: bool, *, expected_sleep: bool = False
     ) -> None:
-        """Record liveness observed outside the normal coordinator poll."""
+        """Record liveness observed outside the normal coordinator poll.
+
+        Contact time is not set here: the client records every real frame
+        response, while some callers report success without a LAN request.
+        """
         if online:
             self._consecutive_failures = 0
-            self._last_seen = time.time()
             self._expected_asleep = False
         elif expected_sleep:
             self._expected_asleep = True
