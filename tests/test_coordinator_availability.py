@@ -4,6 +4,7 @@ import asyncio
 import sys
 import time
 import types
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -48,16 +49,32 @@ def _coordinator(module, *, data, success, seen_hours_ago):
     return coordinator
 
 
+def _cloud(hours_ago):
+    seen = time.time() - hours_ago * HOUR
+    return {"device": {"cloud_last_seen": datetime.fromtimestamp(seen, UTC).isoformat()}}
+
+
 @pytest.mark.parametrize(
     ("data", "success", "seen_hours_ago", "reachable"),
     [
         (None, True, 0, False),
-        ({}, True, None, True),
+        ({}, True, 0, True),
         ({}, False, 71, True),
         ({}, False, 73, False),
         ({}, False, None, False),
+        # Restored caches report success without proving recent contact.
+        ({}, True, 73, False),
+        ({}, True, None, False),
+        # Cloud-delivered frames stay asleep on the LAN by design.
+        (_cloud(1), True, None, True),
+        (_cloud(73), True, 1, True),
+        (_cloud(73), True, None, False),
     ],
-    ids=["no-data", "poll-ok", "asleep-in-grace", "grace-expired", "never-seen"],
+    ids=[
+        "no-data", "poll-ok", "asleep-in-grace", "grace-expired", "never-seen",
+        "stale-restore", "legacy-restore", "cloud-check-in", "lan-newer-than-cloud",
+        "cloud-stale",
+    ],
 )
 def test_device_reachable_verdict(coordinator_module, data, success, seen_hours_ago, reachable):
     assert coordinator_module.UNAVAILABLE_AFTER == 72 * HOUR

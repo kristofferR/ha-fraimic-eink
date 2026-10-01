@@ -227,7 +227,8 @@ once fixed.
 - Entity availability: frame sleep → quiet `UpdateFailed` (failure counters,
   send queue and rediscovery still see it), but `FraimicEntity.available` uses
   `coordinator.device_reachable`, which stays True until `UNAVAILABLE_AFTER`
-  (72 h) without contact. Reachability reporters (`wifi_connected` = live
+  (72 h) without confirmed contact (LAN response or cloud check-in; a restored
+  cache does not count). Reachability reporters (`wifi_connected` = live
   `frame_online`, `last_seen`, `send_status`) set `_fraimic_always_available`;
   Refresh/Sleep/Restart buttons still require the last poll to succeed.
 - Preview PNGs are rotated by `-base_rotation` so the dashboard matches the wall.

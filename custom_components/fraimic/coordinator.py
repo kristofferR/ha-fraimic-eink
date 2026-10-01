@@ -6,7 +6,7 @@ import asyncio
 import ipaddress
 import logging
 import time
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 import aiohttp
@@ -202,17 +202,20 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def device_reachable(self) -> bool:
         """Entity-availability verdict that rides out normal deep sleep.
 
-        Only availability is affected; failed polls still raise UpdateFailed
-        and count towards rediscovery.
+        Only confirmed contact counts: a LAN response, or the account's own
+        check-in time for cloud-delivered frames. A restored cache or cloud
+        snapshot alone never extends the window. Only availability is
+        affected; failed polls still raise UpdateFailed and count towards
+        rediscovery.
         """
         if self.data is None:
             return False
-        if self.last_update_success:
-            return True
-        return (
-            self._last_seen is not None
-            and time.time() - self._last_seen < UNAVAILABLE_AFTER
-        )
+        contacts = [
+            seen
+            for seen in (self._last_seen, _cloud_last_seen(self.data))
+            if seen is not None
+        ]
+        return bool(contacts) and time.time() - max(contacts) < UNAVAILABLE_AFTER
 
     @property
     def expected_asleep(self) -> bool:
@@ -453,6 +456,18 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.config_entry,
             data={**self.config_entry.data, CONF_HOST: found},
         )
+
+
+def _cloud_last_seen(data: dict[str, Any]) -> float | None:
+    """Epoch of the frame's last cloud check-in, from a cloud snapshot."""
+    device = data.get("device")
+    value = device.get("cloud_last_seen") if isinstance(device, dict) else None
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value).timestamp()
+    except ValueError:
+        return None
 
 
 def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
