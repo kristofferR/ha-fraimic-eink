@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
@@ -22,7 +21,6 @@ from custom_components.fraimic.const import (
 )
 from custom_components.fraimic.coordinator import (
     REDISCOVERY_FAIL_THRESHOLD,
-    REDISCOVERY_MIN_INTERVAL,
     FraimicDataUpdateCoordinator,
 )
 
@@ -111,9 +109,6 @@ async def test_missing_frame_triggers_one_rate_limited_rescan(
     loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
 ) -> None:
     coordinator = _coordinator(loaded_entry)
-    # The rate limit is measured on time.monotonic(), which starts near zero
-    # on a freshly booted CI runner; age the last scan explicitly.
-    coordinator._last_rediscovery = time.monotonic() - REDISCOVERY_MIN_INTERVAL - 1
     frame_client["get_info"].side_effect = FraimicConnectionError("gone")
 
     with patch.object(
