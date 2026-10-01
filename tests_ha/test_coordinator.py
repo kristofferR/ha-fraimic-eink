@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import time
+from datetime import timedelta
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
@@ -9,7 +12,11 @@ from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from freezegun.api import FrozenDateTimeFactory
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
 from custom_components.fraimic.api import FraimicApiError, FraimicConnectionError
 from custom_components.fraimic.const import (
@@ -17,10 +24,13 @@ from custom_components.fraimic.const import (
     CONF_POWER_MODE,
     CONF_WIDTH,
     DOMAIN,
+    POWER_MODE_MINIMUM,
     POWER_MODE_RESPONSIVE,
 )
 from custom_components.fraimic.coordinator import (
     REDISCOVERY_FAIL_THRESHOLD,
+    UNAVAILABLE_AFTER,
+    normalize_info,
     FraimicDataUpdateCoordinator,
 )
 
@@ -78,6 +88,48 @@ async def test_sleeping_frame_keeps_last_known_state(
     assert state("sensor", "battery_percent") == "81"
     assert state("binary_sensor", "wifi_connected") == "off"
     assert state("sensor", "last_seen") not in ("unknown", "unavailable")
+
+
+async def test_unpolled_frame_goes_unavailable_when_grace_expires(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+    frame_client: dict[str, AsyncMock],
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Minimum power mode never polls; the expiry itself must update entities."""
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=3,
+        unique_id=DEVICE_KEY,
+        data={CONF_HOST: HOST, CONF_WIDTH: 1600, CONF_HEIGHT: 1200},
+        options={CONF_POWER_MODE: POWER_MODE_MINIMUM},
+    )
+    hass_storage[f"{DOMAIN}_coordinator_{config_entry.entry_id}"] = {
+        "version": 1,
+        "key": f"{DOMAIN}_coordinator_{config_entry.entry_id}",
+        "data": {
+            "data": normalize_info(FRAME_INFO),
+            "last_seen": time.time() - UNAVAILABLE_AFTER + 3600,
+        },
+    }
+    await setup_entry(hass, config_entry)
+    frame_client["get_info"].assert_not_awaited()
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{config_entry.entry_id}_battery_percent"
+    )
+    assert entity_id is not None
+
+    def state() -> str | None:
+        current = hass.states.get(entity_id)
+        return current.state if current is not None else None
+
+    assert state() == "81"
+
+    freezer.tick(timedelta(hours=2))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert state() == "unavailable"
 
 
 async def test_nested_payload_is_normalized(

@@ -6,6 +6,7 @@ import asyncio
 import ipaddress
 import logging
 import time
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -14,6 +15,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -152,6 +154,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cloud_snapshot: tuple[float, dict[str, Any]] | None = None
         self._last_rediscovery: float | None = None
         self._rediscovery_task: asyncio.Task | None = None
+        self._unsub_expiry: Callable[[], None] | None = None
 
     async def async_restore(self) -> None:
         """Restore the last snapshot without contacting a sleeping frame."""
@@ -176,6 +179,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if isinstance(last_seen, (int, float)):
             self._last_seen = float(last_seen)
         self._expected_asleep = cached.get("expected_asleep") is True
+        self._async_schedule_expiry()
 
     async def _async_save_cache(self) -> None:
         await self._store.async_save(
@@ -210,12 +214,48 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """
         if self.data is None:
             return False
+        expires = self._reachable_until()
+        return expires is not None and time.time() < expires
+
+    def _reachable_until(self) -> float | None:
         contacts = [
             seen
-            for seen in (self._last_seen, _cloud_last_seen(self.data))
+            for seen in (self._last_seen, _cloud_last_seen(self.data or {}))
             if seen is not None
         ]
-        return bool(contacts) and time.time() - max(contacts) < UNAVAILABLE_AFTER
+        return max(contacts) + UNAVAILABLE_AFTER if contacts else None
+
+    @callback
+    def async_update_listeners(self) -> None:
+        super().async_update_listeners()
+        self._async_schedule_expiry()
+
+    @callback
+    def _async_schedule_expiry(self) -> None:
+        """Rewrite entity states when the grace window lapses.
+
+        Availability is time-based, but Home Assistant only re-reads it when
+        listeners fire; a frame nobody polls would otherwise stay available.
+        """
+        if self._unsub_expiry is not None:
+            self._unsub_expiry()
+            self._unsub_expiry = None
+        expires = self._reachable_until()
+        if expires is None or (delay := expires - time.time()) <= 0:
+            return
+
+        @callback
+        def _expired(_now: Any) -> None:
+            self._unsub_expiry = None
+            self.async_update_listeners()
+
+        self._unsub_expiry = async_call_later(self.hass, delay, _expired)
+
+    async def async_shutdown(self) -> None:
+        await super().async_shutdown()
+        if self._unsub_expiry is not None:
+            self._unsub_expiry()
+            self._unsub_expiry = None
 
     @property
     def expected_asleep(self) -> bool:

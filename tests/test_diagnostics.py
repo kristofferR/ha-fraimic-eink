@@ -5,7 +5,7 @@ import json
 import re
 import sys
 import types
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -57,6 +57,7 @@ def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatc
         "homeassistant.const": {"CONF_HOST": "host"},
         "homeassistant.core": {"HomeAssistant": object, "callback": lambda fn: fn},
         "homeassistant.helpers.aiohttp_client": {"async_get_clientsession": object},
+        "homeassistant.helpers.event": {"async_call_later": Mock()},
         "homeassistant.helpers.storage": {"Store": GenericStub},
         "homeassistant.helpers.update_coordinator": {
             "DataUpdateCoordinator": GenericStub, "UpdateFailed": RuntimeError,

@@ -26,6 +26,7 @@ def coordinator_module(monkeypatch):
         "homeassistant.const": {"CONF_HOST": "host"},
         "homeassistant.core": {"HomeAssistant": object, "callback": lambda fn: fn},
         "homeassistant.helpers.aiohttp_client": {"async_get_clientsession": Mock()},
+        "homeassistant.helpers.event": {"async_call_later": Mock()},
         "homeassistant.helpers.storage": {"Store": GenericStub},
         "homeassistant.helpers.update_coordinator": {
             "DataUpdateCoordinator": GenericStub, "UpdateFailed": RuntimeError,

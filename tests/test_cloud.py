@@ -282,6 +282,7 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
         "homeassistant.const": {"CONF_HOST": "host"},
         "homeassistant.core": {"HomeAssistant": object, "callback": lambda fn: fn},
         "homeassistant.helpers.aiohttp_client": {"async_get_clientsession": Mock()},
+        "homeassistant.helpers.event": {"async_call_later": Mock()},
         "homeassistant.helpers.update_coordinator": {
             "DataUpdateCoordinator": GenericStub, "UpdateFailed": RuntimeError,
         },
