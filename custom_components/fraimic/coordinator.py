@@ -200,9 +200,18 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     @callback
     def _async_contact_seen(self) -> None:
+        """Any frame response: persist it, move the deadline, refresh entities."""
         if self.data is not None:
             self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
         self._async_schedule_expiry()
+        self._async_notify_availability()
+
+    @callback
+    def _async_notify_availability(self) -> None:
+        # Entities only: data listeners (scheduler, send queue) would read
+        # this as fresh frame data and retry sends.
+        for listener in list(self._availability_listeners):
+            listener()
 
     @property
     def consecutive_failures(self) -> int:
@@ -259,11 +268,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         @callback
         def _expired(_now: Any) -> None:
-            # Entities only: data listeners (scheduler, send queue) would read
-            # this as fresh frame data and retry sends.
             self._unsub_expiry = None
-            for listener in list(self._availability_listeners):
-                listener()
+            self._async_notify_availability()
             # Newer contact may have moved the deadline; keep watching it.
             self._async_schedule_expiry()
 

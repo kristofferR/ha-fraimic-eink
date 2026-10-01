@@ -141,17 +141,15 @@ async def test_unpolled_frame_goes_unavailable_when_grace_expires(
     data_listener.assert_not_called()
 
 
-    # A command the frame answers is confirmed contact again.
-    button = er.async_get(hass).async_get_entity_id(
-        "button", DOMAIN, f"{config_entry.entry_id}_refresh"
-    )
-    assert button is not None
-    with patch.object(FraimicClient, "refresh", AsyncMock(return_value={})):
-        await hass.services.async_call(
-            "button", "press", {"entity_id": button}, blocking=True
-        )
+    # Any later frame response (any request path) restores availability.
+    client = config_entry.runtime_data.coordinator.client
+    client.last_response = time.time()
+    assert client.on_response is not None
+    client.on_response()
+    await hass.async_block_till_done()
 
     assert state() == "81"
+    data_listener.assert_not_called()
 
 
 async def test_nested_payload_is_normalized(
