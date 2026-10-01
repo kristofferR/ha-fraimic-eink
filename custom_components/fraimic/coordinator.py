@@ -202,6 +202,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _async_contact_seen(self) -> None:
         if self.data is not None:
             self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
+        self._async_schedule_expiry()
 
     @property
     def consecutive_failures(self) -> int:
@@ -263,6 +264,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._unsub_expiry = None
             for listener in list(self._availability_listeners):
                 listener()
+            # Newer contact may have moved the deadline; keep watching it.
+            self._async_schedule_expiry()
 
         self._unsub_expiry = async_call_later(self.hass, delay, _expired)
 
