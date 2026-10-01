@@ -109,6 +109,10 @@ class FraimicButton(FraimicEntity, ButtonEntity):
             raise HomeAssistantError(
                 f"Could not reach the frame to {self.entity_description.key}: {err}"
             ) from err
+        # The frame answered, which is confirmed contact for availability.
+        self.coordinator.async_set_frame_online(True)
+        if self.entity_description.key == "sleep":
+            self.coordinator.async_set_frame_online(False, expected_sleep=True)
 
 
 class FraimicDataRefreshButton(FraimicEntity, ButtonEntity):

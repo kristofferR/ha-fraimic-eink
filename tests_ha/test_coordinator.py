@@ -18,7 +18,11 @@ from pytest_homeassistant_custom_component.common import (
     async_fire_time_changed,
 )
 
-from custom_components.fraimic.api import FraimicApiError, FraimicConnectionError
+from custom_components.fraimic.api import (
+    FraimicApiError,
+    FraimicClient,
+    FraimicConnectionError,
+)
 from custom_components.fraimic.const import (
     CONF_HEIGHT,
     CONF_POWER_MODE,
@@ -130,6 +134,19 @@ async def test_unpolled_frame_goes_unavailable_when_grace_expires(
     await hass.async_block_till_done()
 
     assert state() == "unavailable"
+
+
+    # A command the frame answers is confirmed contact again.
+    button = er.async_get(hass).async_get_entity_id(
+        "button", DOMAIN, f"{config_entry.entry_id}_refresh"
+    )
+    assert button is not None
+    with patch.object(FraimicClient, "refresh", AsyncMock(return_value={})):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": button}, blocking=True
+        )
+
+    assert state() == "81"
 
 
 async def test_nested_payload_is_normalized(
