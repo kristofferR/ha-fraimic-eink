@@ -271,14 +271,17 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         def _expired(_now: Any) -> None:
             self._unsub_expiry = None
             self.config_entry.async_create_task(
-                self.hass, self._async_expire(), "fraimic-availability-expiry"
+                self.hass, self.async_refresh_availability(), "fraimic-availability-expiry"
             )
 
         self._unsub_expiry = async_call_later(self.hass, delay, _expired)
 
-    async def _async_expire(self) -> None:
-        # Cloud-delivered frames wake for album slots without any LAN poll;
-        # re-read the account's check-in before declaring them gone.
+    async def async_refresh_availability(self) -> None:
+        """Re-evaluate availability, re-reading the cloud check-in first.
+
+        Cloud-delivered frames wake for album slots without any LAN poll, so
+        the account's check-in is the only evidence they are still alive.
+        """
         if (cloud_data := await self._async_cloud_snapshot()) is not None:
             self.data = cloud_data
             await self._async_save_cache()
