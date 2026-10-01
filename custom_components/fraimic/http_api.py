@@ -977,14 +977,14 @@ class PlayerControlView(_FraimicView):
                 stopper = runtime.stop_camera_loop
                 if stopper is not None:
                     stopper()
-                # A real upload marks the frame online via the client hook; a
-                # duplicate skip never contacts it.
-                await scheduler.async_previous()
+                if await scheduler.async_previous():
+                    runtime.coordinator.async_set_frame_online(True)
             elif action == "next":
                 stopper = runtime.stop_camera_loop
                 if stopper is not None:
                     stopper()
-                await scheduler.async_next()
+                if await scheduler.async_next():
+                    runtime.coordinator.async_set_frame_online(True)
             elif action in {"shuffle", "repeat", "interval"}:
                 if action not in body or body[action] is None:
                     return self.json_message(

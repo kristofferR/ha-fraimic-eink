@@ -91,7 +91,7 @@ async def test_sleeping_frame_keeps_last_known_state(
     await hass.async_block_till_done()
 
     assert state("sensor", "battery_percent") == "81"
-    assert state("binary_sensor", "wifi_connected") == "off"
+    assert state("binary_sensor", "charging") == "off"
     assert state("sensor", "last_seen") not in ("unknown", "unavailable")
 
 
@@ -149,12 +149,6 @@ async def test_unpolled_frame_goes_unavailable_when_grace_expires(
     await hass.async_block_till_done()
 
     assert state() == "81"
-    connectivity = er.async_get(hass).async_get_entity_id(
-        "binary_sensor", DOMAIN, f"{config_entry.entry_id}_wifi_connected"
-    )
-    assert connectivity is not None
-    connected = hass.states.get(connectivity)
-    assert connected is not None and connected.state == "on"
     data_listener.assert_not_called()
 
 

@@ -201,8 +201,6 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _async_contact_seen(self) -> None:
         """Any frame response: persist it, move the deadline, refresh entities."""
-        self.frame_online = True
-        self._expected_asleep = False
         self._consecutive_failures = 0
         if self.data is not None:
             self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
@@ -272,11 +270,21 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         @callback
         def _expired(_now: Any) -> None:
             self._unsub_expiry = None
-            self._async_notify_availability()
-            # Newer contact may have moved the deadline; keep watching it.
-            self._async_schedule_expiry()
+            self.config_entry.async_create_task(
+                self.hass, self._async_expire(), "fraimic-availability-expiry"
+            )
 
         self._unsub_expiry = async_call_later(self.hass, delay, _expired)
+
+    async def _async_expire(self) -> None:
+        # Cloud-delivered frames wake for album slots without any LAN poll;
+        # re-read the account's check-in before declaring them gone.
+        if (cloud_data := await self._async_cloud_snapshot()) is not None:
+            self.data = cloud_data
+            await self._async_save_cache()
+        self._async_notify_availability()
+        # Newer contact may have moved the deadline; keep watching it.
+        self._async_schedule_expiry()
 
     @callback
     def async_add_availability_listener(

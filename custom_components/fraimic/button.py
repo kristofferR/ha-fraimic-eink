@@ -101,8 +101,6 @@ class FraimicButton(FraimicEntity, ButtonEntity):
             await self.entity_description.press_fn(client)
         except FraimicApiError as err:
             # e.g. POST /api/sleep is blocked while a charging cable is connected.
-            # A rejection is still an answer from the frame.
-            self.coordinator.async_set_frame_online(True)
             raise HomeAssistantError(
                 f"Fraimic rejected the {self.entity_description.key} command: "
                 f"{err.error or err}"
@@ -111,10 +109,6 @@ class FraimicButton(FraimicEntity, ButtonEntity):
             raise HomeAssistantError(
                 f"Could not reach the frame to {self.entity_description.key}: {err}"
             ) from err
-        # The frame answered, which is confirmed contact for availability.
-        self.coordinator.async_set_frame_online(True)
-        if self.entity_description.key == "sleep":
-            self.coordinator.async_set_frame_online(False, expected_sleep=True)
 
 
 class FraimicDataRefreshButton(FraimicEntity, ButtonEntity):

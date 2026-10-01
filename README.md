@@ -419,8 +419,8 @@ An upstream outage does not erase the image already displayed on the frame.
 
 - **Frame asleep or entities unavailable:** deep sleep turns off the network.
   Entities keep their last values while it sleeps and go unavailable only after
-  three days without contact. **Wi-Fi connected** shows whether the frame answers
-  right now; **Last seen** shows when it last did. Wake the frame and use
+  three days without contact. **Last seen** shows when the frame last answered.
+  Wake the frame and use
   **Refresh frame data**. In Minimum mode, use **Try queued send** to deliver a
   pending local image.
 - **Cloud upload accepted but artwork unchanged:** wait for the scheduled wake.
