@@ -109,11 +109,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
             overlays = OverlayManager(hass)
             await overlays.async_setup()
             domain_data[DATA_OVERLAYS] = overlays
-        # One LAN sweep per Home Assistant instance, alive while any frame is
-        # loaded. Zero entries means the integration is not set up at all, so
-        # a first frame still comes from zeroconf/DHCP or manual setup.
-        if DATA_DISCOVERY_SWEEP not in domain_data:
-            domain_data[DATA_DISCOVERY_SWEEP] = async_start_sweep(hass)
         await playlists.async_migrate_entry(entry)
         # The scene entity platform was removed (the panel replaced it); drop
         # the leftover virtual "Fraimic Scenes" device from older installs.
@@ -180,6 +175,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     async_setup_services(hass)
+    # One LAN sweep per Home Assistant instance, alive while any frame is
+    # loaded. Zero entries means the integration is not set up at all, so a
+    # first frame still comes from zeroconf/DHCP or manual setup.
+    if DATA_DISCOVERY_SWEEP not in domain_data:
+        domain_data[DATA_DISCOVERY_SWEEP] = async_start_sweep(hass)
     # The scheduler pre-renders only upcoming playlist pictures. A full library
     # sweep here used to compete with dashboard requests after every reload.
     return True

@@ -61,7 +61,7 @@ def discovery(monkeypatch):
         "homeassistant.components.network": {"async_get_adapters": None},
         "homeassistant.config_entries": {
             "ConfigEntry": _GenericStub,
-            "SOURCE_IGNORE": "ignore",
+            "ConfigEntryState": SimpleNamespace(LOADED="loaded"),
             "SOURCE_INTEGRATION_DISCOVERY": "integration_discovery",
         },
         "homeassistant.const": {"CONF_HOST": "host"},
@@ -94,13 +94,12 @@ def discovery(monkeypatch):
     return load("discovery")
 
 
-def _entry(unique_id=None, host=None, *, source="user", options=None, disabled=None):
+def _entry(unique_id=None, host=None, *, state="loaded", options=None):
     return SimpleNamespace(
         unique_id=unique_id,
         data={"host": host} if host else {},
-        source=source,
+        state=state,
         options=options or {},
-        disabled_by=disabled,
     )
 
 
@@ -157,12 +156,15 @@ def test_sweep_feeds_only_unknown_frames_into_discovery(discovery, monkeypatch):
             # Pre-device_key entry still keyed by host.
             "192.168.1.12": (200, {"device_key": "legacy"}),
             "192.168.1.13": (200, {"device_key": "new-frame"}),
+            "192.168.1.14": (200, {"device_key": "by-hostname"}),
         }
     )
     entries = [
         _entry("configured", "192.168.1.40"),
-        _entry("ignored", source="ignore"),
+        _entry("ignored", state="not_loaded"),
         _entry("192.168.1.12", "192.168.1.12"),
+        # Legacy hostname entry; resolves to a scanned frame.
+        _entry("fraimic.local", "fraimic.local"),
     ]
     flows = []
 
@@ -175,6 +177,12 @@ def test_sweep_feeds_only_unknown_frames_into_discovery(discovery, monkeypatch):
         data={},
         config_entries=SimpleNamespace(async_entries=lambda _domain: entries),
     )
+
+    async def resolve(entries):
+        assert any(e.data.get("host") == "fraimic.local" for e in entries)
+        return {"192.168.1.14"}
+
+    monkeypatch.setattr(discovery, "_async_resolve_hosts", resolve)
     monkeypatch.setattr(discovery, "async_get_clientsession", lambda _hass: session)
     monkeypatch.setattr(discovery.network, "async_get_adapters", adapters)
     monkeypatch.setattr(
@@ -203,9 +211,9 @@ def test_sweep_feeds_only_unknown_frames_into_discovery(discovery, monkeypatch):
         ([], False),
         ([_entry("a"), _entry("b", options={"network_scan": True})], True),
         ([_entry("a"), _entry("b", options={"network_scan": False})], False),
-        # Ignored and disabled entries don't hold an opinion.
-        ([_entry("a"), _entry("b", source="ignore", options={"network_scan": False})], True),
-        ([_entry("a"), _entry("b", options={"network_scan": False}, disabled="user")], True),
+        # Ignored, disabled, and failed entries don't hold an opinion.
+        ([_entry("a"), _entry("b", state="not_loaded", options={"network_scan": False})], True),
+        ([_entry("a", state="setup_retry")], False),
     ],
 )
 def test_sweep_enabled_lets_any_frame_opt_out(discovery, entries, enabled):

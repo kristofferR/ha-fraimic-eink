@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import logging
+import socket
 import time
 from collections.abc import Iterable, Mapping
 from datetime import timedelta
@@ -20,9 +21,9 @@ from typing import Any
 import aiohttp
 from homeassistant.components import network
 from homeassistant.config_entries import (
-    SOURCE_IGNORE,
     SOURCE_INTEGRATION_DISCOVERY,
     ConfigEntry,
+    ConfigEntryState,
 )
 from homeassistant.const import CONF_HOST
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
@@ -38,6 +39,7 @@ _LOGGER = logging.getLogger(__name__)
 
 SCAN_CONCURRENCY = 32
 PROBE_TIMEOUT = 1.0  # per-host /api/info probe
+RESOLVE_TIMEOUT = 2.0  # per configured hostname
 SWEEP_INTERVAL = timedelta(minutes=20)
 # Entry reloads restart the sweep; don't rescan the LAN for each one.
 SWEEP_MIN_GAP = 300  # seconds
@@ -102,14 +104,19 @@ def local_subnets(adapters: Iterable[Mapping[str, Any]]) -> list[ipaddress.IPv4N
     return subnets
 
 
-def unconfigured_frames(found: ScanResult, entries: Iterable[ConfigEntry]) -> ScanResult:
+def unconfigured_frames(
+    found: ScanResult,
+    entries: Iterable[ConfigEntry],
+    resolved_hosts: Iterable[str] = (),
+) -> ScanResult:
     """Drop frames that already have an entry, including ignored/disabled ones.
 
     Hosts are matched too: pre-device_key entries keep a host-based unique_id
-    until their first successful poll backfills it.
+    until their first successful poll backfills it. ``resolved_hosts`` adds
+    the IPs that hostname-configured entries (fraimic.local) resolve to.
     """
     known_ids: set[str] = set()
-    known_hosts: set[str] = set()
+    known_hosts: set[str] = set(resolved_hosts)
     for entry in entries:
         if entry.unique_id:
             known_ids.add(entry.unique_id)
@@ -123,12 +130,8 @@ def unconfigured_frames(found: ScanResult, entries: Iterable[ConfigEntry]) -> Sc
 
 
 def sweep_enabled(entries: Iterable[ConfigEntry]) -> bool:
-    """The sweep is global; any frame opting out turns it off for all."""
-    active = [
-        entry
-        for entry in entries
-        if entry.source != SOURCE_IGNORE and entry.disabled_by is None
-    ]
+    """The sweep is global and needs a loaded frame; any one can opt out."""
+    active = [entry for entry in entries if entry.state is ConfigEntryState.LOADED]
     return bool(active) and all(
         entry.options.get(CONF_NETWORK_SCAN, DEFAULT_NETWORK_SCAN) for entry in active
     )
@@ -138,9 +141,14 @@ def sweep_enabled(entries: Iterable[ConfigEntry]) -> bool:
 def async_start_sweep(hass: HomeAssistant) -> CALLBACK_TYPE:
     """Sweep once Home Assistant has started, then every ``SWEEP_INTERVAL``."""
 
+    task: asyncio.Task[None] | None = None
+
     @callback
     def _run(_arg: Any = None) -> None:
-        hass.async_create_background_task(
+        nonlocal task
+        if task is not None and not task.done():
+            return
+        task = hass.async_create_background_task(
             _async_sweep(hass), "fraimic-discovery-sweep"
         )
 
@@ -153,6 +161,8 @@ def async_start_sweep(hass: HomeAssistant) -> CALLBACK_TYPE:
     def _stop() -> None:
         cancel_started()
         cancel_interval()
+        if task is not None:
+            task.cancel()
 
     return _stop
 
@@ -173,13 +183,43 @@ async def _async_sweep(hass: HomeAssistant) -> None:
     domain_data[DATA_LAST_SWEEP] = now
     for subnet in subnets:
         found = await async_scan_subnet(hass, subnet)
-        # Re-read entries: one may have been added while the scan ran.
-        new = unconfigured_frames(found, hass.config_entries.async_entries(DOMAIN))
+        # Re-read entries: one may have been added, unloaded, or opted out
+        # while the scan ran.
+        entries = hass.config_entries.async_entries(DOMAIN)
+        if not sweep_enabled(entries):
+            return
+        new = unconfigured_frames(found, entries, await _async_resolve_hosts(entries))
         for device_key, (ip, _info) in new.items():
-            _LOGGER.debug("Sweep found unconfigured frame %s at %s", device_key, ip)
+            # device_key doubles as the frame's cloud credential; never log it.
+            _LOGGER.debug("Sweep found an unconfigured frame at %s", ip)
             discovery_flow.async_create_flow(
                 hass,
                 DOMAIN,
                 context={"source": SOURCE_INTEGRATION_DISCOVERY},
                 data={CONF_HOST: ip, "device_key": device_key},
             )
+
+
+async def _async_resolve_hosts(entries: Iterable[ConfigEntry]) -> set[str]:
+    """IPv4 addresses of entries configured by hostname (best effort)."""
+    loop = asyncio.get_running_loop()
+    hostnames = set()
+    for entry in entries:
+        host = str(entry.data.get(CONF_HOST) or "")
+        try:
+            ipaddress.IPv4Address(host)
+        except ValueError:
+            if host:
+                hostnames.add(host)
+
+    async def resolve(host: str) -> set[str]:
+        try:
+            infos = await asyncio.wait_for(
+                loop.getaddrinfo(host, None, family=socket.AF_INET), RESOLVE_TIMEOUT
+            )
+        except (OSError, TimeoutError):
+            return set()
+        return {str(info[4][0]) for info in infos}
+
+    resolved = await asyncio.gather(*(resolve(host) for host in hostnames))
+    return set().union(*resolved)

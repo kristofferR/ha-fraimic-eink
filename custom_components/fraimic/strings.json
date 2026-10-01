@@ -45,6 +45,7 @@
     "abort": {
       "already_configured": "This frame is already set up.",
       "cannot_connect": "Could not reach the discovered frame.",
+      "discovery_changed": "A different frame now answers at this address. It will be offered again once found.",
       "not_same_device": "That address answers as a different frame than this entry. Add it as a new device instead.",
       "reconfigure_successful": "Frame address updated."
     }

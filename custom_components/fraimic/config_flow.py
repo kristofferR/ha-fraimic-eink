@@ -180,6 +180,8 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
         info = await _async_probe(self.hass, host)
         if info is None:
             return self.async_abort(reason="cannot_connect")
+        if info.get("device_key") != discovery_info.get("device_key"):
+            return self.async_abort(reason="discovery_changed")
 
         await self._async_set_unique_id(host, info, updates={CONF_HOST: host})
         self._host = host
@@ -192,6 +194,14 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """Ask before adding a swept frame; it may not be meant for this HA."""
         if user_input is not None:
+            # The address may have passed to another frame while the form was
+            # open. An unreachable frame is most likely asleep; keep the scan.
+            if self._host is not None and (
+                info := await _async_probe(self.hass, self._host)
+            ) is not None:
+                if info.get("device_key") != self.unique_id:
+                    return self.async_abort(reason="discovery_changed")
+                self._info = info
             return await self._async_resolution_or_create()
         self._set_confirm_only()
         return self.async_show_form(
