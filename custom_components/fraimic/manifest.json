@@ -11,7 +11,8 @@
   "dependencies": [
     "frontend",
     "http",
-    "media_source"
+    "media_source",
+    "network"
   ],
   "dhcp": [
     {

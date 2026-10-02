@@ -5,7 +5,7 @@ registers the sidebar panel, which needs the ``frontend`` component and its
 ``hass_frontend`` asset package; neither is relevant here, so ``frontend`` is
 marked loaded and panel registration is patched out. The background catalog
 warm-up is patched too: it calls museum APIs through aiodns, which
-pytest-socket cannot block.
+pytest-socket cannot block, and so is the new-frame LAN sweep.
 """
 
 from __future__ import annotations
@@ -99,6 +99,8 @@ async def setup_entry(hass: HomeAssistant, entry: MockConfigEntry) -> None:
     with (
         patch("custom_components.fraimic.async_register_panel"),
         patch("custom_components.fraimic._async_warm_catalogs"),
+        # The LAN sweep would probe the real network.
+        patch("custom_components.fraimic.async_start_sweep", return_value=lambda: None),
     ):
         assert await hass.config_entries.async_setup(entry.entry_id)
         await hass.async_block_till_done()

@@ -7,7 +7,12 @@ from ipaddress import ip_address
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from homeassistant.config_entries import SOURCE_DHCP, SOURCE_USER, SOURCE_ZEROCONF
+from homeassistant.config_entries import (
+    SOURCE_DHCP,
+    SOURCE_INTEGRATION_DISCOVERY,
+    SOURCE_USER,
+    SOURCE_ZEROCONF,
+)
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -160,6 +165,54 @@ async def test_zeroconf_discovery_aborts_when_frame_unreachable(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "cannot_connect"
+
+
+async def test_swept_frame_waits_for_confirmation(
+    hass: HomeAssistant, frame_client: dict[str, AsyncMock]
+) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_INTEGRATION_DISCOVERY},
+        data={CONF_HOST: HOST, "device_key": DEVICE_KEY},
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "discovery_confirm"
+
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_HOST] == HOST
+    assert result["result"].unique_id == DEVICE_KEY
+
+
+async def test_swept_frame_is_rechecked_on_confirmation(
+    hass: HomeAssistant, frame_client: dict[str, AsyncMock]
+) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_INTEGRATION_DISCOVERY},
+        data={CONF_HOST: HOST, "device_key": DEVICE_KEY},
+    )
+    # DHCP hands the address to another frame while the form is open.
+    frame_client["get_info"].return_value = {**FRAME_INFO, "device_key": "fk_other"}
+
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "discovery_changed"
+
+
+async def test_swept_frame_must_match_scanned_identity(
+    hass: HomeAssistant, frame_client: dict[str, AsyncMock]
+) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={"source": SOURCE_INTEGRATION_DISCOVERY},
+        data={CONF_HOST: HOST, "device_key": "fk_other"},
+    )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "discovery_changed"
 
 
 async def test_dhcp_discovery_updates_known_frame_host(

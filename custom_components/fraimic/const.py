@@ -21,6 +21,10 @@ CONF_AUTO_SLEEP: Final = "auto_sleep_after_upload"
 CONF_ARTWORK_CACHE: Final = "artwork_cache"
 CONF_ARTWORK_CACHE_MAX_MB: Final = "artwork_cache_max_mb"
 CONF_PLAYLIST_PREFETCH: Final = "playlist_prefetch_items"
+# Periodic LAN sweep for new frames (discovery.py). Global, so any frame
+# turning it off stops it for all.
+CONF_NETWORK_SCAN: Final = "network_scan"
+DEFAULT_NETWORK_SCAN: Final = True
 
 ARTWORK_CACHE_OFF: Final = "off"
 ARTWORK_CACHE_30_DAYS: Final = "30_days"

@@ -40,6 +40,7 @@ from .coordinator import (
     FraimicDataUpdateCoordinator,
     FraimicRuntimeData,
 )
+from .discovery import DATA_DISCOVERY_SWEEP, async_start_sweep
 from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
@@ -181,6 +182,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 
     async_setup_services(hass)
+    # One LAN sweep per Home Assistant instance, alive while any frame is
+    # loaded. Zero entries means the integration is not set up at all, so a
+    # first frame still comes from zeroconf/DHCP or manual setup.
+    if DATA_DISCOVERY_SWEEP not in domain_data:
+        domain_data[DATA_DISCOVERY_SWEEP] = async_start_sweep(hass)
     # The scheduler pre-renders only upcoming playlist pictures. A full library
     # sweep here used to compete with dashboard requests after every reload.
     return True
@@ -193,6 +199,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
         # Last frame gone: stop the library's background worker. The HTTP views
         # stay registered (aiohttp routes can't be removed) and answer 503.
         domain_data = hass.data.get(DOMAIN, {})
+        if (stop_sweep := domain_data.pop(DATA_DISCOVERY_SWEEP, None)) is not None:
+            stop_sweep()
         scheduled = domain_data.pop(DATA_SCHEDULED_EVENTS, None)
         if scheduled is not None:
             scheduled.shutdown()

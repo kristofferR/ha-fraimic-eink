@@ -10,11 +10,9 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 
-import aiohttp
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -39,7 +37,6 @@ _LOGGER = logging.getLogger(__name__)
 REDISCOVERY_FAIL_THRESHOLD = 3
 REDISCOVERY_MIN_INTERVAL = 3600  # seconds between subnet scans
 REDISCOVERY_PROBE_TIMEOUT = 2.0  # per-host /api/info probe
-REDISCOVERY_CONCURRENCY = 32
 # Minimum power mode never polls by itself. Someone looking at the dashboard
 # gets at most one liveness probe per this many seconds instead.
 DASHBOARD_PROBE_MAX_AGE = 300
@@ -533,28 +530,14 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_rediscover(self, last_ip: str, device_key: str) -> None:
         """Scan the /24 around the last known IP for this frame's device_key."""
-        network = ipaddress.ip_network(f"{last_ip}/24", strict=False)
-        session = async_get_clientsession(self.hass)
-        semaphore = asyncio.Semaphore(REDISCOVERY_CONCURRENCY)
+        # Lazy: discovery imports normalize_info from this module.
+        from .discovery import async_scan_subnet
 
-        async def probe(ip: str) -> str | None:
-            async with semaphore:
-                try:
-                    async with session.get(
-                        f"http://{ip}/api/info",
-                        timeout=aiohttp.ClientTimeout(total=REDISCOVERY_PROBE_TIMEOUT),
-                    ) as resp:
-                        if resp.status != 200:
-                            return None
-                        raw = await resp.json(content_type=None)
-                except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
-                    return None
-            if not isinstance(raw, dict):
-                return None
-            return ip if normalize_info(raw).get("device_key") == device_key else None
-
-        results = await asyncio.gather(*(probe(str(ip)) for ip in network.hosts()))
-        found = next((ip for ip in results if ip), None)
+        subnet = ipaddress.IPv4Network(f"{last_ip}/24", strict=False)
+        scan = await async_scan_subnet(
+            self.hass, subnet, timeout=REDISCOVERY_PROBE_TIMEOUT
+        )
+        found = scan[device_key][0] if device_key in scan else None
         if found is None or found == self.client.host:
             return
         _LOGGER.warning(
