@@ -2,25 +2,40 @@
 
 from __future__ import annotations
 
+import time
+from datetime import timedelta
+from typing import Any
 from unittest.mock import AsyncMock, Mock, patch
 
 import aiohttp
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from freezegun.api import FrozenDateTimeFactory
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
+)
 
-from custom_components.fraimic.api import FraimicApiError, FraimicConnectionError
+from custom_components.fraimic.api import (
+    FraimicApiError,
+    FraimicClient,
+    FraimicConnectionError,
+)
 from custom_components.fraimic.const import (
     CONF_HEIGHT,
     CONF_POWER_MODE,
     CONF_WIDTH,
     DOMAIN,
+    POWER_MODE_MINIMUM,
     POWER_MODE_RESPONSIVE,
 )
 from custom_components.fraimic.coordinator import (
     REDISCOVERY_FAIL_THRESHOLD,
+    UNAVAILABLE_AFTER,
+    normalize_info,
     FraimicDataUpdateCoordinator,
 )
 
@@ -53,6 +68,88 @@ async def test_setup_polls_and_exposes_frame_state(
     state = hass.states.get(entity_id)
     assert state is not None
     assert state.state == "81"
+
+
+async def test_sleeping_frame_keeps_last_known_state(
+    hass: HomeAssistant,
+    loaded_entry: MockConfigEntry,
+    frame_client: dict[str, AsyncMock],
+) -> None:
+    registry = er.async_get(hass)
+
+    def state(domain: str, key: str) -> str:
+        entity_id = registry.async_get_entity_id(
+            domain, DOMAIN, f"{loaded_entry.entry_id}_{key}"
+        )
+        assert entity_id is not None
+        current = hass.states.get(entity_id)
+        assert current is not None
+        return current.state
+
+    frame_client["get_info"].side_effect = FraimicConnectionError("asleep")
+    await _coordinator(loaded_entry).async_refresh()
+    await hass.async_block_till_done()
+
+    assert state("sensor", "battery_percent") == "81"
+    assert state("binary_sensor", "charging") == "off"
+    assert state("sensor", "last_seen") not in ("unknown", "unavailable")
+
+
+async def test_unpolled_frame_goes_unavailable_when_grace_expires(
+    hass: HomeAssistant,
+    hass_storage: dict[str, Any],
+    frame_client: dict[str, AsyncMock],
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """Minimum power mode never polls; the expiry itself must update entities."""
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=3,
+        unique_id=DEVICE_KEY,
+        data={CONF_HOST: HOST, CONF_WIDTH: 1600, CONF_HEIGHT: 1200},
+        options={CONF_POWER_MODE: POWER_MODE_MINIMUM},
+    )
+    hass_storage[f"{DOMAIN}_coordinator_{config_entry.entry_id}"] = {
+        "version": 1,
+        "key": f"{DOMAIN}_coordinator_{config_entry.entry_id}",
+        "data": {
+            "data": normalize_info(FRAME_INFO),
+            "last_seen": time.time() - UNAVAILABLE_AFTER + 3600,
+        },
+    }
+    await setup_entry(hass, config_entry)
+    frame_client["get_info"].assert_not_awaited()
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "sensor", DOMAIN, f"{config_entry.entry_id}_battery_percent"
+    )
+    assert entity_id is not None
+
+    def state() -> str | None:
+        current = hass.states.get(entity_id)
+        return current.state if current is not None else None
+
+    assert state() == "81"
+    # Data listeners (scheduler, send queue) must not mistake expiry for data.
+    data_listener = Mock()
+    config_entry.runtime_data.coordinator.async_add_listener(data_listener)
+
+    freezer.tick(timedelta(hours=2))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert state() == "unavailable"
+    data_listener.assert_not_called()
+
+
+    # Any later frame response (any request path) restores availability.
+    client = config_entry.runtime_data.coordinator.client
+    client.last_response = time.time()
+    assert client.on_response is not None
+    client.on_response()
+    await hass.async_block_till_done()
+
+    assert state() == "81"
+    data_listener.assert_not_called()
 
 
 async def test_nested_payload_is_normalized(
@@ -172,3 +269,32 @@ async def test_first_poll_backfills_device_key_unique_id(
     await setup_entry(hass, entry)
 
     assert entry.unique_id == DEVICE_KEY
+
+
+async def test_error_response_still_counts_as_contact() -> None:
+    """A 503 proves the frame is awake; a refused connection does not."""
+
+    class Busy:
+        status = 503
+
+        async def __aenter__(self) -> Busy:
+            return self
+
+        async def __aexit__(self, *_exc: object) -> None:
+            return None
+
+        async def json(self, **_kwargs: object) -> dict[str, str]:
+            return {"error": "busy"}
+
+    session = Mock(request=AsyncMock(return_value=Busy()))
+    client = FraimicClient(HOST, session)
+
+    with pytest.raises(FraimicApiError):
+        await client.get_info()
+    assert client.last_response is not None
+
+    session.request.side_effect = aiohttp.ClientConnectionError("refused")
+    seen = client.last_response
+    with pytest.raises(FraimicConnectionError):
+        await client.get_info()
+    assert client.last_response == seen

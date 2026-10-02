@@ -6,12 +6,14 @@ import asyncio
 import ipaddress
 import logging
 import time
-from datetime import timedelta
+from collections.abc import Callable
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -40,8 +42,16 @@ REDISCOVERY_PROBE_TIMEOUT = 2.0  # per-host /api/info probe
 DASHBOARD_PROBE_MAX_AGE = 300
 # Reuse the account's device record this long between failed LAN polls.
 CLOUD_SNAPSHOT_TTL = 300
+# Entities keep their last-known values while the frame sleeps and only go
+# unavailable after this long without any confirmed contact.
+UNAVAILABLE_AFTER = 72 * 3600
 
 CACHE_VERSION = 1
+# Contact seen outside a poll (uploads, commands) is batched into one cache
+# write; Store flushes pending delayed saves when Home Assistant stops.
+CONTACT_SAVE_DELAY = 60
+# How often a non-polling cloud frame past its window re-asks the account.
+CLOUD_CHECK_IN_RETRY = 1800
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -146,6 +156,9 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._cloud_snapshot: tuple[float, dict[str, Any]] | None = None
         self._last_rediscovery: float | None = None
         self._rediscovery_task: asyncio.Task | None = None
+        self._unsub_expiry: Callable[[], None] | None = None
+        self._availability_listeners: set[Callable[[], None]] = set()
+        client.on_response = self._async_contact_seen
 
     async def async_restore(self) -> None:
         """Restore the last snapshot without contacting a sleeping frame."""
@@ -170,17 +183,34 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if isinstance(last_seen, (int, float)):
             self._last_seen = float(last_seen)
         self._expected_asleep = cached.get("expected_asleep") is True
+        self._async_schedule_expiry()
+
+    def _cache_payload(self) -> dict[str, Any]:
+        return {
+            "data": self.data,
+            "info_page": self.info_page,
+            "albums": self.albums,
+            "last_seen": self.last_seen,
+            "expected_asleep": self._expected_asleep,
+        }
 
     async def _async_save_cache(self) -> None:
-        await self._store.async_save(
-            {
-                "data": self.data,
-                "info_page": self.info_page,
-                "albums": self.albums,
-                "last_seen": self._last_seen,
-                "expected_asleep": self._expected_asleep,
-            }
-        )
+        await self._store.async_save(self._cache_payload())
+
+    @callback
+    def _async_contact_seen(self) -> None:
+        """Any frame response: persist it, move the deadline, refresh entities."""
+        self._consecutive_failures = 0
+        self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
+        self._async_schedule_expiry()
+        self._async_notify_availability()
+
+    @callback
+    def _async_notify_availability(self) -> None:
+        # Entities only: data listeners (scheduler, send queue) would read
+        # this as fresh frame data and retry sends.
+        for listener in list(self._availability_listeners):
+            listener()
 
     @property
     def consecutive_failures(self) -> int:
@@ -190,7 +220,105 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @property
     def last_seen(self) -> float | None:
         """Epoch timestamp of the latest confirmed frame response."""
-        return self._last_seen
+        seen = [t for t in (self._last_seen, self.client.last_response) if t is not None]
+        return max(seen) if seen else None
+
+    @property
+    def device_reachable(self) -> bool:
+        """Entity-availability verdict that rides out normal deep sleep.
+
+        Only confirmed contact counts: a LAN response, or the account's own
+        check-in time for cloud-delivered frames. A restored cache or cloud
+        snapshot alone never extends the window. Only availability is
+        affected; failed polls still raise UpdateFailed and count towards
+        rediscovery.
+        """
+        if self.data is None:
+            return False
+        expires = self._reachable_until()
+        return expires is not None and time.time() < expires
+
+    def _reachable_until(self) -> float | None:
+        contacts = [
+            seen
+            for seen in (self.last_seen, _cloud_last_seen(self.data or {}))
+            if seen is not None
+        ]
+        return max(contacts) + UNAVAILABLE_AFTER if contacts else None
+
+    @callback
+    def async_update_listeners(self) -> None:
+        super().async_update_listeners()
+        self._async_schedule_expiry()
+
+    @callback
+    def _async_schedule_expiry(self) -> None:
+        """Rewrite entity states when the grace window lapses.
+
+        Availability is time-based, but Home Assistant only re-reads it when
+        listeners fire; a frame nobody polls would otherwise stay available.
+        """
+        if self._unsub_expiry is not None:
+            self._unsub_expiry()
+            self._unsub_expiry = None
+        expires = self._reachable_until()
+        if expires is not None and (delay := expires - time.time()) > 0:
+            self._unsub_expiry = async_call_later(self.hass, delay, self._async_expired)
+        elif self._needs_cloud_check_in():
+            # The account check-in is the only evidence left; keep asking.
+            self._unsub_expiry = async_call_later(
+                self.hass, CLOUD_CHECK_IN_RETRY, self._async_expired
+            )
+
+    @callback
+    def _async_expired(self, _now: Any) -> None:
+        self._unsub_expiry = None
+        self.config_entry.async_create_task(
+            self.hass, self.async_refresh_availability(), "fraimic-availability-expiry"
+        )
+
+    def _needs_cloud_check_in(self) -> bool:
+        """Cloud frame that no poll will ever revisit (Minimum power mode)."""
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        return getattr(runtime, "cloud", None) is not None and self.update_interval is None
+
+    async def async_refresh_availability(self) -> None:
+        """Re-evaluate availability, re-reading the cloud check-in if needed.
+
+        Cloud-delivered frames wake for album slots without any LAN poll, so
+        in non-polling modes the account's check-in is the only evidence they
+        are still alive. Polling modes already fall back to it on failed polls.
+        """
+        if self._needs_cloud_check_in():
+            before = self.data
+            self._cloud_snapshot = None  # judge expiry on a fresh account read
+            cloud_data = await self._async_cloud_snapshot()
+            # A LAN poll that stored data meanwhile is fresher; keep it.
+            if cloud_data is not None and self.data is before:
+                self.data = cloud_data
+                await self._async_save_cache()
+        self._async_notify_availability()
+        # Newer contact may have moved the deadline; keep watching it.
+        self._async_schedule_expiry()
+
+    @callback
+    def async_add_availability_listener(
+        self, listener: Callable[[], None]
+    ) -> Callable[[], None]:
+        """Call ``listener`` when the grace window lapses without new data."""
+        self._availability_listeners.add(listener)
+        return lambda: self._availability_listeners.discard(listener)
+
+    async def async_shutdown(self) -> None:
+        await super().async_shutdown()
+        # A reload builds a new coordinator on the same cache key; late
+        # responses must not reach this one. async_save also cancels any
+        # pending delayed save.
+        self.client.on_response = None
+        if self._unsub_expiry is not None:
+            self._unsub_expiry()
+            self._unsub_expiry = None
+        await self._async_save_cache()
 
     @property
     def expected_asleep(self) -> bool:
@@ -201,10 +329,13 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def async_set_frame_online(
         self, online: bool, *, expected_sleep: bool = False
     ) -> None:
-        """Record liveness observed outside the normal coordinator poll."""
+        """Record liveness observed outside the normal coordinator poll.
+
+        Contact time is not set here: the client records every real frame
+        response, while some callers report success without a LAN request.
+        """
         if online:
             self._consecutive_failures = 0
-            self._last_seen = time.time()
             self._expected_asleep = False
         elif expected_sleep:
             self._expected_asleep = True
@@ -240,6 +371,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.async_set_updated_data(cloud_data)
                 await self._async_save_cache()
             return
+        # The frame answered: confirmed contact even if the full poll fails.
+        self.async_set_frame_online(True)
         await self.async_request_refresh()
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -247,8 +380,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:
-            # The frame is unreachable — most likely in deep sleep. Surface this
-            # as a (non-noisy) UpdateFailed so entities go unavailable cleanly.
+            # The frame is unreachable, most likely in deep sleep. Raise a
+            # (non-noisy) UpdateFailed; entities ride it out via device_reachable.
             self._consecutive_failures += 1
             self.frame_online = False
             cloud_data = await self._async_cloud_snapshot()
@@ -262,6 +395,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(str(err)) from err
         except FraimicError as err:
             self.frame_online = False
+            # An error response is still contact; keep it across restarts.
+            await self._async_save_cache()
             raise UpdateFailed(str(err)) from err
         self._consecutive_failures = 0
         self.frame_online = True
@@ -417,6 +552,18 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.config_entry,
             data={**self.config_entry.data, CONF_HOST: found},
         )
+
+
+def _cloud_last_seen(data: dict[str, Any]) -> float | None:
+    """Epoch of the frame's last cloud check-in, from a cloud snapshot."""
+    device = data.get("device")
+    value = device.get("cloud_last_seen") if isinstance(device, dict) else None
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value).timestamp()
+    except ValueError:
+        return None
 
 
 def normalize_info(info: dict[str, Any]) -> dict[str, Any]:

@@ -72,7 +72,10 @@ def discovery(monkeypatch):
         },
         "homeassistant.helpers.discovery_flow": {"async_create_flow": None},
         "homeassistant.helpers.aiohttp_client": {"async_get_clientsession": None},
-        "homeassistant.helpers.event": {"async_track_time_interval": None},
+        "homeassistant.helpers.event": {
+            "async_call_later": None,
+            "async_track_time_interval": None,
+        },
         "homeassistant.helpers.start": {"async_at_started": None},
         "homeassistant.helpers.storage": {"Store": _GenericStub},
         "homeassistant.helpers.update_coordinator": {

@@ -78,7 +78,8 @@ Hardware quirks the code accounts for:
   which is why older firmware stays on `/upload`).
 - `upload_image(recover=True)` restarts + retries once on connection-level
   failure (firmware upload-handler wedge).
-- Frame is battery-powered; deep sleep = unreachable → entities go unavailable.
+- Frame is battery-powered; deep sleep = unreachable (polls fail; entities keep
+  last-known values, see availability below).
 - `display.last_refresh` tracks only the *scheduled* cycle, not uploads.
 - Resolution is stored per config entry (`CONF_WIDTH/HEIGHT` in `entry.data`).
 
@@ -231,6 +232,12 @@ once fixed.
   work must run in an executor (it's CPU-bound and blocks the event loop otherwise).
 - `normalize_info()` tolerates both flat and nested `/api/info` schemas — read
   frame data through it, never raw.
-- Entity availability: frame sleep → `UpdateFailed` → clean unavailable
-  (don't spam errors).
+- Entity availability: frame sleep → quiet `UpdateFailed` (failure counters,
+  send queue and rediscovery still see it), but `FraimicEntity.available` uses
+  `coordinator.device_reachable`, which stays True until `UNAVAILABLE_AFTER`
+  (72 h) without confirmed contact (LAN response or cloud check-in; a restored
+  cache does not count). Reachability reporters (`last_seen`,
+  `send_status`) set `_fraimic_always_available`; any frame HTTP response
+  (client `on_response`) counts as contact;
+  Refresh/Sleep/Restart buttons still require the last poll to succeed.
 - Preview PNGs are rotated by `-base_rotation` so the dashboard matches the wall.

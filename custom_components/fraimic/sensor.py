@@ -49,7 +49,6 @@ class FraimicSensorDescription(SensorEntityDescription):
     """Describes a Fraimic sensor and how to read it from ``/api/info``."""
 
     value_fn: Callable[[dict[str, Any]], Any]
-    retain_when_offline: bool = False
 
 
 def _g(data: dict[str, Any], *path: str) -> Any:
@@ -69,7 +68,6 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda d: _g(d, "battery", "percent"),
-        retain_when_offline=True,
     ),
     FraimicSensorDescription(
         key="battery_voltage",
@@ -80,7 +78,6 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda d: _g(d, "battery", "voltage_mv"),
-        retain_when_offline=True,
     ),
     FraimicSensorDescription(
         key="battery_source",
@@ -90,7 +87,6 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
         value_fn=lambda d: _g(d, "battery", "source"),
-        retain_when_offline=True,
     ),
     FraimicSensorDescription(
         key="wifi_rssi",
@@ -210,7 +206,11 @@ async def async_setup_entry(
     )
     async_add_entities(entities)
     async_add_entities(
-        [FraimicSendStatusSensor(coordinator), FraimicAlbumsSensor(coordinator)]
+        [
+            FraimicSendStatusSensor(coordinator),
+            FraimicLastSeenSensor(coordinator),
+            FraimicAlbumsSensor(coordinator),
+        ]
     )
 
 
@@ -231,19 +231,6 @@ class FraimicSensor(FraimicEntity, SensorEntity):
             return None
         return self.entity_description.value_fn(data)
 
-    @property
-    def available(self) -> bool:
-        return super().available or (
-            self.entity_description.retain_when_offline
-            and self.native_value is not None
-        )
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
-        if not self.entity_description.retain_when_offline:
-            return None
-        return {"online": self.coordinator.frame_online}
-
 
 class FraimicInfoPageSensor(FraimicSensor):
     """A sensor fed by the scraped /info HTML page instead of the poll data."""
@@ -262,6 +249,7 @@ class FraimicSendStatusSensor(FraimicEntity, SensorEntity):
     """
 
     _attr_translation_key = "send_status"
+    _fraimic_always_available = True
 
     def __init__(self, coordinator) -> None:
         super().__init__(coordinator)
@@ -280,10 +268,6 @@ class FraimicSendStatusSensor(FraimicEntity, SensorEntity):
     @callback
     def _on_status(self, status: str) -> None:
         self.async_write_ha_state()
-
-    @property
-    def available(self) -> bool:
-        return True
 
     @property
     def _queue(self):
@@ -307,6 +291,24 @@ class FraimicSendStatusSensor(FraimicEntity, SensorEntity):
                 pending["queued_at"]
             ).isoformat(),
         }
+
+
+class FraimicLastSeenSensor(FraimicEntity, SensorEntity):
+    """When the frame last answered Home Assistant directly."""
+
+    _attr_translation_key = "last_seen"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _fraimic_always_available = True
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_last_seen"
+
+    @property
+    def native_value(self) -> datetime | None:
+        last_seen = self.coordinator.last_seen
+        return dt_util.utc_from_timestamp(last_seen) if last_seen is not None else None
 
 
 # Whitelisted per-album attribute fields. Everything else is dropped — the

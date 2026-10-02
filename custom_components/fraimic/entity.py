@@ -15,6 +15,9 @@ class FraimicEntity(CoordinatorEntity[FraimicDataUpdateCoordinator]):
     """Common base wiring all entities to the single frame device."""
 
     _attr_has_entity_name = True
+    # Set on entities whose job is to report reachability; they must not go
+    # unavailable exactly when they have something to say.
+    _fraimic_always_available = False
 
     def __init__(self, coordinator: FraimicDataUpdateCoordinator) -> None:
         super().__init__(coordinator)
@@ -36,6 +39,16 @@ class FraimicEntity(CoordinatorEntity[FraimicDataUpdateCoordinator]):
             sw_version=self._info_get("firmware_version"),
             configuration_url=f"http://{coordinator.client.host}/info",
         )
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            self.coordinator.async_add_availability_listener(self.async_write_ha_state)
+        )
+
+    @property
+    def available(self) -> bool:
+        return self._fraimic_always_available or self.coordinator.device_reachable
 
     def _info_get(self, *path: str) -> Any:
         """Safely walk the nested ``/api/info`` payload."""

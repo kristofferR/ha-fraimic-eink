@@ -90,6 +90,11 @@ class FraimicButton(FraimicEntity, ButtonEntity):
         self.entity_description = description
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{description.key}"
 
+    @property
+    def available(self) -> bool:
+        # Commands go straight to the frame, so skip the sleep grace window.
+        return self.coordinator.last_update_success
+
     async def async_press(self) -> None:
         client = self.coordinator.client
         try:
