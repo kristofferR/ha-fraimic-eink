@@ -151,8 +151,7 @@ using the permanent settings already applied to that picture.
 
 ### Temporary overlays and morning briefings
 
-These actions are available on `main` but are not included in release 2.2.0.
-Until a release includes them, use a manual installation from `main`.
+These actions are available from release 2.3.0.
 
 [Temporary overlays](docs/temporary-overlays.md) add information to the current
 artwork for a fixed window, preserving its crop, rotation, and processed pixels.
@@ -177,7 +176,7 @@ data:
     - id: morning
       type: briefing
       options:
-        entity: sensor.fraimic_morning_content
+        entity: sensor.morning_briefing
         attribute: brief
 ```
 

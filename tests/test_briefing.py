@@ -20,7 +20,7 @@ def snapshot():
         "generated_at": NOW.isoformat(),
         "valid_until": (NOW + timedelta(seconds=120)).isoformat(),
         "locale": "nb",
-        "greeting": "God morgen, Kris",
+        "greeting": "God morgen",
         "date_label": "Lørdag 19. september",
         "agenda": [
             {"title": "Styrketrening", "all_day": True},
