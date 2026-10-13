@@ -967,11 +967,28 @@ def test_engine_wraps_body_read_failures() -> None:
         _run(engine.async_download(session, "https://x/broken.png", {}))
 
 
+def test_met_search_uses_the_first_v11_page() -> None:
+    url = met._search_url("*")
+    assert url.startswith(f"{met.SEARCH_URL}?")
+    assert "/collection/v1.1/search" in url
+    assert "/collection/v1/search" not in url
+    assert "hasImages=true" in url
+    assert "isHighlight=true" in url
+    assert "q=%2A" in url
+    assert "offset=0" in url
+    assert f"limit={met.PAGE_LIMIT}" in url
+    assert met.PAGE_LIMIT <= 500
+    queried = met._search_url("sunflowers", offset=500, limit=100)
+    assert "q=sunflowers" in queried
+    assert "offset=500" in queried
+    assert "limit=100" in queried
+
+
 def test_met_provider_retries_past_imageless_objects() -> None:
     session = FakeSession()
     search = _fixture("met_search.json")
     session.add(
-        "https://collectionapi.metmuseum.org/public/collection/v1/search",
+        met.SEARCH_URL,
         FakeResponse(payload={"total": 2, "objectIDs": [1, 436535]}),
     )
     session.add(
@@ -987,6 +1004,7 @@ def test_met_provider_retries_past_imageless_objects() -> None:
     candidates = _run(
         provider.async_candidates(session, cache_mod.ProviderCache(), REQUEST, 2)
     )
+    assert session.requests[0] == met._search_url("*")
     assert [c.title for c in candidates] == ["Wheat Field with Cypresses"]
     assert search["total"] > 0  # fixture sanity
 
