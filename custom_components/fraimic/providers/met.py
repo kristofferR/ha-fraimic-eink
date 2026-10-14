@@ -3,6 +3,11 @@
 Highlights pool (isHighlight + hasImages) is cached 24 h; random object ids
 are then fetched individually (many objects lack a usable primaryImage, so
 the engine's retry budget matters here).
+
+Search uses ``/public/collection/v1.1/search``. ``/v1/search`` was retired on
+2026-10-01 and now returns HTTP 410. v1.1 keeps the same filters and returns
+one page (``offset``/``limit``; default 100, maximum 500). The first page is
+the pool random picks are drawn from.
 """
 
 from __future__ import annotations
@@ -14,10 +19,21 @@ from urllib.parse import quote_plus
 from .base import ArtCandidate, ArtFetchError, ArtProvider, FetchRequest, api_headers
 from .engine import async_fetch_json
 
-SEARCH_URL = "https://collectionapi.metmuseum.org/public/collection/v1/search"
+SEARCH_URL = "https://collectionapi.metmuseum.org/public/collection/v1.1/search"
 OBJECT_URL = "https://collectionapi.metmuseum.org/public/collection/v1/objects/{id}"
+# Largest page v1.1 will return. One page replaces the retired v1 response,
+# which listed every matching id.
+PAGE_LIMIT = 500
 POOL_TTL = 24 * 3600
 API_TIMEOUT = 20.0
+
+
+def _search_url(term: str, *, offset: int = 0, limit: int = PAGE_LIMIT) -> str:
+    """One page of highlight object ids that have images."""
+    return (
+        f"{SEARCH_URL}?hasImages=true&isHighlight=true"
+        f"&q={quote_plus(term)}&offset={offset}&limit={limit}"
+    )
 
 
 def parse_met_object(payload: dict[str, Any]) -> ArtCandidate | None:
@@ -60,13 +76,12 @@ class MetProvider(ArtProvider):
                 cache,
                 key=self.key,
                 min_interval=self.min_interval,
-                url=(
-                    f"{SEARCH_URL}?hasImages=true&isHighlight=true&q={quote_plus(term)}"
-                ),
+                url=_search_url(term),
                 error_label="Met search",
                 headers=api_headers(),
                 timeout=API_TIMEOUT,
             )
+            # v1.1 returns the requested page only; ``total`` is the full count.
             pool = payload.get("objectIDs") or []
             if not pool and not query:
                 raise ArtFetchError("Met search returned no objects")
