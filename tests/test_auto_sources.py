@@ -266,6 +266,46 @@ def test_strict_folder_skips_unusable_candidates_with_bounded_fetches(
     assert fetch.await_count == resolver.RANDOM_ATTEMPTS
 
 
+@pytest.mark.parametrize("failure", ["fetch", "decode", "misfit"])
+def test_strict_folder_continues_after_unknown_size_candidates_fail(
+    resolver, monkeypatch, failure
+):
+    auto = load("auto_mode")
+    base = load("providers.base")
+    pages = {
+        "art": base.BrowsePage(
+            title="Art",
+            candidates=tuple(_candidate(str(i)) for i in range(resolver.RANDOM_ATTEMPTS)),
+            folders=(base.BrowseFolder("art/page/2", "Page 2"),),
+        ),
+        "art/page/2": base.BrowsePage(title="Page 2", candidates=(_candidate("wide"),)),
+    }
+    browse = AsyncMock(side_effect=lambda _h, _e, _p, browse_id: pages[browse_id])
+    monkeypatch.setattr(resolver, "async_browse_provider", browse)
+
+    async def fetch(_h, _e, _p, item_id):
+        if item_id != "wide" and failure == "fetch":
+            raise resolver.HomeAssistantError("unreachable")
+        data = io.BytesIO()
+        Image.new("RGB", (1600, 1200) if item_id == "wide" else (600, 3000)).save(
+            data, format="PNG"
+        )
+        return SimpleNamespace(
+            data=b"invalid" if item_id != "wide" and failure == "decode" else data.getvalue()
+        )
+
+    fetch_art = AsyncMock(side_effect=fetch)
+    monkeypatch.setattr(resolver, "async_art_by_media_id", fetch_art)
+    slide = _resolve(
+        resolver, {"kind": "gallery", "source": "reframed", "browse_id": "art"},
+        settings=auto.AutoSettings().updated({"orientation": "strict"}),
+    )
+    assert slide.source["provider_item"] == "wide"
+    assert browse.await_count == 2
+    assert fetch_art.await_count == resolver.RANDOM_ATTEMPTS + 1
+    assert len({call.args[3] for call in fetch_art.await_args_list}) == fetch_art.await_count
+
+
 def test_strict_library_rejects_unknown_dimensions(resolver, monkeypatch):
     auto = load("auto_mode")
     model = load("library_model")

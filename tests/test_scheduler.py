@@ -599,6 +599,39 @@ def test_legacy_auto_failure_with_shared_labels_preserves_other_sources(playback
     assert p.scheduler._auto_topup_due()
 
 
+@pytest.mark.parametrize("source", [{"url": "https://example.test/art.jpg"}, {"entity": "image.art"}])
+def test_failed_auto_playlist_source_backs_off_before_refill(playback, source):
+    p = playback
+    run(p.scheduler.async_set_auto({"sources": [{"kind": "playlist", "playlist_id": "art"}]}))
+
+    async def pick(_source):
+        if p.scheduler.queue.auto_upcoming:
+            raise p.module.AutoSourceQueued
+        return replace(_screen("art"), source=source)
+
+    resolve = AsyncMock(side_effect=pick)
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    failed = p.scheduler.queue.auto_upcoming[0]
+    p.show.side_effect = p.module.HomeAssistantError("source unavailable")
+    assert not run(p.scheduler._async_show(failed.screen))
+    assert p.scheduler.queue.get(failed.screen.screen_id) is None
+    assert p.scheduler._auto_backoff == {
+        failed.auto_source_key: p.now[0] + p.module.AUTO_BACKOFF
+    }
+    resolve.reset_mock()
+    for _ in range(14):
+        p.now[0] += timedelta(minutes=1)
+        run(p.scheduler._async_top_up_auto())
+        run(p.scheduler._async_tick())
+    resolve.assert_not_awaited()
+    p.now[0] += timedelta(minutes=1)
+    assert p.scheduler._auto_topup_due()
+    run(p.scheduler._async_top_up_auto())
+    resolve.assert_awaited()
+
+
 def test_permanently_invalid_item_does_not_block_following_item(playback):
     p = playback
     a, b = add(p, "a", "b")

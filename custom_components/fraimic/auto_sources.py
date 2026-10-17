@@ -193,8 +193,11 @@ class _Picker:
         unavailable = (
             self.history.recent(self.settings.avoid_repeats_days, self.now) | self.exclude
         )
+        rejected: set[str] = set()
         while True:
-            candidates = pool
+            candidates = [
+                c for c in pool if f"provider:{c.provider}:{c.item_id}" not in rejected
+            ]
             if query:
                 needle = query.casefold()
                 candidates = [
@@ -212,34 +215,37 @@ class _Picker:
                 f"provider:{c.provider}:{c.item_id}" not in unavailable
                 for c in candidates
             ):
-                break
+                by_key = {f"provider:{c.provider}:{c.item_id}": c for c in candidates}
+                for _attempt in range(RANDOM_ATTEMPTS):
+                    key = self._choose(list(by_key))
+                    if key is None:
+                        break
+                    candidate = by_key.pop(key)
+                    if self.settings.strict_orientation and self._fits(
+                        candidate.width, candidate.height
+                    ) is None:
+                        rejected.add(key)
+                        try:
+                            art = await async_art_by_media_id(
+                                self.hass, self.entry, candidate.provider, candidate.item_id
+                            )
+                            width, height = await self.hass.async_add_executor_job(
+                                _decode_dims, art.data
+                            )
+                        except (HomeAssistantError, OSError, ValueError):
+                            continue
+                        if not self._fits(width, height):
+                            continue
+                    return await self._candidate_slide(candidate)
+                if not folders:
+                    return None
+                # Unknown-size art can fail only after download. Try later
+                # pages too, without retrying the rejected pictures.
             folder = folders.pop(0)
             page = await async_browse_provider(
                 self.hass, self.entry, provider_key, folder.item_id
             )
             pool.extend(page.candidates)
-        by_key = {f"provider:{c.provider}:{c.item_id}": c for c in candidates}
-        for _attempt in range(RANDOM_ATTEMPTS):
-            key = self._choose(list(by_key))
-            if key is None:
-                return None
-            candidate = by_key.pop(key)
-            if self.settings.strict_orientation and self._fits(
-                candidate.width, candidate.height
-            ) is None:
-                try:
-                    art = await async_art_by_media_id(
-                        self.hass, self.entry, candidate.provider, candidate.item_id
-                    )
-                    width, height = await self.hass.async_add_executor_job(
-                        _decode_dims, art.data
-                    )
-                except (HomeAssistantError, OSError, ValueError):
-                    continue
-                if not self._fits(width, height):
-                    continue
-            return await self._candidate_slide(candidate)
-        return None
 
     def from_library(self, browse_id: str, query: str) -> ScreenConfig | None:
         library = get_library(self.hass)

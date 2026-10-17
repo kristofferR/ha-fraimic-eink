@@ -816,22 +816,7 @@ class FraimicScheduler:
                 if isinstance(err, ArtFetchError) and not manual:
                     item = self.queue.get(screen.screen_id)
                     if item is not None and item.auto_source is not None:
-                        # Older picks have only a label; use it only if unambiguous.
-                        source_keys = (
-                            [item.auto_source_key]
-                            if item.auto_source_key is not None
-                            else [
-                                source.key
-                                for source in self.auto.sources
-                                if source.title == item.auto_source
-                            ]
-                        )
-                        if len(source_keys) == 1:
-                            self._auto_backoff[source_keys[0]] = (
-                                dt_util.utcnow() + AUTO_BACKOFF
-                            )
-                        else:
-                            self._record_shown(screen)
+                        self._back_off_auto_source(item)
                         self.queue.items.remove(item)
                         if self.queue.cursor == screen.screen_id:
                             self.queue.cursor = None
@@ -867,6 +852,7 @@ class FraimicScheduler:
                     raise
                 # A permanently invalid item must not block the remaining queue.
                 if item := self.queue.get(screen.screen_id):
+                    self._back_off_auto_source(item)
                     self.queue.items.remove(item)
                     if self.queue.cursor == screen.screen_id:
                         self.queue.cursor = None
@@ -1058,6 +1044,24 @@ class FraimicScheduler:
             self._prefetch_task = None
 
     # -- auto mode -----------------------------------------------------------
+
+    def _back_off_auto_source(self, item: QueueItem) -> None:
+        if item.auto_source is None:
+            return
+        # Older picks have only a label; use it only if unambiguous.
+        source_keys = (
+            [item.auto_source_key]
+            if item.auto_source_key is not None
+            else [
+                source.key
+                for source in self.auto.sources
+                if source.title == item.auto_source
+            ]
+        )
+        if len(source_keys) == 1:
+            self._auto_backoff[source_keys[0]] = dt_util.utcnow() + AUTO_BACKOFF
+        else:
+            self._record_shown(item.screen)
 
     def _auto_unavailable(self, now: datetime) -> set[str]:
         upcoming = {item.screen.screen_id for item in self.queue.upcoming}
