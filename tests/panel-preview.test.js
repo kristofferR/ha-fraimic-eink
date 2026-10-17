@@ -196,6 +196,16 @@ test("auto picks follow the hand queue and can be kept above the divider", async
   expect(sent).toEqual([{ action: "reorder", section: "queue", ordered_ids: ["pick", "one"], keep_ids: ["pick"] }]);
 });
 
+test("Clear stays available when a repeating queue reaches its final picture", () => {
+  const { panel } = harness();
+  panel._player = { interval: 1800, current: { title: "Last picture" }, hand_queue: [],
+    end_action: "repeat", repeat: true };
+  expect(panel._queueTemplate()).toContain("data-clear-queue >Clear</button>");
+  panel._player.end_action = "stop";
+  panel._player.repeat = false;
+  expect(panel._queueTemplate()).toContain("data-clear-queue disabled>Clear</button>");
+});
+
 test("queue timing controls use the frame API without a playlist", async () => {
   const { panel } = harness();
   const calls = [];

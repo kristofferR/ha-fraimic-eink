@@ -162,14 +162,17 @@ class PlaybackQueue:
 
     def trim_played(self, keep: int) -> None:
         """Bound history: forget the oldest shown auto picks beyond ``keep``."""
-        played = self.items[: max(0, self.position)]
+        played = [
+            item
+            for item in self.items[: max(0, self.position)]
+            if item.auto_source is not None
+        ]
         excess = len(played) - keep
         for item in played:
             if excess <= 0:
                 return
-            if item.auto_source is not None:
-                self.items.remove(item)
-                excess -= 1
+            self.items.remove(item)
+            excess -= 1
 
     def clear(self) -> None:
         """Clear what was queued by hand; auto mode's picks stay."""

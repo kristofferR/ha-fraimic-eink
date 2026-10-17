@@ -28,6 +28,7 @@ from .auto_mode import (
     AutoHistory,
     AutoSettings,
     AutoSource,
+    AutoSourceQueued,
     pick_source,
     picture_key,
 )
@@ -1059,6 +1060,12 @@ class FraimicScheduler:
             try:
                 screen = await self._async_resolve_auto(source)
                 error = None if screen is not None else "nothing new to show"
+            except AutoSourceQueued:
+                # Full for this pass; consuming a pick makes the source usable again.
+                if generation != self._auto_generation:
+                    return
+                unavailable.add(source.key)
+                continue
             except HomeAssistantError as err:
                 screen, error = None, str(err)
             except Exception as err:  # noqa: BLE001 - one broken source must not stop auto mode

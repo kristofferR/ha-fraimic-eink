@@ -1360,7 +1360,7 @@ class FraimicPanel extends HTMLElement {
       <div class="queue-head"><h2>Up next</h2><span class="sub">${items.length}</span><span class="spacer"></span>
         <button class="icon-btn" data-toggle-shuffle aria-label="Shuffle queue" aria-pressed="${Boolean(player.shuffle)}" title="Shuffle queue"><ha-icon icon="mdi:shuffle${player.shuffle ? "" : "-disabled"}"></ha-icon></button>
         <button class="btn small" data-menu="end" aria-expanded="${this._menu === "end"}" aria-label="End of queue: ${h(this._endLabel(player))}">Then: ${h(this._endLabel(player))} <ha-icon icon="mdi:chevron-down"></ha-icon></button>
-        <button class="btn small" data-clear-queue ${items.length ? "" : "disabled"}>Clear</button>
+        <button class="btn small" data-clear-queue ${items.length || player.repeat ? "" : "disabled"}>Clear</button>
       </div>
       ${this._menu === "end" ? this._endMenuTemplate("queue-interval-menu end-menu") : ""}
       <ol class="queue-list" data-art-drop="queue">${items.map((item, index) => this._queueRow(item, index)).join("")}</ol>

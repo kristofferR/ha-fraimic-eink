@@ -2,7 +2,8 @@
 
 Online picks become fixed ``provider_item`` slides whose original is already
 in the artwork cache, so the scheduler can prepare and preview them long
-before they are due. Returns None when a source has nothing new to offer.
+before they are due. Returns None when no usable art is found; AutoSourceQueued means
+all candidates are already queued and can be reused once playback advances.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ from .auto_mode import (
     AutoHistory,
     AutoSettings,
     AutoSource,
+    AutoSourceQueued,
     picture_key,
 )
 from .const import ATTR_FIT, FIT_COVER, PROVIDER_SHUFFLE
@@ -95,6 +97,8 @@ class _Picker:
         self.fit = settings.fit or entry.options.get(ATTR_FIT, FIT_COVER)
 
     def _choose(self, keys: list[str]) -> str | None:
+        if keys and all(key in self.exclude for key in keys):
+            raise AutoSourceQueued
         return self.history.choose(
             keys, self.settings.avoid_repeats_days, self.now, exclude=self.exclude
         )

@@ -139,6 +139,36 @@ def test_deleted_playlist_is_reported(resolver):
         _resolve(resolver, {"kind": "playlist", "playlist_id": "gone"}, playlists=playlists)
 
 
+@pytest.mark.parametrize("kind", ["library", "folder", "playlist"])
+def test_fully_queued_source_is_distinct_from_an_empty_source(resolver, monkeypatch, kind):
+    auto = load("auto_mode")
+    base = load("providers.base")
+    model = load("library_model")
+    schema = load("render.schema")
+    image = model.LibraryImage("only", "only.jpg", "image/jpeg", 1, width=1600, height=1200)
+    images = {"only": image}
+    candidates = [_candidate("only", 1600, 1200)]
+    slides = [schema.screen_from_dict(schema.SCREEN_SCHEMA({"kind": "picture", "library_image": "only"}))]
+    monkeypatch.setattr(resolver, "get_library", lambda _: SimpleNamespace(images=images))
+    monkeypatch.setattr(resolver, "async_browse_provider", AsyncMock(side_effect=lambda *_: base.BrowsePage(
+        title="Art", folders=(), candidates=tuple(candidates),
+    )))
+    playlists = SimpleNamespace(get=lambda _: True, render_slides=lambda _: slides)
+    source = {
+        "library": {"kind": "gallery", "source": "saved"},
+        "folder": {"kind": "gallery", "source": "reframed", "browse_id": "art"},
+        "playlist": {"kind": "playlist", "playlist_id": "favorites"},
+    }[kind]
+    key = "provider:reframed:only" if kind == "folder" else "library:only"
+    with pytest.raises(auto.AutoSourceQueued):
+        _resolve(resolver, source, exclude={key}, playlists=playlists)
+    assert _resolve(resolver, source, playlists=playlists) is not None
+    images.clear()
+    candidates.clear()
+    slides.clear()
+    assert _resolve(resolver, source, exclude={key}, playlists=playlists) is None
+
+
 @pytest.mark.parametrize("size,matches", [((1600, 1200), True), ((600, 3000), False)])
 def test_strict_folder_checks_unknown_dimensions(resolver, monkeypatch, size, matches):
     auto = load("auto_mode")

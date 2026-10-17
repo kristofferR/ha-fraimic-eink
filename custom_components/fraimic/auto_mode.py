@@ -44,6 +44,10 @@ SHUFFLE_LABEL = "Surprise me"
 _TIME = vol.Match(re.compile(r"^([01]?\d|2[0-3]):([0-5]\d)$"), msg="expected HH:MM")
 
 
+class AutoSourceQueued(Exception):
+    """All candidates from a source are already in the upcoming queue."""
+
+
 def _source_requirements(data: dict[str, Any]) -> dict[str, Any]:
     if data["kind"] == SOURCE_GALLERY and not data["source"]:
         raise vol.Invalid("a gallery source needs a source key")

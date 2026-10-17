@@ -793,27 +793,32 @@ def test_auto_mode_keeps_art_changing_after_the_queue_ends(playback):
     assert p.scheduler.queued_slides[0].name == "later"
 
 
-def test_auto_refill_can_reuse_the_displayed_single_item_pool(playback, monkeypatch):
+@pytest.mark.parametrize("pool_size", [1, 2])
+def test_auto_refill_reuses_small_pools_on_cadence_without_backoff(playback, monkeypatch, pool_size):
     p = playback
+    keys = [f"library:pick{i}" for i in range(pool_size)]
 
     async def resolve(_hass, _entry, settings, _source, history, *, exclude, playlists):
-        key = history.choose(["library:only"], settings.avoid_repeats_days, p.now[0], exclude=exclude)
-        return _screen("only") if key else None
+        if all(key in exclude for key in keys):
+            raise p.module.AutoSourceQueued
+        key = history.choose(keys, settings.avoid_repeats_days, p.now[0], exclude=exclude)
+        return _screen(key.removeprefix("library:")) if key else None
 
     monkeypatch.setitem(
         sys.modules, "fraimic.auto_sources", SimpleNamespace(async_resolve_pick=resolve)
     )
+    run(p.scheduler.async_set_playback(interval=600))
     run(p.scheduler.async_set_playback(end_action="auto"))
     run(p.scheduler._async_top_up_auto())
-    assert len(p.scheduler.queued_slides) == 1
-    run(p.scheduler._async_tick())
-    shown_id = p.scheduler.current_id
-    assert "library:only" in p.scheduler.auto_history.entries
-    p.now[0] += p.module.AUTO_BACKOFF
-    run(p.scheduler._async_top_up_auto())
-    assert len(p.scheduler.queued_slides) == 1
-    assert p.scheduler.queued_slides[0].screen_id != shown_id
-    assert p.scheduler.queued_slides[0].source["library_image"] == "only"
+    assert len(p.scheduler.queued_slides) == pool_size
+    for _ in range(5):
+        previous_id = p.scheduler.current_id
+        run(p.scheduler._async_tick())
+        assert p.scheduler.current_id != previous_id
+        run(p.scheduler._async_top_up_auto())
+        assert len(p.scheduler.queued_slides) == pool_size
+        assert not p.scheduler._auto_backoff
+        p.now[0] += timedelta(seconds=600)
 
 
 def test_auto_picks_follow_set_times(playback):

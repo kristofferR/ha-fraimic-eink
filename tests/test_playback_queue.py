@@ -170,9 +170,22 @@ def test_shuffle_clear_and_trim_leave_auto_picks_in_place(monkeypatch):
     played = [queue.add_auto(picture(f"old{i}"), "Auto") for i in range(3)]
     queue.cursor = played[-1].screen.screen_id
     queue.trim_played(2)
-    assert played[0] not in queue.items and played[1] in queue.items
+    assert pick not in queue.items and all(item in queue.items for item in played)
     assert items[0] in queue.items  # hand history is never trimmed
     assert queue.drop_auto() == []
+
+
+@pytest.mark.parametrize("auto_count", [2, 27])
+def test_trim_counts_only_auto_history_after_a_long_hand_queue(auto_count):
+    queue = model.PlaybackQueue(end_action="auto")
+    hand = queue.add([picture(f"hand{i}") for i in range(30)])
+    auto = [queue.add_auto(picture(f"auto{i}"), "Auto") for i in range(auto_count)]
+    current = queue.add_auto(picture("current"), "Auto")
+    upcoming = queue.add_auto(picture("upcoming"), "Auto")
+    queue.cursor = current.screen.screen_id
+    queue.trim_played(25)
+    assert queue.items == [*hand, *auto[-25:], current, upcoming]
+    assert queue.candidate(datetime(2026, 9, 18, 12), previous=True) == auto[-1]
 
 
 def test_legacy_repeat_flag_migrates_to_end_action():
