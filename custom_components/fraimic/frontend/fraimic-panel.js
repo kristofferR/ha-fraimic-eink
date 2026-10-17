@@ -10,6 +10,15 @@ const INITIAL_RENDER_LIMIT = 60;
 const RENDER_PAGE_SIZE = 60;
 const SIGNED_PATH_LIMIT = 512;
 const QUEUE_SNAPS = [220, 320, 420];
+const END_ACTIONS = [
+  ["stop", "Stop", "The last picture stays on the frame."],
+  ["repeat", "Repeat queue", "Play your queue again from the start."],
+  ["auto", "Auto mode", "Keep showing new art from your sources."],
+];
+const AUTO_INTERVALS = [[1800, "30 minutes"], [3600, "1 hour"], [7200, "2 hours"], [14400, "4 hours"], [21600, "6 hours"], [43200, "12 hours"], [86400, "Once a day"]];
+const AVOID_REPEATS = [[0, "Off"], [7, "7 days"], [30, "30 days"], [90, "90 days"], [-1, "Until all shown"]];
+const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+const MAX_AUTO_SOURCES = 12;
 const PALETTE = ["black", "white", "yellow", "red", "blue", "green", "neutral"];
 const PLATE_THEME = {
   black: ["var(--primary-text-color)", "var(--primary-background-color)"],
@@ -281,6 +290,29 @@ const css = String.raw`
   .dither-preview img { position: relative; }
   .dither-modal .dialog-body { padding: 12px; }
   .row-copy { min-width: 0; flex: 1; }
+  .row-copy .auto-tag { display: inline; margin-right: 6px; padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; color: var(--accent); font-size: 10px; font-weight: 700; letter-spacing: .05em; vertical-align: 1px; }
+  .auto-divider { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 10px 16px 8px; border-bottom: 1px solid var(--line); background: var(--secondary-background-color); }
+  .auto-divider.drag-over { box-shadow: inset 0 2px 0 var(--accent); }
+  .auto-divider b { display: inline-flex; align-items: center; gap: 6px; margin-right: 4px; font-size: 13px; }
+  .auto-divider .chip { height: 24px; min-height: 24px; padding: 0 8px; font-size: 11px; }
+  .auto-list .row-copy, .auto-list .row-art { opacity: .8; }
+  .end-menu button { flex-direction: column; align-items: flex-start; justify-content: center; gap: 1px; padding: 6px 10px; }
+  .end-menu button small { color: var(--muted); font-size: 11px; }
+  .end-menu button[aria-checked="true"] b { color: var(--accent); }
+  .dialog.auto-dialog { width: min(640px, 94vw); }
+  .auto-section { margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .auto-section:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+  .auto-section h3 { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .auto-source { display: flex; align-items: center; gap: 8px; min-height: 52px; border-bottom: 1px solid var(--line); }
+  .auto-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
+  .auto-line > .label { width: 128px; flex: none; color: var(--muted); font-size: 12px; }
+  .auto-dialog input, .auto-dialog select { min-height: 34px; height: 34px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 0 8px; font-size: 13px; }
+  .auto-dialog input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; margin: 0 8px 0 0; padding: 0; }
+  .auto-dialog label.label { display: inline-flex; align-items: center; }
+  .auto-dialog .seg { flex-wrap: wrap; }
+  .auto-dialog .seg button { height: 30px; min-height: 30px; font-size: 12px; }
+  .auto-dialog .weight button { width: 34px; padding: 0; }
+  .auto-hint { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
   .row-copy b, .row-copy span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .row-copy b { font-size: 13px; } .row-copy span { color: var(--muted); font-size: 12px; }
   .row-actions { display: flex; }
@@ -756,8 +788,8 @@ class FraimicPanel extends HTMLElement {
       ].filter(Boolean).join(" · ");
     }
     const progress = this.shadowRoot?.querySelector("[data-player-progress]");
-    if (progress && player?.interval && state !== "sending") {
-      const percent = Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / player.interval * 100));
+    if (progress && this._cycle(player) && state !== "sending") {
+      const percent = Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / this._cycle(player) * 100));
       progress.style.width = `${percent}%`;
     }
   }
@@ -1205,7 +1237,7 @@ class FraimicPanel extends HTMLElement {
     const firstRun = this._player?.state === "idle" && !localStorage.getItem(`fraimic-shown-${this._selectedFrameId}`)
       ? `<div class="empty" style="padding:44px 24px 20px"><h2>${h(this._frame.name)} is showing nothing yet</h2><p>Tap any picture below to put it on the wall, or start a playlist so it changes through the day.</p></div>` : "";
     return layout(`${adding ? `<div class="adding-bar"><b>Adding to ${h(adding.name)}</b><span class="spacer"></span><button class="btn quiet small" data-stop-adding>Done</button></div>` : ""}${firstRun}<div class="content">
-      <div class="row-head"><h2>${h(this._query || this._galleryTitle || (discovering ? "Discover artwork" : "Results"))}</h2><span class="spacer"></span><button class="btn quiet small" data-save-results>Save as playlist</button></div>
+      <div class="row-head"><h2>${h(this._query || this._galleryTitle || (discovering ? "Discover artwork" : "Results"))}</h2><span class="spacer"></span>${this._selectedSource !== "all" ? `<button class="btn quiet small" data-add-auto title="Auto mode can pick new art from here when the queue ends">Add to auto mode</button>` : ""}<button class="btn quiet small" data-save-results>Save as playlist</button></div>
       <div class="masonry">${visibleItems.map((item) => this._tileTemplate(item)).join("")}</div>
       ${visibleItems.length < items.length || [...this._galleryCursorBySource.values()].some((cursor) => cursor != null) ? `<div class="load-more"><button class="btn" data-load-more ${this._loadingMore ? "disabled" : ""}>${this._loadingMore ? "Loading more" : "Load more"}</button></div>` : ""}
     </div>`);
@@ -1288,12 +1320,12 @@ class FraimicPanel extends HTMLElement {
     } else if (current.title) meta = [current.artist, player.playlist_name, this._playbackStatus(player)].filter(Boolean).join(" · ");
     const progress = state === "sending"
       ? Number(player.sending_progress || 0)
-      : player?.interval ? Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / player.interval * 100)) : 0;
+      : this._cycle(player) ? Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / this._cycle(player) * 100)) : 0;
     const transport = player?.transport_available && state !== "unreachable"
       ? `<div class="transport"><button class="icon-btn previous" data-player-action="previous" aria-label="Previous" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-previous"></ha-icon></button><button class="btn primary" data-player-action="${player?.paused ? "play" : "pause"}" aria-label="${player?.paused ? "Play" : "Pause"}" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:${player?.paused ? "play" : "pause"}"></ha-icon></button><button class="icon-btn next" data-player-action="next" aria-label="Next" ${state === "sending" ? "disabled" : ""}><ha-icon icon="mdi:skip-next"></ha-icon></button></div>`
       : "";
     const stateActions = state === "idle" && !player?.transport_available
-      ? `<button class="btn primary" data-change-playlist>Choose a playlist</button>`
+      ? `<button class="btn primary" data-change-playlist>Choose a playlist</button>${player?.end_action === "auto" ? "" : `<button class="btn" data-end-action="auto">Start auto mode</button>`}`
       : state === "unreachable"
         ? `<button class="btn" data-player-action="retry">Retry</button><button class="btn quiet" data-device>Device page</button>`
         : "";
@@ -1308,7 +1340,7 @@ class FraimicPanel extends HTMLElement {
       ${current.source && current.item_id && !["idle", "unreachable"].includes(state) ? this._heartTemplate("icon-btn favorite-btn", current.favorite, "data-player-favorite") : ""}
       ${!["idle", "asleep", "unreachable"].includes(state) ? `<div class="progress"><i data-player-progress style="width:${progress}%"></i></div>` : ""}
       ${transport}${state === "asleep" && player?.waiting_count ? `<span class="counter">${player.waiting_count} waiting</span>` : ""}
-      <span class="spacer"></span>${stateActions}${player?.overlay_count && state !== "unreachable" ? `<button class="chip overlay-tag" data-overlays>${player.overlay_count} overlays</button>` : ""}<button class="btn" data-queue-toggle>Queue ${player?.queue_count || 0} <ha-icon icon="mdi:chevron-${this._queueOpen ? "down" : "up"}"></ha-icon></button><button class="icon-btn frame-more" data-menu="frame" aria-label="Frame menu"><ha-icon icon="mdi:dots-vertical"></ha-icon></button>
+      <span class="spacer"></span>${stateActions}${player?.overlay_count && state !== "unreachable" ? `<button class="chip overlay-tag" data-overlays>${player.overlay_count} overlays</button>` : ""}<button class="btn" data-queue-toggle>Queue ${player?.queue_count || 0}${player?.end_action === "auto" ? " + Auto" : ""} <ha-icon icon="mdi:chevron-${this._queueOpen ? "down" : "up"}"></ha-icon></button><button class="icon-btn frame-more" data-menu="frame" aria-label="Frame menu"><ha-icon icon="mdi:dots-vertical"></ha-icon></button>
     </footer>`;
   }
 
@@ -1327,16 +1359,36 @@ class FraimicPanel extends HTMLElement {
       ${player.delay ? `<div class="failure" role="status"><span>${h(this._playbackStatus(player))}</span><button class="btn small" data-options>Power settings</button></div>` : ""}
       <div class="queue-head"><h2>Up next</h2><span class="sub">${items.length}</span><span class="spacer"></span>
         <button class="icon-btn" data-toggle-shuffle aria-label="Shuffle queue" aria-pressed="${Boolean(player.shuffle)}" title="Shuffle queue"><ha-icon icon="mdi:shuffle${player.shuffle ? "" : "-disabled"}"></ha-icon></button>
-        <button class="icon-btn" data-toggle-repeat aria-label="Repeat queue" aria-pressed="${Boolean(player.repeat)}" title="${player.repeat ? "Repeat on" : "Repeat off"}"><ha-icon icon="mdi:repeat${player.repeat ? "" : "-off"}"></ha-icon></button>
-        <button class="btn small" data-clear-queue ${!items.length && !player.repeat ? "disabled" : ""}>Clear</button>
+        <button class="btn small" data-menu="end" aria-expanded="${this._menu === "end"}" aria-label="End of queue: ${h(this._endLabel(player))}">Then: ${h(this._endLabel(player))} <ha-icon icon="mdi:chevron-down"></ha-icon></button>
+        <button class="btn small" data-clear-queue ${items.length ? "" : "disabled"}>Clear</button>
       </div>
+      ${this._menu === "end" ? this._endMenuTemplate("queue-interval-menu end-menu") : ""}
       <ol class="queue-list" data-art-drop="queue">${items.map((item, index) => this._queueRow(item, index)).join("")}</ol>
-      <div class="queue-more" data-art-drop="queue" data-queue-end>${items.length ? "Drop art here to add it to the queue" : player.repeat ? "Repeat is on. The queue starts again after this picture." : current.title ? "Queue finished. This picture stays on the frame." : "Add pictures or a playlist, then press Play."}</div>
+      <div class="queue-more" data-art-drop="queue" data-queue-end>${items.length ? "Drop art here to add it to the queue" : player.end_action === "auto" ? "Drop art here to show it before auto mode's picks." : player.end_action === "repeat" ? "Repeat is on. The queue starts again after this picture." : current.title ? "Queue finished. This picture stays on the frame." : "Add pictures or a playlist, then press Play."}</div>
+      ${player.end_action === "auto" ? this._autoQueueTemplate(player, items.length) : ""}
     </section>`;
   }
 
-  _queueRow(item, index) {
-    return `<li class="queue-row" draggable="true" data-queue-section="queue" data-queue-index="${index}" data-queue-id="${h(item.id)}" data-play-row tabindex="0" aria-label="Show ${h(item.title)} now" aria-description="Alt+Up or Alt+Down to reorder" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions"><button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="Remove from queue" title="Remove from queue"><ha-icon icon="mdi:close"></ha-icon></button></div></li>`;
+  _autoQueueTemplate(player, offset) {
+    const picks = player.auto_queue || [];
+    const sources = player.auto?.sources || [];
+    const hint = picks.length
+      ? "Remove an auto pick to get a different one. Drag it above the divider to keep it."
+      : player.auto?.error ? `Could not get new art. ${player.auto.error}. Trying again in a few minutes.` : "Finding new art from your sources.";
+    return `<div class="auto-divider" data-queue-keep><b><ha-icon icon="mdi:creation"></ha-icon>Auto</b>${sources.map((source) => `<span class="chip">${h(source.label)}${source.weight > 1 ? ` ${source.weight}×` : ""}</span>`).join("")}<span class="spacer"></span><button class="btn quiet small" data-new-picks ${picks.length ? "" : "disabled"}><ha-icon icon="mdi:refresh"></ha-icon>New picks</button><button class="btn small" data-auto-settings>Settings</button></div>
+      <ol class="queue-list auto-list">${picks.map((item, index) => this._queueRow(item, offset + index, true)).join("")}</ol>
+      <div class="queue-more">${h(hint)}</div>`;
+  }
+
+  _queueRow(item, index, auto = false) {
+    const remove = auto ? "Swap for another pick" : "Remove from queue";
+    return `<li class="queue-row" draggable="true" data-queue-section="queue" data-queue-index="${index}" data-queue-id="${h(item.id)}"${auto ? " data-queue-auto" : ""} data-play-row tabindex="0" aria-label="Show ${h(item.title)} now" aria-description="Alt+Up or Alt+Down to reorder" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${auto ? `<span class="auto-tag">AUTO</span>` : ""}${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions"><button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="${remove}" title="${remove}"><ha-icon icon="mdi:close"></ha-icon></button></div></li>`;
+  }
+
+  _endLabel(player) { return (END_ACTIONS.find(([value]) => value === player?.end_action) || END_ACTIONS[0])[1]; }
+
+  _endMenuTemplate(className) {
+    return `<div class="${className}" role="menu"><h3>When the queue ends</h3>${END_ACTIONS.map(([value, label, description]) => `<button role="menuitemradio" aria-checked="${this._player?.end_action === value}" data-end-action="${value}"><b>${label}</b><small>${description}</small></button>`).join("")}</div>`;
   }
 
   _artPreviewCell(item) {
@@ -1348,10 +1400,11 @@ class FraimicPanel extends HTMLElement {
   _menuTemplate() {
     if (!this._menu) return "";
     if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
-    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-toggle-repeat>Repeat queue <span>${this._player?.repeat ? "on" : "off"}</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
+    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
+    if (this._menu === "end") return this._queueOpen ? "" : this._endMenuTemplate("menu player-menu end-menu");
     if (["colour", "artist", "era"].includes(this._menu)) return this._facetMenu();
     return "";
   }
@@ -1487,7 +1540,11 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-overlays]").forEach((node) => node.onclick = () => this._openOverlays());
     root.querySelectorAll("[data-change-playlist]").forEach((node) => node.onclick = () => this._changePlaylist());
     root.querySelectorAll("[data-toggle-shuffle]").forEach((node) => node.onclick = () => this._toggleShuffle());
-    root.querySelectorAll("[data-toggle-repeat]").forEach((node) => node.onclick = () => this._setPlayback("repeat", !this._player?.repeat));
+    root.querySelectorAll("[data-end-action]").forEach((node) => node.onclick = () => this._setPlayback("end_action", node.dataset.endAction));
+    root.querySelectorAll("[data-new-picks]").forEach((node) => node.onclick = () => this._playerAction("new_picks"));
+    root.querySelectorAll("[data-auto-settings]").forEach((node) => node.onclick = () => this._openAutoSettings());
+    root.querySelectorAll("[data-add-auto]").forEach((node) => node.onclick = () => this._addGalleryToAuto());
+    this._bindAutoSettings();
     root.querySelectorAll("[data-custom-interval]").forEach((node) => node.onclick = () => this._customInterval());
     root.querySelectorAll("[data-interval]").forEach((node) => node.onclick = () => this._setInterval(Number(node.dataset.interval)));
     root.querySelectorAll("[data-options]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/integration/fraimic"));
@@ -1614,7 +1671,9 @@ class FraimicPanel extends HTMLElement {
     event.preventDefault();
     const index = Number(row.dataset.queueIndex);
     const itemId = row.dataset.queueId;
-    await this._reorderQueue("queue", index, index + (event.key === "ArrowUp" ? -1 : 1));
+    const to = index + (event.key === "ArrowUp" ? -1 : 1);
+    const hand = this._player.hand_queue.length;
+    await this._reorderQueue("queue", index, to, index >= hand && to < hand);
     [...this.shadowRoot.querySelectorAll("[data-queue-id]")].find((node) => node.dataset.queueId === itemId)?.focus();
   }
 
@@ -1625,12 +1684,16 @@ class FraimicPanel extends HTMLElement {
       row.ondragstart = (event) => { dragged = row; event.dataTransfer.effectAllowed = "move"; };
       row.ondragover = (event) => { if (dragged && dragged !== row) { event.preventDefault(); row.classList.add("drag-over"); } };
       row.ondragleave = () => row.classList.remove("drag-over");
-      row.ondrop = (event) => { if (dragged && dragged !== row) { event.preventDefault(); event.stopPropagation(); this._reorderQueue("queue", Number(dragged.dataset.queueIndex), Number(row.dataset.queueIndex)); clear(); } };
+      row.ondrop = (event) => { if (dragged && dragged !== row) { event.preventDefault(); event.stopPropagation(); this._reorderQueue("queue", Number(dragged.dataset.queueIndex), Number(row.dataset.queueIndex), "queueAuto" in dragged.dataset && !("queueAuto" in row.dataset)); clear(); } };
       row.ondragend = clear;
     });
     const end = this.shadowRoot.querySelector("[data-queue-end]");
     end?.addEventListener("dragover", (event) => { if (dragged) event.preventDefault(); });
-    end?.addEventListener("drop", (event) => { if (dragged) { event.preventDefault(); this._reorderQueue("queue", Number(dragged.dataset.queueIndex), this._player.hand_queue.length - 1); clear(); } });
+    end?.addEventListener("drop", (event) => { if (dragged) { event.preventDefault(); const hand = this._player.hand_queue.length; const auto = "queueAuto" in dragged.dataset; this._reorderQueue("queue", Number(dragged.dataset.queueIndex), auto ? hand : hand - 1, auto); clear(); } });
+    const divider = this.shadowRoot.querySelector("[data-queue-keep]");
+    divider?.addEventListener("dragover", (event) => { if (dragged && "queueAuto" in dragged.dataset) { event.preventDefault(); divider.classList.add("drag-over"); } });
+    divider?.addEventListener("dragleave", () => divider.classList.remove("drag-over"));
+    divider?.addEventListener("drop", (event) => { if (dragged && "queueAuto" in dragged.dataset) { event.preventDefault(); this._reorderQueue("queue", Number(dragged.dataset.queueIndex), this._player.hand_queue.length, true); clear(); } });
   }
 
   _bindReorder(selector, onDrop) {
@@ -2280,11 +2343,15 @@ class FraimicPanel extends HTMLElement {
     else this.shadowRoot.querySelector("[data-player] [data-queue-toggle]")?.focus();
   }
 
-  _reorderQueue(section, from, to) {
-    const items = [...(this._player.hand_queue || [])];
-    if (from === to || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
+  // ``keep`` moves an auto pick above the divider, making it part of your queue.
+  _reorderQueue(section, from, to, keep = false) {
+    const hand = this._player.hand_queue || [];
+    const items = [...hand, ...(this._player.auto_queue || [])];
+    if ((from === to && !keep) || from < 0 || to < 0 || from >= items.length || to >= items.length) return;
+    // Your queue always plays first, so its items cannot move below the divider.
+    if (from < hand.length && to >= hand.length) return;
     const [item] = items.splice(from, 1); items.splice(to, 0, item);
-    return this._queueAction({ action: "reorder", section, ordered_ids: items.map((candidate) => candidate.id) });
+    return this._queueAction({ action: "reorder", section, ordered_ids: items.map((candidate) => candidate.id), keep_ids: keep ? [item.id] : [] });
   }
 
   _dragQueueSheet(event) {
@@ -2350,6 +2417,144 @@ class FraimicPanel extends HTMLElement {
   }
 
   _changePlaylist() { this._navigate("/playlists"); }
+
+  _cycle(player) { return player?.cycle_seconds || player?.interval || 0; }
+
+  _autoSourceKey(source) { return [source.kind, source.source, source.browse_id, source.query, source.playlist_id].map((part) => part || "").join("\u0000"); }
+
+  _autoSourceOptions() {
+    const library = this._sources.find((source) => source.key === "saved");
+    return [
+      { group: "Mix", source: { kind: "shuffle", label: "Surprise me" } },
+      ...(library?.children || []).map((child) => ({ group: "My library", source: { kind: "gallery", source: "saved", browse_id: child.id, label: child.id ? child.title : "My library" } })),
+      ...this._sources.filter((source) => source.key !== "saved" && source.available).map((source) => ({ group: "Online sources", source: { kind: "gallery", source: source.key, label: source.name } })),
+      ...this._playlists.map((playlist) => ({ group: "Saved playlists", source: { kind: "playlist", playlist_id: playlist.id, label: playlist.name } })),
+    ];
+  }
+
+  _autoSourceDetail(source) {
+    if (source.kind === "shuffle") return ["mdi:creation", "A random museum each time"];
+    if (source.kind === "playlist") return ["mdi:playlist-music-outline", "A random slide from this playlist"];
+    if (source.source === "saved") return [source.browse_id === "favorites" ? "mdi:heart-outline" : "mdi:image-multiple-outline", "Pictures in your library"];
+    const name = this._sources.find((item) => item.key === source.source)?.name || source.source;
+    if (source.query) return ["mdi:magnify", `Search on ${name}`];
+    if (source.browse_id) return ["mdi:folder-outline", `Folder on ${name}`];
+    return ["mdi:web", `Random picks from ${name}`];
+  }
+
+  _openAutoSettings() {
+    this._menu = null;
+    const { error: _error, cloud: _cloud, ...draft } = structuredClone(this._player?.auto || {});
+    this._autoDraft = draft;
+    this._openModal("Auto mode", this._autoSettingsBody(), this._autoSettingsActions(), { className: "auto-dialog", subtitle: h(this._frame?.name || "") });
+  }
+
+  _refreshAutoSettings() {
+    if (this._modal?.className !== "auto-dialog") return;
+    this._modal.body = this._autoSettingsBody();
+    this._renderPreservingFocus();
+  }
+
+  _autoSettingsActions() {
+    return `<span class="spacer"></span>${this._player?.end_action === "auto" ? "" : `<button class="btn" data-auto-save="on">Save and turn on</button>`}<button class="btn primary" data-auto-save>Save</button>`;
+  }
+
+  _autoSettingsBody() {
+    const draft = this._autoDraft;
+    const cloud = Boolean(this._player?.auto?.cloud);
+    const sources = draft.sources || [];
+    const taken = new Set(sources.map((source) => this._autoSourceKey(source)));
+    const options = this._autoSourceOptions().map((option, index) => ({ ...option, index })).filter((option) => !taken.has(this._autoSourceKey(option.source)));
+    const groups = [...new Set(options.map((option) => option.group))];
+    const seg = (name, value, choices, label) => `<div class="seg" role="radiogroup" aria-label="${h(label)}">${choices.map(([choice, text, disabled]) => `<button role="radio" aria-checked="${choice === value}" class="${choice === value ? "selected" : ""}" data-auto-set="${name}" data-value="${h(JSON.stringify(choice))}" ${disabled ? "disabled" : ""}>${h(text)}</button>`).join("")}</div>`;
+    const times = draft.times || [];
+    const days = new Set(draft.days || []);
+    const intervals = AUTO_INTERVALS.some(([value]) => value === draft.interval) ? AUTO_INTERVALS : [...AUTO_INTERVALS, [draft.interval, this._formatInterval(draft.interval)]];
+    const select = (id, value, choices, label) => `<select id="${id}" aria-label="${h(label)}">${choices.map(([choice, text]) => `<option value="${h(choice)}" ${choice === value ? "selected" : ""}>${h(text)}</option>`).join("")}</select>`;
+    return `<section class="auto-section"><h3>Sources</h3>
+        ${sources.map((source, index) => { const [icon, detail] = this._autoSourceDetail(source); return `<div class="auto-source"><ha-icon icon="${icon}"></ha-icon><div class="row-copy"><b>${h(source.label)}</b><span>${h(detail)}</span></div><div class="seg weight" role="radiogroup" aria-label="How often ${h(source.label)} is picked">${[1, 2, 3].map((weight) => `<button role="radio" aria-checked="${source.weight === weight}" class="${source.weight === weight ? "selected" : ""}" data-auto-weight="${index}:${weight}">${weight}×</button>`).join("")}</div><button class="icon-btn" data-auto-remove="${index}" aria-label="Remove ${h(source.label)}" ${sources.length === 1 ? "disabled" : ""}><ha-icon icon="mdi:close"></ha-icon></button></div>`; }).join("")}
+        <div class="auto-line">${sources.length < MAX_AUTO_SOURCES ? `<select id="auto-add-source" aria-label="Add a source"><option value="">Add a source…</option>${groups.map((group) => `<optgroup label="${h(group)}">${options.filter((option) => option.group === group).map((option) => `<option value="${option.index}">${h(option.source.label)}</option>`).join("")}</optgroup>`).join("")}</select>` : ""}</div>
+        <p class="auto-hint">Weights set how often each source is picked. To use a gallery folder or search, open it and choose Add to auto mode.</p>
+      </section>
+      <section class="auto-section"><h3>When to change</h3>
+        ${seg("cadence", draft.cadence, [["queue", "Same as queue"], ["interval", "Every…", cloud], ["times", "At set times", cloud]], "When to change")}
+        ${draft.cadence === "queue" ? `<p class="auto-hint">Follows the queue: every ${h(this._formatInterval(this._player?.interval))}.</p>` : ""}
+        ${draft.cadence === "interval" ? `<div class="auto-line"><span class="label">Every</span>${select("auto-interval", draft.interval, intervals, "Change every")}</div>` : ""}
+        ${draft.cadence === "times" ? `<div class="auto-line"><span class="label">Times</span>${times.map((value, index) => `<input type="time" data-auto-time="${index}" value="${h(value)}" aria-label="Change time ${index + 1}"><button class="icon-btn" data-auto-remove-time="${index}" aria-label="Remove ${h(value)}" ${times.length === 1 ? "disabled" : ""}><ha-icon icon="mdi:close"></ha-icon></button>`).join("")}<button class="btn small" data-auto-add-time>Add time</button></div>
+          <div class="auto-line"><span class="label">Days</span><div class="seg">${WEEKDAYS.map((day) => `<button aria-pressed="${days.has(day)}" class="${days.has(day) ? "selected" : ""}" data-auto-day="${day}">${day[0].toUpperCase()}${day.slice(1)}</button>`).join("")}</div></div>
+          <p class="auto-hint">No days selected means every day.</p>` : ""}
+        ${cloud ? `<p class="auto-hint">Cloud delivery wakes the frame on the queue interval, so auto mode follows it.</p>` : ""}
+        <div class="auto-line"><label class="label"><input type="checkbox" id="auto-active" ${draft.active_hours ? "checked" : ""}> Active hours</label>${draft.active_hours ? `<input type="time" id="auto-active-after" value="${h(draft.active_hours.after)}" aria-label="Changes start at"><span>to</span><input type="time" id="auto-active-before" value="${h(draft.active_hours.before)}" aria-label="Changes stop at">` : `<span class="auto-hint">Any time of day</span>`}</div>
+      </section>
+      <section class="auto-section"><h3>Variety</h3>
+        <div class="auto-line"><span class="label">Avoid repeats for</span>${seg("avoid_repeats_days", draft.avoid_repeats_days, AVOID_REPEATS, "Avoid repeats for")}</div>
+        <div class="auto-line"><span class="label">Orientation</span>${seg("orientation", draft.orientation, [["prefer", "Prefer matching"], ["strict", "Matching only"]], "Orientation")}</div>
+      </section>
+      <section class="auto-section"><h3>Look</h3>
+        <div class="auto-line"><label class="label" for="auto-caption">Caption strip</label><input type="checkbox" id="auto-caption" ${draft.caption ? "checked" : ""}><span class="auto-hint">Online art only</span></div>
+        <div class="auto-line"><label class="label" for="auto-tone">Tone</label>${select("auto-tone", draft.tone, [["soft", "Soft"], ["balanced", "Balanced"], ["vivid", "Vivid"]], "Tone")}</div>
+        <div class="auto-line"><label class="label" for="auto-fit">Fit</label>${select("auto-fit", draft.fit || "", [["", "Frame default"], ["cover", "Cover"], ["contain", "Contain"], ["contain_black", "Contain, black bars"]], "Fit")}</div>
+        <div class="auto-line"><label class="label" for="auto-overlays">Overlays</label>${select("auto-overlays", draft.overlays, [["inherit", `Inherit from ${this._frame?.name || "frame"}`], ["none", "None"]], "Overlays")}</div>
+        <p class="auto-hint">Playlist sources keep each slide's own look.</p>
+      </section>`;
+  }
+
+  _bindAutoSettings() {
+    if (this._modal?.className !== "auto-dialog") return;
+    const root = this.shadowRoot;
+    const draft = this._autoDraft;
+    const on = (selector, event, handler) => root.querySelectorAll(selector).forEach((node) => node.addEventListener(event, () => handler(node)));
+    on("[data-auto-set]", "click", (node) => {
+      draft[node.dataset.autoSet] = JSON.parse(node.dataset.value);
+      if (draft.cadence === "times" && !draft.times?.length) draft.times = ["07:00"];
+      this._refreshAutoSettings();
+    });
+    on("[data-auto-weight]", "click", (node) => { const [index, weight] = node.dataset.autoWeight.split(":").map(Number); draft.sources[index].weight = weight; this._refreshAutoSettings(); });
+    on("[data-auto-remove]", "click", (node) => { draft.sources.splice(Number(node.dataset.autoRemove), 1); this._refreshAutoSettings(); });
+    on("#auto-add-source", "change", (node) => { const option = this._autoSourceOptions()[Number(node.value)]; if (option) { draft.sources.push({ ...option.source, weight: 1 }); this._refreshAutoSettings(); } });
+    on("#auto-interval", "change", (node) => { draft.interval = Number(node.value); });
+    on("[data-auto-time]", "change", (node) => { draft.times[Number(node.dataset.autoTime)] = node.value; });
+    on("[data-auto-remove-time]", "click", (node) => { draft.times.splice(Number(node.dataset.autoRemoveTime), 1); this._refreshAutoSettings(); });
+    on("[data-auto-add-time]", "click", () => { draft.times = [...draft.times, "12:00"]; this._refreshAutoSettings(); });
+    on("[data-auto-day]", "click", (node) => { const days = new Set(draft.days); if (!days.delete(node.dataset.autoDay)) days.add(node.dataset.autoDay); draft.days = WEEKDAYS.filter((day) => days.has(day)); this._refreshAutoSettings(); });
+    on("#auto-active", "change", (node) => { draft.active_hours = node.checked ? { after: "07:00", before: "23:00", days: [] } : null; this._refreshAutoSettings(); });
+    on("#auto-active-after", "change", (node) => { draft.active_hours.after = node.value; });
+    on("#auto-active-before", "change", (node) => { draft.active_hours.before = node.value; });
+    on("#auto-caption", "change", (node) => { draft.caption = node.checked; });
+    on("#auto-tone", "change", (node) => { draft.tone = node.value; });
+    on("#auto-fit", "change", (node) => { draft.fit = node.value || null; });
+    on("#auto-overlays", "change", (node) => { draft.overlays = node.value; });
+    on("[data-auto-save]", "click", (node) => this._saveAutoSettings(node.dataset.autoSave === "on"));
+  }
+
+  async _saveAutoSettings(turnOn) {
+    const draft = this._autoDraft;
+    // Time inputs may report seconds; the backend stores HH:MM.
+    const clock = (value) => String(value || "").slice(0, 5);
+    const auto = { ...draft, times: draft.times.map(clock).filter(Boolean), active_hours: draft.active_hours && { ...draft.active_hours, after: clock(draft.active_hours.after), before: clock(draft.active_hours.before) } };
+    try {
+      this._player = await this._api("player/control", this._json({ action: "auto", auto, entry_id: this._selectedFrameId }));
+      if (turnOn) this._player = await this._api("player/control", this._json({ action: "end_action", end_action: "auto", entry_id: this._selectedFrameId }));
+      this._closeModal();
+      this._notify(turnOn ? "Auto mode is on." : "Auto mode settings saved.");
+    } catch (error) { this._notify(this._friendlyError(error), { error: true }); }
+  }
+
+  async _addGalleryToAuto() {
+    const sources = this._player?.auto?.sources || [];
+    const query = this._query.trim();
+    const name = this._sources.find((source) => source.key === this._selectedSource)?.name || this._selectedSource;
+    const folder = this._selectedBrowseId ? this._galleryTitle : "";
+    const place = this._selectedSource === "saved" ? folder || "My library" : [name, folder].filter(Boolean).join(" · ");
+    const source = { kind: "gallery", source: this._selectedSource, browse_id: this._selectedBrowseId || "", query, label: query ? `${place} · “${query}”` : place, weight: 1 };
+    if (sources.some((item) => this._autoSourceKey(item) === this._autoSourceKey(source))) return this._notify(`${source.label} is already in auto mode.`);
+    if (sources.length >= MAX_AUTO_SOURCES) return this._notify(`Auto mode can mix up to ${MAX_AUTO_SOURCES} sources.`, { error: true });
+    try {
+      this._player = await this._api("player/control", this._json({ action: "auto", auto: { sources: [...sources, source] }, entry_id: this._selectedFrameId }));
+      const running = this._player.end_action === "auto";
+      this._notify(`Added ${source.label} to auto mode.`, running ? {} : { action: "Turn on", callback: () => this._setPlayback("end_action", "auto") });
+    } catch (error) { this._notify(this._friendlyError(error), { error: true }); }
+  }
   async _setPlayback(action, value) { try { this._player = await this._api("player/control", this._json({ action, [action]: value, entry_id: this._selectedFrameId })); this._menu = null; this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
   _toggleShuffle() { return this._setPlayback("shuffle", !this._player?.shuffle); }
   _setInterval(interval) { return this._setPlayback("interval", interval); }

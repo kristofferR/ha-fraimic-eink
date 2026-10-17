@@ -405,6 +405,22 @@ async def async_candidate_by_media_id(
     return candidate
 
 
+async def async_remember_candidate(hass: HomeAssistant, entry, candidate) -> None:
+    """Keep a picked candidate resolvable by id after the browse stash expires.
+
+    Daily providers have no by-id lookup, and auto mode queues picks hours
+    before they are shown.
+    """
+    _stash_candidates(hass, entry, candidate.provider, [candidate])
+    disk_cache = get_artwork_cache(hass)
+    if disk_cache is not None and disk_cache.policy_for(entry).enabled:
+        await disk_cache.async_store_metadata(
+            _candidate_cache_id(candidate.provider, candidate.item_id),
+            asdict(candidate),
+            entry,
+        )
+
+
 async def async_art_by_media_id(
     hass: HomeAssistant,
     entry,

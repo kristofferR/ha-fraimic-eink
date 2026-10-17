@@ -166,7 +166,7 @@ def _extra(candidate: ArtCandidate, *keys: str) -> Any:
     return next((extra[key] for key in keys if extra.get(key) is not None), None)
 
 
-def _source_page(candidate: ArtCandidate) -> str | None:
+def candidate_source_page(candidate: ArtCandidate) -> str | None:
     value = _extra(candidate, "source_url", "source_page", "web_url", "page_url")
     return value if isinstance(value, str) else None
 
@@ -210,7 +210,7 @@ def _candidate_payload(
 ) -> dict[str, Any]:
     queued_refs, _ = _queued_refs(entry)
     provider = get_provider(candidate.provider)
-    candidate_urls = {candidate.image_url, _source_page(candidate)} - {None, ""}
+    candidate_urls = {candidate.image_url, candidate_source_page(candidate)} - {None, ""}
     # A favorite duplicate must back both the displayed heart and its action.
     saved_image = max(
         (
@@ -255,7 +255,7 @@ def _candidate_payload(
         "queued": (candidate.provider, candidate.item_id) in queued_refs,
         "year": _extra(candidate, "year", "date", "created"),
         "description": _extra(candidate, "description", "caption"),
-        "source_page_url": _source_page(candidate),
+        "source_page_url": candidate_source_page(candidate),
         "download_url": candidate.image_url,
     }
 
@@ -337,6 +337,28 @@ def _upload_ids(hass, library: FraimicLibrary) -> set[str]:
     }
 
 
+def library_folder_images(
+    hass, library: FraimicLibrary, browse_id: str
+) -> tuple[str, list[LibraryImage]]:
+    """Title and newest-first pictures of one My Library folder."""
+    images = sorted(
+        library.images.values(), key=lambda image: image.uploaded_at, reverse=True
+    )
+    if browse_id == "favorites":
+        return "Favorites", [
+            image for image in images if FAVORITES_ALBUM in image.normalized_albums()
+        ]
+    if browse_id == "uploads":
+        upload_ids = _upload_ids(hass, library)
+        return "Uploads", [image for image in images if image.image_id in upload_ids]
+    if browse_id.startswith("album:"):
+        album = browse_id.removeprefix("album:").strip()
+        return album or "All pictures", [
+            image for image in images if album in image.normalized_albums()
+        ]
+    return "All pictures", images
+
+
 def _library_folders(
     library: FraimicLibrary, upload_ids: set[str]
 ) -> list[dict[str, Any]]:
@@ -392,22 +414,24 @@ async def _resolve_item(hass, entry, source: str, item_id: str) -> dict[str, Any
     return _candidate_payload(candidate, entry, library)
 
 
-def _slide_data(
+def picture_slide_data(
     item: dict[str, Any],
     *,
-    fit: str = "cover",
+    fit: str | None = "cover",
     mode: str = MODE_AUTO,
     tone: str = "balanced",
     crop: tuple[float, float, float, float] | None = None,
 ) -> dict[str, Any]:
+    """Slide data for a gallery item; ``fit=None`` follows the frame default."""
     base: dict[str, Any] = {
         "name": item["title"],
         "kind": "picture",
-        "fit": fit,
         "mode": mode,
         "tone": tone,
         "show_header": False,
     }
+    if fit is not None:
+        base["fit"] = fit
     if item["source"] == LIBRARY_SOURCE:
         base["library_image"] = item["id"]
     else:
@@ -576,29 +600,7 @@ class GalleryBrowseView(HomeAssistantView):
             raise web.HTTPBadRequest(text="limit must be a number") from None
         if source == LIBRARY_SOURCE:
             library = _library(hass)
-            images = sorted(
-                library.images.values(),
-                key=lambda image: image.uploaded_at,
-                reverse=True,
-            )
-            title = "All pictures"
-            if browse_id == "favorites":
-                images = [
-                    image
-                    for image in images
-                    if FAVORITES_ALBUM in image.normalized_albums()
-                ]
-                title = "Favorites"
-            elif browse_id == "uploads":
-                upload_ids = _upload_ids(hass, library)
-                images = [image for image in images if image.image_id in upload_ids]
-                title = "Uploads"
-            elif browse_id.startswith("album:"):
-                album = browse_id.removeprefix("album:").strip()
-                images = [
-                    image for image in images if album in image.normalized_albums()
-                ]
-                title = album or "All pictures"
+            title, images = library_folder_images(hass, library, browse_id)
             items = [_library_payload(image, entry) for image in images]
             if query:
                 needle = query.casefold()
@@ -831,7 +833,7 @@ class GalleryPreviewView(HomeAssistantView):
 
         try:
             screen = screen_from_dict(
-                _slide_data(
+                picture_slide_data(
                     {"source": source, "id": item_id, "title": "Preview"},
                     fit=fit, mode=mode, tone=tone, crop=crop,
                 )
@@ -924,7 +926,7 @@ class GalleryActionView(HomeAssistantView):
                         art.data,
                         filename,
                         albums=[FAVORITES_ALBUM],
-                        source_url=_source_page(art.candidate)
+                        source_url=candidate_source_page(art.candidate)
                         or art.candidate.image_url,
                         license_text=art.candidate.license,
                         attribution=art.candidate.attribution,
@@ -955,7 +957,7 @@ class GalleryActionView(HomeAssistantView):
                         "deleted": False,
                     }
                 )
-            data = _slide_data(item, fit=fit, mode=mode, tone=tone, crop=crop)
+            data = picture_slide_data(item, fit=fit, mode=mode, tone=tone, crop=crop)
             slide = screen_from_dict(data, f"gallery_{uuid.uuid4().hex}")
             scheduler = entry.runtime_data.scheduler
             if action == "show_now":
@@ -997,7 +999,7 @@ class GalleryActionView(HomeAssistantView):
                 saved = await _library(hass).async_add_image(
                     art.data,
                     filename,
-                    source_url=_source_page(art.candidate) or art.candidate.image_url,
+                    source_url=candidate_source_page(art.candidate) or art.candidate.image_url,
                     license_text=art.candidate.license,
                     attribution=art.candidate.attribution,
                 )

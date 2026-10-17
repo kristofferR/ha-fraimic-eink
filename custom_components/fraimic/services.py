@@ -75,6 +75,7 @@ from .const import (
     SERVICE_RENDER_SCREEN,
     SERVICE_SCHEDULE_SEND,
     SERVICE_SEND_SCENE,
+    SERVICE_SET_AUTO_MODE,
     SERVICE_SHOW_ONLINE_IMAGE,
     SERVICE_UPDATE_ALBUM,
     SERVICE_UPLOAD_IMAGE,
@@ -501,6 +502,67 @@ def async_setup_services(hass: HomeAssistant) -> None:
         schema=UPDATE_ALBUM_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_SET_AUTO_MODE,
+        _async_handle_set_auto_mode,
+        schema=SET_AUTO_MODE_SCHEMA,
+    )
+
+
+SET_AUTO_MODE_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+        vol.Optional("end_of_queue"): vol.In(("stop", "repeat", "auto")),
+        vol.Optional("sources"): [dict],
+        vol.Optional("cadence"): cv.string,
+        vol.Optional("interval"): cv.positive_time_period,
+        vol.Optional("times"): [cv.string],
+        vol.Optional("days"): [cv.string],
+        vol.Optional("active_hours"): dict,
+        vol.Optional("avoid_repeats_days"): vol.Coerce(int),
+        vol.Optional("orientation"): cv.string,
+        vol.Optional("caption"): cv.boolean,
+        vol.Optional("tone"): cv.string,
+        vol.Optional("fit"): cv.string,
+        vol.Optional("overlays"): cv.string,
+        vol.Optional("new_picks", default=False): cv.boolean,
+    }
+)
+
+
+async def _async_handle_set_auto_mode(call: ServiceCall) -> None:
+    """Handle ``fraimic.set_auto_mode`` (partial update)."""
+    from .auto_mode import SETTINGS_SCHEMA
+
+    entry = _resolve_entry(call.hass, call)
+    scheduler = entry.runtime_data.scheduler
+    if scheduler is None:
+        raise ServiceValidationError("Playback is not loaded for this frame")
+    patch = {
+        key: value
+        for key, value in call.data.items()
+        if key not in (ATTR_CONFIG_ENTRY, "end_of_queue", "new_picks")
+    }
+    if "interval" in patch:
+        patch["interval"] = int(patch["interval"].total_seconds())
+    if "times" in patch:
+        # The UI's time selector sends HH:MM:SS.
+        patch["times"] = [value[:5] for value in patch["times"]]
+    if patch.get("active_hours") == {}:
+        patch["active_hours"] = None
+    if patch.get("fit") == "default":
+        patch["fit"] = None
+    try:
+        SETTINGS_SCHEMA(patch)
+    except vol.Invalid as err:
+        raise ServiceValidationError(f"Invalid auto mode settings: {err}") from err
+    if patch:
+        await scheduler.async_set_auto(patch)
+    if end_action := call.data.get("end_of_queue"):
+        await scheduler.async_set_playback(end_action=end_action)
+    if call.data["new_picks"]:
+        await scheduler.async_new_auto_picks()
 
 
 async def _async_handle_temporary_overlay(call: ServiceCall) -> ServiceResponse:

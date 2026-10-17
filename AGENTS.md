@@ -37,6 +37,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `cloud_delivery.py` | Cloud delivery mode: one HA-owned album per frame; each render becomes a pure-primary PNG upload and the album's single image; album interval = playlist interval + lead; turns keep-awake off after the first delivery. |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
+| `auto_mode.py` | HA-free auto mode decisions: `AutoSettings` (validated partial updates), weighted `pick_source`, `AutoHistory` repeat avoidance, cadence `next_change`, queue end actions. |
+| `auto_sources.py` | Resolves one auto source (shuffle, gallery location, playlist) into a concrete `provider_item`/`library_image` slide. |
 | `providers/` | Keyless/keyed online artwork sources. Reframed provides hierarchical Collections/Colors/Tags/Artists/Vertical/Recent browsing. |
 | `art_packs.py` / `pack_model.py` | Bundled + community + live Reframed art-pack catalogs. Reframed rows are lazy and resolve at most 24 current images on install. |
 | `const.py` | All constants: resolutions, palette, dither modes, preprocessing defaults, config/service keys. |
@@ -181,6 +183,19 @@ playlist edits/deletion never rebase playback. Queue order, cursor, shuffle,
 repeat, and interval persist separately from the catalog. Legacy assigned
 playlists migrate once into snapshots, preserving current/upcoming order and
 interval, with repeat enabled to retain their existing rotation.
+
+The queue’s `end_action` decides what happens when it runs out: `stop`,
+`repeat` (replaces the old `repeat` flag, migrated on load), or `auto`. Auto
+mode tops up `LOOKAHEAD` concrete picks (`QueueItem.auto_source` set) after the
+hand-queued items, inside the serial prefetch worker. Hand items always insert
+above auto picks; `reorder(keep_ids=...)` turns a pick into a hand item.
+Settings changes and New picks drop unplayed picks and bump a generation so
+in-flight resolutions are discarded. Failing or empty sources back off for
+15 minutes. Active hours are applied as time windows on each pick. Auto
+picks use their own cadence (`_due_at`), except in cloud mode, where album
+wakes follow the queue interval and so does auto mode. Leaving auto mode
+untags shown picks so Repeat treats them as ordinary history. Every displayed picture is recorded in the per-frame
+history used for repeat avoidance; played auto picks beyond 25 are trimmed.
 
 The queue’s explicit interval overrides generic power-mode cooldowns and daily
 budgets. Low battery still defers automatic playback and surfaces a reason and

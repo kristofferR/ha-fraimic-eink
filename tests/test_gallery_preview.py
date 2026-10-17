@@ -155,7 +155,7 @@ def test_saved_gallery_and_queue_preview_match_and_invalidate_transforms(gallery
             "fit": "cover", "mode": "atkinson", "tone": load("const").PLAYLIST_TONE_VALUES["vivid"],
             "crop": (0, 0, .5, 1),
         }, persist=False)
-        screen = gallery.screen_from_dict(gallery._slide_data(
+        screen = gallery.screen_from_dict(gallery.picture_slide_data(
             {"source": "saved", "id": "art", "title": "Queued art"},
             fit="cover", mode="atkinson", tone="vivid", crop=(0, 0, .5, 1),
         ))

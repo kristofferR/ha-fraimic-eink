@@ -726,3 +726,152 @@ def test_charging_releases_delay_and_notifies_player(playback):
     assert p.scheduler.blocked_reason is None
     assert p.scheduler.retry_at is None
     listener.assert_called_once()
+
+
+def _auto(p, *, fail=None):
+    """Turn on auto mode with a fake resolver that names picks pick0, pick1..."""
+    made = []
+
+    async def resolve(source):
+        if fail is not None:
+            raise fail
+        made.append(f"pick{len(made)}")
+        return _screen(made[-1])
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    return made
+
+
+def test_auto_mode_keeps_art_changing_after_the_queue_ends(playback):
+    p = playback
+    (hand,) = add(p, "hand")
+    run(p.scheduler.async_set_playback(interval=600))
+    run(p.scheduler.async_set_enabled(True))
+    _auto(p)
+    assert not p.scheduler.exhausted
+    assert [s.name for s in p.scheduler.queued_slides] == ["pick0", "pick1", "pick2"]
+    p.now[0] += timedelta(seconds=599)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "hand"
+    p.now[0] += timedelta(seconds=1)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+    assert p.scheduler.playlist_name == "Auto · Surprise me"
+    assert "library:pick0" in p.scheduler.auto_history.entries
+    run(p.scheduler._async_top_up_auto())
+    assert [s.name for s in p.scheduler.queued_slides] == ["pick1", "pick2", "pick3"]
+    # Something queued by hand still plays before the remaining auto picks.
+    add(p, "later")
+    assert p.scheduler.queued_slides[0].name == "later"
+
+
+def test_auto_picks_follow_set_times(playback):
+    p = playback
+    add(p, "hand")
+    run(p.scheduler.async_set_enabled(True))
+    run(p.scheduler.async_set_auto({"cadence": "times", "times": ["18:00"]}))
+    _auto(p)
+    p.now[0] = p.now[0].replace(hour=17, minute=59)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "hand"
+    assert p.scheduler.cycle_seconds == 6 * 3600
+    p.now[0] = p.now[0].replace(hour=18)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+
+
+def test_removing_or_refreshing_auto_picks_skips_them(playback):
+    p = playback
+    _auto(p)
+    first = p.scheduler.queued_slides[0]
+    run(p.scheduler.async_remove_from_queue(0, first.screen_id))
+    assert "library:pick0" in p.scheduler.auto_history.entries
+    run(p.scheduler._async_top_up_auto())
+    assert [s.name for s in p.scheduler.queued_slides] == ["pick1", "pick2", "pick3"]
+    run(p.scheduler.async_new_auto_picks())
+    assert not p.scheduler.queued_slides
+    assert {"library:pick1", "library:pick3"} <= set(p.scheduler.auto_history.entries)
+
+
+def test_settings_change_discards_stale_picks_and_in_flight_resolution(playback):
+    p = playback
+    _auto(p)
+
+    async def resolve(source):
+        await p.scheduler.async_set_auto({"avoid_repeats_days": 7})
+        return _screen("stale")
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_remove_from_queue(0, p.scheduler.queued_slides[0].screen_id))
+    run(p.scheduler._async_top_up_auto())
+    assert not p.scheduler.queued_slides
+    assert p.scheduler.auto.avoid_repeats_days == 7
+
+
+def test_failing_sources_back_off_and_explain_the_wait(playback):
+    p = playback
+    run(p.scheduler.async_set_enabled(True))
+    _auto(p, fail=p.module.HomeAssistantError("Met is unreachable"))
+    assert not p.scheduler.queued_slides
+    assert p.scheduler.blocked_reason == "auto_unavailable"
+    assert p.scheduler.auto_error == "Surprise me: Met is unreachable"
+    assert not p.scheduler._auto_topup_due()
+    p.now[0] += p.module.AUTO_BACKOFF
+    assert p.scheduler._auto_topup_due()
+
+
+def test_leaving_auto_mode_drops_unplayed_picks(playback):
+    p = playback
+    _auto(p)
+    run(p.scheduler.async_set_playback(end_action="stop"))
+    assert not p.scheduler.queued_slides
+    assert p.scheduler.exhausted
+    assert not p.scheduler._auto_topup_due()
+
+
+def test_choosing_auto_mode_starts_idle_playback(playback):
+    p = playback
+    assert not p.scheduler.enabled
+    _auto(p)
+    assert p.scheduler.enabled
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+
+
+def test_active_hours_hold_auto_picks_overnight(playback):
+    p = playback
+    run(p.scheduler.async_set_auto({"active_hours": {"after": "07:00", "before": "22:00"}}))
+    p.now[0] = p.now[0].replace(hour=23)
+    _auto(p)
+    run(p.scheduler._async_tick())
+    assert p.show.await_count == 0
+    p.now[0] += timedelta(hours=8)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+
+
+def test_cloud_delivery_keeps_auto_picks_on_the_queue_interval(playback):
+    p = playback
+    p.entry.runtime_data.cloud = SimpleNamespace(
+        async_sync_interval=AsyncMock(), delivery_deadline=None,
+        async_expire_delivery=AsyncMock(),
+    )
+    add(p, "hand")
+    run(p.scheduler.async_set_playback(interval=600))
+    run(p.scheduler.async_set_enabled(True))
+    run(p.scheduler.async_set_auto({"cadence": "interval", "interval": 7200}))
+    _auto(p)
+    assert p.scheduler.cycle_seconds == 600
+
+
+def test_repeat_after_auto_loops_shown_picks_as_history(playback):
+    p = playback
+    run(p.scheduler.async_set_enabled(True))
+    _auto(p)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+    run(p.scheduler.async_set_playback(end_action="repeat", shuffle=True))
+    assert all(item.auto_source is None for item in p.scheduler.queue.items)
+    assert not p.scheduler.queue.auto_upcoming

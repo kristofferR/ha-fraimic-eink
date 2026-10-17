@@ -18,7 +18,7 @@ def picture(name):
 
 
 def test_round_trip_preserves_duplicate_occurrences_settings_and_snapshots():
-    queue = model.PlaybackQueue(interval=21600, repeat=True)
+    queue = model.PlaybackQueue(interval=21600, end_action="repeat")
     original = replace(picture("same"), overlay_mode="none")
     a, b = queue.add([original, original], playlist_id="saved", playlist_name="Saved")
     queue.cursor = a.screen.screen_id
@@ -71,7 +71,7 @@ def test_repeat_is_explicit_and_removed_items_never_return():
     queue.cursor = c.screen.screen_id
     now = datetime(2026, 9, 18, 12)
     assert queue.candidate(now) is None
-    queue.repeat = True
+    queue.end_action = "repeat"
     assert queue.candidate(now) == a
     assert b not in queue.items
     queue.clear()
@@ -111,12 +111,12 @@ def test_previous_wraps_only_when_repeat_is_enabled():
     now = datetime(2026, 9, 18, 12)
     queue.cursor = a.screen.screen_id
     assert queue.candidate(now, previous=True) is None
-    queue.repeat = True
+    queue.end_action = "repeat"
     assert queue.candidate(now, previous=True) == b
 
 
 def test_shuffle_changes_include_next_repeat_cycle(monkeypatch):
-    queue = model.PlaybackQueue(repeat=True)
+    queue = model.PlaybackQueue(end_action="repeat")
     a, b, c = queue.add([picture(name) for name in ("a", "b", "c")])
     queue.cursor = c.screen.screen_id
     monkeypatch.setattr(model.random, "shuffle", lambda items: items.reverse())
@@ -138,3 +138,50 @@ def test_disabled_snapshots_do_not_count_as_future_playback():
     queue.advance(b.screen.screen_id, datetime(2026, 9, 18, 12))
     assert queue.upcoming == []
     assert queue.position > queue.items.index(disabled)
+
+
+def test_hand_items_play_before_auto_picks_and_keep_converts_a_pick():
+    queue = model.PlaybackQueue()
+    (current,) = queue.add([picture("current")])
+    queue.cursor = current.screen.screen_id
+    pick = queue.add_auto(picture("pick"), "Favorites")
+    hand = queue.add([picture("hand")])[0]
+    assert queue.upcoming == [hand, pick]
+    assert queue.add([picture("first")], index=0)[0] == queue.upcoming[0]
+    ids = [item.screen.screen_id for item in queue.upcoming]
+    queue.reorder(list(reversed(ids)))
+    # Auto picks stay below everything queued by hand unless they are kept.
+    assert queue.upcoming[-1] == pick
+    queue.reorder(list(reversed(ids)), keep_ids=[pick.screen.screen_id])
+    assert queue.upcoming[0] == pick and pick.auto_source is None
+
+
+def test_shuffle_clear_and_trim_leave_auto_picks_in_place(monkeypatch):
+    queue = model.PlaybackQueue(end_action="repeat")
+    items = queue.add([picture(str(i)) for i in range(4)])
+    queue.cursor = items[0].screen.screen_id
+    pick = queue.add_auto(picture("pick"), "Surprise me")
+    queue.end_action = "auto"
+    monkeypatch.setattr(model.random, "shuffle", lambda values: values.reverse())
+    queue.set_shuffle(True)
+    assert queue.upcoming[-1] == pick
+    queue.clear()
+    assert queue.upcoming == [pick] and queue.end_action == "auto"
+    played = [queue.add_auto(picture(f"old{i}"), "Auto") for i in range(3)]
+    queue.cursor = played[-1].screen.screen_id
+    queue.trim_played(2)
+    assert played[0] not in queue.items and played[1] in queue.items
+    assert items[0] in queue.items  # hand history is never trimmed
+    assert queue.drop_auto() == []
+
+
+def test_legacy_repeat_flag_migrates_to_end_action():
+    data = model.PlaybackQueue().to_dict()
+    data.pop("end_action")
+    data["repeat"] = True
+    assert model.PlaybackQueue.from_dict(data).end_action == "repeat"
+    queue = model.PlaybackQueue(end_action="auto")
+    queue.add_auto(picture("pick"), "Favorites")
+    restored = model.PlaybackQueue.from_dict(queue.to_dict())
+    assert restored.end_action == "auto"
+    assert restored.auto_upcoming[0].auto_source == "Favorites"

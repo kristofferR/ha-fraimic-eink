@@ -94,7 +94,12 @@ def _entry(media_title=None, art=None, preview=None):
         exhausted=False,
         blocked_reason=None,
         retry_at=None,
-        queue=SimpleNamespace(repeat=False),
+        cycle_seconds=None,
+        queue=SimpleNamespace(
+            repeat=False, end_action="stop", hand_upcoming=[], auto_upcoming=[]
+        ),
+        auto=SimpleNamespace(to_dict=lambda: {"sources": []}),
+        auto_error=None,
     )
     runtime = SimpleNamespace(
         scheduler=scheduler,
@@ -224,12 +229,22 @@ def test_queue_without_playlist_has_playback_controls(player_api):
     scheduler.playlist_id = scheduler.playlist_name = None
     scheduler.screens = []
     scheduler.enabled = False
-    scheduler.queued_slides = [SimpleNamespace(screen_id="queued", name="Queued", source={})]
+    queued = SimpleNamespace(screen_id="queued", name="Queued", source={})
+    picked = SimpleNamespace(
+        screen_id="picked", name="Picked",
+        source={"metadata": {"artist": "Monet", "source_name": "Reframed"}},
+    )
+    scheduler.queued_slides = [queued, picked]
+    scheduler.queue.hand_upcoming = [SimpleNamespace(screen=queued, auto_source=None)]
+    scheduler.queue.auto_upcoming = [SimpleNamespace(screen=picked, auto_source="Favorites")]
     payload = player_api._player_payload(SimpleNamespace(data={}), entry)
     assert payload["transport_available"]
     assert payload["paused"]
     assert payload["queue_count"] == 1
     assert payload["hand_queue"][0]["id"] == "queued"
+    assert payload["auto_queue"][0]["id"] == "picked"
+    assert payload["auto_queue"][0]["auto_source"] == "Favorites"
+    assert payload["auto_queue"][0]["meta"] == "Monet · Favorites"
 
 
 def test_delayed_playback_explains_wait_instead_of_zero_countdown(player_api):

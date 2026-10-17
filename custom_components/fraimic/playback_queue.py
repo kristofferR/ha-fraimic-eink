@@ -8,6 +8,7 @@ import uuid
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 
+from .auto_mode import END_ACTIONS, END_REPEAT, END_STOP
 from .const import DEFAULT_SCREEN_INTERVAL, MIN_SCREEN_INTERVAL
 from .render.playlist import eligible
 from .render.schema import (
@@ -24,6 +25,8 @@ class QueueItem:
     sequence: int
     playlist_id: str | None = None
     playlist_name: str | None = None
+    # Label of the auto mode source that picked this item; None = queued by hand.
+    auto_source: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -33,6 +36,7 @@ class QueueItem:
             "sequence": self.sequence,
             "playlist_id": self.playlist_id,
             "playlist_name": self.playlist_name,
+            "auto_source": self.auto_source,
         }
 
     @classmethod
@@ -43,6 +47,7 @@ class QueueItem:
             int(data["sequence"]),
             data.get("playlist_id"),
             data.get("playlist_name"),
+            data.get("auto_source"),
         )
 
 
@@ -52,7 +57,12 @@ class PlaybackQueue:
     cursor: str | None = None
     interval: int = DEFAULT_SCREEN_INTERVAL
     shuffle: bool = False
-    repeat: bool = False
+    # What plays once the queue runs out: stop, repeat it, or auto mode picks.
+    end_action: str = END_STOP
+
+    @property
+    def repeat(self) -> bool:
+        return self.end_action == END_REPEAT
 
     @property
     def position(self) -> int:
@@ -68,6 +78,14 @@ class PlaybackQueue:
     @property
     def upcoming(self) -> list[QueueItem]:
         return [item for item in self.items[self.position + 1 :] if item.screen.enabled]
+
+    @property
+    def hand_upcoming(self) -> list[QueueItem]:
+        return [item for item in self.upcoming if item.auto_source is None]
+
+    @property
+    def auto_upcoming(self) -> list[QueueItem]:
+        return [item for item in self.upcoming if item.auto_source is not None]
 
     def get(self, item_id: str | None) -> QueueItem | None:
         return next(
@@ -120,19 +138,47 @@ class PlaybackQueue:
             )
             for i, screen in enumerate(screens)
         ]
-        upcoming = self.upcoming
-        at = len(self.items)
-        if index is not None and upcoming and index < len(upcoming):
-            at = self.items.index(upcoming[max(0, index)])
+        # Hand-queued items always play before auto mode's picks.
+        hand, auto = self.hand_upcoming, self.auto_upcoming
+        at = self.items.index(auto[0]) if auto else len(self.items)
+        if index is not None and hand and index < len(hand):
+            at = self.items.index(hand[max(0, index)])
         self.items[at:at] = added
         return added
 
-    def clear(self) -> None:
-        current = self.get(self.cursor)
-        self.items = [current] if current else []
-        self.repeat = False
+    def add_auto(self, screen: ScreenConfig, label: str) -> QueueItem:
+        """Append one auto mode pick after everything already queued."""
+        (item,) = self.add([screen])
+        self.items.remove(item)
+        item.auto_source = label
+        self.items.append(item)
+        return item
 
-    def remove(self, index: int, item_id: str) -> None:
+    def drop_auto(self) -> list[QueueItem]:
+        """Forget auto picks that have not been shown yet."""
+        dropped = self.auto_upcoming
+        self.items = [item for item in self.items if item not in dropped]
+        return dropped
+
+    def trim_played(self, keep: int) -> None:
+        """Bound history: forget the oldest shown auto picks beyond ``keep``."""
+        played = self.items[: max(0, self.position)]
+        excess = len(played) - keep
+        for item in played:
+            if excess <= 0:
+                return
+            if item.auto_source is not None:
+                self.items.remove(item)
+                excess -= 1
+
+    def clear(self) -> None:
+        """Clear what was queued by hand; auto mode's picks stay."""
+        current = self.get(self.cursor)
+        self.items = [*([current] if current else []), *self.auto_upcoming]
+        if self.end_action == END_REPEAT:
+            self.end_action = END_STOP
+
+    def remove(self, index: int, item_id: str) -> QueueItem:
         upcoming = self.upcoming
         if (
             not 0 <= index < len(upcoming)
@@ -140,12 +186,21 @@ class PlaybackQueue:
         ):
             raise ValueError("That queue item is no longer available")
         self.items.remove(upcoming[index])
+        return upcoming[index]
 
-    def reorder(self, ordered_ids: list[str]) -> None:
+    def reorder(self, ordered_ids: list[str], keep_ids: list[str] | None = None) -> None:
+        """Reorder everything upcoming; ``keep_ids`` turns auto picks into hand items."""
         upcoming = {item.screen.screen_id: item for item in self.upcoming}
         if len(ordered_ids) != len(upcoming) or set(ordered_ids) != set(upcoming):
             raise ValueError("The queue changed before it could be reordered")
-        self.items[self.position + 1 :] = [upcoming[item_id] for item_id in ordered_ids]
+        for item_id in keep_ids or ():
+            if item := upcoming.get(item_id):
+                item.auto_source = None
+        ordered = [upcoming[item_id] for item_id in ordered_ids]
+        self.items[self.position + 1 :] = [
+            *(item for item in ordered if item.auto_source is None),
+            *(item for item in ordered if item.auto_source is not None),
+        ]
         # An explicit order becomes the order restored when shuffle is disabled.
         for sequence, item in enumerate(self.items):
             item.sequence = sequence
@@ -160,12 +215,12 @@ class PlaybackQueue:
                 self.items.sort(key=lambda item: item.sequence)
             self.shuffle = enabled
             return
-        upcoming = self.upcoming
+        upcoming = self.hand_upcoming
         if enabled:
             random.shuffle(upcoming)
         else:
             upcoming.sort(key=lambda item: item.sequence)
-        self.items[self.position + 1 :] = upcoming
+        self.items[self.position + 1 :] = [*upcoming, *self.auto_upcoming]
         self.shuffle = enabled
 
     def to_dict(self) -> dict:
@@ -174,15 +229,20 @@ class PlaybackQueue:
             "cursor": self.cursor,
             "interval": self.interval,
             "shuffle": self.shuffle,
+            "end_action": self.end_action,
+            # Read by releases before end_action existed.
             "repeat": self.repeat,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> PlaybackQueue:
+        end_action = data.get("end_action")
+        if end_action not in END_ACTIONS:
+            end_action = END_REPEAT if data.get("repeat") is True else END_STOP
         queue = cls(
             interval=int(data["interval"]),
             shuffle=data.get("shuffle") is True,
-            repeat=data.get("repeat") is True,
+            end_action=end_action,
         )
         if queue.interval < MIN_SCREEN_INTERVAL:
             raise ValueError("Invalid queue interval")
