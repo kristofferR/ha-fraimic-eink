@@ -644,3 +644,150 @@ clear_temporary_overlay:
       selector:
         config_entry:
           integration: fraimic
+
+set_auto_mode:
+  name: Set auto mode
+  description: >-
+    Choose what plays when a frame's queue runs out and how auto mode picks
+    new art. Only the fields you give change.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: Which frame to change. Only required with multiple frames.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    end_of_queue:
+      name: End of queue
+      description: Stop, repeat the queue, or keep showing new art with auto mode.
+      required: false
+      selector:
+        select:
+          options:
+            - stop
+            - repeat
+            - auto
+    sources:
+      name: Sources
+      description: >-
+        Where auto mode picks art from. A list of sources, for example
+        {"kind": "gallery", "source": "saved", "browse_id": "favorites",
+        "weight": 2} or {"kind": "shuffle"}.
+      required: false
+      selector:
+        object:
+    cadence:
+      name: When to change
+      description: >-
+        Follow the queue interval, use an interval of its own, or change at
+        set times of day.
+      required: false
+      selector:
+        select:
+          options:
+            - queue
+            - interval
+            - times
+    interval:
+      name: Interval
+      description: >-
+        How often auto mode changes the picture when it uses its own
+        interval. At least 5 minutes.
+      required: false
+      selector:
+        duration:
+    times:
+      name: Set times
+      description: Times of day to change the picture, as HH:MM.
+      required: false
+      example: '["07:00", "17:30"]'
+      selector:
+        text:
+          multiple: true
+    days:
+      name: Days
+      description: Weekdays the set times apply to. Leave empty for every day.
+      required: false
+      selector:
+        select:
+          multiple: true
+          options:
+            - mon
+            - tue
+            - wed
+            - thu
+            - fri
+            - sat
+            - sun
+    active_hours:
+      name: Active hours
+      description: >-
+        Only change the picture inside this window, for example
+        {"after": "07:00", "before": "23:00"}. Give {} to allow any time.
+      required: false
+      selector:
+        object:
+    avoid_repeats_days:
+      name: Avoid repeats for
+      description: >-
+        Days before the same picture can be shown again. 0 allows repeats;
+        -1 waits until every picture in a source has been shown.
+      required: false
+      selector:
+        number:
+          min: -1
+          max: 365
+          unit_of_measurement: days
+    orientation:
+      name: Orientation
+      description: Prefer art that suits the frame, or only use art that does.
+      required: false
+      selector:
+        select:
+          options:
+            - prefer
+            - strict
+    caption:
+      name: Caption strip
+      description: Add the attribution strip to online art.
+      required: false
+      selector:
+        boolean:
+    tone:
+      name: Tone
+      description: Tone curve for auto mode's pictures.
+      required: false
+      selector:
+        select:
+          options:
+            - vivid
+            - balanced
+            - soft
+    fit:
+      name: Fit
+      description: How pictures fill the frame. Default follows the frame's setting.
+      required: false
+      selector:
+        select:
+          options:
+            - default
+            - cover
+            - contain
+            - contain_black
+    overlays:
+      name: Overlays
+      description: Show the frame's overlays on auto mode's pictures, or none.
+      required: false
+      selector:
+        select:
+          options:
+            - inherit
+            - none
+    new_picks:
+      name: New picks
+      description: Replace the upcoming auto picks with new ones.
+      required: false
+      default: false
+      selector:
+        boolean:

@@ -732,22 +732,24 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     interval = scheduler.playlist_interval
     if interval is None and current is not None:
         interval = current.interval
+    # Auto picks can follow their own cadence, so time the actual next change.
+    cycle = scheduler.cycle_seconds if interval is not None else None
     elapsed: int | None = None
     remaining: int | None = None
-    if interval is not None and scheduler.last_rotation is not None:
+    if cycle is not None and scheduler.last_rotation is not None:
         elapsed = max(
             0,
             int((dt_util.utcnow() - scheduler.last_rotation).total_seconds()),
         )
-        remaining = max(0, interval - elapsed)
-    if interval is not None and scheduler.hold_until is not None:
+        remaining = max(0, cycle - elapsed)
+    if cycle is not None and scheduler.hold_until is not None:
         held_remaining = max(
             0,
             int((scheduler.hold_until - dt_util.utcnow()).total_seconds()),
         )
         if held_remaining:
-            remaining = min(interval, held_remaining)
-            elapsed = max(0, interval - remaining)
+            remaining = min(cycle, held_remaining)
+            elapsed = max(0, cycle - remaining)
 
     sending = bool(
         scheduler.busy or scheduler.external_upload_active
@@ -779,7 +781,8 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         if runtime.displayed_preview is not None
         else None
     )
-    queued = scheduler.queued_slides
+    hand = scheduler.queue.hand_upcoming
+    auto_picks = scheduler.queue.auto_upcoming
     current_thumbnail = artwork_url if current is not None else None
     def queue_thumbnail(slide: ScreenConfig) -> str | None:
         if current is not None and slide.screen_id == current.screen_id:
@@ -822,6 +825,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "cloud_unavailable": "Cloud delivery unavailable. Retrying shortly.",
         "invalid_item": "An unavailable queue item was skipped.",
         "asleep": "Waiting for the frame to wake.",
+        "auto_unavailable": "Auto mode could not find new art. Retrying shortly.",
     }
     reason = scheduler.blocked_reason if scheduler.enabled else None
     delay = ({"reason": reason, "message": delay_messages.get(reason, "Playback is delayed by power settings."),
@@ -845,6 +849,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "playlist_id": playlist_id,
         "playlist_name": playlist_name,
         "interval": interval,
+        "cycle_seconds": cycle,
         "seconds_elapsed": elapsed,
         "seconds_remaining": remaining,
         "paused": bool(transport_available and (not scheduler.enabled or scheduler.exhausted)),
@@ -852,15 +857,40 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "delay": delay,
         "shuffle": scheduler.shuffle,
         "repeat": scheduler.queue.repeat,
+        "end_action": scheduler.queue.end_action,
+        "auto": {
+            **scheduler.auto.to_dict(),
+            "error": scheduler.auto_error,
+            # Cloud wakes follow the queue interval, so auto mode does too.
+            "cloud": cloud is not None,
+        },
         "transport_available": transport_available,
         "sending": sending,
         "sending_progress": sending_progress,
         "overlay_count": overlay_count,
-        "queue_count": len(queued),
+        "queue_count": len(hand),
         "waiting_count": waiting,
         "hand_queue": [
-            _slide_payload(slide, thumbnail_url=queue_thumbnail(slide))
-            for slide in queued
+            _slide_payload(item.screen, thumbnail_url=queue_thumbnail(item.screen))
+            for item in hand
+        ],
+        "auto_queue": [
+            {
+                **_slide_payload(item.screen, thumbnail_url=queue_thumbnail(item.screen)),
+                "meta": " · ".join(
+                    filter(
+                        None,
+                        (
+                            ((item.screen.source or {}).get("metadata") or {}).get(
+                                "artist"
+                            ),
+                            item.auto_source,
+                        ),
+                    )
+                ),
+                "auto_source": item.auto_source,
+            }
+            for item in auto_picks
         ],
 
     }
@@ -985,7 +1015,19 @@ class PlayerControlView(_FraimicView):
                     stopper()
                 if await scheduler.async_next():
                     runtime.coordinator.async_set_frame_online(True)
-            elif action in {"shuffle", "repeat", "interval"}:
+            elif action == "auto":
+                patch = body.get("auto")
+                if not isinstance(patch, dict):
+                    return self.json_message(
+                        "auto must be an object", HTTPStatus.BAD_REQUEST
+                    )
+                try:
+                    await scheduler.async_set_auto(patch)
+                except HomeAssistantError as err:
+                    return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+            elif action == "new_picks":
+                await scheduler.async_new_auto_picks()
+            elif action in {"shuffle", "repeat", "interval", "end_action"}:
                 if action not in body or body[action] is None:
                     return self.json_message(
                         f"{action} is required", HTTPStatus.BAD_REQUEST
@@ -1096,15 +1138,18 @@ class PlayerQueueView(_FraimicView):
             elif action == "reorder":
                 section = body.get("section", "queue")
                 ordered_ids = body.get("ordered_ids")
-                if not isinstance(ordered_ids, list) or not all(
-                    isinstance(slide_id, str) for slide_id in ordered_ids
+                keep_ids = body.get("keep_ids", [])
+                if not all(
+                    isinstance(ids, list)
+                    and all(isinstance(slide_id, str) for slide_id in ids)
+                    for ids in (ordered_ids, keep_ids)
                 ):
                     return self.json_message(
-                        "ordered_ids must be a list of slide ids",
+                        "ordered_ids and keep_ids must be lists of slide ids",
                         HTTPStatus.BAD_REQUEST,
                     )
                 if section == "queue":
-                    await scheduler.async_reorder_queue(ordered_ids)
+                    await scheduler.async_reorder_queue(ordered_ids, keep_ids)
                 else:
                     return self.json_message(
                         "section must be queue",

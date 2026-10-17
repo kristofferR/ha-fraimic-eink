@@ -7,7 +7,7 @@ import io
 import sys
 import types
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from unittest.mock import AsyncMock
 
@@ -638,8 +638,12 @@ def test_picture_source_uses_stashed_provider_item(
     assert calls == [("unsplash", "photo-1")]
 
 
+@pytest.mark.parametrize("saved_candidate", [False, True])
+@pytest.mark.parametrize("delivery", ["uploaded", "preview", "skipped", "cloud_queued"])
 def test_picture_source_falls_back_to_persisted_provider_url(
     monkeypatch: pytest.MonkeyPatch,
+    saved_candidate: bool,
+    delivery: str,
 ) -> None:
     display, _ = _load_display(monkeypatch)
     caption = types.ModuleType("fraimic.providers.caption")
@@ -659,6 +663,7 @@ def test_picture_source_falls_back_to_persisted_provider_url(
 
     providers_ha.async_art_by_media_id = by_media_id
     providers_ha.async_fetch_art = fetch_art
+    providers_ha.async_art_displayed = AsyncMock()
     source_module = types.ModuleType("fraimic.source")
     calls: list[str] = []
 
@@ -673,11 +678,24 @@ def test_picture_source_falls_back_to_persisted_provider_url(
     monkeypatch.setitem(sys.modules, "fraimic.providers.caption", caption)
     monkeypatch.setitem(sys.modules, "fraimic.providers.ha", providers_ha)
     monkeypatch.setitem(sys.modules, "fraimic.source", source_module)
+    artwork_cache = types.ModuleType("fraimic.artwork_cache")
+    artwork_cache.get_artwork_cache = lambda _hass: None
+    monkeypatch.setitem(sys.modules, "fraimic.artwork_cache", artwork_cache)
+    base = load("providers.base")
+    candidate = base.ArtCandidate(
+        provider="unsplash", item_id="photo-1", image_url="https://example.test/photo-1.jpg",
+        title="Photo", attribution="Photo by Artist on Unsplash",
+        extra={"download_location": "https://api.unsplash.com/photos/photo-1/download"},
+    )
+    metadata = {"download_url": candidate.image_url}
+    if saved_candidate:
+        metadata["provider_candidate"] = asdict(candidate)
     screen = types.SimpleNamespace(
+        name="Photo", kind=display.KIND_PICTURE,
         source={
             "provider": "unsplash",
             "provider_item": "photo-1",
-            "metadata": {"download_url": "https://example.test/photo-1.jpg"},
+            "metadata": metadata,
         }
     )
 
@@ -686,8 +704,31 @@ def test_picture_source_falls_back_to_persisted_provider_url(
     )
 
     assert raw == b"persisted-art"
-    assert art is None
+    if saved_candidate:
+        assert art.candidate == candidate
+        assert art.data == raw
+    else:
+        assert art is None
     assert calls == ["https://example.test/photo-1.jpg"]
+    providers_ha.async_art_displayed.assert_not_awaited()
+
+    _install_services(
+        monkeypatch,
+        async_convert_for_entry=AsyncMock(return_value=(b"bin", b"preview", "none")),
+        async_render_and_upload=AsyncMock(return_value={
+            "uploaded": delivery == "uploaded",
+            "cloud_queued": delivery == "cloud_queued",
+            "content_hash": "hash", "mode": "none", "preview_png": b"preview",
+        }),
+    )
+    asyncio.run(display.async_show_screen(
+        _Hass(), _entry(), screen, hold_playlist=False, preview_only=delivery == "preview",
+    ))
+    if saved_candidate and delivery == "uploaded":
+        providers_ha.async_art_displayed.assert_awaited_once()
+        assert providers_ha.async_art_displayed.await_args.args[2].candidate == candidate
+    else:
+        providers_ha.async_art_displayed.assert_not_awaited()
 
 
 def test_library_picture_uses_cached_render(

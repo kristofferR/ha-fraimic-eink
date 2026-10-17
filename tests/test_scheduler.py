@@ -508,6 +508,130 @@ def test_transient_failures_keep_queue_head(playback, error):
     assert p.scheduler._pending is None
 
 
+@pytest.mark.parametrize("error", ["ArtFetchError", "CloudDeliveryError"])
+@pytest.mark.parametrize("manual", [False, True])
+def test_failed_auto_art_is_replaced_only_for_automatic_fetch_errors(playback, error, manual):
+    p = playback
+    _auto(p)
+    failed = p.scheduler.queued_slides[0]
+    p.show.side_effect = getattr(p.module, error)("unavailable")
+    if manual:
+        with pytest.raises(getattr(p.module, error)):
+            run(p.scheduler._async_show(failed, manual=True))
+    else:
+        assert not run(p.scheduler._async_show(failed))
+    removed = error == "ArtFetchError" and not manual
+    assert (p.scheduler.queue.get(failed.screen_id) is None) == removed
+    assert p.scheduler.retry_at == p.now[0] + timedelta(minutes=5)
+    if removed:
+        assert failed.screen_id not in {
+            item["id"] for item in p.store.async_save.call_args.args[0]["playback_queue"]["items"]
+        }
+        p.show.side_effect = None
+        run(p.scheduler._async_top_up_auto())
+        p.now[0] += timedelta(minutes=5)
+        run(p.scheduler._async_tick())
+        assert p.scheduler.current_screen.name == "pick1"
+
+
+@pytest.mark.parametrize("legacy,other_source", [(False, False), (True, False), (False, True)])
+def test_failed_auto_art_backs_off_its_source_before_refill(
+    playback, monkeypatch, legacy, other_source
+):
+    p = playback
+    sources = [{"kind": "gallery", "source": "broken", "label": "Art"}]
+    if other_source:
+        sources.append({"kind": "gallery", "source": "healthy", "label": "Art"})
+    run(p.scheduler.async_set_auto({"sources": sources}))
+    monkeypatch.setattr(
+        p.module, "pick_source",
+        lambda sources, unavailable: next(
+            (source for source in sources if source.key not in unavailable), None
+        ),
+    )
+
+    async def resolve(_hass, _entry, _settings, source, _history, *, exclude, playlists):
+        if f"library:{source.source}" in exclude:
+            raise p.module.AutoSourceQueued
+        return _screen(source.source)
+
+    resolver = AsyncMock(side_effect=resolve)
+    monkeypatch.setitem(
+        sys.modules, "fraimic.auto_sources", SimpleNamespace(async_resolve_pick=resolver)
+    )
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    failed = p.scheduler.queue.auto_upcoming[0]
+    if legacy:
+        failed.auto_source_key = None
+    p.show.side_effect = p.module.ArtFetchError("404")
+    assert not run(p.scheduler._async_show(failed.screen))
+    source_key = p.scheduler.auto.sources[0].key
+    assert p.scheduler._auto_backoff == {source_key: p.now[0] + p.module.AUTO_BACKOFF}
+    p.show.side_effect = None
+    for _ in range(2):
+        run(p.scheduler._async_top_up_auto())
+        p.now[0] += timedelta(minutes=5)
+        run(p.scheduler._async_tick())
+        assert all(slide.name != "broken" for slide in p.scheduler.queued_slides)
+    assert sum(call.args[3].source == "broken" for call in resolver.await_args_list) == 2
+    if other_source:
+        assert p.scheduler.current_screen.name == "healthy"
+    p.now[0] += timedelta(minutes=5)
+    assert p.scheduler._auto_topup_due()
+    run(p.scheduler._async_top_up_auto())
+    assert any(slide.name == "broken" for slide in p.scheduler.queued_slides)
+
+
+def test_legacy_auto_failure_with_shared_labels_preserves_other_sources(playback):
+    p = playback
+    run(p.scheduler.async_set_auto({"sources": [
+        {"kind": "gallery", "source": "broken", "label": "Art"},
+        {"kind": "gallery", "source": "healthy", "label": "Art"},
+    ]}))
+    _auto(p)
+    failed = p.scheduler.queue.auto_upcoming[0]
+    failed.auto_source_key = None
+    p.show.side_effect = p.module.ArtFetchError("404")
+    assert not run(p.scheduler._async_show(failed.screen))
+    assert not p.scheduler._auto_backoff
+    assert "library:pick0" in p.scheduler.auto_history.entries
+    assert p.scheduler._auto_topup_due()
+
+
+@pytest.mark.parametrize("source", [{"url": "https://example.test/art.jpg"}, {"entity": "image.art"}])
+def test_failed_auto_playlist_source_backs_off_before_refill(playback, source):
+    p = playback
+    run(p.scheduler.async_set_auto({"sources": [{"kind": "playlist", "playlist_id": "art"}]}))
+
+    async def pick(_source):
+        if p.scheduler.queue.auto_upcoming:
+            raise p.module.AutoSourceQueued
+        return replace(_screen("art"), source=source)
+
+    resolve = AsyncMock(side_effect=pick)
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    failed = p.scheduler.queue.auto_upcoming[0]
+    p.show.side_effect = p.module.HomeAssistantError("source unavailable")
+    assert not run(p.scheduler._async_show(failed.screen))
+    assert p.scheduler.queue.get(failed.screen.screen_id) is None
+    assert p.scheduler._auto_backoff == {
+        failed.auto_source_key: p.now[0] + p.module.AUTO_BACKOFF
+    }
+    resolve.reset_mock()
+    for _ in range(14):
+        p.now[0] += timedelta(minutes=1)
+        run(p.scheduler._async_top_up_auto())
+        run(p.scheduler._async_tick())
+    resolve.assert_not_awaited()
+    p.now[0] += timedelta(minutes=1)
+    assert p.scheduler._auto_topup_due()
+    run(p.scheduler._async_top_up_auto())
+    resolve.assert_awaited()
+
+
 def test_permanently_invalid_item_does_not_block_following_item(playback):
     p = playback
     a, b = add(p, "a", "b")
@@ -726,3 +850,227 @@ def test_charging_releases_delay_and_notifies_player(playback):
     assert p.scheduler.blocked_reason is None
     assert p.scheduler.retry_at is None
     listener.assert_called_once()
+
+
+def _auto(p, *, fail=None):
+    """Turn on auto mode with a fake resolver that names picks pick0, pick1..."""
+    made = []
+
+    async def resolve(source):
+        if fail is not None:
+            raise fail
+        made.append(f"pick{len(made)}")
+        return _screen(made[-1])
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    return made
+
+
+def test_auto_mode_keeps_art_changing_after_the_queue_ends(playback):
+    p = playback
+    (hand,) = add(p, "hand")
+    run(p.scheduler.async_set_playback(interval=600))
+    run(p.scheduler.async_set_enabled(True))
+    _auto(p)
+    assert not p.scheduler.exhausted
+    assert [s.name for s in p.scheduler.queued_slides] == ["pick0", "pick1", "pick2"]
+    p.now[0] += timedelta(seconds=599)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "hand"
+    p.now[0] += timedelta(seconds=1)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+    assert p.scheduler.playlist_name == "Auto · Surprise me"
+    assert "library:pick0" in p.scheduler.auto_history.entries
+    run(p.scheduler._async_top_up_auto())
+    assert [s.name for s in p.scheduler.queued_slides] == ["pick1", "pick2", "pick3"]
+    # Something queued by hand still plays before the remaining auto picks.
+    add(p, "later")
+    assert p.scheduler.queued_slides[0].name == "later"
+
+
+@pytest.mark.parametrize("source_kind", ["playlist", "shuffle"])
+@pytest.mark.parametrize("overlay_mode", ["inherit", "none"])
+def test_auto_overlays_preserve_playlist_choices(playback, source_kind, overlay_mode):
+    p = playback
+    settings = {"kind": source_kind}
+    if source_kind == "playlist":
+        settings["playlist_id"] = "saved"
+    run(p.scheduler.async_set_auto({"sources": [settings], "overlays": "none"}))
+
+    async def resolve(_source):
+        return replace(_screen("art"), overlay_mode=overlay_mode)
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    expected = overlay_mode if source_kind == "playlist" else "none"
+    assert all(slide.overlay_mode == expected for slide in p.scheduler.queued_slides)
+
+
+def test_auto_playlist_fallback_identity_reaches_displayed_history(playback):
+    p = playback
+
+    async def resolve(_source):
+        return replace(
+            _screen("art"), source={"entity": "image.art"}, history_key="slide:saved:a"
+        )
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    run(p.scheduler._async_tick())
+    assert "slide:saved:a" in p.scheduler.auto_history.entries
+
+
+@pytest.mark.parametrize("pool_size", [1, 2])
+def test_auto_refill_reuses_small_pools_on_cadence_without_backoff(playback, monkeypatch, pool_size):
+    p = playback
+    keys = [f"library:pick{i}" for i in range(pool_size)]
+
+    async def resolve(_hass, _entry, settings, _source, history, *, exclude, playlists):
+        if all(key in exclude for key in keys):
+            raise p.module.AutoSourceQueued
+        key = history.choose(keys, settings.avoid_repeats_days, p.now[0], exclude=exclude)
+        return _screen(key.removeprefix("library:")) if key else None
+
+    resolver = AsyncMock(side_effect=resolve)
+    monkeypatch.setitem(
+        sys.modules, "fraimic.auto_sources", SimpleNamespace(async_resolve_pick=resolver)
+    )
+    run(p.scheduler.async_set_playback(interval=600))
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    assert len(p.scheduler.queued_slides) == pool_size
+    for _ in range(5):
+        previous_id = p.scheduler.current_id
+        run(p.scheduler._async_tick())
+        assert p.scheduler.current_id != previous_id
+        run(p.scheduler._async_top_up_auto())
+        assert len(p.scheduler.queued_slides) == pool_size
+        assert not p.scheduler._auto_backoff
+        calls = resolver.await_count
+        assert not p.scheduler._auto_topup_due()
+        run(p.scheduler._async_top_up_auto())
+        p.now[0] += timedelta(seconds=60)
+        run(p.scheduler._async_tick())
+        assert resolver.await_count == calls
+        p.now[0] += timedelta(seconds=540)
+
+    first = p.scheduler.queued_slides[0]
+    run(p.scheduler.async_remove_from_queue(0, first.screen_id))
+    assert p.scheduler._auto_topup_due()
+    run(p.scheduler._async_top_up_auto())
+    assert len(p.scheduler.queued_slides) == pool_size
+
+
+def test_auto_picks_follow_set_times(playback):
+    p = playback
+    add(p, "hand")
+    run(p.scheduler.async_set_enabled(True))
+    run(p.scheduler.async_set_auto({"cadence": "times", "times": ["18:00"]}))
+    _auto(p)
+    p.now[0] = p.now[0].replace(hour=17, minute=59)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "hand"
+    assert p.scheduler.cycle_seconds == 6 * 3600
+    p.now[0] = p.now[0].replace(hour=18)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+
+
+def test_removing_or_refreshing_auto_picks_skips_them(playback):
+    p = playback
+    _auto(p)
+    first = p.scheduler.queued_slides[0]
+    run(p.scheduler.async_remove_from_queue(0, first.screen_id))
+    assert "library:pick0" in p.scheduler.auto_history.entries
+    run(p.scheduler._async_top_up_auto())
+    assert [s.name for s in p.scheduler.queued_slides] == ["pick1", "pick2", "pick3"]
+    run(p.scheduler.async_new_auto_picks())
+    assert not p.scheduler.queued_slides
+    assert {"library:pick1", "library:pick3"} <= set(p.scheduler.auto_history.entries)
+
+
+def test_settings_change_discards_stale_picks_and_in_flight_resolution(playback):
+    p = playback
+    _auto(p)
+
+    async def resolve(source):
+        await p.scheduler.async_set_auto({"avoid_repeats_days": 7})
+        return _screen("stale")
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_remove_from_queue(0, p.scheduler.queued_slides[0].screen_id))
+    run(p.scheduler._async_top_up_auto())
+    assert not p.scheduler.queued_slides
+    assert p.scheduler.auto.avoid_repeats_days == 7
+
+
+def test_failing_sources_back_off_and_explain_the_wait(playback):
+    p = playback
+    run(p.scheduler.async_set_enabled(True))
+    _auto(p, fail=p.module.HomeAssistantError("Met is unreachable"))
+    assert not p.scheduler.queued_slides
+    assert p.scheduler.blocked_reason == "auto_unavailable"
+    assert p.scheduler.auto_error == "Surprise me: Met is unreachable"
+    assert not p.scheduler._auto_topup_due()
+    p.now[0] += p.module.AUTO_BACKOFF
+    assert p.scheduler._auto_topup_due()
+
+
+def test_leaving_auto_mode_drops_unplayed_picks(playback):
+    p = playback
+    _auto(p)
+    run(p.scheduler.async_set_playback(end_action="stop"))
+    assert not p.scheduler.queued_slides
+    assert p.scheduler.exhausted
+    assert not p.scheduler._auto_topup_due()
+
+
+def test_choosing_auto_mode_starts_idle_playback(playback):
+    p = playback
+    assert not p.scheduler.enabled
+    _auto(p)
+    assert p.scheduler.enabled
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+
+
+def test_active_hours_hold_auto_picks_overnight(playback):
+    p = playback
+    run(p.scheduler.async_set_auto({"active_hours": {"after": "07:00", "before": "22:00"}}))
+    p.now[0] = p.now[0].replace(hour=23)
+    _auto(p)
+    run(p.scheduler._async_tick())
+    assert p.show.await_count == 0
+    p.now[0] += timedelta(hours=8)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+
+
+def test_cloud_delivery_keeps_auto_picks_on_the_queue_interval(playback):
+    p = playback
+    p.entry.runtime_data.cloud = SimpleNamespace(
+        async_sync_interval=AsyncMock(), delivery_deadline=None,
+        async_expire_delivery=AsyncMock(),
+    )
+    add(p, "hand")
+    run(p.scheduler.async_set_playback(interval=600))
+    run(p.scheduler.async_set_enabled(True))
+    run(p.scheduler.async_set_auto({"cadence": "interval", "interval": 7200}))
+    _auto(p)
+    assert p.scheduler.cycle_seconds == 600
+
+
+def test_repeat_after_auto_loops_shown_picks_as_history(playback):
+    p = playback
+    run(p.scheduler.async_set_enabled(True))
+    _auto(p)
+    run(p.scheduler._async_tick())
+    assert p.scheduler.current_screen.name == "pick0"
+    run(p.scheduler.async_set_playback(end_action="repeat", shuffle=True))
+    assert all(item.auto_source is None for item in p.scheduler.queue.items)
+    assert not p.scheduler.queue.auto_upcoming
