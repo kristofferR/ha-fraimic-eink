@@ -106,6 +106,7 @@ class FraimicScheduler:
         # Bumped whenever picks are dropped so in-flight resolutions are discarded.
         self._auto_generation = 0
         self._auto_backoff: dict[str, datetime] = {}
+        self._auto_queued: dict[str, frozenset[str]] = {}
 
     @property
     def screens(self) -> list[ScreenConfig]:
@@ -484,6 +485,7 @@ class FraimicScheduler:
     def _drop_auto_picks(self, *, skipped: bool = False) -> None:
         self._auto_generation += 1
         self._auto_backoff.clear()
+        self._auto_queued.clear()
         self.auto_error = None
         for item in self.queue.drop_auto():
             if skipped:
@@ -1039,7 +1041,10 @@ class FraimicScheduler:
     # -- auto mode -----------------------------------------------------------
 
     def _auto_unavailable(self, now: datetime) -> set[str]:
-        return {key for key, until in self._auto_backoff.items() if until > now}
+        upcoming = {item.screen.screen_id for item in self.queue.upcoming}
+        return {key for key, until in self._auto_backoff.items() if until > now} | {
+            key for key, queued in self._auto_queued.items() if queued <= upcoming
+        }
 
     def _auto_topup_due(self) -> bool:
         if not self.auto_enabled or len(self.queue.auto_upcoming) >= LOOKAHEAD:
@@ -1057,13 +1062,15 @@ class FraimicScheduler:
             source = pick_source(self.auto.sources, unavailable)
             if source is None:
                 break
+            upcoming = frozenset(item.screen.screen_id for item in self.queue.upcoming)
             try:
                 screen = await self._async_resolve_auto(source)
                 error = None if screen is not None else "nothing new to show"
             except AutoSourceQueued:
-                # Full for this pass; consuming a pick makes the source usable again.
+                # Keep it full until an upcoming item is consumed or removed.
                 if generation != self._auto_generation:
                     return
+                self._auto_queued[source.key] = upcoming
                 unavailable.add(source.key)
                 continue
             except HomeAssistantError as err:

@@ -804,8 +804,9 @@ def test_auto_refill_reuses_small_pools_on_cadence_without_backoff(playback, mon
         key = history.choose(keys, settings.avoid_repeats_days, p.now[0], exclude=exclude)
         return _screen(key.removeprefix("library:")) if key else None
 
+    resolver = AsyncMock(side_effect=resolve)
     monkeypatch.setitem(
-        sys.modules, "fraimic.auto_sources", SimpleNamespace(async_resolve_pick=resolve)
+        sys.modules, "fraimic.auto_sources", SimpleNamespace(async_resolve_pick=resolver)
     )
     run(p.scheduler.async_set_playback(interval=600))
     run(p.scheduler.async_set_playback(end_action="auto"))
@@ -818,7 +819,19 @@ def test_auto_refill_reuses_small_pools_on_cadence_without_backoff(playback, mon
         run(p.scheduler._async_top_up_auto())
         assert len(p.scheduler.queued_slides) == pool_size
         assert not p.scheduler._auto_backoff
-        p.now[0] += timedelta(seconds=600)
+        calls = resolver.await_count
+        assert not p.scheduler._auto_topup_due()
+        run(p.scheduler._async_top_up_auto())
+        p.now[0] += timedelta(seconds=60)
+        run(p.scheduler._async_tick())
+        assert resolver.await_count == calls
+        p.now[0] += timedelta(seconds=540)
+
+    first = p.scheduler.queued_slides[0]
+    run(p.scheduler.async_remove_from_queue(0, first.screen_id))
+    assert p.scheduler._auto_topup_due()
+    run(p.scheduler._async_top_up_auto())
+    assert len(p.scheduler.queued_slides) == pool_size
 
 
 def test_auto_picks_follow_set_times(playback):
