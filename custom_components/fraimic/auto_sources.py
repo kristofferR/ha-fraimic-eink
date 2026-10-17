@@ -216,8 +216,14 @@ class _Picker:
                 for c in candidates
             ):
                 by_key = {f"provider:{c.provider}:{c.item_id}": c for c in candidates}
-                for _attempt in range(RANDOM_ATTEMPTS):
-                    key = self._choose(list(by_key))
+                for attempt in range(RANDOM_ATTEMPTS):
+                    try:
+                        key = self._choose(list(by_key))
+                    except AutoSourceQueued:
+                        if attempt == 0 or not folders:
+                            raise
+                        # Rejected art left only queued candidates on this page.
+                        break
                     if key is None:
                         break
                     candidate = by_key.pop(key)

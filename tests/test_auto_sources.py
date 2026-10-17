@@ -267,15 +267,20 @@ def test_strict_folder_skips_unusable_candidates_with_bounded_fetches(
 
 
 @pytest.mark.parametrize("failure", ["fetch", "decode", "misfit"])
+@pytest.mark.parametrize("queued", [False, True])
 def test_strict_folder_continues_after_unknown_size_candidates_fail(
-    resolver, monkeypatch, failure
+    resolver, monkeypatch, failure, queued
 ):
     auto = load("auto_mode")
     base = load("providers.base")
+    candidates = (
+        (_candidate("unknown"), _candidate("queued", 1600, 1200))
+        if queued else tuple(_candidate(str(i)) for i in range(resolver.RANDOM_ATTEMPTS))
+    )
     pages = {
         "art": base.BrowsePage(
             title="Art",
-            candidates=tuple(_candidate(str(i)) for i in range(resolver.RANDOM_ATTEMPTS)),
+            candidates=candidates,
             folders=(base.BrowseFolder("art/page/2", "Page 2"),),
         ),
         "art/page/2": base.BrowsePage(title="Page 2", candidates=(_candidate("wide"),)),
@@ -299,10 +304,11 @@ def test_strict_folder_continues_after_unknown_size_candidates_fail(
     slide = _resolve(
         resolver, {"kind": "gallery", "source": "reframed", "browse_id": "art"},
         settings=auto.AutoSettings().updated({"orientation": "strict"}),
+        exclude={"provider:reframed:queued"} if queued else set(),
     )
     assert slide.source["provider_item"] == "wide"
     assert browse.await_count == 2
-    assert fetch_art.await_count == resolver.RANDOM_ATTEMPTS + 1
+    assert fetch_art.await_count == (2 if queued else resolver.RANDOM_ATTEMPTS + 1)
     assert len({call.args[3] for call in fetch_art.await_args_list}) == fetch_art.await_count
 
 
