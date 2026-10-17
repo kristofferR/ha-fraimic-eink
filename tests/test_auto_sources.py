@@ -3,6 +3,7 @@
 import asyncio
 import io
 import sys
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
 from types import SimpleNamespace
@@ -222,3 +223,107 @@ def test_strict_library_rejects_unknown_dimensions(resolver, monkeypatch):
         resolver, {"kind": "gallery", "source": "saved"},
         settings=auto.AutoSettings().updated({"orientation": "strict"}),
     ) is None
+
+
+@pytest.mark.parametrize("kind", ["library", "provider"])
+def test_strict_playlist_filters_mismatched_pictures(resolver, monkeypatch, kind):
+    auto = load("auto_mode")
+    schema = load("render.schema")
+    model = load("library_model")
+    images = {
+        name: model.LibraryImage(name, f"{name}.jpg", "image/jpeg", 1, width=w, height=h)
+        for name, w, h in (("wide", 1600, 1200), ("tall", 300, 3000))
+    }
+    monkeypatch.setattr(resolver, "get_library", lambda _: SimpleNamespace(images=images))
+    metadata = AsyncMock(side_effect=lambda _h, _e, _p, item: _candidate(
+        item, images[item].width, images[item].height
+    ))
+    monkeypatch.setattr(resolver, "async_candidate_by_media_id", metadata)
+    slides = [
+        replace(schema.screen_from_dict(schema.SCREEN_SCHEMA({
+            "kind": "picture",
+            **({"library_image": name} if kind == "library" else {
+                "provider": "reframed", "provider_item": name, "caption": True,
+            }),
+            "fit": "cover", "tone": "soft",
+        }), name), overlay_mode="none")
+        for name in images
+    ]
+    playlists = SimpleNamespace(get=lambda _: True, render_slides=lambda _: slides)
+    settings = auto.AutoSettings().updated({"orientation": "strict", "tone": "vivid"})
+    source = {"kind": "playlist", "playlist_id": "art"}
+    slide = _resolve(resolver, source, settings=settings, playlists=playlists)
+    assert slide.screen_id == "wide"
+    assert slide.source == slides[0].source
+    assert slide.overlay_mode == "none"
+    slides.pop(0)
+    assert _resolve(resolver, source, settings=settings, playlists=playlists) is None
+
+
+@pytest.mark.parametrize("fit,matches", [("cover", False), ("contain", True)])
+def test_strict_playlist_uses_the_saved_fit(resolver, monkeypatch, fit, matches):
+    auto = load("auto_mode")
+    schema = load("render.schema")
+    model = load("library_model")
+    image = model.LibraryImage("tall", "tall.jpg", "image/jpeg", 1, width=1200, height=6000)
+    monkeypatch.setattr(resolver, "get_library", lambda _: SimpleNamespace(images={"tall": image}))
+    slide = schema.screen_from_dict(schema.SCREEN_SCHEMA({
+        "kind": "picture", "library_image": "tall", "fit": fit,
+    }))
+    playlists = SimpleNamespace(get=lambda _: True, render_slides=lambda _: [slide])
+    settings = auto.AutoSettings().updated({
+        "orientation": "strict", "fit": "contain" if fit == "cover" else "cover",
+    })
+    assert (_resolve(
+        resolver, {"kind": "playlist", "playlist_id": "art"},
+        settings=settings, playlists=playlists,
+    ) is not None) == matches
+
+
+def test_strict_playlist_only_fetches_the_eligible_pick(resolver, monkeypatch):
+    auto = load("auto_mode")
+    schema = load("render.schema")
+    slides = [schema.screen_from_dict(schema.SCREEN_SCHEMA({
+        "kind": "picture", "entity": f"image.{name}",
+    }), name) for name in ("queued", "recent", "fresh")]
+    playlists = SimpleNamespace(get=lambda _: True, render_slides=lambda _: slides)
+    data = io.BytesIO()
+    Image.new("RGB", (1600, 1200)).save(data, format="PNG")
+    fetch = AsyncMock(return_value=data.getvalue())
+    monkeypatch.setattr(resolver, "async_get_source_bytes", fetch)
+    history = auto.AutoHistory()
+    history.record("slide:art:recent", NOW)
+    slide = _resolve(
+        resolver, {"kind": "playlist", "playlist_id": "art"},
+        settings=auto.AutoSettings().updated({"orientation": "strict"}),
+        history=history, exclude={"slide:art:queued"}, playlists=playlists,
+    )
+    assert slide.screen_id == "fresh"
+    fetch.assert_awaited_once()
+    assert fetch.await_args.kwargs["entity_id"] == "image.fresh"
+
+
+@pytest.mark.parametrize("kind", ["dashboard", "entity"])
+def test_playlist_fallback_identity_survives_queue_storage(resolver, kind):
+    auto = load("auto_mode")
+    schema = load("render.schema")
+    queue_model = load("playback_queue")
+    source = {"kind": "playlist", "playlist_id": "art"}
+    data = {"kind": "picture", "entity": "image.art"} if kind == "entity" else {
+        "layout": "full",
+        "widgets": [{"type": "template", "slot": "main", "template": "Hello"}],
+    }
+    slides = [schema.screen_from_dict(schema.SCREEN_SCHEMA(data), name) for name in ("a", "b")]
+    playlists = SimpleNamespace(get=lambda _: True, render_slides=lambda _: slides)
+    first = _resolve(resolver, source, playlists=playlists)
+    key = auto.picture_key(first)
+    assert key == f"slide:art:{first.screen_id}"
+    queue = queue_model.PlaybackQueue()
+    queue.add_auto(first, "Art")
+    queued = queue_model.PlaybackQueue.from_dict(queue.to_dict()).items[0].screen
+    assert queued.screen_id != first.screen_id
+    assert auto.picture_key(queued) == key
+    assert auto.picture_key(_resolve(resolver, source, exclude={key}, playlists=playlists)) != key
+    history = auto.AutoHistory()
+    history.record(auto.picture_key(queued), NOW)
+    assert auto.picture_key(_resolve(resolver, source, history=history, playlists=playlists)) != key

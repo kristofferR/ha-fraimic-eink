@@ -83,12 +83,16 @@ def test_history_prefers_fresh_art_then_the_least_recently_shown():
     assert auto.AutoHistory.from_list(history.to_list()).entries == history.entries
 
 
-def test_history_is_bounded():
+@pytest.mark.parametrize("avoid_days", [90, auto.AVOID_UNTIL_ALL_SHOWN])
+def test_history_retains_large_pools_across_restart(avoid_days):
     history = auto.AutoHistory()
-    for index in range(auto.HISTORY_LIMIT + 5):
-        history.record(str(index), NOW)
-    assert len(history.entries) == auto.HISTORY_LIMIT
-    assert "0" not in history.entries
+    # Ninety days at the panel's 30-minute cadence exceeds 1,000 pictures.
+    for index in range(4320):
+        history.record(str(index), NOW - timedelta(minutes=30 * (4319 - index)))
+    history = auto.AutoHistory.from_list(history.to_list())
+    assert len(history.recent(avoid_days, NOW)) == 4320
+    assert history.choose(["0", "fresh"], avoid_days, NOW) == "fresh"
+    assert history.choose(["0", "1"], avoid_days, NOW) == "0"
 
 
 def test_next_change_for_each_cadence():

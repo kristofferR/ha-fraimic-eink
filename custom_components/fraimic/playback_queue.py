@@ -33,6 +33,7 @@ class QueueItem:
             "id": self.screen.screen_id,
             "screen": screen_to_dict(self.screen),
             "overlays": self.screen.overlay_mode,
+            "history_key": self.screen.history_key,
             "sequence": self.sequence,
             "playlist_id": self.playlist_id,
             "playlist_name": self.playlist_name,
@@ -43,7 +44,11 @@ class QueueItem:
     def from_dict(cls, data: dict) -> QueueItem:
         screen = screen_from_dict(SCREEN_SCHEMA(data["screen"]), data["id"])
         return cls(
-            replace(screen, overlay_mode=data.get("overlays", "inherit")),
+            replace(
+                screen,
+                overlay_mode=data.get("overlays", "inherit"),
+                history_key=data.get("history_key"),
+            ),
             int(data["sequence"]),
             data.get("playlist_id"),
             data.get("playlist_name"),

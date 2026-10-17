@@ -793,6 +793,40 @@ def test_auto_mode_keeps_art_changing_after_the_queue_ends(playback):
     assert p.scheduler.queued_slides[0].name == "later"
 
 
+@pytest.mark.parametrize("source_kind", ["playlist", "shuffle"])
+@pytest.mark.parametrize("overlay_mode", ["inherit", "none"])
+def test_auto_overlays_preserve_playlist_choices(playback, source_kind, overlay_mode):
+    p = playback
+    settings = {"kind": source_kind}
+    if source_kind == "playlist":
+        settings["playlist_id"] = "saved"
+    run(p.scheduler.async_set_auto({"sources": [settings], "overlays": "none"}))
+
+    async def resolve(_source):
+        return replace(_screen("art"), overlay_mode=overlay_mode)
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    expected = overlay_mode if source_kind == "playlist" else "none"
+    assert all(slide.overlay_mode == expected for slide in p.scheduler.queued_slides)
+
+
+def test_auto_playlist_fallback_identity_reaches_displayed_history(playback):
+    p = playback
+
+    async def resolve(_source):
+        return replace(
+            _screen("art"), source={"entity": "image.art"}, history_key="slide:saved:a"
+        )
+
+    p.scheduler._async_resolve_auto = resolve
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    run(p.scheduler._async_tick())
+    assert "slide:saved:a" in p.scheduler.auto_history.entries
+
+
 @pytest.mark.parametrize("pool_size", [1, 2])
 def test_auto_refill_reuses_small_pools_on_cadence_without_backoff(playback, monkeypatch, pool_size):
     p = playback

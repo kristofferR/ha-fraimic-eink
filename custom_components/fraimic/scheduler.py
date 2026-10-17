@@ -25,6 +25,7 @@ from .auto_mode import (
     END_REPEAT,
     END_STOP,
     LOOKAHEAD,
+    SOURCE_PLAYLIST,
     AutoHistory,
     AutoSettings,
     AutoSource,
@@ -1087,7 +1088,7 @@ class FraimicScheduler:
                 unavailable.add(source.key)
                 continue
             self._auto_backoff.pop(source.key, None)
-            self.queue.add_auto(self._auto_screen(screen), source.title)
+            self.queue.add_auto(self._auto_screen(screen, source), source.title)
             added = True
         if self.queue.auto_upcoming:
             self.auto_error = None
@@ -1100,14 +1101,16 @@ class FraimicScheduler:
             await self._async_save()
         self._notify()
 
-    def _auto_screen(self, screen: ScreenConfig) -> ScreenConfig:
+    def _auto_screen(self, screen: ScreenConfig, source: AutoSource) -> ScreenConfig:
         """Apply the frame's auto options that live on the queued slide."""
         active = self.auto.active_hours
         return replace(
             screen,
             enabled=True,
             windows=(active,) if active else screen.windows,
-            overlay_mode="none" if self.auto.overlays == "none" else screen.overlay_mode,
+            overlay_mode="none"
+            if source.kind != SOURCE_PLAYLIST and self.auto.overlays == "none"
+            else screen.overlay_mode,
         )
 
     async def _async_resolve_auto(self, source: AutoSource) -> ScreenConfig | None:

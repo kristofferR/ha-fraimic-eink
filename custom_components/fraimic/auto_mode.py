@@ -37,7 +37,6 @@ CADENCES = (CADENCE_QUEUE, CADENCE_INTERVAL, CADENCE_TIMES)
 AVOID_UNTIL_ALL_SHOWN = -1
 DEFAULT_AVOID_DAYS = 30
 LOOKAHEAD = 3
-HISTORY_LIMIT = 1000
 MAX_SOURCES = 12
 SHUFFLE_LABEL = "Surprise me"
 
@@ -287,7 +286,7 @@ def picture_key(screen: ScreenConfig) -> str | None:
         return f"provider:{source['provider']}:{source['provider_item']}"
     if url := source.get("url"):
         return f"url:{url}"
-    return None
+    return screen.history_key
 
 
 @dataclass
@@ -299,8 +298,6 @@ class AutoHistory:
     def record(self, key: str, at: datetime) -> None:
         self.entries.pop(key, None)
         self.entries[key] = at
-        while len(self.entries) > HISTORY_LIMIT:
-            del self.entries[next(iter(self.entries))]
 
     def recent(self, avoid_days: int, now: datetime) -> set[str]:
         """Keys that should not be picked again yet."""

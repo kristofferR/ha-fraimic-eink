@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -40,11 +41,13 @@ from .providers.curation import acceptable_for_fit
 from .providers.ha import (
     async_art_by_media_id,
     async_browse_provider,
+    async_candidate_by_media_id,
     async_fetch_art,
     async_remember_candidate,
 )
 from .render.display import viewed_size
 from .render.schema import ScreenConfig, screen_from_dict
+from .source import async_get_source_bytes
 
 if TYPE_CHECKING:
     from .coordinator import FraimicConfigEntry
@@ -69,7 +72,7 @@ async def async_resolve_pick(
     """One new slide from ``source``, honouring repeat avoidance."""
     picker = _Picker(hass, entry, settings, history, exclude)
     if source.kind == SOURCE_PLAYLIST:
-        return picker.from_playlist(playlists, source.playlist_id)
+        return await picker.from_playlist(playlists, source.playlist_id)
     if source.kind == SOURCE_SHUFFLE:
         return await picker.random_online(PROVIDER_SHUFFLE, None)
     if source.source == LIBRARY_SOURCE:
@@ -103,12 +106,14 @@ class _Picker:
             keys, self.settings.avoid_repeats_days, self.now, exclude=self.exclude
         )
 
-    def _fits(self, width: int | None, height: int | None) -> bool | None:
+    def _fits(
+        self, width: int | None, height: int | None, *, fit: str | None = None
+    ) -> bool | None:
         """Orientation check; None when the dimensions are unknown."""
         if not width or not height:
             return None
         target_w, target_h = viewed_size(self.entry)
-        return acceptable_for_fit(width, height, target_w, target_h, self.fit)
+        return acceptable_for_fit(width, height, target_w, target_h, fit or self.fit)
 
     def _suitable[T](
         self, pool: list[T], dims: Callable[[T], tuple[int | None, int | None]]
@@ -248,19 +253,63 @@ class _Picker:
             }
         )
 
-    def from_playlist(
+    async def _playlist_suitable(self, slide: ScreenConfig) -> bool:
+        """Check strict suitability without changing a playlist slide's look."""
+        source = slide.source
+        if source is None:  # Dashboards are rendered at the frame's dimensions.
+            return True
+        fit = source.get("fit") or self.entry.options.get(ATTR_FIT, FIT_COVER)
+        try:
+            if image_id := source.get("library_image"):
+                library = get_library(self.hass)
+                image = library.images.get(image_id) if library else None
+                return bool(image and self._fits(image.width, image.height, fit=fit))
+            if source.get("provider") and source.get("provider_item"):
+                candidate = await async_candidate_by_media_id(
+                    self.hass, self.entry, source["provider"], source["provider_item"]
+                )
+                if (
+                    fits := self._fits(candidate.width, candidate.height, fit=fit)
+                ) is not None:
+                    return fits
+                art = await async_art_by_media_id(
+                    self.hass, self.entry, source["provider"], source["provider_item"]
+                )
+                data = art.data
+            elif source.get("url") or source.get("entity"):
+                data = await async_get_source_bytes(
+                    self.hass, url=source.get("url"), entity_id=source.get("entity")
+                )
+            else:
+                return False  # A live provider has no fixed picture to check.
+            width, height = await self.hass.async_add_executor_job(_decode_dims, data)
+            return bool(self._fits(width, height, fit=fit))
+        except (HomeAssistantError, OSError, ValueError):
+            return False
+
+    async def from_playlist(
         self, playlists: PlaylistManager | None, playlist_id: str
     ) -> ScreenConfig | None:
         if playlists is None or playlists.get(playlist_id) is None:
             raise HomeAssistantError("This playlist no longer exists")
-        # Playlist slides keep their own look; only repeat avoidance applies.
+        # Playlist slides keep their own look, with a stable fallback identity
+        # that survives the queue assigning a new screen_id to each occurrence.
         slides = {
             picture_key(slide) or f"slide:{playlist_id}:{slide.screen_id}": slide
             for slide in playlists.render_slides(playlist_id)
             if slide.enabled
         }
-        key = self._choose(list(slides))
-        return slides[key] if key else None
+        while slides:
+            chosen = self._choose(list(slides))
+            if chosen is None:
+                return None
+            slide = slides.pop(chosen)
+            if (
+                not self.settings.strict_orientation
+                or await self._playlist_suitable(slide)
+            ):
+                return replace(slide, history_key=chosen)
+        return None
 
 
 def _decode_dims(data: bytes) -> tuple[int, int]:
