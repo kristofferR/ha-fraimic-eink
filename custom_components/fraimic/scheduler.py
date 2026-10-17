@@ -807,6 +807,13 @@ class FraimicScheduler:
                 )
             except (ArtFetchError, CloudDeliveryError) as err:
                 self._pending = None
+                if isinstance(err, ArtFetchError) and not manual:
+                    item = self.queue.get(screen.screen_id)
+                    if item is not None and item.auto_source is not None:
+                        self.queue.items.remove(item)
+                        if self.queue.cursor == screen.screen_id:
+                            self.queue.cursor = None
+                        await self._async_save()
                 self._defer(
                     "source_unavailable"
                     if isinstance(err, ArtFetchError)
@@ -1092,10 +1099,9 @@ class FraimicScheduler:
     async def _async_resolve_auto(self, source: AutoSource) -> ScreenConfig | None:
         from .auto_sources import async_resolve_pick
 
-        position = max(0, self.queue.position)
         exclude = {
             key
-            for item in self.queue.items[position:]
+            for item in self.queue.upcoming
             if (key := picture_key(item.screen))
         }
         return await async_resolve_pick(

@@ -80,3 +80,19 @@ async def test_set_auto_mode_action_updates_only_given_fields(
         await hass.services.async_call(
             DOMAIN, "set_auto_mode", {"avoid_repeats_days": 999}, blocking=True
         )
+
+
+@pytest.mark.parametrize("patch", [
+    {"cadence": "times"},
+    {"sources": [{"kind": "shuffle"}, {"kind": "shuffle"}]},
+])
+async def test_set_auto_mode_reports_cross_field_errors_as_invalid_input(
+    hass: HomeAssistant, loaded_entry: MockConfigEntry, patch: dict
+) -> None:
+    scheduler = loaded_entry.runtime_data.scheduler
+    before = scheduler.auto
+    with pytest.raises(ServiceValidationError, match="Invalid auto mode settings"):
+        await hass.services.async_call(
+            DOMAIN, "set_auto_mode", patch, blocking=True
+        )
+    assert scheduler.auto == before

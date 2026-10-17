@@ -533,8 +533,6 @@ SET_AUTO_MODE_SCHEMA = vol.Schema(
 
 async def _async_handle_set_auto_mode(call: ServiceCall) -> None:
     """Handle ``fraimic.set_auto_mode`` (partial update)."""
-    from .auto_mode import SETTINGS_SCHEMA
-
     entry = _resolve_entry(call.hass, call)
     scheduler = entry.runtime_data.scheduler
     if scheduler is None:
@@ -554,7 +552,7 @@ async def _async_handle_set_auto_mode(call: ServiceCall) -> None:
     if patch.get("fit") == "default":
         patch["fit"] = None
     try:
-        SETTINGS_SCHEMA(patch)
+        scheduler.auto.updated(patch)
     except vol.Invalid as err:
         raise ServiceValidationError(f"Invalid auto mode settings: {err}") from err
     if patch:

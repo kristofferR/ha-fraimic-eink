@@ -1,6 +1,7 @@
 """Auto mode sources resolve to concrete, repeat-aware picture slides."""
 
 import asyncio
+import io
 import sys
 from datetime import datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
@@ -8,6 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
+from PIL import Image
 from conftest import PKG_DIR, load
 from test_gallery_preview import gallery  # noqa: F401 - fixture
 
@@ -30,9 +32,13 @@ def resolver(gallery, monkeypatch):  # noqa: F811 - fixture
 def _resolve(resolver, source, *, settings=None, history=None, exclude=(), playlists=None):
     auto = load("auto_mode")
     entry = SimpleNamespace(data={"width": 1600, "height": 1200}, options={})
+
+    async def executor(function, *args):
+        return function(*args)
+
     return asyncio.run(
         resolver.async_resolve_pick(
-            SimpleNamespace(),
+            SimpleNamespace(async_add_executor_job=executor),
             entry,
             settings or auto.AutoSettings(),
             auto.AutoSource(**source),
@@ -116,3 +122,58 @@ def test_deleted_playlist_is_reported(resolver):
     playlists = SimpleNamespace(get=lambda _: None)
     with pytest.raises(Exception, match="no longer exists"):
         _resolve(resolver, {"kind": "playlist", "playlist_id": "gone"}, playlists=playlists)
+
+
+@pytest.mark.parametrize("size,matches", [((1600, 1200), True), ((600, 3000), False)])
+def test_strict_folder_checks_unknown_dimensions(resolver, monkeypatch, size, matches):
+    auto = load("auto_mode")
+    base = load("providers.base")
+    candidate = _candidate("unknown")
+    page = base.BrowsePage(title="Art", folders=(), candidates=(candidate,))
+    monkeypatch.setattr(resolver, "async_browse_provider", AsyncMock(return_value=page))
+    data = io.BytesIO()
+    Image.new("RGB", size).save(data, format="PNG")
+    fetch = AsyncMock(return_value=SimpleNamespace(data=data.getvalue(), candidate=candidate))
+    monkeypatch.setattr(resolver, "async_art_by_media_id", fetch)
+    slide = _resolve(
+        resolver, {"kind": "gallery", "source": "reframed", "browse_id": "art"},
+        settings=auto.AutoSettings().updated({"orientation": "strict"}),
+    )
+    assert (slide is not None) == matches
+    fetch.assert_awaited_once()
+
+
+@pytest.mark.parametrize("failure", ["fetch", "decode", "misfit"])
+def test_strict_folder_skips_unusable_candidates_with_bounded_fetches(
+    resolver, monkeypatch, failure
+):
+    auto = load("auto_mode")
+    base = load("providers.base")
+    candidates = tuple(_candidate(str(i)) for i in range(resolver.RANDOM_ATTEMPTS + 1))
+    page = base.BrowsePage(title="Art", folders=(), candidates=candidates)
+    monkeypatch.setattr(resolver, "async_browse_provider", AsyncMock(return_value=page))
+    data = io.BytesIO()
+    Image.new("RGB", (600, 3000)).save(data, format="PNG")
+    fetch = AsyncMock(
+        side_effect=resolver.HomeAssistantError("unreachable") if failure == "fetch" else None,
+        return_value=SimpleNamespace(data=b"invalid" if failure == "decode" else data.getvalue()),
+    )
+    monkeypatch.setattr(resolver, "async_art_by_media_id", fetch)
+    assert _resolve(
+        resolver, {"kind": "gallery", "source": "reframed", "browse_id": "art"},
+        settings=auto.AutoSettings().updated({"orientation": "strict"}),
+    ) is None
+    assert fetch.await_count == resolver.RANDOM_ATTEMPTS
+
+
+def test_strict_library_rejects_unknown_dimensions(resolver, monkeypatch):
+    auto = load("auto_mode")
+    model = load("library_model")
+    image = model.LibraryImage("unknown", "unknown.jpg", "image/jpeg", 1)
+    monkeypatch.setattr(
+        resolver, "get_library", lambda _: SimpleNamespace(images={"unknown": image})
+    )
+    assert _resolve(
+        resolver, {"kind": "gallery", "source": "saved"},
+        settings=auto.AutoSettings().updated({"orientation": "strict"}),
+    ) is None

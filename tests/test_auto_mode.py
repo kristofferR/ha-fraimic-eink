@@ -2,6 +2,7 @@
 
 import random
 from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import pytest
 import voluptuous as vol
@@ -114,3 +115,22 @@ def test_picture_key_identifies_the_artwork():
     assert auto.picture_key(screen(library_image="img")) == "library:img"
     assert auto.picture_key(screen(provider="met", provider_item="7")) == "provider:met:7"
     assert auto.picture_key(screen(provider="met")) is None
+
+
+@pytest.mark.parametrize("cadence", ["queue", "interval"])
+@pytest.mark.parametrize("month,day", [(3, 29), (10, 25)])
+def test_interval_cadences_use_elapsed_time_across_dst(cadence, month, day):
+    last = datetime(2026, month, day, 1, tzinfo=ZoneInfo("Europe/Oslo"))
+    settings = auto.AutoSettings().updated({"cadence": cadence, "interval": 7200})
+    due = settings.next_change(last, 7200)
+    assert due.timestamp() - last.timestamp() == 7200
+
+
+@pytest.mark.parametrize("month,day,hours", [(3, 29, 1), (10, 25, 3)])
+def test_set_times_follow_wall_clock_across_dst(month, day, hours):
+    local = ZoneInfo("Europe/Oslo")
+    last = datetime(2026, month, day, 1, tzinfo=local)
+    settings = auto.AutoSettings().updated({"cadence": "times", "times": ["03:00"]})
+    due = settings.next_change(last, 600)
+    assert due == datetime(2026, month, day, 3, tzinfo=local)
+    assert due.timestamp() - last.timestamp() == hours * 3600

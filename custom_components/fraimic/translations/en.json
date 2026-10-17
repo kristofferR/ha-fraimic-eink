@@ -680,7 +680,7 @@
         },
         "sources": {
           "name": "Sources",
-          "description": "Where auto mode picks art from. A list of sources, for example {\"kind\": \"gallery\", \"source\": \"saved\", \"browse_id\": \"favorites\", \"weight\": 2} or {\"kind\": \"shuffle\"}."
+          "description": "Where auto mode picks art from. A list of sources, each with a kind (shuffle, gallery, or playlist). Gallery sources require source; playlist sources require playlist_id. Optional fields are browse_id, query, label, and weight (1 to 3)."
         },
         "cadence": {
           "name": "When to change",
@@ -700,7 +700,7 @@
         },
         "active_hours": {
           "name": "Active hours",
-          "description": "Only change the picture inside this window, for example {\"after\": \"07:00\", \"before\": \"23:00\"}. Give {} to allow any time."
+          "description": "Only change the picture inside this window, given as after and before times such as 07:00 and 23:00. Give an empty object to allow any time."
         },
         "avoid_repeats_days": {
           "name": "Avoid repeats for",

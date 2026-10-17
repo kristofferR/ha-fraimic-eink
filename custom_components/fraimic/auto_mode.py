@@ -11,7 +11,7 @@ import random
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
-from datetime import datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 import voluptuous as vol
@@ -219,9 +219,9 @@ class AutoSettings:
         if last_change is None:
             return None
         if self.cadence == CADENCE_QUEUE:
-            return last_change + timedelta(seconds=queue_interval)
+            return last_change.astimezone(UTC) + timedelta(seconds=queue_interval)
         if self.cadence == CADENCE_INTERVAL:
-            return last_change + timedelta(seconds=self.interval)
+            return last_change.astimezone(UTC) + timedelta(seconds=self.interval)
         for offset in range(8):
             day = last_change.date() + timedelta(days=offset)
             if self.days and day.weekday() not in self.days:

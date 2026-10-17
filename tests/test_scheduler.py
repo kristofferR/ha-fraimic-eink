@@ -508,6 +508,32 @@ def test_transient_failures_keep_queue_head(playback, error):
     assert p.scheduler._pending is None
 
 
+@pytest.mark.parametrize("error", ["ArtFetchError", "CloudDeliveryError"])
+@pytest.mark.parametrize("manual", [False, True])
+def test_failed_auto_art_is_replaced_only_for_automatic_fetch_errors(playback, error, manual):
+    p = playback
+    _auto(p)
+    failed = p.scheduler.queued_slides[0]
+    p.show.side_effect = getattr(p.module, error)("unavailable")
+    if manual:
+        with pytest.raises(getattr(p.module, error)):
+            run(p.scheduler._async_show(failed, manual=True))
+    else:
+        assert not run(p.scheduler._async_show(failed))
+    removed = error == "ArtFetchError" and not manual
+    assert (p.scheduler.queue.get(failed.screen_id) is None) == removed
+    assert p.scheduler.retry_at == p.now[0] + timedelta(minutes=5)
+    if removed:
+        assert failed.screen_id not in {
+            item["id"] for item in p.store.async_save.call_args.args[0]["playback_queue"]["items"]
+        }
+        p.show.side_effect = None
+        run(p.scheduler._async_top_up_auto())
+        p.now[0] += timedelta(minutes=5)
+        run(p.scheduler._async_tick())
+        assert p.scheduler.current_screen.name == "pick1"
+
+
 def test_permanently_invalid_item_does_not_block_following_item(playback):
     p = playback
     a, b = add(p, "a", "b")
@@ -765,6 +791,29 @@ def test_auto_mode_keeps_art_changing_after_the_queue_ends(playback):
     # Something queued by hand still plays before the remaining auto picks.
     add(p, "later")
     assert p.scheduler.queued_slides[0].name == "later"
+
+
+def test_auto_refill_can_reuse_the_displayed_single_item_pool(playback, monkeypatch):
+    p = playback
+
+    async def resolve(_hass, _entry, settings, _source, history, *, exclude, playlists):
+        key = history.choose(["library:only"], settings.avoid_repeats_days, p.now[0], exclude=exclude)
+        return _screen("only") if key else None
+
+    monkeypatch.setitem(
+        sys.modules, "fraimic.auto_sources", SimpleNamespace(async_resolve_pick=resolve)
+    )
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    assert len(p.scheduler.queued_slides) == 1
+    run(p.scheduler._async_tick())
+    shown_id = p.scheduler.current_id
+    assert "library:only" in p.scheduler.auto_history.entries
+    p.now[0] += p.module.AUTO_BACKOFF
+    run(p.scheduler._async_top_up_auto())
+    assert len(p.scheduler.queued_slides) == 1
+    assert p.scheduler.queued_slides[0].screen_id != shown_id
+    assert p.scheduler.queued_slides[0].source["library_image"] == "only"
 
 
 def test_auto_picks_follow_set_times(playback):

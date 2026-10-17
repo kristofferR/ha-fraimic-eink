@@ -36,6 +36,7 @@ from .providers import get_provider
 from .providers.base import ArtCandidate
 from .providers.curation import acceptable_for_fit
 from .providers.ha import (
+    async_art_by_media_id,
     async_browse_provider,
     async_fetch_art,
     async_remember_candidate,
@@ -108,10 +109,12 @@ class _Picker:
     def _suitable[T](
         self, pool: list[T], dims: Callable[[T], tuple[int | None, int | None]]
     ) -> list[T]:
-        """Prefer art that suits the frame; strict mode drops known misfits."""
+        """Prefer art that suits the frame; strict mode requires known matches."""
         verdicts = [self._fits(*dims(item)) for item in pool]
+        if self.settings.strict_orientation:
+            return [item for item, ok in zip(pool, verdicts, strict=True) if ok is True]
         good = [item for item, ok in zip(pool, verdicts, strict=True) if ok is not False]
-        if self.settings.strict_orientation or any(verdicts):
+        if any(verdicts):
             return good
         return pool
 
@@ -181,10 +184,34 @@ class _Picker:
                 for c in candidates
                 if needle in " ".join(filter(None, (c.title, c.artist))).casefold()
             ]
-        candidates = self._suitable(candidates, lambda c: (c.width, c.height))
+        if self.settings.strict_orientation:
+            candidates = [
+                c for c in candidates if self._fits(c.width, c.height) is not False
+            ]
+        else:
+            candidates = self._suitable(candidates, lambda c: (c.width, c.height))
         by_key = {f"provider:{c.provider}:{c.item_id}": c for c in candidates}
-        key = self._choose(list(by_key))
-        return await self._candidate_slide(by_key[key]) if key else None
+        for _attempt in range(RANDOM_ATTEMPTS):
+            key = self._choose(list(by_key))
+            if key is None:
+                return None
+            candidate = by_key.pop(key)
+            if self.settings.strict_orientation and self._fits(
+                candidate.width, candidate.height
+            ) is None:
+                try:
+                    art = await async_art_by_media_id(
+                        self.hass, self.entry, candidate.provider, candidate.item_id
+                    )
+                    width, height = await self.hass.async_add_executor_job(
+                        _decode_dims, art.data
+                    )
+                except (HomeAssistantError, OSError, ValueError):
+                    continue
+                if not self._fits(width, height):
+                    continue
+            return await self._candidate_slide(candidate)
+        return None
 
     def from_library(self, browse_id: str, query: str) -> ScreenConfig | None:
         library = get_library(self.hass)
