@@ -555,12 +555,10 @@ async def _async_handle_set_auto_mode(call: ServiceCall) -> None:
         scheduler.auto.updated(patch)
     except vol.Invalid as err:
         raise ServiceValidationError(f"Invalid auto mode settings: {err}") from err
-    if patch:
-        await scheduler.async_set_auto(patch)
+    if patch or call.data["new_picks"]:
+        await scheduler.async_set_auto(patch, new_picks=call.data["new_picks"])
     if end_action := call.data.get("end_of_queue"):
         await scheduler.async_set_playback(end_action=end_action)
-    if call.data["new_picks"]:
-        await scheduler.async_new_auto_picks()
 
 
 async def _async_handle_temporary_overlay(call: ServiceCall) -> ServiceResponse:

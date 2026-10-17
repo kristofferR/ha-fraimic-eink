@@ -186,20 +186,38 @@ class _Picker:
             page = await async_browse_provider(
                 self.hass, self.entry, provider_key, folder.item_id
             )
-        candidates = list(page.candidates)
-        if query:
-            needle = query.casefold()
-            candidates = [
-                c
+        pool = list(page.candidates)
+        # Mixed pages expose pagination as folders. Look beyond this page
+        # before falling back to recently shown or already queued art.
+        folders = list(page.folders) if pool else []
+        unavailable = (
+            self.history.recent(self.settings.avoid_repeats_days, self.now) | self.exclude
+        )
+        while True:
+            candidates = pool
+            if query:
+                needle = query.casefold()
+                candidates = [
+                    c
+                    for c in candidates
+                    if needle in " ".join(filter(None, (c.title, c.artist))).casefold()
+                ]
+            if self.settings.strict_orientation:
+                candidates = [
+                    c for c in candidates if self._fits(c.width, c.height) is not False
+                ]
+            else:
+                candidates = self._suitable(candidates, lambda c: (c.width, c.height))
+            if not folders or any(
+                f"provider:{c.provider}:{c.item_id}" not in unavailable
                 for c in candidates
-                if needle in " ".join(filter(None, (c.title, c.artist))).casefold()
-            ]
-        if self.settings.strict_orientation:
-            candidates = [
-                c for c in candidates if self._fits(c.width, c.height) is not False
-            ]
-        else:
-            candidates = self._suitable(candidates, lambda c: (c.width, c.height))
+            ):
+                break
+            folder = folders.pop(0)
+            page = await async_browse_provider(
+                self.hass, self.entry, provider_key, folder.item_id
+            )
+            pool.extend(page.candidates)
         by_key = {f"provider:{c.provider}:{c.item_id}": c for c in candidates}
         for _attempt in range(RANDOM_ATTEMPTS):
             key = self._choose(list(by_key))

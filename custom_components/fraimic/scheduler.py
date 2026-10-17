@@ -467,14 +467,16 @@ class FraimicScheduler:
         if starting_auto and not self.enabled:
             await self.async_set_enabled(True, rotate=False)
 
-    async def async_set_auto(self, patch: dict[str, Any]) -> None:
+    async def async_set_auto(
+        self, patch: dict[str, Any], *, new_picks: bool = False
+    ) -> None:
         """Update auto mode options; unplayed picks are replaced to match them."""
         self.raise_if_upload_active()
         try:
             self.auto = self.auto.updated(patch)
         except vol.Invalid as err:
             raise HomeAssistantError(f"Invalid auto mode settings: {err}") from err
-        self._drop_auto_picks()
+        self._drop_auto_picks(skipped=new_picks)
         await self._queue_changed()
 
     async def async_new_auto_picks(self) -> None:

@@ -135,6 +135,40 @@ def test_random_online_pick_retries_recent_art(resolver, monkeypatch):
     assert fetch.await_args.args[2] == "shuffle"
 
 
+@pytest.mark.parametrize("state", ["fresh", "recent", "queued", "exhausted", "all_queued"])
+def test_folder_checks_later_pages_before_reusing_art(resolver, monkeypatch, state):
+    auto = load("auto_mode")
+    base = load("providers.base")
+    pages = {
+        "art": base.BrowsePage(
+            title="Art", candidates=(_candidate("first", 1600, 1200),),
+            folders=(base.BrowseFolder("art/page/2", "Page 2"),),
+        ),
+        "art/page/2": base.BrowsePage(
+            title="Page 2", candidates=(_candidate("second", 1600, 1200),),
+        ),
+    }
+    browse = AsyncMock(side_effect=lambda _h, _e, _p, browse_id: pages[browse_id])
+    monkeypatch.setattr(resolver, "async_browse_provider", browse)
+    history = auto.AutoHistory()
+    if state == "exhausted":
+        history.record("provider:reframed:second", NOW - timedelta(days=1))
+    if state in ("recent", "exhausted"):
+        history.record("provider:reframed:first", NOW)
+    exclude = {"provider:reframed:first"} if state in ("queued", "all_queued") else set()
+    if state == "all_queued":
+        exclude.add("provider:reframed:second")
+    source = {"kind": "gallery", "source": "reframed", "browse_id": "art"}
+    settings = auto.AutoSettings().updated({"avoid_repeats_days": -1})
+    if state == "all_queued":
+        with pytest.raises(auto.AutoSourceQueued):
+            _resolve(resolver, source, settings=settings, history=history, exclude=exclude)
+    else:
+        slide = _resolve(resolver, source, settings=settings, history=history, exclude=exclude)
+        assert slide.source["provider_item"] == ("first" if state == "fresh" else "second")
+    assert browse.await_count == (1 if state == "fresh" else 2)
+
+
 def test_auto_pick_keeps_provider_callback_metadata_in_saved_queue(resolver, monkeypatch):
     base = load("providers.base")
     queue_model = load("playback_queue")

@@ -13,6 +13,7 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fraimic.const import DOMAIN
+from custom_components.fraimic.render.schema import SCREEN_SCHEMA, screen_from_dict
 
 
 @pytest.fixture(autouse=True)
@@ -96,3 +97,25 @@ async def test_set_auto_mode_reports_cross_field_errors_as_invalid_input(
             DOMAIN, "set_auto_mode", patch, blocking=True
         )
     assert scheduler.auto == before
+
+
+@pytest.mark.parametrize("settings", [{}, {"caption": True}])
+async def test_new_picks_records_skipped_art_with_settings_update(
+    hass: HomeAssistant, loaded_entry: MockConfigEntry, settings: dict
+) -> None:
+    scheduler = loaded_entry.runtime_data.scheduler
+    for image_id in ("first", "second", "third"):
+        slide = screen_from_dict(SCREEN_SCHEMA({
+            "kind": "picture", "library_image": image_id,
+        }))
+        scheduler.queue.add_auto(slide, "Favorites")
+
+    await hass.services.async_call(
+        DOMAIN, "set_auto_mode", {**settings, "new_picks": True}, blocking=True
+    )
+
+    assert set(scheduler.auto_history.entries) == {
+        "library:first", "library:second", "library:third",
+    }
+    assert not scheduler.queue.items
+    assert scheduler.auto.caption == settings.get("caption", False)
