@@ -52,6 +52,7 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     config_validation.entity_id = str
     config_validation.boolean = bool
     config_validation.datetime = lambda value: value
+    config_validation.positive_time_period = lambda value: value
     helpers.config_validation = config_validation
     homeassistant.config_entries = config_entries
     homeassistant.core = core

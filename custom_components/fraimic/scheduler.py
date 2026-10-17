@@ -7,15 +7,32 @@ import json
 import logging
 import time
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
+import voluptuous as vol
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
+from .auto_mode import (
+    CADENCE_QUEUE,
+    END_ACTIONS,
+    END_AUTO,
+    END_REPEAT,
+    END_STOP,
+    LOOKAHEAD,
+    SOURCE_PLAYLIST,
+    AutoHistory,
+    AutoSettings,
+    AutoSource,
+    AutoSourceQueued,
+    pick_source,
+    picture_key,
+)
 from .const import CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH, DOMAIN
 from .coordinator import FraimicConfigEntry
 from .playback_queue import PlaybackQueue, QueueItem
@@ -37,6 +54,10 @@ if TYPE_CHECKING:
 _LOGGER = logging.getLogger(__name__)
 TICK = timedelta(seconds=60)
 STORE_VERSION = 1
+# Shown items kept behind the cursor for Previous; older auto picks are dropped.
+PLAYED_LIMIT = 25
+# A failing or empty auto source sits out this long before it is tried again.
+AUTO_BACKOFF = timedelta(minutes=15)
 
 
 class FraimicScheduler:
@@ -80,6 +101,13 @@ class FraimicScheduler:
         self._prefetch_task: asyncio.Task | None = None
         self._prefetch_again = False
         self._playlist_preprocess_done: str | None = None
+        self.auto = AutoSettings()
+        self.auto_history = AutoHistory()
+        self.auto_error: str | None = None
+        # Bumped whenever picks are dropped so in-flight resolutions are discarded.
+        self._auto_generation = 0
+        self._auto_backoff: dict[str, datetime] = {}
+        self._auto_queued: dict[str, frozenset[str]] = {}
 
     @property
     def screens(self) -> list[ScreenConfig]:
@@ -97,6 +125,8 @@ class FraimicScheduler:
     @property
     def playlist_name(self) -> str | None:
         item = self.queue.get(self.queue.cursor)
+        if item and item.auto_source:
+            return f"Auto · {item.auto_source}"
         return item.playlist_name if item else None
 
     @property
@@ -112,10 +142,28 @@ class FraimicScheduler:
         return self._displayed_item.screen if self._displayed_item else None
 
     @property
+    def auto_enabled(self) -> bool:
+        return self.queue.end_action == END_AUTO
+
+    @property
     def exhausted(self) -> bool:
-        return not self.queue.upcoming and not (
-            self.queue.repeat and any(item.screen.enabled for item in self.queue.items)
+        return (
+            not self.queue.upcoming
+            and not self.auto_enabled
+            and not (
+                self.queue.repeat
+                and any(item.screen.enabled for item in self.queue.items)
+            )
         )
+
+    @property
+    def cycle_seconds(self) -> int:
+        """Seconds between the last change and the next automatic one."""
+        candidate = self.queue.candidate(dt_util.now())
+        if self._last_rotation is None or candidate is None:
+            return self.queue.interval
+        due = self._due_at(candidate)
+        return max(0, int((due - self._last_rotation).total_seconds()))
 
     def slide_by_id(self, slide_id: str) -> ScreenConfig | None:
         item = self.queue.get(slide_id)
@@ -140,6 +188,11 @@ class FraimicScheduler:
                 self._displayed_item = QueueItem.from_dict(data["displayed_item"])
         else:
             self._migrate_queue(data)
+        try:
+            self.auto = AutoSettings.from_dict(data.get("auto") or {})
+        except vol.Invalid as err:
+            _LOGGER.warning("Ignoring invalid stored auto mode settings: %s", err)
+        self.auto_history = AutoHistory.from_list(data.get("auto_history"))
         self.current_id = self.current_screen.screen_id if self.current_screen else None
         self.displayed_hash = data.get("displayed_hash")
         for attr, key in (
@@ -229,7 +282,7 @@ class FraimicScheduler:
             self.queue.shuffle = playlist.shuffle
         elif screens:
             self.queue.interval = screens[0].interval
-        self.queue.repeat = bool(screens)
+        self.queue.end_action = END_REPEAT if screens else END_STOP
 
     @callback
     def async_stop(self) -> None:
@@ -342,7 +395,7 @@ class FraimicScheduler:
             self.queue = PlaybackQueue(
                 interval=self.queue.interval,
                 shuffle=self.queue.shuffle,
-                repeat=self.queue.repeat,
+                end_action=self.queue.end_action,
             )
             self._pending = None
             self._last_rotation = None
@@ -367,6 +420,7 @@ class FraimicScheduler:
         interval: int | None = None,
         shuffle: bool | None = None,
         repeat: bool | None = None,
+        end_action: str | None = None,
     ) -> None:
         self.raise_if_upload_active()
         if interval is not None:
@@ -387,15 +441,72 @@ class FraimicScheduler:
         if repeat is not None:
             if not isinstance(repeat, bool):
                 raise HomeAssistantError("Repeat must be a boolean")
-            self.queue.repeat = repeat
+            if repeat:
+                end_action = END_REPEAT
+            elif self.queue.end_action == END_REPEAT:
+                end_action = END_STOP
+        if end_action is not None:
+            await self._async_set_end_action(end_action)
         await self._queue_changed()
+
+    async def _async_set_end_action(self, end_action: str) -> None:
+        if end_action not in END_ACTIONS:
+            raise HomeAssistantError(
+                f"End of queue must be one of: {', '.join(END_ACTIONS)}"
+            )
+        if end_action == self.queue.end_action:
+            return
+        starting_auto = end_action == END_AUTO and not self.queue.hand_upcoming
+        if end_action != END_AUTO:
+            self._drop_auto_picks()
+            # Shown picks stay as ordinary history; Repeat may loop them.
+            for item in self.queue.items:
+                item.auto_source = None
+        self.queue.end_action = end_action
+        # Choosing auto mode with nothing queued means "keep the art changing".
+        if starting_auto and not self.enabled:
+            await self.async_set_enabled(True, rotate=False)
+
+    async def async_set_auto(
+        self, patch: dict[str, Any], *, new_picks: bool = False
+    ) -> None:
+        """Update auto mode options; unplayed picks are replaced to match them."""
+        self.raise_if_upload_active()
+        try:
+            self.auto = self.auto.updated(patch)
+        except vol.Invalid as err:
+            raise HomeAssistantError(f"Invalid auto mode settings: {err}") from err
+        self._drop_auto_picks(skipped=new_picks)
+        await self._queue_changed()
+
+    async def async_new_auto_picks(self) -> None:
+        """Replace the upcoming auto picks; the old ones count as skipped."""
+        self.raise_if_upload_active()
+        self._drop_auto_picks(skipped=True)
+        await self._queue_changed()
+
+    def _drop_auto_picks(self, *, skipped: bool = False) -> None:
+        self._auto_generation += 1
+        self._auto_backoff.clear()
+        self._auto_queued.clear()
+        self.auto_error = None
+        for item in self.queue.drop_auto():
+            if skipped:
+                self._record_shown(item.screen)
+
+    def _record_shown(self, screen: ScreenConfig) -> None:
+        if key := picture_key(screen):
+            self.auto_history.record(key, dt_util.utcnow())
 
     async def async_remove_from_queue(self, index: int, slide_id: str) -> None:
         self.raise_if_upload_active()
         try:
-            self.queue.remove(index, slide_id)
+            item = self.queue.remove(index, slide_id)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
+        if item.auto_source is not None:
+            # Removing an auto pick asks for a different one; keep it away.
+            self._record_shown(item.screen)
         await self._queue_changed()
 
     async def async_clear_queue(self) -> None:
@@ -403,10 +514,12 @@ class FraimicScheduler:
         self.queue.clear()
         await self._queue_changed()
 
-    async def async_reorder_queue(self, ordered_ids: list[str]) -> None:
+    async def async_reorder_queue(
+        self, ordered_ids: list[str], keep_ids: list[str] | None = None
+    ) -> None:
         self.raise_if_upload_active()
         try:
-            self.queue.reorder(ordered_ids)
+            self.queue.reorder(ordered_ids, keep_ids)
         except ValueError as err:
             raise HomeAssistantError(str(err)) from err
         await self._queue_changed()
@@ -612,6 +725,8 @@ class FraimicScheduler:
                     await cloud.async_expire_delivery()
             except Exception:
                 _LOGGER.debug("Could not retire the cloud image", exc_info=True)
+        if self._auto_topup_due():
+            self._schedule_prefetch()
         await self._async_rotate(force=False)
 
     async def _async_rotate(self, *, force: bool) -> None:
@@ -633,15 +748,32 @@ class FraimicScheduler:
                 return
             if self.retry_at and now < self.retry_at:
                 return
-            if (
-                self._last_rotation
-                and (self.current_screen is None or eligible(self.current_screen, dt_util.now()))
-                and (now - self._last_rotation).total_seconds() < self.queue.interval
-            ):
-                return
         candidate = self.queue.candidate(dt_util.now())
-        if candidate:
-            await self._async_show(candidate.screen)
+        if candidate is None:
+            return
+        if (
+            not force
+            and self._last_rotation
+            and (self.current_screen is None or eligible(self.current_screen, dt_util.now()))
+            and now < self._due_at(candidate)
+        ):
+            return
+        await self._async_show(candidate.screen)
+
+    def _due_at(self, item: QueueItem) -> datetime:
+        """When ``item`` may replace the picture shown at the last rotation."""
+        last = self._last_rotation
+        assert last is not None
+        if item.auto_source is None:
+            return last + timedelta(seconds=self.queue.interval)
+        settings = self.auto
+        # Cloud wakes follow the album interval, which tracks the queue's.
+        if getattr(self.entry.runtime_data, "cloud", None) is not None:
+            settings = replace(settings, cadence=CADENCE_QUEUE)
+        due = settings.next_change(
+            last.astimezone(dt_util.now().tzinfo), self.queue.interval
+        )
+        return due if due is not None else last
 
     def _defer(self, reason: str, seconds: int | None = None) -> None:
         self.blocked_reason = reason
@@ -681,6 +813,13 @@ class FraimicScheduler:
                 )
             except (ArtFetchError, CloudDeliveryError) as err:
                 self._pending = None
+                if isinstance(err, ArtFetchError) and not manual:
+                    item = self.queue.get(screen.screen_id)
+                    if item is not None and item.auto_source is not None:
+                        self.queue.items.remove(item)
+                        if self.queue.cursor == screen.screen_id:
+                            self.queue.cursor = None
+                        await self._async_save()
                 self._defer(
                     "source_unavailable"
                     if isinstance(err, ArtFetchError)
@@ -732,6 +871,9 @@ class FraimicScheduler:
             self.blocked_reason = None
             self.retry_at = None
             self.queue.advance(screen.screen_id, dt_util.now())
+            self.queue.trim_played(PLAYED_LIMIT)
+            # Cloud deliveries count too: the frame shows them on its next wake.
+            self._record_shown(screen)
             if displayed:
                 self._displayed_item = self.queue.get(screen.screen_id)
                 self.current_id = screen.screen_id
@@ -836,7 +978,11 @@ class FraimicScheduler:
 
     def _schedule_prefetch(self) -> None:
         """Start or refresh the single serial preparation worker."""
-        if not self._prefetch_screens() and not self._playlist_preprocess_screens():
+        if (
+            not self._auto_topup_due()
+            and not self._prefetch_screens()
+            and not self._playlist_preprocess_screens()
+        ):
             return
         if self._prefetch_task is not None and not self._prefetch_task.done():
             self._prefetch_again = True
@@ -853,6 +999,8 @@ class FraimicScheduler:
         try:
             while True:
                 self._prefetch_again = False
+                if self._auto_topup_due():
+                    await self._async_top_up_auto()
                 upcoming = self._prefetch_screens()
                 full_signature = self._playlist_preprocess_signature()
                 full_screens = self._playlist_preprocess_screens()
@@ -892,6 +1040,98 @@ class FraimicScheduler:
                     return
         finally:
             self._prefetch_task = None
+
+    # -- auto mode -----------------------------------------------------------
+
+    def _auto_unavailable(self, now: datetime) -> set[str]:
+        upcoming = {item.screen.screen_id for item in self.queue.upcoming}
+        return {key for key, until in self._auto_backoff.items() if until > now} | {
+            key for key, queued in self._auto_queued.items() if queued <= upcoming
+        }
+
+    def _auto_topup_due(self) -> bool:
+        if not self.auto_enabled or len(self.queue.auto_upcoming) >= LOOKAHEAD:
+            return False
+        unavailable = self._auto_unavailable(dt_util.utcnow())
+        return any(source.key not in unavailable for source in self.auto.sources)
+
+    async def _async_top_up_auto(self) -> None:
+        """Resolve auto picks until ``LOOKAHEAD`` are queued."""
+        generation = self._auto_generation
+        now = dt_util.utcnow()
+        unavailable = self._auto_unavailable(now)
+        added = False
+        while self.auto_enabled and len(self.queue.auto_upcoming) < LOOKAHEAD:
+            source = pick_source(self.auto.sources, unavailable)
+            if source is None:
+                break
+            upcoming = frozenset(item.screen.screen_id for item in self.queue.upcoming)
+            try:
+                screen = await self._async_resolve_auto(source)
+                error = None if screen is not None else "nothing new to show"
+            except AutoSourceQueued:
+                # Keep it full until an upcoming item is consumed or removed.
+                if generation != self._auto_generation:
+                    return
+                self._auto_queued[source.key] = upcoming
+                unavailable.add(source.key)
+                continue
+            except HomeAssistantError as err:
+                screen, error = None, str(err)
+            except Exception as err:  # noqa: BLE001 - one broken source must not stop auto mode
+                _LOGGER.warning("Auto mode source %s failed", source.title, exc_info=True)
+                screen, error = None, str(err) or type(err).__name__
+            if generation != self._auto_generation:
+                return
+            if screen is None:
+                _LOGGER.info("Auto mode skipped %s for now: %s", source.title, error)
+                self.auto_error = f"{source.title}: {error}"
+                self._auto_backoff[source.key] = now + AUTO_BACKOFF
+                unavailable.add(source.key)
+                continue
+            self._auto_backoff.pop(source.key, None)
+            self.queue.add_auto(self._auto_screen(screen, source), source.title)
+            added = True
+        if self.queue.auto_upcoming:
+            self.auto_error = None
+            if self.blocked_reason == "auto_unavailable":
+                self.blocked_reason = self.retry_at = None
+        elif not self.queue.hand_upcoming and self._auto_backoff:
+            self.blocked_reason = "auto_unavailable"
+            self.retry_at = min(self._auto_backoff.values())
+        if added:
+            await self._async_save()
+        self._notify()
+
+    def _auto_screen(self, screen: ScreenConfig, source: AutoSource) -> ScreenConfig:
+        """Apply the frame's auto options that live on the queued slide."""
+        active = self.auto.active_hours
+        return replace(
+            screen,
+            enabled=True,
+            windows=(active,) if active else screen.windows,
+            overlay_mode="none"
+            if source.kind != SOURCE_PLAYLIST and self.auto.overlays == "none"
+            else screen.overlay_mode,
+        )
+
+    async def _async_resolve_auto(self, source: AutoSource) -> ScreenConfig | None:
+        from .auto_sources import async_resolve_pick
+
+        exclude = {
+            key
+            for item in self.queue.upcoming
+            if (key := picture_key(item.screen))
+        }
+        return await async_resolve_pick(
+            self.hass,
+            self.entry,
+            self.auto,
+            source,
+            self.auto_history,
+            exclude=exclude,
+            playlists=self._playlists,
+        )
 
     @callback
     def _coordinator_updated(self) -> None:
@@ -954,5 +1194,7 @@ class FraimicScheduler:
                 "paused_at": self._paused_at.isoformat() if self._paused_at else None,
                 "pending_queue_id": self._pending.screen_id if self._pending else None,
                 "pending_requires_enabled": self._pending_requires_enabled,
+                "auto": self.auto.to_dict(),
+                "auto_history": self.auto_history.to_list(),
             }
         )

@@ -370,6 +370,14 @@
     "select": {
       "screen": {
         "name": "Screen"
+      },
+      "end_of_queue": {
+        "name": "End of queue",
+        "state": {
+          "stop": "Stop",
+          "repeat": "Repeat queue",
+          "auto": "Auto mode"
+        }
       }
     }
   },
@@ -655,6 +663,72 @@
       "fields": {
         "config_entry_id": {
           "name": "Frame"
+        }
+      }
+    },
+    "set_auto_mode": {
+      "name": "Set auto mode",
+      "description": "Choose what plays when a frame's queue runs out and how auto mode picks new art. Only the fields you give change.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which frame to change. Only required with multiple frames."
+        },
+        "end_of_queue": {
+          "name": "End of queue",
+          "description": "Stop, repeat the queue, or keep showing new art with auto mode."
+        },
+        "sources": {
+          "name": "Sources",
+          "description": "Where auto mode picks art from. A list of sources, each with a kind (shuffle, gallery, or playlist). Gallery sources require source; playlist sources require playlist_id. Optional fields are browse_id, query, label, and weight (1 to 3)."
+        },
+        "cadence": {
+          "name": "When to change",
+          "description": "Follow the queue interval, use an interval of its own, or change at set times of day."
+        },
+        "interval": {
+          "name": "Interval",
+          "description": "How often auto mode changes the picture when it uses its own interval. At least 5 minutes."
+        },
+        "times": {
+          "name": "Set times",
+          "description": "Times of day to change the picture, as HH:MM."
+        },
+        "days": {
+          "name": "Days",
+          "description": "Weekdays the set times apply to. Leave empty for every day."
+        },
+        "active_hours": {
+          "name": "Active hours",
+          "description": "Only change the picture inside this window, given as after and before times such as 07:00 and 23:00. Give an empty object to allow any time."
+        },
+        "avoid_repeats_days": {
+          "name": "Avoid repeats for",
+          "description": "Days before the same picture can be shown again. 0 allows repeats; -1 waits until every picture in a source has been shown."
+        },
+        "orientation": {
+          "name": "Orientation",
+          "description": "Prefer art that suits the frame, or only use art that does."
+        },
+        "caption": {
+          "name": "Caption strip",
+          "description": "Add the attribution strip to online art."
+        },
+        "tone": {
+          "name": "Tone",
+          "description": "Tone curve for auto mode's pictures."
+        },
+        "fit": {
+          "name": "Fit",
+          "description": "How pictures fill the frame. Default follows the frame's setting."
+        },
+        "overlays": {
+          "name": "Overlays",
+          "description": "Show the frame's overlays on auto mode's pictures, or none."
+        },
+        "new_picks": {
+          "name": "New picks",
+          "description": "Replace the upcoming auto picks with new ones."
         }
       }
     }

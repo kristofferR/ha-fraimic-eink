@@ -12,6 +12,8 @@ display and delivers them over your local network or through your Fraimic accoun
   and photography sources. Search, filter, and save favorites.
 - **Playlists and a queue:** create named playlists, add them to a frame’s queue, and
   choose what plays next. Each frame keeps its own playback order.
+- **Auto mode:** when the queue runs out, keep changing the art on a schedule
+  from sources you choose, such as Favorites, a museum, or a Reframed collection.
 - **Picture controls:** position the crop and choose fit, tone, and dithering.
   Preview tone and dithering inside the crop without refreshing the frame (beta).
 - **Home Assistant data on the wall:** add weather, clocks, calendars, sensor
@@ -125,13 +127,44 @@ its pictures next. **Play now · replace queue** explicitly starts a new session
 Each frame has one queue. Reorder or remove pictures there without editing any
 saved playlist. Queue entries are snapshots, so editing or deleting the original
 playlist leaves playback alone. The same picture or playlist can be added more
-than once. Shuffle, repeat, and the change interval belong to the frame’s player.
+than once. Shuffle, the change interval, and what happens when the queue ends
+belong to the frame’s player.
 
-Repeat is off for new sessions. When the queue ends, the last picture stays on
-the frame. **Clear** removes upcoming pictures and turns repeat off. The queue,
-playback settings, and paused state survive Home Assistant restarts. Existing
-assigned playlists migrate once into a queue, retaining their interval and
-repeat behavior.
+**Then** in the queue sheet chooses what happens when the queue ends: **Stop**
+leaves the last picture on the frame, **Repeat queue** plays it again, and
+**Auto mode** keeps showing new art. **Clear** removes the pictures you queued
+and turns repeat off. The queue, playback settings, and paused state survive
+Home Assistant restarts. Existing assigned playlists migrate once into a queue,
+retaining their interval and repeat behavior.
+
+### Auto mode
+
+Auto mode keeps three upcoming picks below an **Auto** divider in the queue.
+They are fetched and prepared ahead of time, so you can preview them and the
+frame changes without waiting for a download. Anything you queue plays first.
+Remove an auto pick to get a different one, or drag it above the divider to
+keep it. **New picks** replaces all three.
+
+Open **Settings** in the Auto divider, or **Frame menu → Auto mode settings**:
+
+- **Sources:** Surprise me (a random museum), any online source, your library,
+  Favorites, an album or art pack, or a saved playlist. To use a gallery folder
+  or search, such as a Reframed collection or a Wallhaven search, open it and
+  choose **Add to auto mode**. Weights of 1×, 2×, or 3× set how often each
+  source is picked.
+- **When to change:** follow the queue interval, use an interval of its own, or
+  change at set times on chosen weekdays. With cloud delivery, the frame wakes
+  on the queue interval, so auto mode always follows it.
+- **Active hours:** only change the picture inside a daily window.
+- **Avoid repeats:** skip pictures shown in the last 7, 30, or 90 days, or wait
+  until every picture in a source has been shown. Small sources fall back to
+  the least recently shown picture rather than stalling.
+- **Orientation, caption, tone, fit, and overlays** for auto mode's pictures.
+  Playlist sources keep each slide's own look.
+
+Automations can change all of this with the `fraimic.set_auto_mode` action, for
+example to switch sources by season. The **End of queue** select entity
+switches between Stop, Repeat queue, and Auto mode.
 
 ![A saved playlist in the Fraimic dashboard](docs/screenshots/playlist.png)
 

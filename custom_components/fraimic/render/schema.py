@@ -403,6 +403,8 @@ class ScreenConfig:
     windows: tuple[TimeWindow, ...] = ()
     enabled: bool = True
     overlay_mode: str = "inherit"
+    # Stable playlist identity when the source has no artwork ID.
+    history_key: str | None = None
 
 
 def _parse_time(value: str) -> time:

@@ -171,10 +171,39 @@ test("standalone queue exposes Play, frame settings, and a single editable list"
   expect(panel._playerTemplate()).toContain('data-player-action="play"');
   const queue = panel._queueTemplate();
   expect(queue).toContain('data-menu="interval"');
-  expect(queue).toContain('data-toggle-repeat');
+  expect(queue).toContain('data-menu="end"');
   expect(queue).toContain('data-remove-queue="0:one"');
   expect(queue).not.toContain("Next from");
   expect(queue).not.toContain("Choose a playlist");
+});
+
+test("auto picks follow the hand queue and can be kept above the divider", async () => {
+  const { panel } = harness();
+  panel._frames = [{ id: "frame", name: "Frame" }];
+  panel._player = { state: "playing", interval: 1800, current: {}, end_action: "auto",
+    auto: { sources: [{ kind: "shuffle", label: "Surprise me", weight: 2 }] },
+    hand_queue: [{ id: "one", title: "One", meta: "Picture" }],
+    auto_queue: [{ id: "pick", title: "Pick", meta: "Monet · Surprise me", auto_source: "Surprise me" }] };
+  const queue = panel._queueTemplate();
+  expect(queue).toContain("Then: Auto mode");
+  expect(queue).toContain("Surprise me 2×");
+  expect(queue).toContain('data-remove-queue="1:pick"');
+  expect(queue).toContain("Monet · Surprise me");
+  const sent = [];
+  panel._queueAction = async (body) => sent.push(body);
+  await panel._reorderQueue("queue", 1, 0, true);
+  await panel._reorderQueue("queue", 0, 1);
+  expect(sent).toEqual([{ action: "reorder", section: "queue", ordered_ids: ["pick", "one"], keep_ids: ["pick"] }]);
+});
+
+test("Clear stays available when a repeating queue reaches its final picture", () => {
+  const { panel } = harness();
+  panel._player = { interval: 1800, current: { title: "Last picture" }, hand_queue: [],
+    end_action: "repeat", repeat: true };
+  expect(panel._queueTemplate()).toContain("data-clear-queue >Clear</button>");
+  panel._player.end_action = "stop";
+  panel._player.repeat = false;
+  expect(panel._queueTemplate()).toContain("data-clear-queue disabled>Clear</button>");
 });
 
 test("queue timing controls use the frame API without a playlist", async () => {
