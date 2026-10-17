@@ -57,6 +57,21 @@ def _candidate(item_id, width=None, height=None):
     )
 
 
+@pytest.mark.parametrize(
+    "dimensions,expected",
+    [
+        ([(None, None), (300, 3000)], [(None, None)]),
+        ([(1600, 1200), (None, None), (300, 3000)], [(1600, 1200), (None, None)]),
+        ([(300, 3000)], [(300, 3000)]),
+    ],
+)
+def test_suitable_prefers_matches_and_unknown_sizes(resolver, dimensions, expected):
+    auto = load("auto_mode")
+    entry = SimpleNamespace(data={"width": 1600, "height": 1200}, options={})
+    picker = resolver._Picker(None, entry, auto.AutoSettings(), auto.AutoHistory(), set())
+    assert picker._suitable(dimensions, lambda size: size) == expected
+
+
 def test_library_folder_skips_recent_and_misfit_art(resolver, monkeypatch):
     model = load("library_model")
     auto = load("auto_mode")

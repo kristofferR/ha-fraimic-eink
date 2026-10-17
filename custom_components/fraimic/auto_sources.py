@@ -114,7 +114,7 @@ class _Picker:
         if self.settings.strict_orientation:
             return [item for item, ok in zip(pool, verdicts, strict=True) if ok is True]
         good = [item for item, ok in zip(pool, verdicts, strict=True) if ok is not False]
-        if any(verdicts):
+        if good:
             return good
         return pool
 
