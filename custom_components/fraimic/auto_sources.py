@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import random
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -147,6 +147,7 @@ class _Picker:
                 "attribution": candidate.attribution or None,
                 "source_page_url": candidate_source_page(candidate),
                 "download_url": candidate.image_url,
+                "provider_candidate": asdict(candidate),
             },
             caption=self.settings.caption,
         )

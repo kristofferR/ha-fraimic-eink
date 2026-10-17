@@ -2,8 +2,9 @@
 
 import asyncio
 import io
+import json
 import sys
-from dataclasses import replace
+from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
 from importlib.util import module_from_spec, spec_from_file_location
 from types import SimpleNamespace
@@ -132,6 +133,25 @@ def test_random_online_pick_retries_recent_art(resolver, monkeypatch):
     slide = _resolve(resolver, {"kind": "shuffle"}, history=history)
     assert slide.source["provider_item"] == "new"
     assert fetch.await_args.args[2] == "shuffle"
+
+
+def test_auto_pick_keeps_provider_callback_metadata_in_saved_queue(resolver, monkeypatch):
+    base = load("providers.base")
+    queue_model = load("playback_queue")
+    candidate = base.ArtCandidate(
+        provider="unsplash", item_id="photo-1", image_url="https://example.test/photo.jpg",
+        title="Photo", attribution="Photo by Artist on Unsplash",
+        extra={"download_location": "https://api.unsplash.com/photos/photo-1/download"},
+    )
+    monkeypatch.setattr(resolver, "async_fetch_art", AsyncMock(
+        return_value=base.ArtImage(data=b"photo", candidate=candidate),
+    ))
+    slide = _resolve(resolver, {"kind": "shuffle"})
+    queue = queue_model.PlaybackQueue()
+    queue.add_auto(slide, "shuffle")
+    restored = queue_model.PlaybackQueue.from_dict(json.loads(json.dumps(queue.to_dict())))
+
+    assert restored.items[0].screen.source["metadata"]["provider_candidate"] == asdict(candidate)
 
 
 def test_deleted_playlist_is_reported(resolver):

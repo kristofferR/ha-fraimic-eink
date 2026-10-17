@@ -455,6 +455,7 @@ def picture_slide_data(
             "download_url",
             "thumbnail_url",
             "image_url",
+            "provider_candidate",
         )
         if item.get(key) is not None
     }

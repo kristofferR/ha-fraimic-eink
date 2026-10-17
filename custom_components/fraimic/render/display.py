@@ -160,6 +160,21 @@ async def _async_picture_source(
                     if disk_cache is not None
                     else await _download_fallback()
                 )
+                # Auto picks outlive the browse stash even with caching off.
+                saved_candidate = metadata.get("provider_candidate")
+                if isinstance(saved_candidate, dict):
+                    from ..providers.base import ArtCandidate, ArtImage
+
+                    try:
+                        candidate = ArtCandidate(**saved_candidate)
+                    except (TypeError, ValueError):
+                        candidate = None
+                    if (
+                        candidate is not None
+                        and candidate.provider == provider_key
+                        and candidate.item_id == item_id
+                    ):
+                        art = ArtImage(data=raw, candidate=candidate)
         else:
             art = await async_fetch_art(
                 hass,
