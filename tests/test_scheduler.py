@@ -534,6 +534,71 @@ def test_failed_auto_art_is_replaced_only_for_automatic_fetch_errors(playback, e
         assert p.scheduler.current_screen.name == "pick1"
 
 
+@pytest.mark.parametrize("legacy,other_source", [(False, False), (True, False), (False, True)])
+def test_failed_auto_art_backs_off_its_source_before_refill(
+    playback, monkeypatch, legacy, other_source
+):
+    p = playback
+    sources = [{"kind": "gallery", "source": "broken", "label": "Art"}]
+    if other_source:
+        sources.append({"kind": "gallery", "source": "healthy", "label": "Art"})
+    run(p.scheduler.async_set_auto({"sources": sources}))
+    monkeypatch.setattr(
+        p.module, "pick_source",
+        lambda sources, unavailable: next(
+            (source for source in sources if source.key not in unavailable), None
+        ),
+    )
+
+    async def resolve(_hass, _entry, _settings, source, _history, *, exclude, playlists):
+        if f"library:{source.source}" in exclude:
+            raise p.module.AutoSourceQueued
+        return _screen(source.source)
+
+    resolver = AsyncMock(side_effect=resolve)
+    monkeypatch.setitem(
+        sys.modules, "fraimic.auto_sources", SimpleNamespace(async_resolve_pick=resolver)
+    )
+    run(p.scheduler.async_set_playback(end_action="auto"))
+    run(p.scheduler._async_top_up_auto())
+    failed = p.scheduler.queue.auto_upcoming[0]
+    if legacy:
+        failed.auto_source_key = None
+    p.show.side_effect = p.module.ArtFetchError("404")
+    assert not run(p.scheduler._async_show(failed.screen))
+    source_key = p.scheduler.auto.sources[0].key
+    assert p.scheduler._auto_backoff == {source_key: p.now[0] + p.module.AUTO_BACKOFF}
+    p.show.side_effect = None
+    for _ in range(2):
+        run(p.scheduler._async_top_up_auto())
+        p.now[0] += timedelta(minutes=5)
+        run(p.scheduler._async_tick())
+        assert all(slide.name != "broken" for slide in p.scheduler.queued_slides)
+    assert sum(call.args[3].source == "broken" for call in resolver.await_args_list) == 2
+    if other_source:
+        assert p.scheduler.current_screen.name == "healthy"
+    p.now[0] += timedelta(minutes=5)
+    assert p.scheduler._auto_topup_due()
+    run(p.scheduler._async_top_up_auto())
+    assert any(slide.name == "broken" for slide in p.scheduler.queued_slides)
+
+
+def test_legacy_auto_failure_with_shared_labels_preserves_other_sources(playback):
+    p = playback
+    run(p.scheduler.async_set_auto({"sources": [
+        {"kind": "gallery", "source": "broken", "label": "Art"},
+        {"kind": "gallery", "source": "healthy", "label": "Art"},
+    ]}))
+    _auto(p)
+    failed = p.scheduler.queue.auto_upcoming[0]
+    failed.auto_source_key = None
+    p.show.side_effect = p.module.ArtFetchError("404")
+    assert not run(p.scheduler._async_show(failed.screen))
+    assert not p.scheduler._auto_backoff
+    assert "library:pick0" in p.scheduler.auto_history.entries
+    assert p.scheduler._auto_topup_due()
+
+
 def test_permanently_invalid_item_does_not_block_following_item(playback):
     p = playback
     a, b = add(p, "a", "b")

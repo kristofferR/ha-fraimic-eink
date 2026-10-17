@@ -816,6 +816,22 @@ class FraimicScheduler:
                 if isinstance(err, ArtFetchError) and not manual:
                     item = self.queue.get(screen.screen_id)
                     if item is not None and item.auto_source is not None:
+                        # Older picks have only a label; use it only if unambiguous.
+                        source_keys = (
+                            [item.auto_source_key]
+                            if item.auto_source_key is not None
+                            else [
+                                source.key
+                                for source in self.auto.sources
+                                if source.title == item.auto_source
+                            ]
+                        )
+                        if len(source_keys) == 1:
+                            self._auto_backoff[source_keys[0]] = (
+                                dt_util.utcnow() + AUTO_BACKOFF
+                            )
+                        else:
+                            self._record_shown(screen)
                         self.queue.items.remove(item)
                         if self.queue.cursor == screen.screen_id:
                             self.queue.cursor = None
@@ -1090,7 +1106,9 @@ class FraimicScheduler:
                 unavailable.add(source.key)
                 continue
             self._auto_backoff.pop(source.key, None)
-            self.queue.add_auto(self._auto_screen(screen, source), source.title)
+            self.queue.add_auto(
+                self._auto_screen(screen, source), source.title, source_key=source.key
+            )
             added = True
         if self.queue.auto_upcoming:
             self.auto_error = None

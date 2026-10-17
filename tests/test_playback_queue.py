@@ -194,7 +194,8 @@ def test_legacy_repeat_flag_migrates_to_end_action():
     data["repeat"] = True
     assert model.PlaybackQueue.from_dict(data).end_action == "repeat"
     queue = model.PlaybackQueue(end_action="auto")
-    queue.add_auto(picture("pick"), "Favorites")
+    queue.add_auto(picture("pick"), "Favorites", source_key="gallery\x00favorites")
     restored = model.PlaybackQueue.from_dict(queue.to_dict())
     assert restored.end_action == "auto"
     assert restored.auto_upcoming[0].auto_source == "Favorites"
+    assert restored.auto_upcoming[0].auto_source_key == "gallery\x00favorites"

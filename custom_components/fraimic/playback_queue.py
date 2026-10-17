@@ -27,6 +27,7 @@ class QueueItem:
     playlist_name: str | None = None
     # Label of the auto mode source that picked this item; None = queued by hand.
     auto_source: str | None = None
+    auto_source_key: str | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -38,6 +39,7 @@ class QueueItem:
             "playlist_id": self.playlist_id,
             "playlist_name": self.playlist_name,
             "auto_source": self.auto_source,
+            "auto_source_key": self.auto_source_key,
         }
 
     @classmethod
@@ -53,6 +55,7 @@ class QueueItem:
             data.get("playlist_id"),
             data.get("playlist_name"),
             data.get("auto_source"),
+            data.get("auto_source_key"),
         )
 
 
@@ -151,11 +154,14 @@ class PlaybackQueue:
         self.items[at:at] = added
         return added
 
-    def add_auto(self, screen: ScreenConfig, label: str) -> QueueItem:
+    def add_auto(
+        self, screen: ScreenConfig, label: str, *, source_key: str | None = None
+    ) -> QueueItem:
         """Append one auto mode pick after everything already queued."""
         (item,) = self.add([screen])
         self.items.remove(item)
         item.auto_source = label
+        item.auto_source_key = source_key
         self.items.append(item)
         return item
 
