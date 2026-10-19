@@ -451,3 +451,36 @@ def test_failed_hybrid_exit_is_reported_and_kept(awake):
 
     assert asyncio.run(run()) is False
     assert awake.saved  # retried on the next setup
+
+
+def test_a_rest_in_flight_cannot_undo_a_replacement(awake):
+    release = asyncio.Event()
+    first = True
+
+    async def slow_plan(wake_at, carrier=None):
+        nonlocal first
+        if first:
+            first = False
+            await release.wait()
+        awake.cloud.wake_at = wake_at
+        return True
+
+    awake.cloud.async_plan_wake.side_effect = slow_plan
+    awake.client.get_info.return_value = {"uptime": 50_000}
+
+    async def run():
+        resting = asyncio.ensure_future(
+            awake.window.async_set(at(NOW + 8 * 3600), at(NOW + 9 * 3600))
+        )
+        await settle()
+        replacing = asyncio.ensure_future(awake.window.async_set(at(NOW), at(NOW + 3600)))
+        await settle()
+        release.set()
+        await asyncio.gather(resting, replacing)
+        await settle()
+
+    asyncio.run(run())
+    # The old rest finishes before the replacement starts: never "off" mid-window.
+    calls = [c.args for c in awake.cloud.async_set_keep_awake.await_args_list]
+    assert calls == [(False,), (True,)]
+    assert awake.window.awake

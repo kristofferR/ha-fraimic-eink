@@ -131,6 +131,9 @@ class AwakeWindow:
         self._rest_pending = False
         self._unsubs: list[Callable[[], None]] = []
         self._catcher: asyncio.Task[None] | None = None
+        # Transitions run one at a time; a replaced window's jobs are dropped.
+        self._lock = asyncio.Lock()
+        self._generation = 0
 
     @property
     def active(self) -> bool:
@@ -190,6 +193,20 @@ class AwakeWindow:
         A daily window plans the next day's while the frame is still awake, so
         a sleeping frame always carries the next wake.
         """
+        async with self._lock:
+            await self._async_set_locked(
+                start, end, standby_from=standby_from, repeat_daily=repeat_daily
+            )
+
+    async def _async_set_locked(
+        self,
+        start: datetime,
+        end: datetime,
+        *,
+        standby_from: datetime | None,
+        repeat_daily: bool,
+    ) -> None:
+        self._generation += 1
         was_awake = self.awake and self.active
         self._cancel_timers()
         self._stop_catcher()
@@ -217,8 +234,10 @@ class AwakeWindow:
 
     async def async_clear(self) -> None:
         """End any window now and let the frame sleep until its heartbeat."""
-        self._cancel_timers()
-        await self._async_finish()
+        async with self._lock:
+            self._generation += 1
+            self._cancel_timers()
+            await self._async_finish()
 
     def diagnostics(self) -> dict[str, Any]:
         return {
@@ -256,12 +275,19 @@ class AwakeWindow:
         self._at(end, self._async_end)
 
     def _at(self, when: float, job: Callable[[], Coroutine[Any, Any, None]]) -> None:
+        generation = self._generation
+
+        async def guarded() -> None:
+            async with self._lock:
+                if generation == self._generation:
+                    await job()
+
         @callback
         def fire(_now: datetime) -> None:
-            self._run(job())
+            self._run(guarded())
 
         if when <= time.time():
-            self._run(job())
+            self._run(guarded())
             return
         self._unsubs.append(
             async_track_point_in_utc_time(self.hass, fire, dt_util.utc_from_timestamp(when))
@@ -330,7 +356,7 @@ class AwakeWindow:
         if _days_later(end, days) <= now:
             days += 1
         standby = self.standby_from
-        await self.async_set(
+        await self._async_set_locked(
             _days_later(start, days),
             _days_later(end, days),
             standby_from=None if standby is None else _days_later(standby, days),
