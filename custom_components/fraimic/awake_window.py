@@ -368,7 +368,8 @@ class AwakeWindow:
                 await asyncio.sleep(FAST_PROBE if fast else SLOW_PROBE)
                 continue
             if not await self._async_hold():
-                await asyncio.sleep(FAST_PROBE)
+                # The account is failing; do not call it every probe.
+                await asyncio.sleep(SLOW_PROBE)
                 continue
             uptime = info["device"]["uptime_s"]
             if not recent and isinstance(uptime, int | float) and uptime < FRESH_BOOT:
