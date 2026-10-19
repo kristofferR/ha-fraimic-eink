@@ -86,6 +86,7 @@ def awake(monkeypatch):
         has_image=True,
         async_set_keep_awake=AsyncMock(),
         async_deliver=AsyncMock(),
+        async_cancel_delivery=AsyncMock(),
     )
     cloud.async_plan_wake = AsyncMock(side_effect=plan)
     runtime = SimpleNamespace(
@@ -150,6 +151,8 @@ def test_timer_wake_is_restarted_once_into_a_normal_boot(awake):
 
     asyncio.run(run())
     awake.client.restart.assert_awaited_once()
+    # The slot that woke it is retired, so the normal boot has nothing to redraw.
+    awake.cloud.async_cancel_delivery.assert_awaited()
     assert awake.window.awake and awake.window.last_result == "restarted"
     awake.cloud.async_set_keep_awake.assert_awaited_with(True)
     assert awake.client.get_info.await_count == 4
@@ -195,7 +198,7 @@ def test_heartbeat_moves_on_before_the_frame_wakes_for_it(awake):
         await settle()
         await awake.window.async_clear()
         when, fire = awake.timers[-1]
-        assert when == NOW + m.HEARTBEAT - m.PREPARE
+        assert when == NOW + m.HEARTBEAT - m.STEER_LEAD
         awake.clock.now = when
         fire(at(when))
         await settle()
@@ -223,3 +226,37 @@ def test_daily_window_plans_tomorrow_before_the_frame_sleeps(awake):
     awake.cloud.async_plan_wake.assert_awaited_with(start + m.DAY - m.WAKE_LEAD)
     assert awake.window.repeat_daily
     assert (awake.window.start, awake.window.end) == (start + m.DAY, end + m.DAY)
+
+
+@pytest.mark.parametrize(
+    ("after", "wake", "standby", "expected"),
+    [
+        (0, None, None, 86400),  # heartbeat
+        (0, 50_000, None, 50_000),  # sleep straight to the window's wake
+        (0, 50_000, 30_000, 30_000),  # sleep until standby
+        (0, 200_000, 150_000, 86400),  # never more than a day
+        (30_000, 50_000, 30_000, 30_300),  # standby checks
+        (49_900, 50_000, 30_000, 50_000),  # the last check is the wake
+        (50_000, 50_000, 30_000, 50_300),  # due but not caught: keep checking
+    ],
+)
+def test_following_wake(awake, after, wake, standby, expected):
+    assert awake.module.following_wake(after, wake=wake, standby_from=standby) == expected
+
+
+def test_standby_checks_are_steered_before_the_frame_wakes(awake):
+    m = awake.module
+    standby, start = NOW + 3600, NOW + 8 * 3600
+
+    async def run():
+        await awake.window.async_set(at(start), at(start + 3600), standby_from=at(standby))
+        steer = [t for t in awake.timers if t[0] == standby - m.STEER_LEAD]
+        assert len(steer) == 1
+        awake.clock.now = standby - m.STEER_LEAD
+        steer[0][1](at(awake.clock.now))
+        await settle()
+
+    asyncio.run(run())
+    assert [c.args[0] for c in awake.cloud.async_plan_wake.await_args_list] == [
+        standby, standby + m.STANDBY_INTERVAL,
+    ]

@@ -119,15 +119,21 @@ planned time. `fraimic.set_awake_window` keeps it awake from `start` to `end`:
 - A sleeping frame learns a changed plan only at its next wake, so plan the
   next window when the current one ends. With `repeat_daily: true` a window
   that runs out plans the same window for the next day by itself.
+- With `standby_from`, the frame checks in every 5 minutes from then until
+  `start` (a short wake without a redraw). A window set to start now, for
+  example when someone gets up early, reaches it at the next check.
 - Home Assistant never sends the frame to sleep during a window, and owns
-  keep-awake once windows are in use. The wake slot redraws the album image
-  once before `start`.
+  keep-awake once windows are in use. The album is retired when the frame is
+  caught, so the wake itself redraws nothing; arming the next wake while the
+  frame is awake redraws the current art once.
 
 ```yaml
 action: fraimic.set_awake_window
 data:
   start: "2026-10-20 06:50:00"
   end: "2026-10-20 11:50:00"
+  standby_from: "2026-10-20 05:00:00"
+  repeat_daily: true
 ```
 
 The source integration or template owns content selection and freshness. Fraimic

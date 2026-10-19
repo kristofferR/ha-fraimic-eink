@@ -670,6 +670,14 @@ set_awake_window:
       required: true
       selector:
         datetime:
+    standby_from:
+      name: Standby from
+      description: >-
+        From this time until start, the sleeping frame checks in every 5
+        minutes (no redraw), so a window started early reaches it within one
+        check.
+      selector:
+        datetime:
     repeat_daily:
       name: Repeat daily
       description: When the window ends, plan the same window for the next day.

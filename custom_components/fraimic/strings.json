@@ -681,6 +681,10 @@
           "name": "End",
           "description": "When the frame may sleep again, at most 24 hours after start."
         },
+        "standby_from": {
+          "name": "Standby from",
+          "description": "From this time until start, the sleeping frame checks in every 5 minutes (no redraw), so a window started early reaches it within one check."
+        },
         "repeat_daily": {
           "name": "Repeat daily",
           "description": "When the window ends, plan the same window for the next day."

@@ -454,6 +454,7 @@ def async_setup_services(hass: HomeAssistant) -> None:
             vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
             vol.Required("start"): cv.datetime,
             vol.Required("end"): cv.datetime,
+            vol.Optional("standby_from"): cv.datetime,
             vol.Optional("repeat_daily", default=False): cv.boolean,
         }),
     )
@@ -616,8 +617,14 @@ async def _async_handle_set_awake_window(call: ServiceCall) -> None:
         raise ServiceValidationError("The window must end after it starts, within 24 hours")
     if end <= dt_util.utcnow():
         raise ServiceValidationError("The window has already ended")
+    standby = call.data.get("standby_from")
+    if standby is not None and not dt_util.as_utc(standby) <= start:
+        raise ServiceValidationError("Standby must begin before the window starts")
     await _awake_window(call).async_set(
-        start, end, repeat_daily=call.data["repeat_daily"]
+        start,
+        end,
+        standby_from=None if standby is None else dt_util.as_utc(standby),
+        repeat_daily=call.data["repeat_daily"],
     )
 
 

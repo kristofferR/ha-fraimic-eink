@@ -35,7 +35,7 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `log_page.py` | Pure parser for the `/logs` ESP-IDF viewer (current + previous boot). |
 | `cloud.py` | `FraimicCloudClient`: Supabase login (password grant, refresh) + account API (devices, settings, gallery upload, albums). Pure aiohttp. |
 | `cloud_delivery.py` | Cloud delivery mode: one HA-owned album per frame; each render becomes a pure-primary PNG upload and the album's single image; album interval = playlist interval + lead; turns keep-awake off after the first delivery. |
-| `awake_window.py` | Hybrid awake windows (`set_awake_window`): steer the album wake to just before `start`, keep-awake on, restart the timer wake on the LAN into a normal boot, keep-awake off at `end` with the next wake (or a daily heartbeat) on the album. |
+| `awake_window.py` | Hybrid awake windows (`set_awake_window`): steer the album wake to just before `start` (5-min standby checks from `standby_from`), keep-awake on, retire the album and restart the timer wake on the LAN into a normal boot, keep-awake off at `end` with the next wake (or a daily heartbeat) on the album. |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
 | `auto_mode.py` | HA-free auto mode decisions: `AutoSettings` (validated partial updates), weighted `pick_source`, `AutoHistory` repeat avoidance, cadence `next_change`, queue end actions. |
