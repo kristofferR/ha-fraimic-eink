@@ -130,6 +130,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Cloud delivery (album schedule wakes the sleeping frame) when selected;
     # must exist before the scheduler starts so it can sync the album cadence.
     entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
+    if entry.options.get(CONF_DELIVERY_MODE) != DELIVERY_HYBRID:
+        # Before the scheduler copies the album's deadline into its hold.
+        await async_retire_awake_window(hass, entry, entry.runtime_data.cloud)
     if not power.startup_poll:
         # Minimum mode never polls, and the restored snapshot may be stale or
         # for a previously selected cloud device: a cloud frame asks the
@@ -164,9 +167,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     await scheduler.async_start()
     temporary_overlays.start()
     entry.async_on_unload(scheduler.async_stop)
-    if entry.options.get(CONF_DELIVERY_MODE) != DELIVERY_HYBRID:
-        await async_retire_awake_window(hass, entry, entry.runtime_data.cloud)
-    elif entry.runtime_data.cloud is not None:
+    if (
+        entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+        and entry.runtime_data.cloud is not None
+    ):
         awake_window = AwakeWindow(hass, entry)
         entry.runtime_data.awake_window = awake_window
         entry.async_on_unload(awake_window.shutdown)

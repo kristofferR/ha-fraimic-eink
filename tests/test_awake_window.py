@@ -373,3 +373,36 @@ def test_daily_window_after_downtime_skips_only_passed_days(awake):
     asyncio.run(run())
     nxt = datetime.fromtimestamp(awake.window.start, oslo)
     assert (nxt.day, nxt.hour) == (25, 7)
+
+
+def test_rest_stays_pending_until_keep_awake_is_off(awake):
+    m = awake.module
+    awake.cloud.async_set_keep_awake.side_effect = m.FraimicCloudError("down")
+
+    async def run():
+        await awake.window.async_set(at(NOW + 8 * 3600), at(NOW + 9 * 3600))
+        assert not awake.window.resting
+        # Home Assistant restarts during the outage: the retry survives.
+        restored = m.AwakeWindow(None, awake.entry)
+        await restored.async_setup()
+        assert restored.diagnostics()["rest_pending"]
+        awake.cloud.async_set_keep_awake.side_effect = None
+        awake.timers.clear()
+        await restored._async_rest()
+        assert restored.resting
+
+    asyncio.run(run())
+
+
+def test_a_refused_restart_is_retried(awake):
+    m = awake.module
+    awake.client.get_info.side_effect = [{"uptime": 5}, {"uptime": 7}, {"uptime": 30}]
+    awake.client.restart.side_effect = [m.FraimicApiError("busy"), None]
+
+    async def run():
+        await awake.window.async_set(at(NOW), at(NOW + 3600))
+        await settle()
+
+    asyncio.run(run())
+    assert awake.client.restart.await_count == 2
+    assert awake.window.last_result == "restarted"

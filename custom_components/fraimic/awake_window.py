@@ -24,7 +24,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .api import FraimicError
+from .api import FraimicApiError, FraimicError
 from .cloud import FraimicCloudError
 from .const import CLOUD_SLOT_LEAD_MINUTES, DOMAIN
 
@@ -152,6 +152,7 @@ class AwakeWindow:
         self.restarted_at = data.get("restarted_at")
         self.managed = data.get("managed", False)
         self.last_result = data.get("last_result")
+        self._rest_pending = data.get("rest_pending", False)
         self._schedule()
 
     def shutdown(self) -> None:
@@ -261,15 +262,15 @@ class AwakeWindow:
     async def _async_rest(self) -> None:
         """Arm the next wake, and only then let the frame sleep."""
         target = following_wake(time.time(), wake=self._wake, standby_from=self.standby_from)
-        if await self._async_plan(target):
-            self._rest_pending = False
-            await self._async_keep_awake(False)
-        elif not self._rest_pending:
-            self._rest_pending = True
+        rested = await self._async_plan(target) and await self._async_keep_awake(False)
+        if not rested and not self._rest_pending:
             _LOGGER.warning(
-                "%s keeps its keep-awake setting until its next wake can be planned",
+                "%s stays awake until its next wake is planned and keep-awake is off",
                 self.entry.title,
             )
+        if self._rest_pending == rested:
+            self._rest_pending = not rested
+            await self._async_save()
         self._schedule()
 
     async def _async_steer(self) -> None:
@@ -351,6 +352,10 @@ class AwakeWindow:
                 async with runtime.upload_lock:
                     try:
                         await runtime.client.restart()
+                    except FraimicApiError as err:
+                        _LOGGER.warning("%s refused to restart: %s", self.entry.title, err)
+                        await asyncio.sleep(FAST_PROBE)
+                        continue
                     except FraimicError as err:
                         # The reboot can drop the connection before replying.
                         _LOGGER.debug("Restart reply for %s: %s", self.entry.title, err)
@@ -439,6 +444,7 @@ class AwakeWindow:
                 "awake": self.awake,
                 "restarted_at": self.restarted_at,
                 "managed": self.managed,
+                "rest_pending": self._rest_pending,
                 "last_result": self.last_result,
             }
         )
