@@ -93,7 +93,8 @@ do not advance the playback queue.
   rather than leaving stale information on the wall. This permits one final
   redraw, not continued live updates. An unreachable frame still needs to wake.
 - The frame must be awake/reachable for prompt LAN updates. Refreshing an overlay
-  does not enable keep-awake or change the device's power settings.
+  does not enable keep-awake or change the device's power settings; plan an
+  [awake window](#awake-windows-hybrid) for that.
 - Cloud/Hybrid delivery can be delayed until a cloud wake. Changes are held
   while a cloud delivery is pending, so repeated updates do not restart its wake
   timer forever. Identical cloud submissions are skipped without claiming that
@@ -103,6 +104,31 @@ do not advance the playback queue.
   an offline frame can retain the old image until reachable.
 - Permanent overlays still follow their own visibility rules. This periodic
   refresh option belongs to the active temporary window.
+
+### Awake windows (Hybrid)
+
+A Hybrid frame can sleep between deliveries and still show live overlays at a
+planned time. `fraimic.set_awake_window` keeps it awake from `start` to `end`:
+
+- Home Assistant moves the album's wake slot to 6 minutes before `start`,
+  turns keep-awake on, catches that wake on the LAN and restarts the frame into
+  a normal boot. Firmware 0.2.29 ignores keep-awake on timer wakes.
+- At `end`, or on `fraimic.clear_awake_window`, keep-awake goes off and the
+  album keeps a later slot: the next window's wake, or a daily heartbeat. The
+  frame never sleeps without a wake, so later plans still reach it.
+- A sleeping frame learns a changed plan only at its next wake, so plan the
+  next window when the current one ends. With `repeat_daily: true` a window
+  that runs out plans the same window for the next day by itself.
+- Home Assistant never sends the frame to sleep during a window, and owns
+  keep-awake once windows are in use. The wake slot redraws the album image
+  once before `start`.
+
+```yaml
+action: fraimic.set_awake_window
+data:
+  start: "2026-10-20 06:50:00"
+  end: "2026-10-20 11:50:00"
+```
 
 The source integration or template owns content selection and freshness. Fraimic
 owns composition, change detection, expiry and transport. A source becoming

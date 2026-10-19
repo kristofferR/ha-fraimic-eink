@@ -112,6 +112,11 @@ async def async_get_config_entry_diagnostics(
             if entry.runtime_data.cloud is not None
             else None
         ),
+        "awake_window": (
+            window.diagnostics()
+            if (window := getattr(entry.runtime_data, "awake_window", None))
+            else None
+        ),
         # Recent frame logs (/logs admin page) — the only source for the WiFi
         # drop / upload-wedge symptoms; fetched on demand, never fatal.
         "logs": await _async_logs(coordinator),

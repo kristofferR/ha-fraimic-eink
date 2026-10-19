@@ -71,8 +71,26 @@ def album_interval_minutes(playlist_interval: int) -> int:
     return max(1, math.ceil(playlist_interval / 60)) + CLOUD_SLOT_LEAD_MINUTES
 
 
+def steered_minutes(now: float, minutes: int, wake_at: float | None) -> int:
+    """Album interval for an edit at ``now`` that keeps ``wake_at`` on its slots.
+
+    A sleeping frame only learns its next slot, so every edit must leave the
+    planned wake on the slot grid: the k-th slot then lands at most k-1
+    minutes early. Without a wake far enough ahead, ``minutes`` is kept.
+    """
+    if wake_at is None:
+        return minutes
+    remaining = int((wake_at - now) // 60)
+    if remaining < CLOUD_SLOT_LEAD_MINUTES:
+        return minutes
+    return remaining // math.ceil(remaining / minutes)
+
+
 def album_schedule(playlist_interval: int) -> dict[str, Any]:
-    minutes = album_interval_minutes(playlist_interval)
+    return schedule_for_minutes(album_interval_minutes(playlist_interval))
+
+
+def schedule_for_minutes(minutes: int) -> dict[str, Any]:
     if minutes % 1440 == 0:
         return {"type": "interval", "interval_value": minutes // 1440, "interval_unit": "days"}
     if minutes % 60 == 0:

@@ -102,6 +102,8 @@ class FraimicRuntimeData:
         # Count of frame-owned overlays in the last composed picture.
         self.last_overlay_count = 0
         self.temporary_overlays: Any = None
+        # Planned awake windows (awake_window.AwakeWindow) for Hybrid frames.
+        self.awake_window: Any = None
 
     def set_displayed_preview(
         self, preview_png: bytes, mode: str, *, overlay_count: int = 0

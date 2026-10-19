@@ -35,6 +35,7 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `log_page.py` | Pure parser for the `/logs` ESP-IDF viewer (current + previous boot). |
 | `cloud.py` | `FraimicCloudClient`: Supabase login (password grant, refresh) + account API (devices, settings, gallery upload, albums). Pure aiohttp. |
 | `cloud_delivery.py` | Cloud delivery mode: one HA-owned album per frame; each render becomes a pure-primary PNG upload and the album's single image; album interval = playlist interval + lead; turns keep-awake off after the first delivery. |
+| `awake_window.py` | Hybrid awake windows (`set_awake_window`): steer the album wake to just before `start`, keep-awake on, restart the timer wake on the LAN into a normal boot, keep-awake off at `end` with the next wake (or a daily heartbeat) on the album. |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
 | `auto_mode.py` | HA-free auto mode decisions: `AutoSettings` (validated partial updates), weighted `pick_source`, `AutoHistory` repeat avoidance, cadence `next_change`, queue end actions. |
@@ -173,7 +174,10 @@ lasts ~2m40s then deep-sleeps, keep-awake changes apply on the next poll.
 `services.async_render_and_upload` switches transport on `runtime.cloud`;
 the LAN power budget and send queue are bypassed in cloud mode, and the
 coordinator falls back to the account's device record when the LAN poll
-fails. Full notes: [`docs/fraimic-cloud-api/albums-scheduling.md`](docs/fraimic-cloud-api/albums-scheduling.md).
+fails. Timer (album) wakes never start keep-awake; a `POST /api/restart`
+during one does, which is how Hybrid awake windows (`awake_window.py`) work.
+While a wake is planned, every album edit uses `steered_minutes` so the wake
+stays on the slot grid, and the album is not retired until it passes. Full notes: [`docs/fraimic-cloud-api/albums-scheduling.md`](docs/fraimic-cloud-api/albums-scheduling.md).
 
 ## Scheduling
 

@@ -449,6 +449,19 @@ def async_setup_services(hass: HomeAssistant) -> None:
         supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(
+        DOMAIN, "set_awake_window", _async_handle_set_awake_window,
+        schema=vol.Schema({
+            vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+            vol.Required("start"): cv.datetime,
+            vol.Required("end"): cv.datetime,
+            vol.Optional("repeat_daily", default=False): cv.boolean,
+        }),
+    )
+    hass.services.async_register(
+        DOMAIN, "clear_awake_window", _async_handle_clear_awake_window,
+        schema=vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY): cv.string}),
+    )
+    hass.services.async_register(
         DOMAIN,
         SERVICE_UPLOAD_IMAGE,
         _async_handle_upload_image,
@@ -583,6 +596,33 @@ async def _async_handle_update_overlay(call: ServiceCall) -> ServiceResponse:
         return await entry.runtime_data.temporary_overlays.async_update(call.data.get("overlays"))
     except (ValueError, TypeError) as err:
         raise ServiceValidationError(str(err)) from err
+
+
+def _awake_window(call: ServiceCall):
+    window = _resolve_entry(call.hass, call).runtime_data.awake_window
+    if window is None:
+        raise ServiceValidationError(
+            "Awake windows need Hybrid delivery with a signed-in Fraimic account"
+        )
+    return window
+
+
+async def _async_handle_set_awake_window(call: ServiceCall) -> None:
+    from homeassistant.util import dt as dt_util
+
+    start = dt_util.as_utc(call.data["start"])
+    end = dt_util.as_utc(call.data["end"])
+    if not start < end or (end - start).total_seconds() > 86400:
+        raise ServiceValidationError("The window must end after it starts, within 24 hours")
+    if end <= dt_util.utcnow():
+        raise ServiceValidationError("The window has already ended")
+    await _awake_window(call).async_set(
+        start, end, repeat_daily=call.data["repeat_daily"]
+    )
+
+
+async def _async_handle_clear_awake_window(call: ServiceCall) -> None:
+    await _awake_window(call).async_clear()
 
 
 def _resolve_entry(hass: HomeAssistant, call: ServiceCall) -> FraimicConfigEntry:
