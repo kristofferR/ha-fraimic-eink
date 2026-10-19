@@ -232,9 +232,9 @@ def test_daily_window_plans_tomorrow_before_the_frame_sleeps(awake):
 
     asyncio.run(run())
     awake.cloud.async_set_keep_awake.assert_awaited_with(False)
-    assert awake.cloud.async_plan_wake.await_args.args[0] == start + m.DAY - m.WAKE_LEAD
+    assert awake.cloud.async_plan_wake.await_args.args[0] == start + 86400 - m.WAKE_LEAD
     assert awake.window.repeat_daily
-    assert (awake.window.start, awake.window.end) == (start + m.DAY, end + m.DAY)
+    assert (awake.window.start, awake.window.end) == (start + 86400, end + 86400)
 
 
 @pytest.mark.parametrize(
@@ -343,3 +343,33 @@ def test_leaving_hybrid_releases_a_held_frame(awake):
     awake.cloud.async_set_keep_awake.assert_awaited_with(False)
     assert awake.cloud.async_plan_wake.await_args.args[0] is None
     assert awake.saved == {}
+
+
+def test_overdue_steering_plans_from_now(awake):
+    m = awake.module
+    awake.cloud.wake_at = NOW - 3 * 3600  # Home Assistant was down
+
+    async def run():
+        awake.window.managed = True
+        await awake.window._async_steer()
+
+    asyncio.run(run())
+    assert awake.cloud.async_plan_wake.await_count == 1
+    assert awake.cloud.async_plan_wake.await_args.args[0] == NOW + m.HEARTBEAT
+
+
+def test_daily_window_after_downtime_skips_only_passed_days(awake):
+    oslo = ZoneInfo("Europe/Oslo")
+    start = datetime(2026, 10, 24, 7, 0, tzinfo=oslo)
+    end = datetime(2026, 10, 24, 9, 0, tzinfo=oslo)
+    # Back on the 25th at 08:30, after DST ended: that day's window still runs.
+    awake.clock.now = datetime(2026, 10, 25, 8, 30, tzinfo=oslo).timestamp()
+
+    async def run():
+        awake.window.start, awake.window.end = start.timestamp(), end.timestamp()
+        awake.window.repeat_daily = awake.window.managed = True
+        await awake.window._async_end()
+
+    asyncio.run(run())
+    nxt = datetime.fromtimestamp(awake.window.start, oslo)
+    assert (nxt.day, nxt.hour) == (25, 7)

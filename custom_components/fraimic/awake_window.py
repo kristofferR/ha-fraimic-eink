@@ -53,7 +53,6 @@ FRESH_BOOT = 240
 # Without a window the frame still wakes this often, so a plan made while it
 # sleeps reaches it.
 HEARTBEAT = 24 * 3600
-DAY = 24 * 3600
 # A failed cloud call is retried this much later.
 RETRY = 60
 
@@ -278,8 +277,11 @@ class AwakeWindow:
         upcoming = getattr(self._cloud, "wake_at", None)
         if upcoming is None or self.awake:
             return
+        # A wake missed while Home Assistant was down is spent; plan from now.
         if await self._async_plan(
-            following_wake(upcoming, wake=self._wake, standby_from=self.standby_from)
+            following_wake(
+                max(upcoming, time.time()), wake=self._wake, standby_from=self.standby_from
+            )
         ):
             self._schedule()
         else:
@@ -298,7 +300,11 @@ class AwakeWindow:
         if not self.repeat_daily or start is None or end is None:
             await self._async_finish()
             return
-        days = max(1, int((time.time() - end) // DAY) + 1)
+        # Count local days, so time lost to downtime across DST skips no window.
+        now = _days_later(time.time(), 0)
+        days = max(1, (now.date() - _days_later(end, 0).date()).days)
+        if _days_later(end, days) <= now:
+            days += 1
         standby = self.standby_from
         await self.async_set(
             _days_later(start, days),
