@@ -269,7 +269,7 @@ class AwakeWindow:
                 self._at(upcoming - STEER_LEAD, self._async_steer)
             return
         if time.time() >= end:
-            self._run(self._async_end())
+            self._at(time.time(), self._async_end)
             return
         if not self.awake:
             self._at(wake - PREPARE, self._async_prepare)

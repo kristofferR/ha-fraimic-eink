@@ -165,7 +165,9 @@ class FraimicCloudDelivery:
         step = self.slot_minutes * 60
         passed = max(0.0, time.time() - anchor)
         upcoming = anchor + max(1, -(-passed // step)) * step
-        return upcoming < self.wake_at - 60
+        # The wake's own slot lands up to a minute early (whole minutes) plus
+        # cloud clock skew; a slot on the way is a whole step before it.
+        return upcoming < self.wake_at - max(120, step / 2)
 
     @property
     def delivery_deadline(self) -> float | None:

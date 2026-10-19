@@ -516,6 +516,9 @@ def test_stopped_rotation_collapses_slots_before_the_wake(delivery_module, monke
     scheduler.blocked_reason = "low_battery"
     asyncio.run(delivery.async_expire_delivery())
     assert delivery.slot_minutes == 650
+    # The collapsed slot lands a little early (cloud clock); it stays collapsed.
+    entry_anchor = delivery_module.datetime.fromtimestamp(now - 30, delivery_module.UTC)
+    delivery.last_anchor = entry_anchor.isoformat()
     asyncio.run(delivery.async_expire_delivery())
     assert client.async_update_album.await_count == 2  # collapsed once
 
