@@ -512,7 +512,8 @@ def test_stopped_rotation_collapses_slots_before_the_wake(delivery_module, monke
 
     asyncio.run(delivery.async_expire_delivery())
     assert client.async_update_album.await_count == 1  # still rotating
-    scheduler.enabled = False
+    # Backing off (low battery, a failing source) produces nothing new either.
+    scheduler.blocked_reason = "low_battery"
     asyncio.run(delivery.async_expire_delivery())
     assert delivery.slot_minutes == 650
     asyncio.run(delivery.async_expire_delivery())

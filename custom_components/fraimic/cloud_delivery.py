@@ -136,8 +136,15 @@ class FraimicCloudDelivery:
         return self._edit_minutes() * 60
 
     def _rotating(self) -> bool:
+        """Whether the scheduler is producing new art right now."""
         scheduler = getattr(getattr(self.entry, "runtime_data", None), "scheduler", None)
-        return scheduler is not None and scheduler.enabled and not scheduler.exhausted
+        if scheduler is None or not scheduler.enabled or scheduler.exhausted:
+            return False
+        # Backing off (low battery, a failing source) brings nothing new for now.
+        retry = getattr(scheduler, "retry_at", None)
+        return not getattr(scheduler, "blocked_reason", None) and (
+            retry is None or retry.timestamp() <= time.time()
+        )
 
     def _edit_minutes(self, interval: int | None = None) -> int:
         minutes = album_interval_minutes(self.interval if interval is None else interval)
