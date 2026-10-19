@@ -40,8 +40,11 @@ the frame over the LAN.
 - Timer wakes never start keep-awake (verified 2026-10-19). An album wake slept
   after rendering both when `keep_awake=enabled` arrived during that wake and
   when it was already enabled at boot. Only a full boot (power-on or
-  `POST /api/restart`) entered the keep-awake loop, so a scheduled
-  "stay awake from 06:00" is impossible on 0.2.29.
+  `POST /api/restart`) entered the keep-awake loop. An album wake answers on
+  the LAN about 5 s after its slot; a restart sent then booted normally
+  (`Reset reason: SOFTWARE`), applied keep-awake, still rendered the due album
+  image and stayed awake. A planned slot plus a restart is therefore the only
+  way to start an awake period at a chosen time.
 - The native refresh runs only on a wake from deep sleep. A frame kept awake past
   `display.next_refresh` keeps that past deadline. If it then sleeps without an
   album slot, it falls into a safety-timer loop: it wakes every 60 to 90 s for
