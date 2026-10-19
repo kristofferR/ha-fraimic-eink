@@ -89,6 +89,7 @@ def awake(monkeypatch):
         return True
 
     cloud = SimpleNamespace(
+        device_id="canvas",
         wake_at=None,
         has_image=True,
         async_set_keep_awake=AsyncMock(),
@@ -406,3 +407,47 @@ def test_a_refused_restart_is_retried(awake):
     asyncio.run(run())
     assert awake.client.restart.await_count == 2
     assert awake.window.last_result == "restarted"
+
+
+def test_a_replacement_window_ends_a_pending_rest(awake):
+    m = awake.module
+    awake.cloud.async_set_keep_awake.side_effect = [m.FraimicCloudError("down"), None, None]
+    awake.client.get_info.return_value = {"uptime": 50_000}
+
+    async def run():
+        await awake.window.async_set(at(NOW + 8 * 3600), at(NOW + 9 * 3600))
+        assert awake.window.holds_awake  # rest pending
+        await awake.window.async_set(at(NOW), at(NOW + 3600))
+        await settle()
+
+    asyncio.run(run())
+    assert awake.window.awake
+    assert awake.window.diagnostics()["rest_pending"] is False
+    # Keep-awake was only ever turned on again, never off mid-window.
+    assert awake.cloud.async_set_keep_awake.await_args.args == (True,)
+
+
+def test_a_window_does_not_follow_a_new_canvas(awake):
+    m = awake.module
+
+    async def run():
+        await awake.window.async_set(at(NOW + 8 * 3600), at(NOW + 9 * 3600))
+        awake.cloud.device_id = "other canvas"
+        restored = m.AwakeWindow(None, awake.entry)
+        await restored.async_setup()
+        return restored
+
+    restored = asyncio.run(run())
+    assert restored.start is None and not restored.managed
+
+
+def test_failed_hybrid_exit_is_reported_and_kept(awake):
+    m = awake.module
+
+    async def run():
+        await awake.window.async_set(at(NOW + 8 * 3600), at(NOW + 9 * 3600))
+        awake.cloud.async_set_keep_awake.side_effect = m.FraimicCloudError("down")
+        return await m.async_retire_awake_window(None, awake.entry, awake.cloud)
+
+    assert asyncio.run(run()) is False
+    assert awake.saved  # retried on the next setup

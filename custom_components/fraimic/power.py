@@ -425,7 +425,7 @@ class FraimicPowerManager:
                 return
             # The cached keep-awake flag can predate an awake window's switch.
             window = getattr(runtime, "awake_window", None)
-            if window is not None and window.active:
+            if window is not None and window.holds_awake:
                 return
             queue = getattr(runtime, "send_queue", None)
             if runtime.upload_lock.locked() or (queue is not None and queue.pending):

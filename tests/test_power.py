@@ -279,6 +279,11 @@ def test_experimental_auto_sleep_obeys_safe_guards(
 
     assert slept == [True]
 
+    # A window, or a next wake not armed yet, keeps the frame up.
+    entry.runtime_data.awake_window = SimpleNamespace(holds_awake=True)
+    asyncio.run(manager._async_sleep_after_redraw())
+    assert slept == [True]
+
 
 def test_cloud_delivery_invalidates_local_duplicate_hash_without_spending_budget():
     from unittest.mock import AsyncMock

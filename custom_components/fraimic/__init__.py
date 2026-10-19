@@ -132,7 +132,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
     if entry.options.get(CONF_DELIVERY_MODE) != DELIVERY_HYBRID:
         # Before the scheduler copies the album's deadline into its hold.
-        await async_retire_awake_window(hass, entry, entry.runtime_data.cloud)
+        if not await async_retire_awake_window(hass, entry, entry.runtime_data.cloud):
+            raise ConfigEntryNotReady(
+                "Could not release the frame's awake window; retrying before switching delivery"
+            )
     if not power.startup_poll:
         # Minimum mode never polls, and the restored snapshot may be stale or
         # for a previously selected cloud device: a cloud frame asks the

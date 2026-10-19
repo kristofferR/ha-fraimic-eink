@@ -88,12 +88,16 @@ def _store(hass: HomeAssistant, entry: FraimicConfigEntry) -> Store[dict[str, An
 
 async def async_retire_awake_window(
     hass: HomeAssistant, entry: FraimicConfigEntry, cloud: Any
-) -> None:
-    """Delivery left Hybrid: drop any window and the keep-awake it may hold."""
+) -> bool:
+    """Delivery left Hybrid: drop any window and the keep-awake it may hold.
+
+    Returns False when the account could not be updated; the state is kept
+    so setup can retry.
+    """
     store = _store(hass, entry)
     data = await store.async_load()
     if not data:
-        return
+        return True
     if cloud is not None and data.get("managed"):
         try:
             # Cloud delivery keeps the frame asleep between album slots.
@@ -101,8 +105,9 @@ async def async_retire_awake_window(
             await cloud.async_plan_wake(None)
         except FraimicCloudError as err:
             _LOGGER.warning("Could not release the awake window of %s: %s", entry.title, err)
-            return
+            return False
     await store.async_remove()
+    return True
 
 
 class AwakeWindow:
@@ -135,9 +140,14 @@ class AwakeWindow:
         return self.start - WAKE_LEAD - PREPARE <= time.time() < self.end
 
     @property
+    def holds_awake(self) -> bool:
+        """Inside a window, or its next wake is not armed yet: no sleeping."""
+        return self.active or self._rest_pending
+
+    @property
     def resting(self) -> bool:
         """Between windows the frame should sleep; LAN polls would keep it up."""
-        return self.managed and not self.active and not self._rest_pending
+        return self.managed and not self.holds_awake
 
     @property
     def _wake(self) -> float | None:
@@ -153,6 +163,14 @@ class AwakeWindow:
         self.managed = data.get("managed", False)
         self.last_result = data.get("last_result")
         self._rest_pending = data.get("rest_pending", False)
+        device = data.get("device_id")
+        cloud = self._cloud
+        if device and cloud is not None and device != cloud.device_id:
+            # Another canvas was chosen. The window was the old canvas's;
+            # cloud delivery hands that one back to local use on its own.
+            self.start = self.end = self.standby_from = None
+            self.repeat_daily = self.awake = self.managed = self._rest_pending = False
+            await self._async_save()
         self._schedule()
 
     def shutdown(self) -> None:
@@ -182,8 +200,11 @@ class AwakeWindow:
         )
         self.repeat_daily = repeat_daily
         self.managed = True
-        # A window that covers now keeps a frame already caught awake.
+        # A window that covers now keeps a frame already caught awake, and
+        # ends any rest still waiting for its wake.
         self.awake = was_awake and self.active
+        if self.active:
+            self._rest_pending = False
         await self._async_save()
         wake = self.start - WAKE_LEAD
         if not self.active:
@@ -261,6 +282,8 @@ class AwakeWindow:
 
     async def _async_rest(self) -> None:
         """Arm the next wake, and only then let the frame sleep."""
+        if self.active:
+            return
         target = following_wake(time.time(), wake=self._wake, standby_from=self.standby_from)
         rested = await self._async_plan(target) and await self._async_keep_awake(False)
         if not rested and not self._rest_pending:
@@ -446,5 +469,6 @@ class AwakeWindow:
                 "managed": self.managed,
                 "rest_pending": self._rest_pending,
                 "last_result": self.last_result,
+                "device_id": getattr(self._cloud, "device_id", None),
             }
         )
