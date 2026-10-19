@@ -470,3 +470,18 @@ def test_planning_a_wake_reanchors_only_an_album_with_an_image(delivery_module, 
 def test_account_times_without_a_zone_are_utc(cloud):
     assert cloud.cloud_timestamp("2026-10-19T12:51:25") == 1792414285.0
     assert cloud.cloud_timestamp("2026-10-19T14:51:25+02:00") == 1792414285.0
+
+
+def test_awake_window_keep_awake_survives_a_cloud_fallback(delivery_module):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    client = types.SimpleNamespace(async_set_keep_awake=AsyncMock())
+    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
+    delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "canvas")
+    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
+    assert delivery.keep_awake_released is False
+
+    asyncio.run(delivery.async_set_keep_awake(True))
+    # The one-time release after a cloud delivery would now turn it off.
+    assert delivery.keep_awake_released is True

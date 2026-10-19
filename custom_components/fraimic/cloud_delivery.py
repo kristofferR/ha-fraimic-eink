@@ -284,9 +284,13 @@ class FraimicCloudDelivery:
             _LOGGER.debug("Could not delete cloud upload %s: %s", upload_id, err)
 
     async def async_set_keep_awake(self, on: bool) -> None:
-        """Awake windows own keep-awake between deliveries."""
+        """Awake windows own keep-awake from now on.
+
+        Marking it released stops the first cloud delivery from turning it
+        off in the middle of a window.
+        """
         await self.client.async_set_keep_awake(self.device_id, on)
-        if not on and not self.keep_awake_released:
+        if not self.keep_awake_released:
             self.keep_awake_released = True
             await self._async_save()
 
