@@ -1090,5 +1090,10 @@ def test_producing_needs_something_showable_now(playback):
     assert not p.scheduler.producing
     p.now[0] = p.now[0].replace(hour=7)
     assert p.scheduler.producing
-    p.scheduler.blocked_reason = "low_battery"
+    p.scheduler.blocked_reason = "asleep"  # untimed: blocked until resolved
     assert not p.scheduler.producing
+    p.scheduler.blocked_reason = "low_battery"
+    p.scheduler.retry_at = p.now[0] + timedelta(minutes=5)
+    assert not p.scheduler.producing
+    p.scheduler.retry_at = p.now[0] - timedelta(minutes=1)  # its retry is due
+    assert p.scheduler.producing

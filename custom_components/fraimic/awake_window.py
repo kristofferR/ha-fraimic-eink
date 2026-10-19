@@ -406,7 +406,9 @@ class AwakeWindow:
                 await asyncio.sleep(SLOW_PROBE)
                 continue
             uptime = info["device"]["uptime_s"]
-            if not recent and isinstance(uptime, int | float) and uptime < FRESH_BOOT:
+            # Without an uptime the boot is unknown; a restart is the safe answer.
+            fresh = not isinstance(uptime, int | float) or uptime < FRESH_BOOT
+            if not recent and fresh:
                 async with runtime.upload_lock:
                     try:
                         await runtime.client.restart()

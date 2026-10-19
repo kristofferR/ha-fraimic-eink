@@ -160,9 +160,13 @@ class FraimicScheduler:
     def producing(self) -> bool:
         """Whether rotation brings new art now: on, not backing off, and
         something in the queue may be shown at this hour."""
-        if not self.enabled or self.exhausted or self.blocked_reason:
+        if not self.enabled or self.exhausted:
             return False
-        if self.retry_at and dt_util.utcnow() < self.retry_at:
+        # A timed block (low battery, a failing source) lasts until its retry.
+        if self.retry_at is not None:
+            if dt_util.utcnow() < self.retry_at:
+                return False
+        elif self.blocked_reason:
             return False
         return self.queue.candidate(dt_util.now()) is not None
 

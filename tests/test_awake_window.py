@@ -507,3 +507,15 @@ def test_a_missed_wake_goes_back_to_checks(awake):
 
     asyncio.run(run())
     assert awake.cloud.async_plan_wake.await_args.args[0] == wake + m.CATCH_WINDOW + m.STANDBY_INTERVAL
+
+
+def test_an_unknown_uptime_is_restarted_rather_than_trusted(awake):
+    awake.client.get_info.side_effect = [{"uptime": None}, {"uptime": None}]
+
+    async def run():
+        await awake.window.async_set(at(NOW), at(NOW + 3600))
+        await settle()
+
+    asyncio.run(run())
+    awake.client.restart.assert_awaited_once()
+    assert awake.window.last_result == "restarted"
