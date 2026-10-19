@@ -37,6 +37,17 @@ the frame over the LAN.
   `[ALBUM] Album wake complete — entering deep sleep`, no 120 s idle wait.
   About 2 min 40 s awake per slot. Only wakes that are not album wakes (button,
   keep-awake) use the idle timer.
+- Timer wakes never start keep-awake (verified 2026-10-19). An album wake slept
+  after rendering both when `keep_awake=enabled` arrived during that wake and
+  when it was already enabled at boot. Only a full boot (power-on or
+  `POST /api/restart`) entered the keep-awake loop, so a scheduled
+  "stay awake from 06:00" is impossible on 0.2.29.
+- The native refresh runs only on a wake from deep sleep. A frame kept awake past
+  `display.next_refresh` keeps that past deadline. If it then sleeps without an
+  album slot, it falls into a safety-timer loop: it wakes every 60 to 90 s for
+  10 to 30 s, regardless of keep-awake (`TIMER CONFIG ERROR … 60-second safety
+  sleep`). `POST /api/restart` during one of those wakes recalculates the
+  schedule; with keep-awake on, the frame then stays awake.
 - The frame keeps only the current and one previous boot in its log ring
   buffer, so an unobserved wake is lost.
 - Log timestamps on the frame are in the firmware's local zone (UTC-4 here),
