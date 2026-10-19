@@ -157,6 +157,16 @@ class FraimicScheduler:
         )
 
     @property
+    def producing(self) -> bool:
+        """Whether rotation brings new art now: on, not backing off, and
+        something in the queue may be shown at this hour."""
+        if not self.enabled or self.exhausted or self.blocked_reason:
+            return False
+        if self.retry_at and dt_util.utcnow() < self.retry_at:
+            return False
+        return self.queue.candidate(dt_util.now()) is not None
+
+    @property
     def cycle_seconds(self) -> int:
         """Seconds between the last change and the next automatic one."""
         candidate = self.queue.candidate(dt_util.now())

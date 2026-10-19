@@ -1074,3 +1074,21 @@ def test_repeat_after_auto_loops_shown_picks_as_history(playback):
     run(p.scheduler.async_set_playback(end_action="repeat", shuffle=True))
     assert all(item.auto_source is None for item in p.scheduler.queue.items)
     assert not p.scheduler.queue.auto_upcoming
+
+
+def test_producing_needs_something_showable_now(playback):
+    p = playback
+    schema = load("render.schema")
+    p.now[0] = p.now[0].replace(hour=10, minute=0)
+    morning = replace(
+        _screen("morning"),
+        windows=(schema.TimeWindow(after=time(6), before=time(9)),),
+    )
+    run(p.scheduler.async_add_to_queue(morning))
+    run(p.scheduler.async_set_enabled(True))
+    # Outside every queued picture's hours nothing new would reach the frame.
+    assert not p.scheduler.producing
+    p.now[0] = p.now[0].replace(hour=7)
+    assert p.scheduler.producing
+    p.scheduler.blocked_reason = "low_battery"
+    assert not p.scheduler.producing

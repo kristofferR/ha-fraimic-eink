@@ -413,7 +413,7 @@ def test_planned_wake_keeps_the_album_until_it_passes(delivery_module, monkeypat
     from unittest.mock import AsyncMock
 
     client = types.SimpleNamespace(async_update_album=AsyncMock(return_value={"id": "album"}))
-    rotating = types.SimpleNamespace(enabled=True, exhausted=False)
+    rotating = types.SimpleNamespace(producing=True)
     entry = types.SimpleNamespace(
         entry_id="frame", title="Frame", runtime_data=types.SimpleNamespace(scheduler=rotating)
     )
@@ -454,9 +454,7 @@ def test_planning_a_wake_reanchors_only_an_album_with_an_image(delivery_module, 
     assert asyncio.run(delivery.async_plan_wake(now + 650 * 60)) is True
     assert client.async_update_album.call_args.args[1]["schedule"]["interval_value"] == 650
     # Rotating art: every slot before the wake brings the next picture.
-    entry.runtime_data = types.SimpleNamespace(
-        scheduler=types.SimpleNamespace(enabled=True, exhausted=False)
-    )
+    entry.runtime_data = types.SimpleNamespace(scheduler=types.SimpleNamespace(producing=True))
     assert asyncio.run(delivery.async_plan_wake(now + 650 * 60)) is True
     client.async_update_album.assert_awaited_with(
         "album", {"schedule": {"type": "interval", "interval_value": 325, "interval_unit": "minutes"}}
@@ -499,7 +497,7 @@ def test_stopped_rotation_collapses_slots_before_the_wake(delivery_module, monke
     client = types.SimpleNamespace(
         async_update_album=AsyncMock(return_value={"updated_at": "2027-01-15T08:00:00+00:00"})
     )
-    scheduler = types.SimpleNamespace(enabled=True, exhausted=False)
+    scheduler = types.SimpleNamespace(producing=True)
     entry = types.SimpleNamespace(
         entry_id="frame", title="Frame", runtime_data=types.SimpleNamespace(scheduler=scheduler)
     )
@@ -512,8 +510,7 @@ def test_stopped_rotation_collapses_slots_before_the_wake(delivery_module, monke
 
     asyncio.run(delivery.async_expire_delivery())
     assert client.async_update_album.await_count == 1  # still rotating
-    # Backing off (low battery, a failing source) produces nothing new either.
-    scheduler.blocked_reason = "low_battery"
+    scheduler.producing = False
     asyncio.run(delivery.async_expire_delivery())
     assert delivery.slot_minutes == 650
     # The collapsed slot lands a little early (cloud clock); it stays collapsed.
