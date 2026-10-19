@@ -174,6 +174,10 @@ class AwakeWindow:
             self.start = self.end = self.standby_from = None
             self.repeat_daily = self.awake = self.managed = self._rest_pending = False
             await self._async_save()
+            try:
+                await cloud.async_plan_wake(None)
+            except FraimicCloudError as err:
+                _LOGGER.debug("Could not drop the previous canvas's wake plan: %s", err)
         self._schedule()
 
     def shutdown(self) -> None:
@@ -272,6 +276,9 @@ class AwakeWindow:
             # The window's own wake stays due; checks before it are steered.
             if upcoming is not None and abs(upcoming - wake) > 60:
                 self._at(upcoming - STEER_LEAD, self._async_steer)
+            else:
+                # Missed it: keep checking until the frame is caught.
+                self._at(wake + CATCH_WINDOW, self._async_steer)
         self._at(end, self._async_end)
 
     def _at(self, when: float, job: Callable[[], Coroutine[Any, Any, None]]) -> None:
@@ -325,7 +332,8 @@ class AwakeWindow:
     async def _async_steer(self) -> None:
         """Re-anchor before a check so it only teaches the frame the next one."""
         upcoming = getattr(self._cloud, "wake_at", None)
-        if upcoming is None or self.awake:
+        restarting = self.restarted_at is not None and time.time() < self.restarted_at + CATCH_WINDOW
+        if upcoming is None or self.awake or restarting:
             return
         # A wake missed while Home Assistant was down is spent; plan from now.
         if await self._async_plan(

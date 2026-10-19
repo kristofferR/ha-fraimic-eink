@@ -137,7 +137,9 @@ def test_future_window_lets_the_frame_sleep_until_its_wake(awake):
     awake.cloud.async_set_keep_awake.assert_awaited_once_with(False)
     assert awake.cloud.async_plan_wake.await_args.args[0] == start - m.WAKE_LEAD
     assert [when for when, _ in awake.timers] == [
-        start - m.WAKE_LEAD - m.PREPARE, start + 3 * 3600,
+        start - m.WAKE_LEAD - m.PREPARE,
+        start - m.WAKE_LEAD + m.CATCH_WINDOW,  # follow-up if the wake is missed
+        start + 3 * 3600,
     ]
 
 
@@ -439,6 +441,8 @@ def test_a_window_does_not_follow_a_new_canvas(awake):
 
     restored = asyncio.run(run())
     assert restored.start is None and not restored.managed
+    # The cloud no longer steers the new canvas toward the old window.
+    assert awake.cloud.async_plan_wake.await_args.args[0] is None
 
 
 def test_failed_hybrid_exit_is_reported_and_kept(awake):
@@ -484,3 +488,22 @@ def test_a_rest_in_flight_cannot_undo_a_replacement(awake):
     calls = [c.args for c in awake.cloud.async_set_keep_awake.await_args_list]
     assert calls == [(False,), (True,)]
     assert awake.window.awake
+
+
+def test_a_missed_wake_goes_back_to_checks(awake):
+    m = awake.module
+    awake.client.get_info.side_effect = m.FraimicError("asleep")
+    start = NOW + 8 * 3600
+    wake = start - m.WAKE_LEAD
+
+    async def run():
+        await awake.window.async_set(at(start), at(start + 3600))
+        steer = [fire for when, fire in awake.timers if when == wake + m.CATCH_WINDOW]
+        assert len(steer) == 1
+        awake.clock.now = wake + m.CATCH_WINDOW
+        steer[0](at(awake.clock.now))
+        await settle()
+        awake.window.shutdown()
+
+    asyncio.run(run())
+    assert awake.cloud.async_plan_wake.await_args.args[0] == wake + m.CATCH_WINDOW + m.STANDBY_INTERVAL

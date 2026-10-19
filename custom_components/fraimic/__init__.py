@@ -165,19 +165,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Playlist scheduler for stored screens; started before the platforms so
     # the switch/select/button entities can see it. Subentry changes reload
     # the entry, rebuilding it with the fresh screen list.
+    if (
+        entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+        and entry.runtime_data.cloud is not None
+    ):
+        # Before the scheduler copies the album's deadline into its hold.
+        awake_window = AwakeWindow(hass, entry)
+        entry.runtime_data.awake_window = awake_window
+        entry.async_on_unload(awake_window.shutdown)
+        await awake_window.async_setup()
     scheduler = FraimicScheduler(hass, entry, playlists)
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()
     temporary_overlays.start()
     entry.async_on_unload(scheduler.async_stop)
-    if (
-        entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
-        and entry.runtime_data.cloud is not None
-    ):
-        awake_window = AwakeWindow(hass, entry)
-        entry.runtime_data.awake_window = awake_window
-        entry.async_on_unload(awake_window.shutdown)
-        await awake_window.async_setup()
     cloud = entry.runtime_data.cloud
     if (
         cloud is not None
