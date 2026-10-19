@@ -157,6 +157,20 @@ class FraimicScheduler:
         )
 
     @property
+    def producing(self) -> bool:
+        """Whether rotation brings new art now: on, not backing off, and
+        something in the queue may be shown at this hour."""
+        if not self.enabled or self.exhausted:
+            return False
+        # A timed block (low battery, a failing source) lasts until its retry.
+        if self.retry_at is not None:
+            if dt_util.utcnow() < self.retry_at:
+                return False
+        elif self.blocked_reason:
+            return False
+        return self.queue.candidate(dt_util.now()) is not None
+
+    @property
     def cycle_seconds(self) -> int:
         """Seconds between the last change and the next automatic one."""
         candidate = self.queue.candidate(dt_util.now())
@@ -842,6 +856,8 @@ class FraimicScheduler:
                 self._pending_requires_enabled = not manual
                 self._pending_hold_on_success = hold_on_success
                 self.blocked_reason = "asleep"
+                # Untimed: an older retry deadline must not lift this block.
+                self.retry_at = None
                 self.entry.runtime_data.coordinator.async_set_frame_online(False)
                 await self._async_save()
                 return False

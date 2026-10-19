@@ -22,7 +22,9 @@ from .cloud import (
     FraimicCloudClient,
     FraimicCloudError,
     album_interval_minutes,
-    album_schedule,
+    cloud_timestamp,
+    schedule_for_minutes,
+    steered_minutes,
 )
 from .const import (
     CLOUD_WAKE_WINDOW,
@@ -78,6 +80,10 @@ class FraimicCloudDelivery:
         self.keep_awake_released = False
         self.last_anchor: str | None = None
         self.album_active = False
+        # A wake the album must keep on its slots (see ``steered_minutes``),
+        # and the interval the last edit actually used.
+        self.wake_at: float | None = None
+        self.slot_minutes: int | None = None
         self.preview_png: bytes | None = None
         self.preview_title: str | None = None
 
@@ -92,6 +98,10 @@ class FraimicCloudDelivery:
         self.keep_awake_released = data.get("keep_awake_released") is True
         self.last_anchor = data.get("last_anchor") or None
         self.album_active = data.get("album_active", self.album_id is not None)
+        wake_at = data.get("wake_at")
+        self.wake_at = float(wake_at) if isinstance(wake_at, int | float) else None
+        slot_minutes = data.get("slot_minutes")
+        self.slot_minutes = slot_minutes if isinstance(slot_minutes, int) and slot_minutes > 0 else None
         try:
             self.preview_png = base64.b64decode(data.get("preview_png") or "", validate=True) or None
         except (ValueError, TypeError, binascii.Error):
@@ -108,6 +118,8 @@ class FraimicCloudDelivery:
                 "keep_awake_released": self.keep_awake_released,
                 "last_anchor": self.last_anchor,
                 "album_active": self.album_active,
+                "wake_at": self.wake_at,
+                "slot_minutes": self.slot_minutes,
                 "preview_png": base64.b64encode(self.preview_png).decode("ascii") if self.preview_png else None,
                 "preview_title": self.preview_title,
             }
@@ -120,29 +132,71 @@ class FraimicCloudDelivery:
 
     @property
     def wake_interval(self) -> int:
-        """Seconds from an album edit to its next scheduled wake."""
-        return album_interval_minutes(self.interval) * 60
+        """Seconds from an album edit made now to the slot that serves it."""
+        return self._edit_minutes() * 60
+
+    def _rotating(self) -> bool:
+        """Whether the scheduler is producing new art right now."""
+        scheduler = getattr(getattr(self.entry, "runtime_data", None), "scheduler", None)
+        return bool(getattr(scheduler, "producing", False))
+
+    def _edit_minutes(self, interval: int | None = None) -> int:
+        minutes = album_interval_minutes(self.interval if interval is None else interval)
+        # Slots before a planned wake each redraw the album image, which only
+        # pays off when every one brings new art.
+        return steered_minutes(
+            time.time(), minutes, self.wake_at, cap=None if self._rotating() else 1440
+        )
+
+    def _slot_before_wake(self) -> bool:
+        """Whether the album's next slot comes before the planned wake."""
+        if self.wake_at is None or not self.has_image or not self.last_anchor or not self.slot_minutes:
+            return False
+        try:
+            anchor = cloud_timestamp(self.last_anchor)
+        except ValueError:
+            return False
+        step = self.slot_minutes * 60
+        passed = max(0.0, time.time() - anchor)
+        upcoming = anchor + max(1, -(-passed // step)) * step
+        # The wake's own slot lands up to a minute early (whole minutes) plus
+        # cloud clock skew; a slot on the way is a whole step before it.
+        return upcoming < self.wake_at - max(120, step / 2)
 
     @property
     def delivery_deadline(self) -> float | None:
         """End of the current image's wake window, without inferring a redraw."""
         if not self.album_active or not self.last_anchor:
             return None
+        minutes = self.slot_minutes or album_interval_minutes(self.interval)
         try:
-            return datetime.fromisoformat(self.last_anchor).timestamp() + self.wake_interval + CLOUD_WAKE_WINDOW
+            return cloud_timestamp(self.last_anchor) + minutes * 60 + CLOUD_WAKE_WINDOW
         except ValueError:
             return None
 
-    def _set_anchor(self, album: dict[str, Any]) -> None:
+    def _set_anchor(self, album: dict[str, Any], minutes: int) -> None:
         self.last_anchor = (
             album.get("updated_at") or album.get("created_at")
             or datetime.now(UTC).isoformat()
         )
+        self.slot_minutes = minutes
 
     async def async_expire_delivery(self) -> None:
         """Retire each image after its slot so an idle producer cannot repeat it."""
+        if (
+            self.wake_at is not None
+            and time.time() < self.wake_at
+            and not self._rotating()
+            and self._slot_before_wake()
+        ):
+            # Art stopped changing: the slots before the wake would only redraw it.
+            await self.async_plan_wake(self.wake_at)
+            return
         deadline = self.delivery_deadline
         if deadline is None or self.album_id is None or time.time() < deadline:
+            return
+        if self.wake_at is not None and time.time() < self.wake_at + CLOUD_WAKE_WINDOW:
+            # A sleeping frame only learns slots from an active album.
             return
         await self.client.async_update_album(self.album_id, {"active": False})
         self.album_active = False
@@ -185,8 +239,9 @@ class FraimicCloudDelivery:
         )
         upload_id = await self.client.async_upload_png(png)
         previous = self.upload_id
+        minutes = self._edit_minutes()
         try:
-            album = await self._async_point_album(upload_id)
+            album = await self._async_point_album(upload_id, minutes)
         except FraimicCloudError:
             # Do not leave an orphan in the gallery.
             await self._async_discard(upload_id)
@@ -196,7 +251,7 @@ class FraimicCloudDelivery:
             bin_to_png, bin_data, width, height, rotation
         )
         self.preview_title = title
-        self._set_anchor(album)
+        self._set_anchor(album, minutes)
         await self._async_save()
         _LOGGER.debug(
             "Cloud delivery of %r queued on album %s; frame wakes about %s min after %s",
@@ -210,9 +265,12 @@ class FraimicCloudDelivery:
         if not self.keep_awake_released:
             await self._async_release_keep_awake()
 
-    async def _async_point_album(self, upload_id: str) -> dict[str, Any]:
+    async def _async_point_album(self, upload_id: str, minutes: int) -> dict[str, Any]:
+        schedule = schedule_for_minutes(minutes)
         if self.album_id is not None:
-            payload: dict[str, Any] = {"upload_ids": [upload_id], "active": True}
+            payload: dict[str, Any] = {
+                "upload_ids": [upload_id], "active": True, "schedule": schedule,
+            }
             if self.album_device_id != self.device_id:
                 if self.keep_awake_released and self.album_device_id:
                     await self.client.async_set_keep_awake(self.album_device_id, True)
@@ -236,7 +294,7 @@ class FraimicCloudDelivery:
                 "description": "Managed by Home Assistant. Edits here are overwritten.",
                 "active": True,
                 "device_assignments": [{"device_id": self.device_id}],
-                "schedule": album_schedule(self.interval),
+                "schedule": schedule,
                 "playback_mode": "sequential",
                 "upload_ids": [upload_id],
             }
@@ -251,6 +309,17 @@ class FraimicCloudDelivery:
             await self.client.async_delete_uploads([upload_id])
         except FraimicCloudError as err:
             _LOGGER.debug("Could not delete cloud upload %s: %s", upload_id, err)
+
+    async def async_set_keep_awake(self, on: bool) -> None:
+        """Awake windows own keep-awake from now on.
+
+        Marking it released stops the first cloud delivery from turning it
+        off in the middle of a window.
+        """
+        await self.client.async_set_keep_awake(self.device_id, on)
+        if not self.keep_awake_released:
+            self.keep_awake_released = True
+            await self._async_save()
 
     async def _async_release_keep_awake(self) -> None:
         try:
@@ -277,17 +346,60 @@ class FraimicCloudDelivery:
             self.interval = interval
             await self._async_save()
             return
+        minutes = self._edit_minutes(interval)
         try:
             album = await self.client.async_update_album(
-                self.album_id, {"schedule": album_schedule(interval)}
+                self.album_id, {"schedule": schedule_for_minutes(minutes)}
             )
         except FraimicCloudError as err:
             # Keep the old interval so the next sync retries the update.
             _LOGGER.warning("Could not update the cloud album schedule: %s", err)
             return
         self.interval = interval
-        self._set_anchor(album)
+        self._set_anchor(album, minutes)
         await self._async_save()
+
+    async def async_plan_wake(
+        self,
+        wake_at: float | None,
+        carrier: tuple[bytes, bytes | None, str] | None = None,
+    ) -> bool:
+        """Keep a slot at ``wake_at``; returns whether the album now carries one.
+
+        Re-anchoring also turns a slot the frame already learned into a short
+        check wake, which is how a sleeping frame picks up a changed plan.
+        Without a pending image, ``carrier`` (bin, preview, title) is sent to
+        hold the slot. A failed cloud call leaves the previous plan in place.
+        """
+        previous = self.wake_at
+        self.wake_at = wake_at
+        try:
+            album_id = self.album_id
+            album = None
+            if self.has_image and album_id is not None:
+                minutes = self._edit_minutes()
+                try:
+                    album = await self.client.async_update_album(
+                        album_id, {"schedule": schedule_for_minutes(minutes)}
+                    )
+                except FraimicCloudError as err:
+                    if err.status != 404:
+                        raise
+                    _LOGGER.info("Cloud album %s is gone; creating a new one", album_id)
+                    self.album_id = self.upload_id = None
+                    self.album_active = False
+            if album is not None:
+                self._set_anchor(album, minutes)
+            elif carrier is not None:
+                await self.async_deliver(carrier[0], title=carrier[2], preview_png=carrier[1])
+            else:
+                self.wake_at = previous
+                return False
+        except BaseException:
+            self.wake_at = previous
+            raise
+        await self._async_save()
+        return True
 
     # ------------------------------------------------------------ teardown
 
@@ -359,6 +471,7 @@ class FraimicCloudDelivery:
         self.album_device_id = None
         self.upload_id = None
         self.album_active = False
+        self.wake_at = None
         await self._async_save()
 
     # ------------------------------------------------------------ status
@@ -374,6 +487,8 @@ class FraimicCloudDelivery:
             "upload_id": self.upload_id,
             "interval": self.interval,
             "album_interval_minutes": album_interval_minutes(self.interval),
+            "slot_minutes": self.slot_minutes,
+            "wake_at": self.wake_at,
             "keep_awake_released": self.keep_awake_released,
             "last_anchor": self.last_anchor,
             "album_active": self.album_active,

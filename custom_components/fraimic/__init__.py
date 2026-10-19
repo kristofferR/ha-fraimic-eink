@@ -15,6 +15,7 @@ from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
 from .artwork_cache import DATA_ARTWORK_CACHE, ArtworkCache
 from .cloud import FraimicCloudClient, FraimicCloudError
+from .awake_window import AwakeWindow, async_retire_awake_window
 from .cloud_delivery import FraimicCloudDelivery
 from .const import (
     CONF_CAMERA_INTERVAL,
@@ -129,6 +130,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Cloud delivery (album schedule wakes the sleeping frame) when selected;
     # must exist before the scheduler starts so it can sync the album cadence.
     entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
+    if entry.options.get(CONF_DELIVERY_MODE) != DELIVERY_HYBRID:
+        # Before the scheduler copies the album's deadline into its hold.
+        if not await async_retire_awake_window(hass, entry, entry.runtime_data.cloud):
+            raise ConfigEntryNotReady(
+                "Could not release the frame's awake window; retrying before switching delivery"
+            )
     if not power.startup_poll:
         # Minimum mode never polls, and the restored snapshot may be stale or
         # for a previously selected cloud device: a cloud frame asks the
@@ -158,6 +165,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Playlist scheduler for stored screens; started before the platforms so
     # the switch/select/button entities can see it. Subentry changes reload
     # the entry, rebuilding it with the fresh screen list.
+    if (
+        entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
+        and entry.runtime_data.cloud is not None
+    ):
+        # Before the scheduler copies the album's deadline into its hold.
+        awake_window = AwakeWindow(hass, entry)
+        entry.runtime_data.awake_window = awake_window
+        entry.async_on_unload(awake_window.shutdown)
+        await awake_window.async_setup()
     scheduler = FraimicScheduler(hass, entry, playlists)
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()

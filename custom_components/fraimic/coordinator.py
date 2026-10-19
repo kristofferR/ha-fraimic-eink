@@ -7,7 +7,7 @@ import ipaddress
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -23,6 +23,7 @@ from .api import (
     FraimicError,
     firmware_supports_api_image,
 )
+from .cloud import cloud_timestamp
 from .const import DOMAIN
 from .info_page import parse_info_page
 
@@ -102,6 +103,8 @@ class FraimicRuntimeData:
         # Count of frame-owned overlays in the last composed picture.
         self.last_overlay_count = 0
         self.temporary_overlays: Any = None
+        # Planned awake windows (awake_window.AwakeWindow) for Hybrid frames.
+        self.awake_window: Any = None
 
     def set_displayed_preview(
         self, preview_png: bytes, mode: str, *, overlay_count: int = 0
@@ -377,6 +380,15 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         self._last_probe_attempt = time.time()
+        window = getattr(getattr(self.config_entry, "runtime_data", None), "awake_window", None)
+        if window is not None and window.resting:
+            # A LAN poll counts as activity and would keep the frame awake
+            # between its windows; the account knows its last state.
+            cloud_data = await self._async_cloud_snapshot()
+            if cloud_data is not None:
+                self.data = cloud_data
+                return cloud_data
+            raise UpdateFailed("The frame rests between its awake windows")
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:
@@ -561,7 +573,7 @@ def _cloud_last_seen(data: dict[str, Any]) -> float | None:
     if not isinstance(value, str):
         return None
     try:
-        return datetime.fromisoformat(value).timestamp()
+        return cloud_timestamp(value)
     except ValueError:
         return None
 

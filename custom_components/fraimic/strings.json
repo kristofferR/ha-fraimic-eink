@@ -666,6 +666,40 @@
         }
       }
     },
+    "set_awake_window": {
+      "name": "Set awake window",
+      "description": "Keep a Hybrid frame awake from start to end and let it sleep otherwise. Home Assistant wakes it shortly before start through the Fraimic cloud, so plan the window while the frame still has a wake before it. Replaces any planned window.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame"
+        },
+        "start": {
+          "name": "Start",
+          "description": "When the frame must be awake."
+        },
+        "end": {
+          "name": "End",
+          "description": "When the frame may sleep again, at most 24 hours after start."
+        },
+        "standby_from": {
+          "name": "Standby from",
+          "description": "From this time until start, the sleeping frame checks in every 5 minutes (no redraw), so a window started early reaches it within one check."
+        },
+        "repeat_daily": {
+          "name": "Repeat daily",
+          "description": "When the window ends, plan the same window for the next day."
+        }
+      }
+    },
+    "clear_awake_window": {
+      "name": "Clear awake window",
+      "description": "End or cancel the awake window. The frame sleeps and still wakes once a day for new plans.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame"
+        }
+      }
+    },
     "set_auto_mode": {
       "name": "Set auto mode",
       "description": "Choose what plays when a frame's queue runs out and how auto mode picks new art. Only the fields you give change.",
