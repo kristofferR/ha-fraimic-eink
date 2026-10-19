@@ -856,6 +856,8 @@ class FraimicScheduler:
                 self._pending_requires_enabled = not manual
                 self._pending_hold_on_success = hold_on_success
                 self.blocked_reason = "asleep"
+                # Untimed: an older retry deadline must not lift this block.
+                self.retry_at = None
                 self.entry.runtime_data.coordinator.async_set_frame_online(False)
                 await self._async_save()
                 return False

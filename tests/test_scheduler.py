@@ -1097,3 +1097,15 @@ def test_producing_needs_something_showable_now(playback):
     assert not p.scheduler.producing
     p.scheduler.retry_at = p.now[0] - timedelta(minutes=1)  # its retry is due
     assert p.scheduler.producing
+
+
+def test_an_asleep_block_is_not_lifted_by_an_older_retry(playback):
+    p = playback
+    first, _second = add(p, "a", "b")
+    run(p.scheduler.async_set_enabled(True))
+    p.scheduler.retry_at = p.now[0] + timedelta(minutes=5)  # an earlier timed failure
+    p.show.side_effect = p.module.FrameUploadError("asleep")
+    run(p.scheduler._async_show(first))
+    p.now[0] += timedelta(minutes=10)
+    assert p.scheduler.blocked_reason == "asleep"
+    assert not p.scheduler.producing
