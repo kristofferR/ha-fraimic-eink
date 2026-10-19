@@ -123,7 +123,9 @@ planned time. `fraimic.set_awake_window` keeps it awake from `start` to `end`:
   `start` (a short wake without a redraw). A window set to start now, for
   example when someone gets up early, reaches it at the next check.
 - Home Assistant never sends the frame to sleep during a window, and owns
-  keep-awake once windows are in use. The album is retired when the frame is
+  keep-awake once windows are in use. Keep-awake only goes off once the next
+  wake is on the album, and between windows the frame is not polled over the
+  LAN, since every request counts as activity. The album is retired when the frame is
   caught, so the wake itself redraws nothing; arming the next wake while the
   frame is awake redraws the current art once.
 

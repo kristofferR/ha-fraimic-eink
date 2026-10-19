@@ -6,6 +6,7 @@ import sys
 import types
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from zoneinfo import ZoneInfo
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -37,6 +38,9 @@ def awake(monkeypatch):
         async def async_save(self, value):
             saved[self.key] = copy.deepcopy(value)
 
+        async def async_remove(self):
+            saved.pop(self.key, None)
+
     def track(_hass, action, when):
         timers.append((when.timestamp(), action))
         return Mock()
@@ -56,7 +60,8 @@ def awake(monkeypatch):
     modules["homeassistant.helpers.event"].async_track_point_in_utc_time = track
     modules["homeassistant.helpers.storage"].Store = Store
     dt = modules["homeassistant.util.dt"]
-    dt.as_utc = lambda value: value
+    dt.as_utc = lambda value: value.astimezone(UTC)
+    dt.as_local = lambda value: value.astimezone(ZoneInfo("Europe/Oslo"))
     dt.utc_from_timestamp = lambda ts: datetime.fromtimestamp(ts, UTC)
     modules["fraimic.coordinator"].normalize_info = lambda raw: {
         "device": {"uptime_s": raw["uptime"]}
@@ -77,9 +82,11 @@ def awake(monkeypatch):
 
     monkeypatch.setattr(module.asyncio, "sleep", sleep)
 
-    async def plan(wake_at):
+    async def plan(wake_at, carrier=None):
+        if not (cloud.has_image or carrier):
+            return False
         cloud.wake_at = wake_at
-        return cloud.has_image
+        return True
 
     cloud = SimpleNamespace(
         wake_at=None,
@@ -104,7 +111,8 @@ def awake(monkeypatch):
     )
     return SimpleNamespace(
         module=module, window=module.AwakeWindow(None, entry), cloud=cloud,
-        client=runtime.client, clock=clock, timers=timers,
+        client=runtime.client, clock=clock, timers=timers, runtime=runtime,
+        entry=entry, saved=saved,
     )
 
 
@@ -126,7 +134,7 @@ def test_future_window_lets_the_frame_sleep_until_its_wake(awake):
 
     asyncio.run(run())
     awake.cloud.async_set_keep_awake.assert_awaited_once_with(False)
-    awake.cloud.async_plan_wake.assert_awaited_once_with(start - m.WAKE_LEAD)
+    assert awake.cloud.async_plan_wake.await_args.args[0] == start - m.WAKE_LEAD
     assert [when for when, _ in awake.timers] == [
         start - m.WAKE_LEAD - m.PREPARE, start + 3 * 3600,
     ]
@@ -183,10 +191,11 @@ def test_window_end_sleeps_the_frame_with_a_heartbeat_wake(awake, has_image):
 
     asyncio.run(run())
     awake.cloud.async_set_keep_awake.assert_awaited_with(False)
-    awake.cloud.async_plan_wake.assert_awaited_with(NOW + m.HEARTBEAT)
     # Without a pending image, the art on the glass carries the wake.
-    assert awake.cloud.async_deliver.await_count == (0 if has_image else 1)
-    assert not awake.window.active
+    awake.cloud.async_plan_wake.assert_awaited_with(
+        NOW + m.HEARTBEAT, (b"bin", b"png", "Art")
+    )
+    assert not awake.window.active and awake.window.resting
 
 
 def test_heartbeat_moves_on_before_the_frame_wakes_for_it(awake):
@@ -204,7 +213,7 @@ def test_heartbeat_moves_on_before_the_frame_wakes_for_it(awake):
         await settle()
 
     asyncio.run(run())
-    awake.cloud.async_plan_wake.assert_awaited_with(NOW + 2 * m.HEARTBEAT)
+    assert awake.cloud.async_plan_wake.await_args.args[0] == NOW + 2 * m.HEARTBEAT
 
 
 def test_daily_window_plans_tomorrow_before_the_frame_sleeps(awake):
@@ -223,7 +232,7 @@ def test_daily_window_plans_tomorrow_before_the_frame_sleeps(awake):
 
     asyncio.run(run())
     awake.cloud.async_set_keep_awake.assert_awaited_with(False)
-    awake.cloud.async_plan_wake.assert_awaited_with(start + m.DAY - m.WAKE_LEAD)
+    assert awake.cloud.async_plan_wake.await_args.args[0] == start + m.DAY - m.WAKE_LEAD
     assert awake.window.repeat_daily
     assert (awake.window.start, awake.window.end) == (start + m.DAY, end + m.DAY)
 
@@ -260,3 +269,77 @@ def test_standby_checks_are_steered_before_the_frame_wakes(awake):
     assert [c.args[0] for c in awake.cloud.async_plan_wake.await_args_list] == [
         standby, standby + m.STANDBY_INTERVAL,
     ]
+
+
+def test_window_due_soon_still_gets_its_wake_slot(awake):
+    m = awake.module
+    start = NOW + 10 * 60  # inside WAKE_LEAD + PREPARE, wake 4 minutes ahead
+
+    async def run():
+        await awake.window.async_set(at(start), at(start + 3600))
+
+    asyncio.run(run())
+    assert awake.cloud.async_plan_wake.await_args.args[0] == start - m.WAKE_LEAD
+
+
+@pytest.mark.parametrize("failing", ["keep_awake", "retire"])
+def test_no_restart_until_keep_awake_is_on_and_the_album_retired(awake, failing):
+    m = awake.module
+    awake.client.get_info.return_value = {"uptime": 5}
+    if failing == "keep_awake":
+        awake.cloud.async_set_keep_awake.side_effect = m.FraimicCloudError("down")
+    else:
+        awake.cloud.async_cancel_delivery.side_effect = m.FraimicCloudError("down")
+
+    async def run():
+        await awake.window.async_set(at(NOW), at(NOW + 120))
+        await settle()
+
+    asyncio.run(run())
+    awake.client.restart.assert_not_awaited()
+    assert not awake.window.awake
+
+
+def test_frame_keeps_keep_awake_until_a_wake_can_be_armed(awake):
+    m = awake.module
+    awake.cloud.has_image = False
+    awake.runtime.temporary_overlays.base = None
+    start = NOW + 8 * 3600
+
+    async def run():
+        await awake.window.async_set(at(start), at(start + 3600))
+
+    asyncio.run(run())
+    awake.cloud.async_set_keep_awake.assert_not_awaited()
+    assert not awake.window.resting
+    assert (NOW + m.RETRY) in [when for when, _ in awake.timers]
+
+
+def test_daily_window_keeps_its_local_time_across_dst(awake):
+    oslo = ZoneInfo("Europe/Oslo")
+    # Norway leaves summer time on Sunday 25 October 2026.
+    start = datetime(2026, 10, 24, 7, 0, tzinfo=oslo)
+    end = datetime(2026, 10, 24, 9, 0, tzinfo=oslo)
+    awake.clock.now = end.timestamp()
+
+    async def run():
+        awake.window.start, awake.window.end = start.timestamp(), end.timestamp()
+        awake.window.repeat_daily = awake.window.managed = True
+        await awake.window._async_end()
+
+    asyncio.run(run())
+    nxt = datetime.fromtimestamp(awake.window.start, oslo)
+    assert (nxt.day, nxt.hour, nxt.minute) == (25, 7, 0)
+
+
+def test_leaving_hybrid_releases_a_held_frame(awake):
+    m = awake.module
+
+    async def run():
+        await awake.window.async_set(at(NOW + 8 * 3600), at(NOW + 9 * 3600))
+        await m.async_retire_awake_window(None, awake.entry, awake.cloud)
+
+    asyncio.run(run())
+    awake.cloud.async_set_keep_awake.assert_awaited_with(False)
+    assert awake.cloud.async_plan_wake.await_args.args[0] is None
+    assert awake.saved == {}

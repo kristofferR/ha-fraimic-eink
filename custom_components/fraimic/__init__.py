@@ -15,7 +15,7 @@ from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
 from .artwork_cache import DATA_ARTWORK_CACHE, ArtworkCache
 from .cloud import FraimicCloudClient, FraimicCloudError
-from .awake_window import AwakeWindow
+from .awake_window import AwakeWindow, async_retire_awake_window
 from .cloud_delivery import FraimicCloudDelivery
 from .const import (
     CONF_CAMERA_INTERVAL,
@@ -164,10 +164,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     await scheduler.async_start()
     temporary_overlays.start()
     entry.async_on_unload(scheduler.async_stop)
-    if (
-        entry.runtime_data.cloud is not None
-        and entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
-    ):
+    if entry.options.get(CONF_DELIVERY_MODE) != DELIVERY_HYBRID:
+        await async_retire_awake_window(hass, entry, entry.runtime_data.cloud)
+    elif entry.runtime_data.cloud is not None:
         awake_window = AwakeWindow(hass, entry)
         entry.runtime_data.awake_window = awake_window
         entry.async_on_unload(awake_window.shutdown)

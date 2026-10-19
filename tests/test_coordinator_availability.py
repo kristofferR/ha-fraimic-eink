@@ -103,3 +103,18 @@ def test_sleeping_frame_still_fails_poll_but_stays_available(coordinator_module)
     assert coordinator.consecutive_failures == 1
     assert coordinator.frame_online is False
     assert coordinator.device_reachable is True
+
+
+def test_resting_frame_is_not_polled_over_the_lan(coordinator_module):
+    coordinator = _coordinator(coordinator_module, data={}, success=True, seen_hours_ago=1)
+    window = types.SimpleNamespace(resting=True)
+    coordinator.config_entry = types.SimpleNamespace(
+        runtime_data=types.SimpleNamespace(awake_window=window)
+    )
+    coordinator.client = types.SimpleNamespace(last_response=None, get_info=AsyncMock())
+    snapshot = {"battery": {"percent": 40}}
+    coordinator._async_cloud_snapshot = AsyncMock(return_value=snapshot)
+
+    # A LAN request would count as activity and keep the frame awake.
+    assert asyncio.run(coordinator._async_update_data()) == snapshot
+    coordinator.client.get_info.assert_not_awaited()

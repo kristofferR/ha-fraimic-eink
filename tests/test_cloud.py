@@ -447,12 +447,24 @@ def test_planning_a_wake_reanchors_only_an_album_with_an_image(delivery_module, 
     client.async_update_album.assert_not_awaited()
 
     delivery.album_id, delivery.album_active, delivery.upload_id = "album", True, "image"
+    # Idle art: one slot, at the wake, rather than redraws on the way there.
     assert asyncio.run(delivery.async_plan_wake(now + 650 * 60)) is True
-    client.async_update_album.assert_awaited_once_with(
+    assert client.async_update_album.call_args.args[1]["schedule"]["interval_value"] == 650
+    # Rotating art: every slot before the wake brings the next picture.
+    entry.runtime_data = types.SimpleNamespace(
+        scheduler=types.SimpleNamespace(enabled=True, exhausted=False)
+    )
+    assert asyncio.run(delivery.async_plan_wake(now + 650 * 60)) is True
+    client.async_update_album.assert_awaited_with(
         "album", {"schedule": {"type": "interval", "interval_value": 325, "interval_unit": "minutes"}}
     )
     assert delivery.slot_minutes == 325
     assert delivery.wake_interval == 325 * 60
+
+    client.async_update_album.side_effect = delivery_module.FraimicCloudError("down")
+    with pytest.raises(delivery_module.FraimicCloudError):
+        asyncio.run(delivery.async_plan_wake(now + 900 * 60))
+    assert delivery.wake_at == now + 650 * 60  # the old plan still stands
 
 
 def test_account_times_without_a_zone_are_utc(cloud):

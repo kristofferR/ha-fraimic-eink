@@ -380,6 +380,15 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         self._last_probe_attempt = time.time()
+        window = getattr(getattr(self.config_entry, "runtime_data", None), "awake_window", None)
+        if window is not None and window.resting:
+            # A LAN poll counts as activity and would keep the frame awake
+            # between its windows; the account knows its last state.
+            cloud_data = await self._async_cloud_snapshot()
+            if cloud_data is not None:
+                self.data = cloud_data
+                return cloud_data
+            raise UpdateFailed("The frame rests between its awake windows")
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:

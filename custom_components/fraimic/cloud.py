@@ -78,19 +78,22 @@ def cloud_timestamp(value: str) -> float:
     return (parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)).timestamp()
 
 
-def steered_minutes(now: float, minutes: int, wake_at: float | None) -> int:
+def steered_minutes(
+    now: float, minutes: int, wake_at: float | None, *, cap: int | None = None
+) -> int:
     """Album interval for an edit at ``now`` that keeps ``wake_at`` on its slots.
 
     A sleeping frame only learns its next slot, so every edit must leave the
     planned wake on the slot grid: the k-th slot then lands at most k-1
-    minutes early. Without a wake far enough ahead, ``minutes`` is kept.
+    minutes early. Slots are at most ``cap`` apart (default ``minutes``).
+    Without a wake far enough ahead, ``minutes`` is kept.
     """
     if wake_at is None:
         return minutes
     remaining = int((wake_at - now) // 60)
     if remaining < CLOUD_SLOT_LEAD_MINUTES:
         return minutes
-    return remaining // math.ceil(remaining / minutes)
+    return remaining // math.ceil(remaining / (cap or minutes))
 
 
 def album_schedule(playlist_interval: int) -> dict[str, Any]:

@@ -4,7 +4,7 @@ Firmware 0.2.29 never starts keep-awake from a timer wake, but a restart sent
 during one does (docs/fraimic-cloud-api/albums-scheduling.md). So the album
 wakes the frame shortly before ``start``, keep-awake goes on, and the wake is
 caught on the LAN and turned into a normal boot. At ``end`` keep-awake goes off
-and the album keeps a later slot, so the frame never sleeps without a wake.
+once the album carries a later slot, so the frame never sleeps without a wake.
 
 From ``standby_from`` the frame also checks in every few minutes. A window
 started early (``start`` now) then reaches it at the next check.
@@ -16,7 +16,7 @@ import asyncio
 import logging
 import time
 from collections.abc import Callable, Coroutine
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.core import HomeAssistant, callback
@@ -26,7 +26,7 @@ from homeassistant.util import dt as dt_util
 
 from .api import FraimicError
 from .cloud import FraimicCloudError
-from .const import DOMAIN
+from .const import CLOUD_SLOT_LEAD_MINUTES, DOMAIN
 
 if TYPE_CHECKING:
     from .coordinator import FraimicConfigEntry
@@ -42,6 +42,8 @@ PREPARE = 5 * 60
 # it finds nothing due and only learns the next slot.
 STEER_LEAD = 150
 STANDBY_INTERVAL = 5 * 60
+# A slot closer than this cannot be steered (see ``cloud.steered_minutes``).
+STEER_MIN = CLOUD_SLOT_LEAD_MINUTES * 60
 # Fast probing around an expected wake, slow otherwise.
 CATCH_WINDOW = 6 * 60
 FAST_PROBE = 2
@@ -52,6 +54,8 @@ FRESH_BOOT = 240
 # sleeps reaches it.
 HEARTBEAT = 24 * 3600
 DAY = 24 * 3600
+# A failed cloud call is retried this much later.
+RETRY = 60
 
 
 def following_wake(
@@ -74,14 +78,40 @@ def following_wake(
     return min(step, wake)
 
 
+def _days_later(ts: float, days: int) -> datetime:
+    """The same local wall-clock time ``days`` later, across DST changes."""
+    return dt_util.as_local(dt_util.utc_from_timestamp(ts)) + timedelta(days=days)
+
+
+def _store(hass: HomeAssistant, entry: FraimicConfigEntry) -> Store[dict[str, Any]]:
+    return Store(hass, 1, f"{DOMAIN}_awake_window_{entry.entry_id}")
+
+
+async def async_retire_awake_window(
+    hass: HomeAssistant, entry: FraimicConfigEntry, cloud: Any
+) -> None:
+    """Delivery left Hybrid: drop any window and the keep-awake it may hold."""
+    store = _store(hass, entry)
+    data = await store.async_load()
+    if not data:
+        return
+    if cloud is not None and data.get("managed"):
+        try:
+            # Cloud delivery keeps the frame asleep between album slots.
+            await cloud.async_set_keep_awake(False)
+            await cloud.async_plan_wake(None)
+        except FraimicCloudError as err:
+            _LOGGER.warning("Could not release the awake window of %s: %s", entry.title, err)
+            return
+    await store.async_remove()
+
+
 class AwakeWindow:
     """At most one planned window per frame; Home Assistant owns keep-awake."""
 
     def __init__(self, hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
         self.hass, self.entry = hass, entry
-        self._store: Store[dict[str, Any]] = Store(
-            hass, 1, f"{DOMAIN}_awake_window_{entry.entry_id}"
-        )
+        self._store = _store(hass, entry)
         self.start: float | None = None
         self.end: float | None = None
         self.standby_from: float | None = None
@@ -92,6 +122,9 @@ class AwakeWindow:
         # that do not use awake windows.
         self.managed = False
         self.last_result: str | None = None
+        self._keep_awake_on = False
+        # The frame may not sleep yet: its next wake is not on the album.
+        self._rest_pending = False
         self._unsubs: list[Callable[[], None]] = []
         self._catcher: asyncio.Task[None] | None = None
 
@@ -101,6 +134,11 @@ class AwakeWindow:
         if self.start is None or self.end is None:
             return False
         return self.start - WAKE_LEAD - PREPARE <= time.time() < self.end
+
+    @property
+    def resting(self) -> bool:
+        """Between windows the frame should sleep; LAN polls would keep it up."""
+        return self.managed and not self.active and not self._rest_pending
 
     @property
     def _wake(self) -> float | None:
@@ -146,13 +184,14 @@ class AwakeWindow:
         self.managed = True
         # A window that covers now keeps a frame already caught awake.
         self.awake = was_awake and self.active
-        if not self.active:
-            # Sleep until the first wake, which the album now carries.
-            await self._async_keep_awake(False)
-            await self._async_plan(
-                following_wake(time.time(), wake=self._wake, standby_from=self.standby_from)
-            )
         await self._async_save()
+        wake = self.start - WAKE_LEAD
+        if not self.active:
+            await self._async_rest()
+            return
+        if not self.awake and wake - time.time() >= STEER_MIN:
+            # Due soon but still ahead: the sleeping frame needs its slot.
+            await self._async_plan(wake)
         self._schedule()
 
     async def async_clear(self) -> None:
@@ -168,6 +207,7 @@ class AwakeWindow:
             "repeat_daily": self.repeat_daily,
             "awake": self.awake,
             "managed": self.managed,
+            "rest_pending": self._rest_pending,
             "last_result": self.last_result,
         }
 
@@ -176,10 +216,12 @@ class AwakeWindow:
     def _schedule(self) -> None:
         """Timers for the current state; replaces any scheduled before."""
         self._cancel_timers()
+        if self._rest_pending:
+            self._at(time.time() + RETRY, self._async_rest)
         upcoming = getattr(self._cloud, "wake_at", None)
         start, end, wake = self.start, self.end, self._wake
         if start is None or end is None or wake is None:
-            if self.managed and upcoming is not None:
+            if self.managed and upcoming is not None and not self._rest_pending:
                 self._at(upcoming - STEER_LEAD, self._async_steer)
             return
         if time.time() >= end:
@@ -217,18 +259,34 @@ class AwakeWindow:
             self._catcher.cancel()
             self._catcher = None
 
+    async def _async_rest(self) -> None:
+        """Arm the next wake, and only then let the frame sleep."""
+        target = following_wake(time.time(), wake=self._wake, standby_from=self.standby_from)
+        if await self._async_plan(target):
+            self._rest_pending = False
+            await self._async_keep_awake(False)
+        elif not self._rest_pending:
+            self._rest_pending = True
+            _LOGGER.warning(
+                "%s keeps its keep-awake setting until its next wake can be planned",
+                self.entry.title,
+            )
+        self._schedule()
+
     async def _async_steer(self) -> None:
         """Re-anchor before a check so it only teaches the frame the next one."""
         upcoming = getattr(self._cloud, "wake_at", None)
         if upcoming is None or self.awake:
             return
-        await self._async_plan(
+        if await self._async_plan(
             following_wake(upcoming, wake=self._wake, standby_from=self.standby_from)
-        )
-        self._schedule()
+        ):
+            self._schedule()
+        else:
+            self._at(time.time() + RETRY, self._async_steer)
 
     async def _async_prepare(self) -> None:
-        await self._async_keep_awake(True)
+        self._keep_awake_on = await self._async_keep_awake(True)
         if not self.awake and self._catcher is None:
             self._catcher = self.entry.async_create_background_task(
                 self.hass, self._async_catch(), f"fraimic-awake-catch-{self.entry.entry_id}"
@@ -243,23 +301,23 @@ class AwakeWindow:
         days = max(1, int((time.time() - end) // DAY) + 1)
         standby = self.standby_from
         await self.async_set(
-            dt_util.utc_from_timestamp(start + days * DAY),
-            dt_util.utc_from_timestamp(end + days * DAY),
-            standby_from=None if standby is None else dt_util.utc_from_timestamp(standby + days * DAY),
+            _days_later(start, days),
+            _days_later(end, days),
+            standby_from=None if standby is None else _days_later(standby, days),
             repeat_daily=True,
         )
 
     async def _async_finish(self) -> None:
-        """Window over: keep-awake off and a slot for the next wake."""
+        """Window over: the frame sleeps once its heartbeat is armed."""
         self._stop_catcher()
         self.start = self.end = self.standby_from = None
         self.repeat_daily = False
         self.awake = False
-        if self.managed:
-            await self._async_keep_awake(False)
-            await self._async_plan(time.time() + HEARTBEAT)
         await self._async_save()
-        self._schedule()
+        if self.managed:
+            await self._async_rest()
+        else:
+            self._schedule()
 
     # ------------------------------------------------------------ the wake
 
@@ -279,9 +337,9 @@ class AwakeWindow:
                 fast = recent or any(w - 90 <= now < w + CATCH_WINDOW for w in expected)
                 await asyncio.sleep(FAST_PROBE if fast else SLOW_PROBE)
                 continue
-            # Nothing may be served during the window, including the slot
-            # that woke the frame: the normal boot then has nothing to redraw.
-            await self._async_retire_album()
+            if not await self._async_hold():
+                await asyncio.sleep(FAST_PROBE)
+                continue
             uptime = info["device"]["uptime_s"]
             if not recent and isinstance(uptime, int | float) and uptime < FRESH_BOOT:
                 async with runtime.upload_lock:
@@ -307,51 +365,63 @@ class AwakeWindow:
             _LOGGER.warning("%s did not wake for its awake window", self.entry.title)
         self._catcher = None
 
+    async def _async_hold(self) -> bool:
+        """Keep-awake on and nothing left to serve, before the frame is restarted.
+
+        Without keep-awake the restarted frame would sleep again; with the album
+        still active, every slot in the window would redraw it.
+        """
+        if not self._keep_awake_on:
+            self._keep_awake_on = await self._async_keep_awake(True)
+        return self._keep_awake_on and await self._async_retire_album()
+
     # ------------------------------------------------------------ cloud
 
     @property
     def _cloud(self) -> Any:
         return getattr(self.entry.runtime_data, "cloud", None)
 
-    async def _async_keep_awake(self, on: bool) -> None:
+    async def _async_keep_awake(self, on: bool) -> bool:
         cloud = self._cloud
         if cloud is None:
-            return
+            return False
         try:
             await cloud.async_set_keep_awake(on)
         except FraimicCloudError as err:
             _LOGGER.warning("Could not turn keep-awake %s: %s", "on" if on else "off", err)
+            return False
+        if not on:
+            self._keep_awake_on = False
+        return True
 
-    async def _async_retire_album(self) -> None:
+    async def _async_retire_album(self) -> bool:
         cloud = self._cloud
         if cloud is None:
-            return
+            return True
         try:
             async with self.entry.runtime_data.upload_lock:
                 await cloud.async_cancel_delivery()
         except FraimicCloudError as err:
             _LOGGER.warning("Could not retire the wake slot of %s: %s", self.entry.title, err)
+            return False
+        return True
 
-    async def _async_plan(self, wake_at: float) -> None:
+    async def _async_plan(self, wake_at: float) -> bool:
         """Make the album carry a slot at ``wake_at`` for the sleeping frame."""
         cloud = self._cloud
         if cloud is None:
-            return
+            return False
         runtime = self.entry.runtime_data
+        overlays = runtime.temporary_overlays
+        base = getattr(overlays, "base", None)
+        # Without a pending image, the art on the glass carries the slot.
+        carrier = None if base is None else (base[0], base[1], overlays.title)
         try:
             async with runtime.upload_lock:
-                if await cloud.async_plan_wake(wake_at):
-                    return
-                # No pending image: re-send the one on the glass to carry the slot.
-                base = getattr(runtime.temporary_overlays, "base", None)
-                if base is None:
-                    _LOGGER.warning("No artwork to carry the wake of %s", self.entry.title)
-                    return
-                await cloud.async_deliver(
-                    base[0], title=runtime.temporary_overlays.title, preview_png=base[1]
-                )
+                return bool(await cloud.async_plan_wake(wake_at, carrier))
         except FraimicCloudError as err:
             _LOGGER.warning("Could not plan the next wake of %s: %s", self.entry.title, err)
+            return False
 
     async def _async_save(self) -> None:
         await self._store.async_save(

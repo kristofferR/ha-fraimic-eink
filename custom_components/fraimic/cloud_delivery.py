@@ -135,8 +135,15 @@ class FraimicCloudDelivery:
         """Seconds from an album edit made now to the slot that serves it."""
         return self._edit_minutes() * 60
 
-    def _edit_minutes(self) -> int:
-        return steered_minutes(time.time(), album_interval_minutes(self.interval), self.wake_at)
+    def _edit_minutes(self, interval: int | None = None) -> int:
+        minutes = album_interval_minutes(self.interval if interval is None else interval)
+        # Slots before a planned wake each redraw the album image, which only
+        # pays off when every one brings new art.
+        scheduler = getattr(getattr(self.entry, "runtime_data", None), "scheduler", None)
+        rotating = scheduler is not None and scheduler.enabled and not scheduler.exhausted
+        return steered_minutes(
+            time.time(), minutes, self.wake_at, cap=None if rotating else 1440
+        )
 
     @property
     def delivery_deadline(self) -> float | None:
@@ -308,7 +315,7 @@ class FraimicCloudDelivery:
             self.interval = interval
             await self._async_save()
             return
-        minutes = steered_minutes(time.time(), album_interval_minutes(interval), self.wake_at)
+        minutes = self._edit_minutes(interval)
         try:
             album = await self.client.async_update_album(
                 self.album_id, {"schedule": schedule_for_minutes(minutes)}
@@ -321,22 +328,36 @@ class FraimicCloudDelivery:
         self._set_anchor(album, minutes)
         await self._async_save()
 
-    async def async_plan_wake(self, wake_at: float | None) -> bool:
+    async def async_plan_wake(
+        self,
+        wake_at: float | None,
+        carrier: tuple[bytes, bytes | None, str] | None = None,
+    ) -> bool:
         """Keep a slot at ``wake_at``; returns whether the album now carries one.
 
         Re-anchoring also turns a slot the frame already learned into a short
         check wake, which is how a sleeping frame picks up a changed plan.
+        Without a pending image, ``carrier`` (bin, preview, title) is sent to
+        hold the slot. A failed cloud call leaves the previous plan in place.
         """
+        previous = self.wake_at
         self.wake_at = wake_at
-        await self._async_save()
-        album_id = self.album_id
-        if not self.has_image or album_id is None:
-            return False
-        minutes = self._edit_minutes()
-        album = await self.client.async_update_album(
-            album_id, {"schedule": schedule_for_minutes(minutes)}
-        )
-        self._set_anchor(album, minutes)
+        try:
+            album_id = self.album_id
+            if self.has_image and album_id is not None:
+                minutes = self._edit_minutes()
+                album = await self.client.async_update_album(
+                    album_id, {"schedule": schedule_for_minutes(minutes)}
+                )
+                self._set_anchor(album, minutes)
+            elif carrier is not None:
+                await self.async_deliver(carrier[0], title=carrier[2], preview_png=carrier[1])
+            else:
+                self.wake_at = previous
+                return False
+        except BaseException:
+            self.wake_at = previous
+            raise
         await self._async_save()
         return True
 
