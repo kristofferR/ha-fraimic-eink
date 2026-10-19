@@ -135,15 +135,30 @@ class FraimicCloudDelivery:
         """Seconds from an album edit made now to the slot that serves it."""
         return self._edit_minutes() * 60
 
+    def _rotating(self) -> bool:
+        scheduler = getattr(getattr(self.entry, "runtime_data", None), "scheduler", None)
+        return scheduler is not None and scheduler.enabled and not scheduler.exhausted
+
     def _edit_minutes(self, interval: int | None = None) -> int:
         minutes = album_interval_minutes(self.interval if interval is None else interval)
         # Slots before a planned wake each redraw the album image, which only
         # pays off when every one brings new art.
-        scheduler = getattr(getattr(self.entry, "runtime_data", None), "scheduler", None)
-        rotating = scheduler is not None and scheduler.enabled and not scheduler.exhausted
         return steered_minutes(
-            time.time(), minutes, self.wake_at, cap=None if rotating else 1440
+            time.time(), minutes, self.wake_at, cap=None if self._rotating() else 1440
         )
+
+    def _slot_before_wake(self) -> bool:
+        """Whether the album's next slot comes before the planned wake."""
+        if self.wake_at is None or not self.has_image or not self.last_anchor or not self.slot_minutes:
+            return False
+        try:
+            anchor = cloud_timestamp(self.last_anchor)
+        except ValueError:
+            return False
+        step = self.slot_minutes * 60
+        passed = max(0.0, time.time() - anchor)
+        upcoming = anchor + max(1, -(-passed // step)) * step
+        return upcoming < self.wake_at - 60
 
     @property
     def delivery_deadline(self) -> float | None:
@@ -165,6 +180,15 @@ class FraimicCloudDelivery:
 
     async def async_expire_delivery(self) -> None:
         """Retire each image after its slot so an idle producer cannot repeat it."""
+        if (
+            self.wake_at is not None
+            and time.time() < self.wake_at
+            and not self._rotating()
+            and self._slot_before_wake()
+        ):
+            # Art stopped changing: the slots before the wake would only redraw it.
+            await self.async_plan_wake(self.wake_at)
+            return
         deadline = self.delivery_deadline
         if deadline is None or self.album_id is None or time.time() < deadline:
             return
@@ -348,11 +372,20 @@ class FraimicCloudDelivery:
         self.wake_at = wake_at
         try:
             album_id = self.album_id
+            album = None
             if self.has_image and album_id is not None:
                 minutes = self._edit_minutes()
-                album = await self.client.async_update_album(
-                    album_id, {"schedule": schedule_for_minutes(minutes)}
-                )
+                try:
+                    album = await self.client.async_update_album(
+                        album_id, {"schedule": schedule_for_minutes(minutes)}
+                    )
+                except FraimicCloudError as err:
+                    if err.status != 404:
+                        raise
+                    _LOGGER.info("Cloud album %s is gone; creating a new one", album_id)
+                    self.album_id = self.upload_id = None
+                    self.album_active = False
+            if album is not None:
                 self._set_anchor(album, minutes)
             elif carrier is not None:
                 await self.async_deliver(carrier[0], title=carrier[2], preview_png=carrier[1])
