@@ -7,7 +7,7 @@ import ipaddress
 import logging
 import time
 from collections.abc import Callable
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -23,6 +23,7 @@ from .api import (
     FraimicError,
     firmware_supports_api_image,
 )
+from .cloud import cloud_timestamp
 from .const import DOMAIN
 from .info_page import parse_info_page
 
@@ -563,7 +564,7 @@ def _cloud_last_seen(data: dict[str, Any]) -> float | None:
     if not isinstance(value, str):
         return None
     try:
-        return datetime.fromisoformat(value).timestamp()
+        return cloud_timestamp(value)
     except ValueError:
         return None
 

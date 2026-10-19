@@ -22,6 +22,7 @@ from .cloud import (
     FraimicCloudClient,
     FraimicCloudError,
     album_interval_minutes,
+    cloud_timestamp,
     schedule_for_minutes,
     steered_minutes,
 )
@@ -144,7 +145,7 @@ class FraimicCloudDelivery:
             return None
         minutes = self.slot_minutes or album_interval_minutes(self.interval)
         try:
-            return datetime.fromisoformat(self.last_anchor).timestamp() + minutes * 60 + CLOUD_WAKE_WINDOW
+            return cloud_timestamp(self.last_anchor) + minutes * 60 + CLOUD_WAKE_WINDOW
         except ValueError:
             return None
 

@@ -12,6 +12,7 @@ import asyncio
 import logging
 import math
 import time
+from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlencode
 
@@ -69,6 +70,12 @@ def album_interval_minutes(playlist_interval: int) -> int:
     minutes *after* each upload and always fetch the fresh image.
     """
     return max(1, math.ceil(playlist_interval / 60)) + CLOUD_SLOT_LEAD_MINUTES
+
+
+def cloud_timestamp(value: str) -> float:
+    """Epoch of an account API time, which carries no zone but is UTC."""
+    parsed = datetime.fromisoformat(value)
+    return (parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)).timestamp()
 
 
 def steered_minutes(now: float, minutes: int, wake_at: float | None) -> int:

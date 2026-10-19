@@ -453,3 +453,8 @@ def test_planning_a_wake_reanchors_only_an_album_with_an_image(delivery_module, 
     )
     assert delivery.slot_minutes == 325
     assert delivery.wake_interval == 325 * 60
+
+
+def test_account_times_without_a_zone_are_utc(cloud):
+    assert cloud.cloud_timestamp("2026-10-19T12:51:25") == 1792414285.0
+    assert cloud.cloud_timestamp("2026-10-19T14:51:25+02:00") == 1792414285.0
