@@ -977,7 +977,7 @@ async def async_render_and_upload(
             await overlay_controller.async_accept(
                 overlay_source, overlay_art, title, overlay_inherit,
                 overlay_signature, content_hash,
-                via_cloud=use_cloud,
+                via_cloud=use_cloud, source=art_source,
             )
             runtime.last_overlay_count = overlay_count
 
@@ -988,6 +988,7 @@ async def async_render_and_upload(
                     raise HomeAssistantError("The clean artwork is unavailable")
                 rendered = overlay_controller.base
                 overlay_art = overlay_controller.art
+                art_source = overlay_controller.source
                 overlay_inherit = overlay_controller.inherit
                 title = overlay_controller.title
             if rendered is None:

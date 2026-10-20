@@ -407,19 +407,9 @@ def test_busy_scheduler_deferral_requests_immediate_persisted_retry(
 ):
     _, obj, _, _ = controller
     calls = install_delivery(monkeypatch, obj)
-    services = sys.modules["fraimic.services"]
-    deliver, sources = services.async_render_and_upload, []
-
-    async def record(*args, **kwargs):
-        sources.append(kwargs.get("art_source"))
-        return await deliver(*args, **kwargs)
-
-    services.async_render_and_upload = record
     scheduler = SimpleNamespace(
         busy=True,
         external_upload_active=False,
-        # The refresh resends the art on the glass, so it keeps its reference.
-        shown_screen=SimpleNamespace(source={"library_image": "art"}),
         begin_external_upload=lambda: None,
         finish_external_upload=lambda **_kwargs: None,
     )
@@ -435,7 +425,6 @@ def test_busy_scheduler_deferral_requests_immediate_persisted_retry(
         scheduler.busy = False
         await obj._async_tick()
         assert len(calls) == 1
-        assert sources == [{"library_image": "art"}]
 
     asyncio.run(run())
 
@@ -656,11 +645,16 @@ def test_saved_permanent_edits_wait_for_a_new_picture(controller, monkeypatch):
         obj.async_refresh.assert_not_awaited()
         # Temporary refreshes and restarts preserve the applied configuration.
         _, signature, _ = await obj.async_compose(obj.base, None, True, True)
-        await obj.async_accept(obj.base, None, obj.title, True, signature, "old")
+        source = {"library_image": "art"}
+        await obj.async_accept(
+            obj.base, None, obj.title, True, signature, "old", source=source
+        )
         assert applied[-1] == [old]
         restored = module.TemporaryOverlays(obj.hass, obj.entry)
         await restored.async_setup()
         assert restored.permanent == [old]
+        # The retained artwork keeps its gallery reference across restarts.
+        assert restored.source == source
         assert not restored.holds_playback
         # A new picture picks up the saved settings and commits that snapshot.
         _, signature, _ = await restored.async_compose(restored.base)

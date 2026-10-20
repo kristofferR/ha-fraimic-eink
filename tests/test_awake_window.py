@@ -102,9 +102,8 @@ def awake(monkeypatch):
         client=SimpleNamespace(get_info=AsyncMock(), restart=AsyncMock()),
         upload_lock=asyncio.Lock(),
         coordinator=SimpleNamespace(async_set_frame_online=Mock()),
-        temporary_overlays=SimpleNamespace(base=(b"bin", b"png", "none"), title="Art"),
-        scheduler=SimpleNamespace(
-            shown_screen=SimpleNamespace(source={"library_image": "art"}),
+        temporary_overlays=SimpleNamespace(
+            base=(b"bin", b"png", "none"), title="Art", source={"library_image": "art"}
         ),
     )
     entry = SimpleNamespace(

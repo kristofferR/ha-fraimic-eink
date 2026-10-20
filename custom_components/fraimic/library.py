@@ -623,6 +623,7 @@ class FraimicLibrary:
                 lock=False,
                 queue_if_asleep=True,
                 trigger=trigger,
+                source={"library_image": image_id},
             )
 
     async def async_render_adhoc_preview(
@@ -764,6 +765,7 @@ async def async_upload_rendered(
     lock: bool = True,
     queue_if_asleep: bool = False,
     trigger: str = TRIGGER_MANUAL,
+    source: dict | None = None,
 ) -> bool:
     """Upload an already-rendered buffer to one frame and update its preview.
 
@@ -774,6 +776,7 @@ async def async_upload_rendered(
 
     ``queue_if_asleep``: queue the buffer for the frame's next wake instead of
     failing when it is unreachable (user-initiated sends).
+    ``source`` is the picture's slide source, kept with a cloud preview.
     """
     runtime = entry.runtime_data
     controller = getattr(runtime, "temporary_overlays", None)
@@ -783,7 +786,7 @@ async def async_upload_rendered(
         result = await async_render_and_upload(
             controller.hass, entry, b"", rendered=(bin_data, preview_png, mode),
             title=media_title, trigger=trigger, queue_if_asleep=queue_if_asleep,
-            hold_playlist=False, upload_lock_held=not lock,
+            hold_playlist=False, upload_lock_held=not lock, art_source=source,
         )
         if result.get("displayed"):
             runtime.last_art = None
@@ -799,7 +802,10 @@ async def async_upload_rendered(
         if await async_use_cloud(entry):
             from .services import async_deliver_cloud
 
-            await async_deliver_cloud(entry, bin_data, title=media_title or "image", preview_png=preview_png)
+            await async_deliver_cloud(
+                entry, bin_data, title=media_title or "image",
+                preview_png=preview_png, source=source,
+            )
             return False
         hybrid = (
             entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
@@ -820,7 +826,10 @@ async def async_upload_rendered(
             if hybrid and queue_if_asleep and reason in DEFER_REASONS:
                 from .services import async_deliver_cloud
 
-                await async_deliver_cloud(entry, bin_data, title=media_title or "image", preview_png=preview_png)
+                await async_deliver_cloud(
+                    entry, bin_data, title=media_title or "image",
+                    preview_png=preview_png, source=source,
+                )
             elif reason in DEFER_REASONS and queue is not None:
                 await queue.async_queue_deferred(
                     bin_data,

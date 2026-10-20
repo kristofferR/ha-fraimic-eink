@@ -65,9 +65,13 @@ def test_prerendered_cloud_send_bypasses_lan_policy(library_module, monkeypatch)
     runtime = types.SimpleNamespace(cloud=object(), power=power, upload_lock=asyncio.Lock())
     entry = types.SimpleNamespace(options={}, runtime_data=runtime)
     assert asyncio.run(library.async_upload_rendered(
-        entry, b"panel", b"preview", "none", media_title="Art", queue_if_asleep=True
+        entry, b"panel", b"preview", "none", media_title="Art", queue_if_asleep=True,
+        source={"library_image": "art"},
     )) is False
-    deliver.assert_awaited_once_with(entry, b"panel", title="Art", preview_png=b"preview")
+    deliver.assert_awaited_once_with(
+        entry, b"panel", title="Art", preview_png=b"preview",
+        source={"library_image": "art"},
+    )
     power.finish.assert_called_once()
 
 

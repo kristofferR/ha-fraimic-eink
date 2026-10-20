@@ -485,10 +485,9 @@ class AwakeWindow:
         runtime = self.entry.runtime_data
         overlays = runtime.temporary_overlays
         base = getattr(overlays, "base", None)
-        shown = runtime.scheduler.shown_screen
         # Without a pending image, the art on the glass carries the slot.
         carrier = None if base is None else (
-            base[0], base[1], overlays.title, shown.source if shown else None
+            base[0], base[1], overlays.title, overlays.source
         )
         try:
             async with runtime.upload_lock:
