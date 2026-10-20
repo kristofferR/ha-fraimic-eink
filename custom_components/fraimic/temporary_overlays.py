@@ -260,6 +260,14 @@ class TemporaryOverlays:
         self._next_refresh_at = 0
         await self._async_save()
 
+    async def async_cloud_withdrawn(self):
+        """A cloud-queued composite was withdrawn before reaching the glass."""
+        if not self.submitted_via_cloud:
+            return
+        self.submitted_hash = None
+        self.submitted_via_cloud = False
+        await self.async_mark_dirty()
+
     async def _async_save(self):
         encoded = (
             await self.hass.async_add_executor_job(

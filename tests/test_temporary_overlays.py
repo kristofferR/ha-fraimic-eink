@@ -402,6 +402,20 @@ def test_mark_dirty_requests_immediate_persisted_refresh(controller):
     obj._store.async_save.assert_awaited_once()
 
 
+@pytest.mark.parametrize("via_cloud", [True, False])
+def test_withdrawn_cloud_composite_is_sent_again(controller, via_cloud):
+    _, obj, _, _ = controller
+    obj.submitted_hash, obj.submitted_via_cloud = "pixels", via_cloud
+
+    asyncio.run(obj.async_cloud_withdrawn())
+
+    # Only a composite still waiting in the cloud needs the LAN; one on the
+    # glass is left alone.
+    assert obj.dirty is via_cloud
+    assert (obj.submitted_hash is None) is via_cloud
+    assert obj.submitted_via_cloud is False
+
+
 def test_busy_scheduler_deferral_requests_immediate_persisted_retry(
     controller, monkeypatch
 ):

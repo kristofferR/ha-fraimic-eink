@@ -82,19 +82,23 @@ def awake(monkeypatch):
 
     monkeypatch.setattr(module.asyncio, "sleep", sleep)
 
-    async def plan(wake_at, carrier=None):
-        if not (cloud.has_image or carrier):
-            return False
+    async def plan(wake_at):
         cloud.wake_at = wake_at
-        return True
+        cloud.wake_album_id = None if wake_at is None else "wake"
+
+    async def cancel():
+        cloud.has_image = False
 
     cloud = SimpleNamespace(
         device_id="canvas",
         wake_at=None,
+        wake_album_id="wake",
         has_image=True,
+        last_anchor=None,
+        delivery_deadline=None,
         async_set_keep_awake=AsyncMock(),
         async_deliver=AsyncMock(),
-        async_cancel_delivery=AsyncMock(),
+        async_cancel_delivery=AsyncMock(side_effect=cancel),
     )
     cloud.async_plan_wake = AsyncMock(side_effect=plan)
     runtime = SimpleNamespace(
@@ -102,9 +106,7 @@ def awake(monkeypatch):
         client=SimpleNamespace(get_info=AsyncMock(), restart=AsyncMock()),
         upload_lock=asyncio.Lock(),
         coordinator=SimpleNamespace(async_set_frame_online=Mock()),
-        temporary_overlays=SimpleNamespace(
-            base=(b"bin", b"png", "none"), title="Art", source={"library_image": "art"}
-        ),
+        temporary_overlays=SimpleNamespace(async_cloud_withdrawn=AsyncMock()),
     )
     entry = SimpleNamespace(
         entry_id="large",
@@ -164,8 +166,10 @@ def test_timer_wake_is_restarted_once_into_a_normal_boot(awake):
 
     asyncio.run(run())
     awake.client.restart.assert_awaited_once()
-    # The slot that woke it is retired, so the normal boot has nothing to redraw.
+    # Pending art is retired, so the normal boot has nothing to redraw; an
+    # overlay that was waiting in the cloud goes over the LAN instead.
     awake.cloud.async_cancel_delivery.assert_awaited()
+    awake.runtime.temporary_overlays.async_cloud_withdrawn.assert_awaited_once()
     assert awake.window.awake and awake.window.last_result == "restarted"
     awake.cloud.async_set_keep_awake.assert_awaited_with(True)
     assert awake.client.get_info.await_count == 4
@@ -173,6 +177,7 @@ def test_timer_wake_is_restarted_once_into_a_normal_boot(awake):
 
 def test_an_already_awake_frame_is_not_restarted(awake):
     awake.client.get_info.return_value = {"uptime": 50_000}
+    awake.cloud.has_image = False
 
     async def run():
         await awake.window.async_set(at(NOW), at(NOW + 3600))
@@ -181,12 +186,13 @@ def test_an_already_awake_frame_is_not_restarted(awake):
     asyncio.run(run())
     awake.client.restart.assert_not_awaited()
     assert awake.window.last_result == "already_awake"
+    # Nothing was waiting in the cloud: no album edit, no resend.
+    awake.cloud.async_cancel_delivery.assert_not_awaited()
+    awake.runtime.temporary_overlays.async_cloud_withdrawn.assert_not_awaited()
 
 
-@pytest.mark.parametrize("has_image", [True, False])
-def test_window_end_sleeps_the_frame_with_a_heartbeat_wake(awake, has_image):
+def test_window_end_sleeps_the_frame_with_a_heartbeat_wake(awake):
     m = awake.module
-    awake.cloud.has_image = has_image
     awake.client.get_info.return_value = {"uptime": 50_000}
 
     async def run():
@@ -196,10 +202,9 @@ def test_window_end_sleeps_the_frame_with_a_heartbeat_wake(awake, has_image):
 
     asyncio.run(run())
     awake.cloud.async_set_keep_awake.assert_awaited_with(False)
-    # Without a pending image, the art on the glass carries the wake.
-    awake.cloud.async_plan_wake.assert_awaited_with(
-        NOW + m.HEARTBEAT, (b"bin", b"png", "Art", {"library_image": "art"})
-    )
+    # Only the empty wake album changes: the awake frame redraws nothing.
+    awake.cloud.async_plan_wake.assert_awaited_with(NOW + m.HEARTBEAT)
+    awake.cloud.async_deliver.assert_not_awaited()
     assert not awake.window.active and awake.window.resting
 
 
@@ -307,8 +312,7 @@ def test_no_restart_until_keep_awake_is_on_and_the_album_retired(awake, failing)
 
 def test_frame_keeps_keep_awake_until_a_wake_can_be_armed(awake):
     m = awake.module
-    awake.cloud.has_image = False
-    awake.runtime.temporary_overlays.base = None
+    awake.cloud.async_plan_wake.side_effect = m.FraimicCloudError("down")
     start = NOW + 8 * 3600
 
     async def run():
@@ -463,13 +467,12 @@ def test_a_rest_in_flight_cannot_undo_a_replacement(awake):
     release = asyncio.Event()
     first = True
 
-    async def slow_plan(wake_at, carrier=None):
+    async def slow_plan(wake_at):
         nonlocal first
         if first:
             first = False
             await release.wait()
         awake.cloud.wake_at = wake_at
-        return True
 
     awake.cloud.async_plan_wake.side_effect = slow_plan
     awake.client.get_info.return_value = {"uptime": 50_000}
@@ -521,3 +524,51 @@ def test_an_unknown_uptime_is_restarted_rather_than_trusted(awake):
     asyncio.run(run())
     awake.client.restart.assert_awaited_once()
     assert awake.window.last_result == "restarted"
+
+
+@pytest.mark.parametrize("slot_ahead", [True, False])
+def test_a_plan_from_before_the_wake_album_is_moved_onto_it(awake, slot_ahead):
+    m = awake.module
+    awake.cloud.wake_album_id = None
+    awake.cloud.delivery_deadline = NOW + (3600 if slot_ahead else -60)
+    awake.saved["fraimic_awake_window_large"] = {"managed": True, "device_id": "canvas"}
+
+    async def run():
+        await awake.window.async_setup()
+        await settle()
+
+    asyncio.run(run())
+    # The frame must not sleep on a slot that only the art album carried,
+    # and that album's slot must not redraw it at the planned wake.
+    assert awake.cloud.async_plan_wake.await_args.args[0] == NOW + m.HEARTBEAT
+    awake.cloud.async_cancel_delivery.assert_awaited_once()
+    # Art whose slot had not come yet is sent again rather than lost.
+    assert awake.runtime.temporary_overlays.async_cloud_withdrawn.await_count == int(slot_ahead)
+
+
+def test_a_late_catch_does_not_resend_what_may_be_drawn(awake):
+    awake.client.get_info.side_effect = [{"uptime": 150}, {"uptime": 20}]
+
+    async def run():
+        await awake.window.async_set(at(NOW), at(NOW + 3600))
+        await settle()
+
+    asyncio.run(run())
+    assert awake.window.last_result == "restarted"
+    awake.cloud.async_cancel_delivery.assert_awaited()
+    # The frame had time to download the image before the restart.
+    awake.runtime.temporary_overlays.async_cloud_withdrawn.assert_not_awaited()
+
+
+@pytest.mark.parametrize(("sent_ago", "resent"), [(600, False), (10, True)])
+def test_an_awake_frame_only_misses_art_its_poll_has_not_seen(awake, sent_ago, resent):
+    awake.client.get_info.return_value = {"uptime": 50_000}
+    awake.cloud.last_anchor = datetime.fromtimestamp(NOW - sent_ago, UTC).isoformat()
+
+    async def run():
+        await awake.window.async_set(at(NOW), at(NOW + 3600))
+        await settle()
+
+    asyncio.run(run())
+    # Older art was pushed at the frame's last poll; newer art would be lost.
+    assert awake.runtime.temporary_overlays.async_cloud_withdrawn.await_count == int(resent)

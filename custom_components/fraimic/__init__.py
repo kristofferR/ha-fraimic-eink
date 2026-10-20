@@ -278,7 +278,7 @@ async def _async_setup_cloud(
             # A previous cloud slot may have replaced the last LAN image.
             await entry.runtime_data.power.async_invalidate_display()
         return delivery
-    if delivery.album_id is not None or delivery.keep_awake_released:
+    if delivery.holds_account_state:
         if not await delivery.async_release():
             raise ConfigEntryNotReady(
                 "Cloud cleanup failed; retrying before enabling local delivery"
