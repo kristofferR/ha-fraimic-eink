@@ -125,7 +125,7 @@ def _entry(rotation: int = 0) -> types.SimpleNamespace:
 
 
 def _screen() -> types.SimpleNamespace:
-    return types.SimpleNamespace(name="Dashboard", kind="dashboard")
+    return types.SimpleNamespace(name="Dashboard", kind="dashboard", source=None)
 
 
 @pytest.mark.parametrize("source", [
@@ -328,6 +328,7 @@ def test_upload_path_uploads_and_updates_screen_preview(
         title: str,
         skip_if_hash: str | None,
         hold_playlist: bool,
+        art_source: dict | None,
     ) -> dict:
         assert skip_if_hash is None
         calls.append(("upload", png, overrides, preprocess, hold_playlist))
@@ -399,6 +400,7 @@ def test_upload_path_holds_playlist_before_rendering(
         title: str,
         skip_if_hash: str | None,
         hold_playlist: bool,
+        art_source: dict | None,
     ) -> dict:
         events.append(("upload", hold_playlist))
         assert png == b"screen-png"
@@ -490,12 +492,14 @@ def test_skipped_picture_upload_keeps_current_art_metadata(
         title: str,
         skip_if_hash: str | None,
         hold_playlist: bool,
+        art_source: dict | None,
     ) -> dict:
         assert png == b"art-png"
         assert overrides == {}
         assert preprocess is True
         assert skip_if_hash == "same-hash"
         assert hold_playlist is False
+        assert art_source == {"provider": "bing"}
         return {
             "uploaded": False,
             "content_hash": "same-hash",

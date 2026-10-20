@@ -251,6 +251,7 @@ class SceneManager:
                         media_title=media_titles[entry_id],
                         queue_if_asleep=True,
                         trigger=trigger,
+                        source={"library_image": mappings[entry_id]},
                     )
                 except HomeAssistantError as err:
                     results[entry_id] = {"ok": False, "error": str(err)}

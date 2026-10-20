@@ -601,6 +601,7 @@ async def async_show_screen(
             "preprocess": preprocess,
             "skip_if_hash": skip_if_hash,
             "hold_playlist": scheduler is None and hold_playlist,
+            "art_source": screen.source,
         }
         if rendered is not None:
             upload_kwargs["rendered"] = rendered

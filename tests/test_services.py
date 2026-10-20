@@ -276,7 +276,7 @@ def test_accepted_delivery_updates_only_confirmed_display(
     cloud_deliveries = []
 
     class Cloud:
-        async def async_deliver(self, data, *, title, preview_png):
+        async def async_deliver(self, data, *, title, preview_png, source=None):
             cloud_deliveries.append((data, title))
 
     runtime = SimpleNamespace(
@@ -468,7 +468,7 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
         if outcome == 'upload_error':
             raise services.FraimicConnectionError('connection lost during upload')
 
-    async def deliver(_data, *, title, preview_png):
+    async def deliver(_data, *, title, preview_png, source=None):
         events.append('cloud')
         assert runtime.sending_preview == (b'preview', 'Artwork')
 
@@ -546,7 +546,7 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
         "briefing_stale_during_wake": 1_400,
     }
     controller = SimpleNamespace(
-        base=(b"clean art", b"clean preview", "none"), art=None, inherit=True, title="Art",
+        base=(b"clean art", b"clean preview", "none"), art=None, source=None, inherit=True, title="Art",
         submitted_hash=hashlib.sha256(b"same pixels").hexdigest(), submitted_via_cloud=True,
         composed_valid_until=briefing_deadlines.get(state),
         active=True, expires_at=1_200 if state == "too_late" else 4_000,
@@ -593,6 +593,7 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
         base=(b"clean art", b"clean preview", "none"),
         art=None,
         inherit=True,
+        source=None,
         title="Art",
         submitted_via_cloud=False,
         candidate_valid_until=1_029,
@@ -661,7 +662,7 @@ def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monke
         return (f"routine {progress['completed']}/6".encode(), b"png", "none"), "config", 1
 
     controller = SimpleNamespace(
-        base=(b"same art", b"preview", "none"), art=None, inherit=True, title="Art",
+        base=(b"same art", b"preview", "none"), art=None, source=None, inherit=True, title="Art",
         async_compose=compose, async_accept=AsyncMock(), signature=lambda *_: "config",
     )
     client = SimpleNamespace(upload_image=AsyncMock())
@@ -770,6 +771,7 @@ def test_only_accepted_expired_overlay_bypasses_low_battery(
         base=(b"clean", b"png", "none"),
         art=None,
         inherit=True,
+        source=None,
         title="Art",
         active=active,
         composed_valid_until=900 if accepted else None,

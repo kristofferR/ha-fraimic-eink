@@ -1500,7 +1500,7 @@ class FraimicPanel extends HTMLElement {
     root.querySelector("[data-toggle='renders']")?.addEventListener("click", () => { this._rendersWell = !this._rendersWell; this._render(); });
     root.querySelector("[data-toggle='favorites']")?.addEventListener("click", () => this._viewingFavorites ? this._setSource("all") : this._setSource("saved", "favorites", "Favorites"));
     root.querySelectorAll("[data-favorite]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._toggleFavorite(node.dataset.sourceId, node.dataset.itemId, node.getAttribute("aria-pressed") === "true"); });
-    root.querySelector("[data-player-favorite]")?.addEventListener("click", () => { const current = this._player?.current; if (current?.source) this._toggleFavorite(current.source, current.item_id, Boolean(current.favorite)); });
+    root.querySelector("[data-player-favorite]")?.addEventListener("click", () => { const current = this._player?.preview || this._player?.current; if (current?.source) this._toggleFavorite(current.source, current.item_id, Boolean(current.favorite)); });
     root.querySelectorAll("[data-clear-filters]").forEach((node) => node.onclick = () => this._clearFilters());
     root.querySelectorAll("[data-facet]").forEach((node) => node.onclick = () => this._setFacet(node.dataset.facet, node.dataset.facetValue));
     root.querySelectorAll("[data-detail]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); const [source, ...rest] = node.dataset.detail.split(":"); this._openDetail(source, rest.join(":"), node); });
@@ -2128,10 +2128,10 @@ class FraimicPanel extends HTMLElement {
     const key = `${source}:${itemId}`;
     if (this._favoritePending.has(key)) return;
     const item = this._findItem(source, itemId);
-    const current = this._player?.current;
-    const onWall = current?.source === source && current?.item_id === itemId;
+    // The cloud-submitted preview and the confirmed picture can be the same art.
+    const onWall = [this._player?.preview, this._player?.current].filter((pic) => pic?.source === source && pic?.item_id === itemId);
     const detail = this._detail?.source === source && this._detail?.itemId === itemId ? this._detail : null;
-    const setLocal = (value) => { if (item) item.favorite = value; if (onWall) current.favorite = value; if (detail) detail.favorite = value; };
+    const setLocal = (value) => { if (item) item.favorite = value; for (const pic of onWall) pic.favorite = value; if (detail) detail.favorite = value; };
     const refresh = () => { this._renderPreservingFocus(); if (this._detail) this._renderDetailModal(); };
     this._favoritePending.add(key);
     setLocal(!wasFavorite);

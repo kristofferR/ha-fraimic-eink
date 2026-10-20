@@ -93,6 +93,8 @@ class FraimicCloudDelivery:
         self.slot_minutes: int | None = None
         self.preview_png: bytes | None = None
         self.preview_title: str | None = None
+        # Slide source of the submitted picture, so the player can favorite it.
+        self.preview_source: dict[str, Any] | None = None
 
     async def async_setup(self) -> None:
         data = await self._store.async_load() or {}
@@ -115,6 +117,8 @@ class FraimicCloudDelivery:
         except (ValueError, TypeError, binascii.Error):
             self.preview_png = None
         self.preview_title = data.get("preview_title")
+        source = data.get("preview_source")
+        self.preview_source = source if isinstance(source, dict) else None
 
     async def _async_save(self) -> None:
         await self._store.async_save(
@@ -131,6 +135,7 @@ class FraimicCloudDelivery:
                 "slot_minutes": self.slot_minutes,
                 "preview_png": base64.b64encode(self.preview_png).decode("ascii") if self.preview_png else None,
                 "preview_title": self.preview_title,
+                "preview_source": self.preview_source,
             }
         )
 
@@ -219,7 +224,12 @@ class FraimicCloudDelivery:
     # ------------------------------------------------------------ delivery
 
     async def async_deliver(
-        self, bin_data: bytes, *, title: str, preview_png: bytes | None = None
+        self,
+        bin_data: bytes,
+        *,
+        title: str,
+        preview_png: bytes | None = None,
+        source: dict[str, Any] | None = None,
     ) -> None:
         """Upload ``bin_data`` as a PNG and make it the album's image."""
         width = self.entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
@@ -245,6 +255,7 @@ class FraimicCloudDelivery:
             bin_to_png, bin_data, width, height, rotation
         )
         self.preview_title = title
+        self.preview_source = source
         self._set_anchor(album, minutes)
         await self._async_save()
         _LOGGER.debug(
@@ -499,6 +510,7 @@ class FraimicCloudDelivery:
         """A newer local upload supersedes the last cloud-submitted preview."""
         self.preview_png = None
         self.preview_title = None
+        self.preview_source = None
         await self._async_save()
 
     async def async_forget_album(self) -> None:
@@ -506,6 +518,7 @@ class FraimicCloudDelivery:
         self.album_id = None
         self.preview_png = None
         self.preview_title = None
+        self.preview_source = None
         self.album_device_id = None
         self.upload_id = None
         self.album_active = False
