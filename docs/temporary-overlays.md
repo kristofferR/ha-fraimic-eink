@@ -110,24 +110,32 @@ do not advance the playback queue.
 A Hybrid frame can sleep between deliveries and still show live overlays at a
 planned time. `fraimic.set_awake_window` keeps it awake from `start` to `end`:
 
-- Home Assistant moves the album's wake slot to 6 minutes before `start`,
-  turns keep-awake on, catches that wake on the LAN and restarts the frame into
-  a normal boot. Firmware 0.2.29 ignores keep-awake on timer wakes.
+- Home Assistant keeps a second, empty album on the account, named
+  "Home Assistant wake: <frame>". Its slots only wake the frame: there is no
+  picture to download, so moving them never redraws anything, even while the
+  frame is awake. Every edit to an album with a picture does redraw an awake
+  frame, so planning never touches the art album.
+- Home Assistant moves the wake slot to 6 minutes before `start`, turns
+  keep-awake on, catches that wake on the LAN and restarts the frame into a
+  normal boot. Firmware 0.2.29 ignores keep-awake on timer wakes.
 - At `end`, or on `fraimic.clear_awake_window`, keep-awake goes off and the
-  album keeps a later slot: the next window's wake, or a daily heartbeat. The
-  frame never sleeps without a wake, so later plans still reach it.
+  wake album keeps a later slot: the next window's wake, or a daily heartbeat.
+  The frame never sleeps without a wake, so later plans still reach it.
 - A sleeping frame learns a changed plan only at its next wake, so plan the
   next window when the current one ends. With `repeat_daily: true` a window
   that runs out plans the same window for the next day by itself.
 - With `standby_from`, the frame checks in every 5 minutes from then until
   `start` (a short wake without a redraw). A window set to start now, for
-  example when someone gets up early, reaches it at the next check.
+  example when someone gets up early, reaches it at the next check. A missed
+  catch falls back to the same checks.
 - Home Assistant never sends the frame to sleep during a window, and owns
   keep-awake once windows are in use. Keep-awake only goes off once the next
-  wake is on the album, and between windows the frame is not polled over the
-  LAN, since every request counts as activity. The album is retired when the frame is
-  caught, so the wake itself redraws nothing; arming the next wake while the
-  frame is awake redraws the current art once.
+  wake is on the wake album, and between windows the frame is not polled over
+  the LAN, since every request counts as activity.
+- Art sent through the cloud while the frame sleeps moves the wake album onto
+  its slot, so the frame wakes to show it. When the frame is caught, any art
+  still waiting in the cloud is withdrawn so the restarted frame redraws
+  nothing, and an overlay that was waiting there goes over the LAN instead.
 
 ```yaml
 action: fraimic.set_awake_window

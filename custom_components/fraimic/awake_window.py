@@ -1,10 +1,12 @@
 """Planned awake windows for a Hybrid frame that otherwise sleeps.
 
 Firmware 0.2.29 never starts keep-awake from a timer wake, but a restart sent
-during one does (docs/fraimic-cloud-api/albums-scheduling.md). So the album
-wakes the frame shortly before ``start``, keep-awake goes on, and the wake is
-caught on the LAN and turned into a normal boot. At ``end`` keep-awake goes off
-once the album carries a later slot, so the frame never sleeps without a wake.
+during one does (docs/fraimic-cloud-api/albums-scheduling.md). So the wake
+album wakes the frame shortly before ``start``, keep-awake goes on, and the
+wake is caught on the LAN and turned into a normal boot. At ``end`` keep-awake
+goes off once the wake album carries a later slot, so the frame never sleeps
+without a wake. The wake album has no image, so planning never redraws the
+frame, not even an awake one.
 
 From ``standby_from`` the frame also checks in every few minutes. A window
 started early (``start`` now) then reaches it at the next check.
@@ -127,8 +129,10 @@ class AwakeWindow:
         self.managed = False
         self.last_result: str | None = None
         self._keep_awake_on = False
-        # The frame may not sleep yet: its next wake is not on the album.
+        # The frame may not sleep yet: its next wake is not on the wake album.
         self._rest_pending = False
+        # The catch withdrew an image the cloud had not delivered yet.
+        self._withdrew = False
         self._unsubs: list[Callable[[], None]] = []
         self._catcher: asyncio.Task[None] | None = None
         # Transitions run one at a time; a replaced window's jobs are dropped.
@@ -179,6 +183,9 @@ class AwakeWindow:
             except FraimicCloudError as err:
                 _LOGGER.debug("Could not drop the previous canvas's wake plan: %s", err)
         self._schedule()
+        if self.managed and cloud is not None and cloud.wake_album_id is None:
+            # Plans made before the wake album rode on the art album.
+            self._at(time.time(), self._async_rest)
 
     def shutdown(self) -> None:
         self._cancel_timers()
@@ -428,6 +435,11 @@ class AwakeWindow:
             await self._async_save()
             self._schedule()
             runtime.coordinator.async_set_frame_online(True)
+            overlays = getattr(runtime, "temporary_overlays", None)
+            if self._withdrew and overlays is not None:
+                # The overlay never reached the glass; send it over the LAN.
+                await overlays.async_cloud_withdrawn()
+            self._withdrew = False
             _LOGGER.info("%s is awake for its window (%s)", self.entry.title, self.last_result)
             break
         else:
@@ -437,10 +449,10 @@ class AwakeWindow:
         self._catcher = None
 
     async def _async_hold(self) -> bool:
-        """Keep-awake on and nothing left to serve, before the frame is restarted.
+        """Keep-awake on and no pending art, before the frame is restarted.
 
-        Without keep-awake the restarted frame would sleep again; with the album
-        still active, every slot in the window would redraw it.
+        Without keep-awake the restarted frame would sleep again; with the art
+        album still active, it would redraw that image during the window.
         """
         if not self._keep_awake_on:
             self._keep_awake_on = await self._async_keep_awake(True)
@@ -471,25 +483,24 @@ class AwakeWindow:
             return True
         try:
             async with self.entry.runtime_data.upload_lock:
-                await cloud.async_cancel_delivery()
+                if cloud.has_image:
+                    await cloud.async_cancel_delivery()
+                    self._withdrew = True
         except FraimicCloudError as err:
-            _LOGGER.warning("Could not retire the wake slot of %s: %s", self.entry.title, err)
+            _LOGGER.warning("Could not retire the cloud image of %s: %s", self.entry.title, err)
             return False
         return True
 
     async def _async_plan(self, wake_at: float) -> bool:
-        """Make the album carry a slot at ``wake_at`` for the sleeping frame."""
+        """Make the wake album carry a slot at ``wake_at``."""
         cloud = self._cloud
         if cloud is None:
             return False
-        runtime = self.entry.runtime_data
-        overlays = runtime.temporary_overlays
-        base = getattr(overlays, "base", None)
-        # Without a pending image, the art on the glass carries the slot.
-        carrier = None if base is None else (base[0], base[1], overlays.title)
         try:
-            async with runtime.upload_lock:
-                return bool(await cloud.async_plan_wake(wake_at, carrier))
+            # Art edits read the planned wake to steer their slots onto it.
+            async with self.entry.runtime_data.upload_lock:
+                await cloud.async_plan_wake(wake_at)
+            return True
         except FraimicCloudError as err:
             _LOGGER.warning("Could not plan the next wake of %s: %s", self.entry.title, err)
             return False

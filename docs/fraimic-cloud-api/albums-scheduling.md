@@ -51,6 +51,17 @@ the frame over the LAN.
   10 to 30 s, regardless of keep-awake (`TIMER CONFIG ERROR … 60-second safety
   sleep`). `POST /api/restart` during one of those wakes recalculates the
   schedule; with keep-awake on, the frame then stays awake.
+- Any `PUT /api/v1/albums/{id}` on an active album with an image makes the
+  next poll of an awake frame answer `upload=Y`, and the frame downloads and
+  redraws the unchanged image (verified 2026-10-20 with a schedule-only edit).
+  The flag is consumed by that download: a poll 3.5 minutes later said
+  `upload=N`. Re-activating an album pushes the same way. Deactivating one does
+  not.
+- An active album with no images (`upload_ids: []`) still takes part in the
+  frame's next wake: the frame reports the earliest slot across its active
+  albums (`Next scheduled image`). Creating it, changing its schedule and
+  reaching its slot all left an awake frame at `Poll OK — no changes`
+  (verified 2026-10-20). Such an album is an alarm clock that never redraws.
 - The frame keeps only the current and one previous boot in its log ring
   buffer, so an unobserved wake is lost.
 - Log timestamps on the frame are in the firmware's local zone (UTC-4 here),
@@ -63,7 +74,8 @@ the last confirmed local display. Playlist delivery order advances separately;
 automatic uploads wait until after the cloud wake slot before replacing its image.
 The scheduler retires each album image after that window, including while paused,
 so one-off sends cannot keep waking the frame with unchanged artwork. Later sends
-reactivate the album. Changing accounts first releases ownership using the old
+reactivate the album. Planned wakes (awake windows) use a separate empty album
+for the same reason: moving a wake must never redraw the frame. Changing accounts first releases ownership using the old
 credentials; a failed cleanup keeps those credentials available for retry.
 
 ## Account auth

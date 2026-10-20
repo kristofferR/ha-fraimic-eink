@@ -408,15 +408,12 @@ def test_steered_slots_land_on_the_wake_within_a_minute_per_slot(cloud, normal):
         assert 0 <= remaining - slots * minutes < slots
 
 
-def test_planned_wake_keeps_the_album_until_it_passes(delivery_module, monkeypatch):
+def test_art_retires_after_its_slot_even_with_a_planned_wake(delivery_module, monkeypatch):
     import asyncio
     from unittest.mock import AsyncMock
 
     client = types.SimpleNamespace(async_update_album=AsyncMock(return_value={"id": "album"}))
-    rotating = types.SimpleNamespace(producing=True)
-    entry = types.SimpleNamespace(
-        entry_id="frame", title="Frame", runtime_data=types.SimpleNamespace(scheduler=rotating)
-    )
+    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
     delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "canvas")
     delivery._store = types.SimpleNamespace(async_save=AsyncMock())
     delivery.album_id, delivery.album_active, delivery.upload_id = "album", True, "image"
@@ -424,48 +421,110 @@ def test_planned_wake_keeps_the_album_until_it_passes(delivery_module, monkeypat
     delivery.slot_minutes = 30
     deadline = delivery.delivery_deadline
     assert deadline == delivery_module.datetime.fromisoformat(delivery.last_anchor).timestamp() + 30 * 60 + 180
+    # The wake album carries the wake; re-serving the art there would redraw it.
     delivery.wake_at = deadline + 3600
     monkeypatch.setattr(delivery_module.time, "time", lambda: deadline + 1)
-    asyncio.run(delivery.async_expire_delivery())
-    client.async_update_album.assert_not_awaited()
-    monkeypatch.setattr(delivery_module.time, "time", lambda: delivery.wake_at + 181)
     asyncio.run(delivery.async_expire_delivery())
     client.async_update_album.assert_awaited_once_with("album", {"active": False})
 
 
-def test_planning_a_wake_reanchors_only_an_album_with_an_image(delivery_module, monkeypatch):
-    import asyncio
+def _wake_delivery(delivery_module, monkeypatch, now):
     from unittest.mock import AsyncMock
 
-    now = 1_800_000_000.0
     monkeypatch.setattr(delivery_module.time, "time", lambda: now)
     client = types.SimpleNamespace(
-        async_update_album=AsyncMock(return_value={"updated_at": "2027-01-15T08:00:00+00:00"})
+        async_create_album=AsyncMock(return_value={"id": "wake"}),
+        async_update_album=AsyncMock(return_value={"updated_at": "2027-01-15T08:00:00+00:00"}),
+        async_delete_album=AsyncMock(),
     )
     entry = types.SimpleNamespace(entry_id="frame", title="Frame")
     delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "canvas")
     delivery._store = types.SimpleNamespace(async_save=AsyncMock())
     delivery.interval = 6 * 3600
-    assert asyncio.run(delivery.async_plan_wake(now + 650 * 60)) is False
-    client.async_update_album.assert_not_awaited()
+    return delivery, client, entry
 
+
+def test_planning_a_wake_never_touches_the_art_album(delivery_module, monkeypatch):
+    import asyncio
+
+    now = 1_800_000_000.0
+    delivery, client, entry = _wake_delivery(delivery_module, monkeypatch, now)
     delivery.album_id, delivery.album_active, delivery.upload_id = "album", True, "image"
-    # Idle art: one slot, at the wake, rather than redraws on the way there.
-    assert asyncio.run(delivery.async_plan_wake(now + 650 * 60)) is True
-    assert client.async_update_album.call_args.args[1]["schedule"]["interval_value"] == 650
-    # Rotating art: every slot before the wake brings the next picture.
+
+    # Idle art: one slot, at the wake. The empty album has nothing to redraw.
+    asyncio.run(delivery.async_plan_wake(now + 650 * 60))
+    created = client.async_create_album.call_args.args[0]
+    assert created["upload_ids"] == [] and created["active"] is True
+    assert created["schedule"]["interval_value"] == 650
+    assert created["device_assignments"] == [{"device_id": "canvas"}]
+    assert delivery.wake_album_id == "wake"
+
+    # Rotating art: a wake for every picture on the way.
     entry.runtime_data = types.SimpleNamespace(scheduler=types.SimpleNamespace(producing=True))
-    assert asyncio.run(delivery.async_plan_wake(now + 650 * 60)) is True
-    client.async_update_album.assert_awaited_with(
-        "album", {"schedule": {"type": "interval", "interval_value": 325, "interval_unit": "minutes"}}
+    asyncio.run(delivery.async_plan_wake(now + 650 * 60))
+    client.async_update_album.assert_awaited_once_with(
+        "wake",
+        {
+            "active": True,
+            "schedule": {"type": "interval", "interval_value": 325, "interval_unit": "minutes"},
+            "device_assignments": [{"device_id": "canvas"}],
+        },
     )
-    assert delivery.slot_minutes == 325
-    assert delivery.wake_interval == 325 * 60
+    assert client.async_create_album.await_count == 1
 
     client.async_update_album.side_effect = delivery_module.FraimicCloudError("down")
     with pytest.raises(delivery_module.FraimicCloudError):
         asyncio.run(delivery.async_plan_wake(now + 900 * 60))
     assert delivery.wake_at == now + 650 * 60  # the old plan still stands
+
+    client.async_update_album.side_effect = None
+    asyncio.run(delivery.async_plan_wake(None))
+    client.async_delete_album.assert_awaited_once_with("wake")
+    assert delivery.wake_album_id is None and delivery.wake_at is None
+
+
+def test_a_deleted_wake_album_is_recreated(delivery_module, monkeypatch):
+    import asyncio
+
+    delivery, client, _entry = _wake_delivery(delivery_module, monkeypatch, 1_800_000_000.0)
+    delivery.wake_album_id = "gone"
+    client.async_update_album.side_effect = delivery_module.FraimicCloudError("gone", status=404)
+    asyncio.run(delivery.async_plan_wake(1_800_000_000.0 + 3600))
+    client.async_create_album.assert_awaited_once()
+    assert delivery.wake_album_id == "wake"
+
+
+@pytest.mark.parametrize(("lead", "aligned"), [(3600, True), (60, False)])
+def test_cloud_art_moves_the_wake_onto_its_slot(delivery_module, monkeypatch, lead, aligned):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    now = 1_800_000_000.0
+    delivery, client, entry = _wake_delivery(delivery_module, monkeypatch, now)
+    entry.data, entry.options = {}, {}
+    delivery.wake_album_id, delivery.wake_at = "wake", now + lead
+    delivery.hass = types.SimpleNamespace(async_add_executor_job=AsyncMock(return_value=b"png"))
+    client.async_upload_png = AsyncMock(return_value="upload")
+    delivery.album_id, delivery.album_device_id, delivery.keep_awake_released = "album", "canvas", True
+
+    asyncio.run(delivery.async_deliver(b"bin", title="Art", preview_png=b"preview"))
+    calls = {call.args[0]: call.args[1] for call in client.async_update_album.await_args_list}
+    if aligned:
+        # One grid for both albums: the frame wakes when the art is due.
+        assert calls["wake"]["schedule"] == calls["album"]["schedule"]
+    else:
+        # Too close to steer; the planned wake comes first and stays.
+        assert "wake" not in calls
+
+
+def test_release_deletes_the_wake_album(delivery_module, monkeypatch):
+    import asyncio
+
+    delivery, client, _entry = _wake_delivery(delivery_module, monkeypatch, 1_800_000_000.0)
+    delivery.wake_album_id = "wake"
+    client.async_delete_album.side_effect = delivery_module.FraimicCloudError("gone", status=404)
+    assert asyncio.run(delivery.async_release()) is True
+    assert delivery.wake_album_id is None
 
 
 def test_account_times_without_a_zone_are_utc(cloud):
@@ -486,53 +545,3 @@ def test_awake_window_keep_awake_survives_a_cloud_fallback(delivery_module):
     asyncio.run(delivery.async_set_keep_awake(True))
     # The one-time release after a cloud delivery would now turn it off.
     assert delivery.keep_awake_released is True
-
-
-def test_stopped_rotation_collapses_slots_before_the_wake(delivery_module, monkeypatch):
-    import asyncio
-    from unittest.mock import AsyncMock
-
-    now = 1_800_000_000.0
-    monkeypatch.setattr(delivery_module.time, "time", lambda: now)
-    client = types.SimpleNamespace(
-        async_update_album=AsyncMock(return_value={"updated_at": "2027-01-15T08:00:00+00:00"})
-    )
-    scheduler = types.SimpleNamespace(producing=True)
-    entry = types.SimpleNamespace(
-        entry_id="frame", title="Frame", runtime_data=types.SimpleNamespace(scheduler=scheduler)
-    )
-    delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "canvas")
-    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
-    delivery.interval = 6 * 3600
-    delivery.album_id, delivery.album_active, delivery.upload_id = "album", True, "image"
-    asyncio.run(delivery.async_plan_wake(now + 650 * 60))
-    assert delivery.slot_minutes == 325  # a slot on the way, for the next picture
-
-    asyncio.run(delivery.async_expire_delivery())
-    assert client.async_update_album.await_count == 1  # still rotating
-    scheduler.producing = False
-    asyncio.run(delivery.async_expire_delivery())
-    assert delivery.slot_minutes == 650
-    # The collapsed slot lands a little early (cloud clock); it stays collapsed.
-    entry_anchor = delivery_module.datetime.fromtimestamp(now - 30, delivery_module.UTC)
-    delivery.last_anchor = entry_anchor.isoformat()
-    asyncio.run(delivery.async_expire_delivery())
-    assert client.async_update_album.await_count == 2  # collapsed once
-
-
-def test_a_deleted_album_is_recreated_for_a_wake(delivery_module):
-    import asyncio
-    from unittest.mock import AsyncMock
-
-    client = types.SimpleNamespace(
-        async_update_album=AsyncMock(side_effect=delivery_module.FraimicCloudError("gone", status=404))
-    )
-    entry = types.SimpleNamespace(entry_id="frame", title="Frame")
-    delivery = delivery_module.FraimicCloudDelivery(None, entry, client, "canvas")
-    delivery._store = types.SimpleNamespace(async_save=AsyncMock())
-    delivery.album_id, delivery.album_active, delivery.upload_id = "album", True, "image"
-    delivery.async_deliver = AsyncMock()
-
-    assert asyncio.run(delivery.async_plan_wake(2_000_000_000.0, (b"bin", b"png", "Art"))) is True
-    delivery.async_deliver.assert_awaited_once_with(b"bin", title="Art", preview_png=b"png")
-    assert delivery.album_id is None  # async_deliver creates the replacement

@@ -35,6 +35,7 @@ TO_REDACT = {
     CONF_CLOUD_DEVICE_ID,
     "album_device_id",
     "album_id",
+    "wake_album_id",
     "upload_id",
     "device_key",
     "device_id",
