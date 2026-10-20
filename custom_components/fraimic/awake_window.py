@@ -27,8 +27,8 @@ from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .api import FraimicApiError, FraimicError
-from .cloud import FraimicCloudError
-from .const import CLOUD_SLOT_LEAD_MINUTES, DOMAIN
+from .cloud import FraimicCloudError, cloud_timestamp
+from .const import CLOUD_SLOT_LEAD_MINUTES, CLOUD_WAKE_WINDOW, DOMAIN
 
 if TYPE_CHECKING:
     from .coordinator import FraimicConfigEntry
@@ -54,6 +54,8 @@ SLOW_PROBE = 15
 FRESH_BOOT = 240
 # A cloud image takes ~85 s to download, so a younger wake has not drawn it.
 UNDRAWN = 60
+# An awake frame polls the cloud every ~30 s, so an older art edit reached it.
+PUSH_POLL = 45
 # Without a window the frame still wakes this often, so a plan made while it
 # sleeps reaches it.
 HEARTBEAT = 24 * 3600
@@ -133,8 +135,10 @@ class AwakeWindow:
         self._keep_awake_on = False
         # The frame may not sleep yet: its next wake is not on the wake album.
         self._rest_pending = False
-        # The catch withdrew an image the cloud had not delivered yet.
+        # The catch withdrew an image the cloud had not delivered yet, and how
+        # long before that the image was sent.
         self._withdrew = False
+        self._withdrawn_age: float | None = None
         self._unsubs: list[Callable[[], None]] = []
         self._catcher: asyncio.Task[None] | None = None
         # Transitions run one at a time; a replaced window's jobs are dropped.
@@ -347,11 +351,18 @@ class AwakeWindow:
         cloud = self._cloud
         if cloud is None or cloud.wake_album_id is None or not cloud.has_image:
             return
+        deadline = cloud.delivery_deadline
+        # Art whose slot is still ahead has not been shown: send it again.
+        pending = deadline is not None and time.time() < deadline - CLOUD_WAKE_WINDOW
         try:
             async with self.entry.runtime_data.upload_lock:
                 await cloud.async_cancel_delivery()
         except FraimicCloudError as err:
             _LOGGER.warning("Could not retire the old wake slot of %s: %s", self.entry.title, err)
+            return
+        overlays = getattr(self.entry.runtime_data, "temporary_overlays", None)
+        if pending and overlays is not None:
+            await overlays.async_cloud_withdrawn()
 
     async def _async_steer(self) -> None:
         """Re-anchor before a check so it only teaches the frame the next one."""
@@ -457,9 +468,12 @@ class AwakeWindow:
             self._schedule()
             runtime.coordinator.async_set_frame_online(True)
             overlays = getattr(runtime, "temporary_overlays", None)
-            if self._withdrew and recent and overlays is not None:
-                # The restart cut its download short, and the retired album
-                # will not serve it again: send the overlay over the LAN.
+            age = self._withdrawn_age
+            # The restart cut a download short; an awake frame only misses an
+            # edit its next poll had not picked up yet.
+            undelivered = recent or age is None or age < PUSH_POLL
+            if self._withdrew and undelivered and overlays is not None:
+                # The retired album will not serve it: send it over the LAN.
                 await overlays.async_cloud_withdrawn()
             self._withdrew = False
             _LOGGER.info("%s is awake for its window (%s)", self.entry.title, self.last_result)
@@ -506,6 +520,10 @@ class AwakeWindow:
         try:
             async with self.entry.runtime_data.upload_lock:
                 if cloud.has_image:
+                    try:
+                        self._withdrawn_age = time.time() - cloud_timestamp(cloud.last_anchor)
+                    except (TypeError, ValueError):
+                        self._withdrawn_age = None
                     await cloud.async_cancel_delivery()
                     self._withdrew = True
         except FraimicCloudError as err:

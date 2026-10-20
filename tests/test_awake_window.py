@@ -94,6 +94,8 @@ def awake(monkeypatch):
         wake_at=None,
         wake_album_id="wake",
         has_image=True,
+        last_anchor=None,
+        delivery_deadline=None,
         async_set_keep_awake=AsyncMock(),
         async_deliver=AsyncMock(),
         async_cancel_delivery=AsyncMock(side_effect=cancel),
@@ -524,9 +526,11 @@ def test_an_unknown_uptime_is_restarted_rather_than_trusted(awake):
     assert awake.window.last_result == "restarted"
 
 
-def test_a_plan_from_before_the_wake_album_is_moved_onto_it(awake):
+@pytest.mark.parametrize("slot_ahead", [True, False])
+def test_a_plan_from_before_the_wake_album_is_moved_onto_it(awake, slot_ahead):
     m = awake.module
     awake.cloud.wake_album_id = None
+    awake.cloud.delivery_deadline = NOW + (3600 if slot_ahead else -60)
     awake.saved["fraimic_awake_window_large"] = {"managed": True, "device_id": "canvas"}
 
     async def run():
@@ -538,6 +542,8 @@ def test_a_plan_from_before_the_wake_album_is_moved_onto_it(awake):
     # and that album's slot must not redraw it at the planned wake.
     assert awake.cloud.async_plan_wake.await_args.args[0] == NOW + m.HEARTBEAT
     awake.cloud.async_cancel_delivery.assert_awaited_once()
+    # Art whose slot had not come yet is sent again rather than lost.
+    assert awake.runtime.temporary_overlays.async_cloud_withdrawn.await_count == int(slot_ahead)
 
 
 def test_a_late_catch_does_not_resend_what_may_be_drawn(awake):
@@ -554,13 +560,15 @@ def test_a_late_catch_does_not_resend_what_may_be_drawn(awake):
     awake.runtime.temporary_overlays.async_cloud_withdrawn.assert_not_awaited()
 
 
-def test_an_awake_frame_keeps_pushed_art(awake):
+@pytest.mark.parametrize(("sent_ago", "resent"), [(600, False), (10, True)])
+def test_an_awake_frame_only_misses_art_its_poll_has_not_seen(awake, sent_ago, resent):
     awake.client.get_info.return_value = {"uptime": 50_000}
+    awake.cloud.last_anchor = datetime.fromtimestamp(NOW - sent_ago, UTC).isoformat()
 
     async def run():
         await awake.window.async_set(at(NOW), at(NOW + 3600))
         await settle()
 
     asyncio.run(run())
-    # The cloud pushed the art to the awake frame; nothing to resend.
-    awake.runtime.temporary_overlays.async_cloud_withdrawn.assert_not_awaited()
+    # Older art was pushed at the frame's last poll; newer art would be lost.
+    assert awake.runtime.temporary_overlays.async_cloud_withdrawn.await_count == int(resent)
