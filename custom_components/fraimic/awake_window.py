@@ -52,6 +52,8 @@ FAST_PROBE = 2
 SLOW_PROBE = 15
 # Timer wakes last at most ~3 min, so a shorter uptime is one to restart.
 FRESH_BOOT = 240
+# A cloud image takes ~85 s to download, so a younger wake has not drawn it.
+UNDRAWN = 60
 # Without a window the frame still wakes this often, so a plan made while it
 # sleeps reaches it.
 HEARTBEAT = 24 * 3600
@@ -184,8 +186,7 @@ class AwakeWindow:
                 _LOGGER.debug("Could not drop the previous canvas's wake plan: %s", err)
         self._schedule()
         if self.managed and cloud is not None and cloud.wake_album_id is None:
-            # Plans made before the wake album rode on the art album.
-            self._at(time.time(), self._async_rest)
+            self._at(time.time(), self._async_adopt)
 
     def shutdown(self) -> None:
         self._cancel_timers()
@@ -336,6 +337,22 @@ class AwakeWindow:
             await self._async_save()
         self._schedule()
 
+    async def _async_adopt(self) -> None:
+        """Move a plan made before the wake album off the art album.
+
+        The art album carried the wake then; left active, its slot would
+        redraw the frame at the planned wake.
+        """
+        await self._async_rest()
+        cloud = self._cloud
+        if cloud is None or cloud.wake_album_id is None or not cloud.has_image:
+            return
+        try:
+            async with self.entry.runtime_data.upload_lock:
+                await cloud.async_cancel_delivery()
+        except FraimicCloudError as err:
+            _LOGGER.warning("Could not retire the old wake slot of %s: %s", self.entry.title, err)
+
     async def _async_steer(self) -> None:
         """Re-anchor before a check so it only teaches the frame the next one."""
         upcoming = getattr(self._cloud, "wake_at", None)
@@ -397,6 +414,7 @@ class AwakeWindow:
         from .coordinator import normalize_info
 
         runtime = self.entry.runtime_data
+        self._withdrew = False
         while self.end is not None and time.time() < self.end:
             now = time.time()
             recent = self.restarted_at is not None and now < self.restarted_at + CATCH_WINDOW
@@ -416,6 +434,9 @@ class AwakeWindow:
             # Without an uptime the boot is unknown; a restart is the safe answer.
             fresh = not isinstance(uptime, int | float) or uptime < FRESH_BOOT
             if not recent and fresh:
+                if isinstance(uptime, int | float) and uptime >= UNDRAWN:
+                    # Withdrawn too late: the image may already be drawn.
+                    self._withdrew = False
                 async with runtime.upload_lock:
                     try:
                         await runtime.client.restart()
@@ -436,8 +457,9 @@ class AwakeWindow:
             self._schedule()
             runtime.coordinator.async_set_frame_online(True)
             overlays = getattr(runtime, "temporary_overlays", None)
-            if self._withdrew and overlays is not None:
-                # The overlay never reached the glass; send it over the LAN.
+            if self._withdrew and recent and overlays is not None:
+                # The restart cut its download short, and the retired album
+                # will not serve it again: send the overlay over the LAN.
                 await overlays.async_cloud_withdrawn()
             self._withdrew = False
             _LOGGER.info("%s is awake for its window (%s)", self.entry.title, self.last_result)

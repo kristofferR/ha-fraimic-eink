@@ -517,6 +517,36 @@ def test_cloud_art_moves_the_wake_onto_its_slot(delivery_module, monkeypatch, le
         assert "wake" not in calls
 
 
+def test_failed_wake_alignment_fails_the_delivery(delivery_module, monkeypatch):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    now = 1_800_000_000.0
+    delivery, client, entry = _wake_delivery(delivery_module, monkeypatch, now)
+    entry.data, entry.options = {}, {}
+    delivery.wake_album_id, delivery.wake_at = "wake", now + 3600
+    delivery.hass = types.SimpleNamespace(async_add_executor_job=AsyncMock(return_value=b"png"))
+    client.async_upload_png = AsyncMock(return_value="upload")
+    delivery.album_id, delivery.album_device_id, delivery.keep_awake_released = "album", "canvas", True
+
+    async def update(album_id, payload):
+        if album_id == "wake":
+            raise delivery_module.FraimicCloudError("down")
+        return {"updated_at": "2027-01-15T08:00:00+00:00"}
+
+    client.async_update_album.side_effect = update
+    # The frame would sleep through the art's slot: report it, so it is retried.
+    with pytest.raises(delivery_module.FraimicCloudError):
+        asyncio.run(delivery.async_deliver(b"bin", title="Art", preview_png=b"preview"))
+
+
+def test_a_wake_album_alone_still_needs_cleanup(delivery_module, monkeypatch):
+    delivery, _client, _entry = _wake_delivery(delivery_module, monkeypatch, 1_800_000_000.0)
+    assert not delivery.holds_account_state
+    delivery.wake_album_id = "wake"
+    assert delivery.holds_account_state
+
+
 def test_release_deletes_the_wake_album(delivery_module, monkeypatch):
     import asyncio
 

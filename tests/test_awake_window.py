@@ -84,6 +84,10 @@ def awake(monkeypatch):
 
     async def plan(wake_at):
         cloud.wake_at = wake_at
+        cloud.wake_album_id = None if wake_at is None else "wake"
+
+    async def cancel():
+        cloud.has_image = False
 
     cloud = SimpleNamespace(
         device_id="canvas",
@@ -92,7 +96,7 @@ def awake(monkeypatch):
         has_image=True,
         async_set_keep_awake=AsyncMock(),
         async_deliver=AsyncMock(),
-        async_cancel_delivery=AsyncMock(),
+        async_cancel_delivery=AsyncMock(side_effect=cancel),
     )
     cloud.async_plan_wake = AsyncMock(side_effect=plan)
     runtime = SimpleNamespace(
@@ -530,5 +534,33 @@ def test_a_plan_from_before_the_wake_album_is_moved_onto_it(awake):
         await settle()
 
     asyncio.run(run())
-    # The frame must not sleep on a slot that only the art album carried.
+    # The frame must not sleep on a slot that only the art album carried,
+    # and that album's slot must not redraw it at the planned wake.
     assert awake.cloud.async_plan_wake.await_args.args[0] == NOW + m.HEARTBEAT
+    awake.cloud.async_cancel_delivery.assert_awaited_once()
+
+
+def test_a_late_catch_does_not_resend_what_may_be_drawn(awake):
+    awake.client.get_info.side_effect = [{"uptime": 150}, {"uptime": 20}]
+
+    async def run():
+        await awake.window.async_set(at(NOW), at(NOW + 3600))
+        await settle()
+
+    asyncio.run(run())
+    assert awake.window.last_result == "restarted"
+    awake.cloud.async_cancel_delivery.assert_awaited()
+    # The frame had time to download the image before the restart.
+    awake.runtime.temporary_overlays.async_cloud_withdrawn.assert_not_awaited()
+
+
+def test_an_awake_frame_keeps_pushed_art(awake):
+    awake.client.get_info.return_value = {"uptime": 50_000}
+
+    async def run():
+        await awake.window.async_set(at(NOW), at(NOW + 3600))
+        await settle()
+
+    asyncio.run(run())
+    # The cloud pushed the art to the awake frame; nothing to resend.
+    awake.runtime.temporary_overlays.async_cloud_withdrawn.assert_not_awaited()

@@ -140,6 +140,15 @@ class FraimicCloudDelivery:
         return self.album_active and self.album_id is not None and self.upload_id is not None
 
     @property
+    def holds_account_state(self) -> bool:
+        """Whether leaving cloud delivery has anything on the account to undo."""
+        return (
+            self.album_id is not None
+            or self.wake_album_id is not None
+            or self.keep_awake_released
+        )
+
+    @property
     def wake_interval(self) -> int:
         """Seconds from an album edit made now to the slot that serves it."""
         return self._edit_minutes() * 60
@@ -238,7 +247,6 @@ class FraimicCloudDelivery:
         self.preview_title = title
         self._set_anchor(album, minutes)
         await self._async_save()
-        await self._async_align_wake(minutes)
         _LOGGER.debug(
             "Cloud delivery of %r queued on album %s; frame wakes about %s min after %s",
             title,
@@ -250,6 +258,7 @@ class FraimicCloudDelivery:
             await self._async_discard(previous)
         if not self.keep_awake_released:
             await self._async_release_keep_awake()
+        await self._async_align_wake(minutes)
 
     async def _async_point_album(self, upload_id: str, minutes: int) -> dict[str, Any]:
         schedule = schedule_for_minutes(minutes)
@@ -344,7 +353,10 @@ class FraimicCloudDelivery:
         self.interval = interval
         self._set_anchor(album, minutes)
         await self._async_save()
-        await self._async_align_wake(minutes)
+        try:
+            await self._async_align_wake(minutes)
+        except FraimicCloudError as err:
+            _LOGGER.warning("Could not align the wake album with the cloud album: %s", err)
 
     async def async_plan_wake(self, wake_at: float | None) -> None:
         """Keep a slot at ``wake_at`` on the wake album; None removes the album.
@@ -399,15 +411,13 @@ class FraimicCloudDelivery:
         """Give a sleeping frame a wake at the art album's first slot.
 
         Both albums then share one grid. The art album retires after that
-        slot, so without the wake the frame could sleep through it.
+        slot, so a failure here fails the delivery: the frame could sleep
+        through the slot and never show the image.
         """
         if self.wake_at is None or self.wake_at - time.time() < CLOUD_SLOT_LEAD_MINUTES * 60:
             # Too close to steer: the planned wake comes first and stays.
             return
-        try:
-            await self._async_point_wake_album(minutes)
-        except FraimicCloudError as err:
-            _LOGGER.warning("Could not align the wake album with a cloud image: %s", err)
+        await self._async_point_wake_album(minutes)
         await self._async_save()
 
     async def _async_drop_wake_album(self) -> None:
