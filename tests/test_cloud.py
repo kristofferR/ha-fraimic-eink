@@ -385,15 +385,20 @@ def test_cloud_preview_persists_only_accepted_artwork(delivery_module, accepted)
         assert (delivery.preview_png, delivery.preview_title) == (b"old-preview", "Old artwork")
         delivery._store.async_save.assert_not_awaited()
         return
-    asyncio.run(delivery.async_deliver(b"packed", title="New artwork", preview_png=b"rendered-preview"))
+    source = {"library_image": "image-1"}
+    asyncio.run(delivery.async_deliver(
+        b"packed", title="New artwork", preview_png=b"rendered-preview", source=source,
+    ))
     saved = delivery._store.async_save.call_args.args[0]
     restored = delivery_module.FraimicCloudDelivery(hass, entry, client, "canvas")
     restored._store = types.SimpleNamespace(async_load=AsyncMock(return_value=saved), async_save=AsyncMock())
     asyncio.run(restored.async_setup())
-    assert (restored.preview_png, restored.preview_title) == (b"rendered-preview", "New artwork")
+    assert (restored.preview_png, restored.preview_title, restored.preview_source) == (
+        b"rendered-preview", "New artwork", source
+    )
     asyncio.run(restored.async_clear_preview())
     cleared = restored._store.async_save.call_args.args[0]
-    assert cleared["preview_png"] is None and cleared["preview_title"] is None
+    assert cleared["preview_png"] is cleared["preview_title"] is cleared["preview_source"] is None
 
 
 @pytest.mark.parametrize("normal", [63, 363, 1440])
@@ -533,6 +538,10 @@ def test_a_deleted_album_is_recreated_for_a_wake(delivery_module):
     delivery.album_id, delivery.album_active, delivery.upload_id = "album", True, "image"
     delivery.async_deliver = AsyncMock()
 
-    assert asyncio.run(delivery.async_plan_wake(2_000_000_000.0, (b"bin", b"png", "Art"))) is True
-    delivery.async_deliver.assert_awaited_once_with(b"bin", title="Art", preview_png=b"png")
+    source = {"library_image": "image-1"}
+    carrier = (b"bin", b"png", "Art", source)
+    assert asyncio.run(delivery.async_plan_wake(2_000_000_000.0, carrier)) is True
+    delivery.async_deliver.assert_awaited_once_with(
+        b"bin", title="Art", preview_png=b"png", source=source
+    )
     assert delivery.album_id is None  # async_deliver creates the replacement

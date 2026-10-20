@@ -677,12 +677,12 @@ def _slide_payload(
 
 
 def _current_art(
-    current: ScreenConfig | None,
+    source: dict[str, Any] | None,
     library: FraimicLibrary | None,
     art: dict[str, Any],
 ) -> dict[str, Any]:
-    """Gallery reference and favorite state for the picture on the wall."""
-    source = (current.source or {}) if current is not None else {}
+    """Gallery reference and favorite state for a slide's picture."""
+    source = source or {}
     images = library.images.values() if library is not None else ()
     if library_id := source.get("library_image"):
         image = library.images.get(library_id) if library is not None else None
@@ -725,6 +725,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         scheduler.current_screen if scheduler.displayed_hash is not None else None
     )
     art = runtime.last_art or {}
+    library = get_library(hass)
     # Manual uploads confirm runtime metadata without a scheduler screen/hash.
     title = art.get("title") or runtime.media_title or (current.name if current else None)
     artist = art.get("artist")
@@ -816,6 +817,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "title": cloud.preview_title or "Artwork",
             "status": "submitted",
             "thumbnail_url": f"/api/fraimic/player/artwork/{entry.entry_id}?kind=cloud&v={quote(cloud.upload_id or '', safe='')}",
+            **_current_art(getattr(cloud, "preview_source", None), library, art),
         }
     delay_messages = {
         "daily_budget": "Daily redraw limit reached. Playback resumes when the budget resets.",
@@ -843,7 +845,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "title": title,
             "artist": artist,
             "thumbnail_url": artwork_url,
-            **_current_art(current, get_library(hass), art),
+            **_current_art(current.source if current else None, library, art),
         },
         "preview": preview,
         "playlist_id": playlist_id,

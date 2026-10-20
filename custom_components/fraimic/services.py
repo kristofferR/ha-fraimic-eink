@@ -928,6 +928,7 @@ async def async_render_and_upload(
     overlay_refresh: bool = False,
     overlay_inherit: bool = True,
     overlay_art: dict | None = None,
+    art_source: dict | None = None,
     upload_lock_held: bool = False,
 ) -> dict:
     """Convert ``raw`` image bytes and upload them to ``entry``'s frame.
@@ -948,6 +949,8 @@ async def async_render_and_upload(
     ``send_status`` sensor.
     ``rendered`` supplies an existing cached conversion for library pictures.
     ``cache_id`` enables the persistent cache for a fixed online picture.
+    ``art_source`` is the slide source kept with a cloud preview so the
+    player can still reference the picture in the gallery.
     """
     runtime = entry.runtime_data
     width = entry.data.get(CONF_WIDTH, DEFAULT_WIDTH)
@@ -1192,7 +1195,10 @@ async def async_render_and_upload(
                 else None
             )
             if use_cloud:
-                await async_deliver_cloud(entry, bin_data, title=title or "image", preview_png=preview_png)
+                await async_deliver_cloud(
+                    entry, bin_data, title=title or "image",
+                    preview_png=preview_png, source=art_source,
+                )
                 # Album acceptance schedules a future wake; it does not confirm
                 # a redraw. Keep the last known display and its power accounting.
                 queued = True
@@ -1275,12 +1281,19 @@ async def async_render_and_upload(
 
 
 async def async_deliver_cloud(
-    entry, bin_data: bytes, *, title: str, preview_png: bytes | None = None
+    entry,
+    bin_data: bytes,
+    *,
+    title: str,
+    preview_png: bytes | None = None,
+    source: dict | None = None,
 ) -> None:
     """Share cloud acceptance handling with already-rendered library/scene sends."""
     runtime = entry.runtime_data
     try:
-        await runtime.cloud.async_deliver(bin_data, title=title, preview_png=preview_png)
+        await runtime.cloud.async_deliver(
+            bin_data, title=title, preview_png=preview_png, source=source
+        )
     except FraimicCloudError as err:
         raise CloudDeliveryError(f"Could not deliver to the Fraimic cloud: {err}") from err
     if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID:

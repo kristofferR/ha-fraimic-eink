@@ -485,8 +485,13 @@ class AwakeWindow:
         runtime = self.entry.runtime_data
         overlays = runtime.temporary_overlays
         base = getattr(overlays, "base", None)
+        scheduler = runtime.scheduler
+        # Same rule as the player: external uploads clear the displayed hash.
+        shown = scheduler.current_screen if scheduler.displayed_hash is not None else None
         # Without a pending image, the art on the glass carries the slot.
-        carrier = None if base is None else (base[0], base[1], overlays.title)
+        carrier = None if base is None else (
+            base[0], base[1], overlays.title, shown.source if shown else None
+        )
         try:
             async with runtime.upload_lock:
                 return bool(await cloud.async_plan_wake(wake_at, carrier))

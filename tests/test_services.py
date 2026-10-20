@@ -276,7 +276,7 @@ def test_accepted_delivery_updates_only_confirmed_display(
     cloud_deliveries = []
 
     class Cloud:
-        async def async_deliver(self, data, *, title, preview_png):
+        async def async_deliver(self, data, *, title, preview_png, source=None):
             cloud_deliveries.append((data, title))
 
     runtime = SimpleNamespace(
@@ -468,7 +468,7 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
         if outcome == 'upload_error':
             raise services.FraimicConnectionError('connection lost during upload')
 
-    async def deliver(_data, *, title, preview_png):
+    async def deliver(_data, *, title, preview_png, source=None):
         events.append('cloud')
         assert runtime.sending_preview == (b'preview', 'Artwork')
 
