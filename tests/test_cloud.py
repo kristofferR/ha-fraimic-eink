@@ -468,6 +468,7 @@ def test_planning_a_wake_never_touches_the_art_album(delivery_module, monkeypatc
             "active": True,
             "schedule": {"type": "interval", "interval_value": 325, "interval_unit": "minutes"},
             "device_assignments": [{"device_id": "canvas"}],
+            "upload_ids": [],  # an image added in the app would redraw every wake
         },
     )
     assert client.async_create_album.await_count == 1
@@ -538,6 +539,27 @@ def test_failed_wake_alignment_fails_the_delivery(delivery_module, monkeypatch):
     # The frame would sleep through the art's slot: report it, so it is retried.
     with pytest.raises(delivery_module.FraimicCloudError):
         asyncio.run(delivery.async_deliver(b"bin", title="Art", preview_png=b"preview"))
+
+
+def test_failed_alignment_on_an_interval_change_is_retried(delivery_module, monkeypatch):
+    import asyncio
+
+    now = 1_800_000_000.0
+    delivery, client, _entry = _wake_delivery(delivery_module, monkeypatch, now)
+    delivery.album_id, delivery.wake_album_id, delivery.wake_at = "album", "wake", now + 86400
+
+    async def update(album_id, payload):
+        if album_id == "wake":
+            raise delivery_module.FraimicCloudError("down")
+        return {"updated_at": "2027-01-15T08:00:00+00:00"}
+
+    client.async_update_album.side_effect = update
+    asyncio.run(delivery.async_sync_interval(3600))
+    assert delivery.interval == 6 * 3600  # unchanged, so the next sync tries again
+    client.async_update_album.side_effect = None
+    asyncio.run(delivery.async_sync_interval(3600))
+    assert delivery.interval == 3600
+    assert client.async_update_album.await_args.args[0] == "wake"
 
 
 def test_a_wake_album_alone_still_needs_cleanup(delivery_module, monkeypatch):

@@ -350,13 +350,16 @@ class FraimicCloudDelivery:
             # Keep the old interval so the next sync retries the update.
             _LOGGER.warning("Could not update the cloud album schedule: %s", err)
             return
-        self.interval = interval
         self._set_anchor(album, minutes)
-        await self._async_save()
         try:
             await self._async_align_wake(minutes)
         except FraimicCloudError as err:
+            # Keep the old interval so the next sync retries both edits.
             _LOGGER.warning("Could not align the wake album with the cloud album: %s", err)
+            await self._async_save()
+            return
+        self.interval = interval
+        await self._async_save()
 
     async def async_plan_wake(self, wake_at: float | None) -> None:
         """Keep a slot at ``wake_at`` on the wake album; None removes the album.
@@ -387,6 +390,8 @@ class FraimicCloudDelivery:
             "active": True,
             "schedule": schedule_for_minutes(minutes),
             "device_assignments": [{"device_id": self.device_id}],
+            # Edits keep other fields, so drop any image added in the app.
+            "upload_ids": [],
         }
         if self.wake_album_id is not None:
             try:
@@ -401,7 +406,6 @@ class FraimicCloudDelivery:
                 "name": self.wake_album_name,
                 "description": "Managed by Home Assistant. Wakes the frame; never shows a picture.",
                 "playback_mode": "sequential",
-                "upload_ids": [],
                 **payload,
             }
         )
