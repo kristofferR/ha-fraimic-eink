@@ -142,6 +142,11 @@ class FraimicScheduler:
         return self._displayed_item.screen if self._displayed_item else None
 
     @property
+    def shown_screen(self) -> ScreenConfig | None:
+        """The slide on the glass; external uploads clear the displayed hash."""
+        return self.current_screen if self.displayed_hash is not None else None
+
+    @property
     def auto_enabled(self) -> bool:
         return self.queue.end_action == END_AUTO
 

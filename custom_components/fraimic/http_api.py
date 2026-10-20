@@ -721,9 +721,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     playlist_id = scheduler.playlist_id
     playlist_name = scheduler.playlist_name
     frame = _frame_payload(hass, entry)
-    current = (
-        scheduler.current_screen if scheduler.displayed_hash is not None else None
-    )
+    current = scheduler.shown_screen
     art = runtime.last_art or {}
     library = get_library(hass)
     # Manual uploads confirm runtime metadata without a scheduler screen/hash.

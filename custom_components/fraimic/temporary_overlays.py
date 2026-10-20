@@ -399,6 +399,7 @@ class TemporaryOverlays:
         if scheduler:
             scheduler.begin_external_upload()
         failed = False
+        shown = scheduler.shown_screen if scheduler else None
         try:
             # Read the retained base under the upload lock, after any preceding
             # manual artwork change. Never queue a time-sensitive rendered image.
@@ -409,6 +410,7 @@ class TemporaryOverlays:
                 hold_playlist=False,
                 trigger=TRIGGER_OVERLAY,
                 overlay_refresh=True,
+                art_source=shown.source if shown else None,
             )
             if (
                 not result.get("displayed")

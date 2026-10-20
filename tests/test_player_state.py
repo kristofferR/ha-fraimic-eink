@@ -77,8 +77,7 @@ def _entry(media_title=None, art=None, preview=None):
     scheduler = SimpleNamespace(
         playlist_id="playlist-1",
         playlist_name="Evening art",
-        current_screen=SimpleNamespace(name="Unconfirmed playlist slide"),
-        displayed_hash=None,
+        shown_screen=None,
         screens=[object()],
         playlist_interval=None,
         last_rotation=None,

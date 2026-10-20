@@ -104,8 +104,7 @@ def awake(monkeypatch):
         coordinator=SimpleNamespace(async_set_frame_online=Mock()),
         temporary_overlays=SimpleNamespace(base=(b"bin", b"png", "none"), title="Art"),
         scheduler=SimpleNamespace(
-            current_screen=SimpleNamespace(source={"library_image": "art"}),
-            displayed_hash="hash",
+            shown_screen=SimpleNamespace(source={"library_image": "art"}),
         ),
     )
     entry = SimpleNamespace(

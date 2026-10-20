@@ -407,9 +407,19 @@ def test_busy_scheduler_deferral_requests_immediate_persisted_retry(
 ):
     _, obj, _, _ = controller
     calls = install_delivery(monkeypatch, obj)
+    services = sys.modules["fraimic.services"]
+    deliver, sources = services.async_render_and_upload, []
+
+    async def record(*args, **kwargs):
+        sources.append(kwargs.get("art_source"))
+        return await deliver(*args, **kwargs)
+
+    services.async_render_and_upload = record
     scheduler = SimpleNamespace(
         busy=True,
         external_upload_active=False,
+        # The refresh resends the art on the glass, so it keeps its reference.
+        shown_screen=SimpleNamespace(source={"library_image": "art"}),
         begin_external_upload=lambda: None,
         finish_external_upload=lambda **_kwargs: None,
     )
@@ -425,6 +435,7 @@ def test_busy_scheduler_deferral_requests_immediate_persisted_retry(
         scheduler.busy = False
         await obj._async_tick()
         assert len(calls) == 1
+        assert sources == [{"library_image": "art"}]
 
     asyncio.run(run())
 
