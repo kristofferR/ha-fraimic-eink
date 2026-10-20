@@ -102,7 +102,9 @@ def awake(monkeypatch):
         client=SimpleNamespace(get_info=AsyncMock(), restart=AsyncMock()),
         upload_lock=asyncio.Lock(),
         coordinator=SimpleNamespace(async_set_frame_online=Mock()),
-        temporary_overlays=SimpleNamespace(base=(b"bin", b"png", "none"), title="Art"),
+        temporary_overlays=SimpleNamespace(
+            base=(b"bin", b"png", "none"), title="Art", source={"library_image": "art"}
+        ),
     )
     entry = SimpleNamespace(
         entry_id="large",
@@ -196,7 +198,7 @@ def test_window_end_sleeps_the_frame_with_a_heartbeat_wake(awake, has_image):
     awake.cloud.async_set_keep_awake.assert_awaited_with(False)
     # Without a pending image, the art on the glass carries the wake.
     awake.cloud.async_plan_wake.assert_awaited_with(
-        NOW + m.HEARTBEAT, (b"bin", b"png", "Art")
+        NOW + m.HEARTBEAT, (b"bin", b"png", "Art", {"library_image": "art"})
     )
     assert not awake.window.active and awake.window.resting
 

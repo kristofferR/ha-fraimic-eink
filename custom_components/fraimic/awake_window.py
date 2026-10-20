@@ -486,7 +486,9 @@ class AwakeWindow:
         overlays = runtime.temporary_overlays
         base = getattr(overlays, "base", None)
         # Without a pending image, the art on the glass carries the slot.
-        carrier = None if base is None else (base[0], base[1], overlays.title)
+        carrier = None if base is None else (
+            base[0], base[1], overlays.title, overlays.source
+        )
         try:
             async with runtime.upload_lock:
                 return bool(await cloud.async_plan_wake(wake_at, carrier))

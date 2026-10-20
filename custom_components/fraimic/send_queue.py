@@ -422,6 +422,7 @@ class FraimicSendQueue:
                         await controller.async_accept(
                             controller.base, controller.art, controller.title,
                             controller.inherit, signature, content_hash,
+                            source=controller.source,
                         )
                         runtime.last_overlay_count = overlay_count
 

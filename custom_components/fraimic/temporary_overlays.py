@@ -55,6 +55,8 @@ class TemporaryOverlays:
         )
         self.base = None
         self.art = None
+        # Slide source of the base artwork, kept for its gallery reference.
+        self.source = None
         self.title = "Artwork"
         self.inherit = True
         self.permanent = []
@@ -118,6 +120,7 @@ class TemporaryOverlays:
             self.base = None
             return
         self.art = saved.get("art")
+        self.source = saved.get("source")
         self.title = saved.get("title") or "Artwork"
         self.inherit = saved.get("inherit", True)
         self.permanent = saved.get("permanent", self._configured_permanent())
@@ -205,7 +208,8 @@ class TemporaryOverlays:
         return rendered, signature, count
 
     async def async_accept(
-        self, base, art, title, inherit, signature, content_hash, *, via_cloud=False
+        self, base, art, title, inherit, signature, content_hash, *,
+        via_cloud=False, source=None,
     ):
         title = title or "Artwork"
         active = self.active
@@ -222,6 +226,7 @@ class TemporaryOverlays:
             self.base == base
             and not permanent_changed
             and self.art == art
+            and self.source == source
             and self.title == title
             and self.inherit == inherit
             and self.last_signature == signature
@@ -238,6 +243,7 @@ class TemporaryOverlays:
             title,
             inherit,
         )
+        self.source = source
         self.last_signature = signature
         self.submitted_hash = content_hash
         self.submitted_via_cloud = via_cloud
@@ -268,6 +274,7 @@ class TemporaryOverlays:
                 "base": encoded,
                 "mode": self.base[2] if self.base else "none",
                 "art": self.art,
+                "source": self.source,
                 "title": self.title,
                 "inherit": self.inherit,
                 "permanent": self.permanent,

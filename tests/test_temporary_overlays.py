@@ -645,11 +645,16 @@ def test_saved_permanent_edits_wait_for_a_new_picture(controller, monkeypatch):
         obj.async_refresh.assert_not_awaited()
         # Temporary refreshes and restarts preserve the applied configuration.
         _, signature, _ = await obj.async_compose(obj.base, None, True, True)
-        await obj.async_accept(obj.base, None, obj.title, True, signature, "old")
+        source = {"library_image": "art"}
+        await obj.async_accept(
+            obj.base, None, obj.title, True, signature, "old", source=source
+        )
         assert applied[-1] == [old]
         restored = module.TemporaryOverlays(obj.hass, obj.entry)
         await restored.async_setup()
         assert restored.permanent == [old]
+        # The retained artwork keeps its gallery reference across restarts.
+        assert restored.source == source
         assert not restored.holds_playback
         # A new picture picks up the saved settings and commits that snapshot.
         _, signature, _ = await restored.async_compose(restored.base)

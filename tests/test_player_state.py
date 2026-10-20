@@ -172,6 +172,26 @@ def test_player_previews_submission_without_claiming_display(player_api, kind):
     assert preview["status"] == ("submitted" if kind == "cloud" else "sending")
 
 
+def test_cloud_preview_carries_its_gallery_reference(player_api, monkeypatch):
+    entry = _entry("Old artwork", preview=b"old-preview")
+    url = "https://www.clevelandart.org/art/1969.2"
+    entry.runtime_data.cloud = SimpleNamespace(
+        preview_png=b"cloud-preview", preview_title="Still Life", upload_id="upload-1",
+        preview_source={"provider": "cleveland", "provider_item": "315934",
+                        "metadata": {"source_page_url": url}},
+    )
+    saved = SimpleNamespace(
+        source_url=url, normalized_albums=lambda: [player_api.FAVORITES_ALBUM]
+    )
+    monkeypatch.setattr(
+        player_api, "get_library", lambda _: SimpleNamespace(images={"saved": saved})
+    )
+    preview = player_api._player_payload(SimpleNamespace(data={}), entry)["preview"]
+    assert (preview["source"], preview["item_id"], preview["favorite"]) == (
+        "cleveland", "315934", True
+    )
+
+
 @pytest.mark.parametrize("kind", ["confirmed", "cloud", "stale_cloud", "sending", "completed", "cloud_completed", "stale"])
 def test_artwork_serves_selected_preview_without_mixing_sends(player_api, monkeypatch, kind):
     import asyncio
