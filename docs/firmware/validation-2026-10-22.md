@@ -196,3 +196,42 @@ Private evidence: `standard-orientation-album-pass1.txt`,
 `orientation-table-comparison.json` and `compare-orientation-tables.mjs`.
 The public [model map](model-comparison.json) now has 34 function pairs and the
 decoded probe-table comparison. The broader checklist items remain open.
+
+## Voice response completeness and timeouts: C05/C07/C08
+
+The Large presign/finalize callers and matching SDK header/body readers were
+traced again. GNU confirms their single 4,095-byte read, lack of declared-length
+comparison, positive-prefix return on later transport failure, and reuse of the
+configured timeout on each transport read. It also distinguishes presign's missing
+zero-read buffer initialization from finalize's explicit termination. No undefined
+presign-buffer read was executed by the host fixture or sent to the frame.
+
+**Twelve host cases passed** with C11 warnings-as-errors and address/undefined
+behavior sanitizers. The fixture extracts seven unchanged functions/callbacks
+from ESP-IDF v5.4.1's HTTP client, uses that release's actual HTTP parser, and uses
+the same pinned cJSON source as the earlier fixtures. Transport/event/connection
+environment is stubbed; fixed-length HTTP messages go through the real parser.
+The recovered finalize caller's read-cap, termination and URL-field check are
+modeled around those functions. Delays are virtual and do not sleep.
+
+The [voice contract](voice.md#body-completeness-and-timeout-scope) records the
+results. This is a selected-source host harness, not an ESP-IDF application or
+Xtensa emulator. It omits TLS, sockets, cancellation concurrency, allocation
+failure, the 15-minute outer wait and watchdogs. Positive JSON-prefix results do
+not establish physical display or a reliable recovery behavior.
+
+Reproducibility SHA-256 values:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| HTTP client source, ESP-IDF v5.4.1 | `7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2` |
+| HTTP parser source, same release | `c164edcb06099b026e7ed853ed4d25536e83b4463d5e79921b28621e16588455` |
+| Selected unchanged SDK functions | `965c4cf08b3eec4b2cfea18f69b72b189ec007dd60b55af663de55e55aac0e24` |
+| Host fixture | `251d40db44b67efe9d3678bf81ad643cf775dad53c3c53f240eed4e87843a5e9` |
+
+Sources: [HTTP client](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/esp_http_client.c)
+and [HTTP parser](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/http_parser/http_parser.c).
+Private artifacts include `voice-http-read-pass1.txt`,
+`voice-http-boundaries-gnu.txt`, `voice-http-fixture.c`,
+`prepare-voice-http-fixture.mjs`, `voice-http-results.jsonl` and
+`voice-http-source-hashes.json`. C05/C07/C08 remain open for broader coverage.

@@ -1345,6 +1345,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x42026969",
+      "kind": "call_site",
+      "role": "Presign single bounded response read; no declared-length completeness comparison",
+      "evidence": "static; voice response boundary follow-up, GNU cross-check"
+    },
+    {
+      "address": "0x42026a25",
+      "kind": "call_site",
+      "role": "Presign JSON parse reached after zero/skipped read without response-buffer termination",
+      "evidence": "static; voice response boundary follow-up, GNU cross-check"
+    },
+    {
       "address": "0x42026b9c",
       "kind": "function",
       "role": "Multipart WAV upload",
@@ -1373,6 +1385,18 @@
       "kind": "function",
       "role": "Audio finalize request/parser",
       "evidence": "static"
+    },
+    {
+      "address": "0x420276bb",
+      "kind": "call_site",
+      "role": "Finalize single bounded response read; JSON prefix accepted without HTTP completeness check",
+      "evidence": "static; voice response boundary follow-up, GNU cross-check"
+    },
+    {
+      "address": "0x420278a0",
+      "kind": "instruction",
+      "role": "Finalize terminates response buffer even when received length is zero",
+      "evidence": "static; voice response boundary follow-up, GNU cross-check"
     },
     {
       "address": "0x420282f8",

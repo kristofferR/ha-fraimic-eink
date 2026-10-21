@@ -42,6 +42,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Diagnostic-storage static follow-up | Fixed detail cookie, visibility classes, 64 KiB whole-history reset, truncation/mutex losses and unchecked single-snapshot persistence | Live bypass/clear behavior, measured log-loss rates, filesystem faults, panic persistence or complete capture |
 | Orientation static follow-up | Fixed software sensor target, ineffective alternative detection, two-way absolute-axis comparison/error fallback and post-upload voice sampling | Physical part marking, four-way mounting, actual motion/read faults or sample coherence |
 | Standard orientation/album comparison | Matching decoded sensor candidates, relevant orientation/caller branches and album-body transformation structure | Physical sensor equivalence, execution of host fixtures on Xtensa or all proxy/error paths |
+| Voice response static and host follow-up | 12 actual-SDK-reader/parser cases with scripted transport; partial-prefix acceptance, read-cap behavior and per-read timeout scope; separate static presign zero-read hazard | Device response faults, real elapsed waits, TLS, full firmware execution, outer task cleanup or watchdog behavior |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -138,6 +139,8 @@ This check can run entirely on the host without sending anything to the frame.
 | “Any 2xx audio-upload response succeeds” | The header-reader result is wrongly treated as an error code; use an empty acknowledgment |
 | “WAV preparation makes a separate copy” | Header is written into the shared audio/image allocation |
 | “A finalize job ID can be polled later” | Stock flow requires a ready image URL in a synchronous HTTP 200 |
+| “Finalize's timeout is a total request deadline” | Its configured timeout is reused per transport read; a separate outer task wait has different cleanup semantics |
+| “Parsed voice JSON proves the response arrived completely” | The caller parses one bounded read without comparing it to the declared length; a partial HTTP body can contain an accepted JSON prefix |
 | “A successful upload means the panel/cache is updated” | It can mean rendering started even if cache saving failed |
 | “Download complete means a complete panel image” | HTTP length can match a short asset; later worker rejection does not reliably stop cache replacement |
 | “A retry resumes the image or renews its ticket” | The recovered poll/voice loops reuse the same URL and restart from byte zero |

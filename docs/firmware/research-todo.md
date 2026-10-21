@@ -41,7 +41,7 @@ per question, not a count of tool calls or decompiled functions.
 | C01/C11 | Setup minimum-parser fields, saved-key behavior and sign-in/verification split traced; automatic redirect request/body handling mapped | Independent enrollment, controlled redirect/framing cases and remaining boot dependencies |
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
 | C03 | Local panel/TLS controls completed; static downloader length/framing, same-URL retries and short-asset behavior mapped | Device response faults, other TLS consumers and Standard negative controls |
-| C05/C06/C07 | Large local 200/empty acknowledgment and successful finalize; Standard vendor 204 upload and finalize without status completed with owner-confirmed generation | Response faults, capture limits, slow/timeout behavior and cancellation |
+| C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C07/C08/D05 | Task creation/WAV lifetime and cancellation windows traced; pending poll can interrupt recording even without a usable image URL; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
@@ -73,8 +73,8 @@ Recovery/security/partition questions still need additional evidence; the stock
 app cannot answer them alone. B01–B03 remain deferred.
 The owner deferred the physical cancellation experiment. Continue static work;
 the prepared fixture is stopped and does not need another recording now.
-Batch research and documentation into larger checkpoints. Keep the current
-follow-up local; do not push each incremental finding.
+Commit and push completed, validated research batches periodically. The owner
+requested more frequent checkpoints after the accumulated static passes.
 
 ## Local cloud and voice
 
@@ -107,6 +107,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
 - [ ] **C07 · Host/Device:** Exercise finalize with slow responses, timeout, non-200
   statuses, missing URL, status variants, chunked/missing length, truncated/oversized
   JSON and network retry. Establish end-to-end timeout behavior through the proxy.
+  Twelve host cases now cover selected fixed-length reader/parser boundaries;
+  incomplete HTTP bodies can supply accepted JSON prefixes. Per-transport timeout
+  is not an absolute request deadline. Device faults and outer-worker lifetime remain.
 - [ ] **C08 · Host/Device:** Trace cancellation through recording, upload, finalize,
   download and rendering. Determine what the backend observes on disconnect and
   what work continues; verify retry/idempotency and stale-result behavior.

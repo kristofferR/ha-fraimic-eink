@@ -203,6 +203,64 @@ Hold finalize until the panel asset is ready. Align reverse-proxy timeouts with
 the long request. Persist the job and deduplicate finalize calls so a retry does
 not pay for another generation or create duplicate library entries.
 
+### Body completeness and timeout scope
+
+The 4,095-byte limit is a **single read capacity**, not a check that the declared
+response fits or was completely received. Large presign `0x420266d8` and finalize
+`0x42027380` call `0x4206d6a4` once when the fetched length is positive, then parse
+the returned prefix. Neither compares received bytes with the declared length
+or calls the SDK's completeness predicate before parsing. There is no application
+loop to finish an oversized JSON response.
+
+The reader itself can perform several transport reads within that call. Its
+GNU-checked timeout/error branches return already received bytes when available,
+including bytes cached while fetching headers. A timeout with no bytes returns
+`-0x7007`. Thus the final outcome depends on whether the returned prefix happens
+to contain a complete JSON value, not simply on whether the HTTP body finished.
+The permissive cJSON parser also accepts a complete value followed by other input.
+
+Twelve host cases used unmodified selected ESP-IDF 5.4.1 reader/header functions,
+its real HTTP parser and the pinned cJSON source, with a scripted transport:
+
+| Host case | Result |
+| --- | --- |
+| Exact or split complete response | JSON accepted; HTTP body complete |
+| Timeout before any body bytes | Negative EAGAIN result; no JSON accepted |
+| Complete JSON prefix, then timeout/FIN/error before declared length | Positive prefix returned; JSON accepted despite incomplete HTTP body |
+| Incomplete JSON prefix, then timeout | Positive prefix returned; JSON rejected |
+| 5,000-byte response with complete JSON at the start | Only 4,095 bytes returned; JSON accepted while HTTP body remains incomplete |
+| 5,000-byte object whose required field/end lies past the read cap | Prefix rejected |
+| Several successful reads, each below the configured timeout | Aggregate simulated time exceeded that timeout |
+| Empty finalize response | Empty string rejected |
+
+The 600,000 ms setting is passed anew to individual transport reads; it is not
+an absolute finalize deadline. Header reception and body reception both use it.
+The host case simulated 599 seconds for headers and for each of two body reads,
+totalling 1,797 seconds without a real wait. This demonstrates the SDK boundary,
+**not** a physical frame surviving that delay: the separate 15-minute outer wait,
+task lifetime and watchdog behavior are outside the fixture. The processing-time
+value copied into the finalize result is sampled after headers and before the
+body read, so it excludes a slow response body.
+
+Presign has an additional static edge: it terminates its local response buffer
+only after a positive read. A skipped/zero read followed by HTTP 200 reaches
+`cJSON_Parse` without that initialization; the earlier `memset` clears only the
+HTTP configuration immediately before the response buffer. Finalize explicitly
+terminates even its zero-length result. The presign path is an untested
+uninitialized-buffer hazard, not a reproduced crash or reliable empty-response
+fallback; the host fixture deliberately does not execute it.
+
+For an emulator, construct the small complete JSON first, set its exact positive
+length, and send headers/body together when ready. Do not drip a JSON response
+as a progress mechanism. Keep transcripts and generation metadata in the backend
+job instead of expanding this response. Body reception occurs after unregistering
+the active HTTP client, so a long body also extends the existing socket-cancel
+gap. A future firmware fix needs bounded accumulation, explicit completion checks,
+an absolute operation deadline and cancellation covering the entire request.
+
+The [validation record](validation-2026-10-22.md#voice-response-completeness-and-timeouts-c05c07c08)
+records source hashes and fixture limits. No response fault was sent to a frame.
+
 The [panel-download trace](image-downloads.md) maps the separate image stage:
 up to three attempts reuse the same URL and restart at byte zero. There is no
 ticket renewal through another finalize call in that retry loop. The downloader
