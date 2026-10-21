@@ -323,3 +323,25 @@ concurrent producer was exercised. Private evidence: `instruction-lifetime-pass1
 `instruction-lifetime-pass2.txt`, `instruction-lifetime-boundaries-gnu.txt`,
 `instruction-lifetime-literals.jsonl` and `instruction-lifetime-gnu.mjs`, plus
 the earlier render-start export in `concurrency-pass3.txt`.
+
+## Onboarding GET contracts and identity cache: H05/N03/C11
+
+Two reference passes and twelve GNU instruction ranges cover the completion/form/
+verification/root/captive-page handlers, lazy accessor, default copy and identity
+loader. GNU confirms that the loader retains the namespace-open result in its
+return register while per-field read errors take fallback branches. It also
+confirms initialized-before-load ordering and the unchecked default-save call on
+the lazy accessor's open-error path. Bounded literal reads establish empty default
+identity strings and the form template without reading any installed credentials.
+
+The [local route contract](local-api.md#onboarding-page-reads-and-local-verification)
+and [cache semantics](storage-and-configuration.md#identity-cache-and-read-errors)
+separate ordinary cached GET behavior from the conditional first-use fallback.
+No live GET, page script, NVS failure or account write was exercised. This does not
+claim every status read writes storage, that a transient read necessarily erases
+identity, or that a cached verified flag proves current cloud authentication.
+
+Private evidence: `onboarding-reads-pass1.txt`, `onboarding-reads-pass2.txt`,
+`onboarding-reads-boundaries-gnu.txt`, `onboarding-reads-literals.jsonl` and
+`onboarding-reads-gnu.mjs`. Ghidra's loader `void` prototype is superseded by the
+return-register check; no firmware bytes were changed.

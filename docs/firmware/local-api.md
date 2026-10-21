@@ -17,12 +17,12 @@ recovered role; they are not complete request schemas.
 
 | Method | Path | Role / effect |
 | --- | --- | --- |
-| GET | `/complete` | Onboarding completion |
+| GET | `/complete` | Completion HTML; does not itself complete pairing |
 | GET | `/create-account` | Account creation page |
 | POST | `/create-account` | Account creation / configuration writes |
 | GET | `/sign-in` | Sign-in page |
 | POST | `/sign-in` | Authentication / configuration writes |
-| GET | `/api/verification-status` | Account verification check |
+| GET | `/api/verification-status` | Cached local verification flag |
 | GET | `/` | Portal entry page |
 | GET | `/scan.json` | Wi-Fi scan results |
 | POST | `/connect` | Wi-Fi connection configuration |
@@ -30,7 +30,7 @@ recovered role; they are not complete request schemas.
 | GET | `/generate_204` | Captive-portal handling |
 | GET | `/connecttest.txt` | Captive-portal handling |
 | GET | `/connect` | Connection page |
-| GET | `/wifi` | Portal redirection |
+| GET | `/wifi` | Same embedded HTML as captive-portal probe routes |
 | GET | `/upload` | Upload page |
 | POST | `/upload` | Multipart image upload and render |
 | GET | `/action` | Portal actions; not a generic read endpoint |
@@ -132,6 +132,39 @@ deadline. An active blocking handler can delay it. If the control-message send
 fails, stop returns an error, but the application still clears its saved handle.
 This is a static failure-path finding, not an observed leaked server or sleep
 hang. The physical sleep and shutdown cases remain open.
+
+## Onboarding page reads and local verification
+
+These GET handlers have distinct meanings despite their setup-oriented names:
+
+| Route | Recovered handler behavior |
+| --- | --- |
+| `/` | HTTP 302 to `/get-started` when the cached email is empty, otherwise `/portal`; does not require verified=true or a usable voice user ID |
+| `/get-started` | Serve embedded HTML; the handler does not invoke the e-ink instruction downloader |
+| `/complete` | Serve completion HTML/links; no pairing save, verification promotion or device-side network request in the handler |
+| `/sign-in`, `/create-account` | Serve form HTML with the cached email prefilled; no upstream account request until form submission |
+| `/api/verification-status` | `{"verified":true}` or `{"verified":false}` from cached byte `+0x106`, with `Cache-Control: no-store, no-cache, must-revalidate` |
+| `/wifi`, `/hotspot-detect.html`, `/generate_204`, `/connecttest.txt` | Same embedded HTML handler; no HTTP 204, special OS probe body or HTTP redirect is selected based on the route name |
+
+Verification-status performs no fresh vendor check and does not report the
+verification task's running flag, retries, errors or response state. Its cache
+header controls browser/proxy caching, not the firmware's identity cache. Backend
+UI should distinguish local verified state, usable identity and active enrollment.
+
+The form handlers insert the saved email directly into a single-quoted HTML
+attribute, without an HTML-escaping call in those handlers. A future firmware UI
+should escape that text; no crafted email was stored or browser behavior tested.
+These notes describe the C handlers, not a complete execution audit of scripts
+in every embedded page.
+
+The identity accessor used here, `0x4201912c`, is lazy: once its initialized byte
+is set it returns the RAM configuration directly. Only its first-use branch
+copies defaults, marks initialized, and loads NVS. If opening that namespace
+fails, it attempts to save defaults and ignores that save result. This is a
+conditional initialization side effect, **not a write on every GET**. Startup
+normally initializes the cache before serving these pages. Per-field read errors
+are separately defaulted by the loader; see
+[identity error handling](storage-and-configuration.md#identity-cache-and-read-errors).
 
 ## Diagnostics have side effects
 

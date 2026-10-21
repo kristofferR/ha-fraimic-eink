@@ -174,6 +174,34 @@ The saved key comes from the local request, not the setup response's key. Email
 nonempty and verified=true are insufficient to prove a nonempty user ID for
 voice. See the [enrollment parser and callers](cloud-protocol.md#enrollment-boundary).
 
+### Identity cache and read errors
+
+Accessor `0x4201912c` returns the global configuration at `0x3fca6b50`. Its
+initialized byte at `0x3fca6b4d` is set by default-copy helper `0x42017544`
+**before** the lazy NVS load. Repeated accessor calls then use RAM, rather than
+retrying that load. Explicit refresh `0x42019294` and startup initialization are
+separate paths. The accessor is used by status, registration/verification getters,
+voice identity lookup, album routes and calendar code as well as the setup pages.
+
+The loader returns the NVS-open result; a successful open remains success even
+when individual reads fail. It substitutes empty email/device-key/user-ID strings,
+`EST5EDT` for a timezone read error, and false for verification read failure.
+Missing keys, wrong types, excessive stored string lengths and other field errors
+are not distinguished by the application fallback branches. A partially defaulted
+configuration can therefore be treated as loaded successfully.
+
+If the lazy loader instead fails to open the namespace, the accessor attempts to
+persist its default configuration and ignores the saver result. Missing namespace
+on a new unit and a transient open failure share that branch. It is not a
+transactional repair or a guarantee that identity was erased. Normal initialized
+GET requests take neither that load nor the default-save path. No NVS fault,
+first-use race, identity loss or cache-reload experiment was induced.
+
+For a fork, distinguish missing/unprovisioned data from read errors, preserve
+usable cached identity on transient failures, and expose load health separately
+from the account's verified flag. Do not turn a failed identity read into a
+blanket default save during a status request.
+
 ## Vendor environment switch
 
 The password-gated `/dev` entry selects vendor staging, not an arbitrary local

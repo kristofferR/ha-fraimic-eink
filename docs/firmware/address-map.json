@@ -142,6 +142,18 @@
       "evidence": "static; offline-time follow-up"
     },
     {
+      "address": "0x3fca6b4d",
+      "kind": "global",
+      "role": "Identity-cache initialized byte; set before lazy load",
+      "evidence": "static; 22 October onboarding-read follow-up"
+    },
+    {
+      "address": "0x3fca6b50",
+      "kind": "global",
+      "role": "Cached 263-byte identity configuration returned to status, calendar and cloud callers",
+      "evidence": "static; 22 October onboarding-read follow-up"
+    },
+    {
       "address": "0x3fca7470",
       "kind": "data",
       "role": "Local HTTP server handle; nonzero startup skips route registration",
@@ -700,10 +712,16 @@
       "evidence": "static"
     },
     {
+      "address": "0x42017544",
+      "kind": "function",
+      "role": "Copy default identity configuration and mark cache initialized",
+      "evidence": "static; 22 October onboarding-read follow-up"
+    },
+    {
       "address": "0x42017560",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "GET /complete: HTML only, no pairing completion mutation",
+      "evidence": "static; 22 October onboarding-read follow-up",
       "routes": [
         "GET /complete"
       ]
@@ -753,8 +771,8 @@
     {
       "address": "0x420189c0",
       "kind": "function",
-      "role": "Load per-mode identity and shared timezone",
-      "evidence": "static"
+      "role": "Load mode-selected identity and shared timezone; return namespace-open result, silently default individual key read failures",
+      "evidence": "static; 22 October onboarding-read follow-up"
     },
     {
       "address": "0x42018af0",
@@ -772,10 +790,16 @@
       ]
     },
     {
+      "address": "0x4201912c",
+      "kind": "function",
+      "role": "Lazy identity accessor; first-load namespace-open error triggers unchecked default save, later calls return cached RAM",
+      "evidence": "static; 22 October onboarding-read follow-up"
+    },
+    {
       "address": "0x42019168",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "GET /api/verification-status: cached verified boolean and browser no-cache headers",
+      "evidence": "static; 22 October onboarding-read follow-up",
       "routes": [
         "GET /api/verification-status"
       ]
@@ -783,8 +807,8 @@
     {
       "address": "0x420191b4",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "GET /sign-in: embedded form with unescaped cached email attribute",
+      "evidence": "static; 22 October onboarding-read follow-up",
       "routes": [
         "GET /sign-in"
       ]
@@ -792,8 +816,8 @@
     {
       "address": "0x42019224",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "GET /create-account: embedded form with unescaped cached email attribute",
+      "evidence": "static; 22 October onboarding-read follow-up",
       "routes": [
         "GET /create-account"
       ]
@@ -828,8 +852,8 @@
     {
       "address": "0x4201b290",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "GET /: 302 to /get-started or /portal based on cached nonempty email",
+      "evidence": "static; 22 October onboarding-read follow-up",
       "routes": [
         "GET /"
       ]
@@ -846,8 +870,8 @@
     {
       "address": "0x4201b38c",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "GET /get-started: embedded HTML, not the e-ink instruction display trigger",
+      "evidence": "static; 22 October onboarding-read follow-up",
       "routes": [
         "GET /get-started"
       ]
@@ -864,8 +888,8 @@
     {
       "address": "0x4201b3d8",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "Shared embedded HTML handler for /wifi and three captive-portal probe routes",
+      "evidence": "static; 22 October onboarding-read follow-up",
       "routes": [
         "GET /hotspot-detect.html",
         "GET /generate_204",
