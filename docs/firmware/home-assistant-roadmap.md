@@ -239,6 +239,15 @@ worker's completion semaphore is also released on failure. Neither can substitut
 for a per-content success result. Firmware events must include propagated driver
 errors; see [rendering and concurrency](rendering-and-concurrency.md).
 
+Likewise, `/api/info`'s `settings.voice_recording` is an enable preference,
+`wifi.connected` is station connectivity, and `display.next_refresh` is a
+maintenance deadline. None reports an active voice job. The timestamps have no
+offset. Preserve unknown/missing values and use the device's timezone context;
+see [snapshot semantics](local-api.md#interpreting-the-json-status-snapshot).
+The server handles local requests in one task, so serialize large transfers and
+avoid overlapping diagnostic polls. A delayed status response alone does not
+prove that the frame lost Wi-Fi.
+
 Use HA's existing scheduler as the source of truth for playlist progression and
 let the adapter publish the next deadline. Avoid independent push and pull loops
 competing over the same frame. Preserve voice holds and external-upload semantics,

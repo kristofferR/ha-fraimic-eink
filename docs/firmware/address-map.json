@@ -28,6 +28,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c13bd98",
+      "kind": "data",
+      "role": "88-byte HTTP server base configuration; effective values include application overrides",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
       "address": "0x3c13ff68",
       "kind": "data",
       "role": "41 LED state records, 24 bytes each, table order differs from state-ID order",
@@ -124,6 +130,18 @@
       "evidence": "static; offline-time follow-up"
     },
     {
+      "address": "0x3fca7470",
+      "kind": "data",
+      "role": "Local HTTP server handle; nonzero startup skips route registration",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x3fca7590",
+      "kind": "data",
+      "role": "Factory microphone active flag, distinct from ordinary voice recording",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
       "address": "0x3fca75c8",
       "kind": "state",
       "role": "Recording state mutex handle storage",
@@ -206,6 +224,12 @@
       "kind": "function",
       "role": "SPI transmit wrapper: queue transaction, wait for result, assert descriptor identity",
       "evidence": "static"
+    },
+    {
+      "address": "0x40381d68",
+      "kind": "function",
+      "role": "Fatal ESP_ERROR_CHECK implementation used by account route registration",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x42000e28",
@@ -452,6 +476,12 @@
       "kind": "function",
       "role": "Retry five-attempt synchronization when associated and time flag is false",
       "evidence": "static; offline-time follow-up"
+    },
+    {
+      "address": "0x4201589c",
+      "kind": "function",
+      "role": "Voice-enabled preference getter, also exposed as settings.voice_recording",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x420158b4",
@@ -712,6 +742,24 @@
       ]
     },
     {
+      "address": "0x4201978c",
+      "kind": "function",
+      "role": "Register six account/configuration routes, aborting on a registration error",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4201a69c",
+      "kind": "function",
+      "role": "Configure and start local HTTP server; register 42 routes across four groups",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4201ab08",
+      "kind": "function",
+      "role": "Wi-Fi/IP event callback including fallback-AP and acquired-IP HTTP startup",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
       "address": "0x4201b290",
       "kind": "function",
       "role": "Local HTTP handler",
@@ -874,6 +922,12 @@
       ]
     },
     {
+      "address": "0x4201d528",
+      "kind": "function",
+      "role": "Start AP+STA setup mode, DNS task and HTTP server",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
       "address": "0x4201d8f0",
       "kind": "function",
       "role": "Enable fallback AP+station mode and DNS task; also called when button wait finds unsynchronized time",
@@ -902,6 +956,12 @@
       "routes": [
         "GET /portal"
       ]
+    },
+    {
+      "address": "0x4201eae0",
+      "kind": "function",
+      "role": "Save Wi-Fi statistics and stop HTTP/network; HTTP stop result unchecked",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x4201ebbc",
@@ -935,6 +995,12 @@
       "kind": "call_site",
       "role": "Auto-update getter reference in HTML info",
       "evidence": "static"
+    },
+    {
+      "address": "0x4201fca4",
+      "kind": "function",
+      "role": "Factory microphone worker: read 4096-byte blocks and replace peak-to-peak/min/max statistics",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x4201fd90",
@@ -971,6 +1037,30 @@
       "kind": "function",
       "role": "WAV cleanup compatibility helper; no free, zero or worker join",
       "evidence": "static; cancellation lifetime follow-up"
+    },
+    {
+      "address": "0x420202bc",
+      "kind": "function",
+      "role": "Start factory microphone task, rejecting ordinary recording and checking task creation",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x42020418",
+      "kind": "function",
+      "role": "Clear factory microphone flag; bounded task-handle wait without a final failure result",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x42020474",
+      "kind": "function",
+      "role": "Read factory microphone active flag",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x42020488",
+      "kind": "function",
+      "role": "Read three factory microphone statistics without an atomic snapshot lock",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x420204b8",
@@ -1103,6 +1193,18 @@
       "kind": "function",
       "role": "LED workflow-protection getter; false when mutex unavailable",
       "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x42023210",
+      "kind": "function",
+      "role": "Emergency LED off wrapper used on factory-page entry and microphone stop",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x42023234",
+      "kind": "function",
+      "role": "Start independent LED test task without checking creation result",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x420233b0",
@@ -1327,6 +1429,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42029e64",
+      "kind": "function",
+      "role": "Register battery/status route, returning registration failure",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
       "address": "0x42029ed0",
       "kind": "function",
       "role": "Cable-state detection candidate",
@@ -1400,6 +1508,12 @@
       "kind": "function",
       "role": "Record OTA failure details",
       "evidence": "static"
+    },
+    {
+      "address": "0x4202b954",
+      "kind": "function",
+      "role": "Copy initialized 19-byte firmware-info structure used by api/info",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x4202b984",
@@ -1564,6 +1678,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202ffd0",
+      "kind": "function",
+      "role": "Serialize/free JSON tree, send response and free text; explicit serialization failure",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
       "address": "0x42030064",
       "kind": "function",
       "role": "Common authenticated album cloud proxy",
@@ -1670,6 +1790,12 @@
       "kind": "call_site",
       "role": "Auto-update getter reference in JSON info",
       "evidence": "static"
+    },
+    {
+      "address": "0x420310b0",
+      "kind": "function",
+      "role": "Register ten integration API routes sequentially; return on first registration failure",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x4203953c",
@@ -1838,6 +1964,54 @@
       "kind": "function",
       "role": "HTTP perform state machine and redirect replay",
       "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4206f0c4",
+      "kind": "function",
+      "role": "HTTP session callback, skipping async-owned sessions and processing other requests inline",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4206f34c",
+      "kind": "function",
+      "role": "HTTP listening/control socket initialization",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4206f7d0",
+      "kind": "function",
+      "role": "HTTP select loop, control messages, serial session processing and connection acceptance",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4206f944",
+      "kind": "function",
+      "role": "Single HTTP server task loop and socket cleanup",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4206f9d4",
+      "kind": "function",
+      "role": "SDK HTTP server startup and task creation",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4206fa88",
+      "kind": "function",
+      "role": "SDK HTTP stop: send shutdown control message, then wait for task without overall deadline",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4207135c",
+      "kind": "function",
+      "role": "SDK trailing wildcard URI matcher selected by application startup",
+      "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x42071464",
+      "kind": "function",
+      "role": "SDK URI registration helper",
+      "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
       "address": "0x420af6e4",

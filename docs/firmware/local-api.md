@@ -66,6 +66,73 @@ entire local server authenticated. Restrict access to the intended LAN; an
 emulator should keep its owner/admin interface authenticated and use separate,
 device-scoped credentials for frame traffic.
 
+## Server capacity and lifecycle
+
+Large startup helper `0x4201a69c` copies the 88-byte configuration at
+`0x3c13bd98`, then overrides stack size, handler/header capacity, timeouts and
+URI matching before calling `httpd_start` (`0x4206f9d4`). Reading the actual
+constant and its writes gives these effective values; they are not assumptions
+based on SDK defaults. Field layout matches the
+[IDF 5.4.1 configuration structure](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_server/include/esp_http_server.h).
+
+| Field | Effective value |
+| --- | --- |
+| HTTP port | 80 |
+| Internal control port | 32768 |
+| Task priority / stack | 5 / 20,480 bytes |
+| Core affinity | `0x7fffffff`, no affinity |
+| Task memory capabilities | `0x804`, internal and 8-bit accessible |
+| Client socket slots / listen backlog | 7 / 5 |
+| URI handler slots / response-header slots | 43 / 16 |
+| Socket receive / send timeout | 60 seconds each |
+| LRU session purging | Disabled |
+| TCP keepalive / socket linger | Disabled |
+| Custom open/close callbacks and global contexts | Null |
+| URI matcher | Wildcard helper `0x4207135c` |
+
+TCP keepalive here means TCP-level probes, not whether HTTP connections can be
+reused. The socket timeout is not a whole-request deadline. A body-reading loop
+can make several calls, and cloud requests have their own limits. The 16-header
+setting is response capacity, not an incoming-header length limit.
+
+The configured seven clients share one server task, `0x4206f944`, which runs the
+select/session loop at `0x4206f7d0`. The recovered upload, scan and album-proxy
+handlers perform their blocking work inline; they do not hand those operations
+to the SDK's asynchronous-request API. Consequently, a slow request can delay
+unrelated status/control requests on other sockets. This follows the binary
+and the [matching SDK loop](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_server/src/httpd_main.c),
+but no concurrency or socket-exhaustion fault was induced. HA should serialize
+device operations and avoid overlapping diagnostic polls with large uploads.
+Background voice/display tasks remain separate and can still contend for the
+shared image buffer.
+
+Registration comprises 25 portal routes, six account/configuration routes, one
+battery route and ten integration API routes: 42 entries in 43 available slots.
+There is no common transactional registration check:
+
+| Registration group | Failure handling in this build |
+| --- | --- |
+| Portal, inside `0x4201a69c` | Individual registration results are ignored |
+| Account/configuration, `0x4201978c` | Each error calls fatal `ESP_ERROR_CHECK` path `0x40381d68` |
+| Battery, `0x42029e64` | Return error; caller logs it and continues |
+| Integration API, `0x420310b0` | Stop at first failure; earlier routes remain; caller logs and continues |
+
+The fatal account-registration path prints the failed expression and enters a
+nonreturning abort routine, matching
+[the SDK error-check implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_system/esp_err.c).
+It must not be described as another recoverable registration error. In the
+nonfatal cases, the final server-started message does not establish that all
+routes exist. Calling the startup helper again while handle `0x3fca7470` is
+nonzero returns success immediately, without retrying missing registrations.
+
+Teardown `0x4201eae0` saves Wi-Fi statistics and calls `httpd_stop`
+(`0x4206fa88`) before the later network shutdown. That stop sends a control
+message and waits for the HTTP task to stop; its wait has no separate overall
+deadline. An active blocking handler can delay it. If the control-message send
+fails, stop returns an error, but the application still clears its saved handle.
+This is a static failure-path finding, not an observed leaked server or sleep
+hang. The physical sleep and shutdown cases remain open.
+
 ## Diagnostics have side effects
 
 **Bare `GET /action` defaults to `mode=reset`.** Handler `0x4201c740` initializes
@@ -79,6 +146,13 @@ starts a roughly ten-minute timeout and changes normal background behavior. It
 is unsuitable as a passive liveness check. The page contains controls that can
 reset pairing/settings; the POST handler is `0x4201ba9c`.
 
+The GET handler uses a 64-byte query buffer and a 32-byte action buffer. If query
+retrieval fails, including because the complete query does not fit, the action
+stays empty and enters the same landing-page branch. The factory flag and timer
+are set before HTML allocation, so an allocation error can follow entry into
+that mode. This branch also invokes emergency LED-off helper `0x42023210`,
+which bypasses ordinary workflow protection.
+
 `GET /test?action=battery` follows a separate read branch and returns voltage,
 percentage, charging and available gauge diagnostics. Other GET branches include
 touch, microphone statistics and accelerometer diagnostics; some initialize
@@ -87,6 +161,48 @@ The OTA test is `GET /action?mode=ota`, using the older manifest path and
 registration checks; it is not a distinct updater in `POST /test`. Inspection of
 that POST handler, including GNU decoding beyond Ghidra's truncated upload branch,
 found microphone, touch, accelerometer and image-upload actions.
+
+### Factory diagnostic contract
+
+These are statically recovered operations, not endpoints exercised in this pass.
+The `action` selector is in the query for both GET and POST. An unrecognized
+action returns `400` with `{"error":"unknown_action"}`. The POST handler does
+not require that the factory landing page was opened first.
+
+| GET action | Response and side effects |
+| --- | --- |
+| `touch` | `{"count":<integer>}`; first call configures GPIO 2, then a sampled high-to-low edge increments the counter and triggers an LED indication |
+| `mic_stats` | `{"amplitude":<integer>,"max":<integer>,"min":<integer>,"active":<boolean>}`; inactive reports zero values; every tenth active read writes a diagnostic log |
+| `accel` | `{"x":<number>,"y":<number>,"z":<number>}` formatted to three decimals after scaling signed raw samples by 1/16,384, or `{"error":"accel_not_available"}` |
+
+The microphone flag is factory-test state `0x3fca7590`, read by `0x42020474`.
+It is distinct from the ordinary voice-recording getter `0x42020150` and the
+voice-enabled preference. Statistics getter `0x42020488` reads three separate
+volatile values without acquiring a snapshot mutex; a response is not an atomic
+sample or a WAV/audio stream.
+
+Worker `0x4201fca4` repeatedly reads into a 4,096-byte stack buffer and computes
+minimum and maximum signed 16-bit samples. `amplitude` is their difference,
+not RMS, decibels or a calibrated sound level. It replaces the three statistics
+only when a nonempty sample block arrives, then reuses the buffer. This worker
+does not create a WAV or invoke the cloud voice-upload path.
+
+| POST action | Effect |
+| --- | --- |
+| `led` | Start a separate LED-test task; task-creation result is ignored before `{"status":"ok"}` |
+| `mic_start` | Start factory microphone worker; already active returns `ok` / `Already running`; an initialization/start failure returns `status:error` / `Microphone init failed` |
+| `mic_stop` | Clear factory microphone active flag, wait up to 20 times for 50 ms for its task handle, then emergency LED-off; the handler ignores the stop result |
+| `touch_reset` | Zero count and set previous sampled level to high; return `{"status":"ok","count":0}` |
+| `accel_start` | Initialize or resume accelerometer diagnostics; failure is reported in the JSON body |
+| `accel_stop` | Stop accelerometer diagnostics and return `{"status":"ok"}` |
+| `upload` | Receive a multipart panel image into the shared buffer and start the display path; not a firmware update |
+
+The ordinary failure bodies above are sent without changing the default HTTP
+status. Clients must inspect JSON, not treat every HTTP 200 as successful. The
+factory microphone starter refuses when normal voice recording is active, but
+that getter is not an ownership reservation. Its stop helper returns success
+after its bounded wait even if the task handle has not cleared. Neither the
+`ok` response nor `active:false` alone proves the worker has finished.
 
 `/dev` selects the vendor development environment, not a root shell or configurable
 URL. See [the complete mode-switch sequence](storage-and-configuration.md#vendor-environment-switch).
@@ -144,6 +260,42 @@ The separate POST `/logs/action` recognizes `action=clear` and clears the buffer
 its recovered handler does not call the GET handler's session check. No clear
 request was made. Preserve logs before diagnostic mutations and keep the endpoint
 inside the intended LAN boundary.
+
+## Interpreting the JSON status snapshot
+
+Large `/api/info` handler `0x42030c98` assembles a snapshot rather than reporting
+a workflow or image-job state. Its fields have these narrower meanings:
+
+| Field | Recovered source / limitation |
+| --- | --- |
+| `firmware_version` | Cached firmware information from `0x4202b954`, or `unknown` if that structure is not initialized |
+| `build` | Compiled build literal `f1555ee5` |
+| `wifi.connected` | Station connection flag through `0x4201e050`; not the public reachability gate or a backend request result |
+| `wifi.mac`, `wifi.bssid` | Masked strings containing only the final three bytes; not complete hardware identifiers |
+| `device.time_synced` | Application time-valid flag through `0x4201581c` |
+| `device.local_time` | Local calendar string when that flag is true, otherwise null |
+| `device.uptime_s` | Boot-relative timer divided by 1,000,000 |
+| `settings.voice_recording` | Voice-enabled preference through `0x4201589c`; not recording activity |
+| `settings.keep_awake`, `auto_update`, `charging_led` | Stored preferences, not proof that every subsystem honors them |
+| `display.last_refresh` | Most recent maintenance-history entry, not the last successful image render |
+| `display.next_refresh` | Stored maintenance schedule, not the cloud's next-image deadline |
+
+Local time and both display timestamps use `%Y-%m-%dT%H:%M:%S` without a UTC
+offset. Do not append `Z` or interpret them as UTC; timezone and DST context
+matter, and a repeated autumn hour is ambiguous. The refresh interval/hour
+fields are null when no positive maintenance timestamp is available.
+
+The handler conditionally omits child objects when their allocation fails and
+ignores individual field-add failures. A serializable partial object can
+therefore still be returned successfully. Root allocation and final serialization
+have explicit errors, but clients should distinguish missing fields from false,
+zero and null instead of assuming every successful response is complete. No
+allocation failure was induced.
+
+There is no recording task state, buffer owner, render-in-progress flag,
+content hash or job ID in this handler. Polling it faster cannot supply those
+missing events. Its getters run sequentially without a whole-snapshot lock, and
+the shared HTTP task can delay the response during another operation.
 
 ## Restart, sleep and refresh acknowledgments
 

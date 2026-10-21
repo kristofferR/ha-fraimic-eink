@@ -4,7 +4,7 @@
 
 This is the persistent backlog for the explicit unknowns, unverified inferences,
 untested behaviors and deferred experiments in the firmware documentation.
-Audited on 21 October 2026 against Large 0.2.29 / f1555ee5. Repeated questions
+Audited through 22 October 2026 against Large 0.2.29 / f1555ee5. Repeated questions
 are consolidated under one ID; proposed features are feasibility checks, not
 claims that the feature already exists or instructions to implement everything.
 
@@ -28,9 +28,10 @@ identification/access; **Design** means assessing an unimplemented extension.
 Device writes, reset, flashing and hardware access are separate experiments,
 not actions performed by adding this checklist.
 
-## Latest pass: 21 October 2026
+## Latest pass: 22 October 2026
 
-[Validation record](validation-2026-10-21.md) and [live backend pass](backend-emulation.md):
+[Static continuation](validation-2026-10-22.md), [earlier validation](validation-2026-10-21.md)
+and [live backend pass](backend-emulation.md):
 **C09, A01 and H07 completed; 64 items
 remain open.** Several open items have substantial new evidence. Completion is
 per question, not a count of tool calls or decompiled functions.
@@ -53,7 +54,7 @@ per question, not a count of tool calls or decompiled functions.
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
-| H05 | `/dev` authentication, action acknowledgments, Wi-Fi form/scan/AP controls and 41 LED records traced; refresh guard uses LED protection and portal reachability does not update the voice gate | Remaining handler schemas, all LED meanings/timing, boot-state and controlled side-effect validation |
+| H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
 | E02 | Standard app hash validated; 42 routes and 26 function pairs compared; identical LED records/timezone options and matching calendar/DST/parser branches added to live setup/voice findings | Remaining handler/LED arbitration differences, same-version comparison and other releases |

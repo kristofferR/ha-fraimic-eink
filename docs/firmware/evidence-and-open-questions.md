@@ -2,7 +2,7 @@
 
 [Research index](README.md)
 
-Research date: **21 October 2026**. Target: one owned Fraimic Large running
+Research dates: **21–22 October 2026**. Target: one owned Fraimic Large running
 **0.2.29 / f1555ee5**. The [identity manifest](firmware-identity.json) pins the
 analyzed bytes. A separate [Standard comparison and live capture](standard-model-comparison.md)
 now covers 0.2.28 / 4654a1d8. Model-specific observations remain scoped to their
@@ -35,6 +35,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Local-control and LED static follow-up | Response/action ordering, pending sleep, recording/LED guard behavior, Wi-Fi form byte limits and all 41 LED records | Submitted control faults, physical LED timings, comprehensive buffer arbitration or all Standard equivalents |
 | Standard calendar/table comparison | Byte-identical LED records and timezone select; matching lookup, calendar caller, DST-correction and POSIX-parser branches | All LED arbitration paths, physical DST/wake/LED timing or general firmware equivalence |
 | Wi-Fi handler follow-up | Separate portal TCP test, blocking scan, AP-switch/save ordering and unchecked stats erase | Controlled scan/connectivity faults, AP changes or successful persistent history erasure |
+| HTTP-server and factory follow-up | Actual server configuration, shared task, per-group registration failures, teardown wait, factory query fallthrough and microphone/control semantics | Physical concurrency, socket/heap faults, factory-mode validation or a streaming-audio endpoint |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -55,6 +56,7 @@ setup, enabled voice/keep-awake and requested a real vendor generation. Those
 owner-selected settings were preserved when the capture network rules were removed.
 The [follow-up validation record](validation-2026-10-21.md) distinguishes owner
 cloud reads and host fixtures from physical-device tests.
+The [22 October continuation](validation-2026-10-22.md) is static only.
 
 ## Method and private artifacts
 

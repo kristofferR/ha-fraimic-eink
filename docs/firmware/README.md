@@ -1,7 +1,7 @@
 # Fraimic firmware research
 
 This is an implementation-oriented map of **Fraimic Large firmware 0.2.29,
-build f1555ee5**, researched on 21 October 2026. It covers the stock application,
+build f1555ee5**, researched on 21–22 October 2026. It covers the stock application,
 its local and cloud protocols, and ways to integrate a custom backend with this
 Home Assistant integration. It is not recovered vendor source or a flashing guide.
 The [Standard-model comparison](standard-model-comparison.md) separately covers
@@ -12,8 +12,10 @@ addresses and static findings in the original topic pages refer to Large.
 
 The [research checklist](research-todo.md) tracks the unknowns and unverified
 claims across these documents, with stable task IDs and concrete validation work.
-The [latest validation pass](validation-2026-10-21.md) records owner gallery reads,
+The [21 October validation](validation-2026-10-21.md) records owner gallery reads,
 installed HA capabilities, five library host checks and deeper firmware traces.
+The [22 October static continuation](validation-2026-10-22.md) adds HTTP-server
+lifecycle and factory-diagnostic findings without further device tests.
 The [local-backend experiment](backend-emulation.md) then demonstrated locally
 generated poll and album responses on the physical frame, without firmware changes.
 It also captured the microphone locally, then completed successful finalize,
@@ -37,6 +39,7 @@ No transcription or AI generation was invoked.
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
+| [22 October validation](validation-2026-10-22.md) | Static HTTP-server capacity, registration failures and factory diagnostics |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
 | [Standard-model comparison](standard-model-comparison.md) | Model-specific firmware/panel differences, live setup, vendor voice flow and reachability failure |
 
