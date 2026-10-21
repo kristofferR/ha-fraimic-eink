@@ -267,6 +267,87 @@ again blocks the Standard probe. See the [live comparison](standard-model-compar
 This confirms an operational consequence on Standard without establishing full
 offline operation or every Large transition.
 
+### Reachability cache and monitor lifecycle
+
+The cached result at `0x3fcaca8f` and station-event flag at `0x3fcaca8e` are
+separate. Initialization clears both. Starting the monitor sets the station-event
+flag, and the worker initially marks reachability healthy/true before probing.
+The worker normally waits the healthy interval before its first probe, although
+an IP-acquired event can release its wait semaphore early.
+
+IP-acquired notification `0x4202f884` sets the station-event flag and signals the
+monitor. Disconnect notification `0x4202f8ac` clears that flag **without clearing
+cached reachability**. The loop also checks the portal's station-connected getter
+`0x4201e050`; when either station check is false, it skips the TCP probe and leaves
+the previous reachability value. Wait/passive states request reconnection, while
+other states just continue waiting. The first-time-user flag returned by
+`0x42015258` also skips probing; `0x42015264` derives that flag from saved Wi-Fi
+credentials and setup completion. This is distinct from factory-test mode.
+Consequently the cached getter alone is not a fresh test of Wi-Fi or backend
+availability, even if its value is true. Callers that separately check station
+state have an additional guard.
+
+The monitor uses an 8,192-byte task stack, priority 2, with no fixed core.
+Stop `0x4202f144` clears its run flag and releases the wait semaphore, then
+returns; it does not join the task or interrupt an already-running probe/failover.
+The worker clears its handle only when it reaches its exit. An immediate restart
+while that handle remains nonzero returns `ESP_ERR_INVALID_STATE` (`0x103`).
+These are static lifecycle findings, not a measured shutdown delay or an observed
+restart failure.
+
+### Fallback AP configuration and captive DNS
+
+Fallback helper `0x4201d8f0` requests an AP+station configuration with an empty
+password, open authentication, broadcast SSID, channel 1 and at most four
+clients. The [SDK field layout](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_wifi_types_generic.h)
+identifies these fields. SSID helper `0x42019b24` caches `Fraimic_<number>`, using
+the final two MAC bytes as a 16-bit decimal number; failure to read both Wi-Fi and
+base MAC falls back to `fraimic_setup`. This is not a device-unique secret.
+
+The helper returns immediately if Wi-Fi is already AP+station. Otherwise it calls
+AP `set_config` **before** switching to AP+station, ignores both return values,
+then logs that the AP is enabled. The SDK [configuration contract](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_wifi.h)
+requires the selected interface to be enabled. Thus the requested configuration
+and success log alone do not establish which configuration actually became
+active when entering from station-only mode. Normal setup `0x4201d528` uses the
+opposite order and checks mode/configuration/start errors. No AP configuration
+or transition was measured in this pass.
+
+Both paths start DNS worker `0x420199b0`, with a 4,096-byte stack and priority 5.
+It binds UDP **`0.0.0.0:53`**, without an AP-interface restriction. For ordinary
+single-question DNS requests it appends an IPv4 answer for **`192.168.4.1`**, TTL
+60 seconds. There is no hostname lookup, upstream forwarding, backend selection
+or query-type dispatch. In particular, this is a captive-portal responder, not
+a resolver that can provide the frame's custom cloud or time service.
+
+The recovered packet loop accepts received lengths 13–496 bytes from its
+512-byte receive buffer, copies the input, changes the response flags and low
+answer-count byte, then appends 16 bytes. It does not validate the question name,
+type/class or the other DNS counts before doing so. Non-A queries and unusual
+packet structures therefore should not be treated as supported DNS behavior.
+These bounds and transformations were inspected statically; no crafted DNS
+traffic was sent to the device.
+
+After binding, the DNS loop has no stop condition, Wi-Fi-mode check or successful
+path that closes its socket. Recovery helper `0x4201d990` switches AP+station to
+station-only when background Wi-Fi retry is inactive, but does not stop DNS.
+The wildcard binding therefore permits a **possible remaining LAN listener**
+after the AP disappears; actual reachability and lifetime across Wi-Fi teardown
+are untested. Do not assume that the “AP disabled” log means DNS was stopped.
+
+Initial setup discards the DNS task handle; fallback stores its own handle at
+`0x3fca7448` and only creates a task when that slot is zero. The worker's
+socket/bind-failure exits delete the task without clearing that slot. A competing
+listener or failed bind can therefore leave fallback's creation guard latched.
+Whether the existing setup worker already owns the socket is a separate question
+from whether fallback successfully created another worker.
+
+For a future local-backend firmware, give the portal/DNS service explicit start,
+stop and error handling, bind it to the intended interface, and keep its lifetime
+separate from backend health. Stock emulation still needs the API, asset, time
+and public-probe dependencies described here; the captive DNS service does not
+replace them.
+
 ### Time service
 
 `0x42014e90` rotates explicit SNTP servers from a table at `0x3c13bbc4`:

@@ -52,6 +52,7 @@ per question, not a count of tool calls or decompiled functions.
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced; mode switch's one-poll `0.0.0` override is normally restored before HTTP, but NVS persistence can fail | Host fault fixtures and remaining indirect-reference audit |
 | R12 | Direct updater framing/timeouts and OTA SDK ordering traced; apparent response-MIME guard reads request headers; sequential erase precedes first-byte validation | Host fault fixtures, busy/safety cases and deferred controlled update/recovery tests |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
+| S01/C01/C11 | Cached reachability survives station disconnect; fallback AP request ordering and persistent wildcard captive-DNS worker traced | Physical recovery, actual AP configuration, DNS reachability/lifetime and setup/bind failure tests |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | C01/D01/D04 | Setup metadata framing and background screen tasks traced; shared pixels written before WAIT/DROP, two-minute Get Started poll hold, 90-second unscoped completion wait | Controlled task/heap faults, overlapping screens/producers, full metadata framing coverage and independent provisioning |
 | D06/E01 | Task-watchdog startup is 5 seconds, both idle tasks, panic disabled; renderer unsubscribes before power/conditioning/transfer/refresh | Physical failure/recovery tests, interrupt-watchdog and hardware fallback coverage, remaining indirect references |
@@ -225,6 +226,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
 - [ ] **S01 · Static/Host/Device:** Trace the connectivity manager beyond its cached
   getter. Test backend-up/WAN-down, backend-down/Wi-Fi-up and recovery/failover;
   determine how to replace the public TCP gate without breaking AP recovery.
+  [Fallback lifecycle](boot-and-scheduling.md#fallback-ap-configuration-and-captive-dns)
+  now distinguishes the cached result, Wi-Fi events, AP mode and DNS worker;
+  AP disable does not explicitly stop the wildcard DNS listener.
 - [ ] **S02 · Static/Device:** Verify local time-source configuration, DNS/service
   dependencies, unsynchronized cold boot and RTC-preserving sleep. Establish
   offline TLS/time/scheduling behavior, including drift and clock corrections.

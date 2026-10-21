@@ -154,6 +154,12 @@
       "evidence": "static; 22 October onboarding-read follow-up"
     },
     {
+      "address": "0x3fca7448",
+      "kind": "global",
+      "role": "Fallback DNS task handle; not cleared by socket/bind-failure exits",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x3fca7470",
       "kind": "data",
       "role": "Local HTTP server handle; nonzero startup skips route registration",
@@ -284,6 +290,18 @@
       "kind": "global",
       "role": "Pointer to 65,536-byte diagnostic PSRAM store",
       "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x3fcaca8e",
+      "kind": "global",
+      "role": "Connectivity station-event flag, separate from cached reachability",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x3fcaca8f",
+      "kind": "global",
+      "role": "Cached reachability; worker initializes true and disconnect notification leaves it unchanged",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x3fcad4b4",
@@ -850,6 +868,18 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x420199b0",
+      "kind": "function",
+      "role": "Captive DNS worker: wildcard UDP/53, fixed 192.168.4.1 answer, no post-bind shutdown path",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42019b24",
+      "kind": "function",
+      "role": "Cached portal SSID from final two MAC bytes, with generic fallback",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x4201a69c",
       "kind": "function",
       "role": "Configure and start local HTTP server; register 42 routes across four groups",
@@ -1040,6 +1070,12 @@
       "kind": "function",
       "role": "Enable fallback AP+station mode and DNS task; also called when button wait finds unsynchronized time",
       "evidence": "static; offline-time follow-up and GNU cross-check"
+    },
+    {
+      "address": "0x4201d990",
+      "kind": "function",
+      "role": "Disable fallback AP when background retry is inactive; does not stop DNS",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x4201daa0",
@@ -2026,6 +2062,24 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202efdc",
+      "kind": "function",
+      "role": "Initialize connectivity mutex, wait semaphore, flags and counters",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4202f098",
+      "kind": "function",
+      "role": "Start connectivity monitor with 8 KiB stack; reject a nonzero existing handle",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4202f144",
+      "kind": "function",
+      "role": "Request connectivity monitor stop and release wait, without joining the worker",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x4202f18c",
       "kind": "function",
       "role": "Cached connectivity getter",
@@ -2048,6 +2102,18 @@
       "kind": "function",
       "role": "Connectivity monitoring task; verified missing entry",
       "evidence": "static"
+    },
+    {
+      "address": "0x4202f884",
+      "kind": "function",
+      "role": "IP-acquired notification sets station-event flag and signals monitor",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4202f8ac",
+      "kind": "function",
+      "role": "Disconnect notification clears station-event flag only",
+      "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x4202f8bc",

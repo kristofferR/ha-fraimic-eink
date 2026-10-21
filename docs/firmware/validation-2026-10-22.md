@@ -466,3 +466,36 @@ Private artifacts: `voice-multipart-gnu.mjs`,
 `http-redirect-pass3.txt` and `voice-http-read-pass1.txt`.
 `voice-multipart-exploratory-gnu.txt` contains misaligned exploratory ranges and
 is superseded by the bounded export for the consequential branches.
+
+## Connectivity cache and fallback DNS: S01/C01/C11
+
+Four Ghidra passes and nineteen bounded GNU ranges trace the monitor lifecycle,
+station notifications, fallback AP and DNS service. The DNS entry `0x420199b0`
+was independently identified from its task-function pointer and GNU entry/loop,
+then defined only in the read-only analysis session. The resulting export covers
+the complete receive/reply loop and socket/bind-failure exits. Firmware hashes
+remain unchanged.
+
+The [offline follow-up](boot-and-scheduling.md#reachability-cache-and-monitor-lifecycle)
+distinguishes cached reachability from station state, initial optimistic health,
+first-time-user suppression, non-joining monitor stop and handle-gated restart.
+The first-time-user flag was checked against its setter and is not the separate
+factory-test flag.
+
+Fallback's AP configuration precedes its mode change, unlike ordinary setup;
+return values are ignored. The SDK API contract supplies an interface-enabled
+requirement, but actual AP configuration/failure has not been observed. The
+recovered `esp_wifi_set_config` wrapper dispatches the request internally; this
+pass does not claim a complete trace of the driver's final configuration handler.
+
+DNS binds wildcard IPv4 UDP port 53 and constructs fixed `192.168.4.1` answers.
+The loop has no shutdown path after a successful bind; AP-disable does not close
+its socket. Initial setup discards the task handle, while fallback's saved handle
+is not cleared by worker error exits. Remaining LAN reachability, bind conflicts,
+retry suppression and actual cleanup across Wi-Fi stop/deep sleep are untested.
+No live DNS queries, frame HTTP reads, AP changes or routing changes were made.
+
+Private artifacts: `offline-fallback-pass1.txt` through
+`offline-fallback-pass4.txt`, `offline-fallback-gnu.mjs`,
+`offline-fallback-boundaries-gnu.txt` and `offline-fallback-literals.jsonl`.
+The bounded export supersedes `offline-dns-exploratory-gnu.txt` for final evidence.
