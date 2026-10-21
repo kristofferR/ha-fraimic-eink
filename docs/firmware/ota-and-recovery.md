@@ -47,6 +47,14 @@ A URL-only modified app retains the compiled stock version unless it is separate
 changed. Track an explicit artifact identity and rollout decision outside a simple
 version-string equality check.
 
+The vendor `/dev` switch deliberately asks for an update by storing `cur_ver`
+as `0.0.0`. The next poll normally reports that value once and restores the normal
+stored version before sending its request. A failed request can consume the
+override; failed restoration can leave it active. See the
+[mode-switch trace](storage-and-configuration.md#update-solicitation-and-cached-artwork).
+This is another reason to implement a configurable local backend separately from
+the existing environment toggle. No development-mode poll or update was attempted.
+
 ## Safety predicate
 
 `0x42016400` checks:

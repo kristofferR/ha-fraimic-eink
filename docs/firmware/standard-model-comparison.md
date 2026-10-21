@@ -46,12 +46,18 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 20 corresponding functions, including the subsequent
-account-setup parser comparison. The poll paths share 86
+The preserved metadata maps 21 corresponding functions, including the subsequent
+account-setup parser and `/dev` authentication comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
 all handlers behave identically.
+
+The `/dev` POST handlers use the same embedded seven-byte password and the same
+length/byte comparison structure after form decoding. The value was supplied
+privately to the owner. Neither device was switched to development mode; the
+[detailed transition and error-path trace](storage-and-configuration.md#vendor-environment-switch)
+is for Large unless explicitly stated otherwise.
 
 ## Keep model renderers and power paths separate
 

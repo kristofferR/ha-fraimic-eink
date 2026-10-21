@@ -532,6 +532,12 @@
       "evidence": "GNU Xtensa disassembly and live boot log"
     },
     {
+      "address": "0x42017208",
+      "kind": "function",
+      "role": "Restart helper: mount image storage, save logs/Wi-Fi diagnostics, then enter SDK restart",
+      "evidence": "static; GNU/source cross-check excludes adjacent sleep routine"
+    },
+    {
       "address": "0x4201727c",
       "kind": "function",
       "role": "Save local image and start rendering",
@@ -559,6 +565,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42017974",
+      "kind": "function",
+      "role": "Persist normalized production/development byte; return NVS open/write/commit result",
+      "evidence": "static; GNU cross-check of return register"
+    },
+    {
       "address": "0x42017a4c",
       "kind": "function",
       "role": "Select API base URL",
@@ -579,8 +591,14 @@
     {
       "address": "0x4201850c",
       "kind": "function",
-      "role": "Clear stale force-first-time-setup override in production",
-      "evidence": "static"
+      "role": "Erase force-first-time-setup override; also used after target Wi-Fi restore, commit result ignored",
+      "evidence": "static; development-mode follow-up"
+    },
+    {
+      "address": "0x420185ac",
+      "kind": "function",
+      "role": "Switch vendor environment, back up/restore Wi-Fi, adjust onboarding, solicit OTA and clear setup-image cache",
+      "evidence": "static; GNU cross-check"
     },
     {
       "address": "0x420189c0",
@@ -697,10 +715,16 @@
       ]
     },
     {
+      "address": "0x4201b628",
+      "kind": "function",
+      "role": "Bounded form URL decoder: percent escapes and plus-to-space conversion",
+      "evidence": "static; GNU cross-check"
+    },
+    {
       "address": "0x4201b6a0",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "Developer form: password-gated entry, password-free exit, shared rate limit and restart",
+      "evidence": "static registration and GNU cross-check",
       "routes": [
         "POST /dev"
       ]
@@ -828,8 +852,8 @@
     {
       "address": "0x4201ebbc",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "Render developer form/current-mode state and update last activity",
+      "evidence": "static registration and development-mode follow-up",
       "routes": [
         "GET /dev"
       ]
@@ -1149,8 +1173,8 @@
     {
       "address": "0x42028ae8",
       "kind": "function",
-      "role": "Validate installed system-image size/readability",
-      "evidence": "static"
+      "role": "Validate system-image size/readability with an 8 KiB allocation, not content or palette",
+      "evidence": "static; artwork-cache follow-up"
     },
     {
       "address": "0x42028bc8",
@@ -1230,14 +1254,20 @@
     {
       "address": "0x4202a8d4",
       "kind": "function",
-      "role": "Remove obsolete server-keyed system-image files",
-      "evidence": "static"
+      "role": "Unlink cached create_account.bin and get_started.bin; names are shared across environments",
+      "evidence": "static; development-mode follow-up"
     },
     {
       "address": "0x4202a968",
       "kind": "function",
-      "role": "Compare stored image version",
-      "evidence": "static"
+      "role": "Classify image version: equal=0, missing/read error=1, differing string=2",
+      "evidence": "static; artwork-cache follow-up"
+    },
+    {
+      "address": "0x4202aa48",
+      "kind": "function",
+      "role": "Save compiled image-version string; NVS commit result is ignored",
+      "evidence": "static; artwork-cache follow-up"
     },
     {
       "address": "0x4202aae0",
@@ -1256,6 +1286,12 @@
       "kind": "function",
       "role": "Dispatch local/cloud instruction image and render",
       "evidence": "static"
+    },
+    {
+      "address": "0x4202b060",
+      "kind": "function",
+      "role": "Mode-switch wrapper that removes cached account/get-started instruction files",
+      "evidence": "static; development-mode follow-up"
     },
     {
       "address": "0x4202b62c",

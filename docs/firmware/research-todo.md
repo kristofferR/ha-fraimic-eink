@@ -47,15 +47,16 @@ per question, not a count of tool calls or decompiled functions.
 | C12 | Proxy traced; account/device-key reads and actual frame GET against local HTTPS succeeded | Explicit create/update/delete and assignment tests |
 | A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
-| R11 | Current/legacy call sites, manifest and forced-version/counter references traced | Host fault fixtures and remaining indirect-reference audit |
+| R11 | Current/legacy call sites, manifest and forced-version/counter references traced; mode switch's one-poll `0.0.0` override is cleared before HTTP | Host fault fixtures and remaining indirect-reference audit |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | D03/D06/D07 | Normal poll/voice completion observed; voice saves after panel discharge; 1.347 MB free PSRAM cannot hold another full panel buffer; maintenance timestamp unchanged | Memory lifetime/fragmentation study, transfer faults and reliable per-image acknowledgment |
-| N02 | Identity save return and caller mismatch traced; original request key is persisted | Complete type/default/namespace and migration fault map |
+| N02/N03 | Identity save behavior, mode-switch order, fixed-size Wi-Fi blobs and unchecked backup/restore operations traced | Complete type/default/namespace map, interrupted switching and migration fault fixtures |
+| N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | Sign-in clears timezone and time consumers use EST5EDT fallback; powered wake/test-timeout observations retained | Controlled timezone/DST and ordinary sleep/wake transitions |
-| H05 | Live info/log/verification/album reads; reset default and factory POST upload classified | Complete handler schemas, boot-state and side-effect validation |
+| H05 | `/dev` password statically recovered on both builds; entry/exit authentication, rate limit and restart side effects traced; earlier read-only/diagnostic coverage retained | Remaining handler schemas, boot-state and controlled side-effect validation |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
-| E01/E03 | Missing task entries, including background initialization, recovered; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02 | Standard app hash validated; same 42 routes, 20 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
+| E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
+| E02 | Standard app hash validated; same 42 routes, 21 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and
@@ -292,6 +293,8 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   availability and side effects for all 42 registrations. Cover action/log/dev/test
   controls and undiscovered setters; validate read-only branches first and track
   mutating/destructive branches as explicit separate experiments. Albums are C12.
+  `/dev` authentication is now recovered statically on both builds; its actions
+  remain unsubmitted and its storage-failure behavior is not device-validated.
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery
   arrangement and hardware measurement accuracy separately from software labels.
 - [x] **H07 · Static:** Resolve descriptor build timezone if supporting provenance

@@ -130,6 +130,11 @@
       "standard": "0x4202bde0"
     },
     {
+      "role": "dev_post",
+      "large": "0x4201b6a0",
+      "standard": "0x4201b674"
+    },
+    {
       "role": "wan_probe",
       "large": "0x4202ed80",
       "standard": "0x4202d4ac"

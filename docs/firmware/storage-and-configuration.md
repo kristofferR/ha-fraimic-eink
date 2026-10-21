@@ -87,11 +87,77 @@ The saved key comes from the local request, not the setup response's key. Email
 nonempty and verified=true are insufficient to prove a nonempty user ID for
 voice. See the [enrollment parser and callers](cloud-protocol.md#enrollment-boundary).
 
-The password-gated `/dev` flow selects vendor staging, not an arbitrary local
-backend or a shell. Mode switching preserves/restores separate identity and
-Wi-Fi state, resets OTA version reporting to `0.0.0`, and can require enrollment.
-It was not activated during this research. A custom backend setting should be
-separate from this vendor-environment switch.
+## Vendor environment switch
+
+The password-gated `/dev` entry selects vendor staging, not an arbitrary local
+backend or a shell. The [form and authentication branches](local-api.md#developer-page-and-authentication)
+were traced without submitting either mode-switch action. A custom backend
+setting should be separate from this vendor-environment switch.
+
+`0x420185ac` performs the following sequence:
+
+1. Read the existing `server_mode` and station Wi-Fi configuration. If its SSID
+   is nonempty, back up SSID/password under that environment's `_p` or `_d` keys.
+2. Persist the requested `server_mode` through `0x42017974`. A write or commit
+   error stops the remaining work inside the switch helper.
+3. Look for the target environment's Wi-Fi backup. Both reads must succeed and
+   the SSID must be nonempty. The destination driver configuration is zeroed
+   before restoring these two fields; this is not a backup of all Wi-Fi options.
+4. With a readable backup, attempt to apply it and clear `force_ftu`. Without one,
+   set `force_ftu=1` and erase the shared `wakeup_img` marker.
+5. Store `ota_data/cur_ver` as `0.0.0`, then request removal of the cached
+   `create_account.bin` and `get_started.bin` system images.
+
+The identity loader selects separate account keys after the mode changes. The
+switch routine itself does not copy the production account into development or
+erase the production identity. The shared timezone, settings, schedule and image
+state must not be mistaken for fully isolated environment profiles. This is a
+static map of the normal paths, not proof of recovery after interrupted writes.
+
+### Storage types and partial failures
+
+The Wi-Fi backups are **blobs of 32 SSID bytes and 64 password bytes**, not NVS
+strings. The recovered read wrapper uses internal item type `0x41`, which agrees
+with the SDK's [`ItemType::BLOB`](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/include/nvs_handle.hpp)
+and [`nvs_get_blob`](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/src/nvs_api.cpp).
+The mode accessor reads a byte initialized to zero and treats only value `1` as
+development; failed/missing reads select production. Its writer normalizes the
+requested mode to zero or one. Mode is not a free-form server URL.
+
+Wi-Fi backup writes and their commit are not checked before the success log or
+the mode change. Restoring Wi-Fi logs an apply error but still calls the helper
+that clears `force_ftu`. That helper checks key erasure, but ignores the following
+commit result. Thus a log that says credentials were backed up/restored is not
+sufficient validation. A new firmware setting should preserve existing state and
+propagate errors rather than reuse this sequence unchanged.
+
+`0x42017974` returns the NVS open/write/commit result, despite Ghidra's inferred
+`void` prototype; GNU instructions preserve it in the return register. The switch
+helper checks that result, but the HTTP caller does not inspect the switch
+helper's result before announcing a transition and restarting. No NVS fault,
+mode switch or backup restore was induced on either frame.
+
+### Update solicitation and cached artwork
+
+The `0.0.0` value is a one-poll override, not a replacement for the compiled
+firmware version. In `0x4202475c`, finding it selects `current_version=0.0.0` for
+this request, while attempting to restore the normal version in NVS **before**
+the HTTP transaction. On the ordinary successful-save path, a failed request can
+therefore consume the override. The restore write/commit results are ignored, so
+persistence failure can instead leave it active. This behavior is separate from
+the forced-version/failure bookkeeping described in [OTA research](ota-and-recovery.md).
+
+The cleanup wrapper `0x4202b060` calls `0x4202a8d4`, which attempts to unlink
+`/imagedata/system_images/create_account.bin` and `get_started.bin`. Those two
+names are global, not suffixed by environment. No deletion of `last_image.bin`
+was found in this helper. Subsequent system-screen fetches still depend on the
+selected backend; the deletion alone is not an assurance that fresh assets exist.
+
+Restart helper `0x42017208` mounts image storage, saves diagnostic state and calls
+the SDK restart path. The recovered shutdown-handler loop matches
+[`esp_restart`](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_system/esp_system.c).
+Ghidra incorrectly included instructions from the adjacent sleep routine after
+the nonreturning call; that neighboring charging guard does not gate this restart.
 
 ## Mounting the image partition
 
@@ -146,6 +212,37 @@ file or a firmware-version change can cause reinstallation. This makes custom
 boot artwork plausible, but a filesystem patch alone is not guaranteed to survive
 upgrades or cache recovery.
 
+The version decision is more specific than a generic “changed firmware” check.
+`0x4202a968` compares the stored string with a compiled `0.2.29` literal:
+
+| Result | Condition | Installer behavior |
+| --- | --- | --- |
+| `0` | Stored string equals the compiled value | Keep a readable exact-size wake image; replace it if validation fails |
+| `1` | Key absent, NVS open/read failure, or other read error | Delete old server-screen cache files; adopt a valid wake image or install the embedded one, then attempt to stamp the version |
+| `2` | Successfully read a different version string | Delete old server-screen cache files and overwrite the wake image from the embedded asset without first accepting its current contents |
+
+The comparison is against this image-version string, not the app hash or the
+one-poll `ota_data/cur_ver` override. A modified app that retains the string does
+not automatically replace an otherwise valid wake file through this check.
+Conversely, a version-string change forces replacement even when the existing
+file is intact. No custom file was installed to test persistence.
+
+Validation allocates an **8,192-byte temporary buffer** and counts bytes read;
+it performs no palette or content check. Allocation failure returns `0x101`,
+which the installer treats like other validation failures and follows with a
+rewrite attempt. After writing, `0x42028bc8` validates again and unlinks the file
+if that validation fails. Thus resource/read failures and actual corrupt content
+are not distinguished in this repair policy. This is static behavior, not proof
+that memory pressure deleted artwork on either inspected frame.
+
+The writer opens the destination directly rather than writing a replacement file
+and renaming it. A short write or failed post-write validation triggers unlink;
+an `fsync` error is logged but does not by itself fail an otherwise readable,
+full-length result. Version stamper `0x4202aa48` checks the string write but
+ignores its commit result, and the installer does not propagate stamping errors.
+Successful installation logging therefore does not prove the version marker
+will survive reboot. These branches extend N04–N06; no filesystem fault was induced.
+
 ### Account/setup screens: fetched from the backend
 
 Instruction IDs 1 and 2 are `create_account` and `get_started`. Their dispatcher
@@ -156,6 +253,14 @@ image-version/migration paths, `0x4202a8d4` also deletes old
 This is why a generic claim that all system screens are cached would be wrong.
 The optional save flag in the instruction-render path saves to `last_image.bin`,
 not a persistent cache of every server-keyed system screen.
+
+**Local-backend opportunity:** serve model-specific raw panel assets for these
+two keys, for example a local onboarding URL or HA-specific setup instructions.
+This uses the recovered metadata/download contract and needs no new screen
+format. It has not been exercised as independent enrollment. Supplying those
+assets does not replace the embedded/local wake-up screen or the RLE low-battery
+screen, and there is no discovered stock endpoint for installing a custom wake
+file.
 
 ### Low-battery status: embedded RLE, preserves last artwork
 

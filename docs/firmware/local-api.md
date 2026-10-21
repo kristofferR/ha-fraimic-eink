@@ -89,7 +89,46 @@ that POST handler, including GNU decoding beyond Ghidra's truncated upload branc
 found microphone, touch, accelerometer and image-upload actions.
 
 `/dev` selects the vendor development environment, not a root shell or configurable
-URL. See [identity and mode switching](storage-and-configuration.md).
+URL. See [the complete mode-switch sequence](storage-and-configuration.md#vendor-environment-switch).
+
+### Developer page and authentication
+
+Large GET handler `0x4201ebbc` renders the form for the current environment and
+updates last activity. Query values `auth=fail` and `auth=locked` control error
+messages; they are not authentication sessions. Viewing it does not invoke the
+mode-switch routine, but repeated viewing can affect idle timing.
+
+POST handler `0x4201b6a0` consumes a form body, with these recovered branches:
+
+| Form | Behavior |
+| --- | --- |
+| `action=enter_dev&password=<owner-known-password>` | Decode password, compare against embedded seven-byte value, then select development and restart on a match |
+| `action=exit_dev` | Select production and restart; no password/session check in this branch |
+| Missing/unknown `action` | HTTP error, without invoking the mode switch |
+| Incorrect/missing password for `enter_dev` | Redirect to `/dev?auth=fail` |
+| Active rate limit | Redirect to `/dev?auth=locked` before processing either action |
+
+The exact case-sensitive password was recovered and given privately to the
+owner. The same literal and comparison structure were verified in Standard
+0.2.28 at POST handler `0x4201b674`. This is **static confirmation**, not a
+successful login or a live environment-switch test. Credential values are not
+included in these repository docs.
+
+The handler reads at most 255 body bytes once. Password input and decoded output
+each have 64-byte capacity. Decoder `0x4201b628` handles percent escapes and
+converts `+` to space; it does not reverse, hash or change letter case. The
+comparison checks length and all bytes. Wrong comparisons increment a shared
+failure counter; from the third failure, the initial lockout is 30 seconds,
+doubling on subsequent failures with an ordinary-path cap of 300 seconds.
+Successful password comparison clears the counter and deadline. This is not a
+live lockout test or a claim about extreme counter/shift overflow behavior.
+
+The exit branch has no current-mode guard either. It is therefore a mutating
+operation even when invoked while already in production. Both branches call the
+switch helper, send an HTML response, wait 50 ticks (about 0.5 seconds) and enter
+restart helper `0x42017208`. They do not inspect the helper's result before
+showing the response and restarting. Neither a response page nor the success log
+proves every NVS/Wi-Fi operation succeeded. Do not use either POST as a probe.
 
 Logs and `/info` are valuable for build, partition and hardware evidence but may
 contain identifying information. Sanitize captures before sharing. The absence
