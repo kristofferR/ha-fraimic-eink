@@ -74,7 +74,7 @@ value with the full provisioned key.
 | --- | --- |
 | `has_new_upload` | Boolean pending-image flag; compatibility fallback `has_new_tasks` |
 | `presigned_url` | Image URL copied when pending content is true |
-| `user_settings` | Serialized into an output buffer; not proof of local application of every setting |
+| `user_settings` | Any present JSON value is serialized into an output buffer; not proof of local application of every setting |
 | `device_settings` | Applies a complete four-switch snapshot when an object |
 | `firmware` | Nonempty `version` and `presigned_url` queue an update, subject to the recovered guards |
 | `next_image_utc` | Future numeric UTC epoch; compatibility fallback `next_scheduled_image_time` |
@@ -93,8 +93,82 @@ Illustrative idle response for a device with no active album schedule:
 
 When content is ready, return `has_new_upload: true` and its packed panel asset
 URL. When scheduling is active, return the intended future deadline on **every**
-successful poll, including polls without new content. An absent, nonnumeric,
-null or past time clears the saved deadline. See [scheduling](boot-and-scheduling.md).
+HTTP 200 response with parsed JSON, including polls without new content. If neither
+time field supplies an acceptable future value, the parser clears the saved
+deadline. Error paths that return internal success are different; see below and
+[scheduling](boot-and-scheduling.md).
+
+### Field selection and permissive JSON parsing
+
+These details are static Large 0.2.29 findings, supported by a 25-case host
+fixture using IDF 5.4.1's pinned cJSON 1.7.18 plus the recovered selection rules.
+The fixture does not execute firmware, persistence or recording actions.
+
+| Input | Recovered behavior |
+| --- | --- |
+| Boolean `has_new_upload` | Takes precedence even when false; `has_new_tasks:true` does not override it |
+| Missing/non-boolean `has_new_upload` | Try a boolean `has_new_tasks`; numbers and strings are not truthy booleans |
+| True pending flag with missing/non-string/empty URL | Pending remains true, while the output URL can remain empty |
+| Overlong image URL | Copy at most 1,535 bytes into the worker's 1,536-byte buffer and terminate; no rejection for truncation here |
+| Numeric `next_image_utc` | Takes precedence even if past, zero or otherwise not future; do not then try the legacy field |
+| Missing/non-numeric `next_image_utc` | Try numeric `next_scheduled_image_time`; a numeric string is still not a number |
+| Ordinary fractional timestamp | Convert double to signed 64-bit integer, then compare with current time; fractional seconds are discarded |
+| Object `account` with literal `email_verified:true` | Promote an existing registered but unverified identity; false/missing/non-boolean does not revoke verification |
+
+The integer conversion target is ROM `__fixdfdi` at `0x400022c8`, identified by
+the [ESP32-S3 ROM map](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_rom/esp32s3/ld/esp32s3.rom.libgcc.ld).
+Nonfinite or out-of-range numbers have not been characterized; the emulator
+should emit bounded whole-second epochs. A positive future value can be stored
+yet fail the separate scheduler's greater-than-30-second lead-time rule.
+
+The parser calls `cJSON_ParseWithLength` (`0x4203962c`) without requiring complete
+input consumption and does not require the root to be an object. A valid JSON
+prefix followed by extra text can therefore parse. Roots such as `[]` or `null`
+also parse, supply none of the expected fields and reach the schedule-clear path.
+An empty or genuinely truncated JSON value fails parsing before those updates.
+
+Object lookup at `0x4203966c` / `0x42039100` is case-insensitive and returns the
+first matching child. Thus duplicate or differently cased keys can be interpreted
+differently from a backend validator that keeps the last key. The helper branches
+match the [pinned cJSON source](https://github.com/DaveGamble/cJSON/blob/acc76239bee01d8e9c858ae2cab296704e52d916/cJSON.c).
+Emit one canonical object with unique correctly cased keys; permissive client
+acceptance is not a useful extension mechanism.
+
+The background worker `0x42025aec` acts on the pending flag after a successful
+return, including stopping an active recording. It does not first require a
+nonempty valid download URL. A malformed pending response can therefore request
+recording interruption without supplying a usable image. This is a static
+consequence, not an induced recording failure. Publish pending content only after
+its exact model-specific asset and URL are ready.
+
+### HTTP errors are not equivalent to an idle JSON response
+
+The poll routine initializes its returned pending flag and strings to empty.
+Before parsing HTTP 200 JSON, it handles failures in this order:
+
+| Condition | Internal result and state effect |
+| --- | --- |
+| Transport result `0x7002` (`ESP_ERR_HTTP_CONNECT`) | Return success/empty result, regardless of the later status branches |
+| HTTP 404 | Return success/empty result; optional `detail` changes diagnostic logging only |
+| HTTP 401 or 403 | Return `0x7002` as an error |
+| HTTP status 500 or above | Return success/empty result |
+| Other unsuccessful status/transport | Preserve a nonzero transport error, or return generic failure if transport succeeded |
+| HTTP 200 and transport success, but JSON parsing fails | Return `0x108` / invalid response |
+
+The SDK identifies `0x7002` as a connection-open error, not an HTTP status or
+proof that an endpoint is unimplemented; see its
+[error constants](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h).
+The firmware log suggesting an unimplemented development service is an
+interpretation, not a reliable diagnosis. A 404 mentioning an unrecognized device
+does not clear pairing in this routine.
+
+All pre-parser branches above skip settings application and the next-image
+setter, preserving that existing state. This differs from a parsed HTTP 200
+`{}` or `null`, which reaches the deadline-clear path. An internal success
+result is therefore insufficient evidence of a healthy backend or an applied
+snapshot. The wrapper retries only `0x7007` / EAGAIN once after one second;
+these suppressed error results do not trigger that immediate retry. This does
+not prevent later scheduled polls or separate connectivity recovery.
 
 ### Settings snapshot semantics
 
@@ -119,7 +193,8 @@ offering an update. See [update policy](ota-and-recovery.md#update-policy).
 
 ### `user_settings` is copied, with no recovered local application
 
-The poll worker serializes this object into a 2,048-byte output buffer at
+The poll worker serializes any present `user_settings` value, without first
+requiring an object, into a 2,048-byte output buffer at
 `0x3fca8c81`. Getter `0x42025da0` copies it to its caller. The recovered callers
 are the button-wait path (`0x4201163c`) and main loop (`0x42012810`); neither was
 found parsing or applying members of that copy. Main receives at most 511 bytes

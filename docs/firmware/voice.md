@@ -348,6 +348,11 @@ Fixture SHA-256:
 
 ### Scheduled content can interrupt recording
 
+The [poll field-selection trace](cloud-protocol.md#field-selection-and-permissive-json-parsing)
+also shows that a true pending flag is retained when its image URL is missing
+or invalid. The worker can request interruption before a usable asset exists;
+an emulator must prepare the asset before publishing the flag.
+
 The background poll worker `0x42025aec` can interrupt an active recording when
 server work is pending. The backend only learns about the voice job at presign,
 after recording ends. Furthermore every poll reports `is_periodic_poll=false`.

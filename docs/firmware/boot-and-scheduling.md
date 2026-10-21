@@ -34,10 +34,13 @@ and a proposed frame-driven pull scheduler solve different parts of that problem
 64-bit value to `0x42015d30`, which stores `app_data/sched_img_time` in NVS.
 `0x42015d60` reloads it when the RAM cache is zero.
 
-The successful-response parser writes zero for a missing, null, invalid or past
-deadline. Therefore an idle success response must still carry the intended future
-deadline while an album schedule is active. A failed network transaction exits
-before this parsing path and is not equivalent to a successful empty response.
+The HTTP 200 JSON parser writes zero when neither selected field provides a
+future deadline. It selects the legacy field only when the primary is nonnumeric,
+not when a numeric primary is past. Therefore an idle JSON response must still
+carry the intended future deadline while an album schedule is active.
+Some connection/HTTP errors return internal success but skip this setter; they
+are not equivalent to a parsed empty object. See the
+[error and field-selection contract](cloud-protocol.md#http-errors-are-not-equivalent-to-an-idle-json-response).
 
 The [NVS follow-up](storage-and-configuration.md#a-failed-schedule-clear-can-reload-the-old-deadline)
 found that zero is also the getter's cache-miss sentinel. If a clear fails to

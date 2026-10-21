@@ -36,6 +36,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Standard calendar/table comparison | Byte-identical LED records and timezone select; matching lookup, calendar caller, DST-correction and POSIX-parser branches | All LED arbitration paths, physical DST/wake/LED timing or general firmware equivalence |
 | Wi-Fi handler follow-up | Separate portal TCP test, blocking scan, AP-switch/save ordering and unchecked stats erase | Controlled scan/connectivity faults, AP changes or successful persistent history erasure |
 | HTTP-server and factory follow-up | Actual server configuration, shared task, per-group registration failures, teardown wait, factory query fallthrough and microphone/control semantics | Physical concurrency, socket/heap faults, factory-mode validation or a streaming-audio endpoint |
+| Poll parser static and host follow-up | 25 cases against pinned cJSON/selected caller rules; precedence, permissive parsing and different error-versus-empty-response state effects | Xtensa execution, full library equivalence, HTTP faults on the device, NVS persistence or actual recording interruption |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -56,7 +57,8 @@ setup, enabled voice/keep-awake and requested a real vendor generation. Those
 owner-selected settings were preserved when the capture network rules were removed.
 The [follow-up validation record](validation-2026-10-21.md) distinguishes owner
 cloud reads and host fixtures from physical-device tests.
-The [22 October continuation](validation-2026-10-22.md) is static only.
+The [22 October continuation](validation-2026-10-22.md) adds static and host checks
+without physical-device experiments.
 
 ## Method and private artifacts
 

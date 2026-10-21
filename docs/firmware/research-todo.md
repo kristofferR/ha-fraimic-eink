@@ -39,10 +39,10 @@ per question, not a count of tool calls or decompiled functions.
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
 | C01/C11 | Setup minimum-parser fields, saved-key behavior and sign-in/verification split traced; automatic redirect request/body handling mapped | Independent enrollment, controlled redirect/framing cases and remaining boot dependencies |
-| C02/S03 | Five idle polls preserved deadline/switches; I64 deadline and zero cache sentinel traced, including possible old-deadline reload after failed clear | Partial/invalid snapshots, reboot persistence and induced NVS failures |
+| C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
 | C03 | Local panel/TLS controls completed; static downloader length/framing, same-URL retries and short-asset behavior mapped | Device response faults, other TLS consumers and Standard negative controls |
 | C05/C06/C07 | Large local 200/empty acknowledgment and successful finalize; Standard vendor 204 upload and finalize without status completed with owner-confirmed generation | Response faults, capture limits, slow/timeout behavior and cancellation |
-| C07/C08/D05 | Task creation results are ignored; WAV cleanup does not join/release; cancellation windows, unused finalize status and candidate next-job stale flag traced; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
+| C07/C08/D05 | Task creation/WAV lifetime and cancellation windows traced; pending poll can interrupt recording even without a usable image URL; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
 | C12 | Proxy traced; account/device-key reads and actual frame GET against local HTTPS succeeded | Explicit create/update/delete and assignment tests |
@@ -84,6 +84,8 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
 - [ ] **C02 · Host/Device:** Validate poll parser behavior for settings snapshots,
   missing/invalid fields, schedule clearing and persistence failures. Trace which
   `user_settings` members are actually applied locally rather than merely copied.
+  Twenty-five host cases cover selected parser rules; suppressed HTTP/connection
+  errors and parsed empty JSON have different state effects. Device faults remain.
 - [ ] **C03 · Host/Device:** Verify owner-hosted HTTPS JSON and panel assets, including
   explicit lengths, redirects, response limits and download errors. Test hostname
   and trust behavior with controlled positive/negative certificates; do not infer

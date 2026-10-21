@@ -14,8 +14,8 @@ The [research checklist](research-todo.md) tracks the unknowns and unverified
 claims across these documents, with stable task IDs and concrete validation work.
 The [21 October validation](validation-2026-10-21.md) records owner gallery reads,
 installed HA capabilities, five library host checks and deeper firmware traces.
-The [22 October static continuation](validation-2026-10-22.md) adds HTTP-server
-lifecycle and factory-diagnostic findings without further device tests.
+The [22 October continuation](validation-2026-10-22.md) adds HTTP-server lifecycle,
+factory-diagnostic findings and 25 host poll-parser cases without device tests.
 The [local-backend experiment](backend-emulation.md) then demonstrated locally
 generated poll and album responses on the physical frame, without firmware changes.
 It also captured the microphone locally, then completed successful finalize,
@@ -39,7 +39,7 @@ No transcription or AI generation was invoked.
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
-| [22 October validation](validation-2026-10-22.md) | Static HTTP-server capacity, registration failures and factory diagnostics |
+| [22 October validation](validation-2026-10-22.md) | HTTP-server and diagnostic traces; 25 host poll-parser cases and error semantics |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
 | [Standard-model comparison](standard-model-comparison.md) | Model-specific firmware/panel differences, live setup, vendor voice flow and reachability failure |
 
@@ -76,7 +76,8 @@ addresses across releases. Function names are analytical descriptions.
 2. A custom API URL alone does not remove the public connectivity probe or NTP
    dependencies. Already-paired operation is simpler than independent enrollment.
 3. `device_settings` is a snapshot. A partial object resets omitted switches to
-   defaults. Missing next-image time in a successful poll clears the saved schedule.
+   defaults. Parsed HTTP 200 JSON without a valid next-image time clears the saved
+   schedule; suppressed network/HTTP errors preserve it.
 4. Voice finalization must return the image synchronously. Stock firmware does not
    understand `202 + job ID`, and an abandoned 60-second recording is not uploaded.
 5. Recording and image downloads use the same PSRAM allocation. Recording,

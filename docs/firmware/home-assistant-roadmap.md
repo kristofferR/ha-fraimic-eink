@@ -248,6 +248,13 @@ The server handles local requests in one task, so serialize large transfers and
 avoid overlapping diagnostic polls. A delayed status response alone does not
 prove that the frame lost Wi-Fi.
 
+The existing [`sensor.py`](../../custom_components/fraimic/sensor.py) parser
+attaches HA's default timezone to a naive frame timestamp. That is correct only
+when the frame and HA use matching timezone rules. The frame's observed
+`EST5EDT` and a differently configured HA zone would produce different instants
+from the same text. This source-level integration limitation is documented for
+later implementation; no sensor code or device timezone was changed here.
+
 Use HA's existing scheduler as the source of truth for playlist progression and
 let the adapter publish the next deadline. Avoid independent push and pull loops
 competing over the same frame. Preserve voice holds and external-upload semantics,
