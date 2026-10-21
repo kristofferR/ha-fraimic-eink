@@ -55,6 +55,7 @@ per question, not a count of tool calls or decompiled functions.
 | C01/D01/D04 | Setup metadata framing and background screen tasks traced; shared pixels written before WAIT/DROP, two-minute Get Started poll hold, 90-second unscoped completion wait | Controlled task/heap faults, overlapping screens/producers, full metadata framing coverage and independent provisioning |
 | D06/E01 | Task-watchdog startup is 5 seconds, both idle tasks, panic disabled; renderer unsubscribes before power/conditioning/transfer/refresh | Physical failure/recovery tests, interrupt-watchdog and hardware fallback coverage, remaining indirect references |
 | H04/D06/S05 | Conditioning uses full-panel black or white/black clears and a temporary 288 KB block; elapsed selector uses 12/48-hour boundaries; MID suppresses clear errors and can advance the shared timestamp | Panel waveform constraints, physical conditioning/fault tests, other controller paths and interrupted timestamp writes |
+| D04/D07/D08/S05 | Maintenance helpers drain the semaphore but treat DROP as success; Standard waits 60 seconds, Large 90; Large blank path can wait on its own busy state, and scheduled history ignores refresh results | Physical maintenance/failure tests, other shutdown callers, concurrent state changes and persisted history errors |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
@@ -64,7 +65,7 @@ per question, not a count of tool calls or decompiled functions.
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02/H04/D01 | Both app hashes pinned; 42 routes and 45 function pairs compared; Standard lacks Large's poll exclusions/creation retries and uses a 2 KiB clear buffer; common verification/callback hazards traced | Remaining handler/LED and maintenance differences, physical concurrency/conditioning, same-version comparison and other releases |
+| E02/H04/D01 | Both app hashes pinned; 42 routes and 46 function pairs compared; Standard lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/LED/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and
@@ -262,6 +263,9 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
 - [ ] **D04 · Host/Device:** Exercise WAIT/DROP, simultaneous producers, stuck worker,
   task-allocation failure and early render failure. Check busy flags, semaphore
   behavior, recording-state query failures and timeout cleanup.
+  [Maintenance](rendering-and-concurrency.md#maintenance-refresh-has-separate-completion-rules)
+  adds DROP-as-success, an unwaited fallback and a conditional blank-refresh
+  self-wait; these need controlled validation, not normal-frame inference.
 - [ ] **D05 · Host/Device:** Validate voice versus scheduled-content races and every
   cancellation stage, including recording before presign. Check how far HA locks
   and backend holds help and which cases require firmware ownership/events.
@@ -280,6 +284,8 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
 - [ ] **D08 · Device:** Confirm maintenance-only `last_refresh` behavior across local
   upload, voice, system images, maintenance, errors and reboot. Verify history-ring
   persistence and absence of per-image identity in the exposed field.
+  Static tracing now shows the scheduled caller appends after ignoring the refresh
+  result; a changed timestamp alone cannot establish maintenance success either.
 
 ## Storage, identity and system artwork
 

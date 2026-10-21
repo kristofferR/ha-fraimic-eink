@@ -46,8 +46,8 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 45 corresponding functions, including the subsequent
-account-setup, `/dev`, calendar, orientation, album-body and task/conditioning comparisons. The poll paths share 86
+The preserved metadata maps 46 corresponding functions, including the subsequent
+account-setup, `/dev`, calendar, orientation, album-body, task/conditioning and maintenance comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -116,6 +116,29 @@ wrappers have the corresponding call structure. This supports sharing the
 The 19 host cases remain a fixture of the recovered Large helper and pinned
 cJSON source; this comparison does not represent another executed firmware test
 or establish equivalence of every Standard proxy/error branch.
+
+### Maintenance refresh differences
+
+Standard `0x42026a18` powers on, sets the manager busy, and requests FULL
+white/black/white conditioning before restoring an image. Large `0x42027f84`
+hands a nonempty image directly to the ordinary render worker, whose own
+conditioning selection still applies. This is a difference between these two
+pinned releases, not proof that either panel permits different waveforms.
+
+Both helpers drain the shared render semaphore before starting with DROP policy
+and convert invalid-state/drop to success. Their accepted-image completion waits
+differ: **60 seconds on Standard, 90 seconds on Large**. Neither timeout joins or
+cancels the renderer. Standard returns on restoration error/timeout without the
+final ready-state update; Large attempts that update on both. The signal still
+has no content identity or per-job result.
+
+Without an image, Standard completes its FULL cycle and marks ready; that helper
+contains no explicit shutdown after the cycle. Large intends one white clear and
+explicit discharge/off cleanup, but its busy-before-power-on ordering can cause
+a self-induced ready timeout under otherwise uncontended state operations. The
+[Large maintenance trace](rendering-and-concurrency.md#maintenance-refresh-has-separate-completion-rules)
+details this conditional static finding. No blank, failure or maintenance-cycle
+experiment was run on either frame.
 
 ### Polling, instruction tasks and conditioning differ
 

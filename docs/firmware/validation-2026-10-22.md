@@ -369,3 +369,29 @@ Private Standard artifacts: `standard-instruction-pass1.txt` through
 `standard-instruction-pass3.txt`, `standard-instruction-boundaries-gnu.txt`,
 `standard-instruction-literals.jsonl`, `standard-instruction-gnu.mjs` and
 `read-standard-values.mjs`.
+
+## Maintenance refresh and history: D04/D07/D08/S05/E02
+
+Two Large reference exports, the existing Standard conditioning export and
+29 bounded GNU ranges cover the refresh/restore helpers, manager state transitions,
+ready waiter, default timeouts, saved-image fallback and scheduled history call.
+Both app hashes are checked before disassembly. Bounded literal reads distinguish
+the Standard 6,000-tick maintenance wait from Large's 9,000 ticks; the earlier
+90-second Standard instruction-task wait is a different caller.
+
+The [maintenance trace](rendering-and-concurrency.md#maintenance-refresh-has-separate-completion-rules)
+documents dropped work translated to success, the unwaited Large fallback and the
+blank branch's busy-before-ready-wait ordering. The 30-second self-wait consequence
+assumes successful state operations and no concurrent writer, not every runtime
+schedule. GNU also confirms that scheduled maintenance discards the helper result
+before appending history and requesting the default schedule. Ghidra's merged
+pre-sleep/maintenance boundary and incomplete wrapper decompilation were not used
+as sole evidence for those conclusions.
+
+The model map now contains 46 corresponding function pairs. No new frame request,
+refresh, state fault, history write, flash or hardware experiment was performed;
+D04/D07/D08/S05 retain their physical validation requirements. Private artifacts:
+`maintenance-render-pass1.txt`, `maintenance-render-pass2.txt`,
+`maintenance-render-gnu.mjs`, `maintenance-render-boundaries-gnu.txt` and
+`maintenance-render-literals.jsonl`, plus the latter two names under `small-frame/`
+for Standard and `small-frame/standard-instruction-pass1.txt`.

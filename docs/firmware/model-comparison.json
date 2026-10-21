@@ -324,6 +324,11 @@
       "role": "elapsed_conditioning_selector",
       "large": "0x4202d90c",
       "standard": "0x4202c038"
+    },
+    {
+      "role": "maintenance_refresh_restore",
+      "large": "0x42027f84",
+      "standard": "0x42026a18"
     }
   ],
   "live_standard": {

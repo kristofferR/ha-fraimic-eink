@@ -348,6 +348,47 @@ same card, so its second refresh was not independently witnessed. These positive
 tests do not validate failure propagation or convert completion logs into a
 per-image acknowledgment.
 
+## Maintenance refresh has separate completion rules
+
+Large's refresh helper `0x42027f84` takes two different paths. With an image
+pointer and nonzero length, it drains the shared completion semaphore, calls
+`0x420208d4` with DROP policy, then waits **9,000 ticks / 90 seconds** if accepted.
+Unlike the instruction-screen worker, this caller does drain an old signal.
+It still receives no per-job result. An invalid-state/drop return is converted
+to success, and a timeout resets the manager's state to ready without stopping
+or joining the renderer. The separate render-busy byte can remain set.
+
+The saved-image wrapper `0x4200fc7c` loads the cache into the shared image buffer
+before this arbitration. If the advanced helper returns an error, its fallback
+calls render-start again with DROP policy. A drop becomes success; an accepted
+fallback reports success after a two-second LED delay without waiting for the
+render semaphore. Thus this wrapper's zero result can mean worker-ended,
+accepted-but-still-running, or dropped. It cannot acknowledge a particular image.
+An advanced-helper timeout followed by a still-busy renderer reaches the
+drop-as-success fallback; this is a static path, not an induced timeout test.
+
+### Blank refresh can wait on its own busy state
+
+Before choosing image or blank work, `0x42027f84` attempts to set manager state
+5 (busy). Its blank branch then calls power-on `0x42027e6c`, which sees that state
+and calls ready-wait `0x42027e10`. That waiter needs state 4, or exits on state 6
+or timeout; it does not start any work that would make the display ready.
+
+With successful state/mutex operations and no other task changing the state,
+this path therefore waits until its configured **30,000 ms** deadline and returns
+timeout before reaching the intended white clear. The caller then writes state
+4 even though this power-on attempt did not run the hardware sequence. The
+default configuration is recovered from `0x42028204`; the waiter's time helper
+converts ticks to milliseconds. Mutex failures, concurrent state changes and a
+nondefault configuration can alter the path. No blank refresh was requested.
+
+If the clear branch is reached, it performs one white clear, discharge and GPIO
+cleanup, then sets state 1 (off). A clear failure is retained in the return value
+even though the branch logs that its blank cycle completed. Do not turn that log
+into a success event. Standard instead powers on before setting busy and performs
+its FULL white/black/white cycle; see the
+[model comparison](standard-model-comparison.md#maintenance-refresh-differences).
+
 ## `display.last_refresh` is maintenance history
 
 `/api/info` calls `0x42015ef8`, which loads `app_data/refresh_hist` through
@@ -358,6 +399,13 @@ The recovered append routine `0x42015e5c` has one call site, `0x42012757`, in th
 maintenance-refresh flow beginning at `0x420126f8`. It is not called by the common
 render worker or the raw local-upload handler. The append persists through
 `0x42014d14` and carries a timestamp, not image identity or a render result.
+
+The scheduled caller discards `0x4200fc7c`'s result before logging completion,
+appending the timestamp and requesting the default four-day, 03:00 schedule.
+History can therefore advance after a failed or dropped refresh, provided the
+append itself succeeds. This is stronger than merely being maintenance-only:
+it records an attempted workflow without validating the display outcome. The
+manual-refresh wrapper returns the helper result but does not call this append.
 
 Consequences for HA:
 
