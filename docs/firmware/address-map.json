@@ -256,6 +256,18 @@
       "evidence": "static; 22 October orientation follow-up"
     },
     {
+      "address": "0x3fcabd70",
+      "kind": "global",
+      "role": "Monotonic Get Started poll-deferral deadline; set to current microseconds plus 120000000",
+      "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
+      "address": "0x3fcabd78",
+      "kind": "global",
+      "role": "Shared Get Started pending flag, not a task count or job identity",
+      "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
       "address": "0x3fcac6d0",
       "kind": "global",
       "role": "Pointer to 65,536-byte diagnostic PSRAM store",
@@ -1329,8 +1341,8 @@
     {
       "address": "0x42023bcc",
       "kind": "function",
-      "role": "Fetch global/system-image URL",
-      "evidence": "static"
+      "role": "Manual global-screen metadata reader: 2047-byte cap, nonnegative header result then positive body required, bounded URL",
+      "evidence": "static; 22 October instruction lifetime follow-up"
     },
     {
       "address": "0x42023ed4",
@@ -1457,6 +1469,12 @@
       "kind": "function",
       "role": "Full-panel clear with 288000-byte pattern buffer, broadcast transfer and ordinary refresh",
       "evidence": "static; 22 October conditioning follow-up"
+    },
+    {
+      "address": "0x42027bd0",
+      "kind": "function",
+      "role": "Read display-manager state under its mutex; zero on uninitialized manager or mutex timeout",
+      "evidence": "static; 22 October instruction lifetime follow-up"
     },
     {
       "address": "0x42027d88",
@@ -1680,20 +1698,50 @@
     {
       "address": "0x4202abe8",
       "kind": "function",
-      "role": "Fetch instruction image from cloud",
-      "evidence": "static"
+      "role": "Fetch setup-screen URL then download into caller buffer; create-account IP query, single download attempt",
+      "evidence": "static; 22 October instruction lifetime follow-up"
     },
     {
       "address": "0x4202ad38",
       "kind": "function",
-      "role": "Dispatch local/cloud instruction image and render",
-      "evidence": "static"
+      "role": "Instruction display: shared-buffer download/load before render arbitration, optional cache save after render-start",
+      "evidence": "static; 22 October instruction lifetime follow-up"
     },
     {
       "address": "0x4202b060",
       "kind": "function",
       "role": "Mode-switch wrapper that removes cached account/get-started instruction files",
       "evidence": "static; development-mode follow-up"
+    },
+    {
+      "address": "0x4202b158",
+      "kind": "function",
+      "role": "Instruction wrapper with cache saving enabled",
+      "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
+      "address": "0x4202b168",
+      "kind": "function",
+      "role": "Instruction wrapper without cache saving",
+      "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
+      "address": "0x4202b178",
+      "kind": "function",
+      "role": "Background instruction starter: copied 8-byte context, internal-heap precheck, eight creation cycles and Get Started hold",
+      "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
+      "address": "0x4202b378",
+      "kind": "function",
+      "role": "Get Started pending getter: flag true and monotonic time strictly before deadline; expiry does not cancel task",
+      "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
+      "address": "0x4202b3cc",
+      "kind": "function",
+      "role": "Instruction worker: copy/free arguments, display/cache, wait 9000 ticks on global render semaphore, clear Get Started flag",
+      "evidence": "static; 22 October instruction lifetime follow-up"
     },
     {
       "address": "0x4202b62c",

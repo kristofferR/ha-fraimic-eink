@@ -299,3 +299,27 @@ Private evidence: `json-ownership-pass1.txt`, `json-ownership-pass2.txt`,
 `json-ownership-boundaries-gnu.txt`, `json-ownership-literals.jsonl` and
 `json-ownership-gnu.mjs`, alongside `http-redirect-pass5.txt`. These are static
 Large findings; no additional host-case count or Standard equivalence is claimed.
+
+## Instruction downloads and task lifetime: C01/D01/D04
+
+Two Ghidra/reference passes cover the metadata client, instruction downloader and
+dispatcher, cache/no-cache wrappers, background starter/worker, pending deadline
+and display-manager state accessor. Sixteen bounded GNU ranges confirm the
+metadata read/rejection/termination branches, shared-memory writes before render
+arbitration, cache ordering, heap threshold, task argument copy/free, retry count,
+120-second deadline comparison and 9,000-tick completion wait. The low-word
+unsigned comparison at `0x4202b3a3` was checked directly because Ghidra had removed
+it as unreachable in its decompilation.
+
+The [instruction lifetime trace](rendering-and-concurrency.md#setup-screen-tasks-and-the-two-minute-poll-hold)
+distinguishes a poll hold from cancellation or buffer ownership. The metadata
+reader accepts nonnegative header results before reading; it does not inherit
+voice JSON's positive-length gate. Its empty-read rejection differs from the
+presign uninitialized-buffer branch. Those are static distinctions, not new
+physical chunked/timeout experiments.
+
+No frame request, pairing change, display update, task-allocation fault or
+concurrent producer was exercised. Private evidence: `instruction-lifetime-pass1.txt`,
+`instruction-lifetime-pass2.txt`, `instruction-lifetime-boundaries-gnu.txt`,
+`instruction-lifetime-literals.jsonl` and `instruction-lifetime-gnu.mjs`, plus
+the earlier render-start export in `concurrency-pass3.txt`.

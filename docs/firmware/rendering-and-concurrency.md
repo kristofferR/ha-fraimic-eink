@@ -202,6 +202,61 @@ transaction in this routine; do not extend it to new concurrent producers as
 though it were a mutex. DROP is not protective if the caller already wrote into
 the shared buffer before requesting a render.
 
+### Setup-screen tasks and the two-minute poll hold
+
+Instruction dispatcher `0x4202ad38` obtains the shared image pointer, then either
+downloads a server screen through `0x4202abe8` or loads a local screen through
+`0x42028914`. Only **after those writes** does it call render-start with the
+selected WAIT/DROP policy. Its display-manager check is a readiness/state read,
+not a reservation of the shared pixels. It can log that readiness is still absent
+after 50 wait cycles and proceed anyway.
+
+Consequently, dropping a setup-screen render can still leave the prior render's
+source bytes replaced. A failed download can also leave partial changes. This
+extends the ownership map to system screens; no deliberate interference was
+performed. Backend serialization of ordinary artwork jobs cannot protect an
+independent local setup-screen trigger or recording.
+
+The background starter `0x4202b178` copies screen type and render policy into an
+**8-byte heap context**. Worker `0x4202b3cc` copies both fields and frees that
+context before doing its work, so this handoff does not borrow the form handler's
+stack. The starter retains no task handle and has no existing-worker exclusion.
+Its creation loop is bounded to eight cycles, with 250 ms after each failed cycle.
+It only attempts task creation when the largest `MALLOC_CAP_INTERNAL` block is
+at least 10,240 bytes; the requested stack is 8,192 bytes, priority 3. The capability
+value `0x800` matches the [SDK definition](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/heap/include/esp_heap_caps.h).
+This is an allocation precheck, not a reservation or a guarantee that later TLS
+allocations will succeed.
+
+For type 2 (`get_started`) only, the starter sets a shared pending flag and a
+deadline of monotonic time plus **120 seconds**, before task-creation retries.
+Getter `0x4202b378` returns true only while the flag is set and current time is
+strictly before that deadline. The poll dispatcher uses it to defer **new polls**,
+with a log explicitly mentioning concurrent TLS. It does not stop an existing
+poll, lock response/image memory, or cancel the instruction task at expiry.
+The getter returns false at the deadline without clearing the stored flag.
+
+Task-creation failure and worker exit clear the pending flag. Multiple Get Started
+workers share that flag/deadline; an earlier worker's exit can clear a later
+worker's hold. No corresponding hold is set for the create-account screen. The
+two-minute value must not be used as a maximum setup duration: metadata fetching,
+panel downloading and rendering have separate waits, and the task can outlive it.
+
+The background worker uses the cache-saving instruction wrapper `0x4202b158`.
+After render-start succeeds, the instruction path saves the shared bytes to the
+current-image cache **before** the worker waits for display completion. A cache
+write failure is logged without replacing the successful render-start result.
+If render-start is rejected, that cache-save branch is skipped, although the
+shared image bytes have already been written.
+
+Finally, the worker waits up to **9,000 ticks / 90 seconds** on the same global
+render semaphore used elsewhere, then delays 1.2 seconds on success. There is no
+content/job ID or render result attached to that signal, and neither this path nor
+render-start drains it before creating a new job. A timeout only logs and exits;
+it does not stop or join the renderer. Success, failure, drop and timeout therefore
+need separate backend diagnostics; “Get Started displayed” is not a per-image
+physical acknowledgement. These concurrency/fault cases remain untested.
+
 ## Completion currently means the worker ended
 
 The render worker gives the semaphore stored at `0x3fca6b24` and clears render-busy

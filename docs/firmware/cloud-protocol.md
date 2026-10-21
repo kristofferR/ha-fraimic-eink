@@ -223,6 +223,18 @@ GET /api/v1/upload/global/315/get_started
 It reads at most 2,047 response bytes and rejects a URL that does not fit the
 caller's 1,536-byte buffer. Use compact JSON and a short asset URL.
 
+This metadata client uses manual open/header/read calls, a 10,000 ms transport
+timeout and a 4,096-byte receive buffer. It does not follow redirects, install the
+shared JSON event callback, or register itself with the HTTP-abort manager. Unlike
+voice presign/finalize, it still reads after a zero fetched length; only negative
+header results reject that stage. It rejects zero/negative body reads before
+parsing and NUL-terminates a positive result. It does not compare the read count
+with the declared length or require HTTP-message completion. A complete JSON
+prefix can therefore suffice even if later bytes fail or exceed the read cap.
+This follows the same SDK reader/parser semantics already traced for voice;
+no additional physical framing test was run. An empty URL string passes this
+parser's type/length checks but is not a usable asset URL.
+
 `0x4202a8b8` maps instruction type 1 to `create_account`, type 2 to `get_started`;
 type 0 (`wake_up`) has no server key. The dispatcher `0x4202ad38` downloads the
 two server-keyed screens whenever it displays them. There is no local cache
@@ -232,6 +244,8 @@ fallback in that branch. The account screen adds the current station IP if known
 mean every setup screen is cached. The wake-up image is locally installed; these
 two screens depend on the backend in the recovered path. An emulator supporting
 onboarding needs corresponding assets or an explicit firmware fallback.
+Their [background task and poll-deferral limits](rendering-and-concurrency.md#setup-screen-tasks-and-the-two-minute-poll-hold)
+also matter: fetching a screen is not an atomic handoff of its image memory.
 
 ## Enrollment boundary
 
@@ -476,8 +490,9 @@ owned by each caller. Their actual backing memory differs:
 The poll dispatcher `0x42016570` does provide a meaningful guard: it skips when
 not registered, and for a registered **unverified** identity it skips while
 getter `0x42024628` reports verification running. Once verified, that check is
-bypassed. It also checks connectivity and OTA state; the poll starter rejects an
-already-present poll task handle. Ordinary unverified-account polling is therefore
+bypassed. It also checks connectivity, OTA state and the time-limited
+[Get Started hold](rendering-and-concurrency.md#setup-screen-tasks-and-the-two-minute-poll-hold);
+the poll starter rejects an already-present poll task handle. Ordinary unverified-account polling is therefore
 not evidence of concurrent verification. These checks do not acquire ownership
 of the shared response buffer.
 
