@@ -46,10 +46,22 @@
       "evidence": "static"
     },
     {
+      "address": "0x3fca6b01",
+      "kind": "data",
+      "role": "Button monitor pending-event flag; distinct from processing cancellation",
+      "evidence": "static; cancellation lifetime follow-up"
+    },
+    {
       "address": "0x3fca6b19",
       "kind": "data",
       "role": "Processing cancellation flag",
       "evidence": "static; cancellation follow-up"
+    },
+    {
+      "address": "0x3fca6b1a",
+      "kind": "data",
+      "role": "Recording cancellation flag; distinct from processing cancellation",
+      "evidence": "static; cancellation lifetime follow-up"
     },
     {
       "address": "0x3fca6b24",
@@ -68,6 +80,30 @@
       "kind": "state",
       "role": "Auto-update preference byte",
       "evidence": "static"
+    },
+    {
+      "address": "0x3fca6b43",
+      "kind": "state",
+      "role": "Time synchronization completed in this wake session",
+      "evidence": "static; offline-time follow-up"
+    },
+    {
+      "address": "0x3fca6b44",
+      "kind": "state",
+      "role": "Time synchronization in progress; allocation-failure branch leaves it set",
+      "evidence": "static; offline-time follow-up"
+    },
+    {
+      "address": "0x3fca6b48",
+      "kind": "state",
+      "role": "Shared SNTP completion semaphore handle storage",
+      "evidence": "static; offline-time follow-up"
+    },
+    {
+      "address": "0x3fca6b4c",
+      "kind": "state",
+      "role": "Application time-synchronized flag; callback sets true after year plausibility check",
+      "evidence": "static; offline-time follow-up"
     },
     {
       "address": "0x3fca75c8",
@@ -234,13 +270,13 @@
     {
       "address": "0x420110a4",
       "kind": "function",
-      "role": "Start button monitor in recording or processing mode",
+      "role": "Start button monitor; does not reset processing-cancel flag",
       "evidence": "static; cancellation follow-up"
     },
     {
       "address": "0x42011218",
       "kind": "function",
-      "role": "Stop button monitor and clear tap-group state",
+      "role": "Stop button monitor and clear local event state",
       "evidence": "static; cancellation follow-up"
     },
     {
@@ -328,6 +364,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42014728",
+      "kind": "function",
+      "role": "SNTP callback checks tm_year >= 120 before marking synchronized and signaling completion",
+      "evidence": "static; GNU cross-check"
+    },
+    {
       "address": "0x42014dcc",
       "kind": "function",
       "role": "Calculate local-calendar maintenance time",
@@ -336,8 +378,8 @@
     {
       "address": "0x42014e90",
       "kind": "function",
-      "role": "SNTP synchronization and server rotation",
-      "evidence": "static"
+      "role": "SNTP synchronization, four-name rotation and capped exponential semaphore waits",
+      "evidence": "static; GNU cross-check"
     },
     {
       "address": "0x420151dc",
@@ -356,6 +398,18 @@
       "kind": "function",
       "role": "App/NVS initialization and no-free-pages/new-version recovery",
       "evidence": "static"
+    },
+    {
+      "address": "0x4201581c",
+      "kind": "function",
+      "role": "Application time-synchronized flag getter",
+      "evidence": "static; offline-time follow-up"
+    },
+    {
+      "address": "0x42015828",
+      "kind": "function",
+      "role": "Retry five-attempt synchronization when associated and time flag is false",
+      "evidence": "static; offline-time follow-up"
     },
     {
       "address": "0x420158b4",
@@ -418,10 +472,22 @@
       "evidence": "static"
     },
     {
+      "address": "0x42016144",
+      "kind": "function",
+      "role": "Default maintenance or 24-hour fallback scheduling, with optional time retry",
+      "evidence": "static; offline-time follow-up"
+    },
+    {
+      "address": "0x42016248",
+      "kind": "function",
+      "role": "Request fallback scheduling when Wi-Fi credentials exist",
+      "evidence": "static; offline-time follow-up"
+    },
+    {
       "address": "0x42016274",
       "kind": "function",
-      "role": "Create default maintenance schedule",
-      "evidence": "static"
+      "role": "Unified wake scheduling; create default maintenance schedule or use invalid-time fallback",
+      "evidence": "static; offline-time follow-up"
     },
     {
       "address": "0x42016400",
@@ -440,6 +506,18 @@
       "kind": "function",
       "role": "Read OTA-active state",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x420166c8",
+      "kind": "function",
+      "role": "Wi-Fi recovery task: synchronize time, schedule/poll or fall back, then start connectivity monitor",
+      "evidence": "static; offline-time follow-up"
+    },
+    {
+      "address": "0x420167b4",
+      "kind": "function",
+      "role": "Background initialization; failed time synchronization invokes AP failover and retry",
+      "evidence": "recovered missing function entry; GNU cross-check"
     },
     {
       "address": "0x42016b5d",
@@ -718,6 +796,18 @@
       ]
     },
     {
+      "address": "0x4201d8f0",
+      "kind": "function",
+      "role": "Enable fallback AP+station mode and DNS task; also called when button wait finds unsynchronized time",
+      "evidence": "static; offline-time follow-up and GNU cross-check"
+    },
+    {
+      "address": "0x4201daa0",
+      "kind": "function",
+      "role": "No-internet AP failover: bounded blacklist/reconnection and same-SSID scan",
+      "evidence": "static; called by startup SNTP failure as well as connectivity recovery"
+    },
+    {
       "address": "0x4201e05c",
       "kind": "function",
       "role": "Local HTTP handler",
@@ -795,8 +885,14 @@
     {
       "address": "0x420201d4",
       "kind": "function",
-      "role": "Write WAV header in place",
+      "role": "Build WAV header in shared recording allocation and return pointer",
       "evidence": "static"
+    },
+    {
+      "address": "0x42020294",
+      "kind": "function",
+      "role": "WAV cleanup compatibility helper; no free, zero or worker join",
+      "evidence": "static; cancellation lifetime follow-up"
     },
     {
       "address": "0x420204b8",

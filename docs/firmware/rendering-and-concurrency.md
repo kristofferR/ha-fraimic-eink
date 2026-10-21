@@ -12,6 +12,9 @@ The [voice cancellation follow-up](voice.md#cancellation-and-scheduled-content-r
 maps a second shared resource: the HTTP-abort manager stores one active client,
 without job-scoped ownership. It also distinguishes the pre-render cancel check
 from a refresh already running. Its lifetime/fault cases remain untested.
+The [timeout and two-job follow-up](voice.md#timeout-and-error-boundaries-still-needing-validation)
+also traces unchecked task creation, a WAV cleanup helper that does not release
+ownership, and a candidate cancellation flag left over for the next recording.
 
 ## The display pointer is another alias
 
@@ -219,6 +222,9 @@ function because the deep-sleep call does not return normally. The actual entry 
    shutdown sequence. Keep ownership until all consumers have released the bytes.
 6. Add display-result events to HA and retain maintenance timestamps as maintenance
    telemetry. Preserve generated/downloaded/display-unconfirmed states for stock firmware.
+7. Check worker creation before waiting; retain owned context and task identity
+   through cancellation/timeout cleanup. A semaphore without a job ID cannot
+   distinguish a late worker from the current request.
 
 The existing HA upload lock and Hybrid delivery window are useful for cooperating
 senders, but cannot prevent physical-button recording or every stock cloud action.

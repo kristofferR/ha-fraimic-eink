@@ -267,11 +267,25 @@ Receiving the WAV alone is not proof the device will call finalize.
 
 ### Timeout and error boundaries still needing validation
 
+The upload and download task-creation results are discarded before waiting on
+their completion semaphores. GNU checks at `0x42011d49`–`0x42011d55` and
+`0x42011fb2`–`0x42011fbd` show the result register being overwritten with the
+semaphore handle. If task creation fails, the normal path still enters the
+15-minute upload or five-minute download wait. A timeout log is therefore not
+proof that a network request was ever started. Allocation failure was not induced.
+
 The 15-minute outer upload wait does not retain an upload-task handle or perform
 the explicit abort/join sequence used for download timeout. Its task context and
 result pointer refer to the caller's stack. Whether a worker can still access
 that state after the timeout is a remaining lifetime question, not a reproduced
 crash. Do not use a 15-minute stall on the physical frame as the first experiment.
+
+The apparent WAV cleanup call (`0x42020294`) does not free or zero the shared
+audio allocation, cancel a worker, or wait for it. It is a no-op for the expected
+pointer and only logs an unexpected pointer. Getter `0x420201d4` constructs the
+44-byte WAV header in the existing recording buffer and returns that buffer.
+Thus the outstanding risks are the borrowed task context/result and future
+reuse of shared bytes, not a demonstrated heap free of the WAV at this call.
 
 The download timeout requests HTTP abort, waits another 500 ticks (about five
 seconds), then can force-delete its retained task. A cancelled download that
@@ -280,6 +294,35 @@ the explicit before-render cancellation branch follows successful download.
 Consequently an error indication alone is insufficient to classify cancellation.
 Physical timing, cleanup, socket closure, stale-result behavior and every retry
 boundary remain open under C07/C08/D05.
+
+### Candidate stale cancellation across two jobs
+
+The button monitor and the workflow have distinct state. Stopping the monitor
+at `0x42011218` clears its local event flag at `0x3fca6b01`; it does **not** clear
+the processing-cancel byte at `0x3fca6b19`. Starting another monitor also leaves
+that byte alone. Recording initialization clears the separate recording-cancel
+byte at `0x3fca6b1a`.
+
+The recovered workflow clears processing cancellation in three explicit branches:
+an upload invalid-state result with the flag set, a successful upload followed
+by cancellation, and a successful download cancelled before rendering. The
+generic download-error branch and normal render-completion branch have no such
+clear. The processing button monitor remains active until the outer workflow
+returns, including during rendering and cache save.
+
+**Inferred candidate:** a cancel that makes download return an error, or arrives
+after the last pre-render check, can leave the flag set within the same wake
+session. A subsequent recording can then obtain a presign response and immediately
+abort before sending its WAV because upload worker `0x42010108` checks that flag
+after presign. Its explicit cancellation cleanup would then clear it. This is a
+static path hypothesis, not an observed two-job failure; reboot/sleep boundaries
+and remaining indirect stores must be accounted for in validation.
+
+For a future firmware change, make cancellation belong to a job and join old
+workers before discarding their context or accepting a new owner of the buffer.
+Blindly clearing a global flag at the next job's start can let an old worker
+continue. For the stock adapter, a presign request without a WAV or finalize is
+not proof of user intent to generate; let unused tickets expire.
 
 ### Prepared bounded finalize experiment
 

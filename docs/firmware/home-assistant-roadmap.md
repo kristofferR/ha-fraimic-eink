@@ -29,6 +29,13 @@ device key, return a stable nonempty user ID and supply setup assets. Returning
 The separate create-account verification task and all unpaired boot behavior
 still need validation before offering independent onboarding.
 
+WAN-free operation also needs a time-service plan. The Large startup path can
+[switch APs after failed SNTP](boot-and-scheduling.md#time-failure-also-triggers-ap-failover),
+before its public-connectivity monitor starts. Supplying only the local API and
+a substitute TCP reachability target is insufficient. Accurate local NTP via
+the stock server names is a candidate to test; configurable time sources and
+separate backend/time/WAN health are the longer-term firmware direction.
+
 ## What the integration already provides
 
 This map was checked against repository commit

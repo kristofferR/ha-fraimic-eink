@@ -41,20 +41,20 @@ per question, not a count of tool calls or decompiled functions.
 | C02 | Traced `user_settings`; five local idle polls preserved deadline and live switches with settings omitted | Partial/invalid snapshots, reboot persistence and NVS failures |
 | C03 | Local panel image confirmed; Large rejected untrusted/wrong-host certificates and accepted a matching-profile control; Standard positive test chain accepted | Other consumers/certificate failures, redirects, limits and download errors |
 | C05/C06/C07 | Large local 200/empty acknowledgment and successful finalize; Standard vendor 204 upload and finalize without status completed with owner-confirmed generation | Response faults, capture limits, slow/timeout behavior and cancellation |
-| C07/C08/D05 | Upload/download task entries recovered; finalize status is not enforced by its caller; cancellation windows and shared HTTP slot traced; five bounded-fixture TLS checks passed | Owner-assisted finalize cancellation, upload/body-read gaps, worker lifetime and stale results |
+| C07/C08/D05 | Task creation results are ignored; WAV cleanup does not join/release; cancellation windows, unused finalize status and candidate next-job stale flag traced; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
 | C12 | Proxy traced; account/device-key reads and actual frame GET against local HTTPS succeeded | Explicit create/update/delete and assignment tests |
 | A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced | Host fault fixtures and remaining indirect-reference audit |
-| S01 | Large monitor traced; Standard's blocked public probe caused AP failover/transfer abort and recovered with a temporary scoped exception | Large-specific transitions, outage timing and fully offline operation |
+| S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | D03/D06/D07 | Normal poll/voice completion observed; voice saves after panel discharge; 1.347 MB free PSRAM cannot hold another full panel buffer; maintenance timestamp unchanged | Memory lifetime/fragmentation study, transfer faults and reliable per-image acknowledgment |
 | N02 | Identity save return and caller mismatch traced; original request key is persisted | Complete type/default/namespace and migration fault map |
 | S05/S06 | Sign-in clears timezone and time consumers use EST5EDT fallback; powered wake/test-timeout observations retained | Controlled timezone/DST and ordinary sleep/wake transitions |
 | H05 | Live info/log/verification/album reads; reset default and factory POST upload classified | Complete handler schemas, boot-state and side-effect validation |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
-| E01/E03 | Missing task entries/Ghidra branches corrected; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
+| E01/E03 | Missing task entries, including background initialization, recovered; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
 | E02 | Standard app hash validated; same 42 routes, 20 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
@@ -68,6 +68,8 @@ Recovery/security/partition questions still need additional evidence; the stock
 app cannot answer them alone. B01–B03 remain deferred.
 The owner deferred the physical cancellation experiment. Continue static work;
 the prepared fixture is stopped and does not need another recording now.
+Batch research and documentation into larger checkpoints. Keep the current
+follow-up local; do not push each incremental finding.
 
 ## Local cloud and voice
 
@@ -195,6 +197,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
 - [ ] **S02 · Static/Device:** Verify local time-source configuration, DNS/service
   dependencies, unsynchronized cold boot and RTC-preserving sleep. Establish
   offline TLS/time/scheduling behavior, including drift and clock corrections.
+  Follow up the separate synchronized/completed/in-progress flags, NTP-triggered
+  AP failover and semaphore-allocation/overlapping-wait behavior now mapped in
+  [the time-service trace](boot-and-scheduling.md#time-service).
 - [ ] **S03 · Host/Device:** Exercise future, absent, invalid, past and failed-poll
   deadlines across reboot. Check persistence and the distinction between clearing
   the schedule and a network failure.

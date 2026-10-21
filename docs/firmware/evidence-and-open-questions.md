@@ -26,6 +26,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Ghidra function/reference analysis | Data flow, endpoint consumers, settings and state-machine candidates | Perfect types/control flow or execution of every branch |
 | GNU Xtensa disassembly with ESP32-S3 configuration | Critical instructions, literal values and comparisons | Physical timing or runtime race outcomes |
 | Enrollment and HTTP static follow-up | Setup field consumption, saved request key, sign-in verification/timezone behavior, redirect replay and shared JSON accumulator | Independently provisioned local frame, induced NVS faults, live redirect/framing errors or a reproduced concurrency failure |
+| Cancellation lifetime and offline-time follow-up | Unchecked worker creation, non-owning WAV cleanup, candidate stale cancellation, recovered background initialization and SNTP-triggered AP failover | Physical cancellation across jobs, induced allocation failures, overlapping time-sync calls or WAN-free cold boot |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -107,7 +108,8 @@ This check can run entirely on the host without sending anything to the frame.
 
 | Assumption | Evidence-backed correction |
 | --- | --- |
-| “One URL patch makes it offline” | Public TCP connectivity gate, SNTP, web/auth selectors and setup screens remain |
+| “One URL patch makes it offline” | Public TCP gate, SNTP-triggered AP failover, web/auth selectors and setup screens remain |
+| “A retained RTC clock is enough for normal scheduling” | Recovered initialization waits for its separate SNTP-set validity flag; absent validity takes fallback scheduling |
 | “All system images are cached” | Wake-up is local; create-account/get-started fetch from the backend in their active branch |
 | “Auto-update off prevents an offered update” | The recovered queue/install path does not consult that switch |
 | “A small settings object changes only those fields” | It resets omitted booleans to defaults |

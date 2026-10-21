@@ -173,10 +173,90 @@ offline operation or every Large transition.
 3. `time.cloudflare.com`
 4. `time.nist.gov`
 
-The routine manages a synchronized-time flag used by scheduling and OTA safety.
-RTC time surviving deep sleep does not establish successful offline cold boot.
-Local NTP configuration, cold-boot behavior and failure recovery need explicit
-support/testing in a custom firmware.
+The recovered background initializer `0x420167b4` calls this routine with five
+attempts. It cycles Google, pool, Cloudflare, NIST, then Google again, stopping
+and restarting the SNTP client between attempts. Semaphore wait budgets are
+200, 400, 800, 1,000 and 1,000 ticks: **2, 4, 8, 10 and 10 seconds** with this
+build's 10 ms tick. Their sum is 34 seconds before call overhead; this is not a
+measured startup duration. A successful response can finish an attempt earlier.
+
+The time state has separate meanings:
+
+| Address | Meaning in recovered code |
+| --- | --- |
+| `0x3fca6b4c` | Application considers time synchronized; scheduler and OTA safety consume this flag |
+| `0x3fca6b43` | Synchronization completed in this wake session; permits the routine's early return |
+| `0x3fca6b44` | Synchronization is in progress |
+| `0x3fca6b48` | Shared completion semaphore handle |
+
+Callback `0x42014728` reads the clock and checks that the local-calendar year is
+at least 2020 (`tm_year >= 120`). Only then does it set the synchronized flag and
+signal the semaphore. An earlier year logs a warning without signaling. This is
+a plausibility check, not a bound on drift or proof the time source is accurate.
+On successful completion, the waiting routine applies the configured timezone,
+or `EST5EDT` if empty, and sets the completed-this-wake flag.
+
+The recovered fast and background initialization paths do not promote a plausible
+RTC clock into that application flag. The callback is the only recovered writer
+of `true`; the checked alternatives clear or read it. This is not a proof against
+all indirect writes or a controlled cold-boot/deep-sleep experiment. RTC survival
+alone therefore does not establish working offline scheduling. Without the flag,
+the unified scheduler takes the 24-hour fallback described above.
+
+### Time failure also triggers AP failover
+
+Startup does not treat time-server failure as an isolated scheduling problem:
+
+1. After Wi-Fi association, `0x420167b4` calls synchronization at `0x42016d84`.
+2. A nonzero result records a Wi-Fi failure event and calls the no-internet AP
+   failover routine `0x4201daa0` at `0x42016ef7`.
+3. That routine can blacklist the current BSSID, disconnect Wi-Fi, remove fixed
+   BSSID/channel selection and reconnect or scan the same SSID for another AP.
+   Its exhaustion counter limits this path; a call need not find another AP.
+4. After successful failover, startup clears the completed-this-wake flag and
+   tries five SNTP attempts again. Failed recovery uses fallback scheduling.
+5. Startup starts the separate public-connectivity monitor after this sequence.
+
+Thus **a working API and successful public TCP probe are insufficient if time
+synchronization fails**. The time-failure path can cause AP switching before the
+monitor starts. These are Large 0.2.29 static findings, cross-checked with GNU
+disassembly. They do not change the evidence that the blocked TCP probe caused
+the observed Standard transfer failure; no NTP-outage test was performed.
+
+There is also a separate fallback-AP trigger in the button-wait routine
+`0x4201163c`: if station Wi-Fi is connected but the time-synchronized flag is
+false, it calls `0x4201d8f0`. That helper switches to AP+station mode and starts
+the no-internet DNS task if needed. Reaching this branch can therefore advertise
+the fallback AP without first observing a failed public TCP probe. Its timing
+relative to background initialization has not been validated on the frame.
+
+For stock-firmware emulation, a candidate WAN-free setup would provide accurate
+local NTP responses for the four names, satisfy the frame-scoped TCP reachability
+test, and separately supply the accepted HTTPS API/assets. DNS redirection to a
+local time server is an untested compatibility approach, not a discovered
+firmware setting. The TCP probe only accepts refusal in its post-selection
+`SO_ERROR` branch; do not assume any immediate firewall rejection works.
+No DNS, routing or frame settings were changed during this static pass.
+
+A later firmware change should configure time sources explicitly and distinguish
+time-service failure from AP failure. Cold boots, retained RTC time, recovery,
+clock corrections, TLS validation and scheduled wakes still require a controlled
+offline test.
+
+### Time synchronization error-path follow-up
+
+`0x42014e90` sets the in-progress flag before creating its completion semaphore.
+If allocation fails, the branch at `0x42014fc6` returns `0x101` without clearing
+the flag. A later caller can consequently take the already-in-progress path,
+which waits up to 3,000 ticks (30 seconds), although that failed attempt never
+started SNTP. This is a static resource-failure candidate, not a reproduced
+device failure or an explanation of the earlier TLS allocation errors.
+
+The shared completion semaphore also needs a concurrency audit: an overlapping
+caller waits 30 seconds, while the initiator's five wait budgets sum to 34 seconds.
+Whether such calls actually overlap, consume each other's completion signal or
+recover through a later callback remains untested. Do not infer a runtime race
+from these timeout values alone.
 
 ### Setup and identity
 
