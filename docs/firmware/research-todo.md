@@ -49,6 +49,7 @@ per question, not a count of tool calls or decompiled functions.
 | A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced; mode switch's one-poll `0.0.0` override is normally restored before HTTP, but NVS persistence can fail | Host fault fixtures and remaining indirect-reference audit |
+| R12 | Direct updater framing/timeouts and OTA SDK ordering traced; apparent response-MIME guard reads request headers; sequential erase precedes first-byte validation | Host fault fixtures, busy/safety cases and deferred controlled update/recovery tests |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
@@ -186,10 +187,13 @@ Sources: [OTA and recovery](ota-and-recovery.md),
 - [ ] **R11 · Static/Host:** Trace forced-version bookkeeping and every active OTA
   entry point, including factory controls; establish which newer paths still use
   the older manifest/hash, force-version and statistics mechanisms.
-- [ ] **R12 · Host/Device:** Verify direct-download validation, completeness, text
-  error rejection, partition-capacity checks and the safety predicate under busy,
+- [ ] **R12 · Static/Host/Device:** Verify direct-download validation, completeness,
+  invalid-image handling, partition-capacity checks and the safety predicate under busy,
   Wi-Fi, time and uptime conditions. Reproduce fault cases in a harness before
   attempting controlled device updates; battery scale is tracked in B02.
+  The apparent MIME guard reads request headers, and sequential writes can erase
+  inactive-slot sectors before rejecting bad image magic. Zero/unknown-length
+  bodies skip the read loop and fail finalization. These are static findings.
 
 ## Offline boot, sleep and scheduling
 

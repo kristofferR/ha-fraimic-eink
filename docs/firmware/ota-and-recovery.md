@@ -16,15 +16,77 @@ The downloaded stock app is not a full-device backup.
 The current poll parser accepts `firmware: {version, presigned_url}` and passes
 it to `0x4202ba20`. The direct update downloads into the inactive OTA partition
 through `esp_ota_begin`/write/end and selects the next boot slot. It checks HTTP
-status, download completeness and partition capacity, and rejects obvious text
-error pages. None of that by itself proves that a modified app will pass every
-bootloader/eFuse check.
+status, declared-length completion and partition capacity. Its apparent response
+MIME check actually reads request headers; invalid image bytes are rejected later
+by the OTA/image routines. These checks do not prove that a modified app will pass
+every bootloader/eFuse check.
 
 Espressif documents the inactive-slot and app-confirmation mechanism in the
 [ESP-IDF v5.4.1 OTA guide](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-reference/system/ota.html).
 The stock image has a valid checksum/appended hash but no standard appended
 Secure Boot v2 signature sector. Secure boot configuration, flash encryption,
 anti-rollback and the complete partition map remain unverified on this device.
+
+### Direct-download framing and failure boundaries
+
+The direct path configures a 30,000 ms HTTP transport timeout and 4,096-byte
+receive/transmit buffers, manually opens the connection and fetches headers,
+then requires status 200. There is no redirect loop, Range/resume request or
+in-function retry. A logged suggestion to retry a server error is not an actual
+retry in this function; later offers and the failure cooldown are separate.
+
+The content-type call at this boundary is `0x4206d664`, the request-header getter.
+It reads the same client `+0x20` header table as setter `0x4206d4a4`, matching
+[`esp_http_client_get_header` in IDF 5.4.1](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/esp_http_client.c).
+The direct updater does not set a request Content-Type. Its `text/html` /
+`text/plain` string checks therefore do **not** establish a response-MIME filter.
+This corrects the earlier claim that this guard rejects text error pages.
+
+| Condition | Recovered behavior |
+| --- | --- |
+| Negative header-fetch result | Reject before OTA begin |
+| Declared length exceeds selected partition size | Reject before OTA begin |
+| Header-fetch result is zero, including unknown/chunked length | Begin sequential OTA, skip the read loop, then fail finalization because zero bytes were written |
+| Positive read | Pass the returned bytes directly to `esp_ota_write` |
+| Negative read, including EAGAIN | Abort this attempt; no read retry in this updater |
+| Zero read before declared length | Fail as premature close |
+| Completed byte count differs from declared length | Abort rather than select the new boot slot |
+| Declared bytes received | Close HTTP, finalize/validate the image, then validate/select the boot partition |
+
+The zero-length path can log “Download complete” before finalization fails. It
+does not install an empty image. Unlike the panel-image downloader, this loop
+cannot consume a chunked/unknown-length firmware body: its loop bound is the
+header-fetch length. Serve firmware with a positive exact Content-Length if an
+update is ever deliberately enabled.
+
+The additional download timer begins after OTA initialization and is checked
+only after successful chunk writes. GNU disassembly confirms a threshold of
+600,000,999 microseconds, corresponding to elapsed whole milliseconds exceeding
+600,000. It is not an independent watchdog or a hard ten-minute deadline covering
+DNS, TLS, headers, a blocking read or final image verification.
+
+### Rejection can still change the inactive slot
+
+`0x42045694` receives size `-2`, the sequential-write mode. This avoids an upfront
+partition erase, but `0x420450bc` erases newly needed sectors **before** checking
+the first data byte for ESP image magic `0xe9`. The ordering is present in GNU
+instructions at `0x4204511d` / `0x42045133` before the comparison at `0x4204514a`.
+A successful erase followed by a bad first byte can therefore damage the previous
+contents of the inactive slot even though the new image is rejected. This is a
+static inference about the failure path, not an induced flash failure.
+
+Abort `0x42045238` frees the OTA context; it does not restore erased or written
+bytes. Finalization `0x42045264` rejects zero written bytes, otherwise calls image
+verification; only successful finalization proceeds to boot selection
+`0x420453bc`. These boundaries agree with the matching
+[IDF OTA implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/app_update/esp_ota_ops.c).
+Thus “the update failed” is not evidence that both application slots retain their
+old contents. No error-page, truncated-image or rollback experiment was run on
+either frame.
+
+The SDK includes a runtime flash-encryption branch in the write routine and a
+pending-validation check in begin. Their compiled presence does not establish
+this device's eFuse state or actual bootloader rollback policy.
 
 ## Update policy
 

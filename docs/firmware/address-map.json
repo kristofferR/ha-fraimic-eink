@@ -1834,6 +1834,36 @@
       "evidence": "static; poll JSON follow-up and pinned-source host fixture"
     },
     {
+      "address": "0x420450bc",
+      "kind": "function",
+      "role": "Sequential OTA write; erase precedes first-byte ESP magic validation",
+      "evidence": "static; 22 October direct OTA follow-up"
+    },
+    {
+      "address": "0x42045238",
+      "kind": "function",
+      "role": "Abort OTA context without restoring erased/written flash",
+      "evidence": "static; 22 October direct OTA follow-up"
+    },
+    {
+      "address": "0x42045264",
+      "kind": "function",
+      "role": "Finalize OTA; reject zero written bytes and validate image",
+      "evidence": "static; 22 October direct OTA follow-up"
+    },
+    {
+      "address": "0x420453bc",
+      "kind": "function",
+      "role": "Validate and select OTA boot partition",
+      "evidence": "static; 22 October direct OTA follow-up"
+    },
+    {
+      "address": "0x42045694",
+      "kind": "function",
+      "role": "Begin OTA; direct updater uses sequential-write size sentinel -2",
+      "evidence": "static; 22 October direct OTA follow-up"
+    },
+    {
       "address": "0x42049974",
       "kind": "function",
       "role": "NVS commit wrapper",
@@ -1934,6 +1964,18 @@
       "kind": "function",
       "role": "HTTP config mapper; redirect default and callback fields",
       "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4206d4a4",
+      "kind": "function",
+      "role": "Set HTTP request header in client request table",
+      "evidence": "static; 22 October direct OTA follow-up"
+    },
+    {
+      "address": "0x4206d664",
+      "kind": "function",
+      "role": "Get HTTP request header; direct OTA MIME check does not read response headers",
+      "evidence": "static; 22 October direct OTA follow-up"
     },
     {
       "address": "0x4206d6a4",

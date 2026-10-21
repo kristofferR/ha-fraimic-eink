@@ -86,3 +86,23 @@ C02/S03/C08 remain open for device behavior and persistence/lifetime cases.
 Source inspection also found that HA's current timestamp sensor parser assigns
 its default timezone to naive frame timestamps. A frame configured with different
 rules therefore needs explicit timezone handling; no integration code was changed.
+
+## Direct OTA failure boundaries: R12
+
+The Large direct updater `0x4202c514` and its HTTP/OTA SDK callees were inspected
+in the matching binary. Separate GNU disassembly checked the timer/length loop
+and erase-before-magic ordering. Literal reads confirm 30,000 ms transport timeout,
+4,096-byte buffers and the 600,000,999 µs post-chunk threshold.
+
+The [OTA contract](ota-and-recovery.md#direct-download-framing-and-failure-boundaries)
+now corrects an earlier MIME-filter claim: `0x4206d664` reads request headers,
+not response headers. Zero/unknown-length bodies skip downloading and fail SDK
+finalization; negative reads do not receive an in-function retry. Sequential-write
+mode delays erasure until a write, but the first write can erase inactive-slot
+sectors before rejecting a non-ESP first byte. Abort does not restore those bytes.
+
+SDK source corroborates the identified functions; the conclusions are tied to
+the recovered application instructions rather than assumed SDK defaults. Private
+exports are `ota-download-pass1.txt`, `ota-timeout-length-gnu.txt` and
+`ota-first-write-gnu.txt`. No host flash simulator, device update, fault injection,
+boot-policy read or rollback test was performed. R12 remains open.

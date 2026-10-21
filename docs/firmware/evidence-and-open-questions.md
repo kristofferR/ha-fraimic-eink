@@ -37,6 +37,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Wi-Fi handler follow-up | Separate portal TCP test, blocking scan, AP-switch/save ordering and unchecked stats erase | Controlled scan/connectivity faults, AP changes or successful persistent history erasure |
 | HTTP-server and factory follow-up | Actual server configuration, shared task, per-group registration failures, teardown wait, factory query fallthrough and microphone/control semantics | Physical concurrency, socket/heap faults, factory-mode validation or a streaming-audio endpoint |
 | Poll parser static and host follow-up | 25 cases against pinned cJSON/selected caller rules; precedence, permissive parsing and different error-versus-empty-response state effects | Xtensa execution, full library equivalence, HTTP faults on the device, NVS persistence or actual recording interruption |
+| Direct OTA static follow-up | Request-header MIME-check mistake, length-bounded read loop, post-write timeout and sequential erase before image-magic validation | A flashed image, observed flash corruption, device security state, successful rollback or a recovery path |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -121,6 +122,7 @@ This check can run entirely on the host without sending anything to the frame.
 | Assumption | Evidence-backed correction |
 | --- | --- |
 | “One URL patch makes it offline” | Public TCP gate, SNTP-triggered AP failover, web/auth selectors and setup screens remain |
+| “A rejected update leaves both slots intact” | Sequential OTA can erase inactive-slot sectors before rejecting invalid magic; abort frees context without restoring flash |
 | “A retained RTC clock is enough for normal scheduling” | Recovered initialization waits for its separate SNTP-set validity flag; absent validity takes fallback scheduling |
 | “The frame accepts HA's IANA timezone name” | Its POSIX parser does not resolve `Europe/Oslo`; this input leaves UTC offsets, while empty application configuration selects `EST5EDT` |
 | “03:00 maintenance stays at 03:00 across DST” | The caller retains the current DST flag; controlled host cases shifted the target to 04:00 in spring and 02:00 in autumn |
