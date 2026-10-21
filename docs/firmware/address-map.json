@@ -1678,6 +1678,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202ff14",
+      "kind": "function",
+      "role": "Album ID suffix extraction: strip query/one trailing slash; bounded copy without decoding or UUID validation",
+      "evidence": "static; 22 October album proxy follow-up"
+    },
+    {
+      "address": "0x4202ffb0",
+      "kind": "function",
+      "role": "Local API JSON Content-Type and wildcard CORS response headers",
+      "evidence": "static; 22 October album proxy follow-up"
+    },
+    {
       "address": "0x4202ffd0",
       "kind": "function",
       "role": "Serialize/free JSON tree, send response and free text; explicit serialization failure",
@@ -1828,10 +1840,34 @@
       "evidence": "static; enrollment and HTTP follow-up"
     },
     {
+      "address": "0x42039658",
+      "kind": "function",
+      "role": "Unformatted cJSON serialization wrapper used by album body injection",
+      "evidence": "static; 22 October album proxy follow-up"
+    },
+    {
       "address": "0x4203966c",
       "kind": "function",
       "role": "cJSON_GetObjectItem wrapper selecting case-insensitive lookup",
       "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+    },
+    {
+      "address": "0x4203967c",
+      "kind": "function",
+      "role": "Case-insensitive cJSON_HasObjectItem wrapper",
+      "evidence": "static; 22 October album proxy follow-up"
+    },
+    {
+      "address": "0x4203985c",
+      "kind": "function",
+      "role": "cJSON_AddStringToObject wrapper; album injection ignores its result",
+      "evidence": "static; 22 October album proxy follow-up"
+    },
+    {
+      "address": "0x4203994c",
+      "kind": "function",
+      "role": "Case-insensitive first-match cJSON_ReplaceItemInObject wrapper",
+      "evidence": "static; 22 October album proxy follow-up"
     },
     {
       "address": "0x420450bc",
@@ -1988,6 +2024,12 @@
       "kind": "function",
       "role": "SDK esp_http_client_fetch_headers; returns content length or negative error",
       "evidence": "SDK header contract and matching GNU disassembly"
+    },
+    {
+      "address": "0x4206d930",
+      "kind": "function",
+      "role": "HTTP client body-write loop; proxy checks only a negative result",
+      "evidence": "static; 22 October album proxy follow-up"
     },
     {
       "address": "0x4206db7c",

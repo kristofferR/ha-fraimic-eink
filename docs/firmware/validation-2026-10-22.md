@@ -106,3 +106,32 @@ the recovered application instructions rather than assumed SDK defaults. Private
 exports are `ota-download-pass1.txt`, `ota-timeout-length-gnu.txt` and
 `ota-first-write-gnu.txt`. No host flash simulator, device update, fault injection,
 boot-policy read or rollback test was performed. R12 remains open.
+
+## Album body and transport contract: C12/H05/A05
+
+Large handlers `0x4203042c`, `0x420304b8`, `0x420306c8` and `0x42030790`, body
+helper `0x4203051c`, ID extractor `0x4202ff14` and common proxy `0x42030064` were
+revisited. The proxy's Ghidra flow stops at unsupported `SALT`; GNU instructions
+cover that body-selection branch and the remaining stream/error logic. Separate
+decoding at `0x4203039c` and `0x420303d0` avoids padding misalignment in the
+older linear export. No firmware bytes or analysis function bodies were patched.
+
+The host fixture uses the same pinned cJSON 1.7.18 source as the poll pass above.
+It runs the actual parse, case-insensitive existence/replacement, string addition
+and unformatted serialization calls from the recovered body helper. **All 19
+cases passed** under address/undefined behavior sanitizers and warnings-as-errors.
+They include root types, duplicate/case-varied identity fields, trailing input,
+embedded NUL, malformed JSON and post-injection expansion beyond the incoming
+4,096-byte cap. The maximum-size test used only a fake key and ordinary text.
+
+Fixture SHA-256: `ae4b3db85b95be1a0965f2fce5d5b715fda87152031c61d9154f275340a4437a`.
+Private evidence: `album-json-fixture.c`, `album-json-results.jsonl`,
+`album-proxy-pass1.txt`, `album-proxy-pass2.txt`, `album-json-helpers.txt` and
+`album-response-tail-gnu.txt`. The [album contract](local-api.md#album-proxy-contract)
+records the resulting limits and implementation implications.
+
+No create/update/delete request, duplicate credential, altered URL, forced
+allocation failure or transport fault was sent to either frame or vendor cloud.
+The fixture omits HTTP framing, NVS, heap failure, backend permissions and device
+concurrency. Static proxy observations do not prove a vendor authorization bypass.
+C12/H05/A05 remain open for their broader device/design questions.

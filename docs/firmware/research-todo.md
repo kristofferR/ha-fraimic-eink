@@ -45,7 +45,7 @@ per question, not a count of tool calls or decompiled functions.
 | C07/C08/D05 | Task creation/WAV lifetime and cancellation windows traced; pending poll can interrupt recording even without a usable image URL; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
-| C12 | Proxy traced; account/device-key reads and actual frame GET against local HTTPS succeeded | Explicit create/update/delete and assignment tests |
+| C12 | Proxy traced; account/device-key and local HTTPS reads succeeded; 19 JSON host cases expose root/duplicate-field behavior; ID truncation, ignored queries and response failure translation mapped | Explicit create/update/delete, assignment tests and device transport/allocation faults |
 | A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced; mode switch's one-poll `0.0.0` override is normally restored before HTTP, but NVS persistence can fail | Host fault fixtures and remaining indirect-reference audit |
@@ -121,9 +121,12 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
 - [ ] **C11 · Static/Host/Device:** Map complete enrollment, verification, web redirects,
   auth dependencies and identity persistence. Determine how independent local
   enrollment could work without unintentionally forwarding account passwords.
-- [ ] **C12 · Static/Account/Device:** Verify album proxy headers and authorization,
+- [ ] **C12 · Static/Host/Account/Device:** Verify album proxy headers and authorization,
   create/delete/update payloads and device assignment support. Establish which
   vendor album semantics can map to HA playlists; registration alone is insufficient.
+  The [body/response follow-up](local-api.md#body-transformation-is-not-schema-validation)
+  adds 19 host JSON cases and static framing, identity and error boundaries.
+  Mutation permissions, persistence and fault behavior remain untested on-device.
 
 ## Home Assistant reuse and proposed capabilities
 

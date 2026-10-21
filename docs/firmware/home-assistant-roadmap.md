@@ -141,6 +141,10 @@ For an already-paired frame, implement the device-facing subset first:
 | Album proxy, later | Translate the supported vendor-shaped operations into HA-owned playlists where semantics match |
 
 The full wire contract is in [cloud](cloud-protocol.md) and [voice](voice.md).
+For later album compatibility, the [frame proxy](local-api.md#body-transformation-is-not-schema-validation)
+does not validate JSON objects, eliminate duplicate identity fields or forward
+query parameters. The emulator needs its own schema/device authorization and
+complete JSON responses; a forwarded HTTP status alone cannot confirm a mutation.
 Do not return firmware offers by default. Omit `device_settings` until the
 intended complete state is known. Preserve active future deadlines on every
 successful poll. No enrollment impersonation is needed for the first paired-frame

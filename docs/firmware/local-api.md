@@ -469,7 +469,85 @@ Body helper `0x4203051c` accepts 1–4,096 incoming bytes, parses JSON, and adds
 replaces `device_key` with the frame's own value. Five consecutive receive
 timeouts abort the read; progress resets that count. It does not validate album
 names, schedules or assignments itself. The proxy passes upstream status/body
-through in chunks rather than parsing an album schema.
+through in chunks rather than parsing an album schema, with the empty-body and
+failure qualifications below.
+
+### Body transformation is not schema validation
+
+The body helper uses ordinary `cJSON_Parse`, not a strict object-only parser.
+It checks for `device_key` case-insensitively, replaces the first matching member
+or adds one, then serializes with `cJSON_PrintUnformatted`. It does not check the
+return value from the add/replace operation. Nineteen host cases against the
+[pinned cJSON source](https://github.com/DaveGamble/cJSON/blob/acc76239bee01d8e9c858ae2cab296704e52d916/cJSON.c)
+and this recovered call sequence passed:
+
+| Input shape | Host result using a fake device key |
+| --- | --- |
+| Ordinary object, with missing/string/null/case-varied key | One normal key is added or replaced; other fields are retained |
+| Two matching key members | Only the first is replaced; the second survives serialization |
+| Array | The key value is appended as an array element; the result remains an array |
+| Scalar or null | Serialized value remains scalar/null, without a usable object key |
+| Valid JSON followed by text, another value or an embedded NUL | The first parsed value is used; the trailing input is not rejected |
+| Malformed or empty JSON | Parsing fails |
+| 4,096-byte object at the incoming limit | Injected output can exceed 4,096 bytes; there is no second output-length cap here |
+
+These cases model the library calls, not a device mutation or vendor authorization
+bypass. In particular, duplicate-field interpretation depends on the receiving
+backend. A local emulator should require an object, reject duplicate identity
+fields and bind validated credentials to server-owned device/account state.
+Do not use successful passage through this proxy as evidence of validation.
+
+All body-helper failures, including oversize, receive timeout and allocation
+failure, become the same local HTTP 400 `invalid_json_body`. The fifth consecutive
+receive timeout aborts the read; progress resets the counter. With the
+server's 60-second receive wait, this is not a five-second end-to-end bound.
+
+### Album IDs and query strings
+
+Extractor `0x4202ff14` copies at most 255 URI bytes, discards the query at `?`,
+removes one trailing slash and requires prefix `/api/albums/`. It then copies
+at most **127 bytes** of the remaining suffix to the handler's ID buffer. It
+does not URL-decode, enforce a UUID, reject an embedded slash or report suffix
+truncation. Distinct long IDs can therefore produce the same forwarded suffix;
+use short opaque IDs and validate their complete shape in the backend.
+
+GET listing constructs its upstream path from the device key and ignores local
+query parameters. PUT/DELETE similarly discard local query parameters when
+extracting their ID. Local `?page=...`, filters or cache-busting parameters do not
+become upstream album options through these handlers.
+
+### Response and failure translation
+
+The common proxy is synchronous on the shared HTTP-server task. It manually opens
+the upstream request, writes a body if present, fetches headers and streams reads
+in 4,096-byte chunks. It has no redirect/retry loop, whole-operation deadline or
+firmware-level response-body size cap. Keep responses small and fast so album
+work does not hold up unrelated local API requests.
+
+| Upstream condition | Local handling |
+| --- | --- |
+| No station connection, client initialization/open/header failure | HTTP 502 JSON error |
+| Body write returns negative | HTTP 502 JSON error; the caller does not compare nonnegative write count with requested length |
+| Headers available | Copy the numeric status, label the response `application/json`, add `Access-Control-Allow-Origin: *` |
+| Normal EOF with zero forwarded bytes | Attempt to supply `{"status":"ok"}` under the upstream status |
+| Read failure after headers, including EAGAIN | Log, close upstream and attempt the final local chunk without replacing the upstream status |
+| Local chunk-send failure | Log, close upstream and still attempt the terminating chunk |
+
+It does not copy upstream Location, Retry-After, Content-Type or Content-Encoding
+headers. Thus a 3xx response does not carry a usable redirect, and an HTML error
+body can be labelled JSON. A read error after some data can yield an apparently
+finished chunked response containing only a prefix of the upstream body. The
+proxy does not compare the final byte count with Content-Length or call a
+response-completeness predicate. No such network fault was induced on a frame.
+
+Use complete JSON responses for emulator album operations, including deletion,
+and validate bodies in HA. After a lost mutation response, reconcile the resulting
+state or use backend idempotency; this proxy provides no transaction identifier.
+
+The proxy's log format masks a separate key suffix but also prints the complete
+upstream path. Listing and deletion paths already contain the full device key.
+Treat raw frame/proxy logs as credential-bearing; that masked suffix is not full
+redaction. No private key values are included in these notes.
 
 Owner-scoped upstream reads confirmed both account-token and device-key listing
 paths, including assignment and schedule fields. That does not validate mutations
