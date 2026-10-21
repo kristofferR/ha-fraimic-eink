@@ -11,6 +11,9 @@ claims that the feature already exists or instructions to implement everything.
 Start with local cloud, voice and HA reuse. Recovery findings are prerequisites
 for experiments that depend on custom firmware. Battery repair remains deferred
 behind the owner's backend priorities.
+The owner has explicitly chosen to keep the enclosure closed and focus on backend
+emulation. Physical inspection and custom-firmware/recovery experiments remain
+deferred; do not repeatedly request board access while pursuing protocol checks.
 
 Check an item only when its linked evidence answers the question. Record firmware
 hash, method, result and limitations in the relevant topic page. A confirmed lack
@@ -27,30 +30,35 @@ not actions performed by adding this checklist.
 
 ## Latest pass: 21 October 2026
 
-[Validation record](validation-2026-10-21.md): **A01 and H07 completed; 65 items
+[Validation record](validation-2026-10-21.md) and [live backend pass](backend-emulation.md):
+**A01 and H07 completed; 65 items
 remain open.** Several open items have substantial new evidence. Completion is
 per question, not a count of tool calls or decompiled functions.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
 | C01/C11 | API/web/auth consumers and verification task mapped | Host/device enrollment, redirects and fully offline dependencies |
-| C02 | Traced `user_settings` copies; no local member application recovered | Parser fixtures, device settings and persistence failures |
+| C02 | Traced `user_settings`; five local idle polls preserved deadline and live switches with settings omitted | Partial/invalid snapshots, reboot persistence and NVS failures |
+| C03 | Standalone HTTPS JSON accepted by physical frame; local album snapshot round trip succeeded | Panel assets, negative certificates, redirects and error variants |
+| C05/C06/C07 | Empty fields/plain HTTP captured 4.608- and 5.888-second WAVs; empty acknowledgment fixed upload acceptance and reached local finalize; intentional 409 returned frame to ready | Successful finalize/image round trip, response faults, capture limits and cancellation |
 | C10 | Owner list/detail/original reads succeeded; device-key Bearer denied | Refresh after actual URL expiry; retention and changing pagination |
-| C12 | Proxy headers/path/body traced; account/device-key album reads succeeded | Explicit create/update/delete and assignment tests |
+| C12 | Proxy traced; account/device-key reads and actual frame GET against local HTTPS succeeded | Explicit create/update/delete and assignment tests |
 | A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced | Host fault fixtures and remaining indirect-reference audit |
 | S01 | Connectivity monitor state/interval/AP recovery traced | Backend-up/WAN-down and recovery device experiment |
 | D03/D06 | Blocking SPI chunks and weak error propagation established | Memory/fragmentation measurement and controlled transfer faults |
 | N02 | Legacy manifest and setup-override keys added; storage widths partly traced | Complete type/default/namespace and migration map |
-| H05 | Bare `/action` reset default identified; factory POST upload classified | Complete handler schemas, boot-state and side-effect validation |
-| H07 | No build-timezone provenance; descriptor has no zone field | Retain null unless new build provenance appears |
+| S05/S06 | Observed configured EST5EDT, button wake on powered read, previous factory-test timeout sleep | Controlled timezone/DST and ordinary sleep/wake transitions |
+| H05 | Live info/log/verification/album reads; reset default and factory POST upload classified | Complete handler schemas, boot-state and side-effect validation |
+| H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | E01/E03 | Missing task entries/Ghidra branches corrected; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
 
-The frame was unreachable at the attempted read during this pass. Live tests
-require an awake window and a prepared, bounded experiment. Recovery/security/
-partition questions still require device or hardware evidence; the stock app
-cannot answer them alone. B01–B03 remain deferred rather than silently prioritized.
+After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
+local-backend polling and microphone transport were then exercised. The backend
+record separates host results, physical observations and incomplete handoffs.
+Recovery/security/partition questions still need additional evidence; the stock
+app cannot answer them alone. B01–B03 remain deferred.
 
 ## Local cloud and voice
 
@@ -73,6 +81,8 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
 - [ ] **C05 · Host/Device:** Test multipart voice upload against a plain local HTTP
   service, including empty `{}` fields, required fields, upload tickets, status
   codes, size limits and malformed presign responses. Confirm no S3 service is needed.
+  Positive path now reaches the local sink with `{}` fields. Check the discovered
+  zero-length upload-acknowledgment requirement separately from positive-length JSON.
 - [ ] **C06 · Device:** Verify actual WAV format, duration/size limits, initial tap
   suppression, completion taps, cancellation and deadline behavior with a short
   owner-directed recording. Check the near-60-second boundary separately.
@@ -316,6 +326,7 @@ This table records the audit scope, not completion of its checks.
 | [Rendering and concurrency](rendering-and-concurrency.md) | D01–D08, N05, B03 |
 | [HA roadmap](home-assistant-roadmap.md) | A01–A07, C01–C12, S07, D05/D07 |
 | [21 October validation](validation-2026-10-21.md) | A01–A03, C01/C02/C06/C10–C12, R11, S01, D03/D06, N02, H05/H07, E01/E03 |
+| [Live backend emulation](backend-emulation.md) | C02/C03/C05–C07/C12, S05/S06, H05/H07, E01 |
 | [Evidence and open questions](evidence-and-open-questions.md) | All groups, especially B01–B03 and E01–E03 |
 | [Route metadata](route-registrations.json) / [address map](address-map.json) | H05, E01/E02, B01 |
 | Existing [local](../frame-api/routes.md) and [cloud](../fraimic-cloud-api/routes.md) API references | C12, H05, E02/E03 |

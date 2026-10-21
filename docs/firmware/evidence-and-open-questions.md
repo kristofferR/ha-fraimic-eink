@@ -14,6 +14,9 @@ build without comparison.
 | Owner-scoped local status/boot logs | Reported firmware, panel, running app slot and hardware diagnostics | Full flash map, eFuses or actual presence of every probed chip |
 | Stock application download | Exact app image, descriptor, six segments and integrity fields | Full backup of bootloader, NVS, partition table or calibration |
 | Owner-scoped API interception | Frame accepted a test chain for its normal hostname; ordinary poll completed with HTTP 200 | Arbitrary self-signed trust, disabled hostname verification or custom app boot |
+| Standalone local HTTPS fixture | Five physical-frame idle polls and an unchanged album GET succeeded without upstream forwarding | Complete offline cloud, image delivery, new enrollment or durable album state |
+| Owner-directed local microphone upload | Empty presign fields and ordinary HTTP multipart delivered a valid mono 16 kHz/16-bit WAV | Successful generation, display, all capture limits or all response variants |
+| Positive-length upload acknowledgment | HTTP 200 plus a 15-byte body was rejected; GNU trace shows body length treated as an error code | A transport failure or need for S3 storage |
 | ESP image parsing/checks | File identity, segment bounds, checksum and appended hash | Boot authorization or a tested recovery path |
 | Ghidra function/reference analysis | Data flow, endpoint consumers, settings and state-machine candidates | Perfect types/control flow or execution of every branch |
 | GNU Xtensa disassembly with ESP32-S3 configuration | Critical instructions, literal values and comparisons | Physical timing or runtime race outcomes |
@@ -29,8 +32,10 @@ build without comparison.
 | Integration source inspection | Existing functions to reuse in HA | Implemented emulator, voice backend or new metadata model |
 
 Temporary DNS/DNAT and interception were removed after the owner-scoped test.
-No custom app was flashed. Later static passes did not record audio, purchase
-generation, change device settings or make additional device/network changes.
+No custom app was flashed. Static/account/host passes did not record audio or
+change device/network state. The subsequent [backend pass](backend-emulation.md)
+used bounded frame-only routing and owner-directed microphone recordings, with
+no transcription, image generation, display change or device-setting mutation.
 The [follow-up validation record](validation-2026-10-21.md) distinguishes owner
 cloud reads and host fixtures from physical-device tests.
 
@@ -100,6 +105,7 @@ This check can run entirely on the host without sending anything to the frame.
 | “A small settings object changes only those fields” | It resets omitted booleans to defaults |
 | “An idle poll leaves the schedule alone” | Missing/null/invalid/past next-image time clears the saved deadline |
 | “Voice timeout submits the recording” | Timeout stops and fails; explicit completion is required |
+| “Any 2xx audio-upload response succeeds” | The header-reader result is wrongly treated as an error code; use an empty acknowledgment |
 | “WAV preparation makes a separate copy” | Header is written into the shared audio/image allocation |
 | “A finalize job ID can be polled later” | Stock flow requires a ready image URL in a synchronous HTTP 200 |
 | “A successful upload means the panel/cache is updated” | It can mean rendering started even if cache saving failed |
@@ -122,8 +128,8 @@ The table below remains a short priority overview.
 
 | Question | Useful evidence / next experiment |
 | --- | --- |
-| Can a minimal local protocol adapter satisfy stock parsing? | Host-side HTTP fixtures for poll, presign, upload, finalize and system images; then one owner-directed device round trip |
-| How can a custom image be recovered? | Partition map, actual security state, verified recovery entry and controlled rollback behavior |
+| Can a minimal local protocol adapter satisfy stock parsing? | Poll, album and microphone upload now reach the fixture; finish the acknowledgment/finalize path and known panel-asset round trip |
+| How can a custom image be recovered? | Still requires partition/security/recovery evidence; hardware inspection deferred under the closed-enclosure preference |
 | Will gallery import remain reliable? | Reads now work; test expired URLs, retention, pagination changes and persisted deduplication |
 | Do current album create/delete handlers work end to end? | Verify proxy auth and payload semantics before owner-directed mutations |
 | Which paths own the shared buffer concurrently? | Trace local upload, background download, recording and renderer locks; instrument ownership in a test build |

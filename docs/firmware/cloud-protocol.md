@@ -6,6 +6,10 @@ The first emulator target is an **already-paired frame**. This page describes th
 client contract recovered from the app; examples use reserved domains and
 placeholders, not credentials or deployable services.
 
+The [bounded backend experiment](backend-emulation.md) now validates local idle
+polls, album reads and physical microphone upload. It also found an upload-response
+length bug; follow the [empty acknowledgment requirement](voice.md#upload-acknowledgment-must-have-an-empty-body).
+
 ## Backend selection
 
 `0x42017a4c` chooses between `https://origin.fraimic.com` and

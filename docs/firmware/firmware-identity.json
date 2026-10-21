@@ -105,5 +105,8 @@
     "custom_image_boot_acceptance",
     "imagedata_capacity"
   ],
-  "exclusions": "No firmware bytes, private keys, device/account credentials, recordings or signed URLs are included"
+  "exclusions": "No firmware bytes, private keys, device/account credentials, recordings or signed URLs are included",
+  "build_log_timestamp": "2026-07-16 10:15:17 -0400",
+  "build_log_timestamp_virtual_address": "0x3c0ffd20",
+  "build_log_timestamp_provenance": "Observed boot log and matching image literal; relation to descriptor compile time unknown"
 }

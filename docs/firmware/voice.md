@@ -14,7 +14,7 @@ sequenceDiagram
     Frame->>API: POST audio/presign (device_key, user_id)
     API-->>Frame: url, key, fields
     Frame->>Store: Multipart POST recording.wav
-    Store-->>Frame: HTTP 2xx
+    Store-->>Frame: HTTP 2xx, empty body
     Frame->>API: POST audio/finalize (key, orientation, identity)
     Note over API: Transcription, generation and panel conversion
     API-->>Frame: HTTP 200 + presigned_url
@@ -22,8 +22,15 @@ sequenceDiagram
     Frame->>Frame: Render image
 ```
 
-The API adapter is proposed. No local audio round trip or custom generation has
-been demonstrated on the frame yet.
+The HA adapter is proposed. A standalone fixture has now received a physical-frame
+recording through local presign and plain HTTP multipart upload. Local image
+generation/download/rendering has not been demonstrated. See the
+[device experiment](backend-emulation.md).
+
+With an empty upload acknowledgment, the physical frame also reached local
+finalize. That fixture intentionally returned HTTP 409 before generation. The
+successful local capture lengths were 4.608 and 5.888 seconds; both matched the
+format below. The last finalize requested `landscape` orientation.
 
 ## Capture and timing
 
@@ -77,12 +84,41 @@ Illustrative response:
 The upload routine `0x42026b9c` builds an ordinary multipart form, copying
 string-valued members of `fields` and adding the file field `file`, filename
 `recording.wav`. It is not an S3 SDK and does not inherently require S3 storage.
-Any HTTP status from 200 through 299 is accepted for this upload.
+The status check accepts 200–299, but it runs **after a faulty response-length
+check**. Return an empty upload response; a successful status alone is insufficient.
 
 Supply a real JSON object for `fields`. An absent field becomes an empty serialized
-string and fails the later parse. `{}` is statically plausible but has not been
-tested on the frame. A scoped upload ticket also gives the adapter a useful
-authorization boundary.
+string and fails the later parse. A real `{}` object was accepted by the physical
+frame, which uploaded a valid WAV to an ordinary local HTTP service. No S3 server
+or S3-specific form fields were needed. A scoped upload ticket gives the adapter
+a useful authorization boundary.
+
+### Upload acknowledgment must have an empty body
+
+The live fixture first returned HTTP 200 with a 15-byte JSON acknowledgment after
+successfully storing the WAV. The frame logged `Failed to fetch headers after
+streaming upload: ERROR` and did not call finalize.
+
+GNU disassembly identifies the cause: `0x420271f8` calls the header reader at
+`0x4206d890`, `0x420271fb` saves the low return word, and `0x42027200` proceeds only
+when it is zero. Nonzero results go through `esp_err_to_name` at `0x42027248`.
+However, the SDK's
+[`esp_http_client_fetch_headers`](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h)
+returns a body length or a negative error, not an `esp_err_t` success code.
+The HTTP status getter at `0x42027276` and 200–299 comparison at `0x420272b0`
+come afterward. Thus a valid positive response length is misclassified as failure.
+
+For the local upload sink use HTTP 200 with `Content-Length: 0` and no body.
+The follow-up physical recording accepted exactly that response and reached
+finalize, confirming the remedy on this build.
+This is specific to the multipart upload acknowledgment: presign/finalize JSON
+still needs a **positive** explicit length. Missing/chunked length can also yield
+zero in the SDK, but those variants have not been validated on this frame and
+are unnecessary for the simple empty acknowledgment.
+
+This corrects the earlier claim that any 2xx response suffices. The first Ghidra
+export truncated the upload function before this check; live validation exposed
+the missing condition.
 
 ## Finalize
 

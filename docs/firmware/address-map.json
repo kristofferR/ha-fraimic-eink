@@ -4,6 +4,12 @@
   "names": "Analytical descriptions, not recovered original symbols",
   "entries": [
     {
+      "address": "0x3c0ffd20",
+      "kind": "string",
+      "role": "Separate build-log timestamp 2026-07-16 10:15:17 -0400; app file offset 0xfd20",
+      "evidence": "static and live boot log"
+    },
+    {
       "address": "0x3c101590",
       "kind": "string",
       "role": "Production API base literal; app-file offset 0x11590, 26 characters",
@@ -368,6 +374,18 @@
       "kind": "function",
       "role": "Read OTA-active state",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42016b5d",
+      "kind": "instruction",
+      "role": "Load the separate build-log timestamp literal",
+      "evidence": "GNU Xtensa disassembly"
+    },
+    {
+      "address": "0x42016b71",
+      "kind": "call_site",
+      "role": "Log build hash and separate timestamp",
+      "evidence": "GNU Xtensa disassembly and live boot log"
     },
     {
       "address": "0x4201727c",
@@ -865,6 +883,24 @@
       "evidence": "static"
     },
     {
+      "address": "0x420271f8",
+      "kind": "call_site",
+      "role": "Streaming audio upload calls esp_http_client_fetch_headers",
+      "evidence": "GNU Xtensa disassembly; live upload response experiment"
+    },
+    {
+      "address": "0x42027200",
+      "kind": "instruction",
+      "role": "Audio upload incorrectly requires zero header-reader return before HTTP status check",
+      "evidence": "GNU Xtensa disassembly; positive-length upload acknowledgment rejected"
+    },
+    {
+      "address": "0x420272b0",
+      "kind": "instruction",
+      "role": "Audio upload HTTP status 200-299 check, reached only after zero length-result guard",
+      "evidence": "GNU Xtensa disassembly"
+    },
+    {
       "address": "0x42027380",
       "kind": "function",
       "role": "Audio finalize request/parser",
@@ -1292,6 +1328,12 @@
       "kind": "function",
       "role": "SDK i2s_channel_init_pdm_rx_mode",
       "evidence": "static"
+    },
+    {
+      "address": "0x4206d890",
+      "kind": "function",
+      "role": "SDK esp_http_client_fetch_headers; returns content length or negative error",
+      "evidence": "SDK header contract and matching GNU disassembly"
     },
     {
       "address": "0x4206df98",

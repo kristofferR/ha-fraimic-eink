@@ -71,6 +71,11 @@ none is stored. `0x42015f2c` accepts intervals 1–30 days, hours 0–23 and min
 It uses the stored POSIX timezone, with `EST5EDT` fallback. This is not always a
 96-hour interval, and the fallback may not match the owner's location.
 
+The awake USB-powered read on 21 October actually reported `EST5EDT` in `/info`;
+the synchronized log time was UTC−04:00. This confirms that timezone on this
+unit at the time of the read, not merely a static fallback. No timezone was
+changed. Album UTC epochs and maintenance local-calendar times must stay distinct.
+
 ### Missing/missed schedule behavior
 
 - After an album wake, a positive saved album timestamp that is no longer more
@@ -98,6 +103,13 @@ Opening the `/test` landing page enters a roughly ten-minute factory-test mode
 that suppresses background behavior. Its eventual timeout sleep is not evidence
 that ordinary idle sleep works. `/test?action=battery` is a separate read branch.
 See [local API side effects](local-api.md).
+
+The saved previous-boot log explicitly recorded `FACTORY-TEST-TIMEOUT` after ten
+minutes, with a configured user taking the sleep-only path. It confirmed a
+2,304,000-byte saved image, gauge sleep, Wi-Fi shutdown and both button/timer wake
+sources. The later USB-powered boot reported `DEEP_SLEEP` and the existing-user
+button-wake path. Plug/tap ordering was not controlled; these observations do
+not establish ordinary unplugged idle-sleep behavior or the battery bug's cause.
 
 ## Offline dependencies
 

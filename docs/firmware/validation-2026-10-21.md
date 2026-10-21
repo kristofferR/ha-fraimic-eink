@@ -8,6 +8,11 @@ change device settings, intercept a new recording, import into the live library
 or invoke paid generation. Firmware identity remains the hash in
 [firmware-identity.json](firmware-identity.json).
 
+This page covers the initial static/account/host pass. Later USB-powered reads
+and owner-directed microphone experiments are recorded separately in
+[backend emulation](backend-emulation.md), including a response-length bug found
+only after testing the physical upload client.
+
 ## HA capability inspection: A01
 
 The installed HA version is 2026.10.2. Complete STT and AI Task entity listings,
@@ -115,8 +120,24 @@ original 471-function index missed those entries and was not treated as exhausti
 | WAN dependency | Monitor intervals, fallback AP/failover behavior and keep-awake effect |
 | Rendering | Blocking SPI transactions consume successive chunks of the original shared buffer |
 | Local actions | Bare `/action` defaults to reset; test POST upload is a panel image; log reads update activity and expose previous saved logs |
-| Build timestamp | No timezone field/provenance; retain null |
+| Build timestamp | Descriptor has no zone provenance; later boot-log timestamp is separately documented in [hardware](hardware-and-layout.md) |
 
 Static completion does not close the corresponding device fault/timing tests.
 The separate partition, bootloader/eFuse, recovery, storage-capacity and hardware
 questions remain unanswered. Battery work remains deferred by the owner.
+
+## Later awake read: S05/S06/H05/H07
+
+The owner subsequently woke the frame on USB power. Read-only `/api/info`,
+`/info`, authenticated `/logs`, `/api/verification-status` and `/api/albums`
+were available. Logs were read without clearing them; authentication/read activity
+can extend the device's activity timer. Firmware/build remained 0.2.29/f1555ee5.
+
+Observed: encrypted NVS, valid `app1` at `0x4a0000` with 4,718,592-byte capacity,
+registered/verified identity, synchronized time, configured `EST5EDT`, CW2217
+initialization and existing settings. The log's separate build timestamp includes
+`-0400`; the descriptor's timezone remains unknown. The previous saved session's
+factory-test timeout must not be mistaken for normal idle-sleep evidence.
+
+This read did not recover the partition table, bootloader/eFuses, whole-flash
+encryption, image-filesystem capacity or recovery pads. The enclosure stays closed.

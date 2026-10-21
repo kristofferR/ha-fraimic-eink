@@ -152,7 +152,9 @@ acknowledgment. See the [rendering trace](rendering-and-concurrency.md).
 Static registrations and handlers in this image include create and delete,
 in addition to the previously tested GET/PUT pair. For example, `0x42030790`
 reads the create body and calls proxy `0x42030064` with `/api/v1/albums` and POST.
-These mutations were not live-tested during this investigation.
+Create/delete were not live-tested in the checklist passes. Earlier wake
+troubleshooting did update an existing empty wake-test album to inactive; that
+single operation does not validate the complete mutation contract.
 
 The common proxy `0x42030064` checks Wi-Fi station connectivity, uses a ten-second
 HTTP timeout and sends `User-Agent: ESP32-Fraimic/1.0` plus
@@ -175,8 +177,13 @@ through in chunks rather than parsing an album schema.
 
 Owner-scoped upstream reads confirmed both account-token and device-key listing
 paths, including assignment and schedule fields. That does not validate mutations
-or every backend permission. No album was created, edited or deleted. This is
-not an on-device album store.
+or every backend permission. No album was created, edited or deleted in the
+account-read/checklist validation pass. This is not an on-device album store.
+
+The later [local-backend experiment](backend-emulation.md) exercised the physical
+frame's GET proxy against an owner-hosted HTTPS server: it returned HTTP 200 and
+the identical captured album object through `/api/albums`. The server had no
+vendor forwarding. This validates the read path; it adds no mutation evidence.
 
 ## Changes worth exposing in a firmware fork
 

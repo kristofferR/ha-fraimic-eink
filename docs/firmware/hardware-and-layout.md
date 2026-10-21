@@ -10,6 +10,7 @@
 | Reported version/build | `0.2.29` / `f1555ee5` |
 | App descriptor version | `v0.2.24-33-gf1555ee` |
 | Descriptor build time | 16 July 2026, 10:17:43 |
+| Separate timestamp printed in boot log | `2026-07-16 10:15:17 -0400` |
 | Processor / OS | ESP32-S3, Xtensa LX7; ESP-IDF v5.4.1 / FreeRTOS |
 | App file length | 4,123,920 bytes |
 | SHA-256 | `a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f` |
@@ -30,6 +31,18 @@ uses compiler date/time macros, and its [structure](https://raw.githubuserconten
 contains no timezone field. No vendor build-environment provenance was recovered.
 Neither the frame's configured timezone nor the research computer's timezone
 can fill that gap. H07 is closed with this explicit unknown.
+
+A later live boot log exposed a **separate** build-log timestamp with an explicit
+offset: `2026-07-16 10:15:17 -0400`. The exact string is embedded at file offset
+`0xfd20`, virtual address `0x3c0ffd20`. GNU Xtensa disassembly confirms its load at
+`0x42016b5d` and the logging call at `0x42016b71`, alongside build hash `f1555ee5`.
+It differs from the descriptor time. Its origin as a source-control timestamp or
+build-system timestamp is unproven, so it does not fill the descriptor timezone.
+
+The USB-powered read also reports encrypted `nvs`, a valid running `app1`, and a
+CW2217 chip ID of `0xA0` with configured 10 mΩ sensing. Encrypted NVS does not
+establish whole-flash encryption or secure-boot/eFuse state. The owner has chosen
+to keep the enclosure closed; physical pad/component identification is deferred.
 
 ## Address translation
 

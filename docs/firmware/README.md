@@ -11,6 +11,10 @@ The [research checklist](research-todo.md) tracks the unknowns and unverified
 claims across these documents, with stable task IDs and concrete validation work.
 The [latest validation pass](validation-2026-10-21.md) records owner gallery reads,
 installed HA capabilities, five library host checks and deeper firmware traces.
+The [local-backend experiment](backend-emulation.md) then demonstrated locally
+generated poll and album responses on the physical frame, without firmware changes.
+It also captures the microphone locally and reaches finalize; no generated image
+has been delivered yet.
 
 | Document | Contents |
 | --- | --- |
@@ -25,6 +29,7 @@ installed HA capabilities, five library host checks and deeper firmware traces.
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
+| [Backend emulation](backend-emulation.md) | Physical-frame idle poll/album experiment, transport recipe and next voice checks |
 
 Machine-readable references: [firmware identity](firmware-identity.json),
 [route registrations](route-registrations.json), and
@@ -74,12 +79,17 @@ addresses across releases. Function names are analytical descriptions.
    but an importer needs explicit deduplication and image-provider setup.
 10. WAN-probe failures can enable fallback AP/failover despite a healthy LAN backend.
     Bare `GET /action` defaults to reset and must never be used as a passive probe.
+11. Local microphone upload works with an ordinary HTTP sink and empty form fields.
+    Its acknowledgment must have no body: firmware mistakes a positive response
+    length for an error, even with HTTP 200. Empty acknowledgment reaches finalize.
 
 ## Current boundary
 
 The owner-scoped investigation recovered the matching stock app and demonstrated
 that the frame accepted a test certificate chain for its normal API hostname.
-Temporary interception was removed. **No custom firmware has been flashed and no
+A later standalone server answered real polls and album reads using local data.
+Temporary interception was removed after each bounded experiment. The enclosure
+remains closed at the owner's request. **No custom firmware has been flashed and no
 custom boot or rollback has been demonstrated.** The application download is not
 a full flash backup, and eFuse/bootloader security state remains unknown.
 
