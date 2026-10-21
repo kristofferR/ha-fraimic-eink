@@ -115,6 +115,35 @@ getter to always return true would not repair the manager's other decisions.
 **Proposed:** distinguish Wi-Fi association, local backend availability and WAN
 availability. Probe the configured backend instead of requiring a public target.
 
+The recovered monitor entry is `0x4202f674`; its interval selector is
+`0x4202eeb4`. Intervals below are waits between iterations, so probe execution
+can add time:
+
+| State | Wait |
+| --- | --- |
+| Healthy (1) | 60 seconds |
+| Suspect (2) | 15 seconds |
+| Verify replacement AP (3) | No interval wait before the probe |
+| Wait/retry (4) | 30 seconds powered; 60 seconds on battery |
+| Passive (5) | 60 seconds powered; 300 seconds on battery |
+
+Here “powered” means charging detection **or keep-awake**, via `0x4202ee94`.
+The passive-state log mentioning five minutes does not describe both branches.
+The monitor initially sets cached reachability true; that is initialization,
+not proof a probe has succeeded.
+
+Failure handler `0x4202f2f0` moves healthy to suspect, marks connectivity false
+and enables the fallback AP. Repeated failures lead to AP failover/verification,
+retry cycles and eventually passive checks. It can clear the AP blacklist and
+retry after exhaustion. Success handler `0x4202f294` clears failure counters,
+marks healthy, disables fallback AP and records channel/BSSID information.
+Disconnected wait/passive states also attempt Wi-Fi reconnection.
+
+Consequently WAN loss can provoke AP recovery even while a local API is healthy.
+Changing only the API hostname, or bypassing the voice getter, does not repair
+that policy. These transitions are static findings; backend-up/WAN-down and
+recovery timing still need a controlled device experiment.
+
 ### Time service
 
 `0x42014e90` rotates explicit SNTP servers from a table at `0x3c13bbc4`:

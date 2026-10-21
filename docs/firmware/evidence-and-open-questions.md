@@ -19,13 +19,20 @@ build without comparison.
 | GNU Xtensa disassembly with ESP32-S3 configuration | Critical instructions, literal values and comparisons | Physical timing or runtime race outcomes |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
-| Unauthenticated gallery request, 401 | Gallery is not openly readable in that request | Successful owner-account import or device-key authorization |
+| Owner gallery list/detail and original reads | Token-authenticated schema, audio/image types, nullable fields and an available original | Implemented import, indefinite retention or retrieval after expiry |
+| Gallery permission comparisons | No-auth and device-key Bearer requests returned 401; owner token returned 200 | Every alternative authentication mechanism |
+| Account/device-key album reads | Both listing paths worked; assignment/schedule fields observed | Create/update/delete permissions or payload acceptance |
+| Installed HA capability reads | Configured STT/Assist and lack of an image-capable AI Task entity on HA 2026.10.2 | Provider quality, local inference or generation/edit success |
+| Five isolated library checks | Original retention, render/cache without send, cache-key distinctions and duplicate insertion | A new pull adapter's scheduling/delivery behavior |
+| Actual HA Google helper with synthetic PCM | Complete WAV must be parsed before this raw-PCM boundary | Physical recording format or transcription quality |
 | Host-side low-battery asset decoding | Recovered RLE format consumes all input and yields correct output size/palette | A newly generated asset renders correctly on the panel |
 | Integration source inspection | Existing functions to reuse in HA | Implemented emulator, voice backend or new metadata model |
 
 Temporary DNS/DNAT and interception were removed after the owner-scoped test.
 No custom app was flashed. Later static passes did not record audio, purchase
 generation, change device settings or make additional device/network changes.
+The [follow-up validation record](validation-2026-10-21.md) distinguishes owner
+cloud reads and host fixtures from physical-device tests.
 
 ## Method and private artifacts
 
@@ -99,7 +106,10 @@ This check can run entirely on the host without sending anything to the frame.
 | “The render copy creates an independent snapshot” | Its display pointer aliases the same audio/image allocation |
 | “WAIT protects incoming image bytes” | Raw HTTP receives into shared memory before the render wait |
 | “Completion signal or last_refresh acknowledges my image” | The signal also follows errors; last_refresh is maintenance history |
-| “GET diagnostics are passive” | The `/test` landing page activates factory-test mode |
+| “GET diagnostics are passive” | `/test` activates factory-test mode; bare `/action` defaults to reset |
+| “HA exposes generate_image, so a provider is ready” | The installed entities lack the image-generation feature bit |
+| “Adding the same original imports idempotently” | The library creates a second item; an importer needs a stable upstream-ID mapping |
+| “WAV metadata means send a complete WAV to every STT provider” | This version's Google provider wraps raw PCM, so forwarding a RIFF header nests it |
 | “No appended signature means any app boots” | Bootloader/eFuse/security and recovery remain unverified |
 | “TLS hostname checking is disabled” | The examined config sets global CA use, not the adjacent skip-CN byte |
 
@@ -114,7 +124,7 @@ The table below remains a short priority overview.
 | --- | --- |
 | Can a minimal local protocol adapter satisfy stock parsing? | Host-side HTTP fixtures for poll, presign, upload, finalize and system images; then one owner-directed device round trip |
 | How can a custom image be recovered? | Partition map, actual security state, verified recovery entry and controlled rollback behavior |
-| What does account-authenticated gallery import return? | One authorized paginated read with secrets/URLs kept private; verify transcript/style/upload identity |
+| Will gallery import remain reliable? | Reads now work; test expired URLs, retention, pagination changes and persisted deduplication |
 | Do current album create/delete handlers work end to end? | Verify proxy auth and payload semantics before owner-directed mutations |
 | Which paths own the shared buffer concurrently? | Trace local upload, background download, recording and renderer locks; instrument ownership in a test build |
 | Can WAN-free cold boot work reliably? | Local backend/time support and explicit cold-boot/outage test, not only RTC-preserving sleep |

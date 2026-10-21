@@ -24,6 +24,13 @@ does not establish the other slot, image-filesystem capacity, encryption keys,
 calibration locations or a working recovery procedure. App image integrity and
 boot authorization are distinct; see [OTA](ota-and-recovery.md).
 
+The descriptor timestamp has **unknown timezone**, retained as null in the
+identity JSON. The matching SDK's [descriptor initializer](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_app_format/esp_app_desc.c)
+uses compiler date/time macros, and its [structure](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_app_format/include/esp_app_desc.h)
+contains no timezone field. No vendor build-environment provenance was recovered.
+Neither the frame's configured timezone nor the research computer's timezone
+can fill that gap. H07 is closed with this explicit unknown.
+
 ## Address translation
 
 The [identity JSON](firmware-identity.json) records all six image segment headers.

@@ -109,6 +109,40 @@ NVS includes `ota_fail`, `pend_force`, `force_ver`, `cur_ver`, `last_ver`,
 `upd_cnt`, `rb_cnt`, `boot_cnt` and `last_ts`. Names alone do not establish that
 every forced-version mechanism remains active in this newer direct-download path.
 
+### Legacy manifest and retained bookkeeping
+
+The recovered direct call sites separate the paths:
+
+| Caller | Path |
+| --- | --- |
+| Poll `0x4202475c` | Queue version/URL through `0x4202ba20` |
+| Main loop `0x42012810` and pre-sleep `0x42012338` | Direct updater `0x4202c514` |
+| `/action?mode=ota`, `0x4201c740` | Read saved manifest `0x4202d780`, then older updater `0x4202bb88` |
+
+The factory/test POST handler is not another firmware-upload entry point: its
+upload branch handles a panel image. The legacy action requires registration and
+the safety predicate. It does not accept a new firmware URL as an action parameter.
+
+Manifest loading reads `ota_data/ota_url` into a 2,048-byte string,
+`ota_sha256` into 65 bytes and `ota_size` as a 32-bit value, then validates them.
+No writer to the URL/size manifest was recovered in the current queue path.
+The cleanup helper `0x4202d750` erases `ota_ver` and `ota_sha256`, rather than
+clearing every manifest key. An old saved manifest must not be confused with a
+new poll offer.
+
+Direct references to `pend_force` lead to initialization `0x4202d484` and
+health confirmation `0x4202ce1c`: loading/clearing it and, when appropriate,
+writing `force_ver`. No current `pend_force` writer was recovered. The offered
+version queued in RAM is not evidence that this legacy key survives reboot.
+This is a bounded negative result from references, not proof against all possible
+indirect or differently named persistence paths.
+
+Statistics have reset semantics: initialization increments `boot_cnt`; successful
+pending-image confirmation increments `upd_cnt`, resets `rb_cnt` to zero and
+`boot_cnt` to one, and writes the timestamp/compiled version. A failed health
+check increments `rb_cnt`. Thus rollback and boot counters are not lifetime totals.
+Actual rollback, persistence failures and custom-version reporting remain untested.
+
 ## Minimal customization and outstanding prerequisites
 
 The central production URL literal fits at most its original 26-byte string length

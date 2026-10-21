@@ -30,8 +30,30 @@ second backing buffer.
 The worker later sends eight 288,000-byte controller blocks from this alias.
 Protect the bytes until the display driver has finished consuming them. Releasing
 ownership merely because the worker started or passed the copy call is unsafe.
-Whether an earlier release after all transfers is useful needs driver/DMA lifetime
-verification; holding through the full render is the simpler initial design.
+Holding through the full render is the simpler initial design. The transfer
+lifetime is now traced below; an earlier release would still need a verified
+boundary across all controllers and other consumers.
+
+### SPI consumes the source one blocking chunk at a time
+
+Transfer helper `0x42021e5c` sends command `0x10`, then data in 4,800-byte chunks
+plus a remainder. Its transaction points into the original source and advances
+that pointer; there is no full-image snapshot. Eight 288,000-byte controller
+blocks therefore involve successive reads from the shared allocation.
+
+The indirect target at `0x4037af80` is `spi_device_transmit`: it queues a transaction,
+waits indefinitely for its result, and asserts that the returned descriptor is
+the one submitted. The binary assertion/function strings and call structure match
+the [ESP-IDF v5.4.1 SPI implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_driver_spi/src/gpspi/spi_master.c).
+Successful return releases that transaction's source lifetime, not the unsent
+remainder of the image. DMA or internal staging does not create a safe snapshot
+of future chunks. Keep ownership through the final consumer.
+
+The application chunk loop also overwrites its error result on later transfers,
+so an earlier error can be hidden by a later success. Its caller logs the final
+result without returning a failure to the worker. Fault injection and real
+free-memory/fragmentation measurements are still needed before choosing between
+exclusive ownership and a separate full snapshot (D03/D06).
 
 ## Readiness is not ownership
 

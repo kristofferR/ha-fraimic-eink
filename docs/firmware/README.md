@@ -9,6 +9,8 @@ Home Assistant integration. It is not recovered vendor source or a flashing guid
 
 The [research checklist](research-todo.md) tracks the unknowns and unverified
 claims across these documents, with stable task IDs and concrete validation work.
+The [latest validation pass](validation-2026-10-21.md) records owner gallery reads,
+installed HA capabilities, five library host checks and deeper firmware traces.
 
 | Document | Contents |
 | --- | --- |
@@ -22,6 +24,7 @@ claims across these documents, with stable task IDs and concrete validation work
 | [Local API](local-api.md) | All 42 registered routes, diagnostics and side effects |
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
+| [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
 
 Machine-readable references: [firmware identity](firmware-identity.json),
 [route registrations](route-registrations.json), and
@@ -66,6 +69,11 @@ addresses across releases. Function names are analytical descriptions.
 8. The display buffer aliases the audio/image allocation too. Render WAIT happens
    after HTTP reception, and the worker's completion semaphore also signals failure.
    `display.last_refresh` records maintenance history, not every image delivery.
+9. Owner-authenticated gallery reads expose voice transcripts and originals;
+   device-key Bearer access does not. HA's library can render without sending,
+   but an importer needs explicit deduplication and image-provider setup.
+10. WAN-probe failures can enable fallback AP/failover despite a healthy LAN backend.
+    Bare `GET /action` defaults to reset and must never be used as a passive probe.
 
 ## Current boundary
 

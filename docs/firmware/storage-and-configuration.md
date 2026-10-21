@@ -15,6 +15,7 @@ schema or a guarantee of compatibility between releases.
 | Namespace | Keys | Purpose / evidence |
 | --- | --- | --- |
 | `app_data` | `server_mode` | Production/development selector, `0x42017670` |
+| `app_data` | `force_ftu` | Development first-time-setup override; stale production value is cleared |
 | `app_data` | `device_key_p`, `user_id_p`, `email_p`, `email_vp` | Production identity/verification |
 | `app_data` | `device_key_d`, `user_id_d`, `email_d`, `email_vd` | Development identity/verification |
 | `app_data` | `device_key`, `user_id`, `email_addr`, `email_verified` | Legacy production aliases/migration |
@@ -31,9 +32,21 @@ schema or a guarantee of compatibility between releases.
 | `app_data` | `sys_img` | Persisted compressed system-screen marker |
 | `app_data` | `wifi_stats` | Wi-Fi diagnostic state |
 | `ota_data` | `cur_ver`, `last_ver` | Reported/stored OTA versions |
+| `ota_data` | `ota_url`, `ota_sha256`, `ota_size`, `ota_ver` | Legacy manifest reads/cleanup; not the current poll queue's RAM URL |
 | `ota_data` | `ota_fail` | Failed version, count, timestamp and reason |
 | `ota_data` | `pend_force`, `force_ver` | Pending/confirmed forced-version bookkeeping |
 | `ota_data` | `upd_cnt`, `rb_cnt`, `boot_cnt`, `last_ts` | OTA statistics |
+
+Additional tracing identified legacy manifest string capacities (URL 2,048 bytes,
+SHA-256 text 65 bytes), a 32-bit size and 64-bit OTA/sleep timestamp accessors.
+The four switch accessors use 32-bit storage despite their boolean meaning;
+do not infer NVS types from JSON types. The type/default map, SDK-owned Wi-Fi
+namespace and migration fault cases remain incomplete (N02/N03).
+
+Initialization at `0x420153b0` can erase and reinitialize NVS on the SDK's
+no-free-pages/new-version errors. A recovery plan must cover provisioning and
+calibration, not assume that booting an app preserves all configuration under
+every storage error. No live NVS erase or migration was attempted.
 
 ## Identity layout and migration
 

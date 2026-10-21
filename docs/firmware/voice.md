@@ -158,6 +158,27 @@ messages and raw PCM, so the Fraimic HTTP upload still needs an adapter. See the
 [Assist pipeline protocol](https://contributors.home-assistant.io/core/internals/assist-pipelines/)
 and [STT entity formats](https://contributors.home-assistant.io/core/entities/stt/).
 
+### Installed-provider check and WAV boundary
+
+Read-only inspection of the owner's HA 2026.10.2 found Home Assistant Cloud and
+Google AI STT. Both advertise 16 kHz, 16-bit mono PCM/WAV and Norwegian Bokmål;
+no Wyoming/local STT integration was configured. No recording or transcription
+request was sent during this check.
+
+The authenticated HA `/api/stt/<provider>` view validates `X-Speech-Content`
+metadata and passes body chunks to the provider. It does not strip a WAV header.
+In this exact version, [Google AI STT](https://raw.githubusercontent.com/home-assistant/core/2026.10.2/homeassistant/components/google_generative_ai_conversation/stt.py)
+collects the stream and wraps WAV-labeled input as raw PCM. Its
+[conversion helper](https://raw.githubusercontent.com/home-assistant/core/2026.10.2/homeassistant/components/google_generative_ai_conversation/helpers.py)
+does not detect an existing RIFF header.
+
+A host fixture using that actual helper confirmed that passing a complete WAV
+adds another header and treats the original 44 bytes as 22 extra audio samples.
+Parse the Fraimic WAV, validate its PCM format and pass PCM to this provider;
+do not blindly remove 44 bytes from arbitrary uploaded WAV files. This is a
+container-boundary test, not a transcription quality test or proof every STT
+provider has the same stream contract. See the [validation record](validation-2026-10-21.md).
+
 Keep generated originals, transcripts, provider/job identity and edit lineage in
 the HA library. A local transport can still call hosted AI; fully offline creation
 also needs local STT and generation engines. Heavy inference belongs on a capable

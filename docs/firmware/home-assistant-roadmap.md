@@ -42,13 +42,21 @@ the existing upload service. Otherwise one generation can cause two physical
 redraws. Extract only the small shared operation needed if existing helpers
 combine rendering with sending. Keep one conversion/cache implementation.
 
+A host experiment now verifies this primitive: the real library and converter
+retained the original, produced 2,304,000 panel bytes and a 720 × 1280 preview,
+and reused the cached result. All three delivery-mode option values were tested
+with delivery forbidden. This does not test a new pull scheduler or its locks;
+none has been implemented. See [validation and limits](validation-2026-10-21.md).
+
 ## Useful features before changing firmware
 
 **Import existing voice artwork.** The vendor gallery schema exposes transcripts,
 styles and originals. An explicit account-authenticated import could place these
-in a `Creations` album, with stable upload identity for deduplication. Device-key
-authentication was not shown to authorize this; only an unauthenticated 401 and
-the public schema have been checked. No account session was imported.
+in a `Creations` album, with stable upload identity for deduplication. Owner-token
+page/detail reads and an original download have now succeeded; device-key Bearer
+authentication returned 401. Missing/null metadata must be supported. No library
+import was performed. The existing `async_add_image` creates another item for
+identical input, so an importer needs a persisted account/upload-ID mapping.
 
 **Create artwork from HA.** An integration-side STT/generation pipeline can store
 new originals and deliver them through the existing LAN push transport while the
@@ -63,6 +71,29 @@ version and selected entity's image-generation capability before choosing it.
 An edit/reference-image workflow also needs a provider that supports that input;
 plain image-generation support does not establish editing support. Store the
 returned original in the library, rather than retaining only a transient result URL.
+
+### Installed HA capability boundary
+
+On HA **2026.10.2**, the `ai_task.generate_image` service is registered, but the
+configured Anthropic and Google AI Task entities both report feature mask **3**:
+data generation plus attachments. Neither advertises image generation (**4**).
+A registered service is therefore insufficient to run this workflow today.
+No local STT/generation provider was found in the inspected configuration.
+
+The configured Assist pipeline uses cloud STT, an Anthropic conversation agent
+and cloud TTS in Norwegian. Executing that pipeline can invoke intents; a
+transcription-only adapter should use the STT boundary deliberately rather than
+running arbitrary recorded speech as an Assist command by default.
+
+For an image-capable entity, HA's [image-task implementation](https://raw.githubusercontent.com/home-assistant/core/2026.10.2/homeassistant/components/ai_task/task.py)
+accepts local media-source attachments (including camera/image snapshots), saves
+the generated image, and returns a media-source ID, signed URL, MIME type and
+dimensions. The signed URL lasts one hour according to the
+[versioned constants](https://raw.githubusercontent.com/home-assistant/core/2026.10.2/homeassistant/components/ai_task/const.py).
+Keep the durable source ID/original. Reference-image editing also requires an
+appropriate provider/model; attachment support on a data-only entity is not
+image-edit support. Provider setup and real generation/edit tests remain decisions
+for implementation. The capability inventory itself closes A01.
 
 ## Minimal local-cloud adapter
 
@@ -111,6 +142,15 @@ finalize requests should return the same result, not purchase another generation
 Persist the original before advertising the panel asset. Make raw-audio retention
 an explicit option; transcript retention and deletion should be understandable too.
 
+There is a separate crash boundary between submitting a paid generation and
+saving its provider job ID. A local lock or a completed-job cache cannot guarantee
+exactly one purchase across that boundary. Prefer provider idempotency keys/job
+lookup; otherwise persist an ambiguous-submission state and require deliberate
+recovery instead of automatically buying another generation. A duplicate finalize
+should attach to the existing job. A disconnect alone must not delete its original
+or imply the frame cancelled it. These are design requirements for A04, not tested
+behavior of an existing job store.
+
 Potential user-facing behavior:
 
 | Request | Result |
@@ -125,6 +165,22 @@ Stock finalize expects an image even for a command that needs no visual change.
 Returning the current image can still cause a redraw. Clean no-redraw success
 requires a firmware/protocol extension; do not promise it as a backend-only fix.
 Actual user interaction and provider choices should be agreed before implementation.
+
+### Extension boundaries
+
+| Capability | Backend-only limit | Required firmware/protocol work |
+| --- | --- | --- |
+| Recording/busy/cancel events | Presign arrives after recording; polling does not identify its start | Emit state transitions with frame/job identity and acquire the buffer before capture |
+| No-redraw command success | Returning the current image still follows download/render | Explicit terminal success without an image; preserve legacy completed-image response |
+| Sleep during generation | Stock finalize waits for a ready URL; `202` does not create a pending job | Persist pending job identity, define resume/cancel/expiry, and arbitrate its next wake with album/maintenance deadlines |
+| Streaming STT | Backend can stream a stored WAV to STT only after stock upload | Upload chunks during capture, with ordering, bounds, cancellation and buffer lifetime |
+| Automatic end-of-speech | Server cannot stop stock capture before it receives the completed recording | Device VAD or a live capture-control channel, with silence/noise/maximum-duration policy |
+| Reliable rendered event | Asset download and worker termination are insufficient | Carry content ID, propagate driver errors and distinguish display result from power-safe cleanup |
+
+Advertise a protocol/capability version before using extensions. Keep stock
+responses for stock clients; a settings field the stock firmware ignores is not
+capability negotiation. These boundaries are grounded in the recovered flow;
+backward-compatibility fixtures and physical transitions remain A06 work.
 
 ## Delivery state and scheduling
 
@@ -169,7 +225,8 @@ has been established.
    wrong ownership, duplicate finalize, truncation and failed/slow generation.
 2. Run the adapter with an emulated HTTP client and a known packed asset. Confirm
    exact lengths, request sequence, long-request timeout and library metadata.
-3. Verify gallery import with a deliberately authorized account session if desired.
+3. Build an idempotent importer from the verified account read contract; test
+   pagination changes, expired URLs, duplicate runs and retained originals.
 4. Establish the [recovery prerequisites](ota-and-recovery.md) and review a minimal
    backend configuration change before any physical update experiment.
 5. With owner-directed device tests, validate an idle poll, one image, one completed

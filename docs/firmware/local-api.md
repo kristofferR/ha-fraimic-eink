@@ -45,7 +45,7 @@ recovered role; they are not complete request schemas.
 | POST | `/logs/action` | Log controls |
 | GET | `/get-started` | Setup page |
 | GET | `/test` | Factory-test page or selected diagnostic; see side effects |
-| POST | `/test` | Factory-test actions, including reset/update controls |
+| POST | `/test` | Factory microphone, touch, accelerometer and image-upload actions |
 | GET | `/dev` | Developer-mode page |
 | POST | `/dev` | Password-gated vendor environment switching |
 | GET | `/battery/status` | Battery status |
@@ -68,6 +68,12 @@ device-scoped credentials for frame traffic.
 
 ## Diagnostics have side effects
 
+**Bare `GET /action` defaults to `mode=reset`.** Handler `0x4201c740` initializes
+the mode to `reset` before attempting to read the query. Missing/unreadable query
+data can therefore enter the environment-specific factory-reset path. Never use
+this route as a liveness probe or crawl it without an explicitly reviewed action.
+`mode=restart`, `sleep`, `reset` and `ota` are actions, despite using GET.
+
 Opening `/test` **without an action** enters factory-test mode at `0x4201ed28`,
 starts a roughly ten-minute timeout and changes normal background behavior. It
 is unsuitable as a passive liveness check. The page contains controls that can
@@ -77,7 +83,10 @@ reset pairing/settings; the POST handler is `0x4201ba9c`.
 percentage, charging and available gauge diagnostics. Other GET branches include
 touch, microphone statistics and accelerometer diagnostics; some initialize
 hardware or alter diagnostic counters. Do not crawl all actions to discover them.
-The factory OTA control uses the older update path and registration checks.
+The OTA test is `GET /action?mode=ota`, using the older manifest path and
+registration checks; it is not a distinct updater in `POST /test`. Inspection of
+that POST handler, including GNU decoding beyond Ghidra's truncated upload branch,
+found microphone, touch, accelerometer and image-upload actions.
 
 `/dev` selects the vendor development environment, not a root shell or configurable
 URL. See [identity and mode switching](storage-and-configuration.md).
@@ -86,6 +95,16 @@ Logs and `/info` are valuable for build, partition and hardware evidence but may
 contain identifying information. Sanitize captures before sharing. The absence
 of a local key in a masked JSON field does not mean that the complete credential
 is safe to publish elsewhere.
+
+The log handlers add another timing caveat: GET `/logs` and POST `/logs` call
+the last-activity helper. Repeated log viewing can affect idle timing. GET formats
+the current log buffer and, when present, previous logs from
+`/imagedata/debug_log.bin`; authentication controls the formatter's detail level.
+POST accepts a password form and responds with a redirect/session cookie.
+The separate POST `/logs/action` recognizes `action=clear` and clears the buffer;
+its recovered handler does not call the GET handler's session check. No clear
+request was made. Preserve logs before diagnostic mutations and keep the endpoint
+inside the intended LAN boundary.
 
 ## Image delivery
 
@@ -128,18 +147,36 @@ not prevent an upload from overwriting another user's buffer. Also,
 `display.last_refresh` is maintenance history rather than a per-image completion
 acknowledgment. See the [rendering trace](rendering-and-concurrency.md).
 
-## Album proxy correction
+## Album proxy contract
 
 Static registrations and handlers in this image include create and delete,
 in addition to the previously tested GET/PUT pair. For example, `0x42030790`
 reads the create body and calls proxy `0x42030064` with `/api/v1/albums` and POST.
 These mutations were not live-tested during this investigation.
 
-The common proxy uses the central API base and provisioned device key. Its
-availability depends on connectivity and backend authorization; registration
-does not prove the backend accepts every operation or payload. The backend
-contract and proxy header handling need their own verification before enabling
-additional controls. This is not an on-device album store.
+The common proxy `0x42030064` checks Wi-Fi station connectivity, uses a ten-second
+HTTP timeout and sends `User-Agent: ESP32-Fraimic/1.0` plus
+`Accept: application/json`. It adds JSON Content-Type for a body. No Bearer header
+is forwarded or synthesized in the recovered code; authorization uses the device
+key in the request path/body. GNU disassembly covered the branch Ghidra truncated.
+
+| Local request | Upstream request |
+| --- | --- |
+| GET `/api/albums` | GET `/api/v1/albums/<device_key>` |
+| POST `/api/albums` | POST `/api/v1/albums`, JSON with device key |
+| PUT `/api/albums/<album_id>` | PUT `/api/v1/albums/<album_id>`, JSON with device key |
+| DELETE `/api/albums/<album_id>` | DELETE `/api/v1/albums/<album_id>/<device_key>` |
+
+Body helper `0x4203051c` accepts 1–4,096 incoming bytes, parses JSON, and adds or
+replaces `device_key` with the frame's own value. Five consecutive receive
+timeouts abort the read; progress resets that count. It does not validate album
+names, schedules or assignments itself. The proxy passes upstream status/body
+through in chunks rather than parsing an album schema.
+
+Owner-scoped upstream reads confirmed both account-token and device-key listing
+paths, including assignment and schedule fields. That does not validate mutations
+or every backend permission. No album was created, edited or deleted. This is
+not an on-device album store.
 
 ## Changes worth exposing in a firmware fork
 

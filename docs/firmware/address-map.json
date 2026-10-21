@@ -82,6 +82,12 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x3fca8c81",
+      "kind": "data",
+      "role": "Serialized poll user_settings output; recovered callers do not apply members",
+      "evidence": "static"
+    },
+    {
       "address": "0x3fcabd20",
       "kind": "state",
       "role": "PSRAM buffer initialized flag",
@@ -91,6 +97,12 @@
       "address": "0x3fcabd28",
       "kind": "state",
       "role": "Shared PSRAM allocation pointer storage",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4037af80",
+      "kind": "function",
+      "role": "SPI transmit wrapper: queue transaction, wait for result, assert descriptor identity",
       "evidence": "static"
     },
     {
@@ -268,6 +280,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x420153b0",
+      "kind": "function",
+      "role": "App/NVS initialization and no-free-pages/new-version recovery",
+      "evidence": "static"
+    },
+    {
       "address": "0x420158b4",
       "kind": "function",
       "role": "Auto-update setting getter",
@@ -394,6 +412,12 @@
       "address": "0x42017a7c",
       "kind": "function",
       "role": "Select authentication base URL",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4201850c",
+      "kind": "function",
+      "role": "Clear stale force-first-time-setup override in production",
       "evidence": "static"
     },
     {
@@ -769,9 +793,21 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42021e5c",
+      "kind": "function",
+      "role": "Controller command/data SPI sends in blocking 4800-byte chunks",
+      "evidence": "static"
+    },
+    {
       "address": "0x42022140",
       "kind": "function",
       "role": "Panel bus/GPIO initialization",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42023674",
+      "kind": "function",
+      "role": "Email verification task using selected auth endpoint; verified missing entry",
       "evidence": "static"
     },
     {
@@ -787,6 +823,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202463c",
+      "kind": "function",
+      "role": "Start email-verification task with RAM credentials",
+      "evidence": "static"
+    },
+    {
       "address": "0x4202475c",
       "kind": "function",
       "role": "Cloud poll request and response parser",
@@ -796,6 +838,12 @@
       "address": "0x42025aec",
       "kind": "function",
       "role": "Background poll worker",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42025da0",
+      "kind": "function",
+      "role": "Retrieve poll output including copied user_settings",
       "evidence": "static"
     },
     {
@@ -964,6 +1012,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202b62c",
+      "kind": "function",
+      "role": "Save OTA update/rollback/boot counters and timestamp/version",
+      "evidence": "static"
+    },
+    {
       "address": "0x4202b8a8",
       "kind": "function",
       "role": "Record OTA failure details",
@@ -1006,9 +1060,33 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202d3a4",
+      "kind": "function",
+      "role": "Load OTA statistics from ota_data",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202d484",
+      "kind": "function",
+      "role": "Initialize OTA state; read/clear retained forced-version bookkeeping",
+      "evidence": "static"
+    },
+    {
       "address": "0x4202d6b4",
       "kind": "function",
       "role": "OTA battery percentage/safety helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202d750",
+      "kind": "function",
+      "role": "Legacy manifest cleanup erasing ota_ver and ota_sha256",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202d780",
+      "kind": "function",
+      "role": "Read and validate legacy ota_url/ota_sha256/ota_size manifest",
       "evidence": "static"
     },
     {
@@ -1036,9 +1114,39 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202ee94",
+      "kind": "function",
+      "role": "Connectivity interval power classification: charging or keep-awake",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202eeb4",
+      "kind": "function",
+      "role": "Connectivity monitor interval by state and power classification",
+      "evidence": "static"
+    },
+    {
       "address": "0x4202f18c",
       "kind": "function",
       "role": "Cached connectivity getter",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202f294",
+      "kind": "function",
+      "role": "Successful reachability transition, counters and fallback AP cleanup",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202f2f0",
+      "kind": "function",
+      "role": "Failed reachability state machine, AP failover and passive retry",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202f674",
+      "kind": "function",
+      "role": "Connectivity monitoring task; verified missing entry",
       "evidence": "static"
     },
     {
@@ -1094,6 +1202,12 @@
       "routes": [
         "GET /api/albums"
       ]
+    },
+    {
+      "address": "0x4203051c",
+      "kind": "function",
+      "role": "Album JSON body reader and provisioned device_key replacement",
+      "evidence": "static"
     },
     {
       "address": "0x420306c8",

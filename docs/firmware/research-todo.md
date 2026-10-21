@@ -25,6 +25,33 @@ identification/access; **Design** means assessing an unimplemented extension.
 Device writes, reset, flashing and hardware access are separate experiments,
 not actions performed by adding this checklist.
 
+## Latest pass: 21 October 2026
+
+[Validation record](validation-2026-10-21.md): **A01 and H07 completed; 65 items
+remain open.** Several open items have substantial new evidence. Completion is
+per question, not a count of tool calls or decompiled functions.
+
+| IDs | Progress | Next evidence needed |
+| --- | --- | --- |
+| C01/C11 | API/web/auth consumers and verification task mapped | Host/device enrollment, redirects and fully offline dependencies |
+| C02 | Traced `user_settings` copies; no local member application recovered | Parser fixtures, device settings and persistence failures |
+| C10 | Owner list/detail/original reads succeeded; device-key Bearer denied | Refresh after actual URL expiry; retention and changing pagination |
+| C12 | Proxy headers/path/body traced; account/device-key album reads succeeded | Explicit create/update/delete and assignment tests |
+| A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
+| A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
+| R11 | Current/legacy call sites, manifest and forced-version/counter references traced | Host fault fixtures and remaining indirect-reference audit |
+| S01 | Connectivity monitor state/interval/AP recovery traced | Backend-up/WAN-down and recovery device experiment |
+| D03/D06 | Blocking SPI chunks and weak error propagation established | Memory/fragmentation measurement and controlled transfer faults |
+| N02 | Legacy manifest and setup-override keys added; storage widths partly traced | Complete type/default/namespace and migration map |
+| H05 | Bare `/action` reset default identified; factory POST upload classified | Complete handler schemas, boot-state and side-effect validation |
+| H07 | No build-timezone provenance; descriptor has no zone field | Retain null unless new build provenance appears |
+| E01/E03 | Missing task entries/Ghidra branches corrected; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
+
+The frame was unreachable at the attempted read during this pass. Live tests
+require an awake window and a prepared, bounded experiment. Recovery/security/
+partition questions still require device or hardware evidence; the stock app
+cannot answer them alone. B01–B03 remain deferred rather than silently prioritized.
+
 ## Local cloud and voice
 
 Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
@@ -72,7 +99,7 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
 
 Sources: [HA roadmap](home-assistant-roadmap.md), [voice integration](voice.md#local-speech-and-ha-integration).
 
-- [ ] **A01 · Read/Host:** Inspect the installed HA version and configured STT,
+- [x] **A01 · Read/Host:** Inspect the installed HA version and configured STT,
   Assist and AI Task entities. Verify `ai_task.generate_image` availability,
   input/output formats, editing/reference-image support and local-inference options.
 - [ ] **A02 · Host/Account:** Validate idempotent gallery import into the library,
@@ -239,7 +266,7 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   mutating/destructive branches as explicit separate experiments. Albums are C12.
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery
   arrangement and hardware measurement accuracy separately from software labels.
-- [ ] **H07 · Static:** Resolve descriptor build timezone if supporting provenance
+- [x] **H07 · Static:** Resolve descriptor build timezone if supporting provenance
   exists; otherwise retain the explicit null/unknown rather than inventing one.
 
 ## Deferred battery investigation
@@ -288,6 +315,7 @@ This table records the audit scope, not completion of its checks.
 | [Local API](local-api.md) | C12, H05, D01/D02/D04/D07, A05/A06 |
 | [Rendering and concurrency](rendering-and-concurrency.md) | D01–D08, N05, B03 |
 | [HA roadmap](home-assistant-roadmap.md) | A01–A07, C01–C12, S07, D05/D07 |
+| [21 October validation](validation-2026-10-21.md) | A01–A03, C01/C02/C06/C10–C12, R11, S01, D03/D06, N02, H05/H07, E01/E03 |
 | [Evidence and open questions](evidence-and-open-questions.md) | All groups, especially B01–B03 and E01–E03 |
 | [Route metadata](route-registrations.json) / [address map](address-map.json) | H05, E01/E02, B01 |
 | Existing [local](../frame-api/routes.md) and [cloud](../fraimic-cloud-api/routes.md) API references | C12, H05, E02/E03 |
