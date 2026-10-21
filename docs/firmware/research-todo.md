@@ -56,6 +56,7 @@ per question, not a count of tool calls or decompiled functions.
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
+| H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
 | E02 | Standard app hash validated; 42 routes and 26 function pairs compared; identical LED records/timezone options and matching calendar/DST/parser branches added to live setup/voice findings | Remaining handler/LED arbitration differences, same-version comparison and other releases |
@@ -314,6 +315,9 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   form boundary behavior are untested. Standard table bytes now match; its full
   LED arbitration comparison remains in E02. Wi-Fi scan/escape, AP-switch fault,
   separate reachability and stats-erasure behaviors still need controlled checks.
+  [Diagnostic storage](diagnostics-and-logs.md) adds fixed-cookie detail filtering,
+  whole-history resets and unchecked persistence; retain the remaining log-loss,
+  allocation, redaction and clear/flush fault cases as untested.
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery
   arrangement and hardware measurement accuracy separately from software labels.
 - [x] **H07 · Static:** Resolve descriptor build timezone if supporting provenance
@@ -365,6 +369,7 @@ This table records the audit scope, not completion of its checks.
 | [OTA and recovery](ota-and-recovery.md) | R01–R12, B02 |
 | [Local API](local-api.md) | C12, H05, D01/D02/D04/D07, A05/A06 |
 | [LED and workflow state](led-and-workflow-state.md) / [records](led-states.json) | H05, A06, D01/D02/D07, E01/E02 |
+| [Diagnostics and logs](diagnostics-and-logs.md) | H05, N01/N05, E01, A04/A05 |
 | [Rendering and concurrency](rendering-and-concurrency.md) | D01–D08, N05, B03 |
 | [HA roadmap](home-assistant-roadmap.md) | A01–A07, C01–C12, S07, D05/D07 |
 | [21 October validation](validation-2026-10-21.md) | A01–A03, C01/C02/C06/C10–C12, R11, S01, D03/D06, N02, H05/H07, E01/E03 |

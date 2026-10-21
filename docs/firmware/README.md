@@ -15,7 +15,8 @@ claims across these documents, with stable task IDs and concrete validation work
 The [21 October validation](validation-2026-10-21.md) records owner gallery reads,
 installed HA capabilities, five library host checks and deeper firmware traces.
 The [22 October continuation](validation-2026-10-22.md) adds HTTP-server lifecycle,
-factory-diagnostic findings and 25 host poll-parser cases without device tests.
+factory/log diagnostics, OTA failure boundaries, 25 host poll-parser cases and
+19 album-body cases without device tests.
 The [local-backend experiment](backend-emulation.md) then demonstrated locally
 generated poll and album responses on the physical frame, without firmware changes.
 It also captured the microphone locally, then completed successful finalize,
@@ -34,12 +35,13 @@ No transcription or AI generation was invoked.
 | [Boot and scheduling](boot-and-scheduling.md) | Wake reasons, timers, time synchronization, sleep and offline dependencies |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
+| [Diagnostics and logs](diagnostics-and-logs.md) | Visibility controls, retention/loss, previous-log storage and redaction limits |
 | [Local API](local-api.md) | All 42 registered routes, diagnostics and side effects |
 | [LED and workflow state](led-and-workflow-state.md) | 41-state table, priorities, protection latch and limits of visible status |
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
-| [22 October validation](validation-2026-10-22.md) | HTTP-server and diagnostic traces; 25 host poll-parser cases and error semantics |
+| [22 October validation](validation-2026-10-22.md) | HTTP/diagnostic/OTA traces; 25 poll and 19 album JSON host cases |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
 | [Standard-model comparison](standard-model-comparison.md) | Model-specific firmware/panel differences, live setup, vendor voice flow and reachability failure |
 

@@ -135,3 +135,24 @@ allocation failure or transport fault was sent to either frame or vendor cloud.
 The fixture omits HTTP framing, NVS, heap failure, backend permissions and device
 concurrency. Static proxy observations do not prove a vendor authorization bypass.
 C12/H05/A05 remain open for their broader device/design questions.
+
+## Diagnostic retention and access: H05/N05/E01
+
+Static analysis traced log handlers, visibility filtering, the capture hook,
+record writer, saved-file reader/writer and clear helper. Capture entry
+`0x4202ded8` was missing from Ghidra's function list. GNU verified its prologue,
+branch targets and return before an analysis-only script defined it; the app
+bytes were not changed. Separate GNU checks confirm the whole-history reset
+and unchecked flush writes/close. Literals confirm 65,536-byte history capacity,
+2,048-byte current-page fallback and file magic `0x464c4f47`.
+
+The [diagnostics page](diagnostics-and-logs.md) documents these limits. The
+redactor's seven-key table and address/email handling were inspected; its
+remaining unsupported-instruction branch is not represented as a complete
+redaction audit or tested privacy guarantee. Existing raw artifacts stay private.
+
+Private evidence: `log-controls-pass1.txt` through `log-controls-pass3.txt`,
+`log-hook-gnu.txt`, `log-ring-reset-gnu.txt`, `log-flush-gnu.txt` and
+`DefineLogEntry.java`. No live log requests, clear, cookie bypass, flush, memory
+stress or storage corruption were performed in this pass. The open checklist
+items retain those runtime and fault-validation requirements.

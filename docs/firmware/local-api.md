@@ -40,7 +40,7 @@ recovered role; they are not complete request schemas.
 | POST | `/clear-stats` | Clear diagnostic history |
 | POST | `/switch-ap` | Change Wi-Fi/AP selection |
 | GET | `/check-internet` | Connectivity diagnostic |
-| GET | `/logs` | Password-gated log UI |
+| GET | `/logs` | Log UI; cookie controls detail visibility |
 | POST | `/logs` | Log access/form handling |
 | POST | `/logs/action` | Log controls |
 | GET | `/get-started` | Setup page |
@@ -260,6 +260,11 @@ The separate POST `/logs/action` recognizes `action=clear` and clears the buffer
 its recovered handler does not call the GET handler's session check. No clear
 request was made. Preserve logs before diagnostic mutations and keep the endpoint
 inside the intended LAN boundary.
+
+The [diagnostic-storage trace](diagnostics-and-logs.md) now maps that fixed cookie
+marker, the 64 KiB history's whole-store reset, truncation/contention losses and
+the unchecked single-file flush. Neither an empty page nor a “Flushed” message
+establishes a complete or durable execution record.
 
 ## Interpreting the JSON status snapshot
 

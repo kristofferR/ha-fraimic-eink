@@ -52,6 +52,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c140468",
+      "kind": "pointer_table",
+      "role": "Seven diagnostic keyword-redaction names",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
       "address": "0x3c140614",
       "kind": "asset",
       "role": "Raw wake_up image start; exclusive end 0x3c372e14",
@@ -218,6 +224,12 @@
       "kind": "state",
       "role": "Shared PSRAM allocation pointer storage",
       "evidence": "static"
+    },
+    {
+      "address": "0x3fcac6d0",
+      "kind": "global",
+      "role": "Pointer to 65,536-byte diagnostic PSRAM store",
+      "evidence": "static; 22 October diagnostic follow-up"
     },
     {
       "address": "0x4037af80",
@@ -830,6 +842,12 @@
       "routes": [
         "POST /dev"
       ]
+    },
+    {
+      "address": "0x4201ba58",
+      "kind": "function",
+      "role": "Fixed cookie substring check controlling log-detail visibility",
+      "evidence": "static; 22 October diagnostic follow-up"
     },
     {
       "address": "0x4201ba9c",
@@ -1594,6 +1612,84 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202da0c",
+      "kind": "function",
+      "role": "Write bytes into diagnostic ring backing store",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202da54",
+      "kind": "function",
+      "role": "Recognize 17-byte colon-separated MAC-like text",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202daac",
+      "kind": "function",
+      "role": "Bounded in-place redaction replacement; no replacement if expanded text does not fit",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202dae8",
+      "kind": "function",
+      "role": "Heuristic diagnostic redaction of MAC/email and seven keyword patterns",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202ddc0",
+      "kind": "function",
+      "role": "Append log record; cap text at 255 and reset complete history on capacity overflow",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202ded8",
+      "kind": "function",
+      "role": "Recovered SDK log-capture hook; bounded format, redaction, serial output and nonblocking history mutex",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202dff0",
+      "kind": "function",
+      "role": "Initialize 64 KiB PSRAM log store and capture hook",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202e0cc",
+      "kind": "function",
+      "role": "Format current records with visibility filter and 10-tick mutex wait",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202e200",
+      "kind": "function",
+      "role": "Best-effort current-log clear; no saved-file removal or returned result",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202e308",
+      "kind": "function",
+      "role": "Explicit application log wrapper; records visibility class 1",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202e484",
+      "kind": "function",
+      "role": "Overwrite one binary log snapshot; writes and close unchecked",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202e644",
+      "kind": "function",
+      "role": "Read/filter saved log snapshot with magic/count/payload bounds",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202e7a0",
+      "kind": "function",
+      "role": "Pre-sleep/restart log-flush wrapper",
+      "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
       "address": "0x4202e8bc",
       "kind": "function",
       "role": "Wi-Fi statistics persistence",
@@ -2174,6 +2270,12 @@
       "kind": "function",
       "role": "LED urgent-state classifier: state 25 and states 31–39",
       "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x420e2b70",
+      "kind": "function",
+      "role": "Log filtering callback returns zero in this image",
+      "evidence": "static; 22 October diagnostic follow-up"
     },
     {
       "address": "0x420e2de0",

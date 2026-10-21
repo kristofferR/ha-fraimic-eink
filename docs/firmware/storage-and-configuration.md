@@ -265,6 +265,9 @@ of artwork the user expects to retain.
 Actual partition capacity, free space and endurance have not been established
 from a full partition table. Two full Large panel images already total 4,608,000
 bytes; do not promise an offline multi-image playlist just from the 16 MB header.
+The filesystem also holds a [diagnostic snapshot](diagnostics-and-logs.md#previous-is-one-saved-snapshot)
+of up to 65,544 bytes. Include this and system artwork when estimating future
+playlist capacity; the actual free-space/partition measurement remains open.
 
 ## Last artwork
 
