@@ -62,6 +62,7 @@ per question, not a count of tool calls or decompiled functions.
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
 | H05/N03/C11 | Onboarding GET/cache semantics and eight embedded page selections mapped; seven script host checks establish local submissions, recurring checks and error-body behavior | Initialization/read faults, remaining pages, real browser behavior, cache refresh and independent enrollment |
+| C11/H05 | Account handlers parse one 511-byte receive prefix and cap encoded fields at 127 bytes; thirteen host cases cover encoding expansion, duplicates, omissions and shortened values | Physical fragmented forms, full server parsing/cleanup, remaining form handlers and complete enrollment faults |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
@@ -134,6 +135,8 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   [Selected page scripts](local-api.md#embedded-setup-scripts-use-local-routes)
   add local form requests, overlapping verification checks and portal polling;
   seven host cases use extracted scripts without contacting the frame.
+  [Form parsing](local-api.md#account-form-limits-apply-before-decoding) adds
+  thirteen host cases for pre-decoding limits and single-receive prefixes.
 - [ ] **C12 · Static/Host/Account/Device:** Verify album proxy headers and authorization,
   create/delete/update payloads and device assignment support. Establish which
   vendor album semantics can map to HA playlists; registration alone is insufficient.

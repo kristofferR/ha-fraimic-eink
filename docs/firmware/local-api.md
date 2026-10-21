@@ -166,6 +166,47 @@ normally initializes the cache before serving these pages. Per-field read errors
 are separately defaulted by the loader; see
 [identity error handling](storage-and-configuration.md#identity-cache-and-read-errors).
 
+### Account form limits apply before decoding
+
+Both local account POST handlers call `httpd_req_recv` (`0x420711fc`) once for
+at most **511 bytes**, append NUL to the returned prefix, then parse it. They do
+not loop to the declared content length. The matching
+[SDK receive implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_server/src/httpd_txrx.c)
+can return a positive partial read. A field split across that boundary can be
+absent or shortened while still looking like a complete local string; even a
+short form is not guaranteed to arrive in one read.
+
+Field lookup `0x420703b0` receives a 128-byte temporary buffer. Its limit is
+**127 encoded bytes per value**, before application decoder `0x420175dc` runs.
+On overflow the lookup copies a truncated value and returns `0xb004`; these
+callers skip decoding on any nonzero result, leaving their zeroed destination
+empty. There is no dedicated overlong-field response at that branch. This matches
+the [SDK query helper](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_server/src/httpd_parse.c).
+
+| Synthetic input | Host result through recovered field rules |
+| --- | --- |
+| 127 plain ASCII value bytes / 128 bytes | Accepted / destination left empty |
+| 42 literal plus signs encoded as `%2B` / 43 signs | Accepted / destination left empty |
+| 21 `é` characters encoded as `%C3%A9` / 22 characters | Accepted / destination left empty |
+| Duplicate names with different case | First case-insensitive matching field wins |
+| Percent-encoded field name | Name is not decoded before lookup |
+| Receive prefix ending inside a value | Shortened value can return success |
+| Decoded `%00` in a value | Decoder writes NUL; downstream C-string consumers see the prefix |
+
+Email, password and confirmation use the decoder, which translates plus to space
+and accepted percent pairs to bytes. The create-account timezone instead goes
+through the bounded string-copy helper, without URL decoding. The 19 stock
+dropdown values contain no characters that `URLSearchParams` needs to escape,
+but a custom POSIX rule with commas/slashes would need correct decoding; do not
+assume an encoded custom timezone reaches storage unchanged in meaning.
+
+The thirteen host cases combine the unchanged SDK lookup function with a
+reconstruction of the application decoder and receive-prefix handling. They
+passed with address/undefined-behavior sanitizers. They do not execute the frame's
+socket receiver, registration or NVS and do not establish the cause of any earlier
+owner setup failure. A firmware fix should read a complete bounded form, decode
+before validating decoded limits, and report field errors explicitly.
+
 ### Embedded setup scripts use local routes
 
 Eight selected pages/fragments were extracted from the pinned Large application:

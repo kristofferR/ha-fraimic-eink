@@ -304,6 +304,12 @@ telemetry; use the separate poll contract for device settings.
 
 ### Sign-in and create-account take different paths
 
+The browser-to-frame form parser has a separate
+[511-byte single-read / 127-byte encoded-field boundary](local-api.md#account-form-limits-apply-before-decoding).
+Those limits apply before the device constructs the cloud JSON. A failure to
+preserve a submitted credential is therefore possible without an upstream
+authentication rejection; this has not been induced on either frame.
+
 After successful setup, sign-in (`0x420192c8`) saves the entered email, original
 device key, returned user ID and verified=true. It checks the save result,
 reloads configuration, re-evaluates setup state and requests the `get_started`

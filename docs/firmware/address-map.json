@@ -733,6 +733,12 @@
       ]
     },
     {
+      "address": "0x420175dc",
+      "kind": "function",
+      "role": "Account form value decoder: plus-to-space and percent bytes; embedded NUL is retained",
+      "evidence": "static; 22 October account-form follow-up, GNU and SDK source cross-check"
+    },
+    {
       "address": "0x42017670",
       "kind": "function",
       "role": "Read production/development mode",
@@ -2528,6 +2534,18 @@
       "kind": "function",
       "role": "SDK HTTP stop: send shutdown control message, then wait for task without overall deadline",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x420703b0",
+      "kind": "function",
+      "role": "SDK query lookup: first case-insensitive field, encoded-size limit and truncation status",
+      "evidence": "static; 22 October account-form follow-up, GNU and SDK source cross-check"
+    },
+    {
+      "address": "0x420711fc",
+      "kind": "function",
+      "role": "SDK request receive: bounded by remaining length, may return a positive prefix",
+      "evidence": "static; 22 October account-form follow-up, GNU and SDK source cross-check"
     },
     {
       "address": "0x4207135c",

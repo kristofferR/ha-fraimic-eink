@@ -418,3 +418,28 @@ navigation. There was no frame access, password submission, pairing change or
 external-dashboard request. Private evidence: `embedded-pages-pass1.txt`,
 `extract-embedded-pages.mjs`, `embedded-page-fixture.mjs`, and
 `embedded-pages/manifest.json`, extracted HTML/scripts and `host-results.json`.
+
+## Account form parsing: C11/H05
+
+One reference export and eleven bounded GNU ranges cover both account handlers,
+the URL-value decoder, SDK field lookup and request receiver. The binary confirms
+the single 511-byte receive call, 128-byte encoded temporary buffers, conditional
+decode only after lookup success, and truncation constant `0xb004`. The timezone
+copy path differs from email/password decoding. The stock HTML's 19 timezone
+values were inspected separately; custom-rule encoding was not tried on-device.
+
+Thirteen host cases use the unchanged IDF v5.4.1 `httpd_query_key_value` function
+and a reconstruction of application decode/returned-prefix handling. C11 builds
+with `-Wall -Wextra -Werror`, AddressSanitizer and UndefinedBehaviorSanitizer pass
+all cases. The fixture supplies a receive prefix; it does not execute the actual
+receiver, browser constraints, vendor authentication or persistence. The SDK
+receive source and binary support the possibility of a short positive read,
+without claiming a physical fragmented-request reproduction.
+
+Private artifacts: `form-parser-pass1.txt`, `form-parser-boundaries-gnu.txt`,
+`form-parser-literals.jsonl`, `form-parser-gnu.mjs`, `form-parser-fixture.c`,
+`prepare-form-parser-fixture.mjs` and `form-parser-fixture/`. The SDK source is
+hash-pinned to `5c9da08c9bb502d25269bcb059017b553ae2fe4880216a1e6c6e4c664d6e1fbd`;
+the unchanged extracted helper hash is
+`633c3df2b90f8c0dbd411edcfa9a7f8b6ab08ea02a7d75e68abfde4153d30a9c`.
+No credentials or crafted forms were sent anywhere and no identity was changed.
