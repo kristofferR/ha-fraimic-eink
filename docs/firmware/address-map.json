@@ -46,6 +46,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3fca6b19",
+      "kind": "data",
+      "role": "Processing cancellation flag",
+      "evidence": "static; cancellation follow-up"
+    },
+    {
       "address": "0x3fca6b24",
       "kind": "state",
       "role": "Render termination semaphore handle storage",
@@ -92,6 +98,12 @@
       "kind": "data",
       "role": "Serialized poll user_settings output; recovered callers do not apply members",
       "evidence": "static"
+    },
+    {
+      "address": "0x3fcabcd0",
+      "kind": "data",
+      "role": "Single HTTP-abort-manager client slot and mutex/state",
+      "evidence": "static; cancellation follow-up"
     },
     {
       "address": "0x3fcabd20",
@@ -172,10 +184,22 @@
       "evidence": "static"
     },
     {
+      "address": "0x4200f770",
+      "kind": "function",
+      "role": "Recording/processing tap monitor; triple-tap cancellation",
+      "evidence": "static; cancellation follow-up"
+    },
+    {
       "address": "0x42010108",
       "kind": "function",
-      "role": "Voice upload/download/render flow",
-      "evidence": "static"
+      "role": "Voice presign/upload/finalize task; returns URL to orchestrator",
+      "evidence": "static; task literal and GNU entry verified, cancellation follow-up"
+    },
+    {
+      "address": "0x420104a8",
+      "kind": "function",
+      "role": "Voice image-download task; bounded retry loop",
+      "evidence": "static; cancellation follow-up"
     },
     {
       "address": "0x42010674",
@@ -188,6 +212,18 @@
       "kind": "function",
       "role": "Voice recording orchestration and deadline",
       "evidence": "static"
+    },
+    {
+      "address": "0x420110a4",
+      "kind": "function",
+      "role": "Start button monitor in recording or processing mode",
+      "evidence": "static; cancellation follow-up"
+    },
+    {
+      "address": "0x42011218",
+      "kind": "function",
+      "role": "Stop button monitor and clear tap-group state",
+      "evidence": "static; cancellation follow-up"
     },
     {
       "address": "0x42011314",
@@ -823,6 +859,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x420233b0",
+      "kind": "function",
+      "role": "Register active HTTP client; overwrites one global slot",
+      "evidence": "static; cancellation follow-up"
+    },
+    {
+      "address": "0x42023464",
+      "kind": "function",
+      "role": "Unregister active HTTP client without owner comparison",
+      "evidence": "static; cancellation follow-up"
+    },
+    {
       "address": "0x42023674",
       "kind": "function",
       "role": "Email verification task using selected auth endpoint; verified missing entry",
@@ -863,6 +911,24 @@
       "kind": "function",
       "role": "Retrieve poll output including copied user_settings",
       "evidence": "static"
+    },
+    {
+      "address": "0x42025ea8",
+      "kind": "function",
+      "role": "Cancel active HTTP transport and mark abort flag",
+      "evidence": "static; cancellation follow-up"
+    },
+    {
+      "address": "0x42025fc4",
+      "kind": "function",
+      "role": "Read HTTP-abort flag under its mutex",
+      "evidence": "static; cancellation follow-up"
+    },
+    {
+      "address": "0x42026014",
+      "kind": "function",
+      "role": "Clear HTTP-abort flag under its mutex",
+      "evidence": "static; cancellation follow-up"
     },
     {
       "address": "0x4202606c",
@@ -1334,6 +1400,12 @@
       "kind": "function",
       "role": "SDK esp_http_client_fetch_headers; returns content length or negative error",
       "evidence": "SDK header contract and matching GNU disassembly"
+    },
+    {
+      "address": "0x4206db7c",
+      "kind": "function",
+      "role": "SDK esp_http_client_cancel_request transport cancellation",
+      "evidence": "static; cancellation follow-up"
     },
     {
       "address": "0x4206df98",

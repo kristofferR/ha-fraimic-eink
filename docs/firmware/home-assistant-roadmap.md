@@ -2,6 +2,13 @@
 
 [Research index](README.md)
 
+The [cancellation trace](voice.md#cancellation-and-scheduled-content-races) adds
+two adapter constraints: a `processing` status does not defer delivery when a
+URL is present, and socket closure is not an explicit cancel command. Hold
+finalize until the model-specific asset is ready, deduplicate it by stable job
+identity, and keep generation/delivery state separate so a disconnected frame
+does not lose the original or create a second generation on retry.
+
 The practical direction is to let **ha-fraimic-eink own artwork, rendering,
 playlists and voice-job history**, with a small adapter for the recovered frame
 protocol. Retain the vendor display, power and microphone drivers initially.

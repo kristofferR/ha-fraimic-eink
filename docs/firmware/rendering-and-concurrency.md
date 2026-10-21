@@ -8,6 +8,11 @@ instructions checked in GNU ESP32-S3 disassembly. Later bounded poll/voice tests
 observed the normal completion path. No concurrent-upload, fault-injection or
 modified-firmware experiment was performed.
 
+The [voice cancellation follow-up](voice.md#cancellation-and-scheduled-content-races)
+maps a second shared resource: the HTTP-abort manager stores one active client,
+without job-scoped ownership. It also distinguishes the pre-render cancel check
+from a refresh already running. Its lifetime/fault cases remain untested.
+
 ## The display pointer is another alias
 
 The PSRAM manager allocates one 2,304,000-byte block. Recording and image accessors

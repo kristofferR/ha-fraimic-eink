@@ -165,6 +165,14 @@ this successful path; `202` and a job ID do not queue work on the frame.
 Other server fields such as `upload_public_id` do not establish firmware-level
 job identity or display confirmation.
 
+The upload worker at `0x42010108` does not inspect the copied status string.
+After successful finalize and a cancellation check, it copies only the URL into
+the shared result and signals success. GNU instructions at `0x42010428`–
+`0x4201044d` confirm that copy/result assignment. A response containing a valid
+URL and `status: "processing"` therefore does not implement a waiting state in
+this recovered path. This is static evidence; that response variant has not been
+sent to the frame. Return a URL only when its complete panel asset is ready.
+
 The Standard live response demonstrated that omission: it contained `success`,
 `message`, null `upload_public_id` and `presigned_url`, with no `status`, and the
 frame downloaded/rendered the result. Neither its presign nor finalize response
@@ -191,11 +199,106 @@ not pay for another generation or create duplicate library entries.
 
 ## Cancellation and scheduled-content races
 
-The main flow checks cancellation during upload processing and before download
-and rendering. It also has an HTTP-abort mechanism and timeout cleanup. These
-are device-side controls; they do not establish a durable cloud cancellation
-contract. A backend worker needs its own bounded job lifetime and must handle
-the client disconnecting while work is underway.
+The following is a deeper **static** trace of Large 0.2.29, not a completed
+physical cancellation test. Two task entries absent from the earlier Ghidra
+function list were verified against GNU disassembly and the task-create literals:
+`0x42010108` is the presign/upload/finalize worker; `0x420104a8` is the separate
+image-download worker. `0x42011adc` orchestrates them and the renderer.
+
+### Gesture and cancellation flag
+
+The button monitor `0x4200f770` runs in recording mode `1` or processing mode `2`.
+It ignores additional press edges less than 100 ms apart and groups edges within
+800 ms of the first. The third qualifying edge immediately triggers cancellation;
+single/double taps do not take that processing-mode branch. These are recovered
+thresholds, not measured physical gesture tolerances.
+
+In processing mode it sets the byte at `0x3fca6b19` and calls `0x42025ea8`, the
+HTTP-abort manager. The main loop switches to that mode after the recording's
+completion indication. For a controlled test, wait until the fixture has received
+finalize before cueing the three taps; tapping during the preceding transition
+would test a different boundary.
+
+### Which stages can abort their socket
+
+| Stage | Recovered cancellation behavior |
+| --- | --- |
+| Presign | Registers its client after writing the request, around the response-header wait; unregisters before reading JSON |
+| Multipart WAV upload | Registers around acknowledgment-header reading after sending the body; the worker also checks the processing flag when the routine returns, before invoking finalize |
+| Finalize | Same registration window as presign: header wait covered; connection setup, request write and subsequent JSON read are outside that window |
+| Panel download | Registers after connection opening and remains registered through headers/body; abort flag can produce invalid-state (`0x103`) and end download retries |
+| Before rendering | The main flow checks the processing flag after a successful download and skips rendering when set |
+| Rendering already started | No processing-flag check was found in the recovered render worker; the orchestration waits for its completion semaphore |
+
+For finalize, the GNU-verified sequence at `0x420275f3` / `0x420275f8` /
+`0x420275fd` is register → fetch headers → unregister. Only a negative header
+result plus the abort-manager flag takes its explicit aborted return. The upload
+worker independently checks the processing flag after each successful stage, so
+a cancel arriving as a successful response completes can still prevent the next
+stage. It has no retry loop around presign, upload or finalize; the download
+worker separately allows up to three attempts for ordinary failures.
+
+The earlier decompiler export omitted the upload routine's acknowledgment tail.
+A raw direct-call scan, cross-checked with GNU instructions, found the additional
+register/fetch/unregister sequence at `0x420271f3` / `0x420271f8` / `0x420271fd`.
+Its nonzero header-result branch checks the abort flag before classifying the
+result as an ordinary error. The gap is during WAV transmission, not the entire
+upload operation. This is also why the documented response-length bug must be
+interpreted alongside cancellation state.
+
+The HTTP manager has **one global client slot**, at `0x3fcabcd0`. Registering
+another client logs that it is overwriting an active one; unregistering clears
+the slot without comparing an owner/job ID. Its mutex protects slot access, not
+an entire workflow. This establishes an ownership limitation, not a reproduced
+collision. An emulator should avoid introducing concurrent content producers.
+
+`0x42025ea8` calls the SDK cancellation primitive at `0x4206db7c`, which matches
+[ESP-IDF 5.4.1's `esp_http_client_cancel_request`](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/esp_http_client.c).
+It acts on the transport; it sends no application-level cancellation message.
+The wrapper marks its abort flag even when the SDK call fails, and can return
+success when no client is registered. Neither that return nor an LED pattern
+proves that the backend stopped work.
+
+A server-observed disconnect also cannot distinguish intentional cancellation
+from lost Wi-Fi or a client timeout. Keep durable job state and a bounded lifetime;
+make finalize idempotent and retain a completed original even if delivery loses
+its connection. Explicit cancel/result messages require a firmware extension.
+Receiving the WAV alone is not proof the device will call finalize.
+
+### Timeout and error boundaries still needing validation
+
+The 15-minute outer upload wait does not retain an upload-task handle or perform
+the explicit abort/join sequence used for download timeout. Its task context and
+result pointer refer to the caller's stack. Whether a worker can still access
+that state after the timeout is a remaining lifetime question, not a reproduced
+crash. Do not use a 15-minute stall on the physical frame as the first experiment.
+
+The download timeout requests HTTP abort, waits another 500 ticks (about five
+seconds), then can force-delete its retained task. A cancelled download that
+returns an error follows the main flow's generic download-failure branch;
+the explicit before-render cancellation branch follows successful download.
+Consequently an error indication alone is insufficient to classify cancellation.
+Physical timing, cleanup, socket closure, stale-result behavior and every retry
+boundary remain open under C07/C08/D05.
+
+### Prepared bounded finalize experiment
+
+A private fixture accepts one local recording and holds finalize for at most
+45 seconds. It observes peer disconnect and otherwise returns intentional
+HTTP 409. It never returns an image URL, invokes transcription/generation or
+offers firmware. Device access requires explicit arming; the host-only run was
+unarmed and changed no frame/network configuration.
+
+Five real TLS host checks using a 3,244-byte synthetic silent WAV passed: bounded
+delay, terminal result replay after delay, concurrent-finalize rejection, early
+peer disconnect, and terminal replay after disconnect. These validate the test
+instrument, not stock-frame cancellation. The listener was stopped afterward;
+the owner-assisted recording/three-tap test is still pending.
+
+Fixture SHA-256:
+`4df7e41a2c3d3f2ea61ac62e80d7ca79ae46fee48f683f504010d0c7df55c8c7`.
+
+### Scheduled content can interrupt recording
 
 The background poll worker `0x42025aec` can interrupt an active recording when
 server work is pending. The backend only learns about the voice job at presign,
