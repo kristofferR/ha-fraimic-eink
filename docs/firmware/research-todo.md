@@ -64,7 +64,7 @@ per question, not a count of tool calls or decompiled functions.
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02 | Standard app hash validated; 42 routes and 34 function pairs compared; matching orientation/album-body branches and decoded sensor tables added to calendar/LED/setup/voice findings | Remaining handler/LED arbitration differences, same-version comparison and other releases |
+| E02/H04/D01 | Both app hashes pinned; 42 routes and 45 function pairs compared; Standard lacks Large's poll exclusions/creation retries and uses a 2 KiB clear buffer; common verification/callback hazards traced | Remaining handler/LED and maintenance differences, physical concurrency/conditioning, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and

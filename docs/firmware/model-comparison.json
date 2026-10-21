@@ -269,6 +269,61 @@
       "role": "album_body_device_key_injection",
       "large": "0x4203051c",
       "standard": "0x4202ec48"
+    },
+    {
+      "role": "poll_dispatcher",
+      "large": "0x42016570",
+      "standard": "0x42016590"
+    },
+    {
+      "role": "shared_json_event_callback",
+      "large": "0x420234cc",
+      "standard": "0x42021f7c"
+    },
+    {
+      "role": "email_verification_task",
+      "large": "0x42023674",
+      "standard": "0x42022124"
+    },
+    {
+      "role": "email_verification_task_start",
+      "large": "0x4202463c",
+      "standard": "0x4202309c"
+    },
+    {
+      "role": "panel_clear_pattern",
+      "large": "0x42027b34",
+      "standard": "0x42026570"
+    },
+    {
+      "role": "conditioning_dispatch",
+      "large": "0x420281e8",
+      "standard": "0x420267b4"
+    },
+    {
+      "role": "instruction_display",
+      "large": "0x4202ad38",
+      "standard": "0x42029470"
+    },
+    {
+      "role": "instruction_background_start",
+      "large": "0x4202b178",
+      "standard": "0x42029918"
+    },
+    {
+      "role": "get_started_pending",
+      "large": "0x4202b378",
+      "standard": "0x42029aa4"
+    },
+    {
+      "role": "instruction_background_worker",
+      "large": "0x4202b3cc",
+      "standard": "0x42029af8"
+    },
+    {
+      "role": "elapsed_conditioning_selector",
+      "large": "0x4202d90c",
+      "standard": "0x4202c038"
     }
   ],
   "live_standard": {

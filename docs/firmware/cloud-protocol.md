@@ -495,6 +495,9 @@ bypassed. It also checks connectivity, OTA state and the time-limited
 the poll starter rejects an already-present poll task handle. Ordinary unverified-account polling is therefore
 not evidence of concurrent verification. These checks do not acquire ownership
 of the shared response buffer.
+The compared Standard build lacks the verification-running and Get Started
+exclusions in its poll dispatcher; see
+[the task comparison](standard-model-comparison.md#polling-instruction-tasks-and-conditioning-differ).
 
 The recovered account-form handlers do not wait for an existing poll or
 verification task. Verification starter `0x4202463c` does not check for an existing

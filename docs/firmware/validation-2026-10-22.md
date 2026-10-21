@@ -345,3 +345,27 @@ Private evidence: `onboarding-reads-pass1.txt`, `onboarding-reads-pass2.txt`,
 `onboarding-reads-boundaries-gnu.txt`, `onboarding-reads-literals.jsonl` and
 `onboarding-reads-gnu.mjs`. Ghidra's loader `void` prototype is superseded by the
 return-register check; no firmware bytes were changed.
+
+## Standard task and conditioning comparison: E02/H04/D01
+
+Three new Standard Ghidra/reference exports and 23 bounded GNU ranges were
+compared against the Large instruction/verification/conditioning exports.
+The Standard app hash is checked by both the disassembly driver and literal
+reader. Eleven corresponding function pairs bring the public map to 45; a mapped
+pair identifies corresponding roles, not identical implementations.
+
+GNU confirms Standard's unverified-state branch reaching the poll starter,
+one-shot instruction task creation, 120-second stored deadline, 90-second worker
+wait, 2,048-byte pattern allocation with a 480,000-byte streaming loop, unconditional
+conditioning success, 12/48-hour constants, shared callback append logic and
+verification token-substring exit. Reference analysis locates the Standard pending
+getter in OTA safety, rather than the poll dispatcher. A 2 KiB clear-buffer idea
+for Large remains a proposal; no code was ported or flashed.
+
+The [comparison](standard-model-comparison.md#polling-instruction-tasks-and-conditioning-differ)
+separates version/model differences from the observed Standard TLS-memory error.
+No new device, timing, memory-pressure, conditioning or concurrency test was run.
+Private Standard artifacts: `standard-instruction-pass1.txt` through
+`standard-instruction-pass3.txt`, `standard-instruction-boundaries-gnu.txt`,
+`standard-instruction-literals.jsonl`, `standard-instruction-gnu.mjs` and
+`read-standard-values.mjs`.

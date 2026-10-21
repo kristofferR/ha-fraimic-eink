@@ -46,8 +46,8 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 34 corresponding functions, including the subsequent
-account-setup, `/dev`, calendar, orientation and album-body comparisons. The poll paths share 86
+The preserved metadata maps 45 corresponding functions, including the subsequent
+account-setup, `/dev`, calendar, orientation, album-body and task/conditioning comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -116,6 +116,58 @@ wrappers have the corresponding call structure. This supports sharing the
 The 19 host cases remain a fixture of the recovered Large helper and pinned
 cJSON source; this comparison does not represent another executed firmware test
 or establish equivalence of every Standard proxy/error branch.
+
+### Polling, instruction tasks and conditioning differ
+
+The 22 October follow-up compares the pinned Standard 0.2.28 and Large 0.2.29
+branches, not merely their shared strings. Three Standard reference passes and
+GNU checks establish these differences:
+
+| Behavior | Standard | Large |
+| --- | --- | --- |
+| Poll dispatch while registered but unverified | Logs the state and continues toward the poll starter | Skips while the verification-running getter is true |
+| Get Started pending flag/deadline | Created with a 120-second deadline; recovered getter caller is the OTA safety check | Also consulted before starting a new poll |
+| Background instruction task creation | One task-creation call, without the Large heap-size precheck/retry loop | Requires at least a 10,240-byte largest internal block, up to eight creation cycles with 250 ms gaps |
+| Temporary clear-pattern allocation | **2,048 bytes**, reused to stream a 480,000-byte block to both selected controllers | **288,000 bytes**, broadcast to all eight selected controllers |
+| MIN conditioning | Black clear, 500 ms extra delay, logs errors but returns success | Black clear, 100 ms extra delay on success, propagates power/clear result |
+| MID conditioning | White/black clears, 500 ms after each, returns success despite clear errors | Same pattern/delays and unconditional success, through a separate helper |
+
+Both instruction starters copy the two arguments to an 8-byte heap context;
+their workers copy/free it before use and wait up to 90 seconds on the global
+render semaphore. Both instruction dispatchers write into the shared image
+allocation before WAIT/DROP arbitration and can cache the image after render-start
+but before completion. These common structures do not make panel rendering or
+task scheduling identical.
+
+Standard's verification task/start pair (`0x42022124` / `0x4202309c`) has the same
+unescaped credential JSON and token-substring exit behavior traced in Large. Its
+starter lacks Large's running-byte publication, and its poll dispatcher
+`0x42016590` does not consult a verification-running getter. The shared HTTP event
+callback at `0x42021f7c` has the same destination/length/capacity globals and
+whole-event overflow skipping; it does not provide client-scoped response memory.
+
+The Standard Get Started getter `0x42029aa4` is **not unused**: the recovered
+reference is from OTA safety function `0x42016420`. It is absent from the compared
+poll dispatcher. This narrows the concurrency protection without claiming that
+all Standard activity is unguarded. None of these differences independently
+explains the captured Standard `mbedtls_ssl_setup` allocation failure; no
+simultaneous-request or heap-fault experiment isolated its cause.
+
+The elapsed conditioning selector at `0x4202c038` uses the same EXT1/timer,
+time-valid, stored timestamp and 12/48-hour boundaries as Large. Standard's
+internal conditioner `0x420267b4` also contains a mode 2 labelled
+`FULL (WHITE→BLACK→WHITE)`, called by refresh/restore helper `0x42026a18`.
+These are full-panel pattern cycles, not custom waveform or partial-refresh
+capabilities. Other Large maintenance paths and physical behavior remain separate
+research questions.
+
+**Firmware idea:** Standard demonstrates a small reusable buffer for a constant
+clear pattern. A similar streaming change is a candidate for reducing Large's
+temporary allocation by 285,952 bytes. Its actual heap placement, driver/power
+constraints and physical correctness need validation before implementation; it
+does not by itself provide enough memory for another full Large image snapshot.
+Because both model and release differ, these differences cannot be attributed
+solely to the panel size or solely to the version increment.
 
 ## Keep model renderers and power paths separate
 
