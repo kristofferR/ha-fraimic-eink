@@ -7,6 +7,9 @@ Home Assistant integration. It is not recovered vendor source or a flashing guid
 
 ## Start here
 
+The [research checklist](research-todo.md) tracks the unknowns and unverified
+claims across these documents, with stable task IDs and concrete validation work.
+
 | Document | Contents |
 | --- | --- |
 | [Identity and hardware](hardware-and-layout.md) | Exact image fingerprint, memory segments, panel format, wiring and shared buffers |

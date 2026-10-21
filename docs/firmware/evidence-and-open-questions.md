@@ -105,6 +105,11 @@ This check can run entirely on the host without sending anything to the frame.
 
 ## Next investigations, in priority order
 
+The complete, actionable backlog is the [research checklist](research-todo.md).
+It covers the unresolved statements throughout all firmware pages and the identity
+metadata, including hardware, recovery, live validation and proposed capabilities.
+The table below remains a short priority overview.
+
 | Question | Useful evidence / next experiment |
 | --- | --- |
 | Can a minimal local protocol adapter satisfy stock parsing? | Host-side HTTP fixtures for poll, presign, upload, finalize and system images; then one owner-directed device round trip |
