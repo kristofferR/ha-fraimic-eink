@@ -235,3 +235,24 @@ Private artifacts include `voice-http-read-pass1.txt`,
 `voice-http-boundaries-gnu.txt`, `voice-http-fixture.c`,
 `prepare-voice-http-fixture.mjs`, `voice-http-results.jsonl` and
 `voice-http-source-hashes.json`. C05/C07/C08 remain open for broader coverage.
+
+## Task-watchdog coverage: D06/E01
+
+Large SDK startup, task add/delete/reset, idle hooks, runtime object references,
+timeout ISR/handler and the rendering caller were inspected. GNU verifies the
+12-byte zeroed configuration, 5,000 ms literal, idle mask 3, copied false panic
+flag, render add/delete call ordering and the timeout handler's returning
+non-panic branch. It independently confirms the one-tick power-good loop.
+
+The renderer unsubscribes before power setup and never resubscribes in its
+recovered long-operation path. Its add/delete results are ignored. The reference
+pass found the render worker and idle-subscription helper calling task add, plus
+an I2C initialization helper and idle hook calling reset. This is evidence about
+the recovered references, not proof that all dynamic/indirect behavior is known.
+
+The [rendering page](rendering-and-concurrency.md#the-task-watchdog-does-not-bound-the-long-panel-sequence)
+now separates those static limits from physical recovery. No watchdog setting,
+task subscription or frame operation was changed. No deliberate stall, panic or
+reset was induced. Interrupt-watchdog and hardware fallback coverage remain open.
+Private evidence: `watchdog-pass1.txt` through `watchdog-pass3.txt`,
+`watchdog-boundaries-gnu.txt`, `watchdog-literals.jsonl` and `watchdog-gnu.mjs`.

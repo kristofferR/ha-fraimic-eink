@@ -52,6 +52,7 @@ per question, not a count of tool calls or decompiled functions.
 | R12 | Direct updater framing/timeouts and OTA SDK ordering traced; apparent response-MIME guard reads request headers; sequential erase precedes first-byte validation | Host fault fixtures, busy/safety cases and deferred controlled update/recovery tests |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
+| D06/E01 | Task-watchdog startup is 5 seconds, both idle tasks, panic disabled; renderer unsubscribes before power/conditioning/transfer/refresh | Physical failure/recovery tests, interrupt-watchdog and hardware fallback coverage, remaining indirect references |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
@@ -258,6 +259,9 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
 - [ ] **D06 · Static/Host/Device:** Trace and inject controller/SPI, BUSY, PMIC and I2C
   failures. Establish watchdog behavior for the power-good wait, recovery and safe
   shutdown; distinguish logged failures from propagated results.
+  The [task-watchdog trace](rendering-and-concurrency.md#the-task-watchdog-does-not-bound-the-long-panel-sequence)
+  establishes early render unsubscription and non-panic startup policy. Idle-task
+  supervision does not impose a render deadline; whole-device recovery remains open.
 - [ ] **D07 · Host/Device:** Correlate accepted/cached/worker-ended/driver-completed/
   power-safe states with the physical panel. Verify a content-ID result design
   reports errors accurately and does not mistake semaphore release for success.

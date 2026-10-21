@@ -158,9 +158,9 @@ do not propagate at all:
 | `0x42021ba8`, power-good read | Returns zero on an I2C-read error, which also looks deasserted to that wait |
 | `0x42021048`, refresh sequence | Returns zero after its sequence, including after the nonfatal BUSY timeout path |
 
-The lack of a deadline in the power-good loop is local to that routine; overall
-watchdog behavior has not been established. Do not interpret it as proof that the
-whole device can never reset or recover.
+The lack of a deadline in the power-good loop is local to that routine. The task
+watchdog coverage is now traced below; whole-device fault recovery remains
+unproven. Do not interpret this loop as proof that the device can never reset.
 
 The refresh routine's completion log occurs before the worker's remaining
 power-down sequence. Normal cleanup includes a 150-tick delay, then the existing
@@ -171,6 +171,45 @@ Adding a webhook at the current semaphore-give point alone would therefore repor
 failed work as completed. A reliable event needs propagated errors, content/job
 identity, and a bounded hardware sequence before declaring driver success.
 Even that is driver-observed completion, not optical verification of every pixel.
+
+### The task watchdog does not bound the long panel sequence
+
+Large's SDK startup `0x420ebdec` zeroes a 12-byte configuration, sets timeout to
+**5,000 ms** and idle-core mask to **3**, then calls `0x42047d10`. The panic flag
+at configuration offset 8 remains false. These are recovered build values, not
+assumptions about SDK defaults. The initializer copies that flag into its runtime
+object and subscribes both CPU idle tasks. The corresponding
+[SDK implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_system/task_wdt/task_wdt.c)
+identifies the configuration fields and subscription/reset APIs.
+
+The render worker calls task-watchdog add (`0x42047c5c`) with zero, meaning the
+current task, at `0x420204bd`. Its return is ignored. At `0x4202061c`, after the
+early bus/controller initialization, it calls task-watchdog delete
+(`0x42047ea8`) with zero, again without checking the result. The very next call
+starts panel power setup. Conditioning, eight controller transfers, refresh,
+power-good deassertion and discharge follow that unsubscribe point. There is no
+later resubscription in the worker's recovered flow. Failure cleanup calls delete
+again; if already removed, that second call does not establish new protection.
+
+Timeout ISR `0x42047fc4` passes the runtime panic flag to `0x42047ba0`. Its false
+branch prints/request backtraces and returns; the panic branch is separate.
+The optional user ISR hook pointer is zero in this build. A task-watchdog message
+therefore does not imply an automatic firmware restart under the startup policy.
+This does not disable or fully characterize the separate interrupt watchdog,
+hardware fallback stages, exception handling or boot recovery.
+
+In the normal successful-unsubscribe path, a stuck power-good loop can continue
+yielding one tick per iteration while both idle tasks run. Idle-task supervision
+does not turn that loop into a bounded render operation. This is a static
+consequence, not a device hang experiment. The recovered add/reset references
+also do not establish a dedicated watchdog subscription for voice HTTP workers;
+their outer waits need explicit cleanup rather than an assumed watchdog rescue.
+
+A firmware fork should put deadlines and propagated failure results on the
+hardware operations, keep job/buffer ownership through cleanup, and establish a
+bounded power-down recovery path. Increasing a global watchdog timeout would
+not supply those missing semantics. D06/D07 retain physical failure/recovery
+tests and the wider watchdog audit.
 
 ### Observed poll and voice cache ordering
 

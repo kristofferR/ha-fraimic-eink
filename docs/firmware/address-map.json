@@ -250,6 +250,12 @@
       "evidence": "static; 22 October diagnostic follow-up"
     },
     {
+      "address": "0x3fcad4b4",
+      "kind": "global",
+      "role": "Task-watchdog runtime object pointer",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
       "address": "0x4037af80",
       "kind": "function",
       "role": "SPI transmit wrapper: queue transaction, wait for result, assert descriptor identity",
@@ -1103,6 +1109,18 @@
       "kind": "function",
       "role": "Render worker; accepts panel length +/-1024 and signals termination on normal and failure paths",
       "evidence": "static; concurrency and image-download follow-up"
+    },
+    {
+      "address": "0x420204bd",
+      "kind": "call_site",
+      "role": "Render worker subscribes current task to watchdog; result unchecked",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
+      "address": "0x4202061c",
+      "kind": "call_site",
+      "role": "Render worker unsubscribes before panel power setup; result unchecked",
+      "evidence": "static; watchdog follow-up with GNU checks"
     },
     {
       "address": "0x420208d4",
@@ -2098,6 +2116,48 @@
       "evidence": "static; 22 October direct OTA follow-up"
     },
     {
+      "address": "0x42047ba0",
+      "kind": "function",
+      "role": "Task-watchdog timeout action; non-panic branch prints backtraces and returns",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
+      "address": "0x42047c5c",
+      "kind": "function",
+      "role": "SDK task-watchdog add current/selected task",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
+      "address": "0x42047d10",
+      "kind": "function",
+      "role": "SDK task-watchdog initialize; copies panic flag and idle mask",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
+      "address": "0x42047dfc",
+      "kind": "function",
+      "role": "SDK task-watchdog reset current task subscription",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
+      "address": "0x42047e9c",
+      "kind": "function",
+      "role": "Idle hook feeds task watchdog",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
+      "address": "0x42047ea8",
+      "kind": "function",
+      "role": "SDK task-watchdog delete current/selected task",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
+      "address": "0x42047fc4",
+      "kind": "function",
+      "role": "Task-watchdog timeout ISR; uses runtime panic flag",
+      "evidence": "static; watchdog follow-up with GNU checks"
+    },
+    {
       "address": "0x42049974",
       "kind": "function",
       "role": "NVS commit wrapper",
@@ -2402,6 +2462,12 @@
       "kind": "function",
       "role": "cJSON_IsObject predicate used for settings/account/firmware fields",
       "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+    },
+    {
+      "address": "0x420ebdec",
+      "kind": "function",
+      "role": "SDK main task; initializes watchdog at 5000 ms, both idle cores, panic false",
+      "evidence": "static; watchdog follow-up with GNU checks"
     }
   ]
 }
