@@ -274,6 +274,52 @@ asset. It does not establish actual STT/generation, HA library insertion, durabl
 job recovery, retry/cancellation correctness, distinct-image optical confirmation
 or a reliable machine-readable display acknowledgment.
 
+## Negative TLS controls: C03
+
+An idle-only experiment on Large 0.2.29 tested certificate trust and hostname
+validation separately. It offered no image or firmware and changed no settings.
+Short-lived test certificates used the existing leaf key: one self-signed for
+the correct API hostname, and one issued through the accepted chain but with
+only `wrong-host.invalid` in its subject/SAN. A matching control used the same
+generated certificate profile with the correct API hostname.
+
+Five host TLS checks passed: accepted matching control; rejected self-signed
+certificate under the normal test-root trust; accepted that certificate when
+explicitly trusted; rejected the wrong hostname under the accepted chain; and
+accepted that chain when the client expected its test hostname. OpenSSL verified
+the generated matching control too. This separated name/trust failures from
+certificate construction errors before interpreting the device result.
+
+| UTC, 21 October 2026 | Large-frame result |
+| --- | --- |
+| 20:15:13, correct name but untrusted self-signed certificate | Bundle verification failed, handshake `-0x3000`, HTTP 0 / `ESP_ERR_HTTP_CONNECT`; server received a TLS access-denied alert, no HTTP request |
+| 20:15:44, accepted issuer chain but wrong hostname | Peer verification failed, handshake `-0x2700`, HTTP 0 / `ESP_ERR_HTTP_CONNECT`; server received a bad-certificate alert, no HTTP request |
+| 20:16:15, original accepted control | Successful TLS handshake and 89-byte idle response |
+| 20:16:45, newly generated matching-profile control | Successful TLS handshake and 89-byte idle response |
+| 20:17:15, routing restored | Successful vendor poll with its normal settings snapshot |
+
+The generated name-matching control matters: its successful device handshake
+checks that the wrong-name certificate was otherwise usable by this client.
+These results support trust-chain and hostname enforcement for this build's poll
+path. They do not test every HTTP consumer, expired/revoked chains, every malformed
+certificate or the Standard frame's negative cases.
+
+Both failures also produced a generic log suggesting the task endpoint might not
+be implemented. That message followed a failed TLS handshake; it was not an HTTP
+404/501 or evidence that the route was missing. Diagnose the earlier TLS error
+and observed server traffic rather than that generic explanation.
+
+The 180-second routing window was cleaned up early; both DNS replicas and the
+exact NAT rule were checked, and the timed cleanup later succeeded again. All
+TLS test listeners were stopped. Settings and exposed maintenance/display fields
+were unchanged. A matching local control restored the intended future album
+deadline before normal vendor polling resumed; this does not independently test
+deadline persistence throughout the failed handshakes.
+
+Final fixture SHA-256:
+`9db16cf1a503420a525172db0fb4c0581113c78c3df3cde17eda795095d0fbd6`.
+Certificates, private keys and raw captures remain outside the repository.
+
 ## What remains before a usable local backend
 
 - Expand the validated short-recording path to controlled response faults,

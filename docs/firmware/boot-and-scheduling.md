@@ -153,8 +153,16 @@ Disconnected wait/passive states also attempt Wi-Fi reconnection.
 
 Consequently WAN loss can provoke AP recovery even while a local API is healthy.
 Changing only the API hostname, or bypassing the voice getter, does not repair
-that policy. These transitions are static findings; backend-up/WAN-down and
-recovery timing still need a controlled device experiment.
+that policy. These detailed Large transitions are static findings; Large-specific
+backend-up/WAN-down and recovery timing still need a controlled device experiment.
+
+**Observed on Standard 0.2.28:** its blocked TCP reachability probe triggered AP
+failover and interrupted a working download at 556,592 of 960,000 bytes. An
+owner-approved, source-specific exception restored internet-available state and
+stability. That exception was removed after the capture; the original policy
+again blocks the Standard probe. See the [live comparison](standard-model-comparison.md#public-reachability-caused-a-real-transfer-failure).
+This confirms an operational consequence on Standard without establishing full
+offline operation or every Large transition.
 
 ### Time service
 

@@ -35,6 +35,12 @@ format below. The earlier capture-only fixture intentionally returned HTTP 409
 at finalize; the final test returned HTTP 200. Both observed valid finalize
 requests specified `landscape` orientation.
 
+The separate [Standard 0.2.28 capture](standard-model-comparison.md#poll-and-voice-observations)
+completed a real vendor-generated image, confirmed by its owner. Its direct
+storage upload returned HTTP 204; finalize omitted `status` and still completed.
+This is additional model-scoped evidence for the shared contract, not a local
+generation test or proof of every upload status on Large.
+
 ## Capture and timing
 
 | Property | Recovered behavior |
@@ -158,6 +164,11 @@ does not implement a job-status polling protocol. The image URL is required for
 this successful path; `202` and a job ID do not queue work on the frame.
 Other server fields such as `upload_public_id` do not establish firmware-level
 job identity or display confirmation.
+
+The Standard live response demonstrated that omission: it contained `success`,
+`message`, null `upload_public_id` and `presigned_url`, with no `status`, and the
+frame downloaded/rendered the result. Neither its presign nor finalize response
+included a transcript or final generation prompt.
 
 The shown two-field response was accepted on the physical frame with an explicit
 110-byte body and an ordinary local HTTPS asset URL. No AWS query parameters or

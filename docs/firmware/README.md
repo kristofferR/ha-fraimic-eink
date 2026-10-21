@@ -4,6 +4,9 @@ This is an implementation-oriented map of **Fraimic Large firmware 0.2.29,
 build f1555ee5**, researched on 21 October 2026. It covers the stock application,
 its local and cloud protocols, and ways to integrate a custom backend with this
 Home Assistant integration. It is not recovered vendor source or a flashing guide.
+The [Standard-model comparison](standard-model-comparison.md) separately covers
+0.2.28 / 4654a1d8 and its live enrollment/voice capture. Unless labelled otherwise,
+addresses and static findings in the original topic pages refer to Large.
 
 ## Start here
 
@@ -33,10 +36,12 @@ No transcription or AI generation was invoked.
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
+| [Standard-model comparison](standard-model-comparison.md) | Model-specific firmware/panel differences, live setup, vendor voice flow and reachability failure |
 
 Machine-readable references: [firmware identity](firmware-identity.json),
-[route registrations](route-registrations.json), and
-[selected addresses](address-map.json).
+[route registrations](route-registrations.json),
+[selected addresses](address-map.json), and
+[model comparison with type-only live schemas](model-comparison.json).
 
 The [existing frame API reference](../frame-api/routes.md) describes tested
 HTTP behavior across multiple firmware versions. The
@@ -85,6 +90,11 @@ addresses across releases. Function names are analytical descriptions.
 11. Local microphone upload works with an ordinary HTTP sink and empty form fields.
     Its acknowledgment must have no body: firmware mistakes a positive response
     length for an error, even with HTTP 200. Empty acknowledgment reaches finalize.
+12. Large's tested poll path rejects untrusted and wrong-host certificates. Standard
+    accepted the normal-hostname test chain, but its negative cases remain untested.
+13. Standard's blocked public reachability probe caused AP failover and an aborted
+    image transfer. A temporary exception restored operation; that exception was
+    removed. A custom API URL alone is insufficient for offline operation.
 
 ## Current boundary
 

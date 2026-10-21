@@ -1,0 +1,331 @@
+{
+  "captured_on": "2026-10-21",
+  "provenance": "Vendor application images matched to live device metadata; not raw flash dumps",
+  "scope_note": "Static comparison followed by a separate owner-directed live vendor-proxy capture; not an independent local provisioning test",
+  "models": {
+    "standard": {
+      "version": "0.2.28",
+      "build": "4654a1d8",
+      "model": "133",
+      "application_bytes": 2589216,
+      "sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "panel_payload_bytes": 960000,
+      "controller_transfer_bytes": [
+        480000,
+        480000
+      ]
+    },
+    "large": {
+      "version": "0.2.29",
+      "build": "f1555ee5",
+      "model": "315",
+      "application_bytes": 4123920,
+      "sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "panel_payload_bytes": 2304000
+    }
+  },
+  "shared": {
+    "chip": "ESP32-S3",
+    "idf": "v5.4.1",
+    "flash_header_mb": 16,
+    "flash_header_mode": "DIO",
+    "flash_header_frequency_mhz": 80,
+    "local_route_count": 42,
+    "local_route_sets_identical": true
+  },
+  "function_map": [
+    {
+      "role": "api_base",
+      "large": "0x42017a4c",
+      "standard": "0x42017a20"
+    },
+    {
+      "role": "poll",
+      "large": "0x4202475c",
+      "standard": "0x420231b4"
+    },
+    {
+      "role": "voice_presign",
+      "large": "0x420266d8",
+      "standard": "0x42025124"
+    },
+    {
+      "role": "voice_finalize",
+      "large": "0x42027380",
+      "standard": "0x42025dd0"
+    },
+    {
+      "role": "image_upload",
+      "large": "0x420307f8",
+      "standard": "0x4202ef24"
+    },
+    {
+      "role": "image_save_start",
+      "large": "0x4201727c",
+      "standard": "0x42017250"
+    },
+    {
+      "role": "image_cache_mount",
+      "large": "0x42028368",
+      "standard": "0x42026d08"
+    },
+    {
+      "role": "image_cache_write",
+      "large": "0x42028524",
+      "standard": "0x42026ec4"
+    },
+    {
+      "role": "settings_setter",
+      "large": "0x420158cc",
+      "standard": "0x420158ec"
+    },
+    {
+      "role": "auto_update_getter",
+      "large": "0x420158b4",
+      "standard": "0x420158d4"
+    },
+    {
+      "role": "wake_selection",
+      "large": "0x42015de8",
+      "standard": "0x42015e08"
+    },
+    {
+      "role": "unified_scheduler",
+      "large": "0x42016274",
+      "standard": "0x42016294"
+    },
+    {
+      "role": "sntp",
+      "large": "0x42014e90",
+      "standard": "0x42014eb0"
+    },
+    {
+      "role": "ota_safety",
+      "large": "0x42016400",
+      "standard": "0x42016420"
+    },
+    {
+      "role": "ota_offer",
+      "large": "0x4202ba20",
+      "standard": "0x4202a14c"
+    },
+    {
+      "role": "post_ota_health",
+      "large": "0x4202ce1c",
+      "standard": "0x4202b548"
+    },
+    {
+      "role": "voltage_getter",
+      "large": "0x42029d60",
+      "standard": "0x42028608"
+    },
+    {
+      "role": "ota_battery_check",
+      "large": "0x4202d6b4",
+      "standard": "0x4202bde0"
+    },
+    {
+      "role": "wan_probe",
+      "large": "0x4202ed80",
+      "standard": "0x4202d4ac"
+    }
+  ],
+  "live_standard": {
+    "registration_completed": true,
+    "registration_survived_restart": true,
+    "normal_hostname_test_chain_accepted": true,
+    "vendor_voice_image_confirmed_by_owner": true,
+    "custom_firmware_boot_verified": false,
+    "decoded_exchanges": 24,
+    "incomplete_tail": false,
+    "endpoint_counts": [
+      {
+        "method": "GET",
+        "route": "/api/v1/upload/global/133/create_account",
+        "status": 200,
+        "count": 1
+      },
+      {
+        "method": "POST",
+        "route": "/api/v1/account/setup",
+        "status": 200,
+        "count": 2
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/upload/global/133/get_started",
+        "status": 200,
+        "count": 1
+      },
+      {
+        "method": "GET",
+        "route": "/api/v1/upload/check/{id}",
+        "status": 200,
+        "count": 18
+      },
+      {
+        "method": "POST",
+        "route": "/api/v1/upload/audio/presign",
+        "status": 200,
+        "count": 1
+      },
+      {
+        "method": "POST",
+        "route": "/api/v1/upload/audio/finalize",
+        "status": 200,
+        "count": 1
+      }
+    ],
+    "post_schemas": [
+      {
+        "route": "/api/v1/account/setup",
+        "request": {
+          "email": "str",
+          "password": "str",
+          "device_key": "str",
+          "mac_address": "str",
+          "display_type": "str"
+        },
+        "response": {
+          "success": "bool",
+          "message": "str",
+          "device_info": {
+            "id": "int",
+            "user_id": "str",
+            "device_key": "str",
+            "mac_address": "str",
+            "display_type": "str",
+            "device_name": "str",
+            "created_at": "str",
+            "updated_at": "str",
+            "settings": {
+              "style": "str",
+              "keepAwakeEnabled": "bool",
+              "chargingLedEnabled": "bool",
+              "voiceRecordingEnabled": "bool"
+            },
+            "pending_settings": {
+              "style": "str",
+              "keepAwakeEnabled": "bool",
+              "chargingLedEnabled": "bool",
+              "voiceRecordingEnabled": "bool"
+            },
+            "public_id": "str",
+            "battery_pct": "int",
+            "wifi_ssid": "str",
+            "last_seen_at": "str",
+            "ip_address": "str"
+          }
+        },
+        "response_bytes": 764,
+        "duration_seconds": 0.68
+      },
+      {
+        "route": "/api/v1/account/setup",
+        "request": {
+          "email": "str",
+          "password": "str",
+          "device_key": "str",
+          "mac_address": "str",
+          "display_type": "str"
+        },
+        "response": {
+          "success": "bool",
+          "message": "str",
+          "device_info": {
+            "id": "int",
+            "user_id": "str",
+            "device_key": "str",
+            "mac_address": "str",
+            "display_type": "str",
+            "device_name": "str",
+            "created_at": "str",
+            "updated_at": "str",
+            "settings": {
+              "style": "str",
+              "keepAwakeEnabled": "bool",
+              "chargingLedEnabled": "bool",
+              "voiceRecordingEnabled": "bool"
+            },
+            "pending_settings": {
+              "style": "str",
+              "keepAwakeEnabled": "bool",
+              "chargingLedEnabled": "bool",
+              "voiceRecordingEnabled": "bool"
+            },
+            "public_id": "str",
+            "battery_pct": "int",
+            "wifi_ssid": "str",
+            "last_seen_at": "str",
+            "ip_address": "str"
+          }
+        },
+        "response_bytes": 764,
+        "duration_seconds": 0.462
+      },
+      {
+        "route": "/api/v1/upload/audio/presign",
+        "request": {
+          "device_key": "str",
+          "user_id": "str"
+        },
+        "response": {
+          "success": "bool",
+          "url": "str",
+          "fields": {
+            "Content-Type": "str",
+            "x-amz-server-side-encryption": "str",
+            "key": "str",
+            "AWSAccessKeyId": "str",
+            "x-amz-security-token": "str",
+            "policy": "str",
+            "signature": "str"
+          },
+          "key": "str",
+          "upload_id": "null",
+          "message": "str"
+        },
+        "response_bytes": 3553,
+        "duration_seconds": 0.182
+      },
+      {
+        "route": "/api/v1/upload/audio/finalize",
+        "request": {
+          "device_key": "str",
+          "user_id": "str",
+          "key": "str",
+          "orientation": "str"
+        },
+        "response": {
+          "success": "bool",
+          "message": "str",
+          "upload_public_id": "null",
+          "presigned_url": "str"
+        },
+        "response_bytes": 1542,
+        "duration_seconds": 26.265
+      }
+    ],
+    "gallery_correlation": {
+      "matched_to_captured_voice_job": true,
+      "method": "Same generation directory and non-user UUID across audio key, finalize panel URL and authenticated gallery original",
+      "gallery_id_equals_object_key_uuid": false,
+      "transcript_present": true,
+      "original_png_bytes": 4016864,
+      "original_dimensions": [
+        1200,
+        1600
+      ],
+      "original_retrievable_after_url_refresh": true,
+      "final_vendor_generation_prompt_known": false
+    }
+  },
+  "limitations": [
+    "Application downloads are not full flash backups or proof of installed byte-for-byte identity",
+    "Model and release differences are confounded",
+    "Same routes and shared strings do not prove full handler equivalence",
+    "Stock API hostname test-chain acceptance does not prove arbitrary self-signed trust",
+    "Minimum independent enrollment response, eFuses, flash encryption, recovery and custom boot remain unproven",
+    "Private API credentials, transcripts, original art, signed URLs and packet captures are excluded"
+  ]
+}

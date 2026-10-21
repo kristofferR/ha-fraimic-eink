@@ -4,8 +4,9 @@
 
 Research date: **21 October 2026**. Target: one owned Fraimic Large running
 **0.2.29 / f1555ee5**. The [identity manifest](firmware-identity.json) pins the
-analyzed bytes. These notes do not generalize to the Standard frame or a later
-build without comparison.
+analyzed bytes. A separate [Standard comparison and live capture](standard-model-comparison.md)
+now covers 0.2.28 / 4654a1d8. Model-specific observations remain scoped to their
+identified builds; shared routes and SDK version do not establish full equivalence.
 
 ## Evidence ledger
 
@@ -17,12 +18,16 @@ build without comparison.
 | Standalone local HTTPS fixture | Five physical-frame idle polls and an unchanged album GET succeeded without upstream forwarding | Complete offline cloud, image delivery, new enrollment or durable album state |
 | Owner-directed local microphone upload | Empty presign fields and ordinary HTTP multipart delivered a valid mono 16 kHz/16-bit WAV | Successful generation, display, all capture limits or all response variants |
 | Positive-length upload acknowledgment | HTTP 200 plus a 15-byte body was rejected; GNU trace shows body length treated as an error code | A transport failure or need for S3 storage |
+| Fixed-card poll and voice experiments | Poll image visually confirmed; local voice flow completed through download, driver refresh, cache save and ready | STT/generation, distinct pixels in the repeated-card voice test, durable job replay or a reliable render acknowledgment |
+| Large negative TLS controls | Poll rejected untrusted and wrong-host certificates; matching-profile correct-name control worked | Every HTTP consumer, revocation/expiry handling or Standard negative cases |
+| Standard live vendor-proxy capture | Test-chain acceptance, successful setup surviving restart, HTTP 204 upload and finalize without status; generated image confirmed by owner | Independent local provisioning, recovered prompt text or custom firmware boot |
+| Standard blocked reachability probe | AP failover and interrupted download; scoped exception restored operation | A fully offline backend or every Large outage/recovery transition |
 | ESP image parsing/checks | File identity, segment bounds, checksum and appended hash | Boot authorization or a tested recovery path |
 | Ghidra function/reference analysis | Data flow, endpoint consumers, settings and state-machine candidates | Perfect types/control flow or execution of every branch |
 | GNU Xtensa disassembly with ESP32-S3 configuration | Critical instructions, literal values and comparisons | Physical timing or runtime race outcomes |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
-| Owner gallery list/detail and original reads | Token-authenticated schema, audio/image types, nullable fields and an available original | Implemented import, indefinite retention or retrieval after expiry |
+| Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
 | Gallery permission comparisons | No-auth and device-key Bearer requests returned 401; owner token returned 200 | Every alternative authentication mechanism |
 | Account/device-key album reads | Both listing paths worked; assignment/schedule fields observed | Create/update/delete permissions or payload acceptance |
 | Installed HA capability reads | Configured STT/Assist and lack of an image-capable AI Task entity on HA 2026.10.2 | Provider quality, local inference or generation/edit success |
@@ -31,11 +36,13 @@ build without comparison.
 | Host-side low-battery asset decoding | Recovered RLE format consumes all input and yields correct output size/palette | A newly generated asset renders correctly on the panel |
 | Integration source inspection | Existing functions to reuse in HA | Implemented emulator, voice backend or new metadata model |
 
-Temporary DNS/DNAT and interception were removed after the owner-scoped test.
-No custom app was flashed. Static/account/host passes did not record audio or
-change device/network state. The subsequent [backend pass](backend-emulation.md)
-used bounded frame-only routing and owner-directed microphone recordings, with
-no transcription, image generation, display change or device-setting mutation.
+Temporary DNS/DNAT and interception were removed after each bounded experiment.
+No custom app was flashed. The Large [backend passes](backend-emulation.md) used
+frame-only routing, owner-directed recordings and approved fixed-card refreshes,
+without transcription, AI generation or device-setting mutation. The separate
+Standard capture forwarded vendor responses unchanged; the owner completed
+setup, enabled voice/keep-awake and requested a real vendor generation. Those
+owner-selected settings were preserved when the capture network rules were removed.
 The [follow-up validation record](validation-2026-10-21.md) distinguishes owner
 cloud reads and host fixtures from physical-device tests.
 
@@ -117,7 +124,7 @@ This check can run entirely on the host without sending anything to the frame.
 | “Adding the same original imports idempotently” | The library creates a second item; an importer needs a stable upstream-ID mapping |
 | “WAV metadata means send a complete WAV to every STT provider” | This version's Google provider wraps raw PCM, so forwarding a RIFF header nests it |
 | “No appended signature means any app boots” | Bootloader/eFuse/security and recovery remain unverified |
-| “TLS hostname checking is disabled” | The examined config sets global CA use, not the adjacent skip-CN byte |
+| “TLS hostname checking is disabled” | Static config leaves skip-CN zero; Large's wrong-name live test failed and matching-profile correct-name control succeeded |
 
 ## Next investigations, in priority order
 

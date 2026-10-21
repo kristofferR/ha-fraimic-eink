@@ -37,28 +37,32 @@ per question, not a count of tool calls or decompiled functions.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
-| C01/C11 | API/web/auth consumers and verification task mapped | Host/device enrollment, redirects and fully offline dependencies |
+| C01/C11 | API/web/auth consumers mapped; Standard vendor setup schema captured, registration survived restart | Minimum independent enrollment response, verification dependencies and redirects |
 | C02 | Traced `user_settings`; five local idle polls preserved deadline and live switches with settings omitted | Partial/invalid snapshots, reboot persistence and NVS failures |
-| C03 | Local HTTPS JSON accepted; 2,304,000-byte test card downloaded, saved and physically confirmed upright with six colours | Negative certificates, redirects, limits and error variants |
-| C05/C06/C07 | Empty fields/plain HTTP captured 4.608-, 5.888- and 4.992-second WAVs; empty acknowledgment worked; both deliberate 409 and successful 200 finalize returned frame to ready | Response faults, capture limits, slow/timeout behavior and cancellation |
+| C03 | Local panel image confirmed; Large rejected untrusted/wrong-host certificates and accepted a matching-profile control; Standard positive test chain accepted | Other consumers/certificate failures, redirects, limits and download errors |
+| C05/C06/C07 | Large local 200/empty acknowledgment and successful finalize; Standard vendor 204 upload and finalize without status completed with owner-confirmed generation | Response faults, capture limits, slow/timeout behavior and cancellation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
-| C10 | Owner reads succeeded; device-key Bearer denied; expired URL returned 403 and same-item refresh produced a new URL with identical PNG bytes | Long-term retention and changing pagination |
+| C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
 | C12 | Proxy traced; account/device-key reads and actual frame GET against local HTTPS succeeded | Explicit create/update/delete and assignment tests |
 | A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced | Host fault fixtures and remaining indirect-reference audit |
-| S01 | Connectivity monitor state/interval/AP recovery traced | Backend-up/WAN-down and recovery device experiment |
+| S01 | Large monitor traced; Standard's blocked public probe caused AP failover/transfer abort and recovered with a temporary scoped exception | Large-specific transitions, outage timing and fully offline operation |
 | D03/D06/D07 | Normal poll/voice completion observed; voice saves after panel discharge; 1.347 MB free PSRAM cannot hold another full panel buffer; maintenance timestamp unchanged | Memory lifetime/fragmentation study, transfer faults and reliable per-image acknowledgment |
 | N02 | Legacy manifest and setup-override keys added; storage widths partly traced | Complete type/default/namespace and migration map |
 | S05/S06 | Observed configured EST5EDT, button wake on powered read, previous factory-test timeout sleep | Controlled timezone/DST and ordinary sleep/wake transitions |
 | H05 | Live info/log/verification/album reads; reset default and factory POST upload classified | Complete handler schemas, boot-state and side-effect validation |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | E01/E03 | Missing task entries/Ghidra branches corrected; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
+| E02 | Standard app hash validated; same 42 routes, 19 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and
 the combined voice-to-fixed-image flow were then exercised. The backend
 record separates host results, physical observations and incomplete handoffs.
+The separate Standard handoff adds owner-directed setup, a complete vendor voice
+generation, public-probe failure and cleanup evidence; it does not change the
+Large image identity or establish independent local provisioning.
 Recovery/security/partition questions still need additional evidence; the stock
 app cannot answer them alone. B01–B03 remain deferred.
 
@@ -333,6 +337,7 @@ This table records the audit scope, not completion of its checks.
 | [HA roadmap](home-assistant-roadmap.md) | A01–A07, C01–C12, S07, D05/D07 |
 | [21 October validation](validation-2026-10-21.md) | A01–A03, C01/C02/C06/C10–C12, R11, S01, D03/D06, N02, H05/H07, E01/E03 |
 | [Live backend emulation](backend-emulation.md) | C02/C03/C05–C07/C09/C12, D03/D06/D07, S05/S06, H05/H07, E01 |
+| [Standard comparison and model schemas](standard-model-comparison.md) | C01/C03–C07/C10/C11, S01, D07, H03/H05, B03, E02/E03 |
 | [Evidence and open questions](evidence-and-open-questions.md) | All groups, especially B01–B03 and E01–E03 |
 | [Route metadata](route-registrations.json) / [address map](address-map.json) | H05, E01/E02, B01 |
 | Existing [local](../frame-api/routes.md) and [cloud](../fraimic-cloud-api/routes.md) API references | C12, H05, E02/E03 |

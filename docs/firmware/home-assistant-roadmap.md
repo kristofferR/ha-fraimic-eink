@@ -12,6 +12,10 @@ card. A combined recording-to-fixed-image test also completed through the stock
 driver, cache save and return to ready. These are bounded protocol experiments,
 not a deployed HA backend, generation service or firmware fork.
 
+The [Standard comparison](standard-model-comparison.md) supports one protocol
+adapter with separate model renderers. Its captured setup response is useful
+enrollment evidence, but minimum independent provisioning is still untested.
+
 ## What the integration already provides
 
 This map was checked against repository commit
@@ -140,9 +144,23 @@ A small durable job record should connect:
 
 - Frame identity and device-scoped request/idempotency identity.
 - Audio receipt, transcript, routed intent and generation provider/job identity.
-- Original library image, parent image for edits, prompt/style and conversion inputs.
+- Final generation prompt, model/style and conversion inputs, kept distinct from
+  the raw transcript and interpreted intent.
+- Original library image and parent image for edits.
 - Resulting panel content hash and proposed next schedule.
 - Processing outcome separately from download and display evidence.
+
+Prompt visibility is an owner priority. The Standard vendor capture exposed no
+transcript or final prompt in presign/finalize, so a local job history must capture
+its own stages explicitly. Do not present a gallery transcript as the vendor's
+final generation prompt without evidence that they are identical.
+
+A later object-identity correlation linked the captured Standard audio job and
+panel result to its authenticated gallery record. That exact creation exposes a
+transcript and original, and refreshed URLs restore its byte-identical original
+after expiry. This supports an importer for existing voice creations independently
+of a local STT service. Preserve the gallery upload ID explicitly; it differs
+from the audio/storage job UUID. The final vendor generation prompt is still unknown.
 
 Only accept a finalize key belonging to that frame's recorded upload. Repeated
 finalize requests should return the same result, not purchase another generation.

@@ -206,6 +206,13 @@ download. This establishes one expiry/refresh cycle, not indefinite retention.
 Persist originals and deduplicate by account/upload identity, not the signed URL.
 No library import was performed.
 
+The same item was subsequently linked to the captured Standard voice workflow:
+the audio key, panel URL and original share a private generation directory/job
+UUID. Its gallery record contains a transcript. The public gallery upload ID is
+different from that object-key UUID; do not assume a direct identity equality.
+This proves transcript/original availability for that creation, not access to the
+vendor's final generation prompt. See the [correlation evidence](standard-model-comparison.md#prompt-visibility-and-ha-reuse).
+
 Both owner-authenticated `GET /api/v1/albums` and a credential-bearing
 `GET /api/v1/albums/<device_key>` without a Bearer header returned 200. In this
 account they returned the same album IDs, including empty wake-planning albums.
@@ -236,9 +243,18 @@ image counts and images. Create/update/delete remain untested; see the
   against the binary and the [ESP-IDF v5.4.1 header](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h).
 - DNS redirection alone does not make an unrelated certificate valid for the
   vendor hostname. Use deliberately configured hostname/trust for a durable
-  custom backend. The earlier test-chain acceptance does not prove acceptance
-  of arbitrary self-signed certificates.
+  custom backend. Large's [controlled negative tests](backend-emulation.md#negative-tls-controls-c03)
+  rejected a self-signed certificate for the correct name and an accepted-chain
+  certificate for the wrong name; a matching-profile correct-name control worked.
+  This verifies the poll path's tested trust/name boundaries, not every consumer
+  or all certificate failure modes.
 - [Connectivity and NTP](boot-and-scheduling.md#offline-dependencies) still need
   attention for WAN-free operation.
 
 For audio endpoint schemas, limits and status handling, see [voice](voice.md).
+
+The [Standard live capture](standard-model-comparison.md) adds observed setup
+request/response shapes, positive test-chain acceptance, a direct HTTP 204 audio
+upload and successful finalize without a `status` field. Its vendor-proxy setup
+success does not establish independent local enrollment. Keep the two model
+assets and their firmware fingerprints separate.
