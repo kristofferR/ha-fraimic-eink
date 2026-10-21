@@ -102,6 +102,63 @@ frame, which uploaded a valid WAV to an ordinary local HTTP service. No S3 serve
 or S3-specific form fields were needed. A scoped upload ticket gives the adapter
 a useful authorization boundary.
 
+### Multipart construction and streaming
+
+Presign accepts string-valued `url` and `key`, copies them with the limits below,
+and serializes `fields` only when it is an object. It does not require nonempty
+URL/key strings or consult a `success` flag before returning its successful parse
+result. Missing/non-object fields leave an empty string that fails the upload
+stage's subsequent JSON parse. A later transport failure is different from
+rejecting an unusable presign response early.
+
+Upload `0x42026b9c` walks the object's children in order. String-valued members
+become form parts; numbers, booleans, null and nested containers are skipped.
+Duplicate string members become duplicate multipart parts. Names and values are
+inserted with `%s` directly, with no quote/CRLF escaping or reserved-name check.
+For a local ticket, emit one uniquely named string field with a simple name and
+value. Avoid a supplied `file` field, which would coexist with the real WAV part.
+The top-level key used by finalize and a `fields.key` value used by storage are
+not compared by this upload routine; keep issued keys consistent and short.
+
+The framing allocation is **calculated total body bytes minus WAV bytes plus
+one**, requested from `MALLOC_CAP_SPIRAM` (`0x400`). It holds the form prefix and
+closing boundary, while audio remains in the original shared buffer. This does
+not eliminate the separate JSON, HTTP and TLS allocations. Each formatted append
+checks its `snprintf` result against remaining capacity and fails before network
+transmission on a detected framing overflow.
+
+The sender opens one fixed-length POST, then writes:
+
+1. The constructed form fields and file headers.
+2. The existing WAV in chunks of at most **4,096 bytes**.
+3. The closing multipart boundary.
+
+The file part is named `file`, has filename `recording.wav`, and uses
+`Content-Type: audio/wav`. Every application write requires the full requested
+count; a short/negative result closes and cleans up rather than resuming at a new
+offset. SDK write `0x4206d930` can internally combine several positive transport
+writes, so application chunks are not TCP packet boundaries.
+
+The configuration sets **120,000 ms** network timeout and an **8,192-byte transmit
+buffer**. The latter field is identified against the
+[SDK configuration layout](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h),
+not the application's 4 KiB audio chunk. The transport timeout is passed again on
+each underlying write; it is not a two-minute deadline for the entire upload.
+The multipart routine has no local elapsed-time check in its audio loop.
+
+Only **after the footer is written** does it register the client with the abort
+manager at `0x420271f3`, immediately before fetching response headers. The audio
+write loop does not query the processing-cancel flag. Cancellation during body
+transmission therefore does not have this client's abort registration available,
+and already transmitted audio cannot be recalled. The physical cancellation test
+remains deferred; other network failures and outer-task lifetime are separate.
+
+For the emulator, validate and retain a complete upload under its issued job key,
+start generation on finalize, and expire uploads that never finalize. Receipt of
+the WAV alone does not prove that the user completed the whole workflow or that
+the frame will accept a result. These streaming/fault details are static findings;
+the earlier successful local uploads remain the physical positive controls.
+
 ### Upload acknowledgment must have an empty body
 
 The live fixture first returned HTTP 200 with a 15-byte JSON acknowledgment after
@@ -192,6 +249,7 @@ presigned URL” describe its fixed workflow labels, not services used by this t
 | Stage | Limit / requirement |
 | --- | --- |
 | Presign HTTP timeout | 30,000 ms |
+| Multipart-upload HTTP timeout | 120,000 ms; not a whole-upload deadline |
 | Finalize HTTP timeout | 600,000 ms |
 | Outer upload task wait | Approximately 15 minutes |
 | Presign/finalize JSON body read | At most 4,095 bytes |

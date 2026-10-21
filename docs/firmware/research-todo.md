@@ -42,6 +42,7 @@ per question, not a count of tool calls or decompiled functions.
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
 | C03 | Local panel/TLS controls completed; static downloader length/framing, same-URL retries and short-asset behavior mapped | Device response faults, other TLS consumers and Standard negative controls |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
+| C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
 | C07/C08/D05 | Task creation/WAV lifetime and cancellation windows traced; pending poll can interrupt recording even without a usable image URL; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
@@ -107,6 +108,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   codes, size limits and malformed presign responses. Confirm no S3 service is needed.
   Positive path now reaches the local sink with `{}` fields. Check the discovered
   zero-length upload-acknowledgment requirement separately from positive-length JSON.
+  [Multipart tracing](voice.md#multipart-construction-and-streaming) adds field
+  filtering/duplicates, framing allocation, exact-write handling and cancellation
+  registration only after the body has been sent.
 - [ ] **C06 · Device:** Verify actual WAV format, duration/size limits, initial tap
   suppression, completion taps, cancellation and deadline behavior with a short
   owner-directed recording. Check the near-60-second boundary separately.

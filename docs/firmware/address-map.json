@@ -1461,8 +1461,20 @@
     {
       "address": "0x42026b9c",
       "kind": "function",
-      "role": "Multipart WAV upload",
-      "evidence": "static"
+      "role": "Multipart WAV upload: string-field framing in PSRAM, fixed-length POST, 4 KiB audio writes, 120-second transport timeout",
+      "evidence": "static; bounded GNU streaming/framing trace"
+    },
+    {
+      "address": "0x42027133",
+      "kind": "call_site",
+      "role": "Multipart WAV chunk write, at most 4096 bytes; caller requires exact returned count",
+      "evidence": "static; GNU streaming follow-up"
+    },
+    {
+      "address": "0x420271f3",
+      "kind": "call_site",
+      "role": "Multipart abort-client registration after all WAV bytes and footer are written",
+      "evidence": "static; GNU streaming follow-up"
     },
     {
       "address": "0x420271f8",
@@ -2460,8 +2472,8 @@
     {
       "address": "0x4206d930",
       "kind": "function",
-      "role": "HTTP client body-write loop; proxy checks only a negative result",
-      "evidence": "static; 22 October album proxy follow-up"
+      "role": "HTTP body-write loop: repeats configured transport timeout across positive synchronous writes; album proxy checks only negative results",
+      "evidence": "static; album proxy and multipart streaming GNU follow-up"
     },
     {
       "address": "0x4206db7c",

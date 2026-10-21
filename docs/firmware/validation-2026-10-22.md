@@ -443,3 +443,26 @@ hash-pinned to `5c9da08c9bb502d25269bcb059017b553ae2fe4880216a1e6c6e4c664d6e1fbd
 the unchanged extracted helper hash is
 `633c3df2b90f8c0dbd411edcfa9a7f8b6ab08ea02a7d75e68abfde4153d30a9c`.
 No credentials or crafted forms were sent anywhere and no identity was changed.
+
+## Multipart upload streaming: C05/C08/D01
+
+Nineteen bounded GNU ranges recover multipart construction and transmission past
+the point where the older Ghidra export stopped on unsupported `SALTU` handling.
+The earlier export remains useful for references and initial field iteration,
+but it does not describe the complete upload function. Literal reads confirm
+the form templates, audio MIME type, 120,000 ms timeout, 8,192-byte transmit-buffer
+value and 4,096-byte application chunk size. SDK-write ranges are split at padding
+and the following function boundary.
+
+The [streaming trace](voice.md#multipart-construction-and-streaming) records
+framing-only PSRAM allocation, bounded-format failure checks, complete-count
+checks on each application write, repeated transport timeout and abort-manager
+registration after the footer. Presign's existing export supplies object/type and
+URL/key-copy boundaries. No new field variant, partial upload, cancellation,
+allocation failure, recording or network request was sent to a frame.
+
+Private artifacts: `voice-multipart-gnu.mjs`,
+`voice-multipart-boundaries-gnu.txt`, `voice-multipart-literals.jsonl`,
+`http-redirect-pass3.txt` and `voice-http-read-pass1.txt`.
+`voice-multipart-exploratory-gnu.txt` contains misaligned exploratory ranges and
+is superseded by the bounded export for the consequential branches.
