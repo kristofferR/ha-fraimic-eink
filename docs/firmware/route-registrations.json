@@ -1,0 +1,254 @@
+[
+  {
+    "route": "/complete",
+    "method": "GET",
+    "handler": "0x42017560",
+    "record_offset": "0x4bbf0"
+  },
+  {
+    "route": "/create-account",
+    "method": "GET",
+    "handler": "0x42019224",
+    "record_offset": "0x4bc00"
+  },
+  {
+    "route": "/create-account",
+    "method": "POST",
+    "handler": "0x42018cc8",
+    "record_offset": "0x4bc10"
+  },
+  {
+    "route": "/sign-in",
+    "method": "GET",
+    "handler": "0x420191b4",
+    "record_offset": "0x4bc20"
+  },
+  {
+    "route": "/sign-in",
+    "method": "POST",
+    "handler": "0x420192c8",
+    "record_offset": "0x4bc30"
+  },
+  {
+    "route": "/api/verification-status",
+    "method": "GET",
+    "handler": "0x42019168",
+    "record_offset": "0x4bc40"
+  },
+  {
+    "route": "/",
+    "method": "GET",
+    "handler": "0x4201b290",
+    "record_offset": "0x4bdf0"
+  },
+  {
+    "route": "/scan.json",
+    "method": "GET",
+    "handler": "0x4201d28c",
+    "record_offset": "0x4be00"
+  },
+  {
+    "route": "/connect",
+    "method": "POST",
+    "handler": "0x4201d07c",
+    "record_offset": "0x4be10"
+  },
+  {
+    "route": "/hotspot-detect.html",
+    "method": "GET",
+    "handler": "0x4201b3d8",
+    "record_offset": "0x4be20"
+  },
+  {
+    "route": "/generate_204",
+    "method": "GET",
+    "handler": "0x4201b3d8",
+    "record_offset": "0x4be30"
+  },
+  {
+    "route": "/connecttest.txt",
+    "method": "GET",
+    "handler": "0x4201b3d8",
+    "record_offset": "0x4be40"
+  },
+  {
+    "route": "/connect",
+    "method": "GET",
+    "handler": "0x4201b3f8",
+    "record_offset": "0x4be50"
+  },
+  {
+    "route": "/wifi",
+    "method": "GET",
+    "handler": "0x4201b3d8",
+    "record_offset": "0x4be60"
+  },
+  {
+    "route": "/upload",
+    "method": "GET",
+    "handler": "0x4201b3ac",
+    "record_offset": "0x4be70"
+  },
+  {
+    "route": "/upload",
+    "method": "POST",
+    "handler": "0x4201cc0c",
+    "record_offset": "0x4be80"
+  },
+  {
+    "route": "/action",
+    "method": "GET",
+    "handler": "0x4201c740",
+    "record_offset": "0x4be90"
+  },
+  {
+    "route": "/portal",
+    "method": "GET",
+    "handler": "0x4201e81c",
+    "record_offset": "0x4bea0"
+  },
+  {
+    "route": "/info",
+    "method": "GET",
+    "handler": "0x4201f0f8",
+    "record_offset": "0x4beb0"
+  },
+  {
+    "route": "/wifi-stats",
+    "method": "GET",
+    "handler": "0x4201e05c",
+    "record_offset": "0x4bec0"
+  },
+  {
+    "route": "/clear-stats",
+    "method": "POST",
+    "handler": "0x4201c6f4",
+    "record_offset": "0x4bed0"
+  },
+  {
+    "route": "/switch-ap",
+    "method": "POST",
+    "handler": "0x4201c4cc",
+    "record_offset": "0x4bee0"
+  },
+  {
+    "route": "/check-internet",
+    "method": "GET",
+    "handler": "0x4201c404",
+    "record_offset": "0x4bef0"
+  },
+  {
+    "route": "/logs",
+    "method": "GET",
+    "handler": "0x4201c0d0",
+    "record_offset": "0x4bf00"
+  },
+  {
+    "route": "/logs",
+    "method": "POST",
+    "handler": "0x4201b2e0",
+    "record_offset": "0x4bf10"
+  },
+  {
+    "route": "/logs/action",
+    "method": "POST",
+    "handler": "0x4201c048",
+    "record_offset": "0x4bf20"
+  },
+  {
+    "route": "/get-started",
+    "method": "GET",
+    "handler": "0x4201b38c",
+    "record_offset": "0x4bf30"
+  },
+  {
+    "route": "/test",
+    "method": "GET",
+    "handler": "0x4201ed28",
+    "record_offset": "0x4bf40"
+  },
+  {
+    "route": "/test",
+    "method": "POST",
+    "handler": "0x4201ba9c",
+    "record_offset": "0x4bf50"
+  },
+  {
+    "route": "/dev",
+    "method": "GET",
+    "handler": "0x4201ebbc",
+    "record_offset": "0x4bf60"
+  },
+  {
+    "route": "/dev",
+    "method": "POST",
+    "handler": "0x4201b6a0",
+    "record_offset": "0x4bf70"
+  },
+  {
+    "route": "/battery/status",
+    "method": "GET",
+    "handler": "0x4202a154",
+    "record_offset": "0x503b0"
+  },
+  {
+    "route": "/api/info",
+    "method": "GET",
+    "handler": "0x42030c98",
+    "record_offset": "0x50534"
+  },
+  {
+    "route": "/api/battery",
+    "method": "GET",
+    "handler": "0x42030c6c",
+    "record_offset": "0x50544"
+  },
+  {
+    "route": "/api/restart",
+    "method": "POST",
+    "handler": "0x42030ba0",
+    "record_offset": "0x50554"
+  },
+  {
+    "route": "/api/sleep",
+    "method": "POST",
+    "handler": "0x42030b38",
+    "record_offset": "0x50564"
+  },
+  {
+    "route": "/api/refresh",
+    "method": "POST",
+    "handler": "0x42030aa0",
+    "record_offset": "0x50574"
+  },
+  {
+    "route": "/api/image",
+    "method": "POST",
+    "handler": "0x420307f8",
+    "record_offset": "0x50584"
+  },
+  {
+    "route": "/api/albums",
+    "method": "GET",
+    "handler": "0x420304b8",
+    "record_offset": "0x50594"
+  },
+  {
+    "route": "/api/albums",
+    "method": "POST",
+    "handler": "0x42030790",
+    "record_offset": "0x505a4"
+  },
+  {
+    "route": "/api/albums/*",
+    "method": "PUT",
+    "handler": "0x420306c8",
+    "record_offset": "0x505b4"
+  },
+  {
+    "route": "/api/albums/*",
+    "method": "DELETE",
+    "handler": "0x4203042c",
+    "record_offset": "0x505c4"
+  }
+]

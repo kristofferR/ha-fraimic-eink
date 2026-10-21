@@ -473,6 +473,11 @@ For hardware details, see the [local frame API](docs/frame-api/routes.md),
 [device HTTP overview](docs/device-http-api.md), and
 [cloud API and scheduling notes](docs/fraimic-cloud-api/albums-scheduling.md).
 
+The [firmware research reference](docs/firmware/README.md) maps Large firmware
+0.2.29: hardware, voice, cloud protocols, storage, OTA, and a roadmap for a local
+backend integrated with HA. Findings distinguish observed behavior, static
+analysis and proposed changes; custom firmware has not been boot-tested.
+
 ## Credits
 
 Built against real Standard and Large frames. Thanks to

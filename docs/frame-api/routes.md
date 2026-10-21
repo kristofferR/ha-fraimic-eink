@@ -95,8 +95,10 @@ frame answers `502 {"error":"server_unreachable","detail":"ESP_ERR_HTTP_CONNECT"
 
 - The cloud PUT does **not** merge the `schedule` object — omitted fields are
   nulled, so always read-modify-write the full schedule shape.
-- Album create/delete/device-assignment are not exposed through the proxy —
-  app.fraimic.com only.
+- The previously tested contract covers GET/PUT. Static analysis of Large
+  0.2.29 also found POST create and DELETE handlers; those mutations were not
+  live-tested. See the [complete registration map](../firmware/local-api.md).
+  Device-assignment support has not been established through this proxy.
 - Album payloads contain presigned S3 image URLs (~1 h bearer credentials);
   don't persist or expose them.
 
@@ -104,6 +106,10 @@ frame answers `502 {"error":"server_unreachable","detail":"ESP_ERR_HTTP_CONNECT"
 An **HTML page served by the frame** — open `http://{host}/test` in a browser,
 not an API call. It exposes a **factory reset** control that wipes the frame's
 settings/pairing.
+
+On Large 0.2.29, merely opening the landing page also enters a roughly ten-minute
+factory-test mode that suppresses normal background behavior. Use `/api/battery`
+for liveness instead. See [diagnostic side effects](../firmware/local-api.md#diagnostics-have-side-effects).
 
 ⚠️ **Destructive.** Deliberately **not wired into the integration**; documented
 here so it isn't triggered by accident.

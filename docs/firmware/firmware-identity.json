@@ -1,0 +1,109 @@
+{
+  "research_date": "2026-10-21",
+  "scope": "One owned Fraimic Large; static findings apply to this exact app image",
+  "product": "Fraimic Large",
+  "panel": "EL315TW1",
+  "panel_inches": 31.5,
+  "portrait_width": 1440,
+  "portrait_height": 2560,
+  "panel_wire_bytes": 2304000,
+  "reported_firmware_version": "0.2.29",
+  "reported_build": "f1555ee5",
+  "descriptor_version": "v0.2.24-33-gf1555ee",
+  "descriptor_build_date": "2026-07-16",
+  "descriptor_build_time": "10:17:43",
+  "descriptor_build_timezone": null,
+  "descriptor_elf_sha256": "43429a72fd1aaae1845a100c8d04bc119b7aecd5286dfc7518155474f42255b1",
+  "chip": "ESP32-S3",
+  "architecture": "Xtensa LX7",
+  "sdk": "ESP-IDF v5.4.1",
+  "rtos": "FreeRTOS",
+  "rtos_tick_ms": 10,
+  "app_file_bytes": 4123920,
+  "sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+  "image_header": {
+    "segment_count": 6,
+    "flash_size_mb": 16,
+    "flash_mode": "DIO",
+    "flash_frequency_mhz": 80
+  },
+  "segments": [
+    {
+      "index": 0,
+      "load_address": "0x3c0f0020",
+      "data_file_offset": "0x20",
+      "length": 3014832
+    },
+    {
+      "index": 1,
+      "load_address": "0x3fca0800",
+      "data_file_offset": "0x2e00d8",
+      "length": 21744
+    },
+    {
+      "index": 2,
+      "load_address": "0x40374000",
+      "data_file_offset": "0x2e55d0",
+      "length": 43592
+    },
+    {
+      "index": 3,
+      "load_address": "0x42000020",
+      "data_file_offset": "0x2f0020",
+      "length": 970436
+    },
+    {
+      "index": 4,
+      "load_address": "0x4037ea48",
+      "data_file_offset": "0x3dceec",
+      "length": 72912
+    },
+    {
+      "index": 5,
+      "load_address": "0x600fe000",
+      "data_file_offset": "0x3eebc4",
+      "length": 288
+    }
+  ],
+  "integrity": {
+    "checksum_valid": true,
+    "appended_sha256_valid": true,
+    "standard_secure_boot_v2_signature_sector_found": false
+  },
+  "observed_running_partition": {
+    "label": "app1",
+    "flash_offset": "0x4a0000",
+    "bytes": 4718592
+  },
+  "low_battery_asset": {
+    "virtual_start": "0x3c372e18",
+    "virtual_end_exclusive": "0x3c3a7b56",
+    "input_bytes": 216382,
+    "consumed_bytes": 216382,
+    "output_bytes": 2304000,
+    "rows": 5760,
+    "pixels_per_row": 800,
+    "palette": [
+      0,
+      1,
+      2,
+      3,
+      5,
+      6
+    ],
+    "sha256": "a1db1ecf37389628588baf3c2d44912318087759eb55558dfaa4b834236721be"
+  },
+  "http_registration_count": 42,
+  "verified_custom_boot": false,
+  "unknown": [
+    "full_partition_table",
+    "bootloader_configuration",
+    "secure_boot_efuses",
+    "flash_encryption_state",
+    "anti_rollback_state",
+    "physical_recovery_entry",
+    "custom_image_boot_acceptance",
+    "imagedata_capacity"
+  ],
+  "exclusions": "No firmware bytes, private keys, device/account credentials, recordings or signed URLs are included"
+}

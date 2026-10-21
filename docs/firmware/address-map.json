@@ -1,0 +1,955 @@
+{
+  "firmware_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+  "address_space": "virtual addresses in the exact application; not whole-flash offsets",
+  "names": "Analytical descriptions, not recovered original symbols",
+  "entries": [
+    {
+      "address": "0x3c101590",
+      "kind": "string",
+      "role": "Production API base literal; app-file offset 0x11590, 26 characters",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3c13bbc4",
+      "kind": "pointer_table",
+      "role": "Four SNTP server names",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3c140434",
+      "kind": "pointer_table",
+      "role": "Instruction-screen descriptions",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3c140440",
+      "kind": "pointer_table",
+      "role": "Instruction-screen filenames",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3c140614",
+      "kind": "asset",
+      "role": "Raw wake_up image start; exclusive end 0x3c372e14",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3c372e18",
+      "kind": "asset",
+      "role": "RLE low_battery image start; exclusive end 0x3c3a7b56",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3fca6b41",
+      "kind": "state",
+      "role": "Auto-update preference byte",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3fcabd28",
+      "kind": "state",
+      "role": "Shared PSRAM allocation pointer storage",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4200338c",
+      "kind": "literal",
+      "role": "Finalize HTTP timeout: 600000 milliseconds",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42003590",
+      "kind": "literal",
+      "role": "Address of shared buffer pointer storage",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420035a0",
+      "kind": "literal",
+      "role": "Recording capacity: 2120000 bytes",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420037dc",
+      "kind": "literal",
+      "role": "Pointer to instruction filename table",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42003808",
+      "kind": "literal",
+      "role": "Pointer to instruction description table",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42010108",
+      "kind": "function",
+      "role": "Voice upload/download/render flow",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42010674",
+      "kind": "function",
+      "role": "Storage sleep; button-only wake",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42010994",
+      "kind": "function",
+      "role": "Voice recording orchestration and deadline",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42011314",
+      "kind": "function",
+      "role": "Recording completion/cancellation button handling",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42011adc",
+      "kind": "function",
+      "role": "Voice connectivity readiness wait",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42012338",
+      "kind": "function",
+      "role": "Pre-sleep workflow",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42012810",
+      "kind": "function",
+      "role": "Main lifecycle and wake dispatch",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42014968",
+      "kind": "function",
+      "role": "Save four device switches",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42014ad4",
+      "kind": "function",
+      "role": "Maintenance schedule persistence helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42014d48",
+      "kind": "function",
+      "role": "Maintenance schedule persistence helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42014dcc",
+      "kind": "function",
+      "role": "Calculate local-calendar maintenance time",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42014e90",
+      "kind": "function",
+      "role": "SNTP synchronization and server rotation",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420158b4",
+      "kind": "function",
+      "role": "Auto-update setting getter",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420158cc",
+      "kind": "function",
+      "role": "Apply device-settings snapshot",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42015974",
+      "kind": "function",
+      "role": "Wake-up image state persistence helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420159b4",
+      "kind": "function",
+      "role": "Wake-up image state persistence helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42015d30",
+      "kind": "function",
+      "role": "Persist next album-image timestamp",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42015d60",
+      "kind": "function",
+      "role": "Read/cache next album-image timestamp",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42015de8",
+      "kind": "function",
+      "role": "Select maintenance/album deadline and reason",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42015f2c",
+      "kind": "function",
+      "role": "Validate/configure maintenance schedule",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42016274",
+      "kind": "function",
+      "role": "Create default maintenance schedule",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42016400",
+      "kind": "function",
+      "role": "OTA safety predicate",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4201727c",
+      "kind": "function",
+      "role": "Save local image and start rendering",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42017350",
+      "kind": "function",
+      "role": "Migrate legacy account fields",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42017560",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /complete"
+      ]
+    },
+    {
+      "address": "0x42017670",
+      "kind": "function",
+      "role": "Read production/development mode",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42017a4c",
+      "kind": "function",
+      "role": "Select API base URL",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42017a64",
+      "kind": "function",
+      "role": "Select web-app base URL",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42017a7c",
+      "kind": "function",
+      "role": "Select authentication base URL",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420189c0",
+      "kind": "function",
+      "role": "Load per-mode identity and shared timezone",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42018af0",
+      "kind": "function",
+      "role": "Save identity and production legacy aliases",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42018cc8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /create-account"
+      ]
+    },
+    {
+      "address": "0x42019168",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /api/verification-status"
+      ]
+    },
+    {
+      "address": "0x420191b4",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /sign-in"
+      ]
+    },
+    {
+      "address": "0x42019224",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /create-account"
+      ]
+    },
+    {
+      "address": "0x420192c8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /sign-in"
+      ]
+    },
+    {
+      "address": "0x4201b290",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /"
+      ]
+    },
+    {
+      "address": "0x4201b2e0",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /logs"
+      ]
+    },
+    {
+      "address": "0x4201b38c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /get-started"
+      ]
+    },
+    {
+      "address": "0x4201b3ac",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /upload"
+      ]
+    },
+    {
+      "address": "0x4201b3d8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /hotspot-detect.html",
+        "GET /generate_204",
+        "GET /connecttest.txt",
+        "GET /wifi"
+      ]
+    },
+    {
+      "address": "0x4201b3f8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /connect"
+      ]
+    },
+    {
+      "address": "0x4201b6a0",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /dev"
+      ]
+    },
+    {
+      "address": "0x4201ba9c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /test"
+      ]
+    },
+    {
+      "address": "0x4201c048",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /logs/action"
+      ]
+    },
+    {
+      "address": "0x4201c0d0",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /logs"
+      ]
+    },
+    {
+      "address": "0x4201c404",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /check-internet"
+      ]
+    },
+    {
+      "address": "0x4201c4cc",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /switch-ap"
+      ]
+    },
+    {
+      "address": "0x4201c6f4",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /clear-stats"
+      ]
+    },
+    {
+      "address": "0x4201c740",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /action"
+      ]
+    },
+    {
+      "address": "0x4201cc0c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /upload"
+      ]
+    },
+    {
+      "address": "0x4201d07c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /connect"
+      ]
+    },
+    {
+      "address": "0x4201d28c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /scan.json"
+      ]
+    },
+    {
+      "address": "0x4201e05c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /wifi-stats"
+      ]
+    },
+    {
+      "address": "0x4201e81c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /portal"
+      ]
+    },
+    {
+      "address": "0x4201ebbc",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /dev"
+      ]
+    },
+    {
+      "address": "0x4201ed28",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /test"
+      ]
+    },
+    {
+      "address": "0x4201f0f8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /info"
+      ]
+    },
+    {
+      "address": "0x4201f15e",
+      "kind": "call_site",
+      "role": "Auto-update getter reference in HTML info",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4201fd90",
+      "kind": "function",
+      "role": "Initialize microphone I2S0 PDM RX",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4201fed0",
+      "kind": "function",
+      "role": "Start audio recording using shared buffer",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420201d4",
+      "kind": "function",
+      "role": "Write WAV header in place",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420208d4",
+      "kind": "function",
+      "role": "Display-render entry",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42022140",
+      "kind": "function",
+      "role": "Panel bus/GPIO initialization",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42023bcc",
+      "kind": "function",
+      "role": "Fetch global/system-image URL",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42023ed4",
+      "kind": "function",
+      "role": "Account/device setup request",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202475c",
+      "kind": "function",
+      "role": "Cloud poll request and response parser",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42025aec",
+      "kind": "function",
+      "role": "Background poll worker",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202606c",
+      "kind": "function",
+      "role": "Download packed image",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420266d8",
+      "kind": "function",
+      "role": "Audio presign request/parser",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42026b9c",
+      "kind": "function",
+      "role": "Multipart WAV upload",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42027380",
+      "kind": "function",
+      "role": "Audio finalize request/parser",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420282f8",
+      "kind": "function",
+      "role": "Provisioning check used for FAT format permission",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028368",
+      "kind": "function",
+      "role": "Mount imagedata FAT partition",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028524",
+      "kind": "function",
+      "role": "Save last_image.bin directly",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028698",
+      "kind": "function",
+      "role": "Load last_image.bin",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028914",
+      "kind": "function",
+      "role": "Load local system image",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028ae8",
+      "kind": "function",
+      "role": "Validate installed system-image size/readability",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028bc8",
+      "kind": "function",
+      "role": "Install embedded system image to FAT",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028d94",
+      "kind": "function",
+      "role": "Allocate shared PSRAM buffer",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028e68",
+      "kind": "function",
+      "role": "Return recording buffer pointer",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028e74",
+      "kind": "function",
+      "role": "Return recording buffer capacity",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028e88",
+      "kind": "function",
+      "role": "Return image buffer pointer",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42028e94",
+      "kind": "function",
+      "role": "Return image buffer capacity",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42029d60",
+      "kind": "function",
+      "role": "Read doubled gauge/pack voltage",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42029ed0",
+      "kind": "function",
+      "role": "Cable-state detection candidate",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202a154",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /battery/status"
+      ]
+    },
+    {
+      "address": "0x4202a8b8",
+      "kind": "function",
+      "role": "Map instruction ID to cloud image key",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202a8d4",
+      "kind": "function",
+      "role": "Remove obsolete server-keyed system-image files",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202a968",
+      "kind": "function",
+      "role": "Compare stored image version",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202aae0",
+      "kind": "function",
+      "role": "Ensure wake-up artwork is installed",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202abe8",
+      "kind": "function",
+      "role": "Fetch instruction image from cloud",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202ad38",
+      "kind": "function",
+      "role": "Dispatch local/cloud instruction image and render",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202b8a8",
+      "kind": "function",
+      "role": "Record OTA failure details",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202b984",
+      "kind": "function",
+      "role": "Return OTA pending flag",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202ba20",
+      "kind": "function",
+      "role": "Queue firmware offer subject to failure cooldown",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202bb88",
+      "kind": "function",
+      "role": "Older manifest-based OTA path",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202c514",
+      "kind": "function",
+      "role": "Direct-URL OTA path",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202ce1c",
+      "kind": "function",
+      "role": "Pending-image health check and confirmation",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202d1d0",
+      "kind": "function",
+      "role": "Consume OTA reporting state",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202d6b4",
+      "kind": "function",
+      "role": "OTA battery percentage/safety helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202d860",
+      "kind": "function",
+      "role": "Sleep timestamp persistence helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202d90c",
+      "kind": "function",
+      "role": "Sleep timestamp persistence helper",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202e8bc",
+      "kind": "function",
+      "role": "Wi-Fi statistics persistence",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202ed80",
+      "kind": "function",
+      "role": "Public TCP reachability probe",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202f18c",
+      "kind": "function",
+      "role": "Cached connectivity getter",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202f8bc",
+      "kind": "function",
+      "role": "Resolve embedded low_battery RLE asset",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202f904",
+      "kind": "function",
+      "role": "Persist system-image marker",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202f970",
+      "kind": "function",
+      "role": "Reload/validate system-image marker",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202fa0c",
+      "kind": "function",
+      "role": "Decode status-image row-bounded RLE",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4202fc34",
+      "kind": "function",
+      "role": "Render compressed system image without replacing last artwork",
+      "evidence": "static"
+    },
+    {
+      "address": "0x42030064",
+      "kind": "function",
+      "role": "Common authenticated album cloud proxy",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4203042c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "DELETE /api/albums/*"
+      ]
+    },
+    {
+      "address": "0x420304b8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /api/albums"
+      ]
+    },
+    {
+      "address": "0x420306c8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "PUT /api/albums/*"
+      ]
+    },
+    {
+      "address": "0x42030790",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /api/albums"
+      ]
+    },
+    {
+      "address": "0x420307f8",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /api/image"
+      ]
+    },
+    {
+      "address": "0x42030aa0",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /api/refresh"
+      ]
+    },
+    {
+      "address": "0x42030b38",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /api/sleep"
+      ]
+    },
+    {
+      "address": "0x42030ba0",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "POST /api/restart"
+      ]
+    },
+    {
+      "address": "0x42030c6c",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /api/battery"
+      ]
+    },
+    {
+      "address": "0x42030c98",
+      "kind": "function",
+      "role": "Local HTTP handler",
+      "evidence": "static registration",
+      "routes": [
+        "GET /api/info"
+      ]
+    },
+    {
+      "address": "0x42030f47",
+      "kind": "call_site",
+      "role": "Auto-update getter reference in JSON info",
+      "evidence": "static"
+    },
+    {
+      "address": "0x420500e0",
+      "kind": "function",
+      "role": "SDK i2s_channel_init_pdm_rx_mode",
+      "evidence": "static"
+    },
+    {
+      "address": "0x4206df98",
+      "kind": "function",
+      "role": "SDK esp_http_client_init",
+      "evidence": "static"
+    }
+  ]
+}
