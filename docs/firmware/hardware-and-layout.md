@@ -103,9 +103,15 @@ The recording start routine reserves the first 44 bytes for the WAV header.
 creating an independent WAV copy. The normal voice sequence uploads audio before
 downloading its resulting image into this memory.
 
+The renderer's `epdImageDataBuffer` at `0x3fca75d4` is also initialized from the
+image accessor. Its copy call does not create an independent image snapshot for
+the ordinary shared-buffer input. See [rendering and concurrency](rendering-and-concurrency.md)
+for pointer initialization, early ownership gaps and the render worker's lifetime.
+
 **Inference:** concurrent LAN image uploads, cloud downloads or new recordings
-could invalidate data still in use if firmware changes bypass the existing
-coordination. The shared pointer is confirmed; a deliberate concurrent-corruption
-experiment was not performed. A firmware fork needs one explicit owner for the
-buffer, or a carefully budgeted separate allocation. A backend-only scheduler
-cannot enforce every local HTTP entry point's buffer ownership.
+could invalidate data still in use. The follow-up trace found that the stock raw
+upload handler writes into shared memory before the render-busy wait. The alias
+and ordering are confirmed; a deliberate concurrent-corruption experiment was
+not performed. A firmware fork needs one explicit owner for the buffer, or a
+carefully budgeted separate allocation. A backend-only scheduler cannot enforce
+every local HTTP entry point's buffer ownership.

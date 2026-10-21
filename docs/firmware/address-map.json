@@ -40,16 +40,82 @@
       "evidence": "static"
     },
     {
+      "address": "0x3fca6b24",
+      "kind": "state",
+      "role": "Render termination semaphore handle storage",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x3fca6b40",
+      "kind": "state",
+      "role": "OTA-active flag",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x3fca6b41",
       "kind": "state",
       "role": "Auto-update preference byte",
       "evidence": "static"
     },
     {
+      "address": "0x3fca75c8",
+      "kind": "state",
+      "role": "Recording state mutex handle storage",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x3fca75d0",
+      "kind": "state",
+      "role": "Recording active flag",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x3fca75d1",
+      "kind": "state",
+      "role": "Render worker busy flag",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x3fca75d4",
+      "kind": "state",
+      "role": "epdImageDataBuffer pointer alias of shared PSRAM allocation",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x3fcabd20",
+      "kind": "state",
+      "role": "PSRAM buffer initialized flag",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x3fcabd28",
       "kind": "state",
       "role": "Shared PSRAM allocation pointer storage",
       "evidence": "static"
+    },
+    {
+      "address": "0x42000e28",
+      "kind": "literal",
+      "role": "Address of display buffer pointer alias",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42000f80",
+      "kind": "literal",
+      "role": "Address of render termination semaphore handle",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42002a94",
+      "kind": "literal",
+      "role": "Address of render-busy flag",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42002ac8",
+      "kind": "literal",
+      "role": "BUSY polling counter threshold: 5500",
+      "evidence": "static; concurrency follow-up"
     },
     {
       "address": "0x4200338c",
@@ -62,6 +128,12 @@
       "kind": "literal",
       "role": "Address of shared buffer pointer storage",
       "evidence": "static"
+    },
+    {
+      "address": "0x42003598",
+      "kind": "literal",
+      "role": "Address of PSRAM-buffer initialized flag",
+      "evidence": "static; concurrency follow-up"
     },
     {
       "address": "0x420035a0",
@@ -106,6 +178,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42011624",
+      "kind": "function",
+      "role": "Update last-activity timestamp; not a buffer lock",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x42011adc",
       "kind": "function",
       "role": "Voice connectivity readiness wait",
@@ -118,10 +196,34 @@
       "evidence": "static"
     },
     {
+      "address": "0x420126f8",
+      "kind": "function",
+      "role": "Maintenance-refresh flow; appends refresh history at 0x42012757",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42012757",
+      "kind": "call_site",
+      "role": "Maintenance flow appends timestamp to refresh history",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x42012810",
       "kind": "function",
       "role": "Main lifecycle and wake dispatch",
       "evidence": "static"
+    },
+    {
+      "address": "0x42014622",
+      "kind": "call_site",
+      "role": "Initialize display pointer from shared image accessor",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42014628",
+      "kind": "instruction",
+      "role": "Store shared image pointer into display alias",
+      "evidence": "static; concurrency follow-up"
     },
     {
       "address": "0x42014968",
@@ -134,6 +236,18 @@
       "kind": "function",
       "role": "Maintenance schedule persistence helper",
       "evidence": "static"
+    },
+    {
+      "address": "0x42014b48",
+      "kind": "function",
+      "role": "Read 48-byte refresh_hist maintenance timestamp ring",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42014d14",
+      "kind": "function",
+      "role": "Persist refresh_hist maintenance timestamp ring",
+      "evidence": "static; concurrency follow-up"
     },
     {
       "address": "0x42014d48",
@@ -196,6 +310,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x42015e5c",
+      "kind": "function",
+      "role": "Append timestamp to five-entry maintenance history",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42015ef8",
+      "kind": "function",
+      "role": "Read refresh history for info endpoints",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x42015f2c",
       "kind": "function",
       "role": "Validate/configure maintenance schedule",
@@ -212,6 +338,18 @@
       "kind": "function",
       "role": "OTA safety predicate",
       "evidence": "static"
+    },
+    {
+      "address": "0x42016558",
+      "kind": "function",
+      "role": "Set OTA-active state",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42016564",
+      "kind": "function",
+      "role": "Read OTA-active state",
+      "evidence": "static; concurrency follow-up"
     },
     {
       "address": "0x4201727c",
@@ -535,16 +673,100 @@
       "evidence": "static"
     },
     {
+      "address": "0x42020124",
+      "kind": "function",
+      "role": "Mark interrupted recording and request stop",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42020150",
+      "kind": "function",
+      "role": "Read recording state under recording mutex",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x420201d4",
       "kind": "function",
       "role": "Write WAV header in place",
       "evidence": "static"
     },
     {
+      "address": "0x420204b8",
+      "kind": "function",
+      "role": "Render worker; signals termination on normal and failure paths",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x420208d4",
       "kind": "function",
       "role": "Display-render entry",
       "evidence": "static"
+    },
+    {
+      "address": "0x42020ab4",
+      "kind": "function",
+      "role": "BUSY-high wait; logs timeout without error return",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42020b7c",
+      "kind": "function",
+      "role": "Display GPIO cleanup",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42020dd4",
+      "kind": "function",
+      "role": "Check eight controller status results",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021048",
+      "kind": "function",
+      "role": "Panel refresh sequence; returns zero after sequence",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021120",
+      "kind": "function",
+      "role": "Send controller image data; logs transfer error without status return",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x420217e0",
+      "kind": "function",
+      "role": "Wait for PMIC power-good deassertion without local deadline",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021848",
+      "kind": "function",
+      "role": "Bounded PMIC power-good assertion wait",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x420218c4",
+      "kind": "function",
+      "role": "Enable PMIC; logs failures without upstream result",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021ba8",
+      "kind": "function",
+      "role": "Read PMIC power-good; returns zero on read error",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021bd8",
+      "kind": "function",
+      "role": "Panel power discharge sequence with 5/5/3 second delays",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021cc8",
+      "kind": "function",
+      "role": "Millisecond-to-RTOS-delay wrapper",
+      "evidence": "static; concurrency follow-up"
     },
     {
       "address": "0x42022140",
@@ -661,6 +883,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42028e7c",
+      "kind": "function",
+      "role": "Recording-buffer initialized getter; not ownership",
+      "evidence": "static; concurrency follow-up"
+    },
+    {
       "address": "0x42028e88",
       "kind": "function",
       "role": "Return image buffer pointer",
@@ -671,6 +899,12 @@
       "kind": "function",
       "role": "Return image buffer capacity",
       "evidence": "static"
+    },
+    {
+      "address": "0x42028e9c",
+      "kind": "function",
+      "role": "Image-buffer initialized getter; not ownership",
+      "evidence": "static; concurrency follow-up"
     },
     {
       "address": "0x42029d60",

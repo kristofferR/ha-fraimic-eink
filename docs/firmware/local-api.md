@@ -123,6 +123,11 @@ The [shared buffer](hardware-and-layout.md#one-psram-buffer-serves-audio-and-ima
 and [cache behavior](storage-and-configuration.md#last-artwork) matter when adding
 concurrent voice or cloud delivery.
 
+The render WAIT policy runs **after** reception and cache replacement; it does
+not prevent an upload from overwriting another user's buffer. Also,
+`display.last_refresh` is maintenance history rather than a per-image completion
+acknowledgment. See the [rendering trace](rendering-and-concurrency.md).
+
 ## Album proxy correction
 
 Static registrations and handlers in this image include create and delete,

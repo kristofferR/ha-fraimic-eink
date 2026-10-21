@@ -22,6 +22,7 @@ schema or a guarantee of compatibility between releases.
 | `app_data` | `timezone` | Shared POSIX timezone string |
 | `app_data` | `voice_rec`, `keep_awake`, `auto_update`, `chg_led` | Four device switches |
 | `app_data` | `refresh_sched` | Maintenance scheduling record |
+| `app_data` | `refresh_hist` | Five-entry maintenance timestamp ring; [not an image-delivery ledger](rendering-and-concurrency.md#displaylast_refresh-is-maintenance-history) |
 | `app_data` | `sched_img_time` | 64-bit next album-image epoch |
 | `app_data` | `wake_reason` | Maintenance versus album timer reason |
 | `app_data` | `deep_sleep`, `storage_mode`, `last_sleep_ts` | Sleep state and timestamp |

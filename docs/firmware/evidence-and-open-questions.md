@@ -96,6 +96,9 @@ This check can run entirely on the host without sending anything to the frame.
 | “WAV preparation makes a separate copy” | Header is written into the shared audio/image allocation |
 | “A finalize job ID can be polled later” | Stock flow requires a ready image URL in a synchronous HTTP 200 |
 | “A successful upload means the panel/cache is updated” | It can mean rendering started even if cache saving failed |
+| “The render copy creates an independent snapshot” | Its display pointer aliases the same audio/image allocation |
+| “WAIT protects incoming image bytes” | Raw HTTP receives into shared memory before the render wait |
+| “Completion signal or last_refresh acknowledges my image” | The signal also follows errors; last_refresh is maintenance history |
 | “GET diagnostics are passive” | The `/test` landing page activates factory-test mode |
 | “No appended signature means any app boots” | Bootloader/eFuse/security and recovery remain unverified |
 | “TLS hostname checking is disabled” | The examined config sets global CA use, not the adjacent skip-CN byte |

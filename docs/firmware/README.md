@@ -12,6 +12,7 @@ Home Assistant integration. It is not recovered vendor source or a flashing guid
 | [Identity and hardware](hardware-and-layout.md) | Exact image fingerprint, memory segments, panel format, wiring and shared buffers |
 | [Cloud protocol](cloud-protocol.md) | API selectors, poll response semantics, system screens, transport requirements |
 | [Voice](voice.md) | Recording, WAV upload, synchronous generation, cancellation, concurrency |
+| [Rendering and concurrency](rendering-and-concurrency.md) | Buffer aliases, upload ordering, render policies, error propagation and completion signals |
 | [Boot and scheduling](boot-and-scheduling.md) | Wake reasons, timers, time synchronization, sleep and offline dependencies |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
@@ -59,6 +60,9 @@ addresses across releases. Function names are analytical descriptions.
    recovered OTA decision path. The backend must control firmware offers.
 7. HTTP image acceptance does not prove durable caching or completed display.
    A render-complete event with a content ID would materially improve HA state.
+8. The display buffer aliases the audio/image allocation too. Render WAIT happens
+   after HTTP reception, and the worker's completion semaphore also signals failure.
+   `display.last_refresh` records maintenance history, not every image delivery.
 
 ## Current boundary
 

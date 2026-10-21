@@ -133,6 +133,11 @@ unconfirmed. A completed HTTP asset transfer is insufficient to claim the panel
 changed. The strongest future signal is a frame `render_complete` event carrying
 the same content ID. Keep current preview state honest until that exists.
 
+The stock `display.last_refresh` value tracks maintenance history, and the render
+worker's completion semaphore is also released on failure. Neither can substitute
+for a per-content success result. Firmware events must include propagated driver
+errors; see [rendering and concurrency](rendering-and-concurrency.md).
+
 Use HA's existing scheduler as the source of truth for playlist progression and
 let the adapter publish the next deadline. Avoid independent push and pull loops
 competing over the same frame. Preserve voice holds and external-upload semantics,
