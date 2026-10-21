@@ -301,6 +301,9 @@ image counts and images. Create/update/delete remain untested; see the
   controlled device redirect/error tests remain open.
 - Serve panel assets as HTTP 200, `application/octet-stream`, exactly 2,304,000
   bytes for this Large build. A PNG/JPEG is not the raw panel buffer.
+  [Download and retry analysis](image-downloads.md) distinguishes HTTP body
+  completeness from panel size: a shorter declared asset can pass the downloader,
+  and render-worker failure does not reliably prevent cache replacement.
 - The image downloader logs AWS query-field presence but does not require an
   S3-specific URL. A local HTTPS file on the accepted API hostname, without AWS
   query parameters, was downloaded, cached and physically displayed in the

@@ -29,6 +29,8 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Cancellation lifetime and offline-time follow-up | Unchecked worker creation, non-owning WAV cleanup, candidate stale cancellation, recovered background initialization and SNTP-triggered AP failover | Physical cancellation across jobs, induced allocation failures, overlapping time-sync calls or WAN-free cold boot |
 | Developer-mode static follow-up | Shared embedded password comparison on both builds; Large form authentication, Wi-Fi backup/restore, restart, setup-asset cleanup and one-poll version override | A submitted mode change, new local-server setting, working staging account or fault-tolerant recovery |
 | Startup-artwork static follow-up | Version-dependent adoption/replacement, 8 KiB read-validation allocation, non-atomic rewrite/unlink and unchecked version commit | Installed custom wake artwork, fault injection, palette safety or upgrade persistence |
+| Image-download static follow-up | Header/status/length checks, zero-length reads, consecutive-stall handling, same-URL retries, render-size tolerance and cache ordering | Device response-fault tests, observed stale pixels, induced cache corruption or all Standard equivalents |
+| NVS schema follow-up | Scalar/blob types, record sizes, permissive length handling, schedule cache sentinel, SDK Wi-Fi and PHY namespaces | Installed NVS contents, complete SDK schema, migration success, storage-fault injection or other-build compatibility |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -121,6 +123,8 @@ This check can run entirely on the host without sending anything to the frame.
 | “WAV preparation makes a separate copy” | Header is written into the shared audio/image allocation |
 | “A finalize job ID can be polled later” | Stock flow requires a ready image URL in a synchronous HTTP 200 |
 | “A successful upload means the panel/cache is updated” | It can mean rendering started even if cache saving failed |
+| “Download complete means a complete panel image” | HTTP length can match a short asset; later worker rejection does not reliably stop cache replacement |
+| “A retry resumes the image or renews its ticket” | The recovered poll/voice loops reuse the same URL and restart from byte zero |
 | “The render copy creates an independent snapshot” | Its display pointer aliases the same audio/image allocation |
 | “WAIT protects incoming image bytes” | Raw HTTP receives into shared memory before the render wait |
 | “Completion signal or last_refresh acknowledges my image” | The signal also follows errors; last_refresh is maintenance history |
@@ -140,7 +144,7 @@ The table below remains a short priority overview.
 
 | Question | Useful evidence / next experiment |
 | --- | --- |
-| Can a minimal local protocol adapter satisfy stock parsing? | Poll, album and microphone upload now reach the fixture; finish the acknowledgment/finalize path and known panel-asset round trip |
+| Can a minimal local protocol adapter satisfy stock parsing? | Poll, album and voice-to-fixed-image transport succeeded; test response faults, durable jobs, independent enrollment and offline dependencies |
 | How can a custom image be recovered? | Still requires partition/security/recovery evidence; hardware inspection deferred under the closed-enclosure preference |
 | Will gallery import remain reliable? | Reads now work; test expired URLs, retention, pagination changes and persisted deduplication |
 | Do current album create/delete handlers work end to end? | Verify proxy auth and payload semantics before owner-directed mutations |

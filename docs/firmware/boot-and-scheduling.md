@@ -39,6 +39,12 @@ deadline. Therefore an idle success response must still carry the intended futur
 deadline while an album schedule is active. A failed network transaction exits
 before this parsing path and is not equivalent to a successful empty response.
 
+The [NVS follow-up](storage-and-configuration.md#a-failed-schedule-clear-can-reload-the-old-deadline)
+found that zero is also the getter's cache-miss sentinel. If a clear fails to
+persist, a subsequent getter can reload the old NVS deadline in the same wake
+session. This is an untested storage-fault consequence, distinct from the
+ordinary successful-save semantics above.
+
 ## Two deadlines compete
 
 `0x42015de8` selects between maintenance refresh and album content:

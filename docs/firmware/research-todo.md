@@ -38,8 +38,8 @@ per question, not a count of tool calls or decompiled functions.
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
 | C01/C11 | Setup minimum-parser fields, saved-key behavior and sign-in/verification split traced; automatic redirect request/body handling mapped | Independent enrollment, controlled redirect/framing cases and remaining boot dependencies |
-| C02 | Traced `user_settings`; five local idle polls preserved deadline and live switches with settings omitted | Partial/invalid snapshots, reboot persistence and NVS failures |
-| C03 | Local panel image confirmed; Large rejected untrusted/wrong-host certificates and accepted a matching-profile control; Standard positive test chain accepted | Other consumers/certificate failures, redirects, limits and download errors |
+| C02/S03 | Five idle polls preserved deadline/switches; I64 deadline and zero cache sentinel traced, including possible old-deadline reload after failed clear | Partial/invalid snapshots, reboot persistence and induced NVS failures |
+| C03 | Local panel/TLS controls completed; static downloader length/framing, same-URL retries and short-asset behavior mapped | Device response faults, other TLS consumers and Standard negative controls |
 | C05/C06/C07 | Large local 200/empty acknowledgment and successful finalize; Standard vendor 204 upload and finalize without status completed with owner-confirmed generation | Response faults, capture limits, slow/timeout behavior and cancellation |
 | C07/C08/D05 | Task creation results are ignored; WAV cleanup does not join/release; cancellation windows, unused finalize status and candidate next-job stale flag traced; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
@@ -49,8 +49,8 @@ per question, not a count of tool calls or decompiled functions.
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced; mode switch's one-poll `0.0.0` override is normally restored before HTTP, but NVS persistence can fail | Host fault fixtures and remaining indirect-reference audit |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
-| D03/D06/D07 | Normal poll/voice completion observed; voice saves after panel discharge; 1.347 MB free PSRAM cannot hold another full panel buffer; maintenance timestamp unchanged | Memory lifetime/fragmentation study, transfer faults and reliable per-image acknowledgment |
-| N02/N03 | Identity save behavior, mode-switch order, fixed-size Wi-Fi blobs and unchecked backup/restore operations traced | Complete type/default/namespace map, interrupted switching and migration fault fixtures |
+| D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
+| N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | Sign-in clears timezone and time consumers use EST5EDT fallback; powered wake/test-timeout observations retained | Controlled timezone/DST and ordinary sleep/wake transitions |
 | H05 | `/dev` password statically recovered on both builds; entry/exit authentication, rate limit and restart side effects traced; earlier read-only/diagnostic coverage retained | Remaining handler schemas, boot-state and controlled side-effect validation |
@@ -75,7 +75,7 @@ follow-up local; do not push each incremental finding.
 ## Local cloud and voice
 
 Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
-[local API](local-api.md).
+[image downloads](image-downloads.md), [local API](local-api.md).
 
 - [ ] **C01 · Static/Host:** Audit every consumer of the API, web and auth selectors,
   redirects and server-supplied URLs. Establish the full hostname/dependency set

@@ -197,6 +197,11 @@ Hold finalize until the panel asset is ready. Align reverse-proxy timeouts with
 the long request. Persist the job and deduplicate finalize calls so a retry does
 not pay for another generation or create duplicate library entries.
 
+The [panel-download trace](image-downloads.md) maps the separate image stage:
+up to three attempts reuse the same URL and restart at byte zero. There is no
+ticket renewal through another finalize call in that retry loop. The downloader
+also accepts some bodies without a positive fetched length, unlike voice JSON.
+
 ## Cancellation and scheduled-content races
 
 The following is a deeper **static** trace of Large 0.2.29, not a completed

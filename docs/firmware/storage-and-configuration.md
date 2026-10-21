@@ -39,14 +39,98 @@ schema or a guarantee of compatibility between releases.
 
 Additional tracing identified legacy manifest string capacities (URL 2,048 bytes,
 SHA-256 text 65 bytes), a 32-bit size and 64-bit OTA/sleep timestamp accessors.
-The four switch accessors use 32-bit storage despite their boolean meaning;
-do not infer NVS types from JSON types. The type/default map, SDK-owned Wi-Fi
-namespace and migration fault cases remain incomplete (N02/N03).
+The four switch accessors use signed 32-bit storage despite their boolean meaning;
+do not infer NVS types from JSON types. The following pass narrows the type/default
+map; SDK-owned state, other releases and migration fault cases remain incomplete
+(N02/N03).
 
 Initialization at `0x420153b0` can erase and reinitialize NVS on the SDK's
 no-free-pages/new-version errors. A recovery plan must cover provisioning and
 calibration, not assume that booting an app preserves all configuration under
 every storage error. No live NVS erase or migration was attempted.
+
+### Recovered NVS types and record sizes
+
+These are application storage types, separate from in-memory C fields and JSON
+types. SDK wrappers and their internal item IDs were checked in GNU disassembly:
+U8 `0x01`, I32 `0x14`, U32 `0x04`, I64 `0x18`, U64 `0x08`, string `0x21`, and
+the blob-reader item type `0x41`. The mappings agree with the
+[matching NVS implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/src/nvs_api.cpp)
+and [item definitions](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/include/nvs_handle.hpp).
+Capacities below are observed application read/write sizes, not global NVS limits.
+
+| Namespace / keys | Storage type / size | Evidence and fallback behavior |
+| --- | --- | --- |
+| `app_data/server_mode` | U8 | `0x42017670` / `0x42017974`; only 1 selects development, failed read selects production |
+| `app_data/force_ftu` | U8 | Read in `0x420153b0`, written by mode/reset helpers; initialization starts its byte at zero |
+| `app_data/wakeup_img` | U8 | `0x42015974` / `0x420159b4`; missing/error or value other than 1 reads false |
+| `app_data/wake_reason` | U8 | `0x42015dac`; missing/read error returns zero |
+| `app_data/voice_rec`, `keep_awake`, `auto_update`, `chg_led` | I32 | `0x42014780` / `0x42014968`; successful reads convert nonzero to true; failed reads leave existing RAM flags |
+| `app_data/email_vp`, `email_vd`, `email_verified` | I32 | `0x420189c0`, `0x42018af0`, `0x42017350`; in-memory verification is one byte, but persistent values are four bytes |
+| Per-mode/legacy email, device key and user ID | String | Identity-loader capacities 100, 65 and 65 bytes including NUL; see offsets below |
+| `app_data/timezone` | String, 32-byte read capacity | Shared; read failure defaults to `EST5EDT`, successfully read empty string is distinct |
+| `app_data/wifi_ssid_p`, `wifi_ssid_d` | Blob, 32-byte ordinary backup | `0x420185ac`; fixed driver field, not a NUL-terminated NVS string |
+| `app_data/wifi_pass_p`, `wifi_pass_d` | Blob, 64-byte ordinary backup | Same switch helper; other reset paths can preserve the returned blob length |
+| `app_data/deep_sleep`, `storage_mode` | **One-byte blobs**, not U8 | `0x42010674` and pre-sleep paths use `nvs_set_blob`; deep-sleep startup reader uses `nvs_get_blob` |
+| `app_data/refresh_sched` | Blob, 32-byte write/read capacity | `0x42014ad4` / `0x42014d48`; loader zero-initializes its destination |
+| `app_data/refresh_hist` | Blob, 48-byte write/read capacity | `0x42014b48` / `0x42014d14`; zero-initialized five-timestamp ring with index/count |
+| `app_data/sched_img_time` | **I64** | `0x42015d30` / `0x42015d60`; epoch value with a zero-valued RAM cache sentinel |
+| `app_data/last_sleep_ts` | **U64** | `0x4202d860` / `0x4202d90c`; sleep-time writer checks set result but ignores commit result |
+| `app_data/img_version` | String, 16-byte read capacity | `0x4202a968` / `0x4202aa48`; missing/read error differs from a readable different version |
+| `app_data/sys_img` | String, 32-byte read capacity | `0x4202f970`; recognizes `low_battery`, removes an unrecognized successfully read marker |
+| `app_data/wifi_stats` | Blob, 906-byte write/read capacity | `0x4202e8bc` / `0x4202e9b0`; reset path zeroes it and sets byte zero to 2 |
+| `ota_data/ota_fail` | Blob, 56-byte write/read capacity | `0x4202b550` / `0x4202b588`; not a scalar failure counter |
+| `ota_data/upd_cnt`, `rb_cnt`, `boot_cnt` | U32 | `0x4202d3a4` / `0x4202b62c` |
+| `ota_data/last_ts` | **U64** | Same statistics helpers; distinct from signed album deadlines |
+| `ota_data/ota_size` | U32 | Legacy manifest loader `0x4202d780` |
+| `ota_data/cur_ver`, `last_ver`, `ota_url`, `ota_sha256`, `force_ver`, `pend_force` | String | Direct string readers/writers; `pend_force` is a version string, not a boolean |
+
+The four switch loader's local fallback integers do not themselves overwrite
+the global flags on a failed read. Voice and charging-LED defaults are initialized
+to 1 in the app data segment (`0x3fca0c11` / `0x3fca0c10`); the ordinary cold-start
+defaults remain voice on, keep-awake off, auto-update off and charging LED on.
+A repeated settings load after a read error should not be described as resetting
+every flag to those defaults.
+
+The schedule/history loaders pass their capacity to `nvs_get_blob` but do not
+check the returned size against 32/48 after success. A smaller stored blob can
+therefore leave a zero-filled tail; these functions do not enforce a complete
+record schema. The Wi-Fi-statistics loader similarly does not check its returned
+length or reject another stored version after a successful read. No malformed
+NVS records were injected. A future migration should validate version and exact
+record size rather than depend on these permissive readers.
+
+### A failed schedule clear can reload the old deadline
+
+`0x42015d30` updates the two-word RAM deadline first, then attempts the I64 NVS
+write and commit. It does not propagate those errors. Getter `0x42015d60` returns
+a nonzero cached deadline without rereading NVS, but **zero means load from NVS**.
+
+**Inferred failure case:** after clearing the RAM deadline to zero, a failed
+persistent write can leave an old NVS deadline. The next getter can reload it
+during the same wake session, not only after reboot. Conversely, a newly set
+nonzero RAM deadline can mask a failed save until restart. This does not mean
+ordinary successful poll clears fail; it identifies a persistence-fault boundary
+for C02/S03. The firmware needs a separate cache-loaded flag and explicit save
+results if this state is extended for local playlists.
+
+### The application also consults SDK-owned Wi-Fi state
+
+Wi-Fi-present helper `0x4201ea80` first asks the driver for its current station
+configuration. Only if that API fails does it open **`nvs.net80211`** and query
+the blob length of **`sta.ssid`**. A nonzero length passes its fallback check;
+it does not inspect the SSID contents there. This is additional recovery-sensitive
+state outside `app_data`, not a complete map of the SDK Wi-Fi namespace or proof
+that manually restoring one blob is sufficient.
+
+The recovered PHY calibration helpers also open namespace **`phy`**
+(`0x420afa00` / `0x420afa4c`). They store `cal_version` as U32, `cal_mac` as a
+six-byte blob and `cal_data` as a 1,904-byte blob. Loader `0x420af6e4` checks the
+version against the current PHY library, the returned MAC length, the MAC against
+the chip's default station MAC, and the exact calibration length. These are
+radio calibration records, not microphone or battery calibration, and their
+presence in code does not recover this device's installed values. A future
+backup/migration scope must include SDK namespaces as well as application keys.
 
 ## Identity layout and migration
 
@@ -192,6 +276,10 @@ write byte count. Interrupted overwrites can leave a partial file.
 It does not perform a content hash check. The local API's render-start wrapper
 logs save failure and continues rendering, so HTTP acceptance does not guarantee
 the image can later be restored. See [local upload](local-api.md#image-delivery).
+Neither cache routine enforces the exact panel length. The
+[short-asset trace](image-downloads.md#a-short-asset-can-reach-rendering-and-replace-the-cache)
+shows how poll/voice workflows can attempt cache replacement even when the render
+worker rejects the length. Its termination signal is not a success result.
 
 **Proposed:** atomic replacement, content hash metadata, distinct cache/display
 results, and backend restoration from canonical HA assets. Flash wear policy and

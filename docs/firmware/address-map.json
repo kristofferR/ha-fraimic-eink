@@ -919,10 +919,16 @@
       "evidence": "static; cancellation lifetime follow-up"
     },
     {
+      "address": "0x42010c4c",
+      "kind": "function",
+      "role": "Poll-image download retries, render start, parallel cache save and termination wait",
+      "evidence": "static; image-download fault follow-up"
+    },
+    {
       "address": "0x420204b8",
       "kind": "function",
-      "role": "Render worker; signals termination on normal and failure paths",
-      "evidence": "static; concurrency follow-up"
+      "role": "Render worker; accepts panel length +/-1024 and signals termination on normal and failure paths",
+      "evidence": "static; concurrency and image-download follow-up"
     },
     {
       "address": "0x420208d4",
@@ -1101,8 +1107,8 @@
     {
       "address": "0x4202606c",
       "kind": "function",
-      "role": "Download packed image",
-      "evidence": "static"
+      "role": "Packed-image downloader; HTTP 200, capacity/declared-length checks, three consecutive no-progress read retries",
+      "evidence": "static; image-download fault follow-up"
     },
     {
       "address": "0x420266d8",
@@ -1598,6 +1604,12 @@
       "kind": "function",
       "role": "HTTP config mapper; redirect default and callback fields",
       "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4206d6a4",
+      "kind": "function",
+      "role": "SDK HTTP body reader; zero-capacity return and partial-progress timeout handling",
+      "evidence": "matching SDK source and GNU disassembly; Ghidra truncates at SALT tail"
     },
     {
       "address": "0x4206d890",

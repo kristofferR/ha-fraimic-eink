@@ -37,6 +37,10 @@ same allocation. A second pointer name and a copy call are not evidence of a
 second backing buffer.
 
 The worker later sends eight 288,000-byte controller blocks from this alias.
+Its size check tolerates ±1,024 bytes and does not fill a missing tail. The
+[download fault trace](image-downloads.md#a-short-asset-can-reach-rendering-and-replace-the-cache)
+connects short declared responses to stale tail bytes and cache replacement after
+worker rejection; those consequences have not been exercised on the frame.
 Protect the bytes until the display driver has finished consuming them. Releasing
 ownership merely because the worker started or passed the copy call is unsafe.
 Holding through the full render is the simpler initial design. The transfer
