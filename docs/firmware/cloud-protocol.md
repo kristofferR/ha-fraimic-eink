@@ -7,7 +7,8 @@ client contract recovered from the app; examples use reserved domains and
 placeholders, not credentials or deployable services.
 
 The [bounded backend experiment](backend-emulation.md) now validates local idle
-polls, album reads and physical microphone upload. It also found an upload-response
+polls, album reads, physical microphone upload and one owner-confirmed panel image.
+It also found an upload-response
 length bug; follow the [empty acknowledgment requirement](voice.md#upload-acknowledgment-must-have-an-empty-body).
 
 ## Backend selection
@@ -222,7 +223,9 @@ image counts and images. Create/update/delete remain untested; see the
 - Serve panel assets as HTTP 200, `application/octet-stream`, exactly 2,304,000
   bytes for this Large build. A PNG/JPEG is not the raw panel buffer.
 - The image downloader logs AWS query-field presence but does not require an
-  S3-specific URL. An owner-controlled HTTPS asset server is plausible.
+  S3-specific URL. A local HTTPS file on the accepted API hostname, without AWS
+  query parameters, was downloaded, cached and physically displayed in the
+  [one-shot test](backend-emulation.md#one-shot-panel-delivery-c03c09d06).
 - The examined clients attach the ESP-IDF CA bundle. Their config byte `0x71`
   enables global CA use; `0x72` is skip-CN and remains zero. This was checked
   against the binary and the [ESP-IDF v5.4.1 header](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h).

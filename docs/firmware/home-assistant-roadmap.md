@@ -5,9 +5,11 @@
 The practical direction is to let **ha-fraimic-eink own artwork, rendering,
 playlists and voice-job history**, with a small adapter for the recovered frame
 protocol. Retain the vendor display, power and microphone drivers initially.
-The HA integration is a proposed design. A bounded, standalone
-[idle-backend fixture](backend-emulation.md) now serves the physical frame's poll
-and album reads; it is not a deployed HA backend, voice service or firmware fork.
+The HA integration is a proposed design. Bounded, standalone
+[backend fixtures](backend-emulation.md) have served the physical frame's poll
+and album reads, captured its microphone and delivered one owner-confirmed test
+card. These are separate transport experiments, not a deployed HA backend,
+generation service or firmware fork.
 
 ## What the integration already provides
 

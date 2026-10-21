@@ -11,6 +11,11 @@ The enclosure remains closed. No firmware, trust store, pairing, image or device
 settings were changed by the idle experiment. It is evidence for the transport
 and already-paired read protocol, not a complete deployed cloud replacement.
 
+Later bounded experiments captured microphone audio locally and displayed one
+owner-approved six-colour test card. The owner confirmed the card and its upright
+orientation. These were separate voice-capture and poll-to-image experiments;
+successful voice finalize followed by rendering has not yet been exercised.
+
 ## Idle experiment: C02/C03/C12
 
 The fixture used Python's HTTP/TLS server on the development host, the previously
@@ -134,13 +139,97 @@ finalize request** path. Successful finalize/image download/display, all upload
 status variants, malformed presign handling, long recordings, cancellation and
 retries remain open. Host duplicate handling is not evidence of actual frame retry.
 
+## One-shot panel delivery: C03/C09/D06
+
+The owner approved replacing the current artwork once with a prepared six-colour
+test card. A separate local HTTPS fixture offered the asset through the normal
+poll response, using `has_new_upload: true` and a short `presigned_url` on the
+same API hostname. The asset was an ordinary local file behind an unpredictable
+ticket; no S3 service, AWS query parameters or AI provider was involved.
+
+The fixture preserved the future album deadline, omitted settings/account data
+and offered no firmware. It retired the image offer **before transmitting the
+asset**, returned idle responses afterwards and rejected a repeated asset request
+with HTTP 410. This is an in-memory, one-run guard, not durable job tracking or a
+display acknowledgment. The frame-capable process required explicit arming.
+
+### Asset and host checks
+
+The existing integration's `image_convert.convert_image` produced the payload
+from a 2560 × 1440 landscape card using its calibrated `SPECTRA6_RGB` palette.
+Conversion used native dimensions 1440 × 2560, rotation 90, preview rotation 270,
+fit `contain`, mode `none`, saturation/contrast 1 and sharpen/tone 0. The result
+was exactly **2,304,000 bytes**, containing only panel indices `{0,1,2,3,5,6}`;
+the landscape preview was 720 × 405. These rotations match this test and mount,
+not every installation.
+
+Asset SHA-256:
+`3350da5b6662864964b2ec29a6768a43118deda4ff78267b4549c5a2d7e47526`.
+Fixture source SHA-256:
+`3e960da7a009390bc85ab1b059120f7f348d5c7e7c2fc747d5c4ddf6f320fd89`.
+Both remain private research artifacts outside the repository.
+
+Five host checks passed before arming a fresh process: image offer; hostname/root
+verified TLS download with matching size and hash; subsequent idle poll;
+repeated-asset HTTP 410; and unknown-ticket HTTP 404. No local push API or refresh
+command was used, avoiding a second delivery route for the same test.
+
+### Physical result
+
+All times below are UTC on 21 October 2026. The frame's log clock was UTC−04:00;
+server events and firmware timestamps were correlated with that offset.
+
+| Time | Evidence |
+| --- | --- |
+| 19:49:48 | Frame accepted the local poll: `upload=Y`, future deadline set, no firmware, settings absent |
+| 19:49:52 | Downloader reported HTTP 200 and `Content-Length: 2304000` |
+| 19:49:55 | Exactly 2,304,000 bytes downloaded; firmware measured 4,525 ms, about 497 KiB/s |
+| 19:50:03 | Rendering sent 288,000 bytes to each of eight controllers; conditioning was skipped for the logged recent-wake state |
+| 19:50:05 | All eight driver ICs reported ready; display refresh started |
+| 19:50:14 | Firmware reported the complete image saved to flash while refresh continued |
+| 19:50:42 | Driver reported display refresh complete |
+| 19:50:44–19:50:57 | Vendor discharge sequence ran for 13 seconds; all power switches disabled, then server task reported successful rendering |
+| 19:50:58 onward | Local polls returned to idle; no second asset was offered or downloaded |
+| 19:52:29 | Successful vendor poll resumed with the normal settings snapshot |
+
+The owner confirmed that the **LOCAL IMAGE TEST** card was visible, with all six
+labelled colour blocks and upright text. This adds physical observation to the
+download, cache-save and driver-completion logs. It does not turn an HTTP success
+or the renderer's semaphore into a general-purpose display acknowledgment.
+
+The 150-second frame-scoped routing window removed its DNS rules on both replicas
+and its exact TCP translation, with cleanup verified. The local listener was
+stopped. The approved card remains the current artwork until another delivery.
+No firmware, trust-store, pairing or settings change was made.
+
+This verifies local **poll → HTTPS panel asset → flash save → physical display**
+on the stock Large build. Reboot/cache persistence, failed transfers, negative
+certificates, cancellation, repeat offers and successful voice finalize remain
+untested. In particular, it does not close the full C03 or C09 checklist item.
+
+## Combined voice/image host fixture: C09
+
+A follow-on fixture joined the two transports on the host: synthetic one-second
+WAV → empty upload acknowledgment → synchronous finalize HTTP 200 with
+`status: completed` and `presigned_url` → the same verified panel asset. Fifteen
+host checks passed, covering identity/ticket validation, upload ordering and
+replays, conflicting audio, orientation validation, repeated finalize, verified
+TLS asset/hash, one-shot consumption, rejection of a second job, and an unchanged
+idle poll with its future deadline. The synthetic WAV was deleted afterwards.
+
+The service was unarmed for the physical frame, no routing window was opened,
+and it was stopped after the host check. No STT or generator was invoked. This
+prepares a single owner-directed recording and fixed-card refresh; the actual
+stock client's successful finalize-to-render transition still needs that test.
+
 ## What remains before a usable local backend
 
 - Expand the validated short-recording path to controlled response faults,
   cancellation and duration boundaries.
-- Serve a known packed panel asset and verify a physical redraw, then add STT and
-  generation through a separately chosen provider. Keep original artwork and
-  job/transcript metadata in HA's library.
+- Exercise the stock client through microphone capture, successful finalize and
+  panel rendering with the fixed image. Then add STT and generation
+  through a separately chosen provider. Keep original artwork and job/transcript
+  metadata in HA's library.
 - Replace snapshot responses with durable device/job/album state; implement replay,
   expiry, ownership and reload recovery. The host fixture's duplicate handling
   does not establish production durability or stock-firmware retry behavior.

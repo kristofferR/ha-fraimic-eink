@@ -13,8 +13,9 @@ The [latest validation pass](validation-2026-10-21.md) records owner gallery rea
 installed HA capabilities, five library host checks and deeper firmware traces.
 The [local-backend experiment](backend-emulation.md) then demonstrated locally
 generated poll and album responses on the physical frame, without firmware changes.
-It also captures the microphone locally and reaches finalize; no generated image
-has been delivered yet.
+It also captured the microphone locally and reached finalize. A separate one-shot
+poll delivered a packed six-colour card, with cache/render logs and owner-confirmed
+physical display. A successful combined voice-to-image flow remains untested.
 
 | Document | Contents |
 | --- | --- |
@@ -29,7 +30,7 @@ has been delivered yet.
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
-| [Backend emulation](backend-emulation.md) | Physical-frame idle poll/album experiment, transport recipe and next voice checks |
+| [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
 
 Machine-readable references: [firmware identity](firmware-identity.json),
 [route registrations](route-registrations.json), and
@@ -88,6 +89,7 @@ addresses across releases. Function names are analytical descriptions.
 The owner-scoped investigation recovered the matching stock app and demonstrated
 that the frame accepted a test certificate chain for its normal API hostname.
 A later standalone server answered real polls and album reads using local data.
+Local microphone capture and a separate test-card display also succeeded.
 Temporary interception was removed after each bounded experiment. The enclosure
 remains closed at the owner's request. **No custom firmware has been flashed and no
 custom boot or rollback has been demonstrated.** The application download is not
