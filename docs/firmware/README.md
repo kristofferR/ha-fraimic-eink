@@ -33,6 +33,7 @@ No transcription or AI generation was invoked.
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
 | [Local API](local-api.md) | All 42 registered routes, diagnostics and side effects |
+| [LED and workflow state](led-and-workflow-state.md) | 41-state table, priorities, protection latch and limits of visible status |
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
@@ -43,6 +44,7 @@ Machine-readable references: [firmware identity](firmware-identity.json),
 [route registrations](route-registrations.json),
 [selected addresses](address-map.json), and
 [model comparison with type-only live schemas](model-comparison.json).
+The [LED state table](led-states.json) preserves the Large build's numeric records.
 
 The [existing frame API reference](../frame-api/routes.md) describes tested
 HTTP behavior across multiple firmware versions. The

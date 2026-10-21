@@ -52,8 +52,8 @@ per question, not a count of tool calls or decompiled functions.
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
-| S05/S06 | Sign-in clears timezone and time consumers use EST5EDT fallback; powered wake/test-timeout observations retained | Controlled timezone/DST and ordinary sleep/wake transitions |
-| H05 | `/dev` password statically recovered on both builds; entry/exit authentication, rate limit and restart side effects traced; earlier read-only/diagnostic coverage retained | Remaining handler schemas, boot-state and controlled side-effect validation |
+| S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
+| H05 | `/dev` authentication, action acknowledgments, Wi-Fi form limits and 41 LED records traced; refresh busy guard uses the LED protection latch | Remaining handler schemas, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
 | E02 | Standard app hash validated; same 42 routes, 21 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
@@ -210,6 +210,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
 - [ ] **S05 · Static/Host/Device:** Validate maintenance calendar calculations,
   default first target, timezone/DST changes and stored schedule limits. Determine
   whether any usable public setter exists for the internal schedule parameters.
+  [Timezone and calendar fixtures](boot-and-scheduling.md#timezone-format-and-default-rules)
+  now establish the POSIX-only parser and reproduce stale-DST target shifts on
+  the host; physical transitions and stored-schedule recalculation remain open.
 - [ ] **S06 · Device:** Map actual wake sources and transitions for normal, button,
   charger, maintenance, album, first-setup/storage and factory-test modes. Verify
   HTTP reachability and timeout behavior in each, without treating test-mode sleep
@@ -295,6 +298,10 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   mutating/destructive branches as explicit separate experiments. Albums are C12.
   `/dev` authentication is now recovered statically on both builds; its actions
   remain unsubmitted and its storage-failure behavior is not device-validated.
+  [Local action ordering](local-api.md#restart-sleep-and-refresh-acknowledgments)
+  and the [LED protection latch](led-and-workflow-state.md) are now mapped;
+  physical LED timing, remaining state meanings, contended guards and Wi-Fi
+  form boundary behavior are untested. Compare the LED table with Standard in E02.
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery
   arrangement and hardware measurement accuracy separately from software labels.
 - [x] **H07 · Static:** Resolve descriptor build timezone if supporting provenance
@@ -340,10 +347,12 @@ This table records the audit scope, not completion of its checks.
 | [Hardware and layout](hardware-and-layout.md) | R01–R07, D01–D03, H01–H07, E02 |
 | [Cloud protocol](cloud-protocol.md) | C01–C05, C10–C12, R08, S01–S04 |
 | [Voice](voice.md) | C05–C09, A01/A04/A06, D01–D05 |
+| [Image downloads](image-downloads.md) | C03/C04/C07/C08, D03/D05–D07, N05 |
 | [Boot and scheduling](boot-and-scheduling.md) | S01–S07, C04/C11, R10/R12 |
 | [Storage and configuration](storage-and-configuration.md) | N01–N08, R04/R06, H06 |
 | [OTA and recovery](ota-and-recovery.md) | R01–R12, B02 |
 | [Local API](local-api.md) | C12, H05, D01/D02/D04/D07, A05/A06 |
+| [LED and workflow state](led-and-workflow-state.md) / [records](led-states.json) | H05, A06, D01/D02/D07, E01/E02 |
 | [Rendering and concurrency](rendering-and-concurrency.md) | D01–D08, N05, B03 |
 | [HA roadmap](home-assistant-roadmap.md) | A01–A07, C01–C12, S07, D05/D07 |
 | [21 October validation](validation-2026-10-21.md) | A01–A03, C01/C02/C06/C10–C12, R11, S01, D03/D06, N02, H05/H07, E01/E03 |

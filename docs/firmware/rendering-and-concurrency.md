@@ -47,6 +47,12 @@ Holding through the full render is the simpler initial design. The transfer
 lifetime is now traced below; an earlier release would still need a verified
 boundary across all controllers and other consumers.
 
+The [local refresh busy guard](local-api.md#restart-sleep-and-refresh-acknowledgments)
+does not supply that ownership. It reads recording state and the LED manager's
+workflow-protection latch; both getters report false if their mutex acquisition
+fails. The [LED trace](led-and-workflow-state.md) separates that visible-state
+policy from actual memory/driver completion.
+
 ### SPI consumes the source one blocking chunk at a time
 
 Transfer helper `0x42021e5c` sends command `0x10`, then data in 4,800-byte chunks

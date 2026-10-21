@@ -16,9 +16,21 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c106f1c",
+      "kind": "asset",
+      "role": "Create-account HTML tail including 19 nonempty POSIX timezone choices",
+      "evidence": "static"
+    },
+    {
       "address": "0x3c13bbc4",
       "kind": "pointer_table",
       "role": "Four SNTP server names",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3c13ff68",
+      "kind": "data",
+      "role": "41 LED state records, 24 bytes each, table order differs from state-ID order",
       "evidence": "static"
     },
     {
@@ -50,6 +62,12 @@
       "kind": "data",
       "role": "Button monitor pending-event flag; distinct from processing cancellation",
       "evidence": "static; cancellation lifetime follow-up"
+    },
+    {
+      "address": "0x3fca6b18",
+      "kind": "data",
+      "role": "Pending explicit sleep request flag",
+      "evidence": "static"
     },
     {
       "address": "0x3fca6b19",
@@ -128,6 +146,18 @@
       "kind": "state",
       "role": "epdImageDataBuffer pointer alias of shared PSRAM allocation",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x3fca7660",
+      "kind": "data",
+      "role": "LED manager mutex handle",
+      "evidence": "static"
+    },
+    {
+      "address": "0x3fca7664",
+      "kind": "data",
+      "role": "LED manager state; protection at offset 0x14",
+      "evidence": "static"
     },
     {
       "address": "0x3fca8c81",
@@ -268,6 +298,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42010c4c",
+      "kind": "function",
+      "role": "Poll-image download retries, render start, parallel cache save and termination wait",
+      "evidence": "static; image-download fault follow-up"
+    },
+    {
       "address": "0x420110a4",
       "kind": "function",
       "role": "Start button monitor; does not reset processing-cancel flag",
@@ -284,6 +320,12 @@
       "kind": "function",
       "role": "Recording completion/cancellation button handling",
       "evidence": "static"
+    },
+    {
+      "address": "0x420115d8",
+      "kind": "function",
+      "role": "Manual refresh wrapper; returns saved-image maintenance result",
+      "evidence": "static; local-control and LED follow-up"
     },
     {
       "address": "0x42011624",
@@ -334,6 +376,12 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42014728",
+      "kind": "function",
+      "role": "SNTP callback checks tm_year >= 120 before marking synchronized and signaling completion",
+      "evidence": "static; GNU cross-check"
+    },
+    {
       "address": "0x42014968",
       "kind": "function",
       "role": "Save four device switches",
@@ -362,12 +410,6 @@
       "kind": "function",
       "role": "Maintenance schedule persistence helper",
       "evidence": "static"
-    },
-    {
-      "address": "0x42014728",
-      "kind": "function",
-      "role": "SNTP callback checks tm_year >= 120 before marking synchronized and signaling completion",
-      "evidence": "static; GNU cross-check"
     },
     {
       "address": "0x42014dcc",
@@ -536,6 +578,18 @@
       "kind": "function",
       "role": "Restart helper: mount image storage, save logs/Wi-Fi diagnostics, then enter SDK restart",
       "evidence": "static; GNU/source cross-check excludes adjacent sleep routine"
+    },
+    {
+      "address": "0x42017218",
+      "kind": "function",
+      "role": "Sleep request helper; charging check then pending flag",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x4201724c",
+      "kind": "function",
+      "role": "Manual refresh dispatch with result logging",
+      "evidence": "static; local-control and LED follow-up"
     },
     {
       "address": "0x4201727c",
@@ -919,12 +973,6 @@
       "evidence": "static; cancellation lifetime follow-up"
     },
     {
-      "address": "0x42010c4c",
-      "kind": "function",
-      "role": "Poll-image download retries, render start, parallel cache save and termination wait",
-      "evidence": "static; image-download fault follow-up"
-    },
-    {
       "address": "0x420204b8",
       "kind": "function",
       "role": "Render worker; accepts panel length +/-1024 and signals termination on normal and failure paths",
@@ -1013,6 +1061,48 @@
       "kind": "function",
       "role": "Panel bus/GPIO initialization",
       "evidence": "static"
+    },
+    {
+      "address": "0x42022648",
+      "kind": "function",
+      "role": "Linear lookup of 41 LED state records",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x42022690",
+      "kind": "function",
+      "role": "LED workflow protection latch and clearing logic",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x4202276c",
+      "kind": "function",
+      "role": "LED duration expiry check",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x42022860",
+      "kind": "function",
+      "role": "LED pattern/state worker",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x42022f48",
+      "kind": "function",
+      "role": "LED state setter with priority, protection and urgent-state policy",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x42023194",
+      "kind": "function",
+      "role": "Current LED state getter",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x420231d0",
+      "kind": "function",
+      "role": "LED workflow-protection getter; false when mutex unavailable",
+      "evidence": "static; local-control and LED follow-up"
     },
     {
       "address": "0x420233b0",
@@ -1594,6 +1684,96 @@
       "evidence": "static; enrollment and HTTP follow-up"
     },
     {
+      "address": "0x42049974",
+      "kind": "function",
+      "role": "NVS commit wrapper",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204999c",
+      "kind": "function",
+      "role": "NVS string setter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420499c8",
+      "kind": "function",
+      "role": "NVS blob setter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420499f4",
+      "kind": "function",
+      "role": "NVS string getter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x42049a08",
+      "kind": "function",
+      "role": "NVS blob getter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x42049ee8",
+      "kind": "function",
+      "role": "NVS U8 setter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x42049f68",
+      "kind": "function",
+      "role": "NVS I32 setter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x42049fa4",
+      "kind": "function",
+      "role": "NVS U32 setter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x42049fe4",
+      "kind": "function",
+      "role": "NVS I64 setter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204a02c",
+      "kind": "function",
+      "role": "NVS U64 setter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204a0ac",
+      "kind": "function",
+      "role": "NVS U8 getter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204a124",
+      "kind": "function",
+      "role": "NVS I32 getter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204a160",
+      "kind": "function",
+      "role": "NVS U32 getter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204a19c",
+      "kind": "function",
+      "role": "NVS I64 getter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204a1d8",
+      "kind": "function",
+      "role": "NVS U64 getter",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
       "address": "0x420500e0",
       "kind": "function",
       "role": "SDK i2s_channel_init_pdm_rx_mode",
@@ -1652,6 +1832,60 @@
       "kind": "function",
       "role": "HTTP perform state machine and redirect replay",
       "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x420af6e4",
+      "kind": "function",
+      "role": "PHY calibration loader; validates version, six-byte station MAC and 1904-byte calibration blob",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420af80c",
+      "kind": "function",
+      "role": "PHY calibration persistence writer",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420afa00",
+      "kind": "function",
+      "role": "PHY namespace read-open helper",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420afa4c",
+      "kind": "function",
+      "role": "PHY namespace write-open helper",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420cfe14",
+      "kind": "function",
+      "role": "Library mktime; supplied DST flag can shift normalized maintenance targets",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420d0f3c",
+      "kind": "function",
+      "role": "Library tzset wrapper used by application time initialization and calendar calculation",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420d0f54",
+      "kind": "function",
+      "role": "POSIX timezone parser; default US DST rules and parse-error UTC state",
+      "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420e2ac0",
+      "kind": "function",
+      "role": "LED protected-workflow classifier: states 22–27, 29, 30",
+      "evidence": "static; local-control and LED follow-up"
+    },
+    {
+      "address": "0x420e2aec",
+      "kind": "function",
+      "role": "LED urgent-state classifier: state 25 and states 31–39",
+      "evidence": "static; local-control and LED follow-up"
     }
   ]
 }

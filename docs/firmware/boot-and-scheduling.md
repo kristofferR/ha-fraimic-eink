@@ -82,6 +82,93 @@ the synchronized log time was UTC−04:00. This confirms that timezone on this
 unit at the time of the read, not merely a static fallback. No timezone was
 changed. Album UTC epochs and maintenance local-calendar times must stay distinct.
 
+### Timezone format and default rules
+
+The Large binary's parser at `0x420d0f54`, reached through `tzset` at
+`0x420d0f3c`, consumes POSIX timezone syntax. Its recovered branches parse an
+abbreviation and numeric offset, then optional daylight-saving rules. It does
+not look up an IANA name in a timezone database. For `Europe/Oslo`, abbreviation
+parsing stops at `/`, the required numeric offset fails, and the already-reset
+state remains unnamed UTC. A leading `:` does not enable an IANA lookup.
+
+If a DST abbreviation is supplied without transition dates, the actual binary
+defaults to `M3.2.0` and `M11.1.0`, both at 02:00 local time: second Sunday in
+March and first Sunday in November. The default DST offset is the standard
+offset minus 3,600 seconds. These constants were checked in GNU disassembly at
+`0x420d11d8` and `0x420d12ab`–`0x420d12de`, not inferred from the name alone.
+
+The application configuration has 32 bytes including the terminator. A local
+backend must translate an owner's timezone into a supported rule that fits,
+validate it before saving, and preserve UTC epochs for album delivery. Examples
+below are parser checks, not settings applied to a frame:
+
+| Input | Recovered/host-checked interpretation |
+| --- | --- |
+| `EST5EDT` | UTC−05 standard / UTC−04 daylight, with the default US transitions |
+| `CET-1CEST` | UTC+01 / UTC+02, **still with US transitions** |
+| `CET-1CEST,M3.5.0,M10.5.0/3` | Explicit last-Sunday March/October rules; 26 bytes plus terminator |
+| `Europe/Oslo` or `:Europe/Oslo` | Parse error leaves unnamed UTC |
+| `UTC0` | Fixed UTC |
+| `UTC` | Missing numeric offset; parse error leaves unnamed UTC |
+
+This affects stock onboarding choices too. The create-account page handler
+`0x42019224` sends an embedded select list at `0x3c106f1c`. Its London/Dublin,
+Paris/Berlin, Cairo/Helsinki, Sydney/Brisbane and Auckland/Fiji choices contain
+DST abbreviations without explicit transition dates. The parser therefore uses
+the same US default dates for all of them. The UI labels do not supply a regional
+timezone database or repair the rule. This is static evidence from the actual
+page bytes; no account was recreated to test it. The create-account POST stores
+the submitted string, while sign-in separately clears it as described in
+[identity persistence](storage-and-configuration.md#identity-layout-and-migration).
+
+Nine host cases passed using the upstream parser with small environment,
+allocation and scan wrappers. The wrappers stub transition-epoch calculation;
+these tests check parsed rules/offsets, not actual clocks. Empty and unset `TZ`
+were included as library controls. The application substitutes `EST5EDT` before
+calling this parser when its configuration is empty, so those controls do not
+describe the normal application's empty-setting behavior.
+The [upstream parser source](https://raw.githubusercontent.com/espressif/newlib-esp32/esp-4.3.0/newlib/libc/time/tzset_r.c)
+corroborates the recovered branches; the exact toolchain source revision remains
+unproven. No timezone was written to either frame.
+
+### DST flag survives the calendar calculation
+
+`0x42014dcc` copies all 36 bytes of the current `struct tm`, then replaces only
+seconds, minutes and hours before calling `mktime` at `0x420cfe14`. Consequently
+`tm_isdst` still describes **now**, rather than asking the library to determine
+the target date's DST state. When the initial target is less than 900 seconds
+ahead, the routine adds the configured days to that already-normalized structure
+and calls `mktime` again without resetting `tm_isdst`.
+
+The instructions at `0x42014e42`–`0x42014e59` and `0x42014e7a`–`0x42014e85`
+confirm both calls. The library's adjustment for a supplied, incorrect DST flag
+was cross-checked past Ghidra's truncated `SALTU` flow in GNU disassembly.
+
+Eight controlled host cases reproduced the caller using the upstream
+[`mktime` implementation](https://raw.githubusercontent.com/espressif/newlib-esp32/esp-4.3.0/newlib/libc/time/mktime.c)
+and explicit 2026 US/EU transition epochs:
+
+| Case, requested maintenance time 03:00 | Recovered-call result | With DST redetermined before each conversion |
+| --- | --- | --- |
+| Ordinary date | 03:00 | 03:00 |
+| Exactly 15 minutes before today's target | Today at 03:00 | Today at 03:00 |
+| 14 minutes 59 seconds before today's target, interval four days | Four days later at 03:00 | Four days later at 03:00 |
+| US/EU spring transition crossed by four-day interval | 04:00 | 03:00 |
+| US/EU autumn transition crossed by four-day interval | 02:00 | 03:00 |
+| US spring-transition day, calculated before the transition | 04:00 | 03:00 |
+
+All eight expected outcomes passed. This is a **host reproduction supported by
+binary inspection**, not execution of the firmware or a physical DST experiment.
+It does not establish actual wake timing, persisted-schedule behavior after a
+timezone change, or every ambiguous/nonexistent local-time case.
+
+A firmware correction should set `tm_isdst = -1` before **each** `mktime` call,
+check conversion failure, and define the policy for ambiguous/nonexistent local
+times. Resetting it only before the first call is insufficient because that call
+normalizes and writes the flag again. The current local API has no identified
+dedicated maintenance-schedule setter; the remaining indirect-reference audit
+and device checks keep S05 open.
+
 ### Missing/missed schedule behavior
 
 - After an album wake, a positive saved album timestamp that is no longer more

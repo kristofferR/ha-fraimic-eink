@@ -166,6 +166,9 @@ only substitutes `EST5EDT` on a failed NVS read, but time initialization and
 maintenance calculation also use that fallback for an empty string. This is a
 static path to losing a configured timezone, not proof of why the observed Large
 was using `EST5EDT`. UTC album deadlines remain a different time domain.
+The [timezone parser follow-up](boot-and-scheduling.md#timezone-format-and-default-rules)
+also establishes that this field needs a compact POSIX rule, not an IANA name;
+an invalid nonempty value can produce UTC instead of the empty-value fallback.
 
 The saved key comes from the local request, not the setup response's key. Email
 nonempty and verified=true are insufficient to prove a nonempty user ID for

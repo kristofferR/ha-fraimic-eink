@@ -145,6 +145,64 @@ its recovered handler does not call the GET handler's session check. No clear
 request was made. Preserve logs before diagnostic mutations and keep the endpoint
 inside the intended LAN boundary.
 
+## Restart, sleep and refresh acknowledgments
+
+These Large 0.2.29 handlers do not parse a request body or a job identifier. Their
+small responses describe different points in the operation:
+
+| Request | Recovered response | Ordering and limit |
+| --- | --- | --- |
+| POST `/api/restart` | `{"status":"restarting"}` | Allocate/send JSON, wait ten ticks (100 ms), then call restart; no recording/rendering guard in this handler |
+| POST `/api/sleep` | `{"status":"sleeping"}` | First request sleep, then allocate/send JSON; actual sleep is handled later by the main loop |
+| POST `/api/refresh` | `{"status":"refresh_started"}` | Check recording/LED protection, allocate/send JSON, wait ten ticks, then invoke manual refresh |
+
+Restart and refresh do not check the JSON send result before acting. A lost
+response therefore does not mean nothing happened. Allocation failure produces
+`500` / `out_of_memory` before either operation. Sleep differs: helper
+`0x42017218` has already set pending flag `0x3fca6b18` before JSON allocation,
+so the same error can follow a successfully queued sleep request. These are
+static error-path findings; no allocation or connection failure was induced.
+
+Sleep checks charging detection through `0x42029ed0`; a positive result returns
+`409` / `charging_cable_connected` without setting the flag. When the main loop
+reaches the pending request, it checks charging again. It either clears the flag
+and declines sleep, or allows approximately two seconds for HTTP completion
+before pre-sleep work at `0x42012338`. The button-wait loop also exits when the
+flag is set. The response is not proof the frame has already slept, and these
+waits are not a complete wall-clock bound while other work is running.
+
+Refresh's `409` / `device_busy` guard is specifically the recording getter
+`0x42020150` or LED workflow-protection getter `0x420231d0`. The first waits at
+most ten ticks for its mutex, the second one tick. Both report false when their
+mutex is unavailable; the recording getter also needs both the active flag and
+recording-task handle. This is not a shared-buffer ownership lock or an atomic
+reservation. See [LED state and protection](led-and-workflow-state.md).
+
+The accepted refresh calls `0x4201724c` → `0x420115d8` → `0x4200fc7c`, the saved
+image/maintenance refresh path. The result is logged after the HTTP response;
+it is not returned as a later render acknowledgment. GNU decoding confirmed the
+result preserved in the return register despite Ghidra initially inferring a
+`void` function. A raw image upload already starts its own render and should not
+be followed by this separate refresh.
+
+## Wi-Fi form submission
+
+POST `/connect` (`0x4201d07c`) reads at most 511 bytes **once**, then looks for
+`ssid=` and `password=` and URL-decodes them. It does not loop until the declared
+body is complete. The SSID is first bounded to 32 decoded bytes, then copied
+with a 31-byte bound into a zeroed driver configuration. A 32-byte SSID therefore
+loses its final byte in this recovered path. Password copying is bounded to
+63 bytes. These are byte limits, not Unicode character counts; boundary cases
+were not submitted to a device.
+
+The handler sends its HTML response before applying the driver configuration.
+Driver failure is logged rather than sent back as a revised error page. On
+success it calls `0x4201850c` to clear `force_ftu`, without checking that helper's
+result. It does not itself call restart after this save. A successful-looking
+page alone does not establish correct credentials, persistent first-time-setup
+state or a successful association. No Wi-Fi configuration was changed in this
+static pass.
+
 ## Image delivery
 
 The preferred verified raw upload on this build is:

@@ -31,6 +31,8 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Startup-artwork static follow-up | Version-dependent adoption/replacement, 8 KiB read-validation allocation, non-atomic rewrite/unlink and unchecked version commit | Installed custom wake artwork, fault injection, palette safety or upgrade persistence |
 | Image-download static follow-up | Header/status/length checks, zero-length reads, consecutive-stall handling, same-URL retries, render-size tolerance and cache ordering | Device response-fault tests, observed stale pixels, induced cache corruption or all Standard equivalents |
 | NVS schema follow-up | Scalar/blob types, record sizes, permissive length handling, schedule cache sentinel, SDK Wi-Fi and PHY namespaces | Installed NVS contents, complete SDK schema, migration success, storage-fault injection or other-build compatibility |
+| Calendar/timezone static and host follow-up | Actual parser's POSIX/default-US branches; nine parser cases and eight calendar cases, including stale-DST one-hour shifts | Execution of firmware time code, physical wake timing, full timezone database support, stored-schedule recalculation or exact toolchain revision |
+| Local-control and LED static follow-up | Response/action ordering, pending sleep, recording/LED guard behavior, Wi-Fi form byte limits and all 41 LED records | Submitted control faults, physical LED timings, comprehensive buffer arbitration or all Standard equivalents |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -114,6 +116,8 @@ This check can run entirely on the host without sending anything to the frame.
 | --- | --- |
 | “One URL patch makes it offline” | Public TCP gate, SNTP-triggered AP failover, web/auth selectors and setup screens remain |
 | “A retained RTC clock is enough for normal scheduling” | Recovered initialization waits for its separate SNTP-set validity flag; absent validity takes fallback scheduling |
+| “The frame accepts HA's IANA timezone name” | Its POSIX parser does not resolve `Europe/Oslo`; this input leaves UTC offsets, while empty application configuration selects `EST5EDT` |
+| “03:00 maintenance stays at 03:00 across DST” | The caller retains the current DST flag; controlled host cases shifted the target to 04:00 in spring and 02:00 in autumn |
 | “All system images are cached” | Wake-up is local; create-account/get-started fetch from the backend in their active branch |
 | “Auto-update off prevents an offered update” | The recovered queue/install path does not consult that switch |
 | “A small settings object changes only those fields” | It resets omitted booleans to defaults |
@@ -128,6 +132,7 @@ This check can run entirely on the host without sending anything to the frame.
 | “The render copy creates an independent snapshot” | Its display pointer aliases the same audio/image allocation |
 | “WAIT protects incoming image bytes” | Raw HTTP receives into shared memory before the render wait |
 | “Completion signal or last_refresh acknowledges my image” | The signal also follows errors; last_refresh is maintenance history |
+| “Refresh's busy guard owns the image buffer” | It reads recording state and an LED protection latch; both getters return false on mutex acquisition failure |
 | “GET diagnostics are passive” | `/test` activates factory-test mode; bare `/action` defaults to reset |
 | “HA exposes generate_image, so a provider is ready” | The installed entities lack the image-generation feature bit |
 | “Adding the same original imports idempotently” | The library creates a second item; an importer needs a stable upstream-ID mapping |

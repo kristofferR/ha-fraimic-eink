@@ -148,3 +148,40 @@ factory-test timeout must not be mistaken for normal idle-sleep evidence.
 
 This read did not recover the partition table, bootloader/eFuses, whole-flash
 encryption, image-filesystem capacity or recovery pads. The enclosure stays closed.
+
+## Calendar and timezone host follow-up: S05/E01
+
+Two C fixtures compiled on the Linux workstation with
+`cc -std=c11 -Wall -Wextra -Werror`. **Eight calendar cases and nine timezone
+parser cases passed.** Results and the exact harness/source copies are retained
+in the private research set. Neither fixture contacted or changed a device.
+
+The calendar fixture uses the body of Espressif's upstream `mktime.c`, renamed
+at compilation to avoid the host libc implementation. It supplies explicit 2026
+US/EU transition epochs, controlled starting calendar fields and the recovered
+application caller's copy/replace/add-days sequence. It compares that sequence
+with redetermining DST before each conversion. Ordinary dates and the exact
+900-second threshold passed; spring crossings produced 04:00 and autumn crossings
+02:00 for a requested 03:00 target. One same-day spring case also shifted to
+04:00. The [calendar trace](boot-and-scheduling.md#dst-flag-survives-the-calendar-calculation)
+records the relevant binary instructions and limits of this reproduction.
+
+The parser fixture runs upstream `tzset_r.c` with minimal environment/allocation
+wrappers and host integer scanning. It checks names, offsets and parsed rules;
+transition-epoch calculation is stubbed. Cases cover US fallback, explicit
+European rules, European abbreviations with implicit US rules, two IANA spellings,
+valid/invalid UTC spellings, empty input and an unset environment. These source
+branches were also checked against the Large binary at `0x420d0f54`.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| Upstream `mktime.c`, `esp-4.3.0` | `09593bd457e3af0137dd18bc86a5adbd5408e5dffaf8398932dc7c32dc6db77c` |
+| Calendar fixture | `6a9c01c09f72841fd33f6fd79451354a603d7e56b97d0125496e8a36697cb853` |
+| Upstream `tzset_r.c`, `esp-4.3.0` | `0c1c74353a172a237d392fe7c8736dd5c6be35c4f108800bf8d5d586e8a50ebe` |
+| Timezone parser fixture | `e2397fb57f292f1b5f5d6e382f908f736880edd9f1ca499f38e30901aa7bb52d` |
+
+The exact compiler/newlib revision used to build the vendor firmware is not
+established. The fixtures are source-based host checks supported by matching
+binary branches, not a firmware emulator, full libc equivalence proof or actual
+wake test. Stored-schedule recalculation, ambiguous/nonexistent times and physical
+timezone transitions keep S05 open.

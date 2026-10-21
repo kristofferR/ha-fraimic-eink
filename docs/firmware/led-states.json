@@ -1,0 +1,583 @@
+{
+  "firmware_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+  "table_address": "0x3c13ff68",
+  "record_bytes": 24,
+  "method": "Static extraction from the pinned Large app; field roles checked against lookup and worker consumers",
+  "limitations": "Numeric state IDs are vendor data; meanings and patterns are analytical. No physical LED test or Standard-model equivalence established.",
+  "states": [
+    {
+      "id": 0,
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "pattern": 0,
+      "duration_ms": 0,
+      "period_ms": 0,
+      "priority": 0,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 1,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 5,
+      "duration_ms": 1000,
+      "period_ms": 1000,
+      "priority": 5,
+      "count": 1,
+      "auto_off": 0
+    },
+    {
+      "id": 2,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 5,
+      "duration_ms": 1000,
+      "period_ms": 1000,
+      "priority": 5,
+      "count": 1,
+      "auto_off": 1
+    },
+    {
+      "id": 3,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 1,
+      "duration_ms": 3000,
+      "period_ms": 0,
+      "priority": 5,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 4,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 9,
+      "duration_ms": 5000,
+      "period_ms": 2000,
+      "priority": 5,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 7,
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "pattern": 2,
+      "duration_ms": 0,
+      "period_ms": 1000,
+      "priority": 6,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 8,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 4,
+      "duration_ms": 0,
+      "period_ms": 5000,
+      "priority": 6,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 9,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 8,
+      "duration_ms": 30000,
+      "period_ms": 2000,
+      "priority": 8,
+      "count": 1,
+      "auto_off": 1
+    },
+    {
+      "id": 10,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 8,
+      "duration_ms": 30000,
+      "period_ms": 2000,
+      "priority": 8,
+      "count": 2,
+      "auto_off": 1
+    },
+    {
+      "id": 11,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 8,
+      "duration_ms": 30000,
+      "period_ms": 2000,
+      "priority": 8,
+      "count": 3,
+      "auto_off": 1
+    },
+    {
+      "id": 12,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 2,
+      "duration_ms": 0,
+      "period_ms": 500,
+      "priority": 8,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 13,
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "pattern": 4,
+      "duration_ms": 0,
+      "period_ms": 3000,
+      "priority": 7,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 14,
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "pattern": 2,
+      "duration_ms": 0,
+      "period_ms": 1000,
+      "priority": 7,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 15,
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "pattern": 2,
+      "duration_ms": 20000,
+      "period_ms": 1000,
+      "priority": 6,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 5,
+      "rgb": [
+        255,
+        255,
+        0
+      ],
+      "pattern": 2,
+      "duration_ms": 0,
+      "period_ms": 2000,
+      "priority": 8,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 6,
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "pattern": 2,
+      "duration_ms": 0,
+      "period_ms": 2000,
+      "priority": 9,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 16,
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "pattern": 5,
+      "duration_ms": 500,
+      "period_ms": 500,
+      "priority": 10,
+      "count": 1,
+      "auto_off": 1
+    },
+    {
+      "id": 17,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 1,
+      "duration_ms": 0,
+      "period_ms": 0,
+      "priority": 20,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 18,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 4,
+      "duration_ms": 0,
+      "period_ms": 2000,
+      "priority": 21,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 19,
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "pattern": 4,
+      "duration_ms": 0,
+      "period_ms": 2000,
+      "priority": 1,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 20,
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "pattern": 1,
+      "duration_ms": 0,
+      "period_ms": 0,
+      "priority": 2,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 21,
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "pattern": 5,
+      "duration_ms": 200,
+      "period_ms": 200,
+      "priority": 25,
+      "count": 1,
+      "auto_off": 1
+    },
+    {
+      "id": 22,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 2,
+      "duration_ms": 0,
+      "period_ms": 400,
+      "priority": 29,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 23,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 1,
+      "duration_ms": 0,
+      "period_ms": 0,
+      "priority": 30,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 24,
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "pattern": 3,
+      "duration_ms": 1500,
+      "period_ms": 300,
+      "priority": 35,
+      "count": 3,
+      "auto_off": 1
+    },
+    {
+      "id": 25,
+      "rgb": [
+        255,
+        165,
+        0
+      ],
+      "pattern": 3,
+      "duration_ms": 1200,
+      "period_ms": 400,
+      "priority": 36,
+      "count": 3,
+      "auto_off": 1
+    },
+    {
+      "id": 26,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 4,
+      "duration_ms": 0,
+      "period_ms": 2000,
+      "priority": 45,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 27,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 3,
+      "duration_ms": 1500,
+      "period_ms": 300,
+      "priority": 35,
+      "count": 3,
+      "auto_off": 1
+    },
+    {
+      "id": 28,
+      "rgb": [
+        0,
+        0,
+        255
+      ],
+      "pattern": 3,
+      "duration_ms": 2100,
+      "period_ms": 600,
+      "priority": 44,
+      "count": 3,
+      "auto_off": 1
+    },
+    {
+      "id": 29,
+      "rgb": [
+        255,
+        255,
+        255
+      ],
+      "pattern": 4,
+      "duration_ms": 0,
+      "period_ms": 5000,
+      "priority": 45,
+      "count": 0,
+      "auto_off": 0
+    },
+    {
+      "id": 30,
+      "rgb": [
+        0,
+        255,
+        0
+      ],
+      "pattern": 6,
+      "duration_ms": 1000,
+      "period_ms": 200,
+      "priority": 50,
+      "count": 2,
+      "auto_off": 1
+    },
+    {
+      "id": 31,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 2,
+      "duration_ms": 10000,
+      "period_ms": 200,
+      "priority": 95,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 32,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 2,
+      "duration_ms": 5000,
+      "period_ms": 200,
+      "priority": 97,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 33,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 7,
+      "duration_ms": 3000,
+      "period_ms": 200,
+      "priority": 98,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 34,
+      "rgb": [
+        255,
+        255,
+        0
+      ],
+      "pattern": 1,
+      "duration_ms": 2000,
+      "period_ms": 0,
+      "priority": 94,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 35,
+      "rgb": [
+        255,
+        165,
+        0
+      ],
+      "pattern": 2,
+      "duration_ms": 3000,
+      "period_ms": 500,
+      "priority": 93,
+      "count": 0,
+      "auto_off": 1
+    },
+    {
+      "id": 36,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 8,
+      "duration_ms": 20000,
+      "period_ms": 2000,
+      "priority": 91,
+      "count": 1,
+      "auto_off": 1
+    },
+    {
+      "id": 37,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 8,
+      "duration_ms": 20000,
+      "period_ms": 2000,
+      "priority": 92,
+      "count": 2,
+      "auto_off": 1
+    },
+    {
+      "id": 38,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 8,
+      "duration_ms": 20000,
+      "period_ms": 2000,
+      "priority": 93,
+      "count": 3,
+      "auto_off": 1
+    },
+    {
+      "id": 39,
+      "rgb": [
+        255,
+        0,
+        0
+      ],
+      "pattern": 8,
+      "duration_ms": 20000,
+      "period_ms": 2000,
+      "priority": 94,
+      "count": 4,
+      "auto_off": 1
+    },
+    {
+      "id": 40,
+      "rgb": [
+        255,
+        0,
+        255
+      ],
+      "pattern": 2,
+      "duration_ms": 5000,
+      "period_ms": 500,
+      "priority": 88,
+      "count": 0,
+      "auto_off": 1
+    }
+  ]
+}
