@@ -47,7 +47,57 @@
         "large_address": "0x3c107a30",
         "standard_address": "0x3c107b44"
       }
-    ]
+    ],
+    "accelerometer_probe_table": {
+      "comparison": "Decoded fields and strings; not relocated pointer bytes",
+      "large_address": "0x3c140378",
+      "standard_address": "0x3c1405e0",
+      "rows": [
+        {
+          "address": 30,
+          "who_am_i_register": 15,
+          "expected": 65,
+          "name": "LIS2HH12TR (alt config)"
+        },
+        {
+          "address": 29,
+          "who_am_i_register": 15,
+          "expected": 65,
+          "name": "LIS2HH12TR (addr variant)"
+        },
+        {
+          "address": 25,
+          "who_am_i_register": 15,
+          "expected": 51,
+          "name": "LIS3DH"
+        },
+        {
+          "address": 24,
+          "who_am_i_register": 15,
+          "expected": 51,
+          "name": "LIS3DH (alt addr)"
+        },
+        {
+          "address": 24,
+          "who_am_i_register": 0,
+          "expected": 251,
+          "name": "BMA255"
+        },
+        {
+          "address": 25,
+          "who_am_i_register": 0,
+          "expected": 251,
+          "name": "BMA255 (alt addr)"
+        },
+        {
+          "address": 98,
+          "who_am_i_register": 1,
+          "expected": 19,
+          "name": "MSA311/MSA321"
+        }
+      ],
+      "note": "Identical decoded records; alternative probe returns zero even on match in both builds. Does not identify fitted hardware."
+    }
   },
   "function_map": [
     {
@@ -179,6 +229,46 @@
       "role": "create_account_page",
       "large": "0x42019224",
       "standard": "0x420191f8"
+    },
+    {
+      "role": "accelerometer_register_write",
+      "large": "0x420291b0",
+      "standard": "0x4202799c"
+    },
+    {
+      "role": "accelerometer_axis_read",
+      "large": "0x42029264",
+      "standard": "0x42027aa4"
+    },
+    {
+      "role": "accelerometer_alternative_probe",
+      "large": "0x420293e4",
+      "standard": "0x42027c24"
+    },
+    {
+      "role": "accelerometer_init",
+      "large": "0x42029520",
+      "standard": "0x42027d60"
+    },
+    {
+      "role": "orientation_classifier",
+      "large": "0x42029754",
+      "standard": "0x42027f94"
+    },
+    {
+      "role": "orientation_string",
+      "large": "0x420297c4",
+      "standard": "0x42028004"
+    },
+    {
+      "role": "orientation_sample",
+      "large": "0x420298d0",
+      "standard": "0x42028110"
+    },
+    {
+      "role": "album_body_device_key_injection",
+      "large": "0x4203051c",
+      "standard": "0x4202ec48"
     }
   ],
   "live_standard": {

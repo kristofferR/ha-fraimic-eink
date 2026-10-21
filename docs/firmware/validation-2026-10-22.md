@@ -174,3 +174,25 @@ hardware access was performed. No arithmetic-only fixture is claimed as hardware
 validation. Private evidence is `orientation-pass1.txt`, `orientation-pass2.txt`,
 `orientation-probe-table.json` and the four `orientation-*-gnu.txt` branch exports.
 H02 and the broader cloud/compatibility items remain open.
+
+## Standard orientation and album comparison: E02/H02/C12
+
+Both complete app hashes were rechecked before decoding the seven-record sensor
+tables. All address/register/expected-value/name fields match; pointer bytes were
+resolved independently. Standard initialization, byte reads, classification,
+power wrapper and poll/voice call sites match the relevant Large branches.
+Separate GNU ranges confirm the alternative probe's zero return, its caller's
+failure branch and landscape-on-tie comparison. The physical part remains unknown.
+
+Standard's album body helper and selected cJSON wrappers were also inspected.
+Input length, consecutive-timeout handling, absent object-root check, unchecked
+key injection and unbounded post-injection serialization match the Large helper.
+GNU ranges start at confirmed basic-block entries to avoid decoding padding as
+instructions. No device request, new host-parser fixture or sensor experiment
+was performed, and the comparison does not claim full binary equivalence.
+
+Private evidence: `standard-orientation-album-pass1.txt`,
+`standard-orientation-album-pass2.txt`, `standard-orientation-album-gnu.txt`,
+`orientation-table-comparison.json` and `compare-orientation-tables.mjs`.
+The public [model map](model-comparison.json) now has 34 function pairs and the
+decoded probe-table comparison. The broader checklist items remain open.

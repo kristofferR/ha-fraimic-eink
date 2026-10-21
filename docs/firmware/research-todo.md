@@ -58,9 +58,9 @@ per question, not a count of tool calls or decompiled functions.
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
-| H02/C07 | LIS2HH12TR software target, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling traced | Fitted-part confirmation, physical orientation/failure tests, sample coherence and Standard comparison |
+| H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02 | Standard app hash validated; 42 routes and 26 function pairs compared; identical LED records/timezone options and matching calendar/DST/parser branches added to live setup/voice findings | Remaining handler/LED arbitration differences, same-version comparison and other releases |
+| E02 | Standard app hash validated; 42 routes and 34 function pairs compared; matching orientation/album-body branches and decoded sensor tables added to calendar/LED/setup/voice findings | Remaining handler/LED arbitration differences, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and
@@ -303,7 +303,8 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   identifies fixed address `0x1e`, ID `0x41`, a LIS2HH12TR-labelled target and a
   nonfunctional alternative-probe success return. It does not establish the
   fitted part. Orientation is two-way, has no hysteresis and defaults to portrait
-  on error; physical and Standard-model checks remain open.
+  on error. Standard's relevant branches and decoded probe records now match;
+  physical checks and other releases remain open.
 - [ ] **H03 · Static/Hardware:** Determine whether speech/audio output hardware
   exists and is usable; microphone input does not establish speaker capability.
 - [ ] **H04 · Static/Host/Hardware:** Determine supported partial-refresh/custom

@@ -46,8 +46,8 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 26 corresponding functions, including the subsequent
-account-setup, `/dev`, calendar, timezone and LED-table comparisons. The poll paths share 86
+The preserved metadata maps 34 corresponding functions, including the subsequent
+account-setup, `/dev`, calendar, orientation and album-body comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -86,6 +86,36 @@ unsupported instruction. The POSIX parser at `0x420d1238` has the same default
 US rules and IANA-name parse-error path. The [Large-supported host fixtures](boot-and-scheduling.md#dst-flag-survives-the-calendar-calculation)
 therefore have matching relevant static paths in Standard too. No physical
 timezone/DST experiment was performed on either frame.
+
+### Orientation and album-body follow-up
+
+Both hash-validated apps contain the same seven decoded accelerometer probe
+records: addresses, identity registers, expected values and sensor labels match.
+The tables are at Large `0x3c140378` and Standard `0x3c1405e0`; this comparison
+resolves their string pointers rather than comparing relocated pointer bytes.
+Standard's alternative probe `0x42027c24` also returns zero after a match, and
+initializer `0x42027d60` treats zero as failure. GNU confirms both branches.
+The candidate list therefore does not establish working alternative drivers on
+either build, nor identify the fitted physical part.
+
+Standard's register writer `0x4202799c` uses the same fixed sensor address;
+reader `0x42027aa4` performs separate status and six axis-byte reads. Classifier
+`0x42027f94` uses the same absolute-X-versus-Y comparison, landscape-on-tie rule
+and portrait-on-failure fallback. Wrapper `0x42028110` is called with the
+keep-powered argument by both poll and voice. Voice samples after upload and
+before finalize, matching the [Large orientation contract](hardware-and-layout.md#accelerometer-target-and-orientation-semantics).
+These are matching software branches, not physical rotation or coherent-sample
+tests.
+
+Standard album helper `0x4202ec48` likewise accepts 1–4,096 incoming bytes,
+allows five consecutive receive timeouts, parses JSON without an object-root
+guard, adds/replaces the device-key field without checking that operation's
+result, then serializes without another size cap. Its cJSON parse/add/replace
+wrappers have the corresponding call structure. This supports sharing the
+[adapter validation requirements](local-api.md#body-transformation-is-not-schema-validation).
+The 19 host cases remain a fixture of the recovered Large helper and pinned
+cJSON source; this comparison does not represent another executed firmware test
+or establish equivalence of every Standard proxy/error branch.
 
 ## Keep model renderers and power paths separate
 
