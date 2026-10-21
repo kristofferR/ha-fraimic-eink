@@ -8,8 +8,9 @@ protocol. Retain the vendor display, power and microphone drivers initially.
 The HA integration is a proposed design. Bounded, standalone
 [backend fixtures](backend-emulation.md) have served the physical frame's poll
 and album reads, captured its microphone and delivered one owner-confirmed test
-card. These are separate transport experiments, not a deployed HA backend,
-generation service or firmware fork.
+card. A combined recording-to-fixed-image test also completed through the stock
+driver, cache save and return to ready. These are bounded protocol experiments,
+not a deployed HA backend, generation service or firmware fork.
 
 ## What the integration already provides
 
@@ -58,7 +59,10 @@ styles and originals. An explicit account-authenticated import could place these
 in a `Creations` album, with stable upload identity for deduplication. Owner-token
 page/detail reads and an original download have now succeeded; device-key Bearer
 authentication returned 401. Missing/null metadata must be supported. No library
-import was performed. The existing `async_add_image` creates another item for
+import was performed. A later expiry check verified that an expired original URL
+returned 403, while re-reading the stable gallery item produced a fresh URL to
+byte-identical PNG content. Persist the original and upload identity so URL
+rotation does not create another library item. The existing `async_add_image` creates another item for
 identical input, so an importer needs a persisted account/upload-ID mapping.
 
 **Create artwork from HA.** An integration-side STT/generation pipeline can store

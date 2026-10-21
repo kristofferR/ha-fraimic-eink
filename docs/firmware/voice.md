@@ -22,15 +22,18 @@ sequenceDiagram
     Frame->>Frame: Render image
 ```
 
-The HA adapter is proposed. A standalone fixture has now received a physical-frame
-recording through local presign and plain HTTP multipart upload. Local image
-generation/download/rendering has not been demonstrated. See the
-[device experiment](backend-emulation.md).
+The HA adapter is proposed. Standalone fixtures have received physical-frame
+recordings through local presign and plain HTTP multipart upload. A later test
+returned successful finalize JSON and a fixed panel image: the stock client
+downloaded it, completed its driver refresh, saved it and returned to ready.
+No transcription or image generation was invoked. Because the same test card
+was already displayed, the owner could not independently distinguish the second
+refresh. See the [combined device result](backend-emulation.md#combined-voiceimage-device-result-c09).
 
-With an empty upload acknowledgment, the physical frame also reached local
-finalize. That fixture intentionally returned HTTP 409 before generation. The
-successful local capture lengths were 4.608 and 5.888 seconds; both matched the
-format below. The last finalize requested `landscape` orientation.
+Successful local captures were 4.608, 5.888 and 4.992 seconds, all matching the
+format below. The earlier capture-only fixture intentionally returned HTTP 409
+at finalize; the final test returned HTTP 200. Both observed valid finalize
+requests specified `landscape` orientation.
 
 ## Capture and timing
 
@@ -134,9 +137,12 @@ Content-Type: application/json
   "device_key": "<device_key>",
   "user_id": "<user_id>",
   "key": "job-123/recording.wav",
-  "orientation": "portrait"
+  "orientation": "landscape"
 }
 ```
+
+This example matches the observed frame request. Portrait orientation was not
+exercised in the physical tests above.
 
 A stock-compatible result is HTTP 200 with a ready image URL:
 
@@ -152,6 +158,11 @@ does not implement a job-status polling protocol. The image URL is required for
 this successful path; `202` and a job ID do not queue work on the frame.
 Other server fields such as `upload_public_id` do not establish firmware-level
 job identity or display confirmation.
+
+The shown two-field response was accepted on the physical frame with an explicit
+110-byte body and an ordinary local HTTPS asset URL. No AWS query parameters or
+S3 service were needed. Firmware log phrases such as “AI processing” and “raw AWS
+presigned URL” describe its fixed workflow labels, not services used by this test.
 
 | Stage | Limit / requirement |
 | --- | --- |

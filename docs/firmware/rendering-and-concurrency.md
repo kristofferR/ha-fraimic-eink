@@ -3,9 +3,10 @@
 [Research index](README.md)
 
 This follow-up traces Large 0.2.29's buffer aliases, render task and status
-reporting. Findings are **static**, with consequential instructions checked in
-GNU ESP32-S3 disassembly. No concurrent-upload, fault-injection or modified-device
-experiment was performed.
+reporting. Unless labelled observed, findings are **static**, with consequential
+instructions checked in GNU ESP32-S3 disassembly. Later bounded poll/voice tests
+observed the normal completion path. No concurrent-upload, fault-injection or
+modified-firmware experiment was performed.
 
 ## The display pointer is another alias
 
@@ -54,6 +55,14 @@ so an earlier error can be hidden by a later success. Its caller logs the final
 result without returning a failure to the worker. Fault injection and real
 free-memory/fragmentation measurements are still needed before choosing between
 exclusive ownership and a separate full snapshot (D03/D06).
+
+**Observed sample:** immediately before multipart streaming in the successful
+fixed-image voice test, firmware reported 1,347,188 bytes of free PSRAM and a
+largest block of 1,343,488 bytes. The streaming headers needed only 163 bytes;
+the 159,788-byte WAV remained in the shared allocation. A second 2,304,000-byte
+panel snapshot would not fit in that reported free PSRAM. This is one allocation
+state, not a peak-memory, fragmentation or stress study. Buffer isolation would
+need a broader allocation/lifetime redesign or a smaller staging strategy.
 
 ## Readiness is not ownership
 
@@ -145,6 +154,27 @@ failed work as completed. A reliable event needs propagated errors, content/job
 identity, and a bounded hardware sequence before declaring driver success.
 Even that is driver-observed completion, not optical verification of every pixel.
 
+### Observed poll and voice cache ordering
+
+The [bounded device tests](backend-emulation.md) exposed different ordering for
+two stock paths on the same build:
+
+| Delivery | Observed order |
+| --- | --- |
+| Poll image | Download → start rendering and flash save in parallel → save complete → driver refresh complete → panel discharge → task complete |
+| Voice result | Download → render → driver refresh complete → panel discharge → processing-success log → flash save → ready state |
+
+For the voice test, driver refresh ended at 20:03:39 UTC, discharge at 20:03:54,
+and flash save/ready at 20:04:12. Its 69.434-second processing timer excluded the
+approximately 18.55-second save that followed. A display already showing the
+result can therefore coexist with unfinished workflow cleanup/storage.
+
+All controller-ready and normal-completion logs were present. The owner confirmed
+the first poll-delivered card; the voice experiment intentionally reused that
+same card, so its second refresh was not independently witnessed. These positive
+tests do not validate failure propagation or convert completion logs into a
+per-image acknowledgment.
+
 ## `display.last_refresh` is maintenance history
 
 `/api/info` calls `0x42015ef8`, which loads `app_data/refresh_hist` through
@@ -161,6 +191,11 @@ Consequences for HA:
 - An image upload or voice generation need not change `display.last_refresh`.
 - A changed value can reflect maintenance of existing artwork.
 - The field cannot acknowledge a specific delivered image or establish its success.
+
+**Observed:** the entire exposed `display` object, including maintenance history,
+was unchanged before and after the completed fixed-image voice test. The settings
+object was also unchanged. This supports the distinction above without testing
+all routes, reboot persistence or maintenance transitions.
 
 Ghidra initially grouped the maintenance routine into the preceding pre-sleep
 function because the deep-sleep call does not return normally. The actual entry at

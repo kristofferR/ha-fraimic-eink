@@ -13,9 +13,11 @@ The [latest validation pass](validation-2026-10-21.md) records owner gallery rea
 installed HA capabilities, five library host checks and deeper firmware traces.
 The [local-backend experiment](backend-emulation.md) then demonstrated locally
 generated poll and album responses on the physical frame, without firmware changes.
-It also captured the microphone locally and reached finalize. A separate one-shot
-poll delivered a packed six-colour card, with cache/render logs and owner-confirmed
-physical display. A successful combined voice-to-image flow remains untested.
+It also captured the microphone locally, then completed successful finalize,
+download, driver refresh and caching with a fixed six-colour card. The earlier
+poll-delivered card was visually confirmed; the later voice test reused identical
+pixels, so its second refresh is confirmed by logs rather than an observed change.
+No transcription or AI generation was invoked.
 
 | Document | Contents |
 | --- | --- |
@@ -89,7 +91,8 @@ addresses across releases. Function names are analytical descriptions.
 The owner-scoped investigation recovered the matching stock app and demonstrated
 that the frame accepted a test certificate chain for its normal API hostname.
 A later standalone server answered real polls and album reads using local data.
-Local microphone capture and a separate test-card display also succeeded.
+Local microphone capture, a separate test-card display and the combined
+voice-to-fixed-image protocol/driver sequence also succeeded.
 Temporary interception was removed after each bounded experiment. The enclosure
 remains closed at the owner's request. **No custom firmware has been flashed and no
 custom boot or rollback has been demonstrated.** The application download is not

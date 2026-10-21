@@ -97,12 +97,19 @@ included here.
 | Owner Bearer token, account albums | HTTP 200 |
 | Device key in album-list path, no Bearer token | HTTP 200; same album IDs in this account |
 | Sample signed original | HTTP 200, PNG, 1200 × 1600 |
+| Original URL after actual expiry | HTTP 403 `AccessDenied` |
+| Re-fetch same item after expiry | HTTP 200; unchanged ID and metadata, new unexpired URL |
+| Refreshed original | HTTP 200, 4,016,864 bytes; identical SHA-256 to the earlier download |
 
 The observed fields and nullable values are documented in
 [cloud protocol](cloud-protocol.md#albums-and-gallery). Original URLs expire;
-observed validity was roughly one hour. A successful current download does not
-prove retrieval after expiry, indefinite retention, or stable pagination while
-new generations arrive. Those cases remain in C10/A02. Album writes remain in C12.
+observed validity was roughly one hour. At 20:07:06 UTC, after the captured URL's
+19:56:41 UTC expiry, the old URL failed and a fresh detail response restored
+access to byte-identical content. The original signed URL and refreshed response
+were retained privately; no transcript or image was published or imported.
+This verifies one actual expiry/refresh cycle. Indefinite retention and stable
+pagination while new generations arrive remain in C10/A02. Album writes remain
+in C12.
 
 ## Static follow-up: C01/C02/C11/C12/R11/S01/D03/N02/H05/H07
 

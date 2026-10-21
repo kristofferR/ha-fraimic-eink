@@ -7,7 +7,8 @@ client contract recovered from the app; examples use reserved domains and
 placeholders, not credentials or deployable services.
 
 The [bounded backend experiment](backend-emulation.md) now validates local idle
-polls, album reads, physical microphone upload and one owner-confirmed panel image.
+polls, album reads, physical microphone upload, one owner-confirmed panel image,
+and the combined voice-finalize/download/driver flow with that fixed image.
 It also found an upload-response
 length bug; follow the [empty acknowledgment requirement](voice.md#upload-acknowledgment-must-have-an-empty-body).
 
@@ -197,9 +198,13 @@ Pagination returns `page`, `page_size`, `total_count`, `total_pages`, `has_next`
 and `items`; the advertised maximum page size is 50. IDs matched between sampled
 list/detail reads. One voice original downloaded successfully as a 1200 × 1600 PNG,
 separate from the packed panel asset. Its signed URL had about an hour remaining.
-Actual retrieval after expiry and long-term retention remain untested. Re-fetch
-the item to obtain a current URL; persist originals and deduplicate by
-account/upload identity, not the signed URL. No library import was performed.
+A later check after its 19:56:41 UTC expiry returned HTTP 403 `AccessDenied` for
+that old URL. Re-fetching the same item returned a new, unexpired URL; upload ID
+and observed metadata were unchanged. The new URL returned HTTP 200 and exactly
+the same 4,016,864 PNG bytes, verified by SHA-256 comparison with the earlier
+download. This establishes one expiry/refresh cycle, not indefinite retention.
+Persist originals and deduplicate by account/upload identity, not the signed URL.
+No library import was performed.
 
 Both owner-authenticated `GET /api/v1/albums` and a credential-bearing
 `GET /api/v1/albums/<device_key>` without a Bearer header returned 200. In this

@@ -13,8 +13,9 @@ and already-paired read protocol, not a complete deployed cloud replacement.
 
 Later bounded experiments captured microphone audio locally and displayed one
 owner-approved six-colour test card. The owner confirmed the card and its upright
-orientation. These were separate voice-capture and poll-to-image experiments;
-successful voice finalize followed by rendering has not yet been exercised.
+orientation. A subsequent recording completed the combined local voice-to-image
+protocol and driver sequence using that same card. Its unchanged pixels made
+the second refresh visually ambiguous; the completion evidence is in frame logs.
 
 ## Idle experiment: C02/C03/C12
 
@@ -134,10 +135,11 @@ listener stopped. A vendor poll with its normal settings snapshot resumed at
 19:42:18 UTC. Firmware, registration, four switches and exposed maintenance
 schedule matched the before state. No packed image was served or redraw requested.
 
-This validates a **microphone → local presign → local multipart upload → local
-finalize request** path. Successful finalize/image download/display, all upload
-status variants, malformed presign handling, long recordings, cancellation and
-retries remain open. Host duplicate handling is not evidence of actual frame retry.
+This capture-only pass validated **microphone → local presign → local multipart
+upload → local finalize request**. The successful finalize path was tested later
+below. Other upload status variants, malformed presign handling, long recordings,
+cancellation and retries remain open. Host duplicate handling is not evidence of
+actual frame retry.
 
 ## One-shot panel delivery: C03/C09/D06
 
@@ -204,8 +206,8 @@ No firmware, trust-store, pairing or settings change was made.
 
 This verifies local **poll → HTTPS panel asset → flash save → physical display**
 on the stock Large build. Reboot/cache persistence, failed transfers, negative
-certificates, cancellation, repeat offers and successful voice finalize remain
-untested. In particular, it does not close the full C03 or C09 checklist item.
+certificates, cancellation and repeat offers remain untested. This poll-only
+experiment did not exercise voice finalize or close C03/C09 by itself.
 
 ## Combined voice/image host fixture: C09
 
@@ -217,19 +219,68 @@ replays, conflicting audio, orientation validation, repeated finalize, verified
 TLS asset/hash, one-shot consumption, rejection of a second job, and an unchanged
 idle poll with its future deadline. The synthetic WAV was deleted afterwards.
 
-The service was unarmed for the physical frame, no routing window was opened,
-and it was stopped after the host check. No STT or generator was invoked. This
-prepares a single owner-directed recording and fixed-card refresh; the actual
-stock client's successful finalize-to-render transition still needs that test.
+During these host checks the service was unarmed for the physical frame, no
+routing window was opened, and it was stopped afterwards. No STT or generator
+was invoked. The subsequent owner-directed device experiment used a fresh process.
+
+## Combined voice/image device result: C09
+
+The owner approved another short recording and one refresh of the same card.
+The armed fixture accepted only one voice job. Poll responses remained idle, so
+the image could be delivered only through voice finalize. The result URL was
+retired before its first transmission, preventing an automatic second download.
+
+The frame supplied a **159,788-byte WAV**, comprising a 44-byte header and 79,872
+mono 16-bit samples at 16 kHz: **4.992 seconds**. The stored file was parsed and
+verified locally, with mode `0600`. It was not listened to, transcribed or sent
+to a provider. The fixed panel asset has the same hash as the earlier card.
+
+| UTC, 21 October 2026 | Observation |
+| --- | --- |
+| 20:02:46 | Local presign HTTP 200, 131-byte JSON; complete multipart WAV upload accepted with HTTP 200 and zero response bytes |
+| 20:02:47 | Finalize requested `landscape`; HTTP 200 with 110-byte JSON containing `status: completed` and `presigned_url` was accepted |
+| 20:02:49–20:02:52 | HTTP 200 with exactly 2,304,000 panel bytes; firmware measured 4,665 ms for download |
+| 20:03:00–20:03:02 | Eight controller blocks sent, all ICs ready, display refresh started |
+| 20:03:39 | Driver reported display refresh complete |
+| 20:03:41–20:03:54 | Discharge sequence completed; all power switches disabled; processing/rendering reported success |
+| 20:03:54–20:04:12 | Voice result saved to flash; frame reported success and returned to ready |
+| 20:04:14 | Vendor polling resumed with the normal settings snapshot |
+
+The owner still saw the correct test card but did not independently confirm the
+refresh, suggesting the coloured LED might mean work was ongoing. Because this
+test intentionally reused identical pixels, that observation cannot distinguish
+the previous image from the new delivery. The logs establish a completed stock
+client and driver sequence; they are not optical proof that new pixels appeared.
+No second image was queued. The driver had finished before the cache save and
+ready-state transition, which explains why display completion and workflow
+completion must be tracked separately.
+
+Unlike the poll-delivered image, which was saved while refreshing, the voice
+result was saved **after rendering and panel discharge**. The reported 69.434-second
+processing timer ended before the further approximately 18.55-second cache save.
+Do not use that timer alone as time-to-ready. The final `/api/info` comparison
+showed unchanged settings and display/maintenance fields; only battery voltage,
+local time and uptime changed. In particular, `display.last_refresh` did not
+acknowledge this completed voice workflow.
+
+The 300-second routing window was cleaned up early after download: both DNS
+replicas and the exact TCP translation were checked, normal vendor DNS and
+polling resumed, and the fixture stopped. The window's later timed cleanup also
+succeeded. Fixture source SHA-256:
+`9c7641d91bf3b6cbf488fc6859a6299a966c160f275ae9199260b3bb882577cd`.
+
+This closes C09's host and physical **transport/driver** round trip with a fixed
+asset. It does not establish actual STT/generation, HA library insertion, durable
+job recovery, retry/cancellation correctness, distinct-image optical confirmation
+or a reliable machine-readable display acknowledgment.
 
 ## What remains before a usable local backend
 
 - Expand the validated short-recording path to controlled response faults,
   cancellation and duration boundaries.
-- Exercise the stock client through microphone capture, successful finalize and
-  panel rendering with the fixed image. Then add STT and generation
-  through a separately chosen provider. Keep original artwork and job/transcript
-  metadata in HA's library.
+- Add STT and generation through a separately chosen provider to the validated
+  fixed-image workflow. Keep original artwork and job/transcript metadata in HA's
+  library; neither provider execution nor library insertion was part of these tests.
 - Replace snapshot responses with durable device/job/album state; implement replay,
   expiry, ownership and reload recovery. The host fixture's duplicate handling
   does not establish production durability or stock-firmware retry behavior.
