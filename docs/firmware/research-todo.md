@@ -38,7 +38,7 @@ per question, not a count of tool calls or decompiled functions.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
-| C01/C11 | Setup minimum-parser fields, saved-key behavior and sign-in/verification split traced; automatic redirect request/body handling mapped | Independent enrollment, controlled redirect/framing cases and remaining boot dependencies |
+| C01/C11/D01 | Setup/verification split and redirects traced; response backing memory, conditional verification/poll guard, duplicate-worker and stale-pointer branches mapped; verification JSON is unescaped | Independent enrollment, controlled response/concurrency faults and remaining boot dependencies |
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
 | C03 | Local panel/TLS controls completed; static downloader length/framing, same-URL retries and short-asset behavior mapped | Device response faults, other TLS consumers and Standard negative controls |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
@@ -245,6 +245,9 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
 - [ ] **D01 · Static/Host:** Finish the ownership/lifetime map for recording, audio
   transmission, raw/multipart HTTP, cloud downloads, system images, cache I/O and
   rendering, including indirect references and task/mutex boundaries.
+  [Cloud response ownership](cloud-protocol.md#shared-response-ownership-and-verification-guard)
+  now distinguishes poll globals, setup stack memory and verification heap memory,
+  with a conditional polling guard and untested overlap/cleanup hazards.
 - [ ] **D02 · Host/Device:** Reproduce the shared-buffer interference with controlled
   overlapping operations. Record which bytes/operation are affected and when;
   static missing guards alone do not demonstrate a particular runtime failure.

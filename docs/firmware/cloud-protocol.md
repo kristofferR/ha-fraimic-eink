@@ -320,6 +320,25 @@ with five-second delays and a 15-second HTTP timeout. This is not a fixed
 15-minute wall-clock deadline: request time adds to the delays. Poll responses
 can separately reconcile `account.email_verified`.
 
+The verification task has two additional parser constraints:
+
+- Its 512-byte request body is formatted directly as
+  `{"email":"%s","password":"%s"}` from two NUL-terminated, at-most-127-byte
+  credential copies. It does not JSON-escape them. Quotes/backslashes can change
+  the request's meaning or make it invalid. The initial account-setup request
+  instead uses cJSON serialization, so those two requests are not equivalent.
+- Before parsing an HTTP 200 body, it searches for the literal substring
+  `access_token`. Once that substring is present, the task exits after attempting
+  parsing, even when JSON is malformed, the field is not a string, or saving
+  verification fails. The string check does not require a nonempty token. Without
+  the substring, it continues its retry loop. A token-looking error body can
+  therefore end verification without completing it.
+
+These are static findings, not a test of the owner's password or the cause of
+the captured Standard setup error, which had a separate TLS allocation failure.
+The local sign-in candidate above avoids this verification task; supporting
+create-account requires its separate auth contract and lifecycle too.
+
 Do not forward account passwords to a replacement server as an accidental
 consequence of a URL patch. Define an explicit owner-enrollment flow before
 supporting unpaired or reset frames. Preserve existing paired state for the first
@@ -441,10 +460,48 @@ not just total response size. Serve one direct, bounded response instead of
 depending on either behavior. These are static consequences, not reproduced
 device failures.
 
-The shared callback state is another concurrency boundary: it does not identify
-the client/job or lock an entire request. Overlap between verification, setup and
-polling needs further scheduling/lifetime analysis before claiming a runtime
-collision. The manual voice/download clients do not use this JSON accumulator.
+### Shared response ownership and verification guard
+
+The callback does not choose a destination from the originating client or its
+`user_data`, and it takes no request-wide lock. The pointer, length and capacity
+describe whichever request assigned them most recently, not a response object
+owned by each caller. Their actual backing memory differs:
+
+| Client | Response allocation | Recovered cleanup behavior |
+| --- | --- | --- |
+| Poll `0x4202475c` | Fixed 4,096-byte global at `0x3fca767c` | Clears the shared pointer after client cleanup |
+| Account setup `0x42023ed4` | 4,096-byte local stack array | Clears the pointer after parsed HTTP 200 handling; client-init, POST-body setup, transport, non-200 and JSON-parse failures can return without clearing it |
+| Verification `0x42023674` | Fresh 4,096-byte heap allocation per attempt | Ordinary retry frees then clears; the token-substring exit frees without clearing |
+
+The poll dispatcher `0x42016570` does provide a meaningful guard: it skips when
+not registered, and for a registered **unverified** identity it skips while
+getter `0x42024628` reports verification running. Once verified, that check is
+bypassed. It also checks connectivity and OTA state; the poll starter rejects an
+already-present poll task handle. Ordinary unverified-account polling is therefore
+not evidence of concurrent verification. These checks do not acquire ownership
+of the shared response buffer.
+
+The recovered account-form handlers do not wait for an existing poll or
+verification task. Verification starter `0x4202463c` does not check for an existing
+verification worker, stores no task handle, and sets its shared running byte
+**after** task creation succeeds. Repeated successful create-account submissions
+can consequently start multiple workers; any one exit clears the same byte. A
+new worker's early failure can also race the starter publishing running=true.
+Those are possible schedules from the code, not observed device failures.
+
+With overlapping requests, one caller can redirect another caller's data events
+or clear its destination on cleanup. Stack/heap exit paths also leave a stale
+pointer until reassigned. No use-after-return/free or cross-response corruption
+was induced; without an overlapping event, a stale pointer alone does not show
+an access. The earlier Standard TLS allocation failure is not evidence of this
+particular race.
+
+A future fork should attach response memory and bounds to each HTTP client's
+context, and make verification a single owned task with coordinated cleanup.
+The backend can use direct, short responses but cannot enforce all local form
+and background-worker scheduling. Manual voice/download clients do not use this
+JSON accumulator and retain their separate ownership/cancellation issues.
+
 - [Connectivity and NTP](boot-and-scheduling.md#offline-dependencies) still need
   attention for WAN-free operation.
 

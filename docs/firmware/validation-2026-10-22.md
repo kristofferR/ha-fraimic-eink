@@ -277,3 +277,25 @@ failure, clock/NVS change, Standard-mode equivalence test or waveform experiment
 was performed. H04/D06 remain open. Private evidence: `conditioning-pass1.txt`
 through `conditioning-pass4.txt`, `conditioning-boundaries-gnu.txt`,
 `conditioning-literals.jsonl` and `conditioning-gnu.mjs`.
+
+## Account response ownership and verification: C01/C11/D01
+
+Two new Ghidra/reference passes extend the earlier HTTP callback exports with
+the poll dispatcher, verification-running byte, both task starters and local
+form callers. GNU verifies the unverified-only polling exclusion, running-byte
+publication after task creation, direct credential formatting, token-substring
+exit, per-client backing-memory assignment and selected cleanup/return branches.
+Bounded literal reads confirm the fixed poll buffer and JSON format string.
+
+The [cloud contract](cloud-protocol.md#shared-response-ownership-and-verification-guard)
+now records the real guard as well as its limitations. No global mutual exclusion
+was recovered across account setup, verification and polling. That absence and
+stale response pointers support possible failure schedules; they do not establish
+an observed use-after-free, memory corruption or reproduction of a setup failure.
+No credentials were submitted, pairing changed, duplicate worker started or
+physical request made. The owner's actual password was not examined.
+
+Private evidence: `json-ownership-pass1.txt`, `json-ownership-pass2.txt`,
+`json-ownership-boundaries-gnu.txt`, `json-ownership-literals.jsonl` and
+`json-ownership-gnu.mjs`, alongside `http-redirect-pass5.txt`. These are static
+Large findings; no additional host-case count or Standard equivalence is claimed.

@@ -190,10 +190,22 @@
       "evidence": "static"
     },
     {
+      "address": "0x3fca767c",
+      "kind": "global",
+      "role": "Fixed 4096-byte poll response buffer; assigned to shared HTTP accumulator",
+      "evidence": "static; 22 October account-response ownership follow-up"
+    },
+    {
       "address": "0x3fca8c81",
       "kind": "data",
       "role": "Serialized poll user_settings output; recovered callers do not apply members",
       "evidence": "static"
+    },
+    {
+      "address": "0x3fcabc38",
+      "kind": "global",
+      "role": "Verification-running byte shared by starter and all verification task exits",
+      "evidence": "static; 22 October account-response ownership follow-up"
     },
     {
       "address": "0x3fcabc3c",
@@ -614,6 +626,12 @@
       "kind": "function",
       "role": "Read OTA-active state",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42016570",
+      "kind": "function",
+      "role": "Poll dispatcher: registration/connectivity/OTA guards; excludes running verification only while identity is unverified",
+      "evidence": "static; 22 October account-response ownership follow-up"
     },
     {
       "address": "0x420166c8",
@@ -1285,6 +1303,12 @@
       "evidence": "static; enrollment and HTTP follow-up"
     },
     {
+      "address": "0x4202359c",
+      "kind": "function",
+      "role": "Promote verification state, reload configuration and request get-started screen; caller can ignore save failure",
+      "evidence": "static; 22 October account-response ownership follow-up"
+    },
+    {
       "address": "0x42023674",
       "kind": "function",
       "role": "Email verification task using selected auth endpoint; verified missing entry",
@@ -1315,10 +1339,16 @@
       "evidence": "static"
     },
     {
+      "address": "0x42024628",
+      "kind": "function",
+      "role": "Read shared verification-running byte",
+      "evidence": "static; 22 October account-response ownership follow-up"
+    },
+    {
       "address": "0x4202463c",
       "kind": "function",
-      "role": "Start email-verification task with RAM credentials",
-      "evidence": "static"
+      "role": "Start verification task with copied credentials; no existing-worker check or retained handle, running byte published after creation",
+      "evidence": "static; 22 October account-response ownership follow-up"
     },
     {
       "address": "0x4202475c",
