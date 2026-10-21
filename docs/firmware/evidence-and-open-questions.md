@@ -25,6 +25,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | ESP image parsing/checks | File identity, segment bounds, checksum and appended hash | Boot authorization or a tested recovery path |
 | Ghidra function/reference analysis | Data flow, endpoint consumers, settings and state-machine candidates | Perfect types/control flow or execution of every branch |
 | GNU Xtensa disassembly with ESP32-S3 configuration | Critical instructions, literal values and comparisons | Physical timing or runtime race outcomes |
+| Enrollment and HTTP static follow-up | Setup field consumption, saved request key, sign-in verification/timezone behavior, redirect replay and shared JSON accumulator | Independently provisioned local frame, induced NVS faults, live redirect/framing errors or a reproduced concurrency failure |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |

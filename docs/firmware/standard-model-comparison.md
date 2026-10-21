@@ -46,7 +46,8 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 19 corresponding functions. The poll paths share 86
+The preserved metadata maps 20 corresponding functions, including the subsequent
+account-setup parser comparison. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -90,6 +91,9 @@ settings, public ID and telemetry. The exact **type-only** response shapes are i
 [model-comparison.json](model-comparison.json). Registered/account-created flags
 changed false → true and survived restart. Minimum required emulator fields and
 complete independent enrollment remain untested.
+The later [static parser trace](cloud-protocol.md#enrollment-boundary) narrows
+the response fields consumed by both models; it does not turn the vendor capture
+into a minimum-response experiment.
 
 Both setup-screen URLs pointed to the vendor's S3 bucket. Capturing the URL
 response does not establish local caching or offline availability of those

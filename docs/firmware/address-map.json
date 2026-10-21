@@ -100,6 +100,24 @@
       "evidence": "static"
     },
     {
+      "address": "0x3fcabc3c",
+      "kind": "data",
+      "role": "Shared event-driven HTTP response capacity",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x3fcabc40",
+      "kind": "data",
+      "role": "Shared event-driven HTTP received length",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x3fcabc44",
+      "kind": "data",
+      "role": "Shared event-driven HTTP destination pointer",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
       "address": "0x3fcabcd0",
       "kind": "data",
       "role": "Single HTTP-abort-manager client slot and mutex/state",
@@ -322,6 +340,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x420151dc",
+      "kind": "function",
+      "role": "Registered check: nonempty configured email",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x42015210",
+      "kind": "function",
+      "role": "Saved email-verification flag getter",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
       "address": "0x420153b0",
       "kind": "function",
       "role": "App/NVS initialization and no-free-pages/new-version recovery",
@@ -483,13 +513,13 @@
     {
       "address": "0x42018af0",
       "kind": "function",
-      "role": "Save identity and production legacy aliases",
+      "role": "Save identity and production aliases; returns selected-key/commit error",
       "evidence": "static"
     },
     {
       "address": "0x42018cc8",
       "kind": "function",
-      "role": "Local HTTP handler",
+      "role": "Create-account handler; ignores identity-save result and starts verification",
       "evidence": "static registration",
       "routes": [
         "POST /create-account"
@@ -525,7 +555,7 @@
     {
       "address": "0x420192c8",
       "kind": "function",
-      "role": "Local HTTP handler",
+      "role": "Sign-in handler; checks identity save, marks verified and clears timezone",
       "evidence": "static registration",
       "routes": [
         "POST /sign-in"
@@ -871,10 +901,28 @@
       "evidence": "static; cancellation follow-up"
     },
     {
+      "address": "0x420234cc",
+      "kind": "function",
+      "role": "Poll/setup/verification HTTP callback; bounded append without per-response reset",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
       "address": "0x42023674",
       "kind": "function",
       "role": "Email verification task using selected auth endpoint; verified missing entry",
       "evidence": "static"
+    },
+    {
+      "address": "0x42023acc",
+      "kind": "function",
+      "role": "Require and copy configured device key for voice",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x42023b30",
+      "kind": "function",
+      "role": "Require and copy configured user ID for voice",
+      "evidence": "static; enrollment and HTTP follow-up"
     },
     {
       "address": "0x42023bcc",
@@ -1390,10 +1438,34 @@
       "evidence": "static"
     },
     {
+      "address": "0x4203953c",
+      "kind": "function",
+      "role": "JSON parse with explicit length and optional end-of-input requirement",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4203961c",
+      "kind": "function",
+      "role": "NUL-terminated JSON parse wrapper; trailing bytes permitted",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4203962c",
+      "kind": "function",
+      "role": "Explicit-length JSON parse wrapper; trailing bytes permitted",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
       "address": "0x420500e0",
       "kind": "function",
       "role": "SDK i2s_channel_init_pdm_rx_mode",
       "evidence": "static"
+    },
+    {
+      "address": "0x4206d20c",
+      "kind": "function",
+      "role": "HTTP config mapper; redirect default and callback fields",
+      "evidence": "static; enrollment and HTTP follow-up"
     },
     {
       "address": "0x4206d890",
@@ -1408,10 +1480,34 @@
       "evidence": "static; cancellation follow-up"
     },
     {
+      "address": "0x4206dca4",
+      "kind": "function",
+      "role": "HTTP set URL; host/port/path replacement preserves method/body/custom headers",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
       "address": "0x4206df98",
       "kind": "function",
       "role": "SDK esp_http_client_init",
       "evidence": "static"
+    },
+    {
+      "address": "0x4206e470",
+      "kind": "function",
+      "role": "HTTP redirect URL replacement and replay flag",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4206e748",
+      "kind": "function",
+      "role": "HTTP status checker and automatic redirect decision",
+      "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4206e804",
+      "kind": "function",
+      "role": "HTTP perform state machine and redirect replay",
+      "evidence": "static; enrollment and HTTP follow-up"
     }
   ]
 }

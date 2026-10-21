@@ -22,6 +22,12 @@ not a deployed HA backend, generation service or firmware fork.
 The [Standard comparison](standard-model-comparison.md) supports one protocol
 adapter with separate model renderers. Its captured setup response is useful
 enrollment evidence, but minimum independent provisioning is still untested.
+The [enrollment follow-up](cloud-protocol.md#enrollment-boundary) identifies the
+stock sign-in branch as a candidate local-account entry point: bind the submitted
+device key, return a stable nonempty user ID and supply setup assets. Returning
+`success` alone can produce apparently registered state with broken voice.
+The separate create-account verification task and all unpaired boot behavior
+still need validation before offering independent onboarding.
 
 ## What the integration already provides
 

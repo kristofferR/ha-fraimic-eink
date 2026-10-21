@@ -293,7 +293,7 @@ Five real TLS host checks using a 3,244-byte synthetic silent WAV passed: bounde
 delay, terminal result replay after delay, concurrent-finalize rejection, early
 peer disconnect, and terminal replay after disconnect. These validate the test
 instrument, not stock-frame cancellation. The listener was stopped afterward;
-the owner-assisted recording/three-tap test is still pending.
+the owner deferred the recording/three-tap test and requested static research.
 
 Fixture SHA-256:
 `4df7e41a2c3d3f2ea61ac62e80d7ca79ae46fee48f683f504010d0c7df55c8c7`.

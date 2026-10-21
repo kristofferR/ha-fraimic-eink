@@ -69,6 +69,24 @@ legacy user/email/verification fields into production-suffixed keys when the new
 keys are absent. Partial knowledge of one key is insufficient for a safe identity
 migration, reset or restore.
 
+The saver returns the selected-key write or commit error; Ghidra's initial `void`
+prototype was misleading. GNU disassembly retains that result in the return
+register through NVS close. Legacy-alias write results are not checked separately.
+The create-account caller ignores the result and updates RAM anyway; sign-in
+checks it before reloading. No storage failure was injected.
+
+Sign-in at `0x420192c8` clears byte `0x64` of its identity copy before saving,
+so it persists an empty timezone instead of preserving the previous value.
+Create-account copies the submitted timezone into the 32-byte field. The loader
+only substitutes `EST5EDT` on a failed NVS read, but time initialization and
+maintenance calculation also use that fallback for an empty string. This is a
+static path to losing a configured timezone, not proof of why the observed Large
+was using `EST5EDT`. UTC album deadlines remain a different time domain.
+
+The saved key comes from the local request, not the setup response's key. Email
+nonempty and verified=true are insufficient to prove a nonempty user ID for
+voice. See the [enrollment parser and callers](cloud-protocol.md#enrollment-boundary).
+
 The password-gated `/dev` flow selects vendor staging, not an arbitrary local
 backend or a shell. Mode switching preserves/restores separate identity and
 Wi-Fi state, resets OTA version reporting to `0.0.0`, and can require enrollment.

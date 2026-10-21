@@ -35,6 +35,11 @@
   },
   "function_map": [
     {
+      "role": "account_setup",
+      "large": "0x42023ed4",
+      "standard": "0x42022948"
+    },
+    {
       "role": "api_base",
       "large": "0x42017a4c",
       "standard": "0x42017a20"

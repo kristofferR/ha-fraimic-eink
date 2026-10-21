@@ -37,7 +37,7 @@ per question, not a count of tool calls or decompiled functions.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
-| C01/C11 | API/web/auth consumers mapped; Standard vendor setup schema captured, registration survived restart | Minimum independent enrollment response, verification dependencies and redirects |
+| C01/C11 | Setup minimum-parser fields, saved-key behavior and sign-in/verification split traced; automatic redirect request/body handling mapped | Independent enrollment, controlled redirect/framing cases and remaining boot dependencies |
 | C02 | Traced `user_settings`; five local idle polls preserved deadline and live switches with settings omitted | Partial/invalid snapshots, reboot persistence and NVS failures |
 | C03 | Local panel image confirmed; Large rejected untrusted/wrong-host certificates and accepted a matching-profile control; Standard positive test chain accepted | Other consumers/certificate failures, redirects, limits and download errors |
 | C05/C06/C07 | Large local 200/empty acknowledgment and successful finalize; Standard vendor 204 upload and finalize without status completed with owner-confirmed generation | Response faults, capture limits, slow/timeout behavior and cancellation |
@@ -50,12 +50,12 @@ per question, not a count of tool calls or decompiled functions.
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced | Host fault fixtures and remaining indirect-reference audit |
 | S01 | Large monitor traced; Standard's blocked public probe caused AP failover/transfer abort and recovered with a temporary scoped exception | Large-specific transitions, outage timing and fully offline operation |
 | D03/D06/D07 | Normal poll/voice completion observed; voice saves after panel discharge; 1.347 MB free PSRAM cannot hold another full panel buffer; maintenance timestamp unchanged | Memory lifetime/fragmentation study, transfer faults and reliable per-image acknowledgment |
-| N02 | Legacy manifest and setup-override keys added; storage widths partly traced | Complete type/default/namespace and migration map |
-| S05/S06 | Observed configured EST5EDT, button wake on powered read, previous factory-test timeout sleep | Controlled timezone/DST and ordinary sleep/wake transitions |
+| N02 | Identity save return and caller mismatch traced; original request key is persisted | Complete type/default/namespace and migration fault map |
+| S05/S06 | Sign-in clears timezone and time consumers use EST5EDT fallback; powered wake/test-timeout observations retained | Controlled timezone/DST and ordinary sleep/wake transitions |
 | H05 | Live info/log/verification/album reads; reset default and factory POST upload classified | Complete handler schemas, boot-state and side-effect validation |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | E01/E03 | Missing task entries/Ghidra branches corrected; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02 | Standard app hash validated; same 42 routes, 19 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
+| E02 | Standard app hash validated; same 42 routes, 20 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and
@@ -66,6 +66,8 @@ generation, public-probe failure and cleanup evidence; it does not change the
 Large image identity or establish independent local provisioning.
 Recovery/security/partition questions still need additional evidence; the stock
 app cannot answer them alone. B01–B03 remain deferred.
+The owner deferred the physical cancellation experiment. Continue static work;
+the prepared fixture is stopped and does not need another recording now.
 
 ## Local cloud and voice
 
