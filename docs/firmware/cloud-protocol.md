@@ -53,6 +53,13 @@ separate email-verification task; independent provisioning remains untested.
 These are recovered consumers, not a packet capture proving
 every boot-state dependency has been removed.
 
+The [selected embedded-page audit](local-api.md#embedded-setup-scripts-use-local-routes)
+adds browser-side dependencies: local form POSTs, five-second cached-verification
+polls, three-second portal battery polls and Wi-Fi scanning. These assets contain
+no direct browser Supabase fetch; create-account's separate authentication worker
+still runs on the frame. Dashboard and policy links are user navigation. This
+distinction matters when replacing enrollment without forwarding owner passwords.
+
 ## Poll
 
 ```http

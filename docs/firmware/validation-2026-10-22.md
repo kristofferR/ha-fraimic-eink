@@ -395,3 +395,26 @@ D04/D07/D08/S05 retain their physical validation requirements. Private artifacts
 `maintenance-render-gnu.mjs`, `maintenance-render-boundaries-gnu.txt` and
 `maintenance-render-literals.jsonl`, plus the latter two names under `small-frame/`
 for Standard and `small-frame/standard-instruction-pass1.txt`.
+
+## Embedded setup pages: C01/C11/H05
+
+The hash-checked extractor follows literal pointers from the GET and successful
+POST handlers and saves eight selected page assemblies plus their script blocks.
+Dynamic owner email, status and dashboard URL fragments are omitted; assembly
+hashes identify these research artifacts, not exact runtime HTTP responses.
+The Wi-Fi and Get Started assets use their recovered start/end lengths.
+
+Seven host cases run the unchanged extracted scripts in a JavaScript VM with
+stubbed DOM, fetch and timers. They cover delayed verification polling, redirect
+despite an HTTP error status, overlapping checks and rejection handling, immediate/
+periodic battery requests, both encoded form submissions and HTML error-body
+insertion, and create-account confirmation logic. All seven passed; zero actual
+network requests were performed. The fixture does not emulate the firmware or
+validate browser HTML parsing, navigation, password-manager behavior or storage.
+
+The [route/script map](local-api.md#embedded-setup-scripts-use-local-routes)
+distinguishes device-side authentication from browser-local requests and user
+navigation. There was no frame access, password submission, pairing change or
+external-dashboard request. Private evidence: `embedded-pages-pass1.txt`,
+`extract-embedded-pages.mjs`, `embedded-page-fixture.mjs`, and
+`embedded-pages/manifest.json`, extracted HTML/scripts and `host-results.json`.

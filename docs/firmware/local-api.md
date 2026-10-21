@@ -154,8 +154,8 @@ UI should distinguish local verified state, usable identity and active enrollmen
 The form handlers insert the saved email directly into a single-quoted HTML
 attribute, without an HTML-escaping call in those handlers. A future firmware UI
 should escape that text; no crafted email was stored or browser behavior tested.
-These notes describe the C handlers, not a complete execution audit of scripts
-in every embedded page.
+The selected embedded scripts are traced below; this is not a complete browser
+audit of every page.
 
 The identity accessor used here, `0x4201912c`, is lazy: once its initialized byte
 is set it returns the RAM configuration directly. Only its first-use branch
@@ -165,6 +165,47 @@ conditional initialization side effect, **not a write on every GET**. Startup
 normally initializes the cache before serving these pages. Per-field read errors
 are separately defaulted by the loader; see
 [identity error handling](storage-and-configuration.md#identity-cache-and-read-errors).
+
+### Embedded setup scripts use local routes
+
+Eight selected pages/fragments were extracted from the pinned Large application:
+Get Started, Wi-Fi, sign-in, create-account, completion, verification-wait,
+sign-in success and portal. Their recovered browser behavior is:
+
+| Page | Automatic requests and transitions |
+| --- | --- |
+| Get Started / completion / sign-in success | No embedded script in the selected assets; links are user navigation |
+| Sign-in / create-account forms | On submit, encode `FormData` with `URLSearchParams`, POST to the corresponding local route, then replace the document with the returned text |
+| Create-account verification-wait | First check after five seconds, then `GET /api/verification-status` every five seconds; truthy `verified` redirects to `/portal` |
+| Portal | Immediate `GET /battery/status`, then every three seconds; update voltage, percentage and optional status text |
+| Wi-Fi | `GET /scan.json` on load; any query string containing `delay` defers it five seconds; retry is user-triggered and also delayed five seconds; submission POSTs the encoded form to `/connect` |
+
+The verification and battery intervals do not wait for an earlier fetch to finish
+and set no explicit abort deadline/backoff. Network rejection logs an error but
+does not stop the interval. The verification script reports cached local state,
+not the firmware verification worker's progress. An open portal causes recurring
+requests; these script checks did not establish their effect on device sleep.
+
+Form scripts call `response.text()` and `document.write()` without testing
+`response.ok`. The verification script similarly parses JSON without testing HTTP
+status. A useful local account response therefore needs meaningful HTML feedback;
+HTTP status alone will not select a special error UI. The create-account password
+confirmation script disables its button for empty/mismatched confirmation, but
+native browser constraints and server validation remain separate.
+
+No direct Supabase fetch or external script/font download appears in these
+selected assets. Vendor policy/contact links and the dynamically inserted
+dashboard link are navigation, not automatic API traffic. Inline SVG namespace
+URLs are not download requests. The completion handler builds its links around
+the hardcoded `http://fraimic.local` base; changing the cloud API selector does
+not rewrite every local UI link. This selected-page inventory does not cover the
+external dashboard or prove completely offline provisioning.
+
+Seven host checks executed the unmodified extracted JavaScript with stubbed DOM,
+fetch and timer APIs. They confirm request timing/overlap, local destinations,
+redirects, encoded submissions, error-body insertion and confirmation logic.
+No browser visited the frame, no form was submitted to a device, and no real
+credentials were used. Browser parsing, navigation and rendering remain untested.
 
 ## Diagnostics have side effects
 
