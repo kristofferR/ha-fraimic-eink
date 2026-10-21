@@ -40,7 +40,9 @@ States 36–39 use 2,000 ms error groups, a 20-second overall duration and an
 automatic-off field. A color alone does not identify the stage: several states
 share colors, and one failure state can cover multiple causes. State 30 is not a
 per-image acknowledgment; the [render completion limitations](rendering-and-concurrency.md)
-still apply. No physical LED test or Standard-model table comparison was performed.
+still apply. A later [Standard comparison](standard-model-comparison.md#calendar-and-led-follow-up)
+found a byte-identical table and matching lookup stride, but physical LED timing
+and the complete Standard arbitration state machine remain untested/unmapped.
 
 ## Protection is a UI state latch
 

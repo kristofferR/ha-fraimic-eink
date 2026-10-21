@@ -97,9 +97,11 @@ March and first Sunday in November. The default DST offset is the standard
 offset minus 3,600 seconds. These constants were checked in GNU disassembly at
 `0x420d11d8` and `0x420d12ab`–`0x420d12de`, not inferred from the name alone.
 
-The application configuration has 32 bytes including the terminator. A local
-backend must translate an owner's timezone into a supported rule that fits,
-validate it before saving, and preserve UTC epochs for album delivery. Examples
+The application configuration has 32 bytes including the terminator. An
+enrollment UI or future firmware setting must translate an owner's timezone into
+a supported rule that fits and validate it before saving. This does not add a
+timezone setter to the stock poll-response contract. Preserve UTC epochs for
+album delivery. Examples
 below are parser checks, not settings applied to a frame:
 
 | Input | Recovered/host-checked interpretation |
@@ -168,6 +170,11 @@ times. Resetting it only before the first call is insufficient because that call
 normalizes and writes the flag again. The current local API has no identified
 dedicated maintenance-schedule setter; the remaining indirect-reference audit
 and device checks keep S05 open.
+
+The subsequent [Standard comparison](standard-model-comparison.md#calendar-and-led-follow-up)
+confirmed matching relevant calendar, DST-correction and POSIX-parser branches,
+plus byte-identical onboarding timezone options. Physical timing remains untested
+on both frames.
 
 ### Missing/missed schedule behavior
 

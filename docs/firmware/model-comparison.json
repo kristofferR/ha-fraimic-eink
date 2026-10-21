@@ -31,7 +31,23 @@
     "flash_header_mode": "DIO",
     "flash_header_frequency_mhz": 80,
     "local_route_count": 42,
-    "local_route_sets_identical": true
+    "local_route_sets_identical": true,
+    "identical_static_tables": [
+      {
+        "name": "led_state_table",
+        "bytes": 984,
+        "sha256": "a53a3fd994ff9c61e8715ea9eacda8fda8b70c19003353c1c12d2caf52421fa7",
+        "large_address": "0x3c13ff68",
+        "standard_address": "0x3c1401dc"
+      },
+      {
+        "name": "create_account_timezone_select",
+        "bytes": 1165,
+        "sha256": "e5c7b5df9f73d76939424a928f4449bd23248e8e2e9c67fb74dd97db3e160127",
+        "large_address": "0x3c107a30",
+        "standard_address": "0x3c107b44"
+      }
+    ]
   },
   "function_map": [
     {
@@ -138,6 +154,31 @@
       "role": "wan_probe",
       "large": "0x4202ed80",
       "standard": "0x4202d4ac"
+    },
+    {
+      "role": "maintenance_calendar",
+      "large": "0x42014dcc",
+      "standard": "0x42014dec"
+    },
+    {
+      "role": "library_mktime",
+      "large": "0x420cfe14",
+      "standard": "0x420d00f8"
+    },
+    {
+      "role": "posix_timezone_parser",
+      "large": "0x420d0f54",
+      "standard": "0x420d1238"
+    },
+    {
+      "role": "led_state_lookup",
+      "large": "0x42022648",
+      "standard": "0x420210f8"
+    },
+    {
+      "role": "create_account_page",
+      "large": "0x42019224",
+      "standard": "0x420191f8"
     }
   ],
   "live_standard": {

@@ -53,10 +53,10 @@ per question, not a count of tool calls or decompiled functions.
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
-| H05 | `/dev` authentication, action acknowledgments, Wi-Fi form limits and 41 LED records traced; refresh busy guard uses the LED protection latch | Remaining handler schemas, all LED meanings/timing, boot-state and controlled side-effect validation |
+| H05 | `/dev` authentication, action acknowledgments, Wi-Fi form/scan/AP controls and 41 LED records traced; refresh guard uses LED protection and portal reachability does not update the voice gate | Remaining handler schemas, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02 | Standard app hash validated; same 42 routes, 21 function pairs and shared cloud contract compared; live setup/voice capture imported | Remaining handler differences, same-version comparison and other releases |
+| E02 | Standard app hash validated; 42 routes and 26 function pairs compared; identical LED records/timezone options and matching calendar/DST/parser branches added to live setup/voice findings | Remaining handler/LED arbitration differences, same-version comparison and other releases |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and
@@ -301,7 +301,9 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   [Local action ordering](local-api.md#restart-sleep-and-refresh-acknowledgments)
   and the [LED protection latch](led-and-workflow-state.md) are now mapped;
   physical LED timing, remaining state meanings, contended guards and Wi-Fi
-  form boundary behavior are untested. Compare the LED table with Standard in E02.
+  form boundary behavior are untested. Standard table bytes now match; its full
+  LED arbitration comparison remains in E02. Wi-Fi scan/escape, AP-switch fault,
+  separate reachability and stats-erasure behaviors still need controlled checks.
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery
   arrangement and hardware measurement accuracy separately from software labels.
 - [x] **H07 · Static:** Resolve descriptor build timezone if supporting provenance

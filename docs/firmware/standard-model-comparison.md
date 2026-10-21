@@ -46,8 +46,8 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 21 corresponding functions, including the subsequent
-account-setup parser and `/dev` authentication comparisons. The poll paths share 86
+The preserved metadata maps 26 corresponding functions, including the subsequent
+account-setup, `/dev`, calendar, timezone and LED-table comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -58,6 +58,34 @@ length/byte comparison structure after form decoding. The value was supplied
 privately to the owner. Neither device was switched to development mode; the
 [detailed transition and error-path trace](storage-and-configuration.md#vendor-environment-switch)
 is for Large unless explicitly stated otherwise.
+
+### Calendar and LED follow-up
+
+Two independently hash-validated application images contain exact copies of:
+
+| Data | Bytes | Large address | Standard address |
+| --- | --- | --- | --- |
+| All 41 LED state records | 984 | `0x3c13ff68` | `0x3c1401dc` |
+| Create-account timezone select element | 1,165 | `0x3c107a30` | `0x3c107b44` |
+
+Each byte range occurs once in the Standard app. Range hashes are in
+[comparison metadata](model-comparison.json); these are hashes of the selected
+ranges, separate from whole-app identities. Standard's lookup `0x420210f8`
+references its LED table with the same 24-byte stride and 41-entry search.
+Its create-account page handler `0x420191f8` serves the corresponding HTML.
+Thus the table values and timezone dropdown choices are shared in these builds;
+physical colors/timing and the whole LED arbitration state machine are not
+established by byte equality alone.
+
+Standard calendar routine `0x42014dec` also copies the current 36-byte `struct tm`,
+replaces only time of day, and adds the day interval after a target falls inside
+the 900-second margin. It preserves the old DST flag across both conversions.
+Its `mktime` at `0x420d00f8` contains the corresponding supplied-DST correction;
+GNU decoding at `0x420d0332`–`0x420d0366` covers the branch beyond Ghidra's
+unsupported instruction. The POSIX parser at `0x420d1238` has the same default
+US rules and IANA-name parse-error path. The [Large-supported host fixtures](boot-and-scheduling.md#dst-flag-survives-the-calendar-calculation)
+therefore have matching relevant static paths in Standard too. No physical
+timezone/DST experiment was performed on either frame.
 
 ## Keep model renderers and power paths separate
 

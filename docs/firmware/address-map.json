@@ -1486,6 +1486,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202ed00",
+      "kind": "function",
+      "role": "Clear 906-byte Wi-Fi stats RAM record and attempt NVS erasure",
+      "evidence": "static; Wi-Fi handler follow-up"
+    },
+    {
       "address": "0x4202ed80",
       "kind": "function",
       "role": "Public TCP reachability probe",
@@ -1874,6 +1880,12 @@
       "kind": "function",
       "role": "POSIX timezone parser; default US DST rules and parse-error UTC state",
       "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420e2a04",
+      "kind": "function",
+      "role": "Bounded SSID JSON escaping helper",
+      "evidence": "static; Wi-Fi handler follow-up"
     },
     {
       "address": "0x420e2ac0",

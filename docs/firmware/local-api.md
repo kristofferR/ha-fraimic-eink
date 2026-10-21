@@ -203,6 +203,53 @@ page alone does not establish correct credentials, persistent first-time-setup
 state or a successful association. No Wi-Fi configuration was changed in this
 static pass.
 
+## Wi-Fi diagnostic and AP-control routes
+
+These handlers were inspected statically; no scans, AP changes or counter clears
+were submitted during this follow-up.
+
+| Route | Recovered behavior |
+| --- | --- |
+| GET `/check-internet` | Update last activity; make a separate TCP connection to `8.8.8.8:53`; return `{"reachable":true}` for connection success or `ECONNREFUSED` (111), otherwise false |
+| GET `/scan.json` | Start a fresh blocking active scan, then format nonempty SSIDs as JSON; failure stops the scan, waits ten ticks and retries once |
+| GET `/wifi-stats` | Update last activity and render HTML from current association and diagnostic history |
+| POST `/clear-stats` | Clear RAM statistics, attempt to erase their NVS record, then redirect with 303 to `/wifi-stats` |
+| POST `/switch-ap` | Parse BSSID/channel, apply them to the current Wi-Fi configuration, send HTML, save Wi-Fi statistics and restart |
+
+The connectivity diagnostic (`0x4201c404`) sets a three-second socket timeout
+option before its blocking connection. Its handler does not call the monitor's
+success/failure transitions or write the cached reachability flag. It therefore
+does not establish that voice's separate connectivity gate is open. The
+[background monitor](boot-and-scheduling.md#public-reachability-gate) uses a
+different nonblocking/select implementation; these paths must remain distinct.
+
+The scan configuration requests active dwell of 80–100 ms per channel and
+includes hidden networks, but the response loop omits records whose SSID is
+empty. The blocking-call semantics and structure layout match the
+[IDF scan API](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_wifi.h)
+and [types](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_wifi_types_generic.h).
+This is radio work, not a cached list or a cheap liveness probe. The JSON array
+contains `ssid` (string), `rssi` (signed number), `band` (string), `channel`
+(number) and `bssid` (colon-separated string); there is no authentication-mode
+field in this formatter. The band label is selected solely by channel below 15
+versus 15 or above; the `5GHz` string is not evidence of fitted 5 GHz hardware.
+
+AP switching (`0x4201c4cc`) reads at most 63 form bytes once, URL-decodes the whole
+body, requires six parsed BSSID bytes and rejects an all-zero BSSID. Missing
+`channel` selects zero; supplied input is converted to an integer and stored in
+a byte without a handler-level channel-range check. The existing SSID/password
+are retained. Driver validation may still reject a configuration. After a
+successful driver save, HTML allocation can fail: the configuration has changed,
+but that branch sends an error and skips the intended restart. No fault was
+injected; callers must not infer unchanged configuration from that error alone.
+
+Stats clearing (`0x4202ed00`) zeros the 906-byte RAM record, restores schema byte
+2 and clears two bookkeeping flags before opening NVS. Erase/commit results are
+ignored and the helper returns no failure status. Its redirect therefore does
+not prove that persistent history was erased. Preserve diagnostic evidence
+before deliberate clearing and avoid these activity-updating pages during an
+idle-sleep measurement.
+
 ## Image delivery
 
 The preferred verified raw upload on this build is:
