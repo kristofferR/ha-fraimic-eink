@@ -172,9 +172,12 @@ owner rotation override if four-way mounting matters. The existing saved Large
 log reports `landscape`, but contains no part marking or physical rotation test.
 
 The vendor display power-down path contains discharge delays totaling about
-13 seconds. Partial refresh, custom waveforms and a speech-output speaker are
-unverified. Retaining the display driver and power sequencing is a much smaller
-first step than replacing the complete firmware.
+13 seconds. Recovered [conditioning modes](rendering-and-concurrency.md#conditioning-adds-full-panel-clear-cycles)
+add a black or white/black full-panel clear before the artwork. They use the
+ordinary refresh path and do not establish partial-refresh/custom-waveform
+support. Such support and a speech-output speaker remain unverified. Retaining
+the display driver and power sequencing is a much smaller first step than
+replacing the complete firmware.
 
 ## One PSRAM buffer serves audio and images
 

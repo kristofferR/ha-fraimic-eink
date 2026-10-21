@@ -26,7 +26,7 @@ schema or a guarantee of compatibility between releases.
 | `app_data` | `refresh_hist` | Five-entry maintenance timestamp ring; [not an image-delivery ledger](rendering-and-concurrency.md#displaylast_refresh-is-maintenance-history) |
 | `app_data` | `sched_img_time` | 64-bit next album-image epoch |
 | `app_data` | `wake_reason` | Maintenance versus album timer reason |
-| `app_data` | `deep_sleep`, `storage_mode`, `last_sleep_ts` | Sleep state and timestamp |
+| `app_data` | `deep_sleep`, `storage_mode`, `last_sleep_ts` | Sleep flags and timestamp also advanced after conditioning |
 | `app_data` | `wakeup_img` | First-time wake-up image state |
 | `app_data` | `img_version` | Version associated with installed instruction artwork |
 | `app_data` | `sys_img` | Persisted compressed system-screen marker |
@@ -75,7 +75,7 @@ Capacities below are observed application read/write sizes, not global NVS limit
 | `app_data/refresh_sched` | Blob, 32-byte write/read capacity | `0x42014ad4` / `0x42014d48`; loader zero-initializes its destination |
 | `app_data/refresh_hist` | Blob, 48-byte write/read capacity | `0x42014b48` / `0x42014d14`; zero-initialized five-timestamp ring with index/count |
 | `app_data/sched_img_time` | **I64** | `0x42015d30` / `0x42015d60`; epoch value with a zero-valued RAM cache sentinel |
-| `app_data/last_sleep_ts` | **U64** | `0x4202d860` / `0x4202d90c`; sleep-time writer checks set result but ignores commit result |
+| `app_data/last_sleep_ts` | **U64** | `0x4202d860` / `0x4202d90c`; written during sleep preparation and after conditioning returns success; set checked, commit unchecked |
 | `app_data/img_version` | String, 16-byte read capacity | `0x4202a968` / `0x4202aa48`; missing/read error differs from a readable different version |
 | `app_data/sys_img` | String, 32-byte read capacity | `0x4202f970`; recognizes `low_battery`, removes an unrecognized successfully read marker |
 | `app_data/wifi_stats` | Blob, 906-byte write/read capacity | `0x4202e8bc` / `0x4202e9b0`; reset path zeroes it and sets byte zero to 2 |

@@ -256,3 +256,24 @@ task subscription or frame operation was changed. No deliberate stall, panic or
 reset was induced. Interrupt-watchdog and hardware fallback coverage remain open.
 Private evidence: `watchdog-pass1.txt` through `watchdog-pass3.txt`,
 `watchdog-boundaries-gnu.txt`, `watchdog-literals.jsonl` and `watchdog-gnu.mjs`.
+
+## Conditioning and elapsed-time selection: H04/D06/S05
+
+Four Large Ghidra/reference passes cover render selection, MIN/MID dispatch,
+clear/power helpers, the all-controller chip-select helper, elapsed-time selection
+and timestamp writers. GNU checks independently confirm the 288,000-byte malloc,
+clear patterns/command, MID's unconditional zero return, caller timestamp update,
+64-bit time arguments, 3,600 divisor, 12/48-hour float constants and skip branches.
+The disassembler ranges start at verified basic-block entries to avoid padding.
+
+The [rendering trace](rendering-and-concurrency.md#conditioning-adds-full-panel-clear-cycles)
+separates full-panel clear cycles from partial-refresh capability. Timestamp
+references include sleep preparation and conditioning completion before artwork;
+the timestamp commit result is ignored. This invalidates interpreting that key
+as exclusively a sleep-entry record or a successful panel acknowledgement.
+
+This was static inspection of the pinned Large app. No panel operation, induced
+failure, clock/NVS change, Standard-mode equivalence test or waveform experiment
+was performed. H04/D06 remain open. Private evidence: `conditioning-pass1.txt`
+through `conditioning-pass4.txt`, `conditioning-boundaries-gnu.txt`,
+`conditioning-literals.jsonl` and `conditioning-gnu.mjs`.

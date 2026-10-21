@@ -44,6 +44,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Standard orientation/album comparison | Matching decoded sensor candidates, relevant orientation/caller branches and album-body transformation structure | Physical sensor equivalence, execution of host fixtures on Xtensa or all proxy/error paths |
 | Voice response static and host follow-up | 12 actual-SDK-reader/parser cases with scripted transport; partial-prefix acceptance, read-cap behavior and per-read timeout scope; separate static presign zero-read hazard | Device response faults, real elapsed waits, TLS, full firmware execution, outer task cleanup or watchdog behavior |
 | Task-watchdog static follow-up | Actual startup values, idle subscriptions, renderer unsubscribe before long panel work and non-panic timeout branch | An induced hang, guaranteed restart, interrupt-watchdog coverage, hardware fallback or complete recovery |
+| Conditioning static follow-up | Full-panel MIN/MID clear sequence, 288 KB temporary allocation, 12/48-hour selection, unconditional MID success and shared timestamp writes | Partial-refresh/custom-waveform support, physical conditioning timing/results, panel requirements or power-fault recovery |
 | 42 route registration records | Exact method/path/handler associations in this app | Every route available or authorized in every runtime state |
 | Public vendor OpenAPI snapshot | Server-advertised fields/endpoints at retrieval time | Fields actually consumed by the frame or owner authorization |
 | Owner gallery list/detail and original reads | Token-authenticated schema, nullable fields and an available original; after expiry, refreshed same-item URL returned identical bytes | Implemented import, indefinite retention or stable pagination under concurrent additions |
@@ -149,6 +150,7 @@ This check can run entirely on the host without sending anything to the frame.
 | “WAIT protects incoming image bytes” | Raw HTTP receives into shared memory before the render wait |
 | “Completion signal or last_refresh acknowledges my image” | The signal also follows errors; last_refresh is maintenance history |
 | “The task watchdog bounds a stuck panel refresh” | The renderer unsubscribes before the long panel sequence; idle supervision and the non-panic startup policy do not provide that deadline |
+| “`last_sleep_ts` measures only the previous sleep entry” | Conditioning can also advance it before artwork transfer, including after errors that MID logs but suppresses |
 | “Refresh's busy guard owns the image buffer” | It reads recording state and an LED protection latch; both getters return false on mutex acquisition failure |
 | “GET diagnostics are passive” | `/test` activates factory-test mode; bare `/action` defaults to reset |
 | “HA exposes generate_image, so a provider is ready” | The installed entities lack the image-generation feature bit |

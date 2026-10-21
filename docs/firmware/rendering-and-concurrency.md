@@ -82,6 +82,67 @@ panel snapshot would not fit in that reported free PSRAM. This is one allocation
 state, not a peak-memory, fragmentation or stress study. Buffer isolation would
 need a broader allocation/lifetime redesign or a smaller staging strategy.
 
+## Conditioning adds full-panel clear cycles
+
+Before sending the artwork, the render worker can select a conditioning mode
+through `0x420281e8`. A negative mode skips; zero calls MIN (`0x42028128`), a
+black clear; a positive mode calls MID (`0x42027d88`), white then black. MIN waits
+another 100 ms after a successful clear. MID waits 500 ms after each clear.
+Those delays exclude the actual panel refresh and power sequence, so they are
+not the conditioning duration.
+
+The common clear helper `0x42027b34` allocates **288,000 bytes**, fills them with
+`0x00` for black or `0x11` for white, selects all eight controllers through
+`0x42020a78`, sends the same block, frees it, and invokes the ordinary refresh
+sequence. It does not overwrite the shared artwork allocation with the clear
+pattern. This temporary block is another allocation requirement during rendering.
+The selected path has no rectangle coordinates or partial-image update protocol;
+it does not establish panel support for partial refresh/custom waveforms.
+
+Selection in the worker follows this order:
+
+| Condition | Selected operation |
+| --- | --- |
+| Factory-test mode | Skip |
+| First-flash, factory-reset or cold-boot first-time-user repaint flag | MID; consume the matching flag |
+| First-time user, or cold-boot first-render flag | MIN; consume the latter flag when used |
+| Otherwise | Consult the elapsed-time selector below |
+
+Selector `0x4202d90c` only considers EXT1 or timer wakes, the numeric causes 3/4
+in the matching [SDK definition](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_hw_support/include/esp_sleep.h).
+It also requires the application's time-valid flag and a successful, nonzero
+`app_data/last_sleep_ts` U64 read. Other wake causes, missing/zero timestamp,
+NVS errors or unsynchronized time select skip. For a usable timestamp, it computes
+elapsed wall-clock seconds, divides by 3,600, converts to float hours and compares:
+
+| Computed elapsed hours | Mode |
+| --- | --- |
+| Below 12 | Skip |
+| At least 12, below 48 | MIN |
+| At least 48 | MID |
+
+There is no separate future-timestamp rejection: a backward clock correction can
+produce a negative interval and select skip. The calculation uses wall-clock
+state, not measured panel temperature or a monotonic accumulated-sleep counter.
+
+The timestamp's name/log label is misleading if treated as exclusively a sleep
+entry. Writer `0x4202d860` runs in sleep preparation **and after conditioning
+returns success**, before the pending artwork transfer. Its NVS commit result is
+unchecked. Consequently this key does not independently prove time asleep,
+successful conditioning or completion of the new artwork.
+
+Error propagation further weakens that interpretation. MIN returns clear/power
+setup errors, although deeper driver failures can still be swallowed. MID logs
+white/black clear failures, attempts both, and **returns zero unconditionally**.
+The worker can therefore record conditioning success and advance the timestamp
+even after those logged failures; it continues to the artwork after a reported
+conditioning failure too. GNU confirms the MID return and caller timestamp branch.
+
+For a future fork, expose the selected mode/reason as diagnostics and propagate
+actual results. Do not remove conditioning merely to reduce apparent refresh
+latency without establishing the panel's requirements. H04/D06 retain physical
+mode, failure and waveform validation; neither mode was newly exercised here.
+
 ## Readiness is not ownership
 
 Both readiness accessors, `0x42028e7c` and `0x42028e9c`, return the byte at

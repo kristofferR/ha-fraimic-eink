@@ -53,6 +53,7 @@ per question, not a count of tool calls or decompiled functions.
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | D06/E01 | Task-watchdog startup is 5 seconds, both idle tasks, panic disabled; renderer unsubscribes before power/conditioning/transfer/refresh | Physical failure/recovery tests, interrupt-watchdog and hardware fallback coverage, remaining indirect references |
+| H04/D06/S05 | Conditioning uses full-panel black or white/black clears and a temporary 288 KB block; elapsed selector uses 12/48-hour boundaries; MID suppresses clear errors and can advance the shared timestamp | Panel waveform constraints, physical conditioning/fault tests, other controller paths and interrupted timestamp writes |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
@@ -262,6 +263,9 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
   The [task-watchdog trace](rendering-and-concurrency.md#the-task-watchdog-does-not-bound-the-long-panel-sequence)
   establishes early render unsubscription and non-panic startup policy. Idle-task
   supervision does not impose a render deadline; whole-device recovery remains open.
+  [Conditioning](rendering-and-concurrency.md#conditioning-adds-full-panel-clear-cycles)
+  adds unconditional MID success and timestamp advancement before artwork transfer;
+  neither that timestamp nor its log establishes panel completion.
 - [ ] **D07 · Host/Device:** Correlate accepted/cached/worker-ended/driver-completed/
   power-safe states with the physical panel. Verify a content-ID result design
   reports errors accurately and does not mistake semaphore release for success.
@@ -316,7 +320,10 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   exists and is usable; microphone input does not establish speaker capability.
 - [ ] **H04 · Static/Host/Hardware:** Determine supported partial-refresh/custom
   waveform modes and their panel/power constraints; do not transfer capabilities
-  from another display model without evidence.
+  from another display model without evidence. Recovered MIN/MID conditioning
+  performs full-panel clears through the ordinary refresh path; these names do
+  not identify partial-update or custom-waveform support. Other controller paths
+  and panel-specific constraints remain open.
 - [ ] **H05 · Static/Device:** Map request/response schemas, authentication, boot-state
   availability and side effects for all 42 registrations. Cover action/log/dev/test
   controls and undiscovered setters; validate read-only branches first and track

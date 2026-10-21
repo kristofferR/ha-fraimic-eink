@@ -1129,6 +1129,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42020a78",
+      "kind": "function",
+      "role": "Set all eight panel controller chip selects to the supplied level",
+      "evidence": "static; 22 October conditioning follow-up"
+    },
+    {
       "address": "0x42020ab4",
       "kind": "function",
       "role": "BUSY-high wait; logs timeout without error return",
@@ -1415,6 +1421,30 @@
       "kind": "instruction",
       "role": "Finalize terminates response buffer even when received length is zero",
       "evidence": "static; voice response boundary follow-up, GNU cross-check"
+    },
+    {
+      "address": "0x42027b34",
+      "kind": "function",
+      "role": "Full-panel clear with 288000-byte pattern buffer, broadcast transfer and ordinary refresh",
+      "evidence": "static; 22 October conditioning follow-up"
+    },
+    {
+      "address": "0x42027d88",
+      "kind": "function",
+      "role": "MID conditioning: white then black clears; logs failures but returns success",
+      "evidence": "static; 22 October conditioning follow-up"
+    },
+    {
+      "address": "0x42028128",
+      "kind": "function",
+      "role": "MIN conditioning: black clear; propagates power/clear result",
+      "evidence": "static; 22 October conditioning follow-up"
+    },
+    {
+      "address": "0x420281e8",
+      "kind": "function",
+      "role": "Conditioning dispatch: negative skips, zero MIN, positive MID",
+      "evidence": "static; 22 October conditioning follow-up"
     },
     {
       "address": "0x420282f8",
@@ -1722,14 +1752,14 @@
     {
       "address": "0x4202d860",
       "kind": "function",
-      "role": "Sleep timestamp persistence helper",
-      "evidence": "static"
+      "role": "Persist current time to app_data/last_sleep_ts during sleep preparation and after conditioning; commit unchecked",
+      "evidence": "static; 22 October conditioning follow-up"
     },
     {
       "address": "0x4202d90c",
       "kind": "function",
-      "role": "Sleep timestamp persistence helper",
-      "evidence": "static"
+      "role": "EXT1/timer conditioning selector using time-valid flag and last_sleep_ts; 12-hour MIN and 48-hour MID thresholds",
+      "evidence": "static; 22 October conditioning follow-up"
     },
     {
       "address": "0x4202da0c",
