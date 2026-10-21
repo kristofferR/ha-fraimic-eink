@@ -64,6 +64,12 @@ LAN IP. Some requests include `include_account=true` and OTA result fields.
 All three URL formats in `0x4202475c` hardcode `is_periodic_poll=false`; it cannot
 identify scheduled wakes versus user activity on this build.
 
+Orientation is sampled while constructing the poll. Its
+[two-way accelerometer classifier](hardware-and-layout.md#accelerometer-target-and-orientation-semantics)
+ignores direction/Z and falls back to portrait on failure, without a validity
+field. Do not treat the string as a four-way mounting angle or proof of a healthy
+sensor. Voice samples separately immediately before finalize.
+
 The key in the URL path is a credential. Redact it in application, reverse-proxy
 and observability logs. Do not confuse an account-facing device ID or masked info
 value with the full provisioned key.

@@ -150,6 +150,12 @@ Content-Type: application/json
 This example matches the observed frame request. Portrait orientation was not
 exercised in the physical tests above.
 
+The upload worker takes this [orientation sample](hardware-and-layout.md#accelerometer-target-and-orientation-semantics)
+after the WAV upload, immediately before finalize. It is not fixed at recording
+start. The two-way classifier defaults to portrait on a sensor error and cannot
+distinguish upside-down mounting. Persist the received value with the voice job
+and use it in the model-specific render/cache identity.
+
 A stock-compatible result is HTTP 200 with a ready image URL:
 
 ```json

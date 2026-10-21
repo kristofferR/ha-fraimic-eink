@@ -40,6 +40,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c140378",
+      "kind": "data",
+      "role": "Seven alternative accelerometer probe records; not proof of working driver support",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
       "address": "0x3c140434",
       "kind": "pointer_table",
       "role": "Instruction-screen descriptions",
@@ -224,6 +230,18 @@
       "kind": "state",
       "role": "Shared PSRAM allocation pointer storage",
       "evidence": "static"
+    },
+    {
+      "address": "0x3fcabd31",
+      "kind": "global",
+      "role": "Accelerometer initialized-before flag, separate from availability",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x3fcabd32",
+      "kind": "global",
+      "role": "Accelerometer available/awake flag",
+      "evidence": "static; 22 October orientation follow-up"
     },
     {
       "address": "0x3fcac6d0",
@@ -1439,6 +1457,66 @@
       "kind": "function",
       "role": "Image-buffer initialized getter; not ownership",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x4202915c",
+      "kind": "function",
+      "role": "Primary accelerometer register write at fixed I2C address 0x1e",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x420291b0",
+      "kind": "function",
+      "role": "Primary accelerometer read, register selection and read as separate transfers",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x42029264",
+      "kind": "function",
+      "role": "Read status and six acceleration bytes; status bits unused",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x420293e4",
+      "kind": "function",
+      "role": "Alternative accelerometer probe; returns zero even after a matching candidate",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x42029520",
+      "kind": "function",
+      "role": "Initialize fixed primary sensor, expect WHO_AM_I 0x41 and validate acceleration read",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x42029754",
+      "kind": "function",
+      "role": "Two-way absolute X/Y orientation; ties landscape, failures portrait",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x420297c4",
+      "kind": "function",
+      "role": "Map orientation result to landscape/portrait strings",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x42029820",
+      "kind": "function",
+      "role": "Power down accelerometer; clear available flag only on successful write",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x42029888",
+      "kind": "function",
+      "role": "Resume accelerometer with control write and 50 ms wait",
+      "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x420298d0",
+      "kind": "function",
+      "role": "Initialize/resume and sample orientation; poll and voice pass keep-awake=1",
+      "evidence": "static; 22 October orientation follow-up"
     },
     {
       "address": "0x42029d60",

@@ -156,3 +156,21 @@ Private evidence: `log-controls-pass1.txt` through `log-controls-pass3.txt`,
 `DefineLogEntry.java`. No live log requests, clear, cookie bypass, flush, memory
 stress or storage corruption were performed in this pass. The open checklist
 items retain those runtime and fault-validation requirements.
+
+## Orientation sampling and sensor target: H02/C07/E01
+
+The Large accelerometer initialization, primary/alternative identification,
+register reads, classifier, resume/power-down helper and both cloud-facing
+callers were traced. GNU checks confirm absolute signed-16-bit X/Y comparison,
+landscape on equality, and the alternative probe's shared zero return followed
+by the caller's failure branch. A bounded binary table read recovered seven
+candidate records; the table is not a list of supported working drivers.
+
+The [hardware trace](hardware-and-layout.md#accelerometer-target-and-orientation-semantics)
+ties the LIS2HH12TR software label to address/register literals and manufacturer
+documentation. The existing saved Large log reports landscape but supplies no
+physical part identification. No new frame read, rotation, sensor fault or
+hardware access was performed. No arithmetic-only fixture is claimed as hardware
+validation. Private evidence is `orientation-pass1.txt`, `orientation-pass2.txt`,
+`orientation-probe-table.json` and the four `orientation-*-gnu.txt` branch exports.
+H02 and the broader cloud/compatibility items remain open.

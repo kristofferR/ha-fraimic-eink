@@ -103,6 +103,74 @@ CW2217 fuel gauge, accelerometer, touch/button handling, I2S microphone and LED
 state manager. Probe code names LIS3DH, BMA255 and MSA311/MSA321; this is not proof
 of which accelerometer is fitted to the investigated unit.
 
+### Accelerometer target and orientation semantics
+
+The primary register helpers `0x4202915c` / `0x420291b0` use fixed seven-bit I2C
+address **`0x1e`**. Initialization `0x42029520` reads register `0x0f` and expects
+**`0x41`**, then writes `0x20=0x57`, `0x23=0x80` and `0x26=0`, waits ten ticks
+(100 ms) and requires an acceleration read to succeed. The embedded probe table
+labels the corresponding target **LIS2HH12TR**; its expected identification value
+matches the manufacturer's [LIS2HH12 datasheet](https://www.st.com/resource/en/datasheet/lis2hh12.pdf).
+This narrows the software target, not the physically verified part marking.
+
+The alternative probe table at `0x3c140378` contains:
+
+| Embedded candidate label | I2C address | Identification register / expected value |
+| --- | --- | --- |
+| LIS2HH12TR, alternate configuration | `0x1e` | `0x0f` / `0x41` |
+| LIS2HH12TR, address variant | `0x1d` | `0x0f` / `0x41` |
+| LIS3DH | `0x19` | `0x0f` / `0x33` |
+| LIS3DH, alternate address | `0x18` | `0x0f` / `0x33` |
+| BMA255 | `0x18` | `0x00` / `0xfb` |
+| BMA255, alternate address | `0x19` | `0x00` / `0xfb` |
+| MSA311/MSA321 | `0x62` | `0x01` / `0x13` |
+
+Those names do not establish working alternative drivers. GNU confirms that
+`0x420293e4` returns zero both after logging a matching candidate and after
+exhausting the table. Its initializer caller interprets zero as failure and
+clears availability. The ordinary register helpers also retain address `0x1e`;
+this probe does not install a new address/register map. A “Found compatible
+accelerometer” line from that branch would therefore not prove initialization
+continued successfully. This is a static defect/limitation; no alternate chip
+or failed-probe experiment was performed.
+
+Acceleration reader `0x42029264` reads status register `0x27`, then six separate
+byte registers `0x28`–`0x2d`, assembling signed 16-bit X/Y/Z values. It checks
+transaction return codes but does not examine the status bits for fresh data.
+There is no burst/snapshot transaction in this reader. Coherent sample timing
+under motion or I2C contention remains untested.
+
+Classifier `0x42029754` and string wrapper `0x420297c4` implement:
+
+```text
+unavailable sensor or read failure -> portrait
+abs(X) > abs(Y)                    -> portrait
+otherwise                         -> landscape
+```
+
+Equality, including X=Y=0 after a successful read, selects landscape. Z, signs,
+confidence, filtering and hysteresis are absent from this decision. Upside-down
+portrait and reversed landscape have the same respective strings; there is no
+four-way rotation angle in this protocol field. A near-diagonal/noisy sample can
+change classification without the frame being remounted. These are consequences
+of the comparison, not measured physical jitter.
+
+Helper `0x420298d0` initializes or resumes the sensor when unavailable and can
+power it down after reading. Its two recovered callers, the poll and voice-upload
+worker, both pass 1, retaining sensor operation at that point. Resume writes
+`0x20=0x57` and waits five ticks (50 ms); ordinary shutdown writes `0x20=0` and
+clears the available flag only on success. The “initialized before” byte is
+separate, so later reads can resume without repeating identification/configuration.
+No energy-use conclusion follows from this call ordering alone.
+
+The voice worker samples orientation **after successful audio upload, immediately
+before finalize**. It is not a capture-start snapshot or a continuous orientation
+event. The poll samples when constructing its request. Neither wire request
+distinguishes a measured portrait result from the portrait error fallback.
+Store the received orientation with each backend job/render and keep an explicit
+owner rotation override if four-way mounting matters. The existing saved Large
+log reports `landscape`, but contains no part marking or physical rotation test.
+
 The vendor display power-down path contains discharge delays totaling about
 13 seconds. Partial refresh, custom waveforms and a speech-output speaker are
 unverified. Retaining the display driver and power sequencing is a much smaller
