@@ -1,0 +1,592 @@
+{
+  "evidence": "Original byte-checked instructions with synthetic gauge, GPIO, ADC and helper outcomes. ROM ADC conversions are sentinel stubs; no calibration or device test.",
+  "models": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "voltage",
+          "entry": "0x42029d60",
+          "instructions": 27,
+          "sha256": "07d06dd13030b2366a61ded4d5d688fa76df194f6b177d51a8a3d84ad6d6b105"
+        },
+        {
+          "name": "summary",
+          "entry": "0x42029fa4",
+          "instructions": 133,
+          "sha256": "4b5b48233beb0d1328be9444867f434f94142a1d62c8f1b2d05394adb4f2a4cb"
+        }
+      ],
+      "executed_instruction_sites": 160,
+      "results": [
+        {
+          "name": "voltage-gauge-success",
+          "passed": true,
+          "result": 8000,
+          "events": [
+            "gauge-read"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-gauge-absent",
+          "passed": true,
+          "result": 0,
+          "events": [],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-gauge-error",
+          "passed": true,
+          "result": 0,
+          "events": [
+            "gauge-read"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-gauge-zero",
+          "passed": true,
+          "result": 0,
+          "events": [
+            "gauge-read"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "summary-plugged-94-zero-current",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 94,
+          "led": 19,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-plugged-95-zero-current",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-plugged-97-below-threshold",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-plugged-97-at-threshold",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 97,
+          "led": 19,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-plugged-97-negative-current",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 97,
+          "led": 19,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-plugged-97-unordered-current",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 97,
+          "led": 19,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-plugged-98-high-current",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-unplugged-98",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-soc-negative",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": false,
+          "percent": 0,
+          "led": 0,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-soc-above-100",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-soc-error",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 0,
+          "led": 19,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-current-error-at-95",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-setup-led-suppression",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-unregistered-led-suppression",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-unverified-led-suppression",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-ready-led-retained",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 1
+        },
+        {
+          "name": "summary-fallback-before-settled",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 95,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-fallback-settled-full",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-fallback-settled-not-full",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 95,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-fallback-unplugged",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": false,
+          "percent": 99,
+          "led": 0,
+          "current_reads": 0
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "voltage",
+          "entry": "0x42028608",
+          "instructions": 130,
+          "sha256": "0fc16cecbbd069fe8b2b94c6c88d56ca31da720aa7407b4742b1ae7f2a7ca919"
+        },
+        {
+          "name": "summary",
+          "entry": "0x420287e0",
+          "instructions": 106,
+          "sha256": "f986490ab2bbeb59b0c922e35eeac0134611da0466d0c9bf98c7849f2b68f354"
+        }
+      ],
+      "executed_instruction_sites": 236,
+      "results": [
+        {
+          "name": "voltage-gauge-success",
+          "passed": true,
+          "result": 4000,
+          "events": [
+            "gauge-read"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-gauge-absent",
+          "passed": true,
+          "result": 7777,
+          "events": [
+            "adc-create",
+            "adc-config",
+            "adc-read",
+            "adc-delete",
+            "gpio-reset-1",
+            "gpio-config",
+            "delay-0"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-gauge-error",
+          "passed": true,
+          "result": 7777,
+          "events": [
+            "gauge-read",
+            "adc-create",
+            "adc-config",
+            "adc-read",
+            "adc-delete",
+            "gpio-reset-1",
+            "gpio-config",
+            "delay-0"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-gauge-zero",
+          "passed": true,
+          "result": 7777,
+          "events": [
+            "gauge-read",
+            "adc-create",
+            "adc-config",
+            "adc-read",
+            "adc-delete",
+            "gpio-reset-1",
+            "gpio-config",
+            "delay-0"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-adc-create-error",
+          "passed": true,
+          "result": 0,
+          "events": [
+            "adc-create"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-adc-config-error",
+          "passed": true,
+          "result": 0,
+          "events": [
+            "adc-create",
+            "adc-config",
+            "adc-delete"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-adc-read-error",
+          "passed": true,
+          "result": 0,
+          "events": [
+            "adc-create",
+            "adc-config",
+            "adc-read",
+            "adc-delete",
+            "gpio-reset-1",
+            "gpio-config",
+            "delay-0"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "voltage-adc-cleanup-errors",
+          "passed": true,
+          "result": 7777,
+          "events": [
+            "adc-create",
+            "adc-config",
+            "adc-read",
+            "adc-delete",
+            "gpio-reset-1",
+            "gpio-config",
+            "delay-0"
+          ],
+          "adc_rom_conversion": "Synthetic 7777 sentinel; not calibrated"
+        },
+        {
+          "name": "summary-plugged-94-zero-current",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 94,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-plugged-95-zero-current",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 95,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-plugged-97-below-threshold",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 97,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-plugged-97-at-threshold",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 97,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-plugged-97-negative-current",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 97,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-plugged-97-unordered-current",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 97,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-plugged-98-high-current",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-unplugged-98",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": false,
+          "percent": 98,
+          "led": 0,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-soc-negative",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": false,
+          "percent": 0,
+          "led": 0,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-soc-above-100",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": false,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-soc-error",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 0,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-current-error-at-95",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 95,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-setup-led-suppression",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-unregistered-led-suppression",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-unverified-led-suppression",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 0,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-ready-led-retained",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-fallback-before-settled",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 95,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-fallback-settled-full",
+          "passed": true,
+          "cable": true,
+          "charging": false,
+          "full": true,
+          "percent": 100,
+          "led": 20,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-fallback-settled-not-full",
+          "passed": true,
+          "cable": true,
+          "charging": true,
+          "full": false,
+          "percent": 95,
+          "led": 19,
+          "current_reads": 0
+        },
+        {
+          "name": "summary-fallback-unplugged",
+          "passed": true,
+          "cable": false,
+          "charging": false,
+          "full": false,
+          "percent": 99,
+          "led": 0,
+          "current_reads": 0
+        }
+      ]
+    }
+  ],
+  "fixture_sha256": "837cd541738d5ab850eefe28a7f5cbfea22a02f41bf3e38e5e04af3c8826095a",
+  "limits": [
+    "Gauge, GPIO, ADC and readiness helper outcomes are synthetic. Physical accuracy, cabling, battery topology and battery-drain causation are not established.",
+    "ADC ROM conversions return a synthetic sentinel; the cases verify error routing, cleanup calls and result propagation, not the voltage formula or calibration.",
+    "All 160 Large and 236 Standard instructions in the selected getter/summary bodies are executed across these cases. This is not coverage of the monitor workers or their hardware dependencies.",
+    "The Standard GPIO restoration calls occur after the ADC read attempt, on both read-success and read-error paths; earlier creation/configuration failures do not reach those calls. No physical pin-state consequence is claimed."
+  ]
+}

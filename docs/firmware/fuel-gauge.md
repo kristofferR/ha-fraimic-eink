@@ -64,3 +64,51 @@ is Large-specific; it is separate from the paired low-level read comparison.
 fourteen gauge cases per build, alongside the Wi-Fi cases. Register contents,
 I2C results and timing are synthetic. Physical readings and calibration remain
 explicitly deferred.
+
+## The two models present charge differently
+
+The summary builders are Large `0x42029fa4` and Standard `0x420287e0`.
+Both clamp the gauge percentage to 0–100 and ignore the percentage reader's
+return code after initializing its output to zero. Their full-charge policy
+differs:
+
+| Gauge input / cable state | Standard | Large |
+| --- | --- | --- |
+| Plugged in, 98% or above | Full, displayed 100% | Full, displayed 100% |
+| Plugged in, 95–97%, current at least zero and below 50 mA | Charging, preserves percentage | Full, displayed 100% |
+| Unplugged, 98–99% | Preserves percentage, no full flag | Full flag, displayed 100%, charging LED off |
+
+Standard does not read current in this summary. Large initializes current to
+zero and ignores its reader's error, so a failed read that leaves the output
+unchanged can satisfy its low-current condition at 95–97%. Negative current,
+exactly 50 and an unordered floating value do not satisfy that condition.
+
+Without a usable gauge, both summaries cap the charging estimate at 95% until
+more than eight history samples and classification 3 indicate the settled full
+state. Optional setup/readiness suppression clears the requested LED state,
+without changing the assembled charge fields. These are presentation rules,
+not independent evidence of battery capacity or measurement validity.
+
+## Standard has a separate ADC fallback and cleanup policy
+
+Large voltage getter `0x42029d60` doubles a successful nonzero gauge reading and
+returns zero if the gauge is absent, its read fails or its result is zero.
+Standard getter `0x42028608` returns the successful nonzero gauge value directly;
+each other case proceeds to an ADC fallback.
+
+Standard creates an ADC unit, configures channel 4 and attempts one read.
+Creation failure returns zero. Configuration failure requests unit deletion
+and returns zero. After an actual read attempt, it requests deletion, GPIO 1
+reset, restoration of its saved input configuration and a **zero-tick delay**,
+before inspecting the read result. Thus read failure reaches those restoration
+calls, while the earlier failures do not. Deletion and GPIO restoration errors
+are ignored; a successful read can still produce a nonzero result after such
+errors. This call order does not establish the physical pin state after any
+particular SDK failure.
+
+[52 instruction cases](battery-policy-cases.json) exercise all 160 instructions
+in the two selected Large bodies and all 236 in their Standard counterparts.
+They cover the thresholds, ignored gauge errors, LED suppression and ADC error
+branches. ADC ROM arithmetic is stubbed with a sentinel: these cases deliberately
+make no claim about ADC calibration, voltage conversion accuracy or physical
+charging detection. The monitor workers and their scheduling are separate.
