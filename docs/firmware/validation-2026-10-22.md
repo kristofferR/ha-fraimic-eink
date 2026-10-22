@@ -499,3 +499,30 @@ Private artifacts: `offline-fallback-pass1.txt` through
 `offline-fallback-pass4.txt`, `offline-fallback-gnu.mjs`,
 `offline-fallback-boundaries-gnu.txt` and `offline-fallback-literals.jsonl`.
 The bounded export supersedes `offline-dns-exploratory-gnu.txt` for final evidence.
+
+## HTTP configuration audit: C01/C03/D01/R11
+
+Forty-seven bounded GNU ranges cross-check configuration construction for ten
+current consumers and the older manifest updater, plus the SDK config mapper,
+constructor and URL setter. Literal reads establish timeouts and buffer sizes.
+Existing Ghidra exports supply the surrounding application control flow.
+
+The [configuration table](cloud-protocol.md#http-buffers-trust-precedence-and-url-scheme)
+separates HTTP RX/TX allocations from application response arrays. It corrects
+the earlier system-metadata description: that client's 4,096-byte field is TX;
+RX is zero in config and becomes the binary's 512-byte SDK default. Image download
+and direct OTA really set both RX and TX to 4,096 bytes.
+
+The SDK constructor checks the bundle callback before the global-CA flag, so the
+earlier wording that a set flag enables that store alongside the bundle was too
+broad. Ten current consumers use the bundle branch; the older updater supplies
+neither bundle nor global/explicit CA in its config. URL parsing can override the
+configured transport's default scheme. None of these static findings supersedes
+the earlier physical hostname/trust controls or demonstrates an untested TLS
+consumer's acceptance behavior.
+
+Private artifacts: `http-config-gnu.mjs`, `http-config-boundaries-gnu.txt`,
+`http-config-literals.jsonl`, `http-redirect-pass5.txt`,
+`voice-http-read-pass1.txt`, `ota-download-pass1.txt` and the multipart export.
+No device request, certificate installation, network change or firmware update
+was performed. No new host fixture was needed for these config-store corrections.

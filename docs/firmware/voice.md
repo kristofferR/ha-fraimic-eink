@@ -140,7 +140,9 @@ offset. SDK write `0x4206d930` can internally combine several positive transport
 writes, so application chunks are not TCP packet boundaries.
 
 The configuration sets **120,000 ms** network timeout and an **8,192-byte transmit
-buffer**. The latter field is identified against the
+buffer**; its receive buffer defaults to 512 bytes, as traced in the
+[client configuration audit](cloud-protocol.md#http-buffers-trust-precedence-and-url-scheme).
+The transmit field is identified against the
 [SDK configuration layout](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h),
 not the application's 4 KiB audio chunk. The transport timeout is passed again on
 each underlying write; it is not a two-minute deadline for the entire upload.

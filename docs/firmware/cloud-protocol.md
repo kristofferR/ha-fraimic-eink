@@ -231,7 +231,8 @@ It reads at most 2,047 response bytes and rejects a URL that does not fit the
 caller's 1,536-byte buffer. Use compact JSON and a short asset URL.
 
 This metadata client uses manual open/header/read calls, a 10,000 ms transport
-timeout and a 4,096-byte receive buffer. It does not follow redirects, install the
+timeout, a 4,096-byte transmit buffer and the SDK's 512-byte default receive
+buffer. It does not follow redirects, install the
 shared JSON event callback, or register itself with the HTTP-abort manager. Unlike
 voice presign/finalize, it still reads after a zero fetched length; only negative
 header results reject that stage. It rejects zero/negative body reads before
@@ -435,9 +436,12 @@ image counts and images. Create/update/delete remain untested; see the
   S3-specific URL. A local HTTPS file on the accepted API hostname, without AWS
   query parameters, was downloaded, cached and physically displayed in the
   [one-shot test](backend-emulation.md#one-shot-panel-delivery-c03c09d06).
-- The examined clients attach the ESP-IDF CA bundle. Their config byte `0x71`
-  enables global CA use; `0x72` is skip-CN and remains zero. This was checked
-  against the binary and the [ESP-IDF v5.4.1 header](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h).
+- The current clients in the configuration table below attach the ESP-IDF CA
+  bundle. Most also set config byte `0x71` (`use_global_ca_store`), but the
+  initializer takes the bundle branch first; the stores are not combined by
+  setting both. Byte `0x72` (`skip_cert_common_name_check`) remains zero. The
+  [SDK header](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h)
+  names the fields; the actual binary's selection is described below.
 - DNS redirection alone does not make an unrelated certificate valid for the
   vendor hostname. Use deliberately configured hostname/trust for a durable
   custom backend. Large's [controlled negative tests](backend-emulation.md#negative-tls-controls-c03)
@@ -445,6 +449,62 @@ image counts and images. Create/update/delete remain untested; see the
   certificate for the wrong name; a matching-profile correct-name control worked.
   This verifies the poll path's tested trust/name boundaries, not every consumer
   or all certificate failure modes.
+
+### HTTP buffers, trust precedence and URL scheme
+
+The configuration block is 148 bytes in this binary. Its receive-buffer field is
+at `+0x64`, transmit-buffer field at `+0x68`, timeout at `+0x4c`, and certificate
+bundle callback at `+0x78`. Mapper `0x4206d20c` substitutes **512 bytes** for
+either zero buffer field. The following values come from the actual config stores
+and that mapper, not from similarly sized application JSON arrays:
+
+| Consumer | Timeout (ms) | HTTP RX bytes | HTTP TX bytes | Request driver |
+| --- | ---: | ---: | ---: | --- |
+| System-image metadata `0x42023bcc` | 10,000 | 512 default | 4,096 | Manual |
+| Account setup `0x42023ed4` | 30,000 | 512 default | 4,096 | `perform` |
+| Email verification `0x42023674` | 15,000 | 4,096 | 2,048 | `perform` |
+| Poll `0x4202475c` | 10,000 | 512 default | 4,096 | `perform` |
+| Image download `0x4202606c` | 30,000 | 4,096 | 4,096 | Manual |
+| Audio presign `0x420266d8` | 30,000 | 512 default | 4,096 | Manual |
+| Audio multipart `0x42026b9c` | 120,000 | 512 default | 8,192 | Manual |
+| Audio finalize `0x42027380` | 600,000 | 512 default | 4,096 | Manual |
+| Direct OTA `0x4202c514` | 30,000 | 4,096 | 4,096 | Manual |
+| Album proxy `0x42030064` | 10,000 | 512 default | 4,096 | Manual |
+
+“Manual” means explicit open/header/read/write calls, without the automatic
+redirect loop. `perform` consumers leave automatic redirects enabled with the
+SDK's default limit of ten. These timeouts apply to transport operations, not an
+absolute end-to-end deadline. The earlier voice reader fixture demonstrates why
+several successful reads can outlast one configured timeout.
+
+RX size is neither the accepted response-body limit nor a TLS record-size limit.
+For example, the 512-byte HTTP receive buffer can feed a separate 4,096-byte JSON
+accumulator or a 4,095-byte application read. The album proxy's 4 KiB application
+read similarly need not be one underlying transport read. Constructor
+`0x4206df98` allocates the HTTP TX and RX arrays separately; headers, parser state,
+JSON and TLS need other memory. These figures do not isolate the cause of the
+observed Standard SSL allocation failure.
+
+All ten rows supply bundle callback `0x42044ec8`. Verification leaves the
+global-CA flag zero; the other nine set it. Constructor branches at
+`0x4206e128` select the bundle callback when present, otherwise the global store,
+otherwise an explicit certificate. This matches the
+[SDK initializer](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/esp_http_client.c).
+Therefore adding a certificate only to a global CA store would not select that
+store for these unchanged configurations. A future owner-trust implementation
+must intentionally choose its trust path.
+
+The SSL transport enum in a configuration is also not an HTTPS-only policy.
+After applying config defaults, the constructor parses the supplied URL through
+`0x4206dca4`, which replaces its scheme and port; an explicit `http://` URL selects
+HTTP. The earlier local microphone uploads are the physical positive control
+for plain HTTP storage. Plain-HTTP compatibility for every endpoint remains
+untested.
+
+The older manifest updater `0x4202bb88` differs: 30,000 ms timeout, 4,096-byte RX,
+default 512-byte TX, and zero bundle/global-CA/explicit-certificate fields in its
+configuration. It is separate from the direct OTA row and is not evidence that
+the currently used updater accepts untrusted HTTPS. No update was attempted.
 
 ### Automatic redirects preserve the request and share response state
 

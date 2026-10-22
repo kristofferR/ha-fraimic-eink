@@ -2508,8 +2508,8 @@
     {
       "address": "0x4206d20c",
       "kind": "function",
-      "role": "HTTP config mapper; redirect default and callback fields",
-      "evidence": "static; enrollment and HTTP follow-up"
+      "role": "HTTP config mapper: default RX/TX 512 bytes, redirect limit 10; transport enum supplies initial scheme",
+      "evidence": "static; HTTP configuration GNU follow-up and SDK comparison"
     },
     {
       "address": "0x4206d4a4",
@@ -2550,14 +2550,20 @@
     {
       "address": "0x4206dca4",
       "kind": "function",
-      "role": "HTTP set URL; host/port/path replacement preserves method/body/custom headers",
-      "evidence": "static; enrollment and HTTP follow-up"
+      "role": "HTTP URL setter: replaces scheme/host/port and updates connection/header state",
+      "evidence": "static; HTTP configuration GNU follow-up and SDK comparison"
     },
     {
       "address": "0x4206df98",
       "kind": "function",
-      "role": "SDK esp_http_client_init",
-      "evidence": "static"
+      "role": "HTTP client constructor: bundle precedes global/explicit CA; separate RX/TX allocations; URL parsed after defaults",
+      "evidence": "static; HTTP configuration GNU follow-up and SDK comparison"
+    },
+    {
+      "address": "0x4206e128",
+      "kind": "instruction",
+      "role": "HTTP TLS trust-selection branch checks bundle callback before global CA flag",
+      "evidence": "static; bounded GNU cross-check"
     },
     {
       "address": "0x4206e470",
