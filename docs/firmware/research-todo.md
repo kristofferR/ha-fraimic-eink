@@ -294,6 +294,10 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   confirms the same DHCP and startup-delay branches. Check late callbacks,
   callback-queue failures and physical startup timing; SDK defaults alone do not
   establish build behavior.
+  Large's [DNS fallback/cache trace](boot-and-scheduling.md#dns-fallback-and-cached-destinations)
+  identifies a separate public resolver in slot 2, preserved across DHCP setup,
+  and distinguishes timeout/error fallback from cached-answer reuse. Verify
+  Standard equivalence and a bounded DNS cutover/outage when device tests resume.
 - [ ] **S03 · Host/Device:** Exercise future, absent, invalid, past and failed-poll
   deadlines across reboot. Check persistence and the distinction between clearing
   the schedule and a network failure.

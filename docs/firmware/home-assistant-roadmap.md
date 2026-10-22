@@ -38,6 +38,9 @@ separate backend/time/WAN health are the longer-term firmware direction.
 Both models' [DHCP option-42 paths](boot-and-scheduling.md#dhcp-does-not-configure-the-stock-time-server)
 ignores time-server offers, so advertising the HA/local NTP address through DHCP
 alone does not remove the stock hostname dependency.
+Large also has a [public DNS fallback and cached answers](boot-and-scheduling.md#dns-fallback-and-cached-destinations).
+The local-backend cutover plan needs to account for resolver failover and existing
+answers, separately from supplying the NTP service and satisfying the TCP probe.
 
 ## What the integration already provides
 

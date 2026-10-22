@@ -504,6 +504,54 @@ separate from backend health. Stock emulation still needs the API, asset, time
 and public-probe dependencies described here; the captive DNS service does not
 replace them.
 
+### DNS fallback and cached destinations
+
+Large has a separate hardcoded use of `8.8.8.8`: **DNS server slot 2**. This is
+not the TCP/53 internet probe. DNS initialization `0x420577bc`, called during
+lwIP initialization, parses the string at `0x3c110628` and installs it through
+`0x42057780`. The resolver has three 24-byte server slots at `0x3fcad994`.
+The actual fallback address comes from the binary, not an assumed SDK default.
+
+DHCP ACK application installs the first two advertised DNS addresses but skips
+index 2. The inspected DHCP-client-start path also clears slots 0/1 while keeping
+slot 2 (`0x4206a398(1)`). Offering a third local resolver through DHCP therefore
+does not overwrite the public fallback in this path.
+
+The resolver's behavior depends on how a lookup fails:
+
+| Situation | Recovered Large behavior |
+| --- | --- |
+| New lookup with empty primary slots | Starts at the first populated slot, potentially the public fallback |
+| No response | Retries, skips empty later slots, then advances to the next populated server |
+| Matched response with nonzero DNS response code | Immediately advances only when the directly following slot is populated |
+| Error response from slot 0 with slot 1 empty | The immediate backup check fails even if slot 2 is populated; this differs from timeout handling |
+| Accepted answer already cached | Lookup can return the cached address before making a new request |
+
+State machine `0x42056a40` sends immediately, then retries after nominal intervals
+of 1, 1 and 2 timer ticks, and changes server after another 3 ticks when no
+response arrives. The timer is scheduled in 1,000 ms increments. This describes
+counter transitions, not a measured seven-second wall-clock deadline: task delay,
+an already-running timer, sends and replies affect actual timing. Response handler
+`0x42057274` and immediate-backup predicate `0x42056434` establish the distinct
+error-response path. These branches align with the
+[pinned lwIP resolver](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/core/dns.c).
+
+The DNS setter only copies the selected address; it does not invalidate the
+four-entry hostname/address cache at `0x3fcada0c`. Cache lookup `0x42056d2c` precedes
+new-query allocation. Accepted TTLs are capped at 604,800 seconds; TTL zero can
+satisfy the current request but is removed after its callback. Completed entries
+can also be evicted for new names. Changing the DNS server list alone therefore
+does not establish that the next API or NTP lookup uses a new local answer. This
+does not rule out cache clearing by another path, loss across reboot or changes
+to an already-open connection.
+
+For a stock local backend, provide consistent answers through the resolvers the
+frame actually uses, and include DNS fallback and cache state in a controlled
+cutover test. A custom firmware should make the fallback configurable alongside
+the API and time-server origins. No DNS service, firewall, lease or frame state
+was changed here; actual fallback traffic, Standard equivalence for these DNS
+internals and a complete WAN-free cutover remain untested.
+
 ### Time service
 
 `0x42014e90` rotates explicit SNTP servers from a table at `0x3c13bbc4`:

@@ -1146,3 +1146,25 @@ Private Standard artifacts: `find-standard-time.mjs`,
 `standard-time-gnu.mjs`, `standard-time-boundaries-gnu.txt`,
 `compare-dhcp-parser.mjs`, `standard-dhcp-parser-comparison.json` and
 `standard-time-evidence-hashes.txt`.
+
+## DNS fallback and cache lifetime: S02/C01
+
+Four reference/decompiler passes, literal reads and 59 bounded GNU ranges cover
+18 Large functions/call regions. They trace resolver initialization, its three
+server slots, the DHCP-start clearing helper, new/pending/cached states, DNS send
+and response paths, immediate backup selection and the on-demand timer. The
+eight-byte timer callback is a Ghidra label; its GNU entry and direct call were
+verified separately. The prior DHCP ACK evidence supplies the index-2 exclusion.
+
+The firmware installs `8.8.8.8` as DNS fallback independently of the public TCP
+probe. Timeout handling skips empty slots, whereas nonzero-response-code handling
+first requires a populated immediate backup. Setter/cache separation, four cache
+entries, zero-TTL removal and the seven-day TTL ceiling are instruction-backed;
+they do not demonstrate actual resolver traffic, a cache-flush API or runtime
+failure frequency. Counter-derived retry intervals are not measured deadlines.
+
+No network fixture, frame request, DNS/routing change or DHCP renewal occurred.
+Standard's DNS internals and complete offline cutover remain to compare/test.
+Private artifacts: `dns-fallback-pass1.txt` through `dns-fallback-pass4.txt`,
+`dns-fallback-literals.jsonl`, `dns-fallback-gnu.mjs`,
+`dns-fallback-boundaries-gnu.txt` and `dns-fallback-evidence-hashes.txt`.

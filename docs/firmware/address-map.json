@@ -22,6 +22,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c110628",
+      "kind": "string",
+      "role": "8.8.8.8 literal used by DNS fallback initialization; separate role from the public TCP probe",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
       "address": "0x3c13bbc4",
       "kind": "pointer_table",
       "role": "Four SNTP server names",
@@ -440,6 +446,18 @@
       "kind": "global",
       "role": "SNTP operating mode; application selects poll mode zero",
       "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x3fcad994",
+      "kind": "global",
+      "role": "Three DNS server slots, 24 bytes each; slot 2 initialized to public fallback",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x3fcada0c",
+      "kind": "global",
+      "role": "Four DNS query/cache records, 296 bytes each",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
     },
     {
       "address": "0x4037a8e4",
@@ -2944,6 +2962,60 @@
       "evidence": "static; 22 October SNTP startup follow-up"
     },
     {
+      "address": "0x42056434",
+      "kind": "function",
+      "role": "DNS immediate-backup predicate; examines next slot only, unlike timeout gap skipping",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x420566cc",
+      "kind": "function",
+      "role": "DNS successful-response completion and zero-TTL removal after callbacks",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x42056a40",
+      "kind": "function",
+      "role": "DNS state/timer handling; pending retries, backup selection and cache TTL expiration",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x42056d2c",
+      "kind": "function",
+      "role": "DNS cache lookup by hostname and address family",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x42057274",
+      "kind": "function",
+      "role": "DNS reply parsing; nonzero response code can immediately advance to a populated next resolver",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x42057780",
+      "kind": "function",
+      "role": "DNS server setter; three slots, address copy only, no cache invalidation",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x420577bc",
+      "kind": "function",
+      "role": "DNS initialization installs hardcoded 8.8.8.8 into fallback slot 2",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x420577e0",
+      "kind": "function",
+      "role": "DNS on-demand timer; updates four entries and reschedules at 1000 ms while any remains active",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x42057844",
+      "kind": "function",
+      "role": "DNS lookup entry; literal IP/cache checks before new-query enqueue",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
       "address": "0x4205ea28",
       "kind": "function",
       "role": "lwIP timer scheduling relative to current millisecond clock",
@@ -3014,6 +3086,12 @@
       "kind": "function",
       "role": "DHCP append hook; conditional client identifier option 61, no NTP request",
       "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x4206a398",
+      "kind": "function",
+      "role": "DNS clearing helper; argument one preserves fallback slot 2",
+      "evidence": "static; 22 October DNS fallback/cache follow-up"
     },
     {
       "address": "0x4206d20c",
