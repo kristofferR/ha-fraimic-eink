@@ -900,7 +900,35 @@
       "alpn_protocol_name_min_bytes": 1,
       "alpn_protocol_name_max_bytes": 255,
       "alpn_name_bytes_sum_max": 65535,
-      "limits": "Compiled/preference-filtered inventory is not a captured ClientHello or final negotiated set; runtime handshake filtering, SNI wire bytes, ALPN configuration, trust and certificate compatibility need separate evidence"
+      "limits": "Compiled/preference-filtered inventory is not a captured ClientHello or negotiated set; selected writer/validator behavior is described in tls_client_hello. Application ALPN configuration, remaining extensions and actual trust/certificate interoperability remain open."
+    },
+    "tls_client_hello": {
+      "evidence": "Six complete paired GNU bodies and fourteen selected-source host case groups",
+      "compared_functions": 6,
+      "instructions_per_image": 427,
+      "branches_per_image": 97,
+      "gnu_ranges_per_image": 28,
+      "direct_call_pairs": 10,
+      "literal_pairs": 3,
+      "host_case_groups": 14,
+      "fresh_default_cipher_ids": 58,
+      "initial_scsv": "0x00ff",
+      "fresh_default_cipher_field_bytes": 120,
+      "cipher_validator_checks": [
+        "definition exists",
+        "version range overlaps"
+      ],
+      "sni_null_omits_extension": true,
+      "sni_empty_string_emits_empty_name": true,
+      "sni_extension_overhead_bytes": 9,
+      "alpn_null_omits_extension": true,
+      "alpn_empty_list_emits_empty_extension": true,
+      "short_buffer_return": -27136,
+      "partial_prefix_possible": [
+        "ALPN",
+        "cipher field"
+      ],
+      "limits": "Selected field serialization with host structures and compatibility macros; not complete ClientHello, TLS record encryption, socket transmission, all extension helpers, application ALPN configuration or negotiated interoperability"
     }
   },
   "function_map": [
@@ -2263,6 +2291,36 @@
       "role": "esp_tls_set_client_config",
       "large": "0x420c4174",
       "standard": "0x420c4450"
+    },
+    {
+      "role": "ssl_write_client_hello_cipher_suites",
+      "large": "0x4207609c",
+      "standard": "0x420756c8"
+    },
+    {
+      "role": "ssl_write_hostname_ext",
+      "large": "0x4207618c",
+      "standard": "0x420757b8"
+    },
+    {
+      "role": "ssl_write_alpn_ext",
+      "large": "0x42076220",
+      "standard": "0x4207584c"
+    },
+    {
+      "role": "ssl_write_client_hello_body",
+      "large": "0x420763c0",
+      "standard": "0x420759ec"
+    },
+    {
+      "role": "mbedtls_ssl_validate_ciphersuite",
+      "large": "0x420e45e0",
+      "standard": "0x420e48c4"
+    },
+    {
+      "role": "mbedtls_ssl_ciphersuite_uses_ec",
+      "large": "0x420e4810",
+      "standard": "0x420e4af4"
     }
   ],
   "live_standard": {

@@ -1117,8 +1117,23 @@ All 58 cipher-definition records match after their names are dereferenced, and
 all 185 preference IDs plus the terminator match byte-for-byte. The resulting
 [compiled inventory](tls-capabilities.json) and [hostname/configuration limits](cloud-protocol.md#compiled-cipher-suites-and-hostname-configuration)
 are shared by these builds. No new host fault fixture or device handshake was
-run. Runtime cipher filtering, SNI bytes, configured ALPN, negotiated choice and
-trust/credential interoperability are not established by this comparison.
+run. The follow-up below checks selected cipher/SNI/ALPN writers. Configured
+ALPN, negotiated choice and trust/credential interoperability remain separate.
+
+## ClientHello field serialization also matches
+
+Six complete paired bodies cover SNI, ALPN and cipher-list writers, the body
+writer that calls them, cipher version validation and the EC-use predicate.
+They match across 427 instructions, 97 branches and 28 ranges per model,
+with ten direct-call and three identical scalar/ROM literal pairs. The public
+map now contains 278 function pairs.
+
+The [fourteen source host groups](validation-2026-10-22.md#clienthello-field-serialization-c03e01e02)
+are one shared run using the compared cipher definitions and selected unchanged
+Mbed TLS functions. They confirm the default 58-suite field plus initial SCSV,
+SNI name copying, null/empty extension distinctions and short-buffer results.
+They do not send a ClientHello, negotiate TLS, exercise all extensions or prove
+that the application configures an ALPN list.
 
 ## Coverage and cleanup
 

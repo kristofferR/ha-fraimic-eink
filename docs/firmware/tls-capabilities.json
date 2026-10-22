@@ -5,7 +5,7 @@
     "standard": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7"
   },
   "source": "https://raw.githubusercontent.com/espressif/mbedtls/98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8/library/ssl_ciphersuites.c",
-  "scope": "All 58 compiled definitions occur in the filtered preference order below; further handshake filtering and negotiated choice are not established here.",
+  "scope": "All 58 compiled definitions occur in the filtered preference order below. The traced version-only ClientHello validator and host field writer retain all 58 for a fresh TLS 1.2 setup, plus initial SCSV. This is static/source-fixture evidence, not a captured or negotiated handshake.",
   "tls_version": "1.2",
   "chacha20_present": false,
   "preferred_compiled_cipher_suites": [
@@ -241,5 +241,10 @@
       "id": "0xc03c",
       "name": "TLS_RSA_WITH_ARIA_128_CBC_SHA256"
     }
-  ]
+  ],
+  "client_hello": {
+    "initial_scsv": "0x00ff",
+    "cipher_field_bytes": 120,
+    "evidence_document": "cloud-protocol.md#clienthello-serialization-and-extension-boundaries"
+  }
 }

@@ -816,8 +816,9 @@ Useful AES-GCM candidates for a local server are present:
 There is no ChaCha20 definition. A server restricted to ChaCha20 therefore has
 no match in this compiled list. The inventory is not a captured ClientHello or
 proof that every listed suite is usable with current credentials, key exchange,
-curve and signature settings. Later handshake filtering and actual negotiation
-remain distinct checks; certificate name/trust validation still applies.
+curve and signature settings. The [ClientHello follow-up](#clienthello-serialization-and-extension-boundaries)
+traces the default list's serialization; actual negotiation and certificate
+name/trust validation remain distinct checks.
 
 Client configuration `0x420c4174` sets the certificate hostname before SSL setup.
 With name checking enabled, it duplicates an explicit `common_name` override
@@ -834,8 +835,47 @@ The ALPN setter `0x42072320` is compiled and is called when a protocol list is
 provided. It requires each name to contain 1–255 bytes and the sum of name bytes
 to be at most 65,535, then stores the caller's list pointer without copying it.
 This does not establish that current application requests configure ALPN or
-that HTTP/2 is supported. SNI serialization and actual ClientHello contents are
-separate from storing a hostname and remain to be traced.
+that HTTP/2 is supported. The following section traces the extension writers;
+actual wire contents and negotiated results remain unobserved in this pass.
+
+### ClientHello serialization and extension boundaries
+
+ClientHello body writer `0x420763c0` invokes the cipher-list writer, writes null
+compression, then invokes SNI `0x4207618c` and ALPN `0x42076220` before the
+remaining group/signature/TLS 1.2 extensions. Six complete bodies match in both
+models; this does not imply that all the remaining extension helpers have been
+compared.
+
+The recovered cipher validator `0x420e45e0` rejects a missing definition or a
+TLS-version range without overlap. Its complete body has no additional PSK,
+certificate or curve eligibility branch. With the default fresh TLS 1.2
+configuration, writer `0x4207609c` therefore serializes all **58** compiled suites
+in the recovered order and appends `0x00ff`, the initial-handshake renegotiation
+signaling value. The field occupies **120 bytes**: a two-byte length and 59
+two-byte values. Renegotiation omits that signaling value. Advertising a suite
+still does not prove a server's selected parameters can complete the handshake.
+
+The SNI writer copies the stored hostname exactly. A normal name of N bytes
+produces N+9 extension bytes; a 255-byte name produces 264. A null pointer omits
+the extension. An empty but non-null string emits a zero-length name rather than
+omitting SNI. The prior client-config path's optional `common_name` override
+therefore affects SNI as well as the certificate verification name, while this
+writer does not alter the connection destination. Future custom-origin/trust
+settings must keep those intended names consistent. These helper results are
+not evidence that an empty or invalid name reaches an accepted server connection.
+
+ALPN likewise omits its extension for a null list, but a non-null list containing
+only its terminator emits a six-byte empty extension. A configured list is copied
+in order with one-byte name lengths. This proves the writer exists, not that
+the application's HTTP clients configure a list or implement HTTP/2.
+
+Fourteen [pinned-source host groups](validation-2026-10-22.md#clienthello-field-serialization-c03e01e02)
+verify these bytes and buffer boundaries. SNI's short-buffer check occurs before
+it writes. ALPN and cipher-list writers can leave a partially written prefix
+while returning `-0x6a00` and zero reported output length. The body writer
+propagates those errors. No failing prefix was sent to a frame or server, and the
+fixture does not build, encrypt or transmit a complete TLS handshake. Physical
+ClientHello/negotiation checks and the outer send path remain open.
 
 ### Address selection does not recover from a bad IPv4 destination
 

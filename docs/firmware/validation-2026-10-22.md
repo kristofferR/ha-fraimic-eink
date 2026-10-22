@@ -2007,3 +2007,45 @@ Private artifacts: `tls-ciphers-pass1.txt`/`tls-ciphers-pass2.txt`,
 `standard-tls-ciphers-comparison.json`. The reference structures and selection
 algorithm are from [pinned Mbed TLS](https://raw.githubusercontent.com/espressif/mbedtls/98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8/library/ssl_ciphersuites.c).
 No frame, network, artwork or HA change was made.
+
+## ClientHello field serialization: C03/E01/E02
+
+Six complete paired GNU bodies add 427 instructions, 97 branches and 28 ranges
+per model. Ten direct-call pairs are mapped; all three literal values are equal.
+The body writer's complete branches establish calls to the SNI, ALPN and cipher
+writers and propagation of their errors. Other extension and outer send helpers
+are not recursively covered by these six pairs.
+
+Fourteen host case groups use five unchanged functions from pinned Mbed TLS
+`98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8`: the three field writers, cipher
+validator and EC-use predicate. The lookup fixture uses the 58 decoded records;
+small host structures expose only consumed fields, and a compatible bounded-write
+macro replaces the original header context. The selected TLS 1.2/renegotiation
+branches match the binary. This is not the complete target ABI or build config.
+
+Cases check absent/normal/255-byte/empty SNI and insufficient capacity; absent,
+two-name and empty ALPN lists plus partial-output failure; all 58 cipher IDs and
+initial SCSV, renegotiation omission, unknown-ID filtering and partial-buffer
+failure; and null/version-range validation boundaries. C11, Wall/Wextra/Werror,
+AddressSanitizer and UndefinedBehaviorSanitizer passed. Test protocol names and
+hostnames are synthetic and do not imply application configuration or server
+acceptance. No cryptographic handshake, socket, TLS record or live device is
+involved.
+
+Private artifacts: `tls-hello-pass1.txt`/`tls-hello-pass2.txt`,
+`run-tls-hello-cfg.mjs`, per-function `tls-hello-*-cfg.json`/`.txt`,
+`compare-standard-tls-hello.mjs`, `standard-tls-hello-comparison.json`,
+`extract-tls-hello.mjs` and `tls-hello-evidence-hashes.json`. Source writers are
+from [pinned ssl_client.c](https://raw.githubusercontent.com/espressif/mbedtls/98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8/library/ssl_client.c).
+No frame, network, artwork or HA change was made. Physical negotiation, remaining
+extensions, application ALPN settings and outer send handling remain open.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `tls-allocation-ssl_tls.c` | `32bd6c6b487dd4a67998ced23a03e641eba7d4e54f5ba4887c4cf199d8716df6` |
+| `tls-ciphers-ssl_ciphersuites.c` | `c1ea9c74805e037bc1f67eca7aecfcc4e9151bd5dfc944ecbc688c2b0c624ca7` |
+| `tls-ciphers-ssl_client.c` | `3e3b58651f7a22ab988831904b0d13d21d593b26dce1a3b36c23112595b7b9ab` |
+| `tls-hello-selected.inc` | `8570aa42e819c72916d54aec6ccb42f3384ecd60c8de8a3e26e51d10ece1a1bd` |
+| `tls-hello-ciphers.inc` | `f5560c9a3fe35bf7b5d4c7ea0b0d6643a823b18369db54d3e27d524df3cddd69` |
+| `tls-hello-fixture.c` | `f0d307422c330766a9d1994f65904852354f32a99a7dfdc047defcbff1df7247` |
+| `tls-hello-fixture-results.jsonl` | `0ce86837c4bc990cace5df7b01723101e7d1ec2ad9d17240e7b2bdcfb956ec7c` |

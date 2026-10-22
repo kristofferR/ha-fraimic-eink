@@ -3910,6 +3910,30 @@
       "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
     },
     {
+      "address": "0x4207609c",
+      "kind": "function",
+      "role": "ssl_write_client_hello_cipher_suites; ClientHello field serialization analysis",
+      "evidence": "static; complete GNU CFG, paired Standard comparison and selected source host cases"
+    },
+    {
+      "address": "0x4207618c",
+      "kind": "function",
+      "role": "ssl_write_hostname_ext; ClientHello field serialization analysis",
+      "evidence": "static; complete GNU CFG, paired Standard comparison and selected source host cases"
+    },
+    {
+      "address": "0x42076220",
+      "kind": "function",
+      "role": "ssl_write_alpn_ext; ClientHello field serialization analysis",
+      "evidence": "static; complete GNU CFG, paired Standard comparison and selected source host cases"
+    },
+    {
+      "address": "0x420763c0",
+      "kind": "function",
+      "role": "ssl_write_client_hello_body; ClientHello field serialization analysis",
+      "evidence": "static; complete GNU CFG, paired Standard comparison and selected source host cases"
+    },
+    {
       "address": "0x4207da28",
       "kind": "function",
       "role": "mbedtls_md_setup; TLS setup allocation/configuration analysis",
@@ -4174,10 +4198,22 @@
       "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x420e45e0",
+      "kind": "function",
+      "role": "mbedtls_ssl_validate_ciphersuite; ClientHello field serialization analysis",
+      "evidence": "static; complete GNU CFG, paired Standard comparison and selected source host cases"
+    },
+    {
       "address": "0x420e47a0",
       "kind": "function",
       "role": "ciphersuite_is_removed; TLS cipher/name configuration analysis",
       "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
+    },
+    {
+      "address": "0x420e4810",
+      "kind": "function",
+      "role": "mbedtls_ssl_ciphersuite_uses_ec; ClientHello field serialization analysis",
+      "evidence": "static; complete GNU CFG, paired Standard comparison and selected source host cases"
     },
     {
       "address": "0x420e6b44",
