@@ -799,6 +799,39 @@ therefore apply to both builds, without demonstrating a physical race. Complete
 parser/loop equivalence and computed references remain outside this comparison;
 the known dispatcher exclusions still differ as described below.
 
+### Complete poll request and response control flow matches
+
+The complete application routines, Large `0x4202475c` and Standard `0x420231b4`,
+each recover **1,878 instructions**. A paired control-flow traversal matches
+1,807 instructions and follows all 71 unconditional jumps per build, including
+119 matched conditional branches. No recovered instruction remains unvisited.
+The traversal accounts for short encodings, register-copy encodings and jump
+layout across 40/37 contiguous ranges; raw Ghidra function extents are not used
+as the completeness criterion.
+
+The comparison maps 32 distinct direct-call target pairs and 131 literal-value
+pairs separately. Ninety relocated NUL-terminated byte sequences match exactly,
+as does one empty string. The only differing compared read-only strings are:
+
+| Role | Large | Standard |
+| --- | --- | --- |
+| Fallback version when its getter fails | `0.2.29` | `0.2.28` |
+| Display type in all three request URL formats | `315` | `133` |
+
+This extends application-branch compatibility to request construction, URL size
+checks, status/error handling, pending/URL/settings field selection, four-switch
+application calls, verification promotion, firmware-offer handling, deadline
+selection and cleanup order. It supports one shared stock-protocol adapter with
+model-specific assets and telemetry. It does not make the two panels, image
+sizes or firmware images interchangeable.
+
+The [numeric comparison](poll-full-comparison.json) retains CFG hashes, call and
+literal mappings. External functions are mapped, not recursively proven
+equivalent by this pass; six corresponding RAM addresses do not establish equal
+installed contents. The Large-derived parser host cases are not relabeled as
+new Standard hardware tests. [Validation](validation-2026-10-22.md#complete-two-model-poll-body-comparison-c02e01e02)
+records normalization and coverage limits.
+
 ### Settings persistence also matches
 
 Three application functions and two bounded caller regions were compared with
@@ -806,7 +839,9 @@ GNU Xtensa disassembly: **431 instructions per image, 49 branches and 22 Standar
 ranges**, all byte-matched against the pinned apps with complete range coverage.
 Normalized instructions/registers and internal branch destinations match; eleven
 direct-call pairs and 32 literal pairs were mapped separately. This does not
-compare every external helper, the whole poll parser or the full boot sequence.
+compare every external helper or the full boot sequence. The later
+[complete poll comparison](#complete-poll-request-and-response-control-flow-matches)
+extends the application-body coverage beyond these bounded caller regions.
 
 | Role | Large | Standard |
 | --- | --- | --- |

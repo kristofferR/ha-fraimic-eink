@@ -172,6 +172,13 @@ or network change was performed for this reconciliation.
 
 ## Poll
 
+The [complete two-model poll comparison](standard-model-comparison.md#complete-poll-request-and-response-control-flow-matches)
+covers the application routine that constructs requests and processes responses,
+not just the worker wrapper. All 1,878 recovered instructions per build are
+accounted for after address/layout normalization. Only the fallback firmware
+version and display-type strings differ among the compared read-only literals.
+External helpers and runtime state remain explicit compatibility limits.
+
 The [saved-schema comparison](schema-and-client-contract.md) distinguishes
 advertised fields from these client behaviors. The October schema omits
 `display_type` and `is_periodic_poll` from its poll parameters, although all
@@ -260,9 +267,12 @@ deadline. Error paths that return internal success are different; see below and
 
 ### Field selection and permissive JSON parsing
 
-These details are static Large 0.2.29 findings, supported by a 25-case host
-fixture using IDF 5.4.1's pinned cJSON 1.7.18 plus the recovered selection rules.
-The fixture does not execute firmware, persistence or recording actions.
+These rules were first recovered from Large 0.2.29 and supported by a 25-case
+host fixture using IDF 5.4.1's pinned cJSON 1.7.18 plus the recovered selection
+rules. The complete poll-body comparison now establishes matching application
+branches in Standard 0.2.28. The original host fixture does not execute firmware,
+persistence or recording actions; body matching does not recursively validate
+every called helper.
 
 | Input | Recovered behavior |
 | --- | --- |

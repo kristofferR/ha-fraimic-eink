@@ -3744,3 +3744,44 @@ Checklist totals remain 12/67 original items and 124/188 milestones.
 | `poll-admission-results.json` (published as the numeric ledger) | `dc7563039397bba80b2037043d0a7ce5b3df593a3e77a1d430bea764156d460e` |
 | `poll-admission-reference-large.tsv` | `45a59b804bd96672aa20f9a58a198b0c6fd2cd8e48a653281abeaae46d08722b` |
 | `poll-admission-reference-standard.tsv` | `0299cab7e182c1666894ba186a67d02a8c97ca0c198a872adcfaefdc84185dee` |
+
+## Complete two-model poll body comparison: C02/E01/E02
+
+Fresh CFG recovery of Large `0x4202475c` and Standard `0x420231b4` yields 1,878
+instructions each, in 40/37 contiguous ranges. Every instruction byte is checked
+against its pinned vendor application. A graph-pair traversal starts at each
+entry, follows unconditional jumps and checks both sides of each conditional
+branch. It normalizes narrow instruction suffixes and same-register OR copies;
+literal loads and direct calls retain explicit paired values/targets.
+
+All 1,807 non-jump instructions match, all 71 unconditional jumps per build are
+visited, and all 119 conditional branches pair without predicate inversion.
+The traversal enforces a consistent bijection for paired instruction addresses.
+There are zero unvisited recovered instructions and zero unexplained instruction
+or literal differences. This is stronger than aligning two incomplete Ghidra
+decompilations or comparing only selected successful paths.
+
+Thirty-two distinct direct-call pairs and 131 literal-value pairs are recorded:
+90 identical relocated NUL-terminated byte sequences, one empty string, sixteen
+equal values, three relocated IRAM code pointers, thirteen IROM code pointers,
+six corresponding RAM addresses and two model-specific strings. The latter are
+the version fallback `0.2.29`/`0.2.28` and display type `315`/`133`, including
+all three URL-format call sites. Those exceptions are explicitly asserted.
+
+The [public mapping](poll-full-comparison.json) omits the private full instruction
+pair list while retaining addresses, call/literal uses and hashes. No firmware
+binary or decompilation is published. It extends the
+[shared contract](standard-model-comparison.md#complete-poll-request-and-response-control-flow-matches)
+to the complete application request/response routine, but does not recursively
+compare all callees or establish installed state. No HTTP/parser fault, real
+network exchange, device change or physical Standard test was performed.
+Existing C02/E01/E02 static evidence is extended; checklist totals remain 12/67
+and 124/188, with physical response criteria deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `compare-poll-full.mjs` | `a4b74eeddbc00bd8f9ab57afd356800ed645d7233a8bf04437342def517a0bb9` |
+| `poll-full-comparison.json` (private full mapping) | `a510839724cc23d529ddd08e282b04cce5d7cb4c72c7025d3ffb9699e1b1c0e4` |
+| `poll-full-comparison.public.json` (published mapping) | `3fbbe6b487fbc84b44278cacac09c8bc48065689f2020908c603601527d1faa4` |
+| `poll-request-large-cfg.json` | `e299a346ba8244456567d97c4edfa01bd971966bd762f33c2272d0277be556e4` |
+| `poll-request-standard-cfg.json` | `a69682a89fc4dbbeb18968b4fd78962047ebf32f2444e98cb1d4e05b611ec84f` |

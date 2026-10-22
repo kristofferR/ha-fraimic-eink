@@ -9,6 +9,7 @@ The history does not reopen C05/C10/R11/E03 or authorize new device experiments.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
+| C02/E01/E02 | Complete poll application bodies compared: all 1,878 instructions each accounted for, 119 conditional branches match, 32 call pairs and 131 literal pairs classified; only version/model read-only strings differ | External helper equivalence, installed RAM/NVS state and deferred physical response faults |
 | C02/D01/E01/E02 | Seven direct dispatcher sites per build reconciled; three instruction schedules each establish non-atomic task admission and an older worker clearing a newer handle | Actual task scheduling/frequency, concurrent HTTP effects and owner-tagged admission/result implementation |
 | C02/S06/E01/E02 | Four scripted instruction schedules per build connect actual album, poll-worker and starter code: a last-delay result can be cleared before a handle-blocked retry; adjacent schedules consume it | Physical scheduling/frequency, actual response timing, complete sleep lifecycle and request-owned result implementation |
 | S06/C02/E01/E02 | Twenty instruction cases per build establish two album result windows, conditional retry dispatch, Wi-Fi recovery bounds and exit despite image-helper failure | Physical wake duration, concurrent late results, actual network/task faults and delivery acknowledgments |

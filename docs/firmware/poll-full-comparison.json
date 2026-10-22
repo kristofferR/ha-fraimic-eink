@@ -1,0 +1,2846 @@
+{
+  "large_entry": "0x4202475c",
+  "standard_entry": "0x420231b4",
+  "large_cfg_sha256": "e299a346ba8244456567d97c4edfa01bd971966bd762f33c2272d0277be556e4",
+  "standard_cfg_sha256": "a69682a89fc4dbbeb18968b4fd78962047ebf32f2444e98cb1d4e05b611ec84f",
+  "instruction_counts": [
+    1878,
+    1878
+  ],
+  "paired_instructions": 1807,
+  "paired_conditional_branches": 119,
+  "followed_jumps": [
+    71,
+    71
+  ],
+  "inverted_branches": [],
+  "unvisited": [
+    [],
+    []
+  ],
+  "differences": [],
+  "calls": [
+    {
+      "large": "0x4202b954",
+      "standard": "0x4202a080",
+      "sites": [
+        [
+          "0x420247e1",
+          "0x42023239"
+        ]
+      ]
+    },
+    {
+      "large": "0x42049e60",
+      "standard": "0x42048f38",
+      "sites": [
+        [
+          "0x42024812",
+          "0x4202326a"
+        ]
+      ]
+    },
+    {
+      "large": "0x420499f4",
+      "standard": "0x42048acc",
+      "sites": [
+        [
+          "0x42024831",
+          "0x42023289"
+        ]
+      ]
+    },
+    {
+      "large": "0x4204999c",
+      "standard": "0x42048a74",
+      "sites": [
+        [
+          "0x42024871",
+          "0x420232c9"
+        ]
+      ]
+    },
+    {
+      "large": "0x42049974",
+      "standard": "0x42048a4c",
+      "sites": [
+        [
+          "0x42024876",
+          "0x420232ce"
+        ]
+      ]
+    },
+    {
+      "large": "0x42049d9c",
+      "standard": "0x42048e74",
+      "sites": [
+        [
+          "0x420248a0",
+          "0x420232f8"
+        ]
+      ]
+    },
+    {
+      "large": "0x4202d1d0",
+      "standard": "0x4202b8fc",
+      "sites": [
+        [
+          "0x420248d6",
+          "0x4202332e"
+        ]
+      ]
+    },
+    {
+      "large": "0x420298d0",
+      "standard": "0x42028110",
+      "sites": [
+        [
+          "0x420248e2",
+          "0x4202333a"
+        ]
+      ]
+    },
+    {
+      "large": "0x42029dac",
+      "standard": "0x42028760",
+      "sites": [
+        [
+          "0x420248ec",
+          "0x42023344"
+        ]
+      ]
+    },
+    {
+      "large": "0x4202fd84",
+      "standard": "0x4202e4b0",
+      "sites": [
+        [
+          "0x420248fd",
+          "0x42023355"
+        ],
+        [
+          "0x42024931",
+          "0x4202338a"
+        ]
+      ]
+    },
+    {
+      "large": "0x4202fc34",
+      "standard": "0x4202e360",
+      "sites": [
+        [
+          "0x42024923",
+          "0x4202337b"
+        ]
+      ]
+    },
+    {
+      "large": "0x42023300",
+      "standard": "0x42021db0",
+      "sites": [
+        [
+          "0x420249ab",
+          "0x42023403"
+        ]
+      ]
+    },
+    {
+      "large": "0x4206ac08",
+      "standard": "0x42069c34",
+      "sites": [
+        [
+          "0x420249c1",
+          "0x42023419"
+        ],
+        [
+          "0x42024dea",
+          "0x4202383e"
+        ]
+      ]
+    },
+    {
+      "large": "0x4206aefc",
+      "standard": "0x42069f28",
+      "sites": [
+        [
+          "0x420249cb",
+          "0x42023423"
+        ],
+        [
+          "0x42024df8",
+          "0x4202384c"
+        ]
+      ]
+    },
+    {
+      "large": "0x420189c0",
+      "standard": "0x42018994",
+      "sites": [
+        [
+          "0x42024a2d",
+          "0x42023485"
+        ]
+      ]
+    },
+    {
+      "large": "0x42017a4c",
+      "standard": "0x42017a20",
+      "sites": [
+        [
+          "0x42024a69",
+          "0x420234c1"
+        ],
+        [
+          "0x42024ccf",
+          "0x42023723"
+        ],
+        [
+          "0x42024aef",
+          "0x42023543"
+        ],
+        [
+          "0x42024b44",
+          "0x42023598"
+        ]
+      ]
+    },
+    {
+      "large": "0x4206df98",
+      "standard": "0x4206d590",
+      "sites": [
+        [
+          "0x42024bea",
+          "0x4202363e"
+        ]
+      ]
+    },
+    {
+      "large": "0x4206d4a4",
+      "standard": "0x4206ca9c",
+      "sites": [
+        [
+          "0x42024c16",
+          "0x4202366a"
+        ],
+        [
+          "0x42024c21",
+          "0x42023675"
+        ]
+      ]
+    },
+    {
+      "large": "0x4206e804",
+      "standard": "0x4206ddfc",
+      "sites": [
+        [
+          "0x42024c49",
+          "0x4202369d"
+        ]
+      ]
+    },
+    {
+      "large": "0x420065a0",
+      "standard": "0x42006564",
+      "sites": [
+        [
+          "0x42024c65",
+          "0x420236b9"
+        ],
+        [
+          "0x42025856",
+          "0x420242a2"
+        ],
+        [
+          "0x42025abb",
+          "0x42024507"
+        ],
+        [
+          "0x42025151",
+          "0x42023ba1"
+        ],
+        [
+          "0x420252c3",
+          "0x42023d13"
+        ]
+      ]
+    },
+    {
+      "large": "0x4206dbd8",
+      "standard": "0x4206d1d0",
+      "sites": [
+        [
+          "0x42025adb",
+          "0x42024527"
+        ]
+      ]
+    },
+    {
+      "large": "0x4203962c",
+      "standard": "0x420380f0",
+      "sites": [
+        [
+          "0x420258d4",
+          "0x42024320"
+        ],
+        [
+          "0x42024ece",
+          "0x4202391e"
+        ]
+      ]
+    },
+    {
+      "large": "0x4203966c",
+      "standard": "0x42038130",
+      "sites": [
+        [
+          "0x420258df",
+          "0x4202432b"
+        ],
+        [
+          "0x42024edb",
+          "0x4202392b"
+        ],
+        [
+          "0x42024f08",
+          "0x42023958"
+        ],
+        [
+          "0x42024f55",
+          "0x420239a5"
+        ],
+        [
+          "0x42024f5f",
+          "0x420239af"
+        ],
+        [
+          "0x42024fc3",
+          "0x42023a13"
+        ],
+        [
+          "0x42024ffa",
+          "0x42023a4a"
+        ],
+        [
+          "0x42025036",
+          "0x42023a86"
+        ],
+        [
+          "0x4202504c",
+          "0x42023a9c"
+        ],
+        [
+          "0x42025057",
+          "0x42023aa7"
+        ],
+        [
+          "0x42025061",
+          "0x42023ab1"
+        ],
+        [
+          "0x42025071",
+          "0x42023ac1"
+        ],
+        [
+          "0x420251fb",
+          "0x42023c4e"
+        ],
+        [
+          "0x42025211",
+          "0x42023c64"
+        ],
+        [
+          "0x4202521b",
+          "0x42023c6e"
+        ],
+        [
+          "0x420252e1",
+          "0x42023d31"
+        ],
+        [
+          "0x420252f3",
+          "0x42023d43"
+        ]
+      ]
+    },
+    {
+      "large": "0x42039158",
+      "standard": "0x42037c1c",
+      "sites": [
+        [
+          "0x42025902",
+          "0x4202434e"
+        ],
+        [
+          "0x4202581d",
+          "0x42024269"
+        ]
+      ]
+    },
+    {
+      "large": "0x420151dc",
+      "standard": "0x420151fc",
+      "sites": [
+        [
+          "0x42024f14",
+          "0x42023964"
+        ]
+      ]
+    },
+    {
+      "large": "0x42015210",
+      "standard": "0x42015230",
+      "sites": [
+        [
+          "0x42024f19",
+          "0x42023969"
+        ]
+      ]
+    },
+    {
+      "large": "0x4202359c",
+      "standard": "0x4202204c",
+      "sites": [
+        [
+          "0x42024f3a",
+          "0x4202398a"
+        ]
+      ]
+    },
+    {
+      "large": "0x42039644",
+      "standard": "0x42038108",
+      "sites": [
+        [
+          "0x42024fff",
+          "0x42023a4f"
+        ]
+      ]
+    },
+    {
+      "large": "0x420158cc",
+      "standard": "0x420158ec",
+      "sites": [
+        [
+          "0x4202513a",
+          "0x42023b8a"
+        ]
+      ]
+    },
+    {
+      "large": "0x4202ba20",
+      "standard": "0x4202a14c",
+      "sites": [
+        [
+          "0x42025269",
+          "0x42023cbd"
+        ]
+      ]
+    },
+    {
+      "large": "0x42015d30",
+      "standard": "0x42015d50",
+      "sites": [
+        [
+          "0x42025635",
+          "0x42024085"
+        ]
+      ]
+    },
+    {
+      "large": "0x4202fde0",
+      "standard": "0x4202e50c",
+      "sites": [
+        [
+          "0x42024955",
+          "0x420233ad"
+        ]
+      ]
+    }
+  ],
+  "literals": [
+    {
+      "large": "0x4038a0d4",
+      "standard": "0x4038a0f4",
+      "kind": "IRAM code relocation; body not compared",
+      "sites": [
+        [
+          "0x420247a4",
+          "0x420231fc"
+        ],
+        [
+          "0x42024848",
+          "0x420232a0"
+        ],
+        [
+          "0x42024879",
+          "0x420232d1"
+        ],
+        [
+          "0x42024902",
+          "0x4202335a"
+        ],
+        [
+          "0x420249fc",
+          "0x42023454"
+        ],
+        [
+          "0x42024b8c",
+          "0x420235e0"
+        ],
+        [
+          "0x42024bf2",
+          "0x42023646"
+        ],
+        [
+          "0x42024c5b",
+          "0x420236af"
+        ],
+        [
+          "0x42024d30",
+          "0x42023784"
+        ],
+        [
+          "0x42024d4c",
+          "0x420237a0"
+        ],
+        [
+          "0x42024d64",
+          "0x420237b8"
+        ],
+        [
+          "0x42024dcf",
+          "0x42023823"
+        ],
+        [
+          "0x42024dfe",
+          "0x42023852"
+        ],
+        [
+          "0x42024e30",
+          "0x42023884"
+        ],
+        [
+          "0x42024e59",
+          "0x420238ad"
+        ],
+        [
+          "0x42025844",
+          "0x42024290"
+        ],
+        [
+          "0x42025877",
+          "0x420242c3"
+        ],
+        [
+          "0x42025891",
+          "0x420242dd"
+        ],
+        [
+          "0x42025a33",
+          "0x4202447e"
+        ],
+        [
+          "0x42025a50",
+          "0x4202449c"
+        ],
+        [
+          "0x42025a76",
+          "0x420244c2"
+        ],
+        [
+          "0x42025a94",
+          "0x420244e0"
+        ],
+        [
+          "0x42025ab1",
+          "0x420244fd"
+        ],
+        [
+          "0x420259d4",
+          "0x42024420"
+        ],
+        [
+          "0x420259ae",
+          "0x420243fa"
+        ],
+        [
+          "0x42025825",
+          "0x42024271"
+        ],
+        [
+          "0x42024f1e",
+          "0x4202396e"
+        ],
+        [
+          "0x42025142",
+          "0x42023b92"
+        ],
+        [
+          "0x4202524b",
+          "0x42023c9e"
+        ],
+        [
+          "0x42025272",
+          "0x42023cc4"
+        ],
+        [
+          "0x420255f2",
+          "0x42024042"
+        ],
+        [
+          "0x420257c4",
+          "0x42024210"
+        ],
+        [
+          "0x42025800",
+          "0x4202424c"
+        ],
+        [
+          "0x420255c0",
+          "0x42024010"
+        ],
+        [
+          "0x42025482",
+          "0x42023ed2"
+        ],
+        [
+          "0x4202538e",
+          "0x42023dde"
+        ],
+        [
+          "0x4202529a",
+          "0x42023ced"
+        ],
+        [
+          "0x420252b8",
+          "0x42023d08"
+        ],
+        [
+          "0x42024fa1",
+          "0x420239f1"
+        ],
+        [
+          "0x42024e89",
+          "0x420238db"
+        ],
+        [
+          "0x42024d80",
+          "0x420237d4"
+        ],
+        [
+          "0x42024db7",
+          "0x4202380b"
+        ],
+        [
+          "0x42024d9c",
+          "0x420237f0"
+        ],
+        [
+          "0x42024cac",
+          "0x42023700"
+        ],
+        [
+          "0x42024cc7",
+          "0x4202371b"
+        ],
+        [
+          "0x42024ce5",
+          "0x42023739"
+        ],
+        [
+          "0x42024cfc",
+          "0x42023750"
+        ],
+        [
+          "0x42024d14",
+          "0x42023768"
+        ],
+        [
+          "0x42024937",
+          "0x4202338f"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11cc54",
+      "standard": "0x3c11bf9c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420247aa",
+          "0x42023202"
+        ],
+        [
+          "0x4202484e",
+          "0x420232a6"
+        ],
+        [
+          "0x42024908",
+          "0x42023360"
+        ],
+        [
+          "0x42024a02",
+          "0x4202345a"
+        ],
+        [
+          "0x42024b92",
+          "0x420235e6"
+        ],
+        [
+          "0x42024bf8",
+          "0x4202364c"
+        ],
+        [
+          "0x42024c68",
+          "0x420236bc"
+        ],
+        [
+          "0x42024d36",
+          "0x4202378a"
+        ],
+        [
+          "0x42024dd5",
+          "0x42023829"
+        ],
+        [
+          "0x42024e13",
+          "0x42023867"
+        ],
+        [
+          "0x42025859",
+          "0x420242a5"
+        ],
+        [
+          "0x4202587d",
+          "0x420242c9"
+        ],
+        [
+          "0x42025a39",
+          "0x42024484"
+        ],
+        [
+          "0x42025a7c",
+          "0x420244c8"
+        ],
+        [
+          "0x42025abe",
+          "0x4202450a"
+        ],
+        [
+          "0x42025a00",
+          "0x4202444c"
+        ],
+        [
+          "0x420259b4",
+          "0x42024400"
+        ],
+        [
+          "0x4202582b",
+          "0x42024277"
+        ],
+        [
+          "0x42024f24",
+          "0x42023974"
+        ],
+        [
+          "0x42025154",
+          "0x42023ba4"
+        ],
+        [
+          "0x42025251",
+          "0x42023ca4"
+        ],
+        [
+          "0x42025278",
+          "0x42023cca"
+        ],
+        [
+          "0x420255f8",
+          "0x42024048"
+        ],
+        [
+          "0x420257d2",
+          "0x4202421e"
+        ],
+        [
+          "0x42025806",
+          "0x42024252"
+        ],
+        [
+          "0x420255c6",
+          "0x42024016"
+        ],
+        [
+          "0x420255ac",
+          "0x42023ffc"
+        ],
+        [
+          "0x42025459",
+          "0x42023ea9"
+        ],
+        [
+          "0x420252a0",
+          "0x42023cf3"
+        ],
+        [
+          "0x420252c6",
+          "0x42023d16"
+        ],
+        [
+          "0x42024fa7",
+          "0x420239f7"
+        ],
+        [
+          "0x42024e8f",
+          "0x420238e1"
+        ],
+        [
+          "0x42024d86",
+          "0x420237da"
+        ],
+        [
+          "0x42024dbd",
+          "0x42023811"
+        ],
+        [
+          "0x42024da2",
+          "0x420237f6"
+        ],
+        [
+          "0x42024cb2",
+          "0x42023706"
+        ],
+        [
+          "0x4202493d",
+          "0x42023395"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e2e4",
+      "standard": "0x3c11d62c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420247b1",
+          "0x42023209"
+        ]
+      ]
+    },
+    {
+      "large": "0x4038a11c",
+      "standard": "0x4038a13c",
+      "kind": "IRAM code relocation; body not compared",
+      "sites": [
+        [
+          "0x420247b6",
+          "0x4202320e"
+        ],
+        [
+          "0x4202485c",
+          "0x420232b4"
+        ],
+        [
+          "0x4202488f",
+          "0x420232e7"
+        ],
+        [
+          "0x4202491a",
+          "0x42023372"
+        ],
+        [
+          "0x42024a0f",
+          "0x42023467"
+        ],
+        [
+          "0x42024b9e",
+          "0x420235f2"
+        ],
+        [
+          "0x42024c04",
+          "0x42023658"
+        ],
+        [
+          "0x42024c7a",
+          "0x420236ce"
+        ],
+        [
+          "0x42024d46",
+          "0x4202379a"
+        ],
+        [
+          "0x42024d5e",
+          "0x420237b2"
+        ],
+        [
+          "0x42024d76",
+          "0x420237ca"
+        ],
+        [
+          "0x42024de1",
+          "0x42023835"
+        ],
+        [
+          "0x42024e2a",
+          "0x4202387e"
+        ],
+        [
+          "0x42024e53",
+          "0x420238a7"
+        ],
+        [
+          "0x42024e7e",
+          "0x420238d2"
+        ],
+        [
+          "0x4202586b",
+          "0x420242b7"
+        ],
+        [
+          "0x4202588b",
+          "0x420242d7"
+        ],
+        [
+          "0x420258a2",
+          "0x420242ee"
+        ],
+        [
+          "0x42025a4a",
+          "0x42024496"
+        ],
+        [
+          "0x42025a62",
+          "0x420244ae"
+        ],
+        [
+          "0x42025a8e",
+          "0x420244da"
+        ],
+        [
+          "0x42025aa6",
+          "0x420244f2"
+        ],
+        [
+          "0x42025ace",
+          "0x4202451a"
+        ],
+        [
+          "0x42025a0c",
+          "0x42024458"
+        ],
+        [
+          "0x420259ca",
+          "0x42024416"
+        ],
+        [
+          "0x42025837",
+          "0x42024283"
+        ],
+        [
+          "0x42024f31",
+          "0x42023981"
+        ],
+        [
+          "0x42025167",
+          "0x42023bb7"
+        ],
+        [
+          "0x4202525f",
+          "0x42023cb2"
+        ],
+        [
+          "0x4202528b",
+          "0x42023cde"
+        ],
+        [
+          "0x4202561a",
+          "0x4202406a"
+        ],
+        [
+          "0x420257e2",
+          "0x4202422e"
+        ],
+        [
+          "0x42025815",
+          "0x42024261"
+        ],
+        [
+          "0x420255de",
+          "0x4202402e"
+        ],
+        [
+          "0x420255b6",
+          "0x42024006"
+        ],
+        [
+          "0x4202546a",
+          "0x42023eba"
+        ],
+        [
+          "0x420252ae",
+          "0x42023cff"
+        ],
+        [
+          "0x420252d5",
+          "0x42023d25"
+        ],
+        [
+          "0x42024fb3",
+          "0x42023a03"
+        ],
+        [
+          "0x42024e9d",
+          "0x420238ed"
+        ],
+        [
+          "0x42024d92",
+          "0x420237e6"
+        ],
+        [
+          "0x42024dc9",
+          "0x4202381d"
+        ],
+        [
+          "0x42024dae",
+          "0x42023802"
+        ],
+        [
+          "0x42024cc1",
+          "0x42023715"
+        ],
+        [
+          "0x42024cdf",
+          "0x42023733"
+        ],
+        [
+          "0x42024cf6",
+          "0x4202374a"
+        ],
+        [
+          "0x42024d0e",
+          "0x42023762"
+        ],
+        [
+          "0x42024d26",
+          "0x4202377a"
+        ],
+        [
+          "0x4202494f",
+          "0x420233a7"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e2dc",
+      "standard": "0x3c11d624",
+      "kind": "model firmware-version fallback",
+      "sites": [
+        [
+          "0x420247e6",
+          "0x4202323e"
+        ]
+      ]
+    },
+    {
+      "large": "0x400011e8",
+      "standard": "0x400011e8",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42024802",
+          "0x4202325a"
+        ],
+        [
+          "0x420248b2",
+          "0x4202330a"
+        ],
+        [
+          "0x42024965",
+          "0x420233bd"
+        ],
+        [
+          "0x4202499b",
+          "0x420233f3"
+        ],
+        [
+          "0x420249b8",
+          "0x42023410"
+        ],
+        [
+          "0x42024a22",
+          "0x4202347a"
+        ],
+        [
+          "0x42024bba",
+          "0x4202360e"
+        ],
+        [
+          "0x42024c30",
+          "0x42023684"
+        ],
+        [
+          "0x420258c2",
+          "0x4202430e"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c1027dc",
+      "standard": "0x3c1028f0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202480f",
+          "0x42023267"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c1027f0",
+      "standard": "0x3c102904",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202482c",
+          "0x42023284"
+        ],
+        [
+          "0x4202486c",
+          "0x420232c4"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c1027e8",
+      "standard": "0x3c1028fc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024837",
+          "0x4202328f"
+        ],
+        [
+          "0x42024895",
+          "0x420232ed"
+        ]
+      ]
+    },
+    {
+      "large": "0x40001230",
+      "standard": "0x40001230",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x4202483f",
+          "0x42023297"
+        ],
+        [
+          "0x420257bc",
+          "0x42024208"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e31c",
+      "standard": "0x3c11d664",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024855",
+          "0x420232ad"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e36c",
+      "standard": "0x3c11d6b4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024886",
+          "0x420232de"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e3ac",
+      "standard": "0x3c11d6f4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420248fa",
+          "0x42023352"
+        ],
+        [
+          "0x42024920",
+          "0x42023378"
+        ],
+        [
+          "0x4202492e",
+          "0x42023387"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e3b8",
+      "standard": "0x3c11d700",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024915",
+          "0x4202336d"
+        ]
+      ]
+    },
+    {
+      "large": "0x4209cc84",
+      "standard": "0x4209c328",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42024970",
+          "0x420233c8"
+        ]
+      ]
+    },
+    {
+      "large": "0x40001224",
+      "standard": "0x40001224",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42024986",
+          "0x420233de"
+        ],
+        [
+          "0x42024a4d",
+          "0x420234a5"
+        ],
+        [
+          "0x420258fa",
+          "0x42024346"
+        ],
+        [
+          "0x42024fe8",
+          "0x42023a38"
+        ],
+        [
+          "0x4202501c",
+          "0x42023a6c"
+        ],
+        [
+          "0x420257f2",
+          "0x4202423e"
+        ],
+        [
+          "0x42024aca",
+          "0x4202351f"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c0f8b58",
+      "standard": "0x3c0f8b34",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420249be",
+          "0x42023416"
+        ],
+        [
+          "0x42024de7",
+          "0x4202383b"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e458",
+      "standard": "0x3c11d7a0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420249e1",
+          "0x42023439"
+        ]
+      ]
+    },
+    {
+      "large": "0x420ced7c",
+      "standard": "0x420cf060",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x420249eb",
+          "0x42023443"
+        ],
+        [
+          "0x42024aae",
+          "0x42023506"
+        ],
+        [
+          "0x42025716",
+          "0x42024166"
+        ],
+        [
+          "0x420257a3",
+          "0x420241ef"
+        ],
+        [
+          "0x42024b3b",
+          "0x4202358f"
+        ],
+        [
+          "0x42024b80",
+          "0x420235d4"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e468",
+      "standard": "0x3c11d7b0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024a09",
+          "0x42023461"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e4b0",
+      "standard": "0x3c11d7f8",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024a44",
+          "0x4202349c"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c103340",
+      "standard": "0x3c103454",
+      "kind": "model display-type string",
+      "sites": [
+        [
+          "0x42024a98",
+          "0x420234f0"
+        ],
+        [
+          "0x42024b27",
+          "0x4202357b"
+        ],
+        [
+          "0x42024b6c",
+          "0x420235c0"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e4c8",
+      "standard": "0x3c11d810",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024a9f",
+          "0x420234f7"
+        ],
+        [
+          "0x42024b2e",
+          "0x42023582"
+        ],
+        [
+          "0x42024b73",
+          "0x420235c7"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e4e0",
+      "standard": "0x3c11d828",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024aa5",
+          "0x420234fd"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e688",
+      "standard": "0x3c11d9d0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024b99",
+          "0x420235ed"
+        ]
+      ]
+    },
+    {
+      "large": "0x2710",
+      "standard": "0x2710",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42024bc3",
+          "0x42023617"
+        ]
+      ]
+    },
+    {
+      "large": "0x420234cc",
+      "standard": "0x42021f7c",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42024bc9",
+          "0x4202361d"
+        ]
+      ]
+    },
+    {
+      "large": "0x1000",
+      "standard": "0x1000",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42024bd4",
+          "0x42023628"
+        ],
+        [
+          "0x42024c24",
+          "0x42023678"
+        ]
+      ]
+    },
+    {
+      "large": "0x42044ec8",
+      "standard": "0x4204128c",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42024bdf",
+          "0x42023633"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e6b4",
+      "standard": "0x3c11d9fc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024bff",
+          "0x42023653"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11d7cc",
+      "standard": "0x3c11cb14",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024c10",
+          "0x42023664"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11d7e0",
+      "standard": "0x3c11cb28",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024c13",
+          "0x42023667"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c104800",
+      "standard": "0x3c104914",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024c19",
+          "0x4202366d"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c10cd5c",
+      "standard": "0x3c10ce70",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024c1c",
+          "0x42023670"
+        ]
+      ]
+    },
+    {
+      "large": "0x3fca767c",
+      "standard": "0x3fca76d4",
+      "kind": "corresponding RAM address; contents not compared",
+      "sites": [
+        [
+          "0x42024c27",
+          "0x4202367b"
+        ]
+      ]
+    },
+    {
+      "large": "0x3fcabc44",
+      "standard": "0x3fcabc98",
+      "kind": "corresponding RAM address; contents not compared",
+      "sites": [
+        [
+          "0x42024c36",
+          "0x4202368a"
+        ],
+        [
+          "0x42025ade",
+          "0x4202452a"
+        ],
+        [
+          "0x420258cf",
+          "0x4202431b"
+        ],
+        [
+          "0x42024ec9",
+          "0x42023919"
+        ]
+      ]
+    },
+    {
+      "large": "0x3fcabc40",
+      "standard": "0x3fcabc94",
+      "kind": "corresponding RAM address; contents not compared",
+      "sites": [
+        [
+          "0x42024c3b",
+          "0x4202368f"
+        ],
+        [
+          "0x4202584d",
+          "0x42024299"
+        ],
+        [
+          "0x420258c8",
+          "0x42024314"
+        ],
+        [
+          "0x42024ec4",
+          "0x42023914"
+        ]
+      ]
+    },
+    {
+      "large": "0x3fcabc3c",
+      "standard": "0x3fcabc90",
+      "kind": "corresponding RAM address; contents not compared",
+      "sites": [
+        [
+          "0x42024c42",
+          "0x42023696"
+        ]
+      ]
+    },
+    {
+      "large": "0x420e4210",
+      "standard": "0x420e44f4",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42024c50",
+          "0x420236a4"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e6f4",
+      "standard": "0x3c11da3c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024c74",
+          "0x420236c8"
+        ]
+      ]
+    },
+    {
+      "large": "0x7002",
+      "standard": "0x7002",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42024c80",
+          "0x420236d4"
+        ],
+        [
+          "0x42025871",
+          "0x420242bd"
+        ],
+        [
+          "0x42025a68",
+          "0x420244b4"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e82c",
+      "standard": "0x3c11db74",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024d3d",
+          "0x42023791"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e864",
+      "standard": "0x3c11dbac",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024d56",
+          "0x420237aa"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e898",
+      "standard": "0x3c11dbe0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024d6e",
+          "0x420237c2"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e95c",
+      "standard": "0x3c11dca4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024ddc",
+          "0x42023830"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e984",
+      "standard": "0x3c11dccc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024e23",
+          "0x42023877"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e9a8",
+      "standard": "0x3c11dcf0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024e4c",
+          "0x420238a0"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e9d0",
+      "standard": "0x3c11dd18",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024e75",
+          "0x420238c9"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eee4",
+      "standard": "0x3c11e22c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025866",
+          "0x420242b2"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ef28",
+      "standard": "0x3c11e270",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025884",
+          "0x420242d0"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ef80",
+      "standard": "0x3c11e2c8",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202589b",
+          "0x420242e7"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11f07c",
+      "standard": "0x3c11e3c4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025a42",
+          "0x4202448d"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11f0bc",
+      "standard": "0x3c11e404",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025a5a",
+          "0x420244a6"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11f0f0",
+      "standard": "0x3c11e438",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025a85",
+          "0x420244d1"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11f130",
+      "standard": "0x3c11e478",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025a9e",
+          "0x420244ea"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11f17c",
+      "standard": "0x3c11e4c4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025ac9",
+          "0x42024515"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e15c",
+      "standard": "0x3c11d4a4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420258dc",
+          "0x42024328"
+        ]
+      ]
+    },
+    {
+      "large": "0x420e2e28",
+      "standard": "0x420e310c",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x420258e4",
+          "0x42024330"
+        ],
+        [
+          "0x42024fc8",
+          "0x42023a18"
+        ],
+        [
+          "0x42025222",
+          "0x42023c75"
+        ],
+        [
+          "0x42025232",
+          "0x42023c85"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c1043c0",
+      "standard": "0x3c1044d4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420259e7",
+          "0x42024433"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11f04c",
+      "standard": "0x3c11e394",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025a07",
+          "0x42024453"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c13617c",
+      "standard": "0x3c1360f4",
+      "kind": "same empty string",
+      "sites": [
+        [
+          "0x420259fd",
+          "0x42024449"
+        ],
+        [
+          "0x420259ed",
+          "0x42024439"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11efd4",
+      "standard": "0x3c11e31c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420259c4",
+          "0x42024410"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eea8",
+      "standard": "0x3c11e1f0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025832",
+          "0x4202427e"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c109f48",
+      "standard": "0x3c10a05c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024ed8",
+          "0x42023928"
+        ]
+      ]
+    },
+    {
+      "large": "0x420e2e40",
+      "standard": "0x420e3124",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42024ee3",
+          "0x42023933"
+        ],
+        [
+          "0x42024efa",
+          "0x4202394a"
+        ],
+        [
+          "0x4202503e",
+          "0x42023a8e"
+        ],
+        [
+          "0x42025203",
+          "0x42023c56"
+        ],
+        [
+          "0x4202566b",
+          "0x420240bb"
+        ],
+        [
+          "0x42025748",
+          "0x42024198"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c1006f4",
+      "standard": "0x3c100808",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024f03",
+          "0x42023953"
+        ]
+      ]
+    },
+    {
+      "large": "0x420e2de0",
+      "standard": "0x420e30c4",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42024f0b",
+          "0x4202395b"
+        ],
+        [
+          "0x42024f70",
+          "0x420239c0"
+        ],
+        [
+          "0x42025082",
+          "0x42023ad2"
+        ],
+        [
+          "0x420250a4",
+          "0x42023af4"
+        ],
+        [
+          "0x420250d2",
+          "0x42023b22"
+        ],
+        [
+          "0x42025102",
+          "0x42023b52"
+        ],
+        [
+          "0x42024f8e",
+          "0x420239de"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ea24",
+      "standard": "0x3c11dd6c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024f2b",
+          "0x4202397b"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ea74",
+      "standard": "0x3c11ddbc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024f37",
+          "0x42023987"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ea88",
+      "standard": "0x3c11ddd0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024f50",
+          "0x420239a0"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ea98",
+      "standard": "0x3c11dde0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024f5a",
+          "0x420239aa"
+        ]
+      ]
+    },
+    {
+      "large": "0x420e2df8",
+      "standard": "0x420e30dc",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42024f66",
+          "0x420239b6"
+        ],
+        [
+          "0x42025078",
+          "0x42023ac8"
+        ],
+        [
+          "0x4202509a",
+          "0x42023aea"
+        ],
+        [
+          "0x420250c3",
+          "0x42023b13"
+        ],
+        [
+          "0x420250f8",
+          "0x42023b48"
+        ],
+        [
+          "0x42024f84",
+          "0x420239d4"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11d958",
+      "standard": "0x3c11cca0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024fbe",
+          "0x42023a0e"
+        ],
+        [
+          "0x42025216",
+          "0x42023c69"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eaf8",
+      "standard": "0x3c11de40",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024ff5",
+          "0x42023a45"
+        ]
+      ]
+    },
+    {
+      "large": "0x4038b228",
+      "standard": "0x4038b248",
+      "kind": "IRAM code relocation; body not compared",
+      "sites": [
+        [
+          "0x4202502b",
+          "0x42023a7b"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eb08",
+      "standard": "0x3c11de50",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025031",
+          "0x42023a81"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eb18",
+      "standard": "0x3c11de60",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025047",
+          "0x42023a97"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eb30",
+      "standard": "0x3c11de78",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025051",
+          "0x42023aa1"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eb44",
+      "standard": "0x3c11de8c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202505c",
+          "0x42023aac"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eb58",
+      "standard": "0x3c11dea0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202506c",
+          "0x42023abc"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eb6c",
+      "standard": "0x3c11deb4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025162",
+          "0x42023bb2"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eba0",
+      "standard": "0x3c11dee8",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420251f6",
+          "0x42023c49"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c122f68",
+      "standard": "0x3c122b14",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202520c",
+          "0x42023c5f"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ebac",
+      "standard": "0x3c11def4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202525a",
+          "0x42023cad"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ebf4",
+      "standard": "0x3c11df3c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025286",
+          "0x42023cd8"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ec80",
+      "standard": "0x3c11dfc8",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420252db",
+          "0x42023d2b"
+        ]
+      ]
+    },
+    {
+      "large": "0x420e2e10",
+      "standard": "0x420e30f4",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x420252e6",
+          "0x42023d36"
+        ],
+        [
+          "0x420252fa",
+          "0x42023d4a"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ec90",
+      "standard": "0x3c11dfd8",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420252ee",
+          "0x42023d3e"
+        ]
+      ]
+    },
+    {
+      "large": "0x400022c8",
+      "standard": "0x400022c8",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42025307",
+          "0x42023d57"
+        ]
+      ]
+    },
+    {
+      "large": "0x420d0d48",
+      "standard": "0x420d102c",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x4202531c",
+          "0x42023d6c"
+        ]
+      ]
+    },
+    {
+      "large": "0x3fcabcc8",
+      "standard": "0x3fcabd20",
+      "kind": "corresponding RAM address; contents not compared",
+      "sites": [
+        [
+          "0x420255e9",
+          "0x42024039"
+        ],
+        [
+          "0x4202562d",
+          "0x4202407d"
+        ],
+        [
+          "0x42025650",
+          "0x420240a0"
+        ],
+        [
+          "0x4202572f",
+          "0x4202417f"
+        ],
+        [
+          "0x42025339",
+          "0x42023d89"
+        ],
+        [
+          "0x42025624",
+          "0x42024074"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ed64",
+      "standard": "0x3c11e0ac",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025615",
+          "0x42024065"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c0f146c",
+      "standard": "0x3c0f1468",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025647",
+          "0x42024097"
+        ],
+        [
+          "0x42025673",
+          "0x420240c3"
+        ],
+        [
+          "0x4202568c",
+          "0x420240dc"
+        ],
+        [
+          "0x4202569e",
+          "0x420240f0"
+        ],
+        [
+          "0x420256b0",
+          "0x42024102"
+        ],
+        [
+          "0x420256c4",
+          "0x42024114"
+        ],
+        [
+          "0x420256da",
+          "0x4202412a"
+        ],
+        [
+          "0x420256ec",
+          "0x4202413c"
+        ],
+        [
+          "0x42025725",
+          "0x42024175"
+        ],
+        [
+          "0x42025750",
+          "0x420241a0"
+        ],
+        [
+          "0x4202576e",
+          "0x420241be"
+        ],
+        [
+          "0x42025780",
+          "0x420241d0"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c131818",
+      "standard": "0x3c1315d8",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202565c",
+          "0x420240ac"
+        ],
+        [
+          "0x4202573b",
+          "0x4202418b"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11edb4",
+      "standard": "0x3c11e0fc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025708",
+          "0x42024158"
+        ]
+      ]
+    },
+    {
+      "large": "0x3fcabc48",
+      "standard": "0x3fcabc9c",
+      "kind": "corresponding RAM address; contents not compared",
+      "sites": [
+        [
+          "0x420257a9",
+          "0x420241f5"
+        ],
+        [
+          "0x420257b1",
+          "0x420241fd"
+        ],
+        [
+          "0x420257e8",
+          "0x42024234"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ee68",
+      "standard": "0x3c11e1b0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420257dc",
+          "0x42024228"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ee84",
+      "standard": "0x3c11e1cc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202580f",
+          "0x4202425b"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c1359fc",
+      "standard": "0x3c135974",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420256f5",
+          "0x42024145"
+        ],
+        [
+          "0x420256e0",
+          "0x42024130"
+        ],
+        [
+          "0x420256cc",
+          "0x4202411c"
+        ],
+        [
+          "0x420256b8",
+          "0x42024108"
+        ],
+        [
+          "0x420256a4",
+          "0x420240f6"
+        ],
+        [
+          "0x42025692",
+          "0x420240e4"
+        ],
+        [
+          "0x42025680",
+          "0x420240d0"
+        ],
+        [
+          "0x42025679",
+          "0x420240c9"
+        ],
+        [
+          "0x4202564d",
+          "0x4202409d"
+        ],
+        [
+          "0x42025789",
+          "0x420241d6"
+        ],
+        [
+          "0x42025774",
+          "0x420241c4"
+        ],
+        [
+          "0x42025760",
+          "0x420241b0"
+        ],
+        [
+          "0x42025758",
+          "0x420241a8"
+        ],
+        [
+          "0x4202572c",
+          "0x4202417c"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c1370c8",
+      "standard": "0x3c137040",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025664",
+          "0x420240b4"
+        ],
+        [
+          "0x42025741",
+          "0x42024191"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ee24",
+      "standard": "0x3c11e16c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025794",
+          "0x420241e1"
+        ]
+      ]
+    },
+    {
+      "large": "0x420cfa1c",
+      "standard": "0x420cfd00",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42025350",
+          "0x42023da0"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c0fa57c",
+      "standard": "0x3c0fa558",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025358",
+          "0x42023da8"
+        ]
+      ]
+    },
+    {
+      "large": "0x420d0d20",
+      "standard": "0x420d1004",
+      "kind": "IROM call pointer; body not compared",
+      "sites": [
+        [
+          "0x42025363",
+          "0x42023db3"
+        ]
+      ]
+    },
+    {
+      "large": "0xe0f",
+      "standard": "0xe0f",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42025385",
+          "0x42023dd5"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ed2c",
+      "standard": "0x3c11e074",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420255d9",
+          "0x42024029"
+        ]
+      ]
+    },
+    {
+      "large": "0xfffffff",
+      "standard": "0xfffffff",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x4202549a",
+          "0x42023eea"
+        ],
+        [
+          "0x42025533",
+          "0x42023f83"
+        ],
+        [
+          "0x420253c5",
+          "0x42023e15"
+        ]
+      ]
+    },
+    {
+      "large": "0x88888889",
+      "standard": "0x88888889",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x420254b5",
+          "0x42023f05"
+        ],
+        [
+          "0x4202554e",
+          "0x42023f9e"
+        ],
+        [
+          "0x420253e0",
+          "0x42023e30"
+        ]
+      ]
+    },
+    {
+      "large": "0xeeeeeeef",
+      "standard": "0xeeeeeeef",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x420254dc",
+          "0x42023f2c"
+        ],
+        [
+          "0x42025577",
+          "0x42023fc7"
+        ],
+        [
+          "0x42025408",
+          "0x42023e58"
+        ]
+      ]
+    },
+    {
+      "large": "0xeeeeeeee",
+      "standard": "0xeeeeeeee",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x420254e2",
+          "0x42023f32"
+        ],
+        [
+          "0x4202557d",
+          "0x42023fcd"
+        ],
+        [
+          "0x4202540e",
+          "0x42023e5e"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ecec",
+      "standard": "0x3c11e034",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420255af",
+          "0x42023fff"
+        ]
+      ]
+    },
+    {
+      "large": "0xe10",
+      "standard": "0xe10",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x4202539b",
+          "0x42023deb"
+        ],
+        [
+          "0x4202543d",
+          "0x42023e8d"
+        ]
+      ]
+    },
+    {
+      "large": "0x400023f4",
+      "standard": "0x400023f4",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x420253a4",
+          "0x42023df4"
+        ]
+      ]
+    },
+    {
+      "large": "0x4000225c",
+      "standard": "0x4000225c",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42025448",
+          "0x42023e98"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ecac",
+      "standard": "0x3c11dff4",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42025463",
+          "0x42023eb3"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ec20",
+      "standard": "0x3c11df68",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420252a8",
+          "0x42023cfa"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11ec54",
+      "standard": "0x3c11df9c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x420252cf",
+          "0x42023d1f"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11eaa8",
+      "standard": "0x3c11ddf0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024fae",
+          "0x420239fe"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e9f8",
+      "standard": "0x3c11dd40",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024e98",
+          "0x420238e8"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e8c8",
+      "standard": "0x3c11dc10",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024d8d",
+          "0x420237e1"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e930",
+      "standard": "0x3c11dc78",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024dc4",
+          "0x42023818"
+        ]
+      ]
+    },
+    {
+      "large": "0x7007",
+      "standard": "0x7007",
+      "kind": "same value",
+      "sites": [
+        [
+          "0x42024ca0",
+          "0x420236f4"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e8fc",
+      "standard": "0x3c11dc44",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024da9",
+          "0x420237fd"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e730",
+      "standard": "0x3c11da78",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024cb9",
+          "0x4202370d"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e768",
+      "standard": "0x3c11dab0",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024cd8",
+          "0x4202372c"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e794",
+      "standard": "0x3c11dadc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024cef",
+          "0x42023743"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e7c0",
+      "standard": "0x3c11db08",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024d06",
+          "0x4202375a"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e7f4",
+      "standard": "0x3c11db3c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024d1e",
+          "0x42023772"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e574",
+      "standard": "0x3c11d8bc",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024b33",
+          "0x42023587"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e614",
+      "standard": "0x3c11d95c",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x42024b78",
+          "0x420235cc"
+        ]
+      ]
+    },
+    {
+      "large": "0x3c11e408",
+      "standard": "0x3c11d750",
+      "kind": "same complete nul-terminated bytes",
+      "sites": [
+        [
+          "0x4202494a",
+          "0x420233a2"
+        ]
+      ]
+    }
+  ],
+  "method": "Pinned-image byte verification followed by paired control-flow traversal, following unconditional jumps and normalizing narrow encodings plus same-register OR/move. All reachable recovered instructions accounted for.",
+  "limits": [
+    "External direct-call targets and indirect code literals are mapped, not recursively proven equivalent by this comparison.",
+    "Corresponding RAM addresses establish matching access roles, not equal installed contents or provisioning.",
+    "The only differing read-only literals are firmware version fallback and display-type strings.",
+    "No parser fault, network exchange, model cross-flash or physical behavior was exercised."
+  ]
+}
