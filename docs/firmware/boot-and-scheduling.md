@@ -549,8 +549,9 @@ For a stock local backend, provide consistent answers through the resolvers the
 frame actually uses, and include DNS fallback and cache state in a controlled
 cutover test. A custom firmware should make the fallback configurable alongside
 the API and time-server origins. No DNS service, firewall, lease or frame state
-was changed here; actual fallback traffic, Standard equivalence for these DNS
-internals and a complete WAN-free cutover remain untested.
+was changed here. The [Standard comparison](standard-model-comparison.md#dns-fallback-cache-and-late-callbacks-also-match)
+confirms these selected static paths and constants on that model too. Actual
+fallback traffic and a complete WAN-free cutover remain untested.
 
 ### Time service
 
@@ -675,7 +676,8 @@ For future firmware, keep one time client alive across its lookup/response budge
 associate callbacks with an attempt, and make shutdown invalidate outstanding
 callbacks as well as remove timers. A local backend should provide responsive DNS
 and time service, but cannot enforce callback ownership inside stock firmware.
-The equivalent Standard callback lifetime and physical event timing remain open.
+The [Standard comparison](standard-model-comparison.md#dns-fallback-cache-and-late-callbacks-also-match)
+confirms these relevant static branches there too. Physical event timing remains open.
 
 ### DHCP does not configure the stock time server
 

@@ -294,13 +294,15 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   confirms the same DHCP and startup-delay branches. Large's
   [pending DNS callback lifetime](boot-and-scheduling.md#pending-dns-callbacks-survive-sntp-stop)
   and eight isolated host cases show stale completion can alter a replacement
-  client or rearm work after stop. Check Standard callback equivalence,
-  callback-queue failures and physical startup timing; SDK defaults alone do not
+  client or rearm work after stop. The Standard comparison confirms those static
+  branches too. Check callback-queue failures and physical startup timing; SDK defaults alone do not
   establish build behavior.
   Large's [DNS fallback/cache trace](boot-and-scheduling.md#dns-fallback-and-cached-destinations)
   identifies a separate public resolver in slot 2, preserved across DHCP setup,
-  and distinguishes timeout/error fallback from cached-answer reuse. Verify
-  Standard equivalence and a bounded DNS cutover/outage when device tests resume.
+  and distinguishes timeout/error fallback from cached-answer reuse. The
+  [Standard resolver comparison](standard-model-comparison.md#dns-fallback-cache-and-late-callbacks-also-match)
+  confirms the same selected paths and constants. A bounded DNS cutover/outage
+  remains for when device tests resume.
 - [ ] **S03 · Host/Device:** Exercise future, absent, invalid, past and failed-poll
   deadlines across reboot. Check persistence and the distinction between clearing
   the schedule and a network failure.

@@ -46,9 +46,9 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 82 corresponding functions, including the subsequent
+The preserved metadata maps 94 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
-maintenance, LED, status-image and SNTP/DHCP comparisons. The poll paths share 86
+maintenance, LED, status-image and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -103,7 +103,7 @@ Standard `0x42014eb0` uses the same four time-server names from `0x3c13be18`.
 Its background initializer passes five attempts, and the synchronization routine
 uses the same 2/4/8/10/10-second waits. SDK initializer `0x42055340` introduces the
 same random 0–4,999 ms delay before requesting time. Stop `0x420553c8` removes
-request/retry timers, and name setter `0x4205544c` accepts only slot zero at
+request/retry timers when a UDP client exists, and name setter `0x4205544c` accepts only slot zero at
 `0x3fcad9fc`. The [early-attempt timing problem](boot-and-scheduling.md#sntp-server-selection-and-startup-delay)
 therefore has the same relevant static branches on both models. The final
 application timeout also leaves SNTP running in Standard.
@@ -124,6 +124,39 @@ not full SDK equivalence or a physical packet test. Both stock models need the
 same candidate local DNS/NTP compatibility plan; DHCP option 42 alone will not
 configure their time source. Cold boot, retained RTC behavior, actual retry
 timing and WAN-free operation remain open.
+
+### DNS fallback, cache and late callbacks also match
+
+Standard initializer `0x420567e8` installs the same `8.8.8.8` fallback in DNS
+slot 2. Its resolver table is at `0x3fcada24`; DHCP-start clearing helper
+`0x420693c4` and the previously compared ACK path preserve that slot while
+replacing the primary slots. This is the same separate DNS dependency described
+in the [Large resolver trace](boot-and-scheduling.md#dns-fallback-and-cached-destinations),
+not evidence that the earlier observed TCP connectivity probe was a DNS query.
+
+The resolver has four 296-byte query/cache records at `0x3fcada9c`, with the same
+seven-day TTL ceiling, zero-TTL removal and cache retention across server-address
+changes. Timeout handling skips empty server slots; a nonzero response code
+requires a populated immediate next slot before fallback. Stock-backend cutover
+therefore needs the same cache and consistent-local-DNS considerations on both
+models. No DNS cutover or outage was performed.
+
+Standard also retains pending DNS callbacks after SNTP stop. Its four callback
+records are at `0x3fcada6c`; SNTP callback `0x4205522c` ignores the returned name
+and argument, copies an address to `0x3fcada00`, and sends through the current
+client at `0x3fcada1c`. Stop's null-client guard and UDP's safe argument-error
+return have the same branches. The [eight callback-ordering host cases](boot-and-scheduling.md#pending-dns-callbacks-survive-sntp-stop)
+thus have matching relevant static paths in Standard too; they were not eight
+additional device or host executions.
+
+The comparison covers 27 functions, 2,189 instructions and 380 internal branches
+per image. Instruction offsets and all bytes except relocated literal loads and
+direct calls match. All 47 distinct direct-call pairs have the same relocation;
+the 70 distinct literal pairs have equal numeric values, equal pointed-to strings
+or address constants, or consistent RAM/code pointer mappings. This is scoped
+branch/data-flow evidence, not a proof that all external helpers or the entire
+SDK are equivalent. Physical timing and the proposed local DNS/NTP setup remain
+unverified.
 
 ### Orientation and album-body follow-up
 

@@ -163,7 +163,26 @@
       "large_sntp_table": "0x3c13bbc4",
       "standard_sntp_table": "0x3c13be18",
       "large_dhcp_request_table": "0x3c3c4f14",
-      "standard_dhcp_request_table": "0x3c24debc"
+      "standard_dhcp_request_table": "0x3c24debc",
+      "pending_dns_callbacks_cancelled_by_sntp_stop": false,
+      "sntp_dns_callback_checks_attempt_identity": false
+    },
+    "dns_resolver": {
+      "evidence": "Scoped static comparison of selected resolver and SNTP callback branches; no DNS cutover/outage packet test",
+      "servers": 3,
+      "fallback_slot": 2,
+      "fallback_address": "8.8.8.8",
+      "dhcp_preserves_fallback": true,
+      "cache_records": 4,
+      "cache_record_bytes": 296,
+      "ttl_ceiling_seconds": 604800,
+      "server_change_flushes_cache": false,
+      "large_server_table": "0x3fcad994",
+      "standard_server_table": "0x3fcada24",
+      "large_cache_table": "0x3fcada0c",
+      "standard_cache_table": "0x3fcada9c",
+      "large_callback_table": "0x3fcad9dc",
+      "standard_callback_table": "0x3fcada6c"
     }
   },
   "function_map": [
@@ -576,6 +595,66 @@
       "role": "dhcp_append_options",
       "large": "0x42067360",
       "standard": "0x4206638c"
+    },
+    {
+      "role": "sntp_dns_callback",
+      "large": "0x42056200",
+      "standard": "0x4205522c"
+    },
+    {
+      "role": "sntp_retry",
+      "large": "0x42056098",
+      "standard": "0x420550c4"
+    },
+    {
+      "role": "sntp_send_request",
+      "large": "0x420560ec",
+      "standard": "0x42055118"
+    },
+    {
+      "role": "dns_init",
+      "large": "0x420577bc",
+      "standard": "0x420567e8"
+    },
+    {
+      "role": "dns_setserver",
+      "large": "0x42057780",
+      "standard": "0x420567ac"
+    },
+    {
+      "role": "dns_check_entry",
+      "large": "0x42056a40",
+      "standard": "0x42055a6c"
+    },
+    {
+      "role": "dns_receive",
+      "large": "0x42057274",
+      "standard": "0x420562a0"
+    },
+    {
+      "role": "dns_lookup",
+      "large": "0x42056d2c",
+      "standard": "0x42055d58"
+    },
+    {
+      "role": "dns_enqueue",
+      "large": "0x42056f44",
+      "standard": "0x42055f70"
+    },
+    {
+      "role": "dns_call_found",
+      "large": "0x4205652c",
+      "standard": "0x42055558"
+    },
+    {
+      "role": "dns_timer",
+      "large": "0x420577e0",
+      "standard": "0x4205680c"
+    },
+    {
+      "role": "dns_dhcp_clear",
+      "large": "0x4206a398",
+      "standard": "0x420693c4"
     }
   ],
   "live_standard": {

@@ -1209,3 +1209,37 @@ Private artifacts: `sntp-lifetime-pass1.txt`, `sntp-lifetime-pass2.txt`,
 `sntp-lifetime-source-hashes.json`, `sntp-lifetime-results.txt` and
 `sntp-lifetime-evidence-hashes.txt`. The generated fixture directory contains
 the pinned source and selected functions.
+
+## Standard DNS and SNTP callback comparison: S02/C01/E02
+
+Two Standard reference passes and 80 bounded GNU ranges compare 27 selected
+functions with the prior Large resolver/callback traces. The checker verifies
+2,189 instruction addresses/bytes and all 380 internal branch targets per image.
+Non-call/non-literal instruction bytes match; all 47 distinct direct-call pairs
+have the same relocation. The 70 distinct literal pairs are checked as equal
+values, identical terminated strings or 24-byte address constants, or consistent
+RAM/code pointer mappings. Every decoded instruction byte is also compared with
+the respective hash-validated vendor application, rather than trusting the ELF
+alone. External helper equivalence is not established by a pointer mapping.
+
+The first comparison run exposed a symbol inside an instruction in the older
+Standard analysis ELF. GNU obeyed that symbol boundary and split the instruction.
+A separate symbol-stripped analysis copy removes that artifact; instruction
+offsets and firmware bytes then match across the entire selected set. The
+original ELF/project and vendor application were preserved. This was an analysis
+artifact, not a discovered difference in the firmware's resolver behavior.
+
+Manual branch review connects the matching constants and pointers to fallback
+installation, DHCP clearing, cache lookup/expiry, callback registration and the
+SNTP stop/send/retry paths. Both models share the relevant fallback/cache and
+late-callback behavior. Twelve function pairs were added, bringing the public map
+to 94. The existing eight isolated callback cases are applicable to these matched
+branches; no additional host cases, physical packets, clocks, frame requests or
+network changes are claimed. S02 and C01 remain open for broader dependency and
+physical offline validation.
+
+Private Standard artifacts: `standard-dns-pass1.txt`, `standard-dns-pass2.txt`,
+`compare-standard-dns.mjs`, `standard-dns-boundaries-gnu.txt`,
+`standard-dns-comparison.json`, `standard-dns-literals.jsonl` and
+`standard-dns-evidence-hashes.txt`. The symbol-stripped ELF is a private analysis
+copy, not a flashable replacement or a changed vendor firmware image.
