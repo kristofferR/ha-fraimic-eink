@@ -70,7 +70,7 @@ per question, not a count of tool calls or decompiled functions.
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced; mode switch's one-poll `0.0.0` override is normally restored before HTTP, but NVS persistence can fail | Host fault fixtures and remaining indirect-reference audit |
 | R10/R11/N02 | Twenty-two host case groups cover OTA queue/cooldown branches; long-version mismatch, backward-clock boundary, failed persistence and replacement/retention traced | Physical offer/reporting faults, Standard comparison, full NVS failure semantics and artifact identity |
-| R12 | Direct updater framing/timeouts and OTA SDK ordering traced; apparent response-MIME guard reads request headers; sequential erase precedes first-byte validation | Host fault fixtures, busy/safety cases and deferred controlled update/recovery tests |
+| R12 | Direct updater framing/timeouts traced; six paired OTA SDK bodies and 22 host groups verify lifecycle failures, erase-before-reject and a conditional encrypted partial-block erase gap | Outer HTTP/length and busy/safety fault fixtures, actual encryption/partition state and deferred controlled update/recovery tests |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | S02/E02 | Both models' 32-entry TCP/IP mailbox, blocking hostname barrier and ignored asynchronous control-allocation failures traced; 34-function Standard comparison confirms the relevant queue/failure paths | Injected allocation/queue faults, physical timing, complete external-helper equivalence and actual offline boot |
 | S01/C01/C11 | Cached reachability survives station disconnect; fallback AP request ordering and persistent wildcard captive-DNS worker traced | Physical recovery, actual AP configuration, DNS reachability/lifetime and setup/bind failure tests |
@@ -380,7 +380,11 @@ Sources: [OTA and recovery](ota-and-recovery.md),
   attempting controlled device updates; battery scale is tracked in B02.
   The apparent MIME guard reads request headers, and sequential writes can erase
   inactive-slot sectors before rejecting bad image magic. Zero/unknown-length
-  bodies skip the read loop and fail finalization. These are static findings.
+  bodies skip the read loop and fail finalization. Six paired SDK bodies and
+  [22 host groups](ota-and-recovery.md#ota-handle-and-write-fault-fixtures) now
+  cover begin/write/end/abort failures and the conditional encrypted-sector gap.
+  The outer HTTP/length and busy/safety branches still need host fixtures;
+  actual encryption, partition contents and physical recovery remain unknown.
 
 ## Offline boot, sleep and scheduling
 

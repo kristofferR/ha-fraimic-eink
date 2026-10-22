@@ -2079,3 +2079,54 @@ reference passes, `tls-http-options-pass1.txt`/`tls-http-options-pass2.txt`,
 `standard-tls-http-comparison.json`. No frame, network, artwork or HA change
 was made. Physical interoperability, complete record/socket faults, other
 extensions and other TLS construction paths remain open.
+
+## OTA write lifecycle and encrypted boundary fixtures: R12
+
+Six complete GNU function pairs cover begin, write, abort, end, handle lookup
+and the OTA-partition predicate: 326 instructions, 69 branches, 20 ranges per
+image, seven direct-call pairs and eighteen literal pairs. Entry prologues and
+all recovered instruction bytes were checked against the pinned application
+images; normalized operations and internal branch targets match. Standard
+write/begin were located from their own log-string references. Handle lookup
+has a different relocation from write/begin and was followed from its actual
+call target. External partition, image-verifier and allocator bodies are not
+recursively compared here.
+
+The host fixture extracts the six unchanged functions and their original list
+structure/globals from ESP-IDF v5.4.1 `esp_ota_ops.c`. It uses the rollback-enabled
+branch, Linux list macros, native host pointers/size_t, an 8 KiB RAM partition
+with 4 KiB sectors, and stubs for partition identity, running-image state,
+encryption enablement, allocation, erase, write and image verification. The
+target allocates a 44-byte OTA context; the host layout is not a target-ABI
+emulation. Bounded test lengths avoid host/target size_t overflow differences.
+
+Twenty-two case groups pass under Clang address/undefined-behavior sanitizers.
+They cover pre-mutation guards, state-read failure, erase modes, allocation and
+erase errors, bad first magic, zero/invalid handles, ordinary two-sector writes,
+write failure, end/abort cleanup, verifier failure, buffered encrypted writes,
+end-flush errors, the 4,095 + 2 boundary with two controls, independent handle
+removal and the distinction between begin's erase hint and a write-size limit.
+All cases explicitly finish/abort their test-owned handles; this is not a
+whole-firmware leak audit or a real image-verification test.
+
+The [OTA findings](ota-and-recovery.md#conditional-encrypted-write-sector-gap)
+record the missing sector-one erase before the encrypted final block. The RAM
+write stub records erase coverage but deliberately allows the copy; it neither
+encrypts nor models flash bit transitions. First partial-buffer tail bytes also
+start zeroed from calloc; after a successful buffered-block flush the code fills
+the scratch block with `0xff`. This byte-detail assertion is not a conclusion
+about valid-image padding or physical acceptance.
+
+Private artifacts: `ota-write-refs.txt`, `ota-write-*-cfg.json`/`.txt`,
+`compare-standard-ota-write.mjs`, `standard-ota-write-comparison.json`,
+`extract-ota-write.mjs`, selected source, fixture and result manifest below.
+No frame, router, flash, artwork or HA state was changed. R12 stays open for
+outer updater faults, safety gates and deferred physical validation.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `ota-write-esp_ota_ops.c` | `e26eed5adce220a6283c74d02b7935a495391389632708c7e4c3557c2d454677` |
+| `ota-write-esp_ota_ops.h` | `3180b53e56804f95d69f0fa3037c571f6548a908fc97b02c9a1c09e20e030779` |
+| `ota-write-selected.inc` | `69118251a0be1812a50822ec40ffc58b430c7bc47b9cd53a9e32bf2ccc11f4a6` |
+| `ota-write-fixture.c` | `3056628571b2e95ff7d871d07a339397f6ae0c9636f00ea56095b3d9d1a6a5ac` |
+| `ota-write-fixture-results.jsonl` | `7e473d09573eeb73d70928fb035604b438deb7b36cb11ec4e13a0cef8f42f887` |

@@ -945,6 +945,33 @@
       "hello_body_failure_calls_finish": false,
       "server_hello_state_requires_finish_success": true,
       "limits": "Recovered constructor and resolved option/submission helpers; not all TLS consumers, arbitrary memory writes, complete extension/record/socket behavior or physical interoperability"
+    },
+    "ota_write_lifecycle": {
+      "evidence": "Six complete paired GNU bodies and 22 source-level host case groups",
+      "compared_functions": 6,
+      "instructions_per_image": 326,
+      "branches_per_image": 69,
+      "gnu_ranges_per_image": 20,
+      "direct_call_pairs": 7,
+      "literal_pairs": 18,
+      "host_case_groups": 22,
+      "context_bytes_target": 44,
+      "sequential_erase_precedes_magic_check": true,
+      "begin_nonsequential_allocation_follows_erase": true,
+      "end_consumes_found_handle_on_failure": true,
+      "abort_restores_prior_contents": false,
+      "encrypted_sector_gap": {
+        "sector_bytes": 4096,
+        "write_sizes": [
+          4095,
+          2
+        ],
+        "final_block_offset": 4096,
+        "final_block_bytes": 16,
+        "second_sector_erased_by_operation": false,
+        "evidence": "Static and host operation ordering; real flash encryption/partition state unknown"
+      },
+      "limits": "RAM storage, native host layout and injected allocator/partition/image-verifier outcomes; no physical flash, encryption, image verification, boot selection or whole outer-updater validation"
     }
   },
   "function_map": [
@@ -2457,6 +2484,36 @@
       "role": "transport_ds_data_setter",
       "large": "0x420e6cb8",
       "standard": "0x420e6fc4"
+    },
+    {
+      "role": "esp_ota_begin",
+      "large": "0x42045694",
+      "standard": "0x420442b8"
+    },
+    {
+      "role": "esp_ota_write",
+      "large": "0x420450bc",
+      "standard": "0x42043ce0"
+    },
+    {
+      "role": "esp_ota_abort",
+      "large": "0x42045238",
+      "standard": "0x42043e5c"
+    },
+    {
+      "role": "esp_ota_end",
+      "large": "0x42045264",
+      "standard": "0x42043e88"
+    },
+    {
+      "role": "get_ota_ops_entry",
+      "large": "0x42044f24",
+      "standard": "0x420412e8"
+    },
+    {
+      "role": "is_ota_partition",
+      "large": "0x420e3080",
+      "standard": "0x420e3364"
     }
   ],
   "live_standard": {

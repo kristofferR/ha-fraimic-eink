@@ -1151,6 +1151,20 @@ fixture or device request. It does not cover complete record/socket retries,
 all extension helpers, arbitrary external configuration writes or physical
 no-ALPN interoperability.
 
+## OTA write lifecycle also matches
+
+Six complete paired functions cover OTA begin/write/end/abort, handle lookup
+and the partition-type predicate. Their 326 instructions, 69 branches and
+20 ranges per model match, with seven direct-call and eighteen literal pairs
+mapped. The public function map now contains 308 pairs.
+
+The shared [22 source-level host groups](ota-and-recovery.md#ota-handle-and-write-fault-fixtures)
+reproduce erase-before-reject, error/context ownership and a conditional
+encrypted partial-block erase gap. They use RAM and stubbed image validation;
+neither unit's flash encryption, partition contents, custom-image acceptance or
+physical rollback is established. External partition/verification callees are
+mapped, not recursively proved equivalent by these six pairs.
+
 ## Coverage and cleanup
 
 The 24 decoded origin-API exchanges were complete and all HTTP 200: one

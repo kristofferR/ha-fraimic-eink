@@ -72,8 +72,9 @@ partition erase, but `0x420450bc` erases newly needed sectors **before** checkin
 the first data byte for ESP image magic `0xe9`. The ordering is present in GNU
 instructions at `0x4204511d` / `0x42045133` before the comparison at `0x4204514a`.
 A successful erase followed by a bad first byte can therefore damage the previous
-contents of the inactive slot even though the new image is rejected. This is a
-static inference about the failure path, not an induced flash failure.
+contents of the inactive slot even though the new image is rejected. The
+source-level RAM fixture below also reproduces this ordering; no flash failure
+was induced on either frame.
 
 Abort `0x42045238` frees the OTA context; it does not restore erased or written
 bytes. Finalization `0x42045264` rejects zero written bytes, otherwise calls image
@@ -87,6 +88,70 @@ either frame.
 The SDK includes a runtime flash-encryption branch in the write routine and a
 pending-validation check in begin. Their compiled presence does not establish
 this device's eFuse state or actual bootloader rollback policy.
+
+### OTA handle and write fault fixtures
+
+Six complete function pairs match between Large and Standard: begin, write,
+abort, end, handle lookup and the OTA-partition predicate. They cover 326
+instructions, 69 branches and 20 GNU ranges per model. Twenty-two host case
+groups exercise the selected unchanged
+[IDF 5.4.1 source](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/app_update/esp_ota_ops.c)
+with RAM storage, injected errors and a stub image verifier. This validates
+control flow and operation ordering, not physical flash, cryptography or image
+acceptance. The fixture enables the rollback branch present in both apps.
+
+| Boundary | Static and host result |
+| --- | --- |
+| Begin argument/partition checks | Reject null inputs, an unverified/non-OTA partition and the running partition before allocation/erase |
+| Running image state | A successful state read returning PENDING_VERIFY rejects begin; a state-read error continues |
+| Begin with size zero or unknown | Erase the whole target partition before allocating the context |
+| Begin with a positive size | Round the erase length up to the partition's sector size, then allocate; allocation failure does not undo the erase |
+| Begin in sequential mode | Allocate without upfront erase; later writes decide which sectors to erase |
+| Null write data | Invalid argument, including when size is zero |
+| Non-null data with size zero | Success before handle lookup, including for an unknown handle |
+| Write/erase failure | Return the lower-level error and retain the context; successful earlier changes remain |
+| End with zero physically written bytes | Invalid argument and context removal, even if an encryption buffer holds fewer than 16 bytes |
+| End with pending partial bytes | Submit a full 16-byte block; a failed write becomes INVALID_STATE and removes the context |
+| Image-verifier failure | VALIDATE_FAILED and context removal; no restoration of old bytes |
+| Abort | Remove/free the context, with no verification or restoration |
+
+The begin size is an erase hint, not a stored upper bound for subsequent writes.
+The host fixture can begin with size one, then submit 4,097 bytes within its
+8 KiB RAM partition. This does not bypass the real partition layer's bounds or
+the direct updater's separate declared-length checks. The current direct updater
+uses sequential mode, so the upfront-erase cases describe the shared SDK rather
+than that caller's actual begin argument.
+
+End consumes a found handle on success **and** failure; a subsequent abort/end
+returns NOT_FOUND. A zero return from the fixture's end is deliberately backed
+by a stub verifier, not a real valid firmware image. End itself does not select
+the next boot slot.
+
+### Conditional encrypted-write sector gap
+
+The compared write routine calculates sequential erase coverage from
+`wrote_size + incoming_size` before it accounts for previously buffered partial
+bytes. With 4,096-byte sectors and the runtime encryption branch enabled, the
+fixture reproduces this sequence:
+
+1. Write 4,095 bytes: erase sector zero, submit 4,080 bytes, retain 15 bytes.
+2. Write two more bytes: the erase calculation still covers sector zero. Flush
+   the buffered 16-byte block at offset 4,080, then retain the remaining byte.
+3. End: submit a 16-byte block at offset 4,096 without any preceding erase of
+   sector one by this OTA operation.
+
+Both controls erase sector one: the same 4,095 + 2 sequence with encryption
+disabled, and an encrypted 4,096 + 1 sequence. The fixture records the missing
+erase and permits a RAM copy; it does **not** emulate encrypted flash writes or
+claim a particular hardware error, corruption or boot outcome. An already
+erased sector is also a different initial condition. Actual flash encryption
+and partition state remain unknown on both units.
+
+The updater's nominal 4,096-byte read allocation does not by itself rule out
+short reads. A future modified updater using this SDK should explicitly account
+for partial blocks when erasing, or aggregate complete sector-sized writes with
+correct final-tail handling. Do not infer that enabling stock OTA is safe from
+this host result. See the [fixture evidence and limits](validation-2026-10-22.md#ota-write-lifecycle-and-encrypted-boundary-fixtures-r12).
 
 ## Update policy
 

@@ -3028,6 +3028,12 @@
       "evidence": "static; 22 October album proxy follow-up"
     },
     {
+      "address": "0x42044f24",
+      "kind": "function",
+      "role": "get_ota_ops_entry; OTA write lifecycle and fault analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
       "address": "0x42044f64",
       "kind": "function",
       "role": "Read both 32-byte OTA-selection records from separate erase-sector boundaries",
@@ -4208,6 +4214,12 @@
       "kind": "function",
       "role": "cJSON_IsObject predicate used for settings/account/firmware fields",
       "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+    },
+    {
+      "address": "0x420e3080",
+      "kind": "function",
+      "role": "is_ota_partition; OTA write lifecycle and fault analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
     },
     {
       "address": "0x420e30b0",
