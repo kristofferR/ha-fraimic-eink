@@ -284,6 +284,41 @@ unpublished first address; the tested next valid IPv4 reply then fails. No such
 packets were delivered to either frame. Actual multicast interoperability, timer
 and callback interleavings, transport faults and network exposure remain untested.
 
+### Connection address selection and errors also match
+
+Nine more paired functions cover transport allocation/initialization, plain/SSL
+connectors, the common connect path and synchronous TLS progress. They preserve
+the [address-selection boundary](cloud-protocol.md#address-selection-does-not-recover-from-a-bad-ipv4-destination):
+default unspecified family becomes IPv4-preferred DNS, while a later TCP/TLS
+failure does not restart the attempt with another address family.
+
+| Function | Large | Standard |
+| --- | --- | --- |
+| Zeroed transport context allocation | `0x420c2bd8` | `0x420c2eb0` |
+| Base transport initialization | `0x420c2bf4` | `0x420c2ecc` |
+| SSL transport initialization | `0x420c2e04` | `0x420c30dc` |
+| Plain TCP transport initialization | `0x420c2e74` | `0x420c314c` |
+| SSL connect wrapper | `0x420c2afc` | `0x420c2dd4` |
+| Plain TCP connect wrapper | `0x420c2dac` | `0x420c3084` |
+| Common address/socket connect | `0x420c34cc` | `0x420c37a4` |
+| Synchronous TLS loop | `0x420c3a58` | `0x420c3d34` |
+| Low-level TLS progress | `0x420c3748` | `0x420c3a24` |
+
+Complete GNU recovery verifies **728 Large / 729 Standard instructions, 101
+branches and 26 ranges per image**. One reviewed encoding difference accounts
+for the extra instruction: Large directly calls socket-connect helper
+`0x420550e4`; Standard loads corresponding `0x42054110` from a literal and calls
+it indirectly. Normalizing that single load/call pair preserves register use and
+all internal branch destinations. All other normalized operations match. The
+31 distinct direct/equivalent-call pairs and 49 literal pairs are mapped separately;
+this does not recursively prove socket, select, allocator or TLS-library internals.
+
+Large's complete HTTP initializer and common-options helper are additionally
+checked across 525 instructions and 20 ranges. Those two HTTP bodies are not
+included in this nine-function Standard comparison. No new host fixture, live
+connection, network fault or device request was performed. IPv6 interoperability,
+physical timeout behavior and application retry sequences remain open.
+
 ### DNS fallback, cache and late callbacks also match
 
 Standard initializer `0x420567e8` installs the same `8.8.8.8` fallback in DNS

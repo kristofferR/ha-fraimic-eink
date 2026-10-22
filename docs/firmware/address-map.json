@@ -3472,6 +3472,12 @@
       "evidence": "static; 22 October DNS fallback/cache follow-up"
     },
     {
+      "address": "0x4206d16c",
+      "kind": "function",
+      "role": "HTTP common transport options: keep-alive/interface configuration",
+      "evidence": "Static; complete Large GNU control-flow/byte verification"
+    },
+    {
       "address": "0x4206d20c",
       "kind": "function",
       "role": "HTTP config mapper: default RX/TX 512 bytes, redirect limit 10; transport enum supplies initial scheme",
@@ -3676,10 +3682,64 @@
       "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
     },
     {
+      "address": "0x420c2afc",
+      "kind": "function",
+      "role": "transport_ssl_connect; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c2bd8",
+      "kind": "function",
+      "role": "transport_esp_tls_context_create; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c2bf4",
+      "kind": "function",
+      "role": "transport_base_init; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c2dac",
+      "kind": "function",
+      "role": "transport_tcp_connect; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c2e04",
+      "kind": "function",
+      "role": "transport_ssl_init; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c2e74",
+      "kind": "function",
+      "role": "transport_tcp_init; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
       "address": "0x420c314c",
       "kind": "function",
       "role": "esp_tls_hostname_to_fd; outbound local-name resolver/transport chain",
       "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
+    },
+    {
+      "address": "0x420c34cc",
+      "kind": "function",
+      "role": "esp_tls_tcp_connect; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c3748",
+      "kind": "function",
+      "role": "esp_tls_low_level_conn; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c3a58",
+      "kind": "function",
+      "role": "esp_tls_conn_new_sync; address-family selection and connection failure boundary",
+      "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
     },
     {
       "address": "0x420c5040",

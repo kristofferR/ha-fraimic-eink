@@ -738,6 +738,59 @@ default 512-byte TX, and zero bundle/global-CA/explicit-certificate fields in it
 configuration. It is separate from the direct OTA row and is not evidence that
 the currently used updater accepts untrusted HTTPS. No update was attempted.
 
+### Address selection does not recover from a bad IPv4 destination
+
+The recovered HTTP transports start with an unspecified address family. Transport
+allocator `0x420c2bd8` zero-allocates 108 bytes; the TLS configuration begins at
+offset 4, with its family field at configuration offset `0x50`. SSL/TCP initializers
+`0x420c2e04` / `0x420c2e74` select encrypted/plain operation without changing that
+field. Large's HTTP constructor `0x4206df98` and common-options helper
+`0x4206d16c` configure trust, buffers, keep-alive and an optional interface name;
+the recovered path has no HTTP address-family setting. This describes those
+constructors, not an exhaustive search for arbitrary runtime memory writes.
+
+Transport helper `0x420c314c` converts the default to `AF_UNSPEC`. As already
+[traced in both builds](boot-and-scheduling.md#outbound-local-names-and-blocking-resolution),
+`getaddrinfo` selects the resolver's IPv4-then-IPv6 mode. This is DNS-stage fallback,
+not parallel connection attempts or recovery after a connection failure:
+
+| Situation | Recovered behavior |
+| --- | --- |
+| Uncached ordinary hostname | Starts with an A query |
+| Matching cached IPv6 answer, with no matching cached IPv4 answer | Can return cached IPv6 before starting a fresh A query |
+| NOERROR reply with no usable A address | Dual-family request changes to an AAAA query |
+| DNS timeout or terminal nonzero response code | Error path; these branches do not switch to AAAA merely because A resolution failed |
+| A address resolved, but TCP connect fails or times out | Connection attempt fails; no alternate family/address attempt in this path |
+| A connection works but TLS setup/handshake fails | Error returned; no alternate-family restart in the recovered TLS state machine |
+
+The pinned resolver retains at most one address per query. The hostname-to-socket
+helper uses the first `addrinfo` result and frees the list; it contains no loop
+over `ai_next`. Common connect helper `0x420c34cc` configures that socket, connects,
+waits with `select` if needed and checks `SO_ERROR`. Its failure exits close the
+socket and return an error. Plain HTTP connector `0x420c2dac` and SSL connector
+`0x420c2afc` propagate that failure. Any later application retry is a separate
+attempt, and may reuse the same DNS cache entry.
+
+**Backend implication:** publishing a reachable AAAA record alongside an
+unreachable A record does not establish a working fallback. For the stock adapter,
+make the chosen A address reachable from the frame, or deliberately validate a
+different family/hostname arrangement. DNS cache state and TTL matter when moving
+the backend. Do not assume round-robin addresses or desktop-browser fallback
+behavior will supply resilience.
+
+The timeout boundary is also narrower than a total request deadline. Common
+connect performs name resolution before applying socket/connect waits. Synchronous
+TLS wrapper `0x420c3a58` measures elapsed time only after its low-level call returns
+an in-progress result; a returned success exits before that elapsed-time check.
+It cannot interrupt a blocking DNS or lower-level operation in the middle of that
+call. Thus the timeout field alone does not prove a hard wall-clock cap. No slow
+DNS, socket or TLS fault was induced here.
+
+Nine additional [Standard transport functions match](standard-model-comparison.md#connection-address-selection-and-errors-also-match).
+The findings combine complete binary paths with the previously checked DNS/cache
+and reply-parser behavior. They are static conclusions, not successful IPv6
+connections, a measured retry timeline or new physical/host fault tests.
+
 ### Automatic redirects preserve the request and share response state
 
 The three recovered direct application callers of `esp_http_client_perform`

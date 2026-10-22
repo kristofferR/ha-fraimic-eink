@@ -99,6 +99,7 @@ per question, not a count of tool calls or decompiled functions.
 | C04/C11/E02 | Three complete setup metadata/fetch bodies match except model literal; nineteen SDK/parser host cases cover chunked zero-header results, incomplete bodies, URL limits and field lookup | Physical local setup assets, heap/transport faults, external SDK/driver equivalence and independent enrollment |
 | C01/S02/E02 | Ten resolver/transport functions match; 23 host cases establish lowercase `.local` selection, cache precedence, pending-route inheritance and query/callback limits; DNS barrier has no HTTP deadline argument | Physical multicast, DNS packets/faults, TLS identity, fresh/cache-expired backend resolution and actual offline timing |
 | C01/S02/E02 | Four reply-parser/completion functions match; 26 host packet cases cover transaction/question/class checks, one-address limit, TTLs and partial-answer state retained before a later failed reply | Physical UDP/multicast interoperability, callback re-entry, timers, dual-family faults, lower-network filters and TLS |
+| C01/C03/S02/E02 | Nine transport functions match after one direct/indirect-call normalization; IPv4-preferred lookup, first-result use, connect-error exits and non-preemptive timeout checks traced | Actual IPv6, DNS/TCP/TLS outages, application retry sequences, deadline timing and remaining external helpers |
 | E02/H04/D01 | Both app hashes pinned; initial 42-route/73-function comparison extended by the topic passes above; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/driver/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
 | E02/H05/D01/D07 | Thirteen LED-related function pairs match across 826 relocated GNU instructions; 22 host groups cover pending replacement, latch timing, factory gates and conditional stale completion | Physical indications/interleavings, complete caller meanings, SDK/output-driver comparison and other releases |
 | E02/C05/C07 | Standard's selected upload/finalize branches match empty upload acknowledgment, 4 KiB WAV chunks, 4,095-byte JSON reads and synchronous finalize; its voice image limit remains 960,000 bytes | Full error/SDK comparison, device response faults, cancellation and late-worker/two-job behavior |
@@ -147,6 +148,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   adds 26 host packet cases and four compared parser/completion functions. It
   distinguishes announcement rejection, exact IN-class requirements and partial
   result retention. Real responder interoperability and timer/callback faults remain.
+  The [connection-family trace](cloud-protocol.md#address-selection-does-not-recover-from-a-bad-ipv4-destination)
+  maps DNS fallback separately from TCP/TLS failure. Nine more paired functions
+  support first-address use and non-preemptive timeout checks. Physical dual-family
+  behavior, application retries and remaining external-helper faults are still open.
 - [ ] **C02 · Host/Device:** Validate poll parser behavior for settings snapshots,
   missing/invalid fields, schedule clearing and persistence failures. Trace which
   `user_settings` members are actually applied locally rather than merely copied.

@@ -733,6 +733,35 @@
         "UndefinedBehaviorSanitizer"
       ],
       "limitations": "In-memory packet/pbuf and callback stubs; no real UDP, chained pbufs, elapsed timers, backup-server scheduling, callback re-entry, TLS or physical device tests"
+    },
+    "http_connection_address_selection": {
+      "evidence": "Nine complete paired GNU bodies; two additional Large-only HTTP constructor/common-options bodies; no new host or device tests",
+      "compared_functions": 9,
+      "large_instructions": 728,
+      "standard_instructions": 729,
+      "branches_per_image": 101,
+      "gnu_ranges_per_image": 26,
+      "direct_or_equivalent_call_pairs": 31,
+      "literal_pairs": 49,
+      "call_encoding_normalization": {
+        "large": "0x420c3520",
+        "large_target": "0x420550e4",
+        "standard_load": "0x420c37f9",
+        "standard_call": "0x420c37fc",
+        "standard_target": "0x42054110"
+      },
+      "initial_transport_context_bytes": 108,
+      "initial_family": "Unspecified, mapped to IPv4-preferred DNS",
+      "selected_addresses_per_attempt": 1,
+      "tcp_failure_switches_family": false,
+      "tls_failure_switches_family": false,
+      "synchronous_timeout_check": "Elapsed deadline checked only after an in-progress low-level return; success returns before the check",
+      "additional_large_http": {
+        "functions": 2,
+        "instructions": 525,
+        "ranges": 20
+      },
+      "limitations": "Not an exhaustive runtime-write audit or recursive socket/select/allocator/TLS proof; no live IPv6, time measurements, connection-fault injection or application retry sequence test"
     }
   },
   "function_map": [
@@ -1845,6 +1874,51 @@
       "role": "dns_correct_response",
       "large": "0x420566cc",
       "standard": "0x420556f8"
+    },
+    {
+      "role": "transport_esp_tls_context_create",
+      "large": "0x420c2bd8",
+      "standard": "0x420c2eb0"
+    },
+    {
+      "role": "transport_base_init",
+      "large": "0x420c2bf4",
+      "standard": "0x420c2ecc"
+    },
+    {
+      "role": "transport_ssl_init",
+      "large": "0x420c2e04",
+      "standard": "0x420c30dc"
+    },
+    {
+      "role": "transport_tcp_init",
+      "large": "0x420c2e74",
+      "standard": "0x420c314c"
+    },
+    {
+      "role": "transport_ssl_connect",
+      "large": "0x420c2afc",
+      "standard": "0x420c2dd4"
+    },
+    {
+      "role": "transport_tcp_connect",
+      "large": "0x420c2dac",
+      "standard": "0x420c3084"
+    },
+    {
+      "role": "esp_tls_tcp_connect",
+      "large": "0x420c34cc",
+      "standard": "0x420c37a4"
+    },
+    {
+      "role": "esp_tls_conn_new_sync",
+      "large": "0x420c3a58",
+      "standard": "0x420c3d34"
+    },
+    {
+      "role": "esp_tls_low_level_conn",
+      "large": "0x420c3748",
+      "standard": "0x420c3a24"
     }
   ],
   "live_standard": {

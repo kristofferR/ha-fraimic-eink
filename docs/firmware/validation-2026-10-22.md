@@ -1717,3 +1717,33 @@ adding an explicit successful return so its definitions can be reused by this
 harness; all 23 results remain identical. Its source hash above is updated, and
 the earlier copied DNS-source checksum is corrected to the full verified SHA-256.
 C01/S02/E02 remain open for real-network behavior and the excluded fault paths.
+
+## Connection address families and timeout scope: C01/C03/S02/E02
+
+Nine selected transport/TLS functions are compared across 728 Large and 729
+Standard instructions, 101 branches and 26 contiguous ranges per model. One
+Standard literal-load/indirect-call pair replaces a Large direct socket-connect
+call. Its pointer value and consecutive instruction bytes are verified before
+normalization; every other operation and internal branch relationship matches.
+The public model map now contains 231 pairs. An additional Large-only pass
+verifies the complete HTTP initializer and common-options helper across 525
+instructions and 20 ranges.
+
+The [connection findings](cloud-protocol.md#address-selection-does-not-recover-from-a-bad-ipv4-destination)
+separate IPv4-preferred DNS and empty-A-response fallback from later TCP/TLS
+errors. The recovered attempt uses one address, with no alternate-family restart
+after connection failure. The synchronous TLS deadline check cannot interrupt
+a lower-level blocking operation and is skipped on a successful return. These
+are static boundaries supported by the pinned SDK call structure, not measured
+deadlines or induced failures. No additional host test, physical frame request,
+network-policy change or HA deployment was performed.
+
+Private artifacts: `transport-family-pass1.txt` through
+`transport-family-pass4.txt`, `standard-transport-family-pass1.txt`,
+per-function `transport-family-*-cfg.json`/`.txt`,
+`compare-standard-transport-family.mjs`,
+`standard-transport-family-comparison.json`,
+`standard-transport-family-boundaries-gnu.txt` and the pinned
+`transport-family-ssl.c` / `local-resolver-esp-tls.c` references.
+The socket/select/allocator/TLS callees are not all recursively compared; actual
+IPv6 compatibility, retry sequences, network faults and timing remain open.

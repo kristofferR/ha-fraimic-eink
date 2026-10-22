@@ -351,6 +351,10 @@ Certificates, private keys and raw captures remain outside the repository.
   classes. An unsolicited mDNS announcement or cache-flush-class answer alone
   does not establish compatibility. Twenty-six isolated packet cases support
   the parser contract; real multicast delivery remains untested.
+  The [connection path](cloud-protocol.md#address-selection-does-not-recover-from-a-bad-ipv4-destination)
+  also prefers IPv4 at DNS lookup and does not switch to another family after a
+  TCP/TLS failure. A reachable AAAA record is not a substitute for a reachable A
+  record in that case; test backend addressing from the frame's network.
 
 Hardware inspection and custom-firmware boot/recovery tests remain deferred under
 the owner's closed-enclosure preference. They are not prerequisites for further
