@@ -60,6 +60,7 @@ per question, not a count of tool calls or decompiled functions.
 | R10/R11/N02 | Twenty-two host case groups cover OTA queue/cooldown branches; long-version mismatch, backward-clock boundary, failed persistence and replacement/retention traced | Physical offer/reporting faults, Standard comparison, full NVS failure semantics and artifact identity |
 | R12 | Direct updater framing/timeouts and OTA SDK ordering traced; apparent response-MIME guard reads request headers; sequential erase precedes first-byte validation | Host fault fixtures, busy/safety cases and deferred controlled update/recovery tests |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
+| S02 | Large's 32-entry TCP/IP mailbox, blocking hostname barrier and ignored asynchronous control-allocation failures traced; lost-stop mode assertion and unchecked per-thread semaphore failure mapped | Standard queue comparison, injected allocation/queue faults, physical timing and actual offline boot |
 | S01/C01/C11 | Cached reachability survives station disconnect; fallback AP request ordering and persistent wildcard captive-DNS worker traced | Physical recovery, actual AP configuration, DNS reachability/lifetime and setup/bind failure tests |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | D01/D03/D06 | DMA staging copies one 4,800-byte PSRAM chunk at a time; completion frees it; shared descriptors/manual select state and truncated/overwritten errors traced | Measured DMA-memory fragmentation, controlled transfer/overlap faults and complete higher-level driver exclusion audit |
@@ -318,8 +319,12 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   [pending DNS callback lifetime](boot-and-scheduling.md#pending-dns-callbacks-survive-sntp-stop)
   and eight isolated host cases show stale completion can alter a replacement
   client or rearm work after stop. The Standard comparison confirms those static
-  branches too. Check callback-queue failures and physical startup timing; SDK defaults alone do not
-  establish build behavior.
+  branches too. The [control-queue trace](boot-and-scheduling.md#sntp-control-queue-ordering-and-allocation-failures)
+  now distinguishes Large's blocking hostname barrier from three allocation-dependent
+  asynchronous controls, and maps lost-stop assertions and unchecked semaphore
+  creation failure. Check Standard queue equivalence, injected allocation/queue
+  faults and physical startup timing; these static branches do not establish
+  observed failure or fully offline operation.
   Large's [DNS fallback/cache trace](boot-and-scheduling.md#dns-fallback-and-cached-destinations)
   identifies a separate public resolver in slot 2, preserved across DHCP setup,
   and distinguishes timeout/error fallback from cached-answer reuse. The

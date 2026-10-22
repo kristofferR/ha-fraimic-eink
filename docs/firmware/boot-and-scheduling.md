@@ -676,6 +676,74 @@ callbacks. For stock emulation, accurate local NTP service remains a candidate;
 the DHCP follow-up below rules out option 42, while physical offline boot is
 still untested.
 
+### SNTP control queue ordering and allocation failures
+
+Large's retry loop mixes asynchronous control messages with a synchronous
+hostname operation. The relevant sequence is:
+
+| Application operation | Wrapper | Completion semantics |
+| --- | --- | --- |
+| Stop | `0x4205311c` | Allocates and queues a callback; does not wait for its execution |
+| Set polling mode | `0x420530fc` | Same queue path; the callback checks that the client is stopped |
+| Set server name in slot 0 | `0x4205312c` | Posts a stack-backed API message and waits for its completion semaphore |
+| Set time notification callback | `0x420530d0` | Updates the SDK callback pointer directly |
+| Initialize | `0x4205310c` | Allocates and queues a callback; the application then starts its response wait |
+
+The server-name call is therefore an ordering barrier for earlier messages that
+were successfully posted by this caller. Dispatcher `0x42055dc0` executes its
+setter, stores the result and signals completion before that call returns.
+Stop, mode and name are not an atomic transaction: other producers and network
+timers can run between them. In particular, this barrier does not invalidate the
+pending DNS callbacks described below.
+
+TCP/IP initialization `0x42056054` creates a **32-entry mailbox**, whose handle
+is stored at `0x3fcad95c`. Entries are four-byte message pointers, not copied
+messages. Posting `0x4206766c` passes send-to-back position zero and
+`0xffffffff` wait ticks to the FreeRTOS queue. The checked timeout helper
+`0x403847b4` treats that value as no ordinary timeout; explicit task-delay abort
+is a separate branch. A full mailbox waits for space rather than returning an
+ordinary queue-full result. An unsuccessful queue-send result reaches an
+assertion. These identities agree with the
+[pinned FreeRTOS port](https://github.com/espressif/esp-idf/blob/v5.4.1/components/lwip/port/freertos/sys_arch.c),
+but the capacity, arguments and branches above come from the application bytes.
+
+The synchronous name operation also waits without an ordinary timeout, through
+`0x42056010` and `0x420675bc`. Both its queueing and completion occur **before**
+the application's 2/4/8/10/10-second response waits. After init is posted, its
+dispatch delay is inside the corresponding response wait. Those five waits are
+therefore not an overall bound on synchronization time. This establishes no
+measured stall or deadlock on the frame.
+
+Callback enqueue `0x42055f24` asks allocator `0x42057b68` for pool index **8**.
+This is not an eight-byte allocation: the descriptor at `0x3c3c46d0` requests
+**16 bytes** through the heap-backed allocation path. The separate 16-element
+limit in that allocator belongs to a different descriptor and does not cap this
+callback pool. The dispatcher invokes the callback and frees the message.
+Allocation failure returns an error byte; all three asynchronous SNTP wrappers
+discard it. Consequences depend on which allocation fails:
+
+| Conditional event | Recovered consequence |
+| --- | --- |
+| Stop allocation fails while an earlier client is still active; mode allocation succeeds | Mode callback `0x420563e4` reaches the assertion that the client must be stopped, even though the requested mode remains polling |
+| Mode allocation fails | Previous mode is retained; the application still sets the hostname and requests init |
+| Init allocation fails after a successful stop | No new client is created by that request, while the application still waits for a time notification |
+| Both stop and mode allocations fail with an active client | Hostname setting can complete; a later init sees an existing client and does not recreate it or choose a fresh startup delay |
+
+The hostname path avoids allocating a callback message, but needs a per-thread
+completion semaphore. Getter `0x420678b4` creates it through `0x42067840` when
+absent. Failure to allocate its four-byte storage or semaphore returns null.
+The API-call path forwards that null without a guard to wait/signal helpers
+that dereference the storage pointer. This is a separate conditional allocation
+failure, not a cleanly reported synchronization timeout.
+
+These findings are static, with no injected allocation failure, queue saturation,
+new host behavioral test or observed crash. Standard queue equivalence remains
+unchecked. The earlier TLS memory-allocation error is not evidence that any of
+these paths occurred. A future implementation should report control-request
+failure, use an acknowledged stop/configure/start operation with an overall
+deadline, and retain safe message ownership if that deadline expires. A local
+cloud server cannot repair the stock client's internal queue handling.
+
 ### Pending DNS callbacks survive SNTP stop
 
 Large's stop helper does **not cancel an outstanding DNS lookup callback**.

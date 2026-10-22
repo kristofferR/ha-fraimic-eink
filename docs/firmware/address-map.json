@@ -88,6 +88,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c3c46d0",
+      "kind": "data",
+      "role": "16-byte heap-backed TCP/IP API callback allocation descriptor; pool index 8",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
       "address": "0x3c3c4f14",
       "kind": "data",
       "role": "DHCPv4 parameter-request list: four bytes 01 03 1c 06; no NTP option 42",
@@ -460,6 +466,12 @@
       "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
     },
     {
+      "address": "0x3fcad95c",
+      "kind": "global",
+      "role": "TCP/IP mailbox handle; initialized with 32 four-byte pointer entries",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
       "address": "0x3fcad968",
       "kind": "global",
       "role": "SNTP retry delay in milliseconds; initialized to 15000, exponential ceiling 150000",
@@ -578,6 +590,12 @@
       "kind": "function",
       "role": "Task initialization; forwards task function and parameter to initial-stack setup",
       "evidence": "static; upload lifetime pass and bounded GNU cross-check"
+    },
+    {
+      "address": "0x403847b4",
+      "kind": "function",
+      "role": "RTOS timeout check; maximum ticks has no ordinary timeout, explicit delay-abort remains distinct",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
     },
     {
       "address": "0x40384c14",
@@ -3040,10 +3058,64 @@
       "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
     },
     {
+      "address": "0x420530fc",
+      "kind": "function",
+      "role": "Asynchronously request SNTP operating mode; ignores callback allocation result",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x4205310c",
+      "kind": "function",
+      "role": "Asynchronously initialize SNTP; ignores callback allocation result",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x4205311c",
+      "kind": "function",
+      "role": "Asynchronously stop SNTP; ignores callback allocation result",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x4205312c",
+      "kind": "function",
+      "role": "Set SNTP hostname through synchronous stack-backed TCP/IP API call",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42055d88",
+      "kind": "function",
+      "role": "Fetch next TCP/IP message while servicing due network timers",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42055dc0",
+      "kind": "function",
+      "role": "Dispatch TCP/IP messages; free asynchronous callbacks or signal synchronous API completion",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42055e68",
+      "kind": "function",
+      "role": "TCP/IP thread message-dispatch loop",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
       "address": "0x42055f24",
       "kind": "function",
-      "role": "TCP/IP callback enqueue; allocation can fail and SNTP stop/init/mode wrappers discard result",
-      "evidence": "static; 22 October SNTP startup follow-up"
+      "role": "Allocate 16-byte callback message and post to blocking mailbox; SNTP control wrappers discard allocation errors",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42056010",
+      "kind": "function",
+      "role": "Synchronous TCP/IP API call with stack message and per-thread completion semaphore; no null-semaphore guard",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42056054",
+      "kind": "function",
+      "role": "Initialize TCP/IP and create 32-entry pointer mailbox",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
     },
     {
       "address": "0x42056098",
@@ -3098,6 +3170,12 @@
       "kind": "function",
       "role": "SNTP stop; removes request/retry timers and UDP client only when client exists; pending DNS callbacks survive",
       "evidence": "static and bounded GNU cross-check; isolated SNTP callback-lifetime host fixture"
+    },
+    {
+      "address": "0x420563e4",
+      "kind": "function",
+      "role": "Set SNTP mode; asserts client is stopped even when requested mode is unchanged",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
     },
     {
       "address": "0x42056420",
@@ -3170,6 +3248,18 @@
       "kind": "function",
       "role": "DNS lookup entry; literal IP/cache checks before new-query enqueue",
       "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x42057ac8",
+      "kind": "function",
+      "role": "Heap-backed descriptor allocation; separate descriptor-specific 16-element cap does not apply to API callbacks",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42057b68",
+      "kind": "function",
+      "role": "Select one of 18 pool descriptors; index 8 selects 16-byte API message",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
     },
     {
       "address": "0x4205ea28",
@@ -3248,6 +3338,42 @@
       "kind": "function",
       "role": "DHCP append hook; conditional client identifier option 61, no NTP request",
       "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x42067574",
+      "kind": "function",
+      "role": "Signal thread completion semaphore; dereferences storage pointer without null guard",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x420675bc",
+      "kind": "function",
+      "role": "Wait for semaphore; zero milliseconds selects maximum RTOS ticks and dereferences storage without null guard",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42067630",
+      "kind": "function",
+      "role": "Create mailbox wrapper plus queue of four-byte message pointers",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x4206766c",
+      "kind": "function",
+      "role": "Blocking mailbox post with send-to-back position and maximum RTOS ticks; failed send asserts",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42067840",
+      "kind": "function",
+      "role": "Allocate per-thread semaphore storage and binary semaphore; return null on either allocation failure",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x420678b4",
+      "kind": "function",
+      "role": "Get or create cached per-thread TCP/IP completion semaphore",
+      "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
     },
     {
       "address": "0x4206a398",

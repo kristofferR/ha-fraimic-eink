@@ -1523,3 +1523,36 @@ Private artifacts: `schedule-api-pass1.txt` through `schedule-api-pass3.txt`,
 `scan-schedule-api-calls.mjs`, `schedule-api-call-candidates.json`,
 `schedule-api-gnu.mjs`, `schedule-api-boundaries-gnu.txt`,
 `schedule-api-string-hits.json` and `schedule-api-evidence-hashes.txt`.
+
+## SNTP control mailbox, ordering and allocation failures: S02
+
+Seven targeted reference passes follow the application retry loop through its
+SNTP wrappers, shared TCP/IP dispatcher, allocation/free path, mailbox and
+per-thread semaphore. Thirty-six selected functions span 66 GNU ranges, with
+all 1,213 decoded instruction byte sequences checked against the pinned Large
+application. Constants independently establish the 32-entry pointer mailbox,
+16-byte API callback allocation, distinct pool descriptor and wrapper targets.
+
+The [queue trace](boot-and-scheduling.md#sntp-control-queue-ordering-and-allocation-failures)
+shows that hostname setting waits for its API callback to finish, whereas stop,
+mode and init only post callbacks and discard allocation errors. Queue posting
+and hostname completion use no ordinary timeout; the checked RTOS timeout helper
+recognizes the maximum tick value separately from a task-delay abort. Application
+response waits begin afterward, so their sum is not a total synchronization bound.
+
+The compiled mode setter calls the assertion handler when a client remains
+active. This gives a conditional lost-stop/successful-mode failure path, rather
+than a claim that queued operations reorder. Missing init can leave the caller
+waiting without a newly created client. The separate per-thread semaphore
+allocator returns null on failure; the synchronous API path does not guard it
+before wait/signal helpers dereference the storage pointer.
+
+No host behavioral fixture, allocation fault, queue saturation, device request
+or clock/network change was performed. These static paths do not establish a
+runtime crash, deadlock, failure frequency or the cause of captured TLS memory
+pressure. Standard queue equivalence and physical offline timing remain open;
+S02 is not closed.
+
+Private artifacts: `sntp-queue-pass1.txt` through `sntp-queue-pass7.txt`,
+`sntp-queue-gnu.mjs`, `sntp-queue-boundaries-gnu.txt`,
+`sntp-queue-literals.jsonl` and `sntp-queue-evidence-hashes.txt`.
