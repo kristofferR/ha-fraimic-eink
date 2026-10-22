@@ -464,6 +464,8 @@ do not clear a different client's slot. Keep abort/result state with its job.
 For stock-backend operation, serialize content producers where possible and keep
 job retention/idempotency independent of connection or LED state. This backend
 discipline does not repair the firmware's internal ownership paths.
+The [Standard follow-up](standard-model-comparison.md#cancellation-ownership-and-download-timeouts-also-match)
+confirms the same slot helper behavior and 21 direct caller sites in 0.2.28.
 
 ### SDK cancellation state and response bookkeeping
 

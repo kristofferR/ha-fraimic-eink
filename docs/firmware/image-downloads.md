@@ -213,8 +213,10 @@ fails; a late successful GET is not proof the frame displayed it. A firmware for
 should give each job owned context/buffers, use cooperative cancellation with a
 completion handshake, and release HTTP resources in the worker before releasing
 job ownership. Uncoordinated deletion of a worker that also self-deletes is not
-a cleanup protocol. Physical timeout/cancellation and Standard equivalence remain
-open under C08/D01/D07.
+a cleanup protocol. The [Standard comparison](standard-model-comparison.md#cancellation-ownership-and-download-timeouts-also-match)
+now confirms matching cancellation/timeout branches with its separate 960,000-byte
+capacity. Physical timeout/cancellation and complete cleanup remain open under
+C08/D01/D07.
 
 ## A short asset can reach rendering and replace the cache
 

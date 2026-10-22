@@ -1455,3 +1455,42 @@ remain open, including Standard equivalence and runtime timing.
 Private artifacts: `http-slot-pass1.txt`, `scan-http-slot-calls.mjs`,
 `http-slot-call-candidates.json`, `http-slot-gnu.mjs`,
 `http-slot-boundaries-gnu.txt` and `http-slot-evidence-hashes.txt`.
+
+## Standard cancellation, ownership and timeout comparison: E02/C08/D01/D07
+
+Two Standard Ghidra/reference passes and a hash-checked comparison cover fifteen
+function pairs: six slot helpers, five HTTP SDK helpers, task deletion, download
+worker, voice orchestrator and common downloader. There are 2,346 Standard
+instructions in 63 GNU ranges including three extra header/cancellation regions.
+Every decoded byte sequence is checked against its application image. The
+symbol-free Standard ELF avoids known candidate labels inside instructions.
+
+The paired functions match normalized operations, register operands and all 210
+internal branch destinations by instruction index. Two functions differ in
+alignment and equivalent narrow/move encodings; these are checked explicitly
+rather than ignored wholesale. Fifty-three direct-call pairs and 183 literal
+pairs are recorded separately. Constants/strings match except the 960,000 versus
+2,304,000 panel limit, 9,000 versus 18,000 render-wait ticks and corresponding
+90/180-second timeout diagnostic. Pointer relocations do not by themselves prove
+every external helper implementation equivalent.
+
+A fresh Standard raw direct-call scan finds 21 register/unregister/read/reset
+sites, all independently checked against GNU caller instructions, with no exact
+helper-pointer words found. Multipart's header tail is checked separately from
+its truncated Ghidra function. The three additional voice regions establish the
+discarded helper results around header reading and cancellation cleanup.
+
+The [model comparison](standard-model-comparison.md#cancellation-ownership-and-download-timeouts-also-match)
+records the shared slot/abort semantics, stack-context lifetime, completion-before-
+self-delete ordering and failure after grace-period success. It distinguishes
+voice render-completion waits from maintenance waits. Kernel list removal and
+full Standard task-reclamation helpers remain outside this comparison, as do
+runtime thread-local hooks, actual concurrency, resource retention and physical
+timing. The earlier ten SDK host cases were not rerun or counted as new evidence.
+No frame, backend, network rule or HA source changed. E02/C08/D01/D07 remain open.
+
+Private artifacts: `standard-cancel-pass1.txt`, `standard-cancel-pass2.txt`,
+`scan-standard-http-slot-calls.mjs`, `standard-http-slot-call-candidates.json`,
+`compare-standard-cancel.mjs`, `standard-cancel-boundaries-gnu.txt`,
+`standard-cancel-comparison.json`, `standard-cancel-literals.jsonl` and
+`standard-cancel-evidence-hashes.txt`.

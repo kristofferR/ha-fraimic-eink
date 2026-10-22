@@ -198,6 +198,33 @@
       "standard_cache_table": "0x3fcada9c",
       "large_callback_table": "0x3fcad9dc",
       "standard_callback_table": "0x3fcada6c"
+    },
+    "cancellation_ownership_comparison": {
+      "evidence": "Static GNU byte and normalized-operation comparison; no new device or host concurrency execution",
+      "function_pairs": 15,
+      "standard_instruction_sequences": 2346,
+      "gnu_ranges": 63,
+      "internal_branch_pairs": 210,
+      "direct_slot_helper_sites_each": {
+        "register": 4,
+        "unregister": 7,
+        "read_aborted": 5,
+        "reset_aborted": 5
+      },
+      "active_client_record_bytes": 24,
+      "large_active_client_record": "0x3fcabcd0",
+      "standard_active_client_record": "0x3fcabd28",
+      "download_wait_ticks": 30000,
+      "download_grace_ticks": 500,
+      "download_context_bytes": 1556,
+      "download_task_stack_bytes": 8192,
+      "download_task_priority": 5,
+      "download_task_core": 0,
+      "normal_worker_gives_completion_before_self_delete": true,
+      "caller_handle_cleared_by_worker": false,
+      "large_voice_render_wait_ticks": 18000,
+      "standard_voice_render_wait_ticks": 9000,
+      "limitations": "External helper identities are mapped separately; runtime thread-local cleanup, lock/allocator timing and physical faults remain unverified"
     }
   },
   "function_map": [
@@ -700,6 +727,81 @@
       "role": "system_clock_set",
       "large": "0x4200af88",
       "standard": "0x4200aedc"
+    },
+    {
+      "role": "http_active_client_register",
+      "large": "0x420233b0",
+      "standard": "0x42021e60"
+    },
+    {
+      "role": "http_active_client_unregister",
+      "large": "0x42023464",
+      "standard": "0x42021f14"
+    },
+    {
+      "role": "http_abort_manager_initialize",
+      "large": "0x42025e34",
+      "standard": "0x42024884"
+    },
+    {
+      "role": "http_abort_wrapper",
+      "large": "0x42025ea8",
+      "standard": "0x420248f8"
+    },
+    {
+      "role": "http_aborted_getter",
+      "large": "0x42025fc4",
+      "standard": "0x42024a10"
+    },
+    {
+      "role": "http_aborted_reset",
+      "large": "0x42026014",
+      "standard": "0x42024a60"
+    },
+    {
+      "role": "http_sdk_prepare",
+      "large": "0x4206d4e8",
+      "standard": "0x4206cae0"
+    },
+    {
+      "role": "http_sdk_close",
+      "large": "0x4206d9d8",
+      "standard": "0x4206cfd0"
+    },
+    {
+      "role": "http_sdk_connect",
+      "large": "0x4206da20",
+      "standard": "0x4206d018"
+    },
+    {
+      "role": "http_sdk_cancel",
+      "large": "0x4206db7c",
+      "standard": "0x4206d174"
+    },
+    {
+      "role": "http_sdk_cleanup",
+      "large": "0x4206dbd8",
+      "standard": "0x4206d1d0"
+    },
+    {
+      "role": "task_delete",
+      "large": "0x40384c14",
+      "standard": "0x40384c34"
+    },
+    {
+      "role": "voice_download_worker",
+      "large": "0x420104a8",
+      "standard": "0x420103fc"
+    },
+    {
+      "role": "voice_orchestrator",
+      "large": "0x42011adc",
+      "standard": "0x42011a3c"
+    },
+    {
+      "role": "common_image_downloader",
+      "large": "0x4202606c",
+      "standard": "0x42024ab8"
     }
   ],
   "live_standard": {

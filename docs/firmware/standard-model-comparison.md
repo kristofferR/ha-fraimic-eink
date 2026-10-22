@@ -273,6 +273,67 @@ equivalence or a new fault-injection run. The earlier host parser/timeout fixtur
 remain Large-derived. Keep the synchronous adapter contract shared and the
 renderers, capacities and ownership models explicit per build.
 
+### Cancellation ownership and download timeouts also match
+
+Two additional Standard reference passes compare fifteen function pairs covering
+the six cancellation-manager helpers, HTTP prepare/close/connect/cancel/cleanup,
+task deletion, download worker, voice orchestration and common image downloader.
+GNU checks compare 2,346 Standard instructions in 63 ranges, including three
+additional voice-header regions. The paired functions have matching register
+operations and 210 internal branch targets after accounting for relocation,
+alignment and equivalent narrow instruction encodings. External helper pointers
+are mapped separately; this is not whole-firmware equivalence.
+
+Standard's active-client record is at `0x3fcabd28`, with the same 24-byte layout
+and ten-tick lock waits. Register/unregister are `0x42021e60` / `0x42021f14`;
+abort is `0x420248f8`, aborted-read/reset are `0x42024a10` / `0x42024a60`.
+A separate raw call scan finds the same **4 register + 7 unregister + 5 read +
+5 reset** direct sites, all verified in caller context. It also retains the same
+discarded registration/unregistration/reset results, preserved abort byte on
+unregister and false result on failed aborted-byte reads.
+
+Thus the [Large slot-ownership findings](voice.md#active-client-ownership-and-failed-unregistration)
+also have matching Standard static paths: unregistration without an expected
+client, double unregister in the downloader, open failure reaching unregister
+without registering, and failed unregister followed by client cleanup. None has
+been reproduced as a memory failure on either model.
+
+Standard SDK cancellation `0x4206d174` has the same state gate, direct transport
+close, prepare/connect call and synthetic processed-count assignment. Prepare
+`0x4206cae0` preserves connection state, and connect `0x4206d018` tests that state
+after prepare. The earlier ten-case host fixture remains host evidence; this
+comparison adds compiled branch agreement, not ten additional tests or measured
+socket behavior.
+
+Voice orchestrator `0x42011a3c` passes the same 1,556-byte stack context to download
+worker `0x420103fc`, with the same caller-stack result/count/handle offsets. Its
+completion semaphore is at `0x3fca6b98`, and its processing flag at `0x3fca6b88`.
+It discards task-creation status, waits 300 seconds, requests abort, then gives
+the worker five seconds before potentially deleting the retained handle through
+`0x40384c34`. Success during the grace period still returns failure without
+rendering. The worker gives its semaphore before self-deletion and never clears
+the retained caller handle. The same conditional stale-handle and skipped HTTP
+cleanup concerns therefore apply despite Standard's separate image allocation.
+
+Two numeric differences in the compared functions remain explicit:
+
+| Voice-workflow parameter | Standard | Large |
+| --- | --- | --- |
+| Image download destination capacity | 960,000 bytes | 2,304,000 bytes |
+| Wait for render completion after successful download | 9,000 ticks, about **90 seconds** | 18,000 ticks, about **180 seconds** |
+
+The render-timeout diagnostic also differs accordingly. These waits are separate
+from the maintenance helper's 60/90-second waits below. Neither voice-render
+timeout branch cancels or joins the renderer; it returns failure before that
+voice branch's cache save. A later display completion is therefore not excluded
+by the caller's timeout. Scheduling and physical outcomes remain untested.
+
+The shared backend should preserve completed jobs/artwork across interrupted
+delivery, issue reusable exact-size model assets and avoid treating a closed
+connection, timeout log or LED as a per-job render/cancellation acknowledgment.
+This comparison changes no physical test status and does not identify the cause
+of the earlier Standard TLS allocation error.
+
 ### Maintenance refresh differences
 
 Standard `0x42026a18` powers on, sets the manager busy, and requests FULL

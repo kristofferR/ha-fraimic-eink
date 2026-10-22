@@ -49,6 +49,7 @@ per question, not a count of tool calls or decompiled functions.
 | C07/C08/D01/D07 | Upload task creation passes a borrowed 220-byte caller context; timeout returns without joining, while every worker exit still accesses its status/semaphore pointers | Physical timing, expired-stack effects, late completion/two-job reproduction and complete cleanup design |
 | C08/D01/D07 | Download context/handle and 300-second wait plus five-second grace mapped; late success stays failed; forced deletion can skip HTTP cleanup and race self-deletion | Actual scheduler/transport ordering, runtime callback ownership, retained-resource measurements and Standard equivalence |
 | C08/D01/D07 | All 21 direct register/unregister/abort-read/reset sites checked; ignored lock failures, double/unowned unregister and false-on-failed-read semantics mapped | Concurrent request/cancellation tests, stale-client effects, allocator/lock timing and Standard comparison |
+| E02/C08/D01/D07 | Fifteen Standard/Large function pairs match normalized operations and 210 internal branch targets; same slot ownership and download timeout paths; voice render wait is 90/180 seconds | Physical cancellation/late rendering, complete external cleanup helpers, runtime callbacks and resource measurements |
 | C07/C08/D05 | Task creation/WAV lifetime and cancellation windows traced; pending poll can interrupt recording even without a usable image URL; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
@@ -169,6 +170,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   [Active-client ownership](voice.md#active-client-ownership-and-failed-unregistration)
   now maps ignored registration/cleanup errors, potential stale client storage,
   cross-request clearing and shared abort-byte classification.
+  [Standard comparison](standard-model-comparison.md#cancellation-ownership-and-download-timeouts-also-match)
+  confirms matching slot helpers/call sites, SDK cancellation branches and voice
+  timeout ownership; runtime faults and external cleanup coverage remain open.
 - [x] **C09 · Host/Device:** Complete one local end-to-end voice round trip using
   fixture audio and a known panel image first, then one physical tap-to-image flow.
   Separate transport validation from paid generation and provider variability.
