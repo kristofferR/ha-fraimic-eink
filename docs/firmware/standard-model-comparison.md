@@ -263,6 +263,21 @@ does not by itself provide enough memory for another full Large image snapshot.
 Because both model and release differ, these differences cannot be attributed
 solely to the panel size or solely to the version increment.
 
+### Embedded status images and markers
+
+The [Standard RLE comparison](storage-and-configuration.md#standard-status-assets-use-different-row-geometry)
+now covers the decoder and show/restore/persistence helpers. Standard expands a
+26,958-byte embedded low-battery asset into two 480,000-byte halves; Large expands
+216,382 bytes into eight 288,000-byte blocks. Eighteen Standard host cases pass,
+and an independent decode matches the complete vendor-asset output. They share
+the malformed-run checks, partial writes and unchecked colour/trailing-pair rules,
+but use different strip geometry and cannot share encoded status artwork.
+
+Both builds write the image allocation before DROP arbitration and update
+`sys_img` on render acceptance, without awaiting physical completion. Both can
+clear the marker after a failed cache load without restoring the artwork. The
+comparison adds no physical display, overlap, storage-fault or recovery evidence.
+
 ## Keep model renderers and power paths separate
 
 The Standard renderer sends two 480,000-byte blocks. Its resolution command uses

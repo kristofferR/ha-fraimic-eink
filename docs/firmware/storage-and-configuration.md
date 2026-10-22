@@ -470,3 +470,39 @@ returns no result to its caller. In-memory and persisted markers can therefore
 diverge on storage failure. `0x4202fdac` likewise clears memory before requesting
 NVS deletion. Physical overlap, storage faults and next-boot restoration remain
 open; no battery-state or reset experiment was performed.
+
+### Standard status assets use different row geometry
+
+The pinned Standard 0.2.28 build resolves `low_battery` at `0x4202dfe8` to
+DROM `[0x3c22aee8, 0x3c231836)`, a **26,958-byte** embedded asset. Its decoder
+`0x4202e138` uses two halves, each with **1,600 strips of 600 pixels**, and packs
+each strip into 300 consecutive bytes. The second half starts at byte 480,000;
+the total output is exactly **960,000 bytes**. The log calls each strip a “row”;
+this is controller-stream geometry, not a claim that the result is an ordinary
+row-major 1600 × 1200 bitmap. Keep the model-specific panel packer.
+
+The same error classes, partial writes, unmasked colour packing and ignored
+trailing pairs apply. A destination below 960,000 bytes fails before decoding;
+a larger destination does not increase the decoded length. Eighteen reconstructed
+C host cases passed with AddressSanitizer and UndefinedBehaviorSanitizer, including
+distinct strip/half contents and preservation of the unused tail of Standard's
+1,048,576-byte image allocation. An independent decoder consumed every asset pair
+and produced identical bytes. This asset uses only colours `0, 1, 3`.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Standard embedded RLE | `bf009f5933a467900f245db06695f7ad13e82f6b6f1a892f6529768e5e4d12d7` |
+| Decoded 960,000-byte panel payload | `0d5ea5c820540c57ff5c8f2aad188a0d7d454f2c7f1293cfd06b6d3a9a6d7703` |
+
+Standard show `0x4202e360` and restore `0x4202e50c` have the same ordering as the
+Large paths above: decode/cache-load first, DROP render-start second, marker
+changes on acceptance without waiting. A dropped operation returns success and
+retains its marker despite the earlier buffer write. A cache-load failure clears
+the marker without restoring artwork. The Standard marker is at `0x3fcacaec`;
+save/reload/clear are `0x4202e030`, `0x4202e09c` and `0x4202e4d8`.
+
+These helpers preserve `last_image.bin`; they do not expose an RLE upload route.
+Standard's separate recording allocation avoids Large's audio/image alias, but
+its image producers still share the image allocation. Neither this comparison nor
+the host checks demonstrate actual overlap, NVS-failure recovery or a new physical
+render. The vendor artwork remains private.

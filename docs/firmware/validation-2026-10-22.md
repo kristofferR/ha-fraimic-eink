@@ -951,3 +951,34 @@ Private artifacts: `upload-lifetime-pass1.txt`, `upload-lifetime-pass2.txt`,
 `upload-lifetime-pass3.txt`, `upload-lifetime-gnu.mjs`,
 `upload-lifetime-boundaries-gnu.txt`, `upload-lifetime-literals.jsonl` and
 `upload-lifetime-evidence-hashes.txt`.
+
+## Standard status RLE and restoration: N08/D01/D07
+
+One reference/decompiler pass and 25 bounded GNU ranges examine nine Standard
+functions: asset resolution, marker save/reload/query/clear, RLE decode, show,
+restore and render-start. The 960,000-byte output, 480,000-byte half offset,
+two-half/1,600-strip/600-pixel loops, unmasked packing, error paths and marker
+ordering are instruction-backed. This compares these application paths with the
+earlier Large trace; it does not prove complete SDK or renderer equivalence.
+
+**Eighteen C host cases passed** with C11 warnings-as-errors, AddressSanitizer and
+UndefinedBehaviorSanitizer. They adapt the earlier malformed-size/run, palette,
+partial-write and trailing-pair checks to Standard, then add distinct strip/half
+contents and unchanged allocation-tail checks. An independent decoder consumes
+all 26,958 embedded bytes, emits 960,000 bytes and matches the C output exactly.
+Asset and output hashes are recorded in the
+[format notes](storage-and-configuration.md#standard-status-assets-use-different-row-geometry).
+An initial host-fixture transcription error in the half offset was caught by the
+uniform-output assertion and corrected to the binary's 480,000-byte constant
+before the passing run; it was not a firmware failure.
+
+This is host reconstruction and static tracing, not a new panel render or an
+execution of the Xtensa application. No frame contact, battery-state experiment,
+storage fault, marker change or artwork replacement occurred. N08/D01/D07 remain
+open for their physical, persistence and concurrency portions.
+
+Private Standard artifacts: `standard-status-rle-pass1.txt`,
+`standard-status-rle-gnu.mjs`, `standard-status-rle-boundaries-gnu.txt`,
+`standard-status-rle-literals.jsonl`, `extract-standard-status-rle.mjs`,
+`standard-status-rle-fixture.c`, `standard-status-rle-results.txt`,
+`standard-status-rle-asset.json` and `standard-status-rle-evidence-hashes.txt`.

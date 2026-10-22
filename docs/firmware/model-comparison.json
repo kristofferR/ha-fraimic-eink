@@ -21,6 +21,16 @@
         "recording_pointer_global": "0x3fcabd8c",
         "image_pointer_global": "0x3fcabd80",
         "display_pointer_alias": "0x3fca7644"
+      },
+      "status_rle": {
+        "asset_start": "0x3c22aee8",
+        "asset_end_exclusive": "0x3c231836",
+        "compressed_bytes": 26958,
+        "blocks": 2,
+        "strips_per_block": 1600,
+        "pixels_per_strip": 600,
+        "output_bytes": 960000,
+        "decoded_sha256": "0d5ea5c820540c57ff5c8f2aad188a0d7d454f2c7f1293cfd06b6d3a9a6d7703"
       }
     },
     "large": {
@@ -36,6 +46,16 @@
         "recording_and_image_share_allocation": true,
         "shared_pointer_global": "0x3fcabd28",
         "display_pointer_alias": "0x3fca75d4"
+      },
+      "status_rle": {
+        "asset_start": "0x3c372e18",
+        "asset_end_exclusive": "0x3c3a7b56",
+        "compressed_bytes": 216382,
+        "blocks": 8,
+        "strips_per_block": 720,
+        "pixels_per_strip": 800,
+        "output_bytes": 2304000,
+        "decoded_sha256": "a1db1ecf37389628588baf3c2d44912318087759eb55558dfaa4b834236721be"
       }
     }
   },
@@ -444,6 +464,41 @@
       "role": "factory_mode_getter",
       "large": "0x4201ea44",
       "standard": "0x4201ea18"
+    },
+    {
+      "role": "status_asset_resolve",
+      "large": "0x4202f8bc",
+      "standard": "0x4202dfe8"
+    },
+    {
+      "role": "status_marker_save",
+      "large": "0x4202f904",
+      "standard": "0x4202e030"
+    },
+    {
+      "role": "status_marker_reload",
+      "large": "0x4202f970",
+      "standard": "0x4202e09c"
+    },
+    {
+      "role": "status_rle_decode",
+      "large": "0x4202fa0c",
+      "standard": "0x4202e138"
+    },
+    {
+      "role": "status_image_show",
+      "large": "0x4202fc34",
+      "standard": "0x4202e360"
+    },
+    {
+      "role": "status_marker_clear",
+      "large": "0x4202fdac",
+      "standard": "0x4202e4d8"
+    },
+    {
+      "role": "status_image_restore",
+      "large": "0x4202fde0",
+      "standard": "0x4202e50c"
     }
   ],
   "live_standard": {

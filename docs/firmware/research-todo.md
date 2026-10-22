@@ -68,7 +68,7 @@ per question, not a count of tool calls or decompiled functions.
 | D04/D07/D08/S05 | Maintenance helpers drain the semaphore but treat DROP as success; Standard waits 60 seconds, Large 90; Large blank path can wait on its own busy state, and scheduled history ignores refresh results | Physical maintenance/failure tests, other shutdown callers, concurrent state changes and persisted history errors |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
-| N08/D01/D07 | Sixteen RLE host cases verify partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; status/restore helpers write before DROP and change markers before completion | Physical rendering, overlap, storage faults, Standard comparison and actual marker/artwork recovery |
+| N08/D01/D07 | Sixteen Large and eighteen Standard RLE host cases verify model geometry, partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; both show/restore paths write before DROP and change markers before completion | Physical rendering, overlap, storage faults, other releases and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
 | S03/S04/S05/S06 | Thirty-three host case groups cover deadline selection, missed-album retry and scheduling faults; timer/reason ordering, maintenance correction and conditional recursive fallback traced | Physical wake timing, actual persisted correction, clock changes, concurrency and real timer/NVS faults |
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
@@ -385,6 +385,9 @@ Source: [storage and configuration](storage-and-configuration.md).
   last artwork/sys_img state. [Sixteen host cases and marker tracing](storage-and-configuration.md#status-decoder-validation-and-partial-writes)
   now cover malformed run/size, palette and partial-write behavior. They do not
   close physical rendering, overlap, NVS-failure or next-boot restoration checks.
+  [Standard's geometry and marker comparison](storage-and-configuration.md#standard-status-assets-use-different-row-geometry)
+  adds eighteen host cases and an independent complete asset decode; the same
+  outstanding physical and storage-fault checks apply to both models.
 
 ## Hardware and remaining local interfaces
 
