@@ -782,6 +782,12 @@ call even on error. Six unchanged-source RAM-filesystem groups distinguish
 metadata failure from retryable file-buffer failure; they do not establish
 the installed partition layout or physical power-loss behavior.
 
+Three allocation helpers add 68 instructions, seven branches and four ranges
+per model, with two direct-call and six literal pairs reviewed. Both FatFs ports
+prefer `DEFAULT | SPIRAM` and fall back to `DEFAULT | INTERNAL` for each allocation.
+The map now has 252 pairs. This establishes allocation policy, not actual runtime
+placement, fragmentation or the cause of an earlier TLS allocation error.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering

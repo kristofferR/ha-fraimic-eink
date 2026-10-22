@@ -675,6 +675,20 @@ placement. Registration on Standard `0x4203557c` matches across 83 instructions,
 13 branches and four ranges. Actual initialization races, resource pressure and
 safe cache replacement remain untested.
 
+The allocation-region preference is now resolved separately. FatFs allocation
+helper `0x420351f4` supplies two capability masks to the SDK preference allocator:
+`0x1400` (`DEFAULT | SPIRAM`) first, then `0x1800` (`DEFAULT | INTERNAL`). The
+allocator stops on the first successful allocation. This matches
+[ESP-IDF's external-memory-preferred FatFs port](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/fatfs/port/freertos/ffsystem.c).
+Thus the context and flags prefer PSRAM and independently fall back to internal
+memory; the 25,392-byte total is not an unconditional internal-memory charge.
+The same helper serves the recovered 4,096-byte format workspace and 512-byte
+long-filename workspace. PSRAM allocation failure can shift those requests to
+internal memory, but no runtime placement, fragmentation or TLS impact was
+measured. Three paired allocation/free/preference bodies match across 68 GNU
+instructions, seven branches and four ranges per model; no new host or device
+allocation fault was injected.
+
 ## Last artwork
 
 `/imagedata/last_image.bin` is the recovered single-image persistence mechanism.

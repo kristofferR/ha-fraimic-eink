@@ -568,6 +568,12 @@
       "evidence": "static; 22 October DNS fallback/cache follow-up"
     },
     {
+      "address": "0x40376b14",
+      "kind": "function",
+      "role": "Capability-preference allocator loops in supplied order and stops on first success; invokes failure handler after exhausted nonzero allocation",
+      "evidence": "static; 22 October paired FatFs allocation-policy GNU comparison"
+    },
+    {
       "address": "0x4037a8e4",
       "kind": "function",
       "role": "SPI private-context cleanup; frees staged TX and copies/frees staged RX using original descriptor",
@@ -2864,6 +2870,18 @@
       "kind": "function",
       "role": "FatFs rename: different existing destination returns FR_EXIST; new-entry/old-entry update sequence",
       "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
+    },
+    {
+      "address": "0x420351f4",
+      "kind": "function",
+      "role": "FatFs allocation requests PSRAM/default first, internal/default second through heap_caps_malloc_prefer",
+      "evidence": "static; 22 October paired FatFs allocation-policy GNU comparison"
+    },
+    {
+      "address": "0x4203520c",
+      "kind": "function",
+      "role": "FatFs free wrapper",
+      "evidence": "static; 22 October paired FatFs allocation-policy GNU comparison"
     },
     {
       "address": "0x420352a4",

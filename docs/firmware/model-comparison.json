@@ -833,6 +833,23 @@
         "host_sector_bytes": 4096,
         "host_case_groups": 6,
         "limits": "RAM whole-sector I/O and selected errors; not installed geometry, wear leveling, torn writes, physical power loss, concurrency or a complete target ABI/configuration match"
+      },
+      "allocation_preference": {
+        "evidence": "Three paired GNU allocation/free/preference bodies; no new host or runtime fault test",
+        "instructions_per_image": 68,
+        "branches_per_image": 7,
+        "gnu_ranges_per_image": 4,
+        "direct_call_pairs": 2,
+        "literal_pairs": 6,
+        "capability_masks_in_order": [
+          "0x1400",
+          "0x1800"
+        ],
+        "meaning": [
+          "DEFAULT | SPIRAM",
+          "DEFAULT | INTERNAL"
+        ],
+        "limitations": "Policy only; actual placement, fragmentation, common failure-handler behavior and TLS impact not established"
       }
     }
   },
@@ -2081,6 +2098,21 @@
       "role": "fat_result_to_errno",
       "large": "0x42035a6c",
       "standard": "0x42034530"
+    },
+    {
+      "role": "fat_memory_allocate_prefer_external",
+      "large": "0x420351f4",
+      "standard": "0x42033cb8"
+    },
+    {
+      "role": "fat_memory_free",
+      "large": "0x4203520c",
+      "standard": "0x42033cd0"
+    },
+    {
+      "role": "heap_caps_malloc_prefer",
+      "large": "0x40376b14",
+      "standard": "0x40376b1c"
     }
   ],
   "live_standard": {

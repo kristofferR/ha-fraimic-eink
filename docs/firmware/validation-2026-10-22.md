@@ -1917,3 +1917,21 @@ Other private artifacts: `cache-replace-pass1.txt`/`cache-replace-pass2.txt`,
 No frame, artwork, flash, network or HA changes were made. Installed FAT geometry,
 wear leveling, torn writes, concurrency and physical power-loss recovery remain
 open; successful RAM remounts are not a power-loss atomicity guarantee.
+
+## FatFs allocation-region preference: N04/E01/E02
+
+Three paired allocation/free/preference helpers add 68 instructions, seven
+branches and four GNU ranges per model. Two direct-call and six literal pairs
+are reviewed, including identical masks `0x1400` then `0x1800`. The allocator
+stops on first success; FatFs requests PSRAM/default capability first and
+internal/default second. The public map now contains 252 pairs.
+
+This refines the four-file 25,392-byte allocation accounting: the two allocations
+independently prefer PSRAM rather than always consuming internal memory. It does
+not establish actual placement, allocator fragmentation, failure-handler behavior
+or a causal link to TLS memory pressure. No additional host/device fault test
+was run. Private artifacts: `cache-allocator-pass1.txt`/`cache-allocator-pass2.txt`,
+per-function `cache-allocator-*-cfg.json`/`.txt`,
+`compare-standard-cache-allocator.mjs`, `standard-cache-allocator-comparison.json`
+and `standard-cache-allocator-boundaries-gnu.txt`. No frame, network or HA
+changes were made.
