@@ -2498,3 +2498,42 @@ does not reopen the completed C05 contract or change checklist totals.
 | `compare-standard-voice-cache.mjs` | `946ded7a718c85ec3ce4a0b44e3dc254227c63f3d5676a5a8562a88d2cdcdd74` |
 | `standard-voice-cache-comparison.json` | `6b9a9424625ccf944336be97020a151bea80da5f0c6a0aae55cfee6c126bb1b5` |
 | Pinned `esp_http_client.c` | `7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2` |
+
+## Renderer fault and admission model: D04
+
+Large render-start `0x420208d4`, worker `0x420204b8` and recording query
+`0x42020150` were recovered as complete reachable GNU control flow with 143,
+384 and 50 instructions, respectively. The fixture checks every recovered
+instruction against the hash-pinned image and verifies consequential literals:
+29,999 wait-counter limit, 12,288-byte requested task stack and unsigned worker
+size-range constants. The three bodies total 577 instructions and 22 ranges.
+The startup semaphore constructor at `0x42014600`–`0x4201460f` requests length
+one, item size zero, type three. No Standard worker equivalence is inferred.
+
+**Twenty scenario assertions and 140 event orders passed** in a private Bun
+fixture on Omarchy. This is a control-flow reconstruction, with modeled heap,
+task creation/deletion, binary queue, driver returns and virtual delays; it is
+not an Xtensa interpreter or actual FreeRTOS execution. It exercises the cases
+listed in the [renderer report](rendering-and-concurrency.md#bounded-renderer-fault-and-admission-model).
+Direct invalid worker contexts are explicit branch probes, not an assertion
+that normal render-start admits them. Hardware cleanup is assumed to return.
+
+The admission enumeration preserves each caller's four modeled steps. With both
+creates succeeding, 60 of 70 merges admit two workers. With B's create failing,
+48 merges leave a live A with busy false and four leave no worker. Counts depend
+on that abstraction and are not likelihood estimates. Additional traces show
+first-completion busy clearing, a third admission, binary-token collapse, stale
+completion, signal-before-busy-clear and timeout without worker cleanup. No real
+concurrent producer, pixel overwrite, panel fault or physical deadlock was induced.
+
+D04's host milestone is now checked. Its remaining physical validation stays
+deferred. Ongoing E01/E02 and the separate D02 byte-overwrite/D06 driver-fault
+criteria remain open.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `renderer-fault-model.mjs` | `898f28795087d1bae170fa3c5c4a1146b69d68b87fccd93287210ea44085f3dd` |
+| `renderer-fault-results.json` | `970f43382ecef2e79be22a537ad83db3cafd3c11eaed9fbbe15710371f202f24` |
+| `renderer-start-large-cfg.json` | `2e4960db2bbb6300bc5fa3ba5fc9fbf1cec37431322ea38beea12ef569c365de` |
+| `renderer-worker-large-cfg.json` | `60a156d0382dc7c6f686a8eb0fb484e0e9f66ced1d0370795d784ad792204e8e` |
+| `renderer-recording-query-large-cfg.json` | `43ac86a47fddd27ff131df0c4d8c00ccef30b356a2c6b74305a597ba468a05f4` |

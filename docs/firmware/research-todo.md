@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 104 of 182 concrete milestones complete.**
+**9 of 67 original items complete; 105 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 9 | Original bounded question answered; evidence linked below |
-| Research | 16 | Concrete static, host or design work remains available |
-| Waiting for device | 17 | Remaining original criteria require physical validation |
+| Research | 15 | Concrete static, host or design work remains available |
+| Waiting for device | 18 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
@@ -65,10 +65,10 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with the remaining host
-fault cases under D04/E01 while A07's [feature proposal](voice-feature-proposal.md)
+For the owner's local-cloud/voice priorities, continue with D02's byte-level
+ownership overlap or the remaining driver faults under D06 while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
-Its six API reuse checks are complete. A06's compatibility
+Its six API reuse checks and D04's bounded renderer fault model are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
 remain deferred. A02–A04 and A03's final integration check need implementation;
@@ -496,10 +496,10 @@ Commit and push validated research batches periodically as requested.
   task-allocation failure and early render failure. Check busy flags, semaphore
   behavior, recording-state query failures and timeout cleanup.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static:** Map WAIT/DROP, pre-arbitration writes, setup-task waits and maintenance DROP-as-success. [Render policy](rendering-and-concurrency.md#what-wait-and-drop-actually-guarantee), [maintenance](rendering-and-concurrency.md#maintenance-refresh-has-separate-completion-rules).
-  - [ ] **Next:** **Host:** Inject task-create failure, early worker failure, stuck completion and simultaneous producers with explicit busy/semaphore outcomes.
+  - [x] **Host:** Exercise twenty Large renderer/query scenarios and 140 admission orders, including context/task failures, early cleanup, stuck waits and stale/collapsed completion. SDK/hardware and scheduling remain modeled. [Results and limits](rendering-and-concurrency.md#bounded-renderer-fault-and-admission-model).
   - [ ] **Deferred:** **Device:** Validate selected timeout/cleanup outcomes after a bounded fixture exists.
 
 - [ ] **D05 · Host/Device:** Validate voice versus scheduled-content races and every

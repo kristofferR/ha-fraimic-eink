@@ -5,13 +5,15 @@
 This follow-up traces Large 0.2.29's buffer aliases, render task and status
 reporting. Unless labelled observed, findings are **static**, with consequential
 instructions checked in GNU ESP32-S3 disassembly. Later bounded poll/voice tests
-observed the normal completion path. No concurrent-upload, fault-injection or
-modified-firmware experiment was performed.
+observed the normal completion path. No physical concurrent-upload, fault-injection
+or modified-firmware experiment was performed. The bounded renderer model below
+adds isolated host fault cases.
 
 The [voice cancellation follow-up](voice.md#cancellation-and-scheduled-content-races)
 maps a second shared resource: the HTTP-abort manager stores one active client,
 without job-scoped ownership. It also distinguishes the pre-render cancel check
-from a refresh already running. Its lifetime/fault cases remain untested.
+from a refresh already running. Its lifetime/fault cases now have a bounded host
+model, with physical outcomes still untested.
 The [timeout and two-job follow-up](voice.md#timeout-and-error-boundaries-still-needing-validation)
 also traces unchecked task creation, a WAV cleanup helper that does not release
 ownership, and a candidate cancellation flag left over for the next recording.
@@ -330,7 +332,66 @@ content/job ID or render result attached to that signal, and neither this path n
 render-start drains it before creating a new job. A timeout only logs and exits;
 it does not stop or join the renderer. Success, failure, drop and timeout therefore
 need separate backend diagnostics; “Get Started displayed” is not a per-image
-physical acknowledgement. These concurrency/fault cases remain untested.
+physical acknowledgement. These concurrency/fault cases remain untested on the
+frame; the host model below checks selected signal/lifetime consequences.
+
+### Bounded renderer fault and admission model
+
+A Large-only host reconstruction now exercises **20 scenarios and 140 bounded
+event orders**. Three complete GNU control-flow recoveries cover render-start,
+the render worker and recording-state query: 577 instructions with image-byte
+checks. The fixture models allocation, task creation, binary semaphore behavior,
+hardware returns and virtual time. It does not run FreeRTOS, a panel driver or
+the firmware itself. The worker's normal self-delete is treated as terminating
+the task; Ghidra's apparent fallthrough into failure cleanup is not a second
+real cleanup.
+
+| Injected condition | Modeled outcome |
+| --- | --- |
+| Null/zero input to render-start | Invalid argument; no context, busy claim or worker |
+| Prior worker busy, DROP | Invalid state; previous worker remains live |
+| Prior worker stays busy, WAIT | Timeout after 30,000 virtual ticks; previous worker/context remains live |
+| Prior worker ends during WAIT | New worker starts, but its predecessor's signal remains available |
+| 12-byte context allocation fails | No-memory return, no new worker or completion signal |
+| Task creation fails after busy is set | Context freed and busy cleared; no completion signal |
+| Worker size/pointer, I2C, expander or power-setup failure | Failure cleanup frees context and gives the same untyped signal as normal completion |
+| Refresh reports an error | Error is logged; normal cleanup still gives completion |
+| Worker hangs before cleanup | Waiter times out; worker, context and busy state remain |
+| Recording mutex missing/timed out | Query returns false even if capture may still be active |
+
+The WAIT counter is compared with 29,999 and advanced in 25-tick increments,
+giving 1,200 modeled delays at the recovered 10 ms tick. The virtual 300 seconds
+exclude real execution/scheduling overhead. The 90-second completion wait is a
+separate caller policy; expiry does not join or delete the renderer.
+
+The worker gives the binary semaphore **before clearing busy**. A waiter can
+therefore consume a completion while a subsequent DROP still sees busy. Neither
+render-start nor the instruction-screen waiter drains a prior signal; an old
+signal can satisfy a new wait while its worker remains active. Draining removes
+that stale token, but does not supply a job ID, success result or cancellation.
+Two worker completions can also collapse into one binary token. Startup requests
+one zero-sized queue item with semaphore type 3, matching that capacity.
+
+The admission model splits each of two callers into check, context allocation,
+busy set and task-create steps. Among 70 order-preserving merges with both
+creates succeeding, 60 admit two workers and ten admit one. With only B's
+creation forced to fail, 48 orders leave A live while busy is false; four leave
+no worker because A dropped before B failed. These are **counts in the chosen
+abstraction, not probabilities or observed schedules**. Real higher-level caller
+exclusion and preemption timing were not simulated.
+
+A separate trace lets the first of two admitted workers finish: it clears the
+shared busy byte while the second is still active, admitting a third. This is
+why a global boolean and an untyped completion signal cannot become a job lock
+merely by checking them more frequently. For a future firmware change, one owner
+must span admission, source bytes, driver work and cleanup, and completion must
+carry identity and outcome. Backend serialization can limit its own offers but
+cannot impose that ownership on independent stock tasks.
+
+Hardware cleanup is assumed to return in these cases, and direct invalid-worker-
+context probes do not imply ordinary render-start accepts invalid input. No actual
+byte corruption, physical race, power-safe recovery or Standard equivalence is
+claimed by this Large-only pass. See [validation](validation-2026-10-22.md#renderer-fault-and-admission-model-d04).
 
 ## Completion currently means the worker ended
 
