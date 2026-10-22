@@ -412,6 +412,30 @@
       "evidence": "static; watchdog follow-up with GNU checks"
     },
     {
+      "address": "0x3fcad968",
+      "kind": "global",
+      "role": "SNTP retry delay in milliseconds; initialized to 15000, exponential ceiling 150000",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x3fcad96c",
+      "kind": "global",
+      "role": "Single 32-byte SNTP server record; name at 0, IP address at 4, reachability at 28",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x3fcad98c",
+      "kind": "global",
+      "role": "SNTP UDP client pointer",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x3fcad990",
+      "kind": "global",
+      "role": "SNTP operating mode; application selects poll mode zero",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
       "address": "0x4037a8e4",
       "kind": "function",
       "role": "SPI private-context cleanup; frees staged TX and copies/frees staged RX using original descriptor",
@@ -2876,6 +2900,54 @@
       "kind": "function",
       "role": "SDK i2s_channel_init_pdm_rx_mode",
       "evidence": "static"
+    },
+    {
+      "address": "0x42055f24",
+      "kind": "function",
+      "role": "TCP/IP callback enqueue; allocation can fail and SNTP stop/init/mode wrappers discard result",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x42056098",
+      "kind": "function",
+      "role": "SNTP retry scheduling and exponential delay update",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x42056168",
+      "kind": "function",
+      "role": "SNTP request; configured name takes precedence over saved address",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x42056314",
+      "kind": "function",
+      "role": "SNTP initialization; first request delayed by hardware-random result modulo 5000 milliseconds",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x4205639c",
+      "kind": "function",
+      "role": "SNTP stop; removes request/retry timers and UDP client",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x42056420",
+      "kind": "function",
+      "role": "SNTP name setter; only slot zero accepted, stores borrowed name pointer",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x4205ea28",
+      "kind": "function",
+      "role": "lwIP timer scheduling relative to current millisecond clock",
+      "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x4205ead4",
+      "kind": "function",
+      "role": "lwIP timer cancellation; matches callback and argument and unlinks first match",
+      "evidence": "static; 22 October SNTP startup follow-up"
     },
     {
       "address": "0x4206d20c",

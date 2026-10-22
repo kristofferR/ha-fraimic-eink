@@ -286,6 +286,10 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   Both models' [HTTP Date callbacks](boot-and-scheduling.md#http-date-does-not-supply-a-fallback-clock)
   ignore the header value and do not provide a clock/synchronized-flag fallback;
   ordinary offline boot and actual local NTP compatibility still need validation.
+  Large's [single-slot SNTP and startup delay](boot-and-scheduling.md#sntp-server-selection-and-startup-delay)
+  can cancel a delayed request when the first two application waits expire.
+  Check DHCP time-server handling, late callbacks, callback-queue failures and
+  physical startup timing; SDK defaults alone do not establish build behavior.
 - [ ] **S03 · Host/Device:** Exercise future, absent, invalid, past and failed-poll
   deadlines across reboot. Check persistence and the distinction between clearing
   the schedule and a network failure.

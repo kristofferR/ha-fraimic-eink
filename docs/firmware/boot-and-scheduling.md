@@ -543,6 +543,47 @@ all indirect writes or a controlled cold-boot/deep-sleep experiment. RTC surviva
 alone therefore does not establish working offline scheduling. Without the flag,
 the unified scheduler takes the 24-hour fallback described above.
 
+### SNTP server selection and startup delay
+
+Large's server-name setter `0x42056420` accepts only slot **0**, backed by the
+32-byte record at `0x3fcad96c`. The four application names above are therefore
+rotated through one slot, not installed as four simultaneous SDK fallbacks.
+Request helper `0x42056168` prefers a non-null name over the stored IP address:
+it clears that address and resolves the name, with DNS caching still applicable.
+The name setter stores a borrowed pointer; the application's literal strings
+have sufficient lifetime. This is not a recovered custom-server setting.
+
+Initializer `0x42056314` schedules the first request after **0–4,999 ms**. The
+actual instructions take the hardware-random result modulo 5,000, using multiply
+constant `0xd1b71759`, a 44-bit quotient shift and divisor `0x1388`. This value
+comes from the application binary, not an assumed SDK default. The delay precedes
+the request helper, so it precedes even DNS resolution. The binary's structure
+also matches the startup-delay and one-slot branches in the
+[pinned lwIP implementation](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/apps/sntp/sntp.c).
+
+Stop helper `0x4205639c` removes the pending request and retry timers before
+removing the UDP client. Timer cancellation at `0x4205ead4` matches both callback
+and argument. Each application retry stops and initializes the client again,
+choosing a fresh startup delay. Consequently the first two application budgets
+(2 and 4 seconds) can expire before any NTP request is sent; a healthy server
+cannot answer a request that the next attempt cancels before dispatch. This is
+a **conditional static timing problem**, not measured failure frequency. Task
+scheduling, DNS/UDP latency and callback-queue behavior affect the actual timing.
+The later 8/10/10-second budgets exceed the configured startup delay, but still
+include lookup and response time.
+
+The application does not stop SNTP when all five waits expire. A remaining SDK
+request/retry may therefore run after the application has logged synchronization
+failure and entered recovery. Conversely, the stop/init/mode wrappers discard
+the enqueue result from `tcpip_callback` (`0x42055f24`), which can fail to allocate
+its message. Neither late success nor an allocation failure was exercised here;
+they should not be inferred from an ordinary timeout log alone.
+
+For future firmware, keep a selected time client alive long enough to cover its
+startup delay, DNS and response budget, and make recovery account for outstanding
+callbacks. For stock emulation, accurate local NTP service remains a candidate;
+this pass has not established DHCP option 42 support or physical offline boot.
+
 ### HTTP Date does not supply a fallback clock
 
 The shared cloud-event callback has a `Date` header branch, but it **does not read

@@ -1068,3 +1068,26 @@ Private artifacts: `http-date-pass1.txt`, `http-date-gnu.mjs`,
 `http-date-boundaries-gnu.txt`, `http-date-literals.jsonl`,
 `http-date-evidence-hashes.txt`, and Standard's `standard-http-date-pass1.txt`,
 `standard-http-date-boundaries-gnu.txt` and `standard-http-date-literals.jsonl`.
+
+## SNTP server slot and startup timing: S02
+
+Five reference/decompiler passes, literal reads and 34 bounded GNU ranges cover
+20 Large functions/call regions, including the earlier application retry routine.
+The setter accepts only index zero. The request function prioritizes its name;
+initializer arithmetic encodes a 0–4,999 ms random delay; stop removes both
+request/retry timers; the timer list unlinks by callback and argument. The
+application's 2/4/8/10/10-second waits and lack of a final stop are checked against
+the same instructions, not inferred from SDK defaults.
+
+This establishes a conditional mismatch between startup delay and early retry
+budgets, without simulating network timing or assigning a failure probability.
+No clock, frame, DHCP lease, DNS, router or service configuration changed. Standard
+timing, real callback ordering, resource failures, DHCP time-server support and
+WAN-free cold boot remain unverified. No host fixture was needed to establish
+the explicit timer calls and constants.
+
+Private artifacts: `sntp-selection-pass1.txt` through `sntp-selection-pass5.txt`,
+`sntp-selection-gnu.mjs`, `sntp-selection-boundaries-gnu.txt`,
+`sntp-selection-literals.jsonl`, `sntp-more-literals.jsonl` and
+`sntp-selection-evidence-hashes.txt`. SDK names are analytical identifications;
+the binary is still the pinned Large application, not recovered vendor source.
