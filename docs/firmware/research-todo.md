@@ -40,6 +40,7 @@ per question, not a count of tool calls or decompiled functions.
 | --- | --- | --- |
 | C01/C11/D01 | Setup/verification split and redirects traced; response backing memory, conditional verification/poll guard, duplicate-worker and stale-pointer branches mapped; verification JSON is unescaped | Independent enrollment, controlled response/concurrency faults and remaining boot dependencies |
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
+| C02/C08/D01/D07 | Settings copy consumers rechecked; shared poll result, completion byte, two-second post-result task lifetime and non-joining clear mapped | Controlled overlap/late-clear faults, Standard comparison, full indirect-reference audit and per-job acknowledgement |
 | C03 | Local panel/TLS controls completed; static downloader length/framing, same-URL retries and short-asset behavior mapped | Device response faults, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
@@ -106,6 +107,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   `user_settings` members are actually applied locally rather than merely copied.
   Twenty-five host cases cover selected parser rules; suppressed HTTP/connection
   errors and parsed empty JSON have different state effects. Device faults remain.
+  The two recovered `user_settings` consumers copy but do not apply members;
+  [result ownership](cloud-protocol.md#poll-completion-is-one-shared-result-not-a-delivery-receipt)
+  now distinguishes readiness, task lifetime and clearing from image completion.
 - [ ] **C03 · Host/Device:** Verify owner-hosted HTTPS JSON and panel assets, including
   explicit lengths, redirects, response limits and download errors. Test hostname
   and trust behavior with controlled positive/negative certificates; do not infer

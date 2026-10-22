@@ -211,13 +211,51 @@ requiring an object, into a 2,048-byte output buffer at
 `0x3fca8c81`. Getter `0x42025da0` copies it to its caller. The recovered callers
 are the button-wait path (`0x4201163c`) and main loop (`0x42012810`); neither was
 found parsing or applying members of that copy. Main receives at most 511 bytes
-plus NUL, and the button path supplies a small scratch destination.
+plus NUL; the button path supplies four-byte destinations for both settings and
+URL, taking at most three bytes plus NUL. It only checks result/pending state,
+then returns to main without clearing a successful pending image. Main obtains
+the full bounded URL itself; the short button copy is not the download URL.
 
 This does not make backend-owned preferences meaningless. It means a setting
 such as style can affect server generation without a local parser. Do not assume
 that adding a member to `user_settings` creates a firmware setting. The distinct
 `device_settings` branch above does apply its switches. Device fixtures and
 remaining indirect-reference checks are still tracked in C02/E01.
+
+### Poll completion is one shared result, not a delivery receipt
+
+Worker `0x42025aec` clears a 13,744-byte global result region at `0x3fca8680`
+before polling. Its pending byte is at offset 0, 1,536-byte URL at offset 1,
+2,048-byte settings string at offset `0x601`, and result code at `0xe04`.
+The completion byte at `0x3fca867c` is **outside** that cleared region.
+
+After the request/retry and any recording-stop attempt, the worker sets that
+completion byte and gives its semaphore. It then delays **200 ticks / two seconds**
+in `0x4202358c`, frees the copied device key, clears its task handle and deletes
+itself. Thus result-ready and task-running can both be true for two seconds after
+the request finishes. The running getter reflects a nonzero handle, not ongoing
+HTTP activity or a render job. Starter `0x42025c84` rejects a nonzero handle.
+
+The recovered foreground consumers test the completion byte, then use getter
+`0x42025da0`; that getter itself neither checks completion nor acquires a lock.
+It copies current shared fields and returns the stored result. Clear helper
+`0x42025e10` zeroes the region and completion byte; it does not cancel, wait for
+or join the worker. The located semaphore references cover creation and giving,
+not a foreground take/join. This is a bounded reference audit, not a claim that
+all possible indirect accesses have been excluded.
+
+Neither the starter nor a new worker resets an old completion byte before the
+new request. If an old result has not been consumed when another poll starts,
+that byte can still describe the previous request while the shared fields have
+already been zeroed or are being rewritten. A late clear can likewise erase
+shared state without identifying which request produced it. These are conditional
+ordering hazards inferred from the code; no overlapping-poll fault was induced.
+
+Main invokes the image helper and then clears the poll result. A completed poll,
+semaphore signal, zeroed result or idle worker handle is therefore not a
+per-image physical-render acknowledgement. A local adapter needs its own durable
+offer/job identity and conservative retry policy; the stock poll response has
+no result-generation token or render receipt to make those signals equivalent.
 
 ## System and setup screens
 

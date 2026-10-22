@@ -797,3 +797,29 @@ Private artifacts: `wake-scheduling-pass1.txt`, `wake-scheduling-pass2.txt`,
 `wake-scheduling-literals.jsonl`, `wake-scheduling-extra-literals.jsonl`,
 `wake-scheduling-fixture.c`, `wake-scheduling-fixture-results.txt` and
 `wake-scheduling-evidence-hashes.txt`.
+
+## Poll result ownership and settings consumers: C02/C08/D01/D07
+
+Two reference/decompiler passes and 17 bounded GNU ranges cover seven helpers and
+the two foreground result-consumer branches. Direct pointer references confirm
+the separate result, completion-byte, semaphore and task-handle locations.
+The serialized `user_settings` copy still has no recovered local member consumer;
+the button path's exact four-byte destination is now checked in instructions.
+It returns on pending content while preserving the result for main's larger copy.
+
+New lifecycle evidence distinguishes publication from task exit: the worker
+publishes completion, gives the semaphore, delays 200 ten-millisecond ticks, then
+frees its argument and clears its handle. New-poll initialization does not clear
+the separate completion byte. The result getter/clearer have no generation check,
+request lock or worker join. Conditional stale-ready/late-clear consequences are
+static inferences, not observed races or a claim that ordinary polling overlaps.
+
+No new host concurrency fixture or physical request was run for this pass. It
+does not convert the earlier successful render into a reliable poll receipt.
+See [the poll result contract](cloud-protocol.md#poll-completion-is-one-shared-result-not-a-delivery-receipt)
+for the local adapter implications. C02/C08/D01/D07 remain open for the outstanding
+physical, lifetime, indirect-reference and per-job acknowledgement questions.
+
+Private artifacts: `poll-settings-pass1.txt`, `poll-settings-pass2.txt`,
+`poll-settings-gnu.mjs`, `poll-settings-boundaries-gnu.txt`,
+`poll-settings-literals.jsonl` and `poll-settings-evidence-hashes.txt`.

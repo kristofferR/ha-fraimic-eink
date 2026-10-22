@@ -244,10 +244,34 @@
       "evidence": "static; 22 October account-response ownership follow-up"
     },
     {
+      "address": "0x3fca867c",
+      "kind": "data",
+      "role": "Poll result-ready byte, separate from the result region and worker handle",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
+      "address": "0x3fca8680",
+      "kind": "data",
+      "role": "13744-byte shared poll result region; cleared at request start and consumption",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
       "address": "0x3fca8c81",
       "kind": "data",
       "role": "Serialized poll user_settings output; recovered callers do not apply members",
       "evidence": "static"
+    },
+    {
+      "address": "0x3fcabc30",
+      "kind": "data",
+      "role": "Poll completion semaphore handle",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
+      "address": "0x3fcabc34",
+      "kind": "data",
+      "role": "Poll worker handle; retained for two seconds after result publication",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
     },
     {
       "address": "0x3fcabc38",
@@ -1483,6 +1507,12 @@
       "evidence": "static; enrollment and HTTP follow-up"
     },
     {
+      "address": "0x4202358c",
+      "kind": "function",
+      "role": "Delay 200 ticks after poll result publication",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
       "address": "0x4202359c",
       "kind": "function",
       "role": "Promote verification state, reload configuration and request get-started screen; caller can ignore save failure",
@@ -1539,14 +1569,38 @@
     {
       "address": "0x42025aec",
       "kind": "function",
-      "role": "Background poll worker",
-      "evidence": "static"
+      "role": "Run poll/retry, publish result, delay two seconds, free argument and clear task handle",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
+      "address": "0x42025c84",
+      "kind": "function",
+      "role": "Start poll worker if handle absent; does not clear separate ready byte",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
+      "address": "0x42025d84",
+      "kind": "function",
+      "role": "Read shared poll result-ready byte",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
+      "address": "0x42025d90",
+      "kind": "function",
+      "role": "Report nonzero poll task handle, including post-result delay",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
     },
     {
       "address": "0x42025da0",
       "kind": "function",
-      "role": "Retrieve poll output including copied user_settings",
-      "evidence": "static"
+      "role": "Copy pending URL/settings and return shared poll result without completion/ownership check",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
+    },
+    {
+      "address": "0x42025e10",
+      "kind": "function",
+      "role": "Clear poll result region and ready byte without worker cancellation or join",
+      "evidence": "static GNU validation; 22 October poll-result ownership audit"
     },
     {
       "address": "0x42025ea8",
