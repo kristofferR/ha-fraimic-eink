@@ -549,3 +549,29 @@ Private artifacts: `spi-lifetime-pass1.txt` through `spi-lifetime-pass3.txt`,
 `checklist-pass7.txt`. No frame request, image change, hardware fault, modified
 firmware execution or routing change was performed. D03 remains open for measured
 memory/fragmentation and design evaluation; D01/D06 retain their broader scope.
+
+## Shutdown ordering and wake setup: S06/D01/D06
+
+Four focused Ghidra passes and 35 bounded GNU ranges across 15 functions trace
+ordinary/storage sleep, service stops, panel shutdown, state mutexes, BUSY polling,
+power-off and the final wake-source call. The pre-sleep export incorrectly merges
+code after its nonreturning deep-sleep call with the next maintenance function;
+the consequential GNU range stops at `0x420126f6`. No conclusion uses the spurious
+decompiled continuation. The EXT1 wrapper is also checked in GNU past Ghidra's
+unsupported `SALTU`, with the final error block disassembled at its real boundary.
+
+The [shutdown follow-up](boot-and-scheduling.md#display-shutdown-suppresses-its-own-failure-evidence)
+establishes ignored BUSY results, unconditional power-wrapper success and the
+absence of another force-off operation in the caller's timeout-log branch.
+The default 30,000 ms polling budget was read from configuration constructor
+`0x42028204`. It is not a bound on all hardware/service cleanup. No overlap,
+shutdown failure, battery experiment, sleep request or wake-source change was
+performed on a frame.
+
+Private artifacts: `sleep-lifecycle-pass1.txt` through
+`sleep-lifecycle-pass4.txt`, `sleep-lifecycle-gnu.mjs`,
+`sleep-lifecycle-boundaries-gnu.txt`, `sleep-lifecycle-literals.jsonl`,
+`sleep-config-literals.jsonl` and prior `concurrency-pass4.txt`.
+The fourth pass inspects an additional network cleanup callee without claiming
+complete SDK resource-lifetime coverage. Hardware state and late-worker effects
+remain open despite the statically recovered success logs.

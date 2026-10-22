@@ -280,6 +280,12 @@
       "evidence": "static; cancellation follow-up"
     },
     {
+      "address": "0x3fcabce8",
+      "kind": "global",
+      "role": "Display manager state/configuration; power and controller flags at offsets 49 and 50",
+      "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x3fcabd20",
       "kind": "state",
       "role": "PSRAM buffer initialized flag",
@@ -516,8 +522,8 @@
     {
       "address": "0x42012338",
       "kind": "function",
-      "role": "Pre-sleep workflow",
-      "evidence": "static"
+      "role": "Ordinary pre-sleep: pending OTA, service teardown, display shutdown, final wake setup and log flush; ends at nonreturning call 0x420126f3",
+      "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x420126f8",
@@ -1615,6 +1621,18 @@
       "evidence": "static; 22 October maintenance follow-up, GNU cross-check"
     },
     {
+      "address": "0x42027a64",
+      "kind": "function",
+      "role": "Panel power wrapper; off path discharges, drives GPIO 40 low, clears power flag and returns zero",
+      "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42027ad4",
+      "kind": "function",
+      "role": "Display-manager BUSY-high polling with configured millisecond budget; shutdown discards result",
+      "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x42027b34",
       "kind": "function",
       "role": "Full-panel clear with 288000-byte pattern buffer, broadcast transfer and ordinary refresh",
@@ -1625,6 +1643,12 @@
       "kind": "function",
       "role": "Read display-manager state under its mutex; zero on uninitialized manager or mutex timeout",
       "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
+      "address": "0x42027c10",
+      "kind": "function",
+      "role": "Display shutdown without renderer join; ignores BUSY/clear/state failures and inherits unconditional power-wrapper success",
+      "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x42027d88",
@@ -1665,8 +1689,8 @@
     {
       "address": "0x42028204",
       "kind": "function",
-      "role": "Default display-manager configuration: 10000/30000 ms timeouts and control flags",
-      "evidence": "static; 22 October maintenance follow-up, GNU cross-check"
+      "role": "Default display configuration: 10000/30000 ms fields and three option bytes",
+      "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x420282f8",
@@ -1811,6 +1835,12 @@
       "kind": "function",
       "role": "Initialize/resume and sample orientation; poll and voice pass keep-awake=1",
       "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x42029ccc",
+      "kind": "function",
+      "role": "Battery-monitor enable clear under ten-tick mutex attempt; no worker join",
+      "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x42029d60",

@@ -56,6 +56,7 @@ per question, not a count of tool calls or decompiled functions.
 | S01/C01/C11 | Cached reachability survives station disconnect; fallback AP request ordering and persistent wildcard captive-DNS worker traced | Physical recovery, actual AP configuration, DNS reachability/lifetime and setup/bind failure tests |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | D01/D03/D06 | DMA staging copies one 4,800-byte PSRAM chunk at a time; completion frees it; shared descriptors/manual select state and truncated/overwritten errors traced | Measured DMA-memory fragmentation, controlled transfer/overlap faults and complete higher-level driver exclusion audit |
+| S06/D01/D06 | Pre-sleep ordering and final wake-source reset traced; display shutdown discards BUSY timeout, suppresses hardware results and has no render join | Physical shutdown/wake controls, outstanding-worker faults and verified safe power-down |
 | C01/D01/D04 | Setup metadata framing and background screen tasks traced; shared pixels written before WAIT/DROP, two-minute Get Started poll hold, 90-second unscoped completion wait | Controlled task/heap faults, overlapping screens/producers, full metadata framing coverage and independent provisioning |
 | D06/E01 | Task-watchdog startup is 5 seconds, both idle tasks, panic disabled; renderer unsubscribes before power/conditioning/transfer/refresh | Physical failure/recovery tests, interrupt-watchdog and hardware fallback coverage, remaining indirect references |
 | H04/D06/S05 | Conditioning uses full-panel black or white/black clears and a temporary 288 KB block; elapsed selector uses 12/48-hour boundaries; MID suppresses clear errors and can advance the shared timestamp | Panel waveform constraints, physical conditioning/fault tests, other controller paths and interrupted timestamp writes |
@@ -253,6 +254,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   charger, maintenance, album, first-setup/storage and factory-test modes. Verify
   HTTP reachability and timeout behavior in each, without treating test-mode sleep
   as evidence of normal idle sleep.
+  [Static shutdown ordering](boot-and-scheduling.md#pre-sleep-ordering-and-outstanding-work)
+  now maps network-before-display teardown, non-joining workers, suppressed
+  display errors and final button/timer setup. It does not verify physical sleep.
 - [ ] **S07 · Host/Device:** Validate a local pull playlist with wake-only scheduling,
   backend outages, changed plans and HA restart; quantify wake latency and battery
   cost. Check offline cached playlists only after N01/N07 establish feasibility.

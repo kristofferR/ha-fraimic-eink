@@ -27,6 +27,86 @@ A plain LAN packet cannot wake a frame already in deep sleep. More frequent
 scheduled wakeups trade battery life for responsiveness. HA's existing push queue
 and a proposed frame-driven pull scheduler solve different parts of that problem.
 
+### Pre-sleep ordering and outstanding work
+
+The ordinary pre-sleep routine first checks for a pending OTA and its safety
+predicate. An accepted update is attempted **before** service shutdown. A local
+backend should continue withholding firmware offers unless an update is intended;
+starting sleep does not guarantee that no further download/update work will run.
+
+After an LED delay, the recovered order is:
+
+1. Request connectivity-monitor stop; disable battery monitoring, power down the
+   accelerometer and request fuel-gauge sleep.
+2. Check the saved-image file and attempt to persist the `deep_sleep` marker.
+3. Deinitialize portal/network services, including stopping the local HTTP server,
+   then disconnect/stop/deinitialize Wi-Fi.
+4. Call display shutdown with no white clear, log its result and continue.
+5. Wait 200 ms, clear previous wake sources, request button EXT1 wake, then call
+   the unified maintenance/album scheduler to add the next timer.
+6. Flush logs, attempt to store the sleep timestamp and enter deep sleep.
+
+This is an ordering trace, not a bounded shutdown transaction. Monitor stop does
+not join its current probe/failover, as described below. Battery-monitor stop
+`0x42029ccc` only clears its enable flag under a ten-tick mutex attempt; it does
+not wait for an in-progress iteration. Sensor/marker failures do not gate the
+remaining pre-sleep work. Local HTTP-server stop can itself wait without an
+overall deadline; see [server lifecycle](local-api.md#server-capacity-and-lifecycle).
+Consequently a shutdown log is not proof that deep sleep has already begun.
+
+There is no explicit upload-worker abort/join, instruction-worker join or common
+render-completion wait in this routine. Ordinary synchronous callers normally
+finish before reaching it, but a worker surviving its caller's timeout needs
+separate accounting. This trace does not establish that an overlapping worker
+occurred on the device. A firmware extension needs to stop new producers, join
+or cancel existing jobs, release their resources and shut down the panel before
+sleep; changing only a visible busy flag is insufficient.
+
+### Display shutdown suppresses its own failure evidence
+
+Shutdown helper `0x42027c10` returns immediately when manager state already says
+off. Otherwise, when initialized, it attempts to set busy state without checking
+that setter's result. Its optional white clear is disabled by the ordinary
+pre-sleep caller. If the controller-initialized flag is set, it selects all
+controllers, sends command `0x02`, calls BUSY waiter `0x42027ad4`, then deselects
+them. **The waiter's result is discarded.** This is not a wait for the renderer's
+completion semaphore or its separate render-busy flag.
+
+The BUSY waiter checks GPIO 6 for high, with one-tick delays and a default
+30,000 ms budget from the manager configuration. That deadline belongs only to
+this polling loop, not to the whole shutdown sequence. The following power-off
+wrapper `0x42027a64(0)` runs the existing 5 + 5 + 3 second discharge sequence,
+drives GPIO 40 low, clears its software power flag and returns zero. It does not
+propagate expander/GPIO results. The manager's subsequent off-state update can
+also fail without replacing the successful return. An uninitialized manager
+takes a fallback that likewise returns zero after its shutdown attempt.
+
+Thus an ordinary return from these recovered branches reports success even when
+the BUSY waiter timed out. The pre-sleep caller contains a separate timeout log
+claiming to force power off, but the checked helper does not propagate that BUSY
+timeout into it, and the caller's log branch performs no additional force-off
+operation. No hardware fault was induced. A future result/event must distinguish
+attempted power-down from a verified safe state and retain full driver failures.
+The [SPI ownership trace](rendering-and-concurrency.md#descriptors-and-manual-controller-selection-also-need-ownership)
+also applies to the command/select operations in this helper.
+
+### Final wake-source configuration is explicit
+
+The normal path clears all previously enabled wake sources and calls the EXT1
+setter with a 64-bit mask of `4` and mode `0`: GPIO 2, any-low on ESP32-S3.
+The numeric meanings match the
+[SDK sleep definitions](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_hw_support/include/esp_sleep.h).
+It then calls the unified scheduler. A timer configured earlier in the wake
+session is therefore not enough; the final scheduling step must restore it.
+The caller ignores the button-wake setter's result, so the log saying both wake
+sources are armed is not an independent readback of actual hardware state.
+
+The storage-sleep path performs the same clear-and-button setup but does not call
+the unified scheduler. It also lacks the ordinary path's explicit log-flush call
+at the end. Both attempt to store the shared sleep timestamp. These differences
+are static; physical wake behavior, interrupted cleanup and actual sleep duration
+still need controlled checks under S06/D06.
+
 ## Album deadline persistence
 
 `0x4202475c` accepts a numeric future `next_image_utc`, with
