@@ -1,0 +1,570 @@
+{
+  "date": "2026-10-22",
+  "scope": "Static firmware and isolated host X.509 verification; no device, network or firmware change",
+  "firmware": {
+    "large": {
+      "version": "0.2.29",
+      "build": "f1555ee5",
+      "sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f"
+    },
+    "standard": {
+      "version": "0.2.28",
+      "build": "4654a1d8",
+      "sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7"
+    }
+  },
+  "bundle": {
+    "large_start": "0x3c3b1970",
+    "standard_start": "0x3c23a904",
+    "bytes": 69876,
+    "records": 152,
+    "sha256": "85a40d3a53f7c25ab90168b03eb00c1316ee1be23fb088daa0631bfeb2416c3f",
+    "identical": true,
+    "contains_only": "subject DER and SPKI DER; no certificate validity dates, serial or revocation URLs"
+  },
+  "verify_mask": "0xffffbfff",
+  "certificates": [
+    {
+      "file": "leaf.pem",
+      "subject": "CN=origin.fraimic.com",
+      "issuer": "C=US\nO=eMudhra Inc\nCN=EM OV TLS CA - G3C",
+      "serial": "27333831D650299EA2EA1A8021BF2B58BD8FD236",
+      "notBefore": "Oct 21 15:21:59 2026 GMT",
+      "notAfter": "Oct 23 16:21:59 2026 GMT",
+      "sha256": "7896b02a0978ccf55b71b0833c7adc62f62885a2d865e908369230cac131fd9a",
+      "spki_sha256": "7da993db3003f7f2e81803e26f64f66b4577390b4d4016d597331e3beb4537ef",
+      "bundle_records": []
+    },
+    {
+      "file": "tls-control-leaf.pem",
+      "subject": "CN=origin.fraimic.com",
+      "issuer": "C=US\nO=eMudhra Inc\nCN=EM OV TLS CA - G3C",
+      "serial": "6CCF05A85EC173C3757DF7896303CFB6F516EAFE",
+      "notBefore": "Oct 21 19:12:37 2026 GMT",
+      "notAfter": "Oct 21 22:12:37 2026 GMT",
+      "sha256": "c3fb3a91bf6fc6f6608411b905e5d9ae16988e781ee1fc64ea2ebee632b3ddc0",
+      "spki_sha256": "7da993db3003f7f2e81803e26f64f66b4577390b4d4016d597331e3beb4537ef",
+      "bundle_records": []
+    },
+    {
+      "file": "cert.pem",
+      "subject": "C=US\nO=eMudhra Inc\nCN=EM OV TLS CA - G3C",
+      "issuer": "C=IN\nO=eMudhra Technologies Limited\nCN=emSign Root TLS CA - G3",
+      "serial": "296926C227A3A1526392B19482A504",
+      "notBefore": "Apr 30 15:37:41 2025 GMT",
+      "notAfter": "Apr 28 18:30:00 2040 GMT",
+      "sha256": "cb6e15165ac802e9b3f993f16c25d41f4e81c21ebde71ae1b012ac00bf9c7c3f",
+      "spki_sha256": "63ecefee431d49523bc1136c4e72d0206a477086caf606cd5cf025686c109cf8",
+      "bundle_records": []
+    },
+    {
+      "file": "root-tls-885.pem",
+      "subject": "C=IN\nO=eMudhra Technologies Limited\nCN=emSign Root TLS CA - G3",
+      "issuer": "C=IN\nOU=emSign PKI\nO=eMudhra Technologies Limited\nCN=emSign ECC Root CA - G3",
+      "serial": "961A3EFB1359576ED04005B4684A5B",
+      "notBefore": "Jul 11 15:43:36 2024 GMT",
+      "notAfter": "Jul  9 18:30:00 2039 GMT",
+      "sha256": "3094025792039a68af6e553686410bdab7c0d4a36b9084cba64202e35d6ebbdd",
+      "spki_sha256": "c619e4780ed8e0abeda24ad732567de4383a7ea941338f6d1a7d1b49ac792fe9",
+      "bundle_records": []
+    },
+    {
+      "file": "emsign-root.pem",
+      "subject": "C=IN\nOU=emSign PKI\nO=eMudhra Technologies Limited\nCN=emSign ECC Root CA - G3",
+      "issuer": "C=IN\nOU=emSign PKI\nO=eMudhra Technologies Limited\nCN=emSign ECC Root CA - G3",
+      "serial": "3CF607A968700EDA8B84",
+      "notBefore": "Feb 18 18:30:00 2018 GMT",
+      "notAfter": "Feb 18 18:30:00 2043 GMT",
+      "sha256": "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b",
+      "spki_sha256": "8d417db2dd8bf5e3084d1e3f196d583849d81bdd4c00c70b9d39369e96b8c782",
+      "bundle_records": [
+        107
+      ]
+    },
+    {
+      "file": "ca-candidate-2547.pem",
+      "subject": "C=US\nO=eMudhra Inc\nCN=EM OV TLS CA - G3C",
+      "issuer": "C=GB\nST=Greater Manchester\nL=Salford\nO=Comodo CA Limited\nCN=AAA Certificate Services",
+      "serial": "8D5A4811939EF447D77111CDD9849AE9",
+      "notBefore": "May 14 00:00:00 2025 GMT",
+      "notAfter": "Dec 31 23:59:59 2028 GMT",
+      "sha256": "7485b51c0ed192878fa1d2f948fb529ae1842cc5086c4b67f7be5b2039de9489",
+      "spki_sha256": "63ecefee431d49523bc1136c4e72d0206a477086caf606cd5cf025686c109cf8",
+      "bundle_records": []
+    }
+  ],
+  "compiled_policy": {
+    "certificate_date_checks": false,
+    "crl_date_checks": false,
+    "bundle_attach_crl_pointer": null,
+    "bundle_initialization": "Only identified initializer caller is builtin bundle attachment; exact-reference census, not arbitrary alias proof",
+    "hostname_and_chain_checks": true
+  },
+  "revocation": {
+    "issuer": "emSign Root TLS CA - G3",
+    "intermediate_serial": "296926C227A3A1526392B19482A504",
+    "revoked_at": "2026-10-18T09:38:46Z",
+    "reason": "CA Compromise",
+    "crl_last_update": "2026-10-18T09:38:46Z",
+    "crl_next_update": "2027-04-16T09:38:46Z",
+    "download_url": "https://crl.emsign.com/?roottlscag3.crl",
+    "crl_signature_verified": true
+  },
+  "function_comparisons": [
+    {
+      "name": "bundle-check",
+      "large": "0x42044bbc",
+      "standard": "0x42040f80",
+      "instructions": 47,
+      "branches": 10,
+      "normalized_operations_match": true
+    },
+    {
+      "name": "bundle-verify",
+      "large": "0x42044df4",
+      "standard": "0x420411b8",
+      "instructions": 79,
+      "branches": 8,
+      "normalized_operations_match": true
+    },
+    {
+      "name": "bundle-attach",
+      "large": "0x42044ec8",
+      "standard": "0x4204128c",
+      "instructions": 34,
+      "branches": 2,
+      "normalized_operations_match": true
+    },
+    {
+      "name": "chain",
+      "large": "0x420897a8",
+      "standard": "0x42088e54",
+      "instructions": 113,
+      "branches": 10,
+      "normalized_operations_match": true
+    },
+    {
+      "name": "parent",
+      "large": "0x4208958c",
+      "standard": "0x42088c38",
+      "instructions": 35,
+      "branches": 6,
+      "normalized_operations_match": true
+    },
+    {
+      "name": "crl",
+      "large": "0x420896bc",
+      "standard": "0x42088d68",
+      "instructions": 82,
+      "branches": 14,
+      "normalized_operations_match": true
+    },
+    {
+      "name": "top",
+      "large": "0x42089a10",
+      "standard": "0x420890bc",
+      "instructions": 75,
+      "branches": 5,
+      "normalized_operations_match": true
+    },
+    {
+      "name": "peer",
+      "large": "0x420732cc",
+      "standard": "0x420728c4",
+      "instructions": 124,
+      "branches": 29,
+      "normalized_operations_match": true
+    }
+  ],
+  "instructions_per_build": 589,
+  "host": {
+    "mbedtls_commit": "98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8",
+    "esp_idf_tag": "v5.4.1",
+    "bundle_callback": "Original SDK source with logging/error stubs; original extracted bundle",
+    "date_policies": [
+      "disabled-firmware-path",
+      "enabled-control"
+    ],
+    "tests": [
+      {
+        "case": "original-current",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-22T12:00:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "original-not-after-exact",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-23T16:21:59Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "original-expired",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-23T16:22:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "original-not-yet-valid",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-21T15:21:58Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "original-after-all-certificate-dates",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2044-01-01T00:00:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "replacement-fresh-key",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "replacement-wrong-host",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 4,
+        "passed": true
+      },
+      {
+        "case": "replacement-with-revocation-list",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 2,
+        "passed": true
+      },
+      {
+        "case": "replacement-root-removed",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": false,
+        "result": -12288,
+        "flags": 4294967295,
+        "passed": true
+      },
+      {
+        "case": "upper-intermediate-before-expiry",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2039-07-09T18:29:59Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "upper-intermediate-at-expiry",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2039-07-09T18:30:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "upper-intermediate-after-expiry",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2039-07-09T18:30:01Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "cross-sign-before-expiry",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2028-12-31T23:59:59Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "cross-sign-after-expiry",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2029-01-01T00:00:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "untrusted-correct-host",
+        "date_policy": "disabled-firmware-path",
+        "clock_utc": "2026-10-21T20:00:00Z",
+        "accepted": false,
+        "result": -12288,
+        "flags": 4294967295,
+        "passed": true
+      },
+      {
+        "case": "original-current",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-22T12:00:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "original-not-after-exact",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-23T16:21:59Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "original-expired",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-23T16:22:00Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 1,
+        "passed": true
+      },
+      {
+        "case": "original-not-yet-valid",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-21T15:21:58Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 512,
+        "passed": true
+      },
+      {
+        "case": "original-after-all-certificate-dates",
+        "date_policy": "enabled-control",
+        "clock_utc": "2044-01-01T00:00:00Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 9,
+        "passed": true
+      },
+      {
+        "case": "replacement-fresh-key",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "replacement-wrong-host",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 4,
+        "passed": true
+      },
+      {
+        "case": "replacement-with-revocation-list",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 2,
+        "passed": true
+      },
+      {
+        "case": "replacement-root-removed",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-24T12:00:00Z",
+        "accepted": false,
+        "result": -12288,
+        "flags": 4294967295,
+        "passed": true
+      },
+      {
+        "case": "upper-intermediate-before-expiry",
+        "date_policy": "enabled-control",
+        "clock_utc": "2039-07-09T18:29:59Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "upper-intermediate-at-expiry",
+        "date_policy": "enabled-control",
+        "clock_utc": "2039-07-09T18:30:00Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "upper-intermediate-after-expiry",
+        "date_policy": "enabled-control",
+        "clock_utc": "2039-07-09T18:30:01Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 9,
+        "passed": true
+      },
+      {
+        "case": "cross-sign-before-expiry",
+        "date_policy": "enabled-control",
+        "clock_utc": "2028-12-31T23:59:59Z",
+        "accepted": true,
+        "result": 0,
+        "flags": 0,
+        "passed": true
+      },
+      {
+        "case": "cross-sign-after-expiry",
+        "date_policy": "enabled-control",
+        "clock_utc": "2029-01-01T00:00:00Z",
+        "accepted": false,
+        "result": -9984,
+        "flags": 9,
+        "passed": true
+      },
+      {
+        "case": "untrusted-correct-host",
+        "date_policy": "enabled-control",
+        "clock_utc": "2026-10-21T20:00:00Z",
+        "accepted": false,
+        "result": -12288,
+        "flags": 4294967295,
+        "passed": true
+      }
+    ],
+    "limits": "Native X.509 verification with an injected process-local clock; other library features use host defaults. Not whole firmware emulation, wire TLS, physical expired-chain acceptance or live key rotation.",
+    "replacement": {
+      "sha256": "7ecfa58a12b93d6889d8cb9177f1b0a244f2219f81f98df405cd250f287f7ab9",
+      "spki_sha256": "ace5ee9ba0854f6375323ee8402ea4e02c49115beed31a13ea28f31c47e826c6",
+      "key_type": "ec",
+      "different_from_original_key": true
+    }
+  },
+  "evidence": [
+    {
+      "artifact": "tls-durability-fixture.c",
+      "sha256": "39eb0ee4b31610b1322d8d91e0b76acb91647f3d3baa0a9927c767af7bc3e6c8"
+    },
+    {
+      "artifact": "tls-durability-extract.mjs",
+      "sha256": "2d057620fabdf2ea31265db3bdc14a316dfebb73130d297d1d0e6bfdcb947b9f"
+    },
+    {
+      "artifact": "tls-durability-match.mjs",
+      "sha256": "d57c4f8fc2030482a0c17764f16f3c73f493c9ea3abf4980029aae8088adb2ac"
+    },
+    {
+      "artifact": "tls-durability-compare.mjs",
+      "sha256": "080a682783a4e35553a0ced0fc99f9f03394fbde62c94014b3070b964e07e5b8"
+    },
+    {
+      "artifact": "esp_crt_bundle.c",
+      "sha256": "d22fe6b039e671b37ee9df861bdf67c0b61b67326acfdb9b5c249ab0135581cf"
+    },
+    {
+      "artifact": "x509_crt.c",
+      "sha256": "799f6993d323d9158bf832967f404e9c63b0d76c0a72023be7a80c42630020fd"
+    },
+    {
+      "artifact": "issuer.crl",
+      "sha256": "3fca75a8b774172c92af79c9023e782c1eade468c44965de06e9ebdea91c6a2b"
+    },
+    {
+      "artifact": "bundle-references.txt",
+      "sha256": "6aba56285e4ab02d27261d1fd424035280fd21fdd230a4a1ec6294a889458501"
+    },
+    {
+      "artifact": "standard-final-references.txt",
+      "sha256": "9397b53da9547684a0d302fb012915bf728bc973f3fbd4de41d13ee5218374de"
+    },
+    {
+      "artifact": "tls-durability-bundle-check-large-cfg.json",
+      "sha256": "6d320a24155808322bda802624ab266d829b85f8c4c88652b5e76a8c126653b1"
+    },
+    {
+      "artifact": "tls-durability-bundle-check-standard-cfg.json",
+      "sha256": "900dd60568e2f7f3b70c4f5e113973427a1bdcaf44b6b407eddba9ed876883a7"
+    },
+    {
+      "artifact": "tls-durability-bundle-verify-large-cfg.json",
+      "sha256": "4c4e2086d74dda40c6ce19ed7677776da28b7102f3dab74ca83b076cd863b76d"
+    },
+    {
+      "artifact": "tls-durability-bundle-verify-standard-cfg.json",
+      "sha256": "799355353bea68e52cfe0bf91dc0a95a9dfb095ad9e8e4b24b6c6d2ec165256a"
+    },
+    {
+      "artifact": "tls-durability-bundle-attach-large-cfg.json",
+      "sha256": "13554acfd226c5bf01aa27816b80652e8ee77d394c205816cd8271d71571a1df"
+    },
+    {
+      "artifact": "tls-durability-bundle-attach-standard-cfg.json",
+      "sha256": "d2274b99ad550e2ef60e780c9b1840d9ec7f597fcf3f46ba2bebc7f05dcfc1ac"
+    },
+    {
+      "artifact": "tls-durability-chain-large-cfg.json",
+      "sha256": "b4e1b8004e7c322b79cee749c6c1b8a1af2f1bd9c35e5662388b561accc0cbaf"
+    },
+    {
+      "artifact": "tls-durability-chain-standard-cfg.json",
+      "sha256": "810e73c253976fc334f8b34b1a49d2984f5536db5d334082733ebb1f5cd3b1bf"
+    },
+    {
+      "artifact": "tls-durability-parent-large-cfg.json",
+      "sha256": "95ffbab7f2210dfe45ead030bedd75793966c0d948e4bb402d2c417981094b4a"
+    },
+    {
+      "artifact": "tls-durability-parent-standard-cfg.json",
+      "sha256": "ecae87d60ea4103ee354d141a44230dae1ea928ed8e3ec9f22a10100a5120d6d"
+    },
+    {
+      "artifact": "tls-durability-crl-large-cfg.json",
+      "sha256": "223cd706e2f75605ed67af6218edc0956ae8edcb3663573a0c32011cdd65f1d4"
+    },
+    {
+      "artifact": "tls-durability-crl-standard-cfg.json",
+      "sha256": "a61536a86313978dc4b21609f7e0f4442dbae5281704165cea6b59bd8f5f95f7"
+    },
+    {
+      "artifact": "tls-durability-top-large-cfg.json",
+      "sha256": "1a21ca638f4e5c308a89bd6a78c2d4978f0d6d6b341b1fe1806e0af4aa572e71"
+    },
+    {
+      "artifact": "tls-durability-top-standard-cfg.json",
+      "sha256": "58c9b6f328cac99fadb2bc45923b17df1b3b19f4c8b2247949d17babce8c19d0"
+    },
+    {
+      "artifact": "tls-durability-peer-large-cfg.json",
+      "sha256": "292907732264d3a1d49aef260b741dd92703e7cc17bc67704fd8e0400bf691c6"
+    },
+    {
+      "artifact": "tls-durability-peer-standard-cfg.json",
+      "sha256": "8b465b4367a434dc6bc2fad2fe216873ba37202d37cc7ce5669d1f7ee94b02d5"
+    }
+  ]
+}

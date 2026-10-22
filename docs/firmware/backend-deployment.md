@@ -62,15 +62,20 @@ does not establish acceptance of HA's certificate by either frame.
 Stock API-origin trust remains a separate constraint: the earlier frame tests
 accepted the private research chain for the stock hostname. An ordinary
 certificate for an owner-controlled hostname does not by itself change the
-firmware's hardcoded origin or installed trust. The experiment is not a durable
-certificate provisioning/renewal solution. A supported custom origin/trust
-configuration remains a later firmware direction.
+firmware's hardcoded origin or installed trust. The later
+[lifecycle analysis](tls-durability.md) establishes identical embedded roots,
+omitted certificate-date checks and no CRL input on both builds. Fresh-key leaf
+replacement passes host verification; the CA revocation predates both successful
+device tests. Automated provisioning/rotation and a supported custom origin/trust
+configuration remain implementation work. Future firmware compatibility requires
+an audit of each image.
 
 The proposed listener should load its certificate privately, monitor expiration,
 and make rotation independent of HA's own listener. Preserve accepted jobs and
 artifacts before restarting it; a restart can still break a stock request, whose
-retry behavior varies by stage. Certificate rotation, network cutover and a
-renewed chain have not been tested on a frame. No key material belongs in the
+retry behavior varies by stage. A different same-key leaf was accepted by Large;
+fresh-key rotation and automatic listener reload have not been tested on a frame.
+No key material belongs in the
 repository or application logs.
 
 ## Minimum boundary to implement

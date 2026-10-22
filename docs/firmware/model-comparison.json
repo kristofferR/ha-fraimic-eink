@@ -1015,6 +1015,20 @@
         6
       ],
       "limits": "One host run; full client teardown and actual ESP allocator not executed. External callees not all recursively compared. No cause established for live TLS allocation errors."
+    },
+    "tls_lifecycle": {
+      "certificate_dates_enforced": false,
+      "api_crl_pointer": null,
+      "bundle_sha256": "85a40d3a53f7c25ab90168b03eb00c1316ee1be23fb088daa0631bfeb2416c3f",
+      "bundle_bytes": 69876,
+      "bundle_roots": 152,
+      "compiled_functions_compared": 8,
+      "instructions_per_build": 589,
+      "host_cases": 30,
+      "physical_fresh_key_rotation_tested": false,
+      "physical_expired_leaf_tested": false,
+      "evidence": "tls-durability.json",
+      "limits": "Static and native host X.509 evidence; no independent bundle updater identified by exact-reference census, no claim about future firmware"
     }
   },
   "function_map": [
@@ -2587,6 +2601,46 @@
       "role": "esp_http_client_cached_buf_cleanup",
       "large": "0x4206ce3c",
       "standard": "0x4206c434"
+    },
+    {
+      "role": "esp_crt_check_bundle",
+      "large": "0x42044bbc",
+      "standard": "0x42040f80"
+    },
+    {
+      "role": "esp_crt_verify_callback",
+      "large": "0x42044df4",
+      "standard": "0x420411b8"
+    },
+    {
+      "role": "esp_crt_bundle_attach",
+      "large": "0x42044ec8",
+      "standard": "0x4204128c"
+    },
+    {
+      "role": "x509_crt_verify_chain_date_disabled",
+      "large": "0x420897a8",
+      "standard": "0x42088e54"
+    },
+    {
+      "role": "x509_crt_find_parent_in_date_disabled",
+      "large": "0x4208958c",
+      "standard": "0x42088c38"
+    },
+    {
+      "role": "x509_crt_verifycrl_date_disabled",
+      "large": "0x420896bc",
+      "standard": "0x42088d68"
+    },
+    {
+      "role": "x509_crt_verify_restartable_internal",
+      "large": "0x42089a10",
+      "standard": "0x420890bc"
+    },
+    {
+      "role": "mbedtls_ssl_verify_certificate",
+      "large": "0x420732cc",
+      "standard": "0x420728c4"
     }
   ],
   "live_standard": {

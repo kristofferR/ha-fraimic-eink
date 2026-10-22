@@ -316,8 +316,11 @@ certificate construction errors before interpreting the device result.
 The generated name-matching control matters: its successful device handshake
 checks that the wrong-name certificate was otherwise usable by this client.
 These results support trust-chain and hostname enforcement for this build's poll
-path. They do not test every HTTP consumer, expired/revoked chains, every malformed
-certificate or the Standard frame's negative cases.
+path. They do not test every HTTP consumer, expired certificates, every malformed
+certificate or the Standard frame's negative cases. The later
+[lifecycle audit](tls-durability.md) verifies that the accepted intermediate was
+already revoked before these tests and explains the missing CRL input. It adds
+static/host expiry evidence without claiming a physical expired-leaf test.
 
 Both failures also produced a generic log suggesting the task endpoint might not
 be implemented. That message followed a failed TLS handshake; it was not an HTTP

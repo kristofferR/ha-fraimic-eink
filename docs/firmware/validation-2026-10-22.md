@@ -3901,3 +3901,37 @@ remain 12/67 original items and 124/188 milestones.
 | `voice-preference-cases.json` (published) | `662e8fa84c48f8b97cd3042ba74e191a4ffbd5dc33541550d4cb96a23f312340` |
 | `voice-preference-reference-large.tsv` | `4bfb37bdf05c064f3019c8a302648fd049f143311e4f70b76ed921d1417e7d16` |
 | `voice-preference-reference-standard.tsv` | `38b4b6cf958db5effea718b742e07492d577f4ff812a7574be8591d249a3d73c` |
+
+## TLS certificate lifecycle: C03/E01/E02
+
+The [TLS durability pass](tls-durability.md) answers the renewal/expiry/revocation
+questions raised in [issue 99](https://github.com/kristofferR/ha-fraimic-eink/issues/99).
+Eight complete GNU control-flow graphs, **589 instructions per model**, match
+after relocation and branch-index normalization. All loaded instruction bytes
+were checked against the pinned application hashes. The chain, parent-selection
+and CRL bodies omit their date-checking branches. The peer and top-level paths
+retain hostname/signature/usage checks; bundle attachment supplies a null CRL.
+Ghidra corroboration and exact pointer/caller censuses were read-only.
+
+Both images contain the identical 69,876-byte, 152-record root bundle. Parsing
+checks every record boundary, ordering and final length, and matches the emSign
+ECC root's subject and public key. No root validity fields exist in this format.
+The signed CA CRL was fetched and verified against the saved parent certificate;
+the matching intermediate serial was revoked on 18 October, before both frames'
+previous successful tests. Browser distrust was checked against Google's primary
+incident report and distinguished from the embedded bundle.
+
+**Thirty host X.509 cases pass:** fifteen with date checks disabled as recovered,
+and fifteen in a date-enabled control. They cover leaf start/end dates, a
+fresh-key replacement, wrong name, untrusted root, actual CRL enforcement, root
+removal, native/cross-sign intermediate expiry and the original chain at 2044.
+The host uses the original ESP-IDF bundle source and pinned Mbed TLS revision;
+it is not a full TLS handshake, binary emulator or exact copy of every firmware
+library option. Physical fresh-key rotation and an explicitly expired-leaf
+handshake remain open. No frame/network/HA change or issue edit occurred.
+
+[Results, public certificate metadata and 25 private-evidence hashes](tls-durability.json)
+preserve the source/fixture boundary. Private keys, certificates, firmware and
+decompiled bodies remain outside the repository. C03 gains one completed
+static/host/read milestone; counts are now **12/67 original items and 125/189
+milestones**. Its remaining physical criteria stay unchecked.

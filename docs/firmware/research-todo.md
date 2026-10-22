@@ -9,7 +9,7 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**12 of 67 original items complete; 124 of 188 concrete milestones complete.**
+**12 of 67 original items complete; 125 of 189 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
@@ -155,7 +155,8 @@ control-flow boundary; physical timing and delivery remain deferred.
   - [x] **Device:** Serve local HTTPS JSON/panel data; retain Large hostname/untrusted-chain negative controls and Standard positive interception evidence. [TLS boundary](cloud-protocol.md#http-and-tls-requirements), [panel result](backend-emulation.md#one-shot-panel-delivery-c03c09d06).
   - [x] **Host:** Exercise redirect, length, framing, short-body and timeout branches. [Nineteen image-reader cases](image-downloads.md#host-results-with-the-matching-sdk-reader).
   - [x] **Static/Host:** Establish TLS 1.2, cipher/name configuration, allocation policy and selected ClientHello boundaries. [TLS findings](cloud-protocol.md#tls-setup-needs-internal-ram-before-authentication).
-  - [ ] **Deferred:** **Device:** Validate the remaining redirect/response-fault cases and Standard negative TLS controls. Further SDK internals are E01 follow-ups, not a requirement to re-prove successful local delivery.
+  - [x] **Static/Host/Read:** Establish certificate lifecycle for the pinned builds: identical embedded roots, omitted date checks, null CRL input, signed revocation evidence and 30 host checks including fresh-key replacement. [Durability](tls-durability.md), [results](tls-durability.json). The revocation predates the existing physical successes; no new device test is claimed.
+  - [ ] **Deferred:** **Device:** Validate the remaining redirect/response-fault cases, Standard negative TLS controls, fresh-key rotation and an explicitly expired leaf. Further SDK internals are E01 follow-ups, not a requirement to re-prove successful local delivery.
 
 - [ ] **C04 · Host/Device:** Supply local `create_account` and `get_started` assets;
   verify IP-query handling, format, fetch failures and actual setup-screen behavior.

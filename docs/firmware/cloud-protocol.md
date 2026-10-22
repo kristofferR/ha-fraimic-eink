@@ -943,6 +943,11 @@ or physical proxy behavior.
   certificate for the wrong name; a matching-profile correct-name control worked.
   This verifies the poll path's tested trust/name boundaries, not every consumer
   or all certificate failure modes.
+- [Certificate lifecycle analysis](tls-durability.md) finds date checking omitted
+  from both pinned verifiers, a null CRL on the API bundle path and identical
+  embedded roots. The signing intermediate was revoked before the successful
+  frame tests. Thirty host checks distinguish this policy from date/revocation
+  enforcing controls; physical fresh-key rotation remains open.
 
 ### HTTP buffers, trust precedence and URL scheme
 

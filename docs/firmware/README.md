@@ -34,6 +34,7 @@ No transcription or AI generation was invoked.
 | --- | --- |
 | [Identity and hardware](hardware-and-layout.md) | Exact image fingerprint, memory segments, panel format, wiring and shared buffers |
 | [Cloud protocol](cloud-protocol.md) | API selectors, poll response semantics, system screens, transport requirements |
+| [TLS durability](tls-durability.md) | Replacement leaves, omitted date checks, confirmed CA revocation, identical roots and firmware-update limits |
 | [Schema versus client contract](schema-and-client-contract.md) | July/October schema differences, captured extra fields and limits of generated API models |
 | [Image downloads](image-downloads.md) | Length/framing checks, restart-from-zero retries, incomplete images and cache consequences |
 | [Voice](voice.md) | Recording, WAV upload, synchronous generation, cancellation, concurrency |
@@ -143,6 +144,10 @@ addresses across releases. Function names are analytical descriptions.
 16. Keep-awake can affect the next ordinary idle check without reboot. Album wake
     follows a separate sleep path, so that setting alone does not establish an
     interactive awake window.
+17. Both pinned verifiers omit certificate date checks and attach the same root
+    bundle with no CRL. The CA revocation predates successful frame tests.
+    [TLS durability](tls-durability.md) separates those findings from future
+    firmware changes and still-untested physical fresh-key rotation.
 
 ## Current boundary
 

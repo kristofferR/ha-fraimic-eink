@@ -3064,6 +3064,24 @@
       "evidence": "static; 22 October album proxy follow-up"
     },
     {
+      "address": "0x42044bbc",
+      "kind": "function",
+      "role": "esp_crt_check_bundle; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
+    },
+    {
+      "address": "0x42044df4",
+      "kind": "function",
+      "role": "esp_crt_verify_callback; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
+    },
+    {
+      "address": "0x42044ec8",
+      "kind": "function",
+      "role": "esp_crt_bundle_attach; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
+    },
+    {
       "address": "0x42044f24",
       "kind": "function",
       "role": "get_ota_ops_entry; OTA write lifecycle and fault analysis",
@@ -3958,6 +3976,12 @@
       "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
     },
     {
+      "address": "0x420732cc",
+      "kind": "function",
+      "role": "mbedtls_ssl_verify_certificate; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
+    },
+    {
       "address": "0x42075f3c",
       "kind": "function",
       "role": "mbedtls_ssl_ciphersuite_from_id; TLS cipher/name configuration analysis",
@@ -4040,6 +4064,30 @@
       "kind": "function",
       "role": "esp_mbedtls_mem_free; TLS setup allocation/configuration analysis",
       "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x4208958c",
+      "kind": "function",
+      "role": "x509_crt_find_parent_in_date_disabled; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
+    },
+    {
+      "address": "0x420896bc",
+      "kind": "function",
+      "role": "x509_crt_verifycrl_date_disabled; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
+    },
+    {
+      "address": "0x420897a8",
+      "kind": "function",
+      "role": "x509_crt_verify_chain_date_disabled; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
+    },
+    {
+      "address": "0x42089a10",
+      "kind": "function",
+      "role": "x509_crt_verify_restartable_internal; TLS lifecycle analysis",
+      "evidence": "static; complete byte-checked GNU CFG, paired Standard operations and SDK source mapping"
     },
     {
       "address": "0x4209bc88",
