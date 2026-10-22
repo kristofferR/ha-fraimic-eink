@@ -107,6 +107,10 @@ report that dependency rather than substituting more library decompilation.
 Preserve the remaining lower-priority static work under its original ID.
 Commit and push validated research batches periodically as requested.
 
+The album-wake follow-up now checks the two result windows, conditional retry
+dispatch and image-error exit on both builds. This resolves a concrete S06/C02
+control-flow boundary; physical timing and delivery remain deferred.
+
 ## Local cloud and voice
 
 - [x] **C01 · Static/Host:** Audit every consumer of the API, web and auth selectors,
@@ -485,6 +489,7 @@ Commit and push validated research batches periodically as requested.
   - [x] **Static/Host:** Compare seven input/clock/monitor/control function pairs and execute 33 bounded instruction cases per build: tap/quiet windows, held-input admission, single-result overwrites and start/stop failure states. [Input audit](input-and-gestures.md), [cases](button-input-cases.json), [validation](validation-2026-10-22.md#button-input-and-gesture-cases-s06e01e02). Physical transitions remain deferred.
     The follow-up adds 26 boot/classifier/main-admission cases per build and six byte-checked wake-mask ranges: [boot classification](boot-and-scheduling.md#boot-classification-and-first-recording-admission), [results](wake-admission-cases.json), [validation](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02). This extends the completed static milestone without closing its physical parent.
     The startup follow-ups add 24/25 early/task-admission cases and 35 background-completion cases per build: [readiness and failure policy](startup-and-readiness.md), [background results](background-readiness-cases.json), [validation](validation-2026-10-22.md#background-completion-and-failure-policy-s06e01e02). Physical service readiness remains untested.
+    Twenty further cases per build resolve album result-wait/retry decisions and dispatcher exclusions: [album retry](boot-and-scheduling.md#album-wake-has-two-result-windows-not-a-delivery-retry), [cases](album-poll-cases.json). Delay sums are requested ticks, not measured wake duration; no new physical milestone is closed.
   - [ ] **Deferred:** **Device:** Measure normal/button/charger/maintenance/album/setup/factory transitions and HTTP windows without treating factory sleep as normal idle behavior.
 
 - [ ] **S07 · Host/Device:** Validate a local pull playlist with wake-only scheduling,

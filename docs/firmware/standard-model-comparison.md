@@ -130,6 +130,17 @@ All three main paths clear the shared result despite a helper error. Button
 wait instead leaves a successful pending result for main. These are bounded
 consumer cases, not actual image faults or whole-main equivalence.
 
+### Album result retry boundaries match despite dispatcher differences
+
+The [album-wake audit](boot-and-scheduling.md#album-wake-has-two-result-windows-not-a-delivery-retry)
+adds twenty instruction cases per model. Both allow two 30-query result windows,
+with at most fifteen station-connectivity checks before the retry. They leave
+the result phase after idle, empty pending URL or an image-helper error, and wait
+again even if dispatch suppresses the retry. The dispatcher bodies differ:
+Large has 123 recovered instructions, Standard 99; only Large blocks the tested
+verification-running/Get Started states. The cases stub external helpers and do
+not establish complete startup, network or sleep equivalence.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)
@@ -759,8 +770,11 @@ Copying checks neither readiness nor ownership, and clearing does not join or
 cancel the worker. The located semaphore references cover creation/giving,
 without a recovered foreground take/join.
 
-Standard's two copied `user_settings` consumers also do not parse its members in
-the compared regions. The button path copies at most three URL/settings bytes
+The initial comparison covered two `user_settings` consumers. The subsequent
+[four-site audit](#all-identified-foreground-poll-consumers-share-the-copy-limits)
+also recovers the album and cold-start sites omitted from Ghidra's references;
+none reads the copied settings within its bounded consumer region.
+The button path copies at most three URL/settings bytes
 plus NUL and preserves a successful pending result for main. Main retrieves the
 1,536-byte URL / 512-byte settings destinations, calls its image helper, then
 clears the result. These shared signals cannot acknowledge a particular displayed

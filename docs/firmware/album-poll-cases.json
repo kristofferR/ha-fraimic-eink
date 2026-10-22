@@ -1,0 +1,956 @@
+{
+  "evidence": "Byte-checked album-wake result-phase and dispatcher instructions with synthetic readiness, Wi-Fi, task starter and image helper",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        },
+        {
+          "name": "getter",
+          "entry": "0x42025da0",
+          "instructions": 40,
+          "sha256": "4422af41c60b17e5688e2552ac0019d8bcef333fb96490dffc4f229052426a1f"
+        },
+        {
+          "name": "clear",
+          "entry": "0x42025e10",
+          "instructions": 12,
+          "sha256": "f2fc6ff477388a3821d3c4c366189e4cb938652363fb950bdd1dee7ea6114f4f"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x42016570",
+          "instructions": 123,
+          "sha256": "a7f8a1fbc20a32c54fa0f951b130d420b8051ffe52fd1da37de0cfceeadcbfc5"
+        }
+      ],
+      "album_start": "0x42012a78",
+      "album_stop": "0x42012c7c",
+      "instructions_executed_unique": 332,
+      "scenarios": [
+        {
+          "group": "album-result-phase",
+          "name": "background-timeout",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "album-result-phase",
+          "name": "idle-first-result",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "pending-first-result",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [
+            {
+              "url": "https://fixture.invalid/album.bin",
+              "result": 0
+            }
+          ],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "pending-empty-url",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "image-helper-fails",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [
+            {
+              "url": "https://fixture.invalid/album.bin",
+              "result": 257
+            }
+          ],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "first-error-second-idle",
+          "ready_queries": [
+            1,
+            1
+          ],
+          "wifi_queries": 2,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            },
+            {
+              "phase": 0,
+              "ready": 0
+            },
+            {
+              "phase": 1,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "both-result-windows-time-out",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 2,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 60,
+          "delay_ticks_sum": 6000,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-suppressed-by-ota",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 60,
+          "delay_ticks_sum": 6000,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-starter-already-running",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 2,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 60,
+          "delay_ticks_sum": 6000,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-wifi-never-recovers",
+          "ready_queries": [
+            30,
+            0
+          ],
+          "wifi_queries": 15,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 45,
+          "delay_ticks_sum": 4500,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-wifi-recovers-on-last-query",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 16,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 74,
+          "delay_ticks_sum": 7400,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "result-ready-on-last-query",
+          "ready_queries": [
+            30,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 29,
+          "delay_ticks_sum": 2900,
+          "image_calls": [
+            {
+              "url": "https://fixture.invalid/album.bin",
+              "result": 0
+            }
+          ],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-allowed",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-ota-blocked",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-no-wifi",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-unregistered",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-unverified-verification-running",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-setup-pending",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-key-error",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-starter-already-running",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        },
+        {
+          "name": "getter",
+          "entry": "0x420247f0",
+          "instructions": 40,
+          "sha256": "ac6db42056e519b88607961237dec91672092199beff716043c6e4c476ff65d3"
+        },
+        {
+          "name": "clear",
+          "entry": "0x42024860",
+          "instructions": 12,
+          "sha256": "259b3fe6bff9561565d3be842da38724c2a9fb65bfb74d41d0873fce8660231e"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x42016590",
+          "instructions": 99,
+          "sha256": "519e03b736300422f62115e3b215e95b4181cda67a218c94843a858d0a1aca1b"
+        }
+      ],
+      "album_start": "0x420129d8",
+      "album_stop": "0x42012bdc",
+      "instructions_executed_unique": 317,
+      "scenarios": [
+        {
+          "group": "album-result-phase",
+          "name": "background-timeout",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "album-result-phase",
+          "name": "idle-first-result",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "pending-first-result",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [
+            {
+              "url": "https://fixture.invalid/album.bin",
+              "result": 0
+            }
+          ],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "pending-empty-url",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "image-helper-fails",
+          "ready_queries": [
+            1,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [
+            {
+              "url": "https://fixture.invalid/album.bin",
+              "result": 257
+            }
+          ],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "first-error-second-idle",
+          "ready_queries": [
+            1,
+            1
+          ],
+          "wifi_queries": 2,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            },
+            {
+              "phase": 0,
+              "ready": 0
+            },
+            {
+              "phase": 1,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "both-result-windows-time-out",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 2,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 60,
+          "delay_ticks_sum": 6000,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-suppressed-by-ota",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 60,
+          "delay_ticks_sum": 6000,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-starter-already-running",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 2,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 60,
+          "delay_ticks_sum": 6000,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-wifi-never-recovers",
+          "ready_queries": [
+            30,
+            0
+          ],
+          "wifi_queries": 15,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 45,
+          "delay_ticks_sum": 4500,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "album-result-phase",
+          "name": "retry-wifi-recovers-on-last-query",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "wifi_queries": 16,
+          "retry_dispatch_calls": 1,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 74,
+          "delay_ticks_sum": 7400,
+          "image_calls": [],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 0
+            }
+          ]
+        },
+        {
+          "group": "album-result-phase",
+          "name": "result-ready-on-last-query",
+          "ready_queries": [
+            30,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [
+            6000
+          ],
+          "delay_calls": 29,
+          "delay_ticks_sum": 2900,
+          "image_calls": [
+            {
+              "url": "https://fixture.invalid/album.bin",
+              "result": 0
+            }
+          ],
+          "result_clears": [
+            {
+              "phase": 0,
+              "ready": 1
+            }
+          ]
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-allowed",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-ota-blocked",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 0,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-no-wifi",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-unregistered",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 0,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-unverified-verification-running",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-setup-pending",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-key-error",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 0,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        },
+        {
+          "group": "dispatcher",
+          "name": "dispatch-starter-already-running",
+          "ready_queries": [
+            0,
+            0
+          ],
+          "wifi_queries": 1,
+          "retry_dispatch_calls": 0,
+          "starter_calls": 1,
+          "dispatch_bookkeeping_calls": 1,
+          "background_wait_ticks": [],
+          "delay_calls": 0,
+          "delay_ticks_sum": 0,
+          "image_calls": [],
+          "result_clears": []
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Album entry assumes storage initialization/task creation succeeded and starts at the background wait; deadline selection, shutdown and actual sleep are outside the fixture.",
+    "Delay sums are requested RTOS ticks, not elapsed wall time; callbacks, HTTP/driver work and scheduling are not executed.",
+    "Ready/result values and Wi-Fi query outcomes are scripted; no old worker, concurrent clear or task race is executed.",
+    "Dispatcher calls do not prove an HTTP request: its starter is stubbed, and gated paths can skip it.",
+    "No device, backend, network or HA change was made."
+  ]
+}

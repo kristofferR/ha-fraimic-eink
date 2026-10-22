@@ -3609,3 +3609,49 @@ evidence; C02's physical controls remain deferred and checklist counts remain
 | `poll-consumer-results.json` (published as the numeric ledger) | `86f6421dfc699ae9205c77161603182cd696c4a142c527446c59afd305da3438` |
 | `poll-consumer-reference-large.tsv` | `4133ba0e16294c6fd530a01fd459822d8d993fb538b0aa95f04047b804794e51` |
 | `poll-consumer-reference-standard.tsv` | `8f1a36c977efd09394f0150ff0f91486ea6ad51e7a6c31e7807754603fac5722` |
+
+## Album wake result and retry boundaries: S06/C02/E01/E02
+
+The [album result-phase audit](boot-and-scheduling.md#album-wake-has-two-result-windows-not-a-delivery-retry)
+executes the main CFG from Large `0x42012a78` / Standard `0x420129d8`, stopping
+before `0x42012c7c` / `0x42012bdc` selects the subsequent deadline. Storage
+initialization and task creation are assumed successful; the starting `a4=0`
+matches that branch. The initial completion take returns a scripted zero/one.
+The fixture executes the real 40-instruction result getter and 12-instruction
+clear helper, modeling ROM string operations and stubbing logging, timing,
+image processing, Wi-Fi and other dispatcher callees.
+
+Fresh GNU recovery checks the dispatcher against the pinned image bytes:
+Large `0x42016570` has 123 instructions in seven ranges; Standard `0x42016590`
+has 99 in five ranges. These are not equivalent bodies. The existing model
+comparison's verification-running and Get Started differences are exercised
+explicitly rather than replaced by a generic dispatcher-success stub.
+
+All **20 cases per build passed**, covering 332 distinct Large instructions and
+317 Standard instructions. Twelve cases enter the album result phase; eight
+enter the dispatcher directly. They cover initial completion timeout, idle and
+pending results, empty URL, image-helper error, a failed first result, both
+result-window timeouts, suppressed dispatch, rejected task start, failed/last
+connectivity check and a result ready on the final query. Direct dispatcher
+cases cover allowed, OTA, disconnected, unregistered, verification-running,
+Get Started, device-key failure and rejected task-start states.
+
+The [numeric ledger](album-poll-cases.json) records query counts, requested
+delays, clear/image calls and dispatcher starter/bookkeeping calls. The latter
+targets the existing unified scheduling helper, Large `0x42016274` / Standard
+`0x42016294`; its body is outside this fixture. Early dispatcher gates skip
+that call, while device-key and task-starter errors do not. A starter call is
+not an HTTP request, and a clear is not a render acknowledgment.
+
+No elapsed waits, RTOS scheduling, old-worker race, transport, deadline selection
+or shutdown is executed. Requested delays exclude the 6,000-tick initial
+completion wait and all external work. No device, backend, network or HA change
+occurred. This extends S06/C02/E01/E02's evidence without closing physical
+criteria or changing the checklist's 12/67 and 124/188 counts.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `album-poll-cases.mjs` | `24ed7f9606813223fdebce6c77d74f22dd1b3e9ff4faeed17e976c73d22ab13f` |
+| `album-poll-results.json` (published as the numeric ledger) | `a5de17eb358c775f2898f38084be821307285e4264293f446ebac6908386a2fa` |
+| `poll-dispatch-large-cfg.json` | `a7f8a1fbc20a32c54fa0f951b130d420b8051ffe52fd1da37de0cfceeadcbfc5` |
+| `poll-dispatch-standard-cfg.json` | `519e03b736300422f62115e3b215e95b4181cda67a218c94843a858d0a1aca1b` |

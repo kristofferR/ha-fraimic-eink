@@ -431,6 +431,54 @@ confirmed matching relevant calendar, DST-correction and POSIX-parser branches,
 plus byte-identical onboarding timezone options. Physical timing remains untested
 on both frames.
 
+### Album wake has two result windows, not a delivery retry
+
+After successful task creation, the album path waits up to 6,000 ticks for the
+background completion token. A timeout skips directly to deadline selection.
+On completion it allows **two result windows**, each with at most 30 readiness
+queries and a 100-tick delay after every false query. The first window waits for
+the background poll already started elsewhere; it does not dispatch a new poll.
+
+Before the second window, it queries station connectivity up to 15 times, with
+100 ticks after each false answer. If none succeeds it leaves the result phase.
+Otherwise it clears the shared result, calls the poll dispatcher once, then
+waits again **without checking whether a request was started**. The dispatcher
+can skip for OTA, disconnected Wi-Fi or an unregistered identity. Large also
+has the previously documented verification-running and Get Started exclusions;
+Standard lacks those two exclusions. A rejected task start likewise does not
+prevent the caller's second result window.
+
+| Scripted outcome | Result queries | Requested delay ticks, excluding the initial completion wait |
+| --- | --- | --- |
+| Idle result in the first window | 1 | 0 |
+| Pending result with empty URL | 1 | 0; no image helper call |
+| Pending result, image helper returns an error | 1 | 0; no second album attempt |
+| First result reports an error, retry returns idle | 1 + 1 | 0 |
+| Both result windows time out, Wi-Fi already connected | 30 + 30 | 6,000 |
+| First timeout, Wi-Fi never reconnects | 30 | 4,500 |
+| Wi-Fi reconnects on query 15, both result windows time out | 30 + 30 | 7,400 |
+| First result becomes ready on query 30 | 30 | 2,900 |
+
+Both pinned builds use 10 ms ticks. These sums describe requested delays, not
+elapsed boot/wake time: the initial completion wait, HTTP, image processing,
+callbacks and scheduling add separate work. A result arriving during the final
+delay is not queried again within that window. The fixture scripts readiness
+and does not execute such a race.
+
+A successful idle result exits the result phase immediately. A pending nonempty
+URL calls the image helper, clears the shared result and exits regardless of the
+helper's return. Consequently this is a retry of result acquisition, **not an
+image-delivery guarantee**. Later sleep behavior still depends on the stored
+deadline, including the separate five-minute path below. An emulator should
+prepare complete assets before offering them, retain its intended next deadline
+and keep consumption distinct from confirmed rendering.
+
+The [twenty cases per build](album-poll-cases.json) execute the byte-checked main
+region, result-copy/clear helpers and dispatcher, stopping before deadline
+selection. [Validation](validation-2026-10-22.md#album-wake-result-and-retry-boundaries-s06c02e01e02)
+records entries, coverage and stub limits. No physical wait or image fault was
+induced.
+
 ### Missing/missed schedule behavior
 
 - After an album wake, a positive saved album timestamp that is no longer more
