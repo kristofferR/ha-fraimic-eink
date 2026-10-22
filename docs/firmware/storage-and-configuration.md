@@ -260,6 +260,76 @@ The saved key comes from the local request, not the setup response's key. Email
 nonempty and verified=true are insufficient to prove a nonempty user ID for
 voice. See the [enrollment parser and callers](cloud-protocol.md#enrollment-boundary).
 
+### Device-key selection and regeneration
+
+Large `0x420176a8` and Standard `0x4201767c` load or generate the key used by
+initialization and both local account forms. The three recovered Large callers supply
+a 65-byte key buffer and an 18-byte formatted-MAC buffer. This is separate from
+the [short discovery suffix](local-api.md#local-discovery-and-hostname-lifetime).
+
+After opening `app_data` read/write, the helper obtains the station MAC and
+formats all six bytes as lowercase, colon-separated hex. The MAC-read return
+value is ignored. It then reads the environment selector and follows this order:
+
+| Condition | Result |
+| --- | --- |
+| Selected `device_key_p` or `device_key_d` reads successfully and is nonempty | Return it unchanged; no hex, length-equals-64 or MAC-consistency validation |
+| Selected key is empty or any read error occurs; selected `user_id_p` / `user_id_d` is readable and nonempty; legacy `device_key` is readable and nonempty | Return the legacy key and attempt to copy it into the selected environment key |
+| Those reuse/migration conditions fail | Derive and save a new key |
+| Namespace open fails | Return that error without obtaining a MAC or attempting reuse/generation |
+
+The legacy source is the same unsuffixed `device_key` in both environments.
+Development migration is gated by a nonempty **development** user ID, but its
+fallback credential can therefore come from the production-era legacy alias.
+This is narrower than saying every mode switch copies an account; the switch
+itself does not do that, and this branch requires the conditions above.
+
+Fresh generation uses HMAC-SHA256 over the formatted MAC with 32 bytes of
+embedded key material, then formats the 32-byte digest as 64 lowercase hex
+characters. It uses no mode, account, time or random input. The selected digest
+descriptor in the image has type 9, output size 32 and block size 64, matching
+the [Mbed TLS digest definitions](https://raw.githubusercontent.com/Mbed-TLS/mbedtls/v3.6.2/include/mbedtls/md.h)
+and recovered HMAC setup/start/update/finish wrapper. This establishes the
+algorithm; it does not identify the exact Mbed TLS dependency revision.
+The embedded material was compared privately and matches in the two pinned
+images. Neither that material nor derived device credentials is published.
+
+**Inferred identity consequence:** with the same valid MAC and these same
+generation inputs, removing a stored key and regenerating it produces the same
+value. Separate production/development NVS slots do not by themselves guarantee
+different credentials. Conversely, readable pre-existing keys can differ and
+take precedence over generation. Do not treat reset, environment switching or
+a firmware version change as a guaranteed credential-rotation mechanism.
+No reset, MAC change or account migration was performed to validate this live.
+
+Error handling also differs between the branches. Legacy migration ignores both
+the selected-key write and commit result, closes NVS and returns success. Fresh
+generation returns the key-write error, or the commit result after a successful
+write; the formatted key already exists in the caller's output buffer when either
+save fails. A crypto failure closes the handle and returns generic `-1`.
+Missing keys and other read errors are not distinguished before the fallback,
+so a transient read error can enter migration/generation and a replacement write.
+The MAC local is not initialized before the unchecked read; valid generation
+input is not established if that read fails. No such failures were induced.
+
+The account-form callers check this helper's result before submitting setup.
+Initialization `0x42019670` instead logs a key-initialization error and continues;
+on success it copies the key into the configuration and calls the ordinary
+configuration saver without checking that save result. A successful helper or
+startup log is therefore not a complete persistent-identity acknowledgment.
+
+Five paired bodies cover the selector, key helper, embedded-material helper,
+digest lookup and HMAC wrapper: 356 byte-matched GNU instructions, 40 matched
+branch destinations and 13 contiguous ranges per build. Nineteen direct-call
+pairs and 26 literal pairs are mapped; digest descriptors and embedded material
+were checked separately. This is static comparison, not execution of the
+firmware's crypto/NVS code or proof of arbitrary reset/flash-fault recovery.
+
+For the local backend, accept the provisioned/request key as an opaque private
+credential and bind it to a separate owner-controlled device record. Retain a
+non-secret ID for public discovery and job references. Reproducing the vendor's
+derivation is unnecessary for the already-demonstrated stock protocol.
+
 ### Identity cache and read errors
 
 Accessor `0x4201912c` returns the global configuration at `0x3fca6b50`. Its

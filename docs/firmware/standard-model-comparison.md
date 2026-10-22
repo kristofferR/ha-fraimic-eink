@@ -606,6 +606,23 @@ This extends static support to Standard; it is not a fault-injection or reboot
 test. The separate resolved NVS vtable/storage-writer investigation is Large-only
 until those external SDK bodies are also compared.
 
+### Device-key selection and regeneration also match
+
+Five [identity-related bodies](storage-and-configuration.md#device-key-selection-and-regeneration)
+match across 356 GNU instructions, 40 branch destinations and 13 ranges per
+image. The selector, key reuse/migration/generation, embedded-material helper,
+digest lookup and HMAC wrapper have the same operations. Nineteen direct-call
+pairs and 26 literal pairs were reviewed; the embedded material matches but
+remains private. NVS/crypto implementation and physical failure behavior are
+not recursively validated by this comparison.
+
+Both prefer a nonempty environment-specific stored key, conditionally fall back
+to the shared legacy key, and otherwise derive the same key for the same valid
+MAC. Migration write/commit errors are ignored; fresh-generation save errors
+are returned. Separate NVS slots are therefore not proof of different production
+and development credentials or of rotation after reset. Existing stored values
+can still differ. No frame credentials, modes, accounts or storage were changed.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering

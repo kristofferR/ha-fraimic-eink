@@ -589,6 +589,30 @@
       "terminated_http_service_literal_in_images": false,
       "hostname_and_delegate_action_wait": "portMAX_DELAY after successful zero-wait enqueue",
       "limitations": "No service-packet, collision, IP-change, heap/action-fault or other-release validation; absence from recovered setup is not proof against all indirect/constructed service registrations"
+    },
+    "device_key_selection": {
+      "evidence": "Five paired GNU control-flow graphs, descriptors and private embedded-material comparison; no credentials generated or live storage changes",
+      "compared_functions": 5,
+      "instructions_per_image": 356,
+      "compared_branches": 40,
+      "gnu_ranges_per_image": 13,
+      "direct_call_pairs": 19,
+      "literal_pairs": 26,
+      "selected_keys": {
+        "production": "device_key_p",
+        "development": "device_key_d"
+      },
+      "stored_key_validation": "Successful read and first byte nonzero",
+      "legacy_key": "device_key",
+      "legacy_gate": "Readable nonempty selected user_id_p/user_id_d",
+      "legacy_write_and_commit_errors_checked": false,
+      "generation_algorithm": "HMAC-SHA256 over formatted station MAC, 32-byte embedded key, 64 lowercase hex output",
+      "environment_in_generation_input": false,
+      "embedded_material_matches_between_pinned_images": true,
+      "embedded_material_published": false,
+      "fresh_save_errors_returned": true,
+      "mac_read_result_checked": false,
+      "limitations": "No hardware-reset, migration, read/MAC/crypto/storage-fault or SDK implementation validation; existing keys can differ and override deterministic generation"
     }
   },
   "function_map": [
@@ -1601,6 +1625,31 @@
       "role": "mdns_copy_address_list",
       "large": "0x42039dec",
       "standard": "0x420388b0"
+    },
+    {
+      "role": "device_key_load_or_generate",
+      "large": "0x420176a8",
+      "standard": "0x4201767c"
+    },
+    {
+      "role": "server_mode_getter",
+      "large": "0x42017670",
+      "standard": "0x42017644"
+    },
+    {
+      "role": "device_key_material_helper",
+      "large": "0x420313b4",
+      "standard": "0x4202fae0"
+    },
+    {
+      "role": "md_info_from_type",
+      "large": "0x4207d878",
+      "standard": "0x4207cea4"
+    },
+    {
+      "role": "md_hmac_wrapper",
+      "large": "0x4207df20",
+      "standard": "0x4207d54c"
     }
   ],
   "live_standard": {
