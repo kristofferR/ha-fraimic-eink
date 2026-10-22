@@ -701,6 +701,61 @@ cache expiry, address changes and certificate identity independently. Neither
 choice removes the separate public connectivity/time dependencies. All ten
 selected functions [match in Standard](standard-model-comparison.md#outbound-local-resolution-also-matches).
 
+### DNS replies for a local backend
+
+The outbound multicast path expects a reply to its active lookup. It is not a
+continuous mDNS cache populated by arbitrary announcements. Large receive handler
+`0x42057274` requires an active query with the same transaction ID, the response
+flag, exactly one echoed question, question class exactly IN and the requested
+A/AAAA question type. Name comparison `0x42057144` is case-insensitive but rejects
+a compressed question name. Unicast DNS checks the source IP against the selected
+server; multicast queries skip that source-IP check. The parser does not inspect
+its source-port argument. These are parser checks, not a claim about every lower
+UDP/netif filter or network exposure.
+
+Answer parsing skips each owner name through `0x42057208`, then accepts at most
+one address of the selected family with class exactly IN and the expected 4/16-byte
+payload. In particular, class `0x8001` with the mDNS cache-flush bit is not consumed
+as IN. With an IPv4-only request and no other usable answer, that produces a
+failure callback; a dual-family request can restart as AAAA. A zero-question or
+unmatched-ID announcement is ignored earlier. For compatibility, a local responder
+must support the queried reply format, not merely advertise an address.
+
+Twenty-six host cases compile unchanged receive/name-skip/name-compare/completion
+functions from the same pinned lwIP source used above. They pass with address and
+undefined-behavior sanitizers. Relevant distinctions include:
+
+| Response condition | Host result, with matching static branches |
+| --- | --- |
+| Matching ordinary DNS or multicast reply with an A answer | Success |
+| No echoed question, two questions, wrong ID, wrong question type/name, compressed question or non-IN question class | Packet ignored; query remains pending |
+| Multicast answer class has cache-flush bit | No usable address; IPv4-only request fails |
+| AAAA question and matching 16-byte answer | IPv6 success |
+| TTL greater than seven days | Capped at 604,800 seconds |
+| TTL zero | Address delivered to callback, then removed from cache |
+| Truncated flag set but complete usable A answer present | Accepted; this path does not require a TCP retry |
+| Different answer owner, or a question containing only a leading label of the queried name | Accepted in the tested cases; neither is a complete binding check |
+
+The last row is permissive parsing, not a format an emulator should depend on.
+Use an exact echoed question and a correct owner/address relationship. Likewise,
+the absence of a source-port check here does not remove TLS hostname/trust checks.
+
+Partial answer processing is not transactional. If a packet declares two answers
+but ends exactly after a complete first answer, the parser can report success.
+If it instead includes an incomplete second answer, the parser can discard the
+packet **after** storing the first address, while leaving the query pending and
+without notifying its callback. The fixture then supplies a complete valid reply:
+the one-address slot is already full, no new address is added, and the IPv4-only
+request takes the failure callback. This is a source-fixture sequence corroborated
+by the binary's count/store/exit branches, not an observed frame failure. Timer,
+dual-family and concurrent-callback variants remain separate questions.
+
+The fixture uses in-memory packets, bounded pbuf-access stubs and callback capture.
+Backup-server availability is fixed false; timer/retry scheduling, packet chains,
+real UDP delivery, TLS, callback re-entry and actual elapsed time are not tested.
+All four selected functions [match in Standard](standard-model-comparison.md#dns-reply-acceptance-also-matches).
+No DNS service, routing policy or physical device changed.
+
 ### DNS fallback and cached destinations
 
 Large has a separate hardcoded use of `8.8.8.8`: **DNS server slot 2**. This is

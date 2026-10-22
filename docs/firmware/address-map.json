@@ -3286,6 +3286,18 @@
       "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
     },
     {
+      "address": "0x42057144",
+      "kind": "function",
+      "role": "dns_compare_name; local-backend DNS reply acceptance",
+      "evidence": "Static; complete paired GNU CFG verification and isolated pinned-source packet cases"
+    },
+    {
+      "address": "0x42057208",
+      "kind": "function",
+      "role": "dns_skip_name; local-backend DNS reply acceptance",
+      "evidence": "Static; complete paired GNU CFG verification and isolated pinned-source packet cases"
+    },
+    {
       "address": "0x42057274",
       "kind": "function",
       "role": "DNS reply parsing; nonzero response code can immediately advance to a populated next resolver",

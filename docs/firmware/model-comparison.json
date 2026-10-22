@@ -709,6 +709,30 @@
         "UndefinedBehaviorSanitizer"
       ],
       "limitations": "Stubbed packet send, timer and PCB allocation; no DNS response packets, elapsed waits, transport/TLS, device execution or complete recursive SDK equivalence"
+    },
+    "local_backend_dns_replies": {
+      "evidence": "Four complete paired GNU bodies; twenty-six pinned-source host packet cases",
+      "compared_functions": 4,
+      "instructions_per_image": 652,
+      "compared_branches": 122,
+      "gnu_ranges_per_image": 11,
+      "direct_call_pairs": 9,
+      "literal_pairs": 9,
+      "character_classification_bytes_compared": 256,
+      "echoed_question_count": 1,
+      "question_class": 1,
+      "answer_class": 1,
+      "maximum_addresses_per_query": 1,
+      "ttl_ceiling_seconds": 604800,
+      "multicast_source_ip_check": false,
+      "parser_source_port_check": false,
+      "partial_answer_state": "A usable first answer can remain stored without callback after a malformed second answer; the tested next valid IPv4-only reply then fails",
+      "host_cases": 26,
+      "host_sanitizers": [
+        "AddressSanitizer",
+        "UndefinedBehaviorSanitizer"
+      ],
+      "limitations": "In-memory packet/pbuf and callback stubs; no real UDP, chained pbufs, elapsed timers, backup-server scheduling, callback re-entry, TLS or physical device tests"
     }
   },
   "function_map": [
@@ -1806,6 +1830,21 @@
       "role": "esp_tls_hostname_to_fd",
       "large": "0x420c314c",
       "standard": "0x420c3424"
+    },
+    {
+      "role": "dns_compare_name",
+      "large": "0x42057144",
+      "standard": "0x42056170"
+    },
+    {
+      "role": "dns_skip_name",
+      "large": "0x42057208",
+      "standard": "0x42056234"
+    },
+    {
+      "role": "dns_correct_response",
+      "large": "0x420566cc",
+      "standard": "0x420556f8"
     }
   ],
   "live_standard": {

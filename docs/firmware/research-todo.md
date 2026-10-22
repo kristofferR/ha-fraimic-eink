@@ -98,6 +98,7 @@ per question, not a count of tool calls or decompiled functions.
 | N03/H05/C11 | Both reset backups/restores match; Large whole-NVS erase, recovery erase before backup, unchecked field writes and reset handoff despite helper error traced | Physical/interrupted recovery, remaining caller/SDK comparison, cached identity and later recreated state/artwork |
 | C04/C11/E02 | Three complete setup metadata/fetch bodies match except model literal; nineteen SDK/parser host cases cover chunked zero-header results, incomplete bodies, URL limits and field lookup | Physical local setup assets, heap/transport faults, external SDK/driver equivalence and independent enrollment |
 | C01/S02/E02 | Ten resolver/transport functions match; 23 host cases establish lowercase `.local` selection, cache precedence, pending-route inheritance and query/callback limits; DNS barrier has no HTTP deadline argument | Physical multicast, DNS packets/faults, TLS identity, fresh/cache-expired backend resolution and actual offline timing |
+| C01/S02/E02 | Four reply-parser/completion functions match; 26 host packet cases cover transaction/question/class checks, one-address limit, TTLs and partial-answer state retained before a later failed reply | Physical UDP/multicast interoperability, callback re-entry, timers, dual-family faults, lower-network filters and TLS |
 | E02/H04/D01 | Both app hashes pinned; initial 42-route/73-function comparison extended by the topic passes above; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/driver/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
 | E02/H05/D01/D07 | Thirteen LED-related function pairs match across 826 relocated GNU instructions; 22 host groups cover pending replacement, latch timing, factory gates and conditional stale completion | Physical indications/interleavings, complete caller meanings, SDK/output-driver comparison and other releases |
 | E02/C05/C07 | Standard's selected upload/finalize branches match empty upload acknowledgment, 4 KiB WAV chunks, 4,095-byte JSON reads and synchronous finalize; its voice image limit remains 960,000 bytes | Full error/SDK comparison, device response faults, cancellation and late-worker/two-job behavior |
@@ -142,6 +143,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   precedence and blocking DNS dispatch. Twenty-three host cases cover naming and
   queue boundaries. Test fresh/expired-cache names, multicast reachability and
   certificate identity separately when device experiments resume.
+  The [DNS reply follow-up](boot-and-scheduling.md#dns-replies-for-a-local-backend)
+  adds 26 host packet cases and four compared parser/completion functions. It
+  distinguishes announcement rejection, exact IN-class requirements and partial
+  result retention. Real responder interoperability and timer/callback faults remain.
 - [ ] **C02 · Host/Device:** Validate poll parser behavior for settings snapshots,
   missing/invalid fields, schedule clearing and persistence failures. Trace which
   `user_settings` members are actually applied locally rather than merely copied.
@@ -403,8 +408,10 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   remains for when device tests resume.
   The [local-name follow-up](boot-and-scheduling.md#outbound-local-names-and-blocking-resolution)
   adds multicast routing, case-sensitive suffix classification, case-insensitive
-  cached/pending matches and the transport's synchronous DNS barrier. Host cases
-  do not validate DNS packet acceptance, local routing, time service or WAN-free boot.
+  cached/pending matches and the transport's synchronous DNS barrier. The separate
+  [26-case reply fixture](boot-and-scheduling.md#dns-replies-for-a-local-backend)
+  covers selected parser acceptance and partial-state transitions, not real UDP
+  routing, time service, callback/timer interleavings or WAN-free boot.
   Large's [NTP receive contract](boot-and-scheduling.md#ntp-response-contract-and-clock-application)
   now includes 18 host cases for packet acceptance and timestamp conversion,
   including zero timestamp mapping to 2036. The Standard receive/clock comparison

@@ -1667,9 +1667,9 @@ are simulated, and vendor machine code is not executed.
 
 | Private artifact | SHA-256 |
 | --- | --- |
-| Pinned `dns.c` | `9bd5eb675274eb9e0025cc6af76afe16eb3328de22fab3bb13ab0d7` |
+| Pinned `dns.c` | `9bd5eb675274eb9e0025cc6af76afe16eb3328de22fab3bb202a9f3bb13ab0d7` |
 | Three extracted functions | `093bb08ab357c30fcc0015af11e9a4606bd658dd0ff2ca07b36b7ae7b49b882f` |
-| Host fixture | `3a152c466492a578c75ed98192a6c45b7f9479cb9ac1a20320c396c78850a653` |
+| Host fixture | `835639368c582326bb3a10d2b5c66e1227cb2ab323195a15ad85b20cbc3efaa3` |
 | 23-case JSONL results | `089932ec470b2939411d42b1e10c8b8461f1822ed115b10efca415683c3feb96` |
 
 Private artifacts also include `local-resolver-pass1.txt` through
@@ -1679,3 +1679,41 @@ Private artifacts also include `local-resolver-pass1.txt` through
 `local-resolver-fixture.c`. No physical frame, DNS/router policy, HA source or
 deployment changed. C01/S02/E02 remain open for packet/transport faults, fresh
 local-backend resolution, multicast/TLS compatibility and actual offline behavior.
+
+## DNS reply acceptance: C01/S02/E02
+
+Four complete paired GNU bodies cover question-name comparison, answer-name
+skipping, response parsing and successful completion. All 652 instructions,
+122 branches and 11 ranges per image match after call/literal relocation.
+Nine direct-call pairs and nine literal pairs are reviewed, including the complete
+256-byte character-classification table. The public function map now has 222 pairs.
+
+Twenty-six host packet cases passed with the same compiler/sanitizer settings
+as the hostname fixture. Four unchanged functions come from the same pinned
+lwIP source; bounded pbuf-access stubs and callback capture replace packet buffers
+and application callbacks. The single address slot and family/state fields match
+the recovered layout. Backup-server availability is fixed false. Network delivery,
+chained buffers, elapsed time, callback re-entry and retry scheduling are excluded.
+
+The [reply contract](boot-and-scheduling.md#dns-replies-for-a-local-backend)
+distinguishes ignored packets, failure callbacks and successful cache publication.
+It includes exact IN-class requirements, missing question/transaction rejection,
+TTL handling, permissive question/owner checks and a two-packet partial-state
+sequence. These are host results with matching static branches, not physical
+multicast or frame-failure observations. No DNS/router/HA/device changes were made.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| Four extracted functions | `2e9f0d14cc1a417944aad726cb91fb960d58e3b32969d06392289f50eb879f3d` |
+| Reply host fixture | `0ee21af9289d54c0213edadd1ed9fd90a25b609f9b60e7470bf120b4d9ec8eba` |
+| 26-case JSONL results | `da9daec750abdf5cf51dd530036e82e6694819428ae0aa31e462a2b00085d926` |
+
+Private artifacts: `dns-reply-pass1.txt`, `extract-dns-reply.mjs`,
+`dns-reply-selected.inc`, `dns-reply-fixture.c`, `dns-reply-fixture-results.jsonl`,
+per-function `dns-reply-*-cfg.json`/`.txt`, `compare-standard-dns-reply.mjs`,
+`standard-dns-reply-comparison.json`, `standard-dns-reply-boundaries-gnu.txt`
+and `dns-reply-evidence-hashes.json`. The earlier hostname fixture was rerun after
+adding an explicit successful return so its definitions can be reused by this
+harness; all 23 results remain identical. Its source hash above is updated, and
+the earlier copied DNS-source checksum is corrected to the full verified SHA-256.
+C01/S02/E02 remain open for real-network behavior and the excluded fault paths.

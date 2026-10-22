@@ -256,6 +256,34 @@ packets, IPv4/IPv6 routing, DNS response faults, actual wait durations, TLS and
 fresh local-backend operation remain untested. External helpers are not all
 recursively compared. No device or network configuration changed.
 
+### DNS reply acceptance also matches
+
+Four additional complete comparisons support the
+[local-backend DNS reply contract](boot-and-scheduling.md#dns-replies-for-a-local-backend):
+
+| Function | Large | Standard |
+| --- | --- | --- |
+| Echoed-question name comparison | `0x42057144` | `0x42056170` |
+| Answer owner-name skip | `0x42057208` | `0x42056234` |
+| DNS response parser | `0x42057274` | `0x420562a0` |
+| Successful response/cache completion | `0x420566cc` | `0x420556f8` |
+
+All **652 instructions, 122 branches and 11 contiguous ranges per image** match
+apart from relocated calls/literal loads. Nine direct-call pairs and nine literal
+pairs are checked separately, including all 256 bytes of the character-classification
+table used by question comparison. This covers the parser's single-address limit,
+exact IN-class checks, ignored packet branches, IPv4/IPv6 selection, TTL handling
+and partial-answer count/state behavior. It does not prove every pbuf/UDP/helper
+implementation equivalent.
+
+The 26 shared host cases use unchanged pinned resolver functions with bounded
+packet-access stubs. They are not executions of either firmware image. They
+confirm the selected legacy-query reply requirements and distinguish an ignored
+packet from a failure callback. A malformed second answer can leave a stored but
+unpublished first address; the tested next valid IPv4 reply then fails. No such
+packets were delivered to either frame. Actual multicast interoperability, timer
+and callback interleavings, transport faults and network exposure remain untested.
+
 ### DNS fallback, cache and late callbacks also match
 
 Standard initializer `0x420567e8` installs the same `8.8.8.8` fallback in DNS

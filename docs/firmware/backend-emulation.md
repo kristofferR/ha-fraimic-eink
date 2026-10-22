@@ -346,6 +346,11 @@ Certificates, private keys and raw captures remain outside the repository.
   coalesced requests. Multicast reachability, certificate identity and the separate
   public connectivity/time dependencies still need validation; no such hostname
   was tested on a frame in this static pass.
+  Its [DNS reply parser](boot-and-scheduling.md#dns-replies-for-a-local-backend)
+  expects a matching active transaction with an echoed question and exact IN
+  classes. An unsolicited mDNS announcement or cache-flush-class answer alone
+  does not establish compatibility. Twenty-six isolated packet cases support
+  the parser contract; real multicast delivery remains untested.
 
 Hardware inspection and custom-firmware boot/recovery tests remain deferred under
 the owner's closed-enclosure preference. They are not prerequisites for further
