@@ -476,6 +476,51 @@ local control. [Comparison evidence](local-handler-comparison.json).
 `/dev` selects the vendor development environment, not a root shell or configurable
 URL. See [the complete mode-switch sequence](storage-and-configuration.md#vendor-environment-switch).
 
+### Factory page state does not confirm microphone ownership
+
+The embedded `/test` JavaScript has the same microphone lifecycle behavior in
+both pinned builds. Its `micTestActive` variable starts false on every page load;
+neither initial polling nor reload queries the device's microphone state.
+A subsequent `mic_start` response with `status:ok` / `Already running` lets the
+new page resume statistics polling and expose its Stop button.
+
+There is **no page-close cleanup hook**: the assets contain no lifecycle-handler
+attributes, and their script installs no `beforeunload`, `unload`, `pagehide` or
+`visibilitychange` handlers. Closing a page therefore does not itself send
+`mic_stop` through this client. This does not establish indefinite capture:
+factory timeout, sleep, reboot and other firmware callers remain independent.
+The [ten-minute factory-mode boundary](boot-and-scheduling.md#storage-sleep-and-factory-test-mode)
+is not a browser-session lease or a confirmed worker-exit acknowledgement.
+
+Nine isolated cases per build execute the original embedded JavaScript:
+
+| Client boundary | Recovered behavior |
+| --- | --- |
+| Initial page | Touch polling every 50 ms and battery polling every 1,000 ms; no microphone-state discovery. |
+| Successful microphone start | Add a 100 ms statistics interval. Polls can overlap; six unresolved requests coexist in the fixture. The response's `active` field is ignored. |
+| Start failure or pending request | Error body/transport failure restores the button without a status query or stop. A pending request leaves it disabled; no application timeout or abort signal is installed. |
+| Stop response | Clear the statistics interval before sending the request. Any parsed JSON response resets local state, including a synthetic HTTP 500/error body. The ordinary recovered stop handler uses a default HTTP 200 response. |
+| Stop transport failure | Also reset local activity/button and leave polling stopped, with no retry or reconciliation; the previous meter width remains. |
+| Statistics arriving after successful stop | The in-flight callback can repaint the cleared meter, while the page still considers the microphone inactive. |
+| Page lifecycle/reload | No client cleanup hook; a fresh page forgets the old page's activity. |
+
+The programmed intervals imply **21 requests/second while idle and 31 during
+the microphone test**, before accelerometer polling or user actions. Timers do
+not wait for previous fetches. Browser throttling, connection limits, actual
+request throughput and power cost were not measured. This page is unsuitable
+as a passive status dashboard.
+
+A replacement diagnostic client needs explicit start/stop outcomes, request
+serialization and rejection of stale responses. It must retain an unknown
+state after a transport failure and reconcile after reconnecting. Even a fresh
+`active:false` response cannot establish worker exit under the firmware's
+[bounded stop behavior](#factory-and-normal-microphone-capture-can-both-be-admitted).
+Normal voice controls need the separate firmware hooks already identified.
+
+HTML bytes and terminators were checked against both vendor applications. DOM,
+fetch, arrival order and timers are synthetic; no browser, frame request or
+recording was used. [Cases and hashes](factory-page-cases.json).
+
 ### Factory and normal microphone capture can both be admitted
 
 The factory starter checks the normal recording-state getter, but normal

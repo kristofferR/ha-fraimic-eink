@@ -82,6 +82,11 @@ The [channel-disable trace](voice.md#channel-disable-is-not-worker-termination)
 adds the cleanup boundary: normal voice cleanup does not terminate a factory
 worker, and later re-enable can give that existing reader access again. Device
 control needs confirmed worker exit as well as channel disable.
+The [factory page itself](local-api.md#factory-page-state-does-not-confirm-microphone-ownership)
+does not supply that confirmation: it forgets activity on reload, ignores the
+statistics `active` flag and resets local state even when stop fails. Its
+21/31 requests-per-second idle/microphone intervals are programmed rates,
+not a measured traffic or energy baseline. Do not reuse this UI state as a job event.
 
 Existing local controls do not uniformly protect this lifecycle. Standard
 0.2.28's refresh endpoint lacks Large's early recording/LED-protection guard;

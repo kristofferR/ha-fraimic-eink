@@ -4195,3 +4195,29 @@ remain **12/67 original items and 125/189 milestones**.
 
 Fixture SHA-256:
 `0658f94d7e36f0d75d03c862f13b4b6b6e61fe798881f8646681131998e4f5c2`.
+
+## Factory-page microphone lifecycle: H05/A06/E02
+
+**Nine cases per build pass** against each image's unchanged embedded JavaScript.
+The complete HTML bytes and NUL terminators match the pinned applications at
+`0x3c3ac0cc` (Large, 15,195 bytes) and `0x3c235da7` (Standard, 11,700 bytes).
+Script hashes differ, but the selected microphone/client outcomes match.
+
+The pass checks initial polling, overlapping statistics and ignored `active`,
+failed/pending starts, error-body and transport-failed stops, a late statistics
+callback, absent lifecycle cleanup and reload followed by `Already running`.
+The synthetic HTTP 500 is a client behavior test, not the ordinary recovered
+stop response. A fixture issue exposed stale Bun VM context-property reads;
+state assertions now evaluate inside the script's own realm. Firmware code was
+not changed to satisfy the tests.
+
+DOM, fetch, timer callbacks and request ordering are modeled. No browser or
+device was used, and no real elapsed time, worker lifetime, traffic rate or
+power use is established. The page's programmed 21/31 requests-per-second
+idle/microphone rates explain why it is unsuitable as passive monitoring.
+[Findings](local-api.md#factory-page-state-does-not-confirm-microphone-ownership),
+[evidence](factory-page-cases.json). Checklist counts remain **12/67 original
+items and 125/189 milestones**; this extends the existing H05 evidence.
+
+Fixture SHA-256:
+`0372cf934c033e7b27a71c3925083fdb8cfbf4f2b95f19d0040009c1cac71792`.

@@ -1,0 +1,193 @@
+{
+  "method": "Unmodified JavaScript extracted from each pinned factory-page asset, executed in isolated VMs with synthetic DOM, fetch and timers; HTML bytes and NUL terminators checked directly against both vendor images.",
+  "fixture_sha256": "0372cf934c033e7b27a71c3925083fdb8cfbf4f2b95f19d0040009c1cac71792",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "html_address": "0x3c3ac0cc",
+      "html_bytes": 15195,
+      "html_sha256": "ec4e6eb60de9b5fc7c3a54bbacb5a59a89aba6835ae7c8f48c8003a4722fa73f",
+      "script_sha256": "b36c00d61525a169507575af28f39884343ed35b75f5cd978dfdb57f9065e1d9",
+      "cases": [
+        {
+          "name": "initial polling has no microphone state discovery",
+          "passed": true,
+          "result": {
+            "interval_ms": [
+              50,
+              1000
+            ],
+            "initial_mic_query": false
+          }
+        },
+        {
+          "name": "microphone polls overlap and ignore inactive status",
+          "passed": true,
+          "result": {
+            "simultaneous_unresolved_polls": 6,
+            "reported_active": false,
+            "ui_active": true
+          }
+        },
+        {
+          "name": "failed start response does not reconcile server ownership",
+          "passed": true,
+          "result": {
+            "start_failures": [
+              "body_error",
+              "transport_error"
+            ],
+            "followup_stop_or_status": false
+          }
+        },
+        {
+          "name": "pending start has no application deadline or abort signal",
+          "passed": true,
+          "result": {
+            "button_disabled": true,
+            "application_timeout_count": 0,
+            "abort_signal": false
+          }
+        },
+        {
+          "name": "stop accepts an error body and even an HTTP error status",
+          "passed": true,
+          "result": {
+            "synthetic_http_status": 500,
+            "body_status": "error",
+            "ui_active": false
+          }
+        },
+        {
+          "name": "transport failure during stop clears local state and polling",
+          "passed": true,
+          "result": {
+            "ui_active": false,
+            "polling": false,
+            "stale_bar": "50%",
+            "automatic_retry": false
+          }
+        },
+        {
+          "name": "inflight statistics can repaint the meter after successful stop",
+          "passed": true,
+          "result": {
+            "meter_after_stop": "0%",
+            "meter_after_late_response": "100%",
+            "ui_active": false
+          }
+        },
+        {
+          "name": "active page installs no lifecycle cleanup hook",
+          "passed": true,
+          "result": {
+            "registered_listeners": 0,
+            "stop_on_page_lifecycle_hook": false
+          }
+        },
+        {
+          "name": "reload forgets activity until an already-running start response",
+          "passed": true,
+          "result": {
+            "new_page_initial_active": false,
+            "already_running_rejoins_statistics": true
+          }
+        }
+      ]
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "html_address": "0x3c235da7",
+      "html_bytes": 11700,
+      "html_sha256": "d2ae8cd02917312c6d20d932d417cc4cbe0bfe95a19b3459ae5ee2e5451c988f",
+      "script_sha256": "2db75ab8c089f73828682fe58a9d6d91efced4f6214b0a2a313428c9371c0e67",
+      "cases": [
+        {
+          "name": "initial polling has no microphone state discovery",
+          "passed": true,
+          "result": {
+            "interval_ms": [
+              50,
+              1000
+            ],
+            "initial_mic_query": false
+          }
+        },
+        {
+          "name": "microphone polls overlap and ignore inactive status",
+          "passed": true,
+          "result": {
+            "simultaneous_unresolved_polls": 6,
+            "reported_active": false,
+            "ui_active": true
+          }
+        },
+        {
+          "name": "failed start response does not reconcile server ownership",
+          "passed": true,
+          "result": {
+            "start_failures": [
+              "body_error",
+              "transport_error"
+            ],
+            "followup_stop_or_status": false
+          }
+        },
+        {
+          "name": "pending start has no application deadline or abort signal",
+          "passed": true,
+          "result": {
+            "button_disabled": true,
+            "application_timeout_count": 0,
+            "abort_signal": false
+          }
+        },
+        {
+          "name": "stop accepts an error body and even an HTTP error status",
+          "passed": true,
+          "result": {
+            "synthetic_http_status": 500,
+            "body_status": "error",
+            "ui_active": false
+          }
+        },
+        {
+          "name": "transport failure during stop clears local state and polling",
+          "passed": true,
+          "result": {
+            "ui_active": false,
+            "polling": false,
+            "stale_bar": "50%",
+            "automatic_retry": false
+          }
+        },
+        {
+          "name": "inflight statistics can repaint the meter after successful stop",
+          "passed": true,
+          "result": {
+            "meter_after_stop": "0%",
+            "meter_after_late_response": "100%",
+            "ui_active": false
+          }
+        },
+        {
+          "name": "active page installs no lifecycle cleanup hook",
+          "passed": true,
+          "result": {
+            "registered_listeners": 0,
+            "stop_on_page_lifecycle_hook": false
+          }
+        },
+        {
+          "name": "reload forgets activity until an already-running start response",
+          "passed": true,
+          "result": {
+            "new_page_initial_active": false,
+            "already_running_rejoins_statistics": true
+          }
+        }
+      ]
+    }
+  },
+  "limits": "No browser, device request, recording, image change, network or real timer execution. Pending requests, status bodies and arrival order are scripted. A missing client cleanup hook does not prove how long a physical worker survives: firmware timeout, sleep, reboot and other callers are independent. HTTP 500 is a synthetic client behavior case, not a recovered ordinary mic-stop response."
+}

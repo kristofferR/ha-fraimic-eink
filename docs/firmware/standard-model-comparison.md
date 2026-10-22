@@ -1595,6 +1595,18 @@ The separate [coverage record](audio-output-coverage.json) retains this bounded
 comparison without treating the different microphone initializer bodies as
 instruction-for-instruction equivalents.
 
+## Factory-page microphone lifecycle matches
+
+The two embedded factory-page assets differ in size and inactive display-test
+code, but nine isolated JavaScript cases per model have identical outcomes.
+Both forget microphone activity on reload, omit page-close cleanup, ignore
+the statistics `active` field, allow overlapping polls and reset local state
+after a failed stop. A late response can repaint the meter after stop.
+The original HTML bytes and terminators were checked against each pinned image;
+DOM, timers and responses were synthetic. [Client contract](local-api.md#factory-page-state-does-not-confirm-microphone-ownership),
+[cases and hashes](factory-page-cases.json). No physical lifetime or traffic rate
+was measured.
+
 ## Coverage and cleanup
 
 The 24 decoded origin-API exchanges were complete and all HTTP 200: one
