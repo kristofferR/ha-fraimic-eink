@@ -66,6 +66,90 @@ entire local server authenticated. Restrict access to the intended LAN; an
 emulator should keep its owner/admin interface authenticated and use separate,
 device-scoped credentials for frame traffic.
 
+## Local discovery and hostname lifetime
+
+Large's Wi-Fi/IP event handler `0x4201ab08` initializes mDNS on its first
+station-IP event. Standard's corresponding handler is `0x4201aadc`; Ghidra split
+its IP branch into a misleading separate function at `0x4201af95`, but GNU
+control-flow recovery reaches that branch from the actual entry.
+
+The application calls mDNS initialization, sets the primary hostname to
+`fraimic`, and sets the default instance name to `Fraimic Device`. It then
+derives a second name from the setup SSID:
+
+| Item | Recovered construction |
+| --- | --- |
+| Setup SSID | `Fraimic_` followed by unsigned decimal `(mac[4] << 8) | mac[5]`, without zero padding |
+| MAC source | Station MAC first; base-MAC fallback if that read fails |
+| Both MAC reads fail | Cache the literal `fraimic_setup` instead |
+| Additional mDNS hostname | `fraimic_` plus everything after the SSID's first underscore, normally `fraimic_<decimal>.local`; the fallback yields `fraimic_setup.local` |
+| Additional address | One IPv4 address copied from `WIFI_STA_DEF` into a zeroed 28-byte address-list node |
+
+The SSID helper (`0x42019b24` / Standard `0x42019af8`) caches its result for
+the running application. The ordinary suffix has only 65,536 possibilities;
+it is not a complete MAC, account identity or collision-proof identifier.
+The fallback suffix is shared. No actual MAC or device-specific suffix is
+included here.
+
+The additional hostname uses **delegated-host registration**, not another
+interface-bound primary hostname. Large wrapper `0x42040030` copies the supplied
+address list through `0x42039dec` before queueing it. The application obtains that
+address only inside the one-time initialization block. A failed netif lookup or
+IP-info call skips the delegated name; a successful IP-info call is not followed
+by a separate nonzero-address check.
+
+All four mDNS return values are ignored. The application logs that mDNS started
+and sets its RAM flag (`0x3fca743c`, Standard `0x3fca74ac`) even if initialization,
+hostname, instance or delegated-host setup failed. Recovered references to that
+flag contain only this check and final write; the disconnect/reconnect branches
+do not clear it. Thus the next IP event does not retry this application setup
+or recopy the delegated address. **Inferred risk:** the additional name can retain
+an old address after an IP change during the same boot. This is not a packet-level
+demonstration, nor a claim that the primary hostname ignores the SDK's interface
+events. Collision renaming, caching and delegated-address behavior on the wire
+remain untested.
+
+The hostname-set and delegated-add wrappers queue with zero wait, then wait on
+the mDNS action semaphore with `portMAX_DELAY` after a successful enqueue.
+Instance-name setting queues without that completion wait. The application has
+no finite timeout around these calls, and starts/reuses its HTTP server only
+after this block. A stalled action worker is consequently another conditional
+way to delay local-server startup; no such stall was induced.
+
+### Hostname resolution does not establish HTTP service discovery
+
+No service-registration call appears in this recovered application setup, and
+neither pinned image contains a terminated `_http` literal. Setting a default
+instance name alone does not add an HTTP service. Espressif's
+[mDNS API](https://raw.githubusercontent.com/espressif/esp-protocols/mdns-v1.5.0/components/mdns/include/mdns.h)
+separately defines hostname, delegated-host, instance-name and service-add
+operations. That release is an API reference, not a verified dependency version
+for these images.
+
+The integration's [manifest](../../custom_components/fraimic/manifest.json)
+matches `_http._tcp.local.` instances named `fraimic*`. These static findings
+therefore do **not** establish that stock firmware emits the service records
+needed to trigger that matcher. They also do not rule out a constructed or
+unrecovered registration elsewhere. Resolving a `.local` hostname successfully
+is insufficient evidence for automatic HA service discovery.
+
+[Config flow](../../custom_components/fraimic/config_flow.py) probes `/api/info`
+after a zeroconf/DHCP hint and prefers `device_key`, then `device_id`, then the
+host for its unique ID. An existing matching ID updates the stored host.
+[Subnet rediscovery](../../custom_components/fraimic/discovery.py) also probes
+the API and matches the expected device key. This verification is more useful
+than trusting the shared primary name or truncated MAC suffix. The key is also
+a cloud credential and belongs in private state. Its stability across environment
+changes, reset and reprovisioning is a separate
+[identity question](storage-and-configuration.md#identity-cache-and-read-errors),
+not established by mDNS.
+
+Evidence: seven paired function bodies, 39 contiguous GNU ranges per build,
+1,189 byte-matched instructions and 148 matched branch destinations. Strings,
+event-base names and selected initialized data agree; external call targets and
+RAM globals are mapped separately. No multicast queries, DHCP changes, frame
+requests, HA changes or live failure tests were performed for this pass.
+
 ## Server capacity and lifecycle
 
 Large startup helper `0x4201a69c` copies the 88-byte configuration at

@@ -92,7 +92,8 @@ per question, not a count of tool calls or decompiled functions.
 | H05/N03 | Wi-Fi form substring matching, decoded-byte truncation, retry cancellation before read and scan escaping traced; 15 C cases plus three JSON checks passed | Physical setup/scan faults, driver acceptance, asynchronous retry termination and other-build comparison |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
-| E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
+| E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema and saved schema-version differences recorded | Remaining incomplete flow, unconstrained server values and untested authorization cases |
+| H05/N03/A01 | Both builds' mDNS setup, MAC-suffix names, ignored errors, one-time delegated address and blocking action waits match; HTTP service registration is absent from the recovered setup path | Actual service packets, collisions, changed IPs, action faults and credential identity across reset/environment changes |
 | E02/H04/D01 | Both app hashes pinned; 42 routes and 73 function pairs compared; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/driver/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
 | E02/H05/D01/D07 | Thirteen LED-related function pairs match across 826 relocated GNU instructions; 22 host groups cover pending replacement, latch timing, factory gates and conditional stale completion | Physical indications/interleavings, complete caller meanings, SDK/output-driver comparison and other releases |
 | E02/C05/C07 | Standard's selected upload/finalize branches match empty upload acknowledgment, 4 KiB WAV chunks, 4,095-byte JSON reads and synchronous finalize; its voice image limit remains 960,000 bytes | Full error/SDK comparison, device response faults, cancellation and late-worker/two-job behavior |
@@ -501,6 +502,9 @@ Source: [storage and configuration](storage-and-configuration.md).
 - [ ] **N03 · Host/Device:** Verify production/development identity and Wi-Fi isolation,
   legacy-key migration, reset semantics, timezone sharing and interrupted/failed
   saves. Determine exactly what is preserved and what requires reenrollment.
+  [Local-name derivation](local-api.md#local-discovery-and-hostname-lifetime) now
+  matches on both builds. Its two-byte MAC suffix and credential-based HA identity
+  are distinct; reset/mode-switch identity behavior and live rediscovery remain open.
 - [ ] **N04 · Host/Device:** Validate mount retries and format-on-failure decisions
   with missing legacy key, NVS read error and filesystem corruption in a disposable
   fixture. Establish which state/artwork survives recovery on the actual layout.
@@ -549,6 +553,9 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   availability and side effects for all 42 registrations. Cover action/log/dev/test
   controls and undiscovered setters; validate read-only branches first and track
   mutating/destructive branches as explicit separate experiments. Albums are C12.
+  [mDNS initialization](local-api.md#local-discovery-and-hostname-lifetime) and seven
+  paired functions are now mapped. Wire-level HTTP-service discovery, hostname
+  collisions, DHCP-address changes and action-worker failures remain untested.
   `/dev` authentication is now recovered statically on both builds; its actions
   remain unsubmitted and its storage-failure behavior is not device-validated.
   [Local action ordering](local-api.md#restart-sleep-and-refresh-acknowledgments)

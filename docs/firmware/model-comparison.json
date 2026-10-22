@@ -567,6 +567,28 @@
         "incomplete_serialized_requests": 6
       },
       "limitations": "Synthetic host allocations and custom allocator hooks, not ESP32 heap byte counts, actual fragmentation or physical TLS failure diagnosis; measured orphans freed only during fixture teardown"
+    },
+    "local_discovery": {
+      "evidence": "Seven paired GNU control-flow graphs; bytes checked against both pinned applications; no live mDNS tests",
+      "compared_functions": 7,
+      "instructions_per_image": 1189,
+      "compared_branches": 148,
+      "gnu_ranges_per_image": 39,
+      "direct_call_pairs": 37,
+      "literal_pairs": 101,
+      "setup_name_format": "Fraimic_%u",
+      "setup_suffix": "(station_mac[4] << 8) | station_mac[5], base-MAC fallback",
+      "mac_read_failure_name": "fraimic_setup",
+      "primary_hostname": "fraimic.local",
+      "delegated_hostname": "fraimic_<setup suffix>.local",
+      "default_instance": "Fraimic Device",
+      "delegated_address": "One copied station IPv4 address during first IP-event setup",
+      "application_initialization_flag_set_despite_errors": true,
+      "mdns_returns_checked": false,
+      "service_registration_in_recovered_setup": false,
+      "terminated_http_service_literal_in_images": false,
+      "hostname_and_delegate_action_wait": "portMAX_DELAY after successful zero-wait enqueue",
+      "limitations": "No service-packet, collision, IP-change, heap/action-fault or other-release validation; absence from recovered setup is not proof against all indirect/constructed service registrations"
     }
   },
   "function_map": [
@@ -1544,6 +1566,41 @@
       "role": "cjson_new_item",
       "large": "0x42038900",
       "standard": "0x420373c4"
+    },
+    {
+      "role": "setup_ssid_name",
+      "large": "0x42019b24",
+      "standard": "0x42019af8"
+    },
+    {
+      "role": "wifi_ip_event_handler",
+      "large": "0x4201ab08",
+      "standard": "0x4201aadc"
+    },
+    {
+      "role": "mdns_init",
+      "large": "0x4203fda0",
+      "standard": "0x4203e864"
+    },
+    {
+      "role": "mdns_hostname_set",
+      "large": "0x4203ff58",
+      "standard": "0x4203ea1c"
+    },
+    {
+      "role": "mdns_delegate_hostname_add",
+      "large": "0x42040030",
+      "standard": "0x4203eaf4"
+    },
+    {
+      "role": "mdns_instance_name_set",
+      "large": "0x42040110",
+      "standard": "0x4203ebd4"
+    },
+    {
+      "role": "mdns_copy_address_list",
+      "large": "0x42039dec",
+      "standard": "0x420388b0"
     }
   ],
   "live_standard": {

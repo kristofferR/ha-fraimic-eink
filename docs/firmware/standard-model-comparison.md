@@ -85,6 +85,24 @@ and no additional host protocol fixture was run. The comparison supports one
 backend adapter with separate model renderers; it does not establish all
 indirect callers, complete offline boot or recursive consumer/TLS equivalence.
 
+### Local discovery and hostname setup also match
+
+The [discovery trace](local-api.md#local-discovery-and-hostname-lifetime) compares
+the setup-name helper, complete Wi-Fi/IP event handler, mDNS initialization,
+hostname/instance/delegated-host setters and address-list copier. Seven pairs
+match across 1,189 GNU instructions, 148 branch destinations and 39 contiguous
+ranges per build, with 37 direct-call pairs and 101 literal pairs reviewed.
+External callees and runtime RAM values are not recursively proven equivalent.
+
+Both derive the usual setup suffix from only the last two MAC bytes, request
+`fraimic.local` plus `fraimic_<decimal>.local`, ignore mDNS return values and
+set a one-time initialization flag even on error. The delegated address is
+copied once; subsequent IP events skip that application block. Neither image
+contains a terminated `_http` literal, and the recovered setup calls no service
+registration. This does not establish the service records HA's zeroconf matcher
+expects. Actual discovery packets, conflicts, address changes and worker/heap
+failures remain untested; no network or HA configuration was changed.
+
 ### Calendar and LED follow-up
 
 Two independently hash-validated application images contain exact copies of:

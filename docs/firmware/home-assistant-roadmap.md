@@ -42,6 +42,16 @@ Large also has a [public DNS fallback and cached answers](boot-and-scheduling.md
 The local-backend cutover plan needs to account for resolver failover and existing
 answers, separately from supplying the NTP service and satisfying the TCP probe.
 
+Local discovery also needs an explicit fallback. Both images'
+[mDNS setup](local-api.md#local-discovery-and-hostname-lifetime) registers a shared
+primary name and a MAC-suffix delegated name, with no HTTP service registration
+found in that path. The latter captures its address once per boot and uses only
+two MAC bytes in its usual suffix. Preserve the integration's HTTP identity
+verification and address rediscovery. A future firmware can advertise an actual
+HTTP service with a non-secret stable device ID, update addresses with the
+interface lifecycle, and report discovery failures separately from startup logs.
+Account credentials and voice-job IDs should remain separate from that public ID.
+
 ## What the integration already provides
 
 This map was checked against repository commit
