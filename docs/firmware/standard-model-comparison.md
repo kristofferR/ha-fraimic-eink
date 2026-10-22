@@ -141,6 +141,14 @@ Large has 123 recovered instructions, Standard 99; only Large blocks the tested
 verification-running/Get Started states. The cases stub external helpers and do
 not establish complete startup, network or sleep equivalence.
 
+Four additional [publication schedules](cloud-protocol.md#an-album-retry-can-discard-a-just-published-result)
+per model execute the actual worker/starter and main together. Both can clear a
+result published in the final first-window delay, reject retry creation while
+the old worker cools down, and then time out without an image. Publishing before
+the final query or after the retry clear instead permits consumption. These
+scripted schedules establish the control-flow possibility, not physical timing
+or observed image loss.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

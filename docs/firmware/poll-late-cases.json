@@ -1,0 +1,732 @@
+{
+  "evidence": "Byte-checked album, worker, starter and result helpers under four explicitly scripted publication schedules",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        },
+        {
+          "name": "getter",
+          "entry": "0x42025da0",
+          "instructions": 40,
+          "sha256": "4422af41c60b17e5688e2552ac0019d8bcef333fb96490dffc4f229052426a1f"
+        },
+        {
+          "name": "clear",
+          "entry": "0x42025e10",
+          "instructions": 12,
+          "sha256": "f2fc6ff477388a3821d3c4c366189e4cb938652363fb950bdd1dee7ea6114f4f"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x42016570",
+          "instructions": 123,
+          "sha256": "a7f8a1fbc20a32c54fa0f951b130d420b8051ffe52fd1da37de0cfceeadcbfc5"
+        },
+        {
+          "name": "worker",
+          "entry": "0x42025aec",
+          "instructions": 150,
+          "sha256": "e8f985d8ef3d1defd53be7036cce50c7ad0375dbf695c34192857ad22ddd5781"
+        },
+        {
+          "name": "starter",
+          "entry": "0x42025c84",
+          "instructions": 92,
+          "sha256": "820fae2645defe0feaa06a627dc753c8ef2d32d301ca8389bddc0fadbfe70876"
+        },
+        {
+          "name": "ready",
+          "entry": "0x42025d84",
+          "instructions": 4,
+          "sha256": "ada942cedd5ffc9e120152f04ee23207e3c74d25c08e5febba854a3ee89dbd9f"
+        },
+        {
+          "name": "cooldown",
+          "entry": "0x4202358c",
+          "instructions": 5,
+          "sha256": "38405046daf236d17b56994676336ebb7055af37d766c01af45779fd789c4564"
+        }
+      ],
+      "album_start": "0x42012a78",
+      "album_stop": "0x42012c7c",
+      "instructions_executed_unique": 331,
+      "scenarios": [
+        {
+          "name": "publish-before-final-first-query",
+          "ready_queries": [
+            30,
+            0
+          ],
+          "requested_main_delay_ticks": 2900,
+          "request_calls": 1,
+          "starter_results": [],
+          "new_task_creates": 0,
+          "image_calls": [
+            "https://fixture.invalid/late.bin"
+          ],
+          "worker_cleaned_up": false,
+          "events": [
+            {
+              "name": "completion-give",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true,
+              "request_result": 0
+            },
+            {
+              "name": "image-helper",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-before",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            }
+          ]
+        },
+        {
+          "name": "publish-during-final-first-delay",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "requested_main_delay_ticks": 6000,
+          "request_calls": 1,
+          "starter_results": [
+            259
+          ],
+          "new_task_creates": 0,
+          "image_calls": [],
+          "worker_cleaned_up": true,
+          "events": [
+            {
+              "name": "completion-give",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 1,
+              "running": true,
+              "request_result": 0
+            },
+            {
+              "name": "clear-before",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "retry-dispatch",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "starter-return",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true,
+              "result": 259
+            },
+            {
+              "name": "key-freed",
+              "ticks": 3200,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "worker-cleaned-up",
+              "ticks": 3200,
+              "phase": 1,
+              "ready": 0,
+              "running": false
+            }
+          ]
+        },
+        {
+          "name": "old-request-publishes-in-second-window",
+          "ready_queries": [
+            30,
+            2
+          ],
+          "requested_main_delay_ticks": 3100,
+          "request_calls": 1,
+          "starter_results": [
+            259
+          ],
+          "new_task_creates": 0,
+          "image_calls": [
+            "https://fixture.invalid/late.bin"
+          ],
+          "worker_cleaned_up": false,
+          "events": [
+            {
+              "name": "clear-before",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "retry-dispatch",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "starter-return",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true,
+              "result": 259
+            },
+            {
+              "name": "completion-give",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true,
+              "request_result": 0
+            },
+            {
+              "name": "image-helper",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-before",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            }
+          ]
+        },
+        {
+          "name": "error-ready-before-main-retry-rejected",
+          "ready_queries": [
+            1,
+            30
+          ],
+          "requested_main_delay_ticks": 3000,
+          "request_calls": 1,
+          "starter_results": [
+            259
+          ],
+          "new_task_creates": 0,
+          "image_calls": [],
+          "worker_cleaned_up": true,
+          "events": [
+            {
+              "name": "completion-give",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 1,
+              "running": true,
+              "request_result": 28674
+            },
+            {
+              "name": "clear-before",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "clear-before",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "retry-dispatch",
+              "ticks": 0,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "starter-return",
+              "ticks": 0,
+              "phase": 1,
+              "ready": 0,
+              "running": true,
+              "result": 259
+            },
+            {
+              "name": "key-freed",
+              "ticks": 200,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "worker-cleaned-up",
+              "ticks": 200,
+              "phase": 1,
+              "ready": 0,
+              "running": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        },
+        {
+          "name": "getter",
+          "entry": "0x420247f0",
+          "instructions": 40,
+          "sha256": "ac6db42056e519b88607961237dec91672092199beff716043c6e4c476ff65d3"
+        },
+        {
+          "name": "clear",
+          "entry": "0x42024860",
+          "instructions": 12,
+          "sha256": "259b3fe6bff9561565d3be842da38724c2a9fb65bfb74d41d0873fce8660231e"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x42016590",
+          "instructions": 99,
+          "sha256": "519e03b736300422f62115e3b215e95b4181cda67a218c94843a858d0a1aca1b"
+        },
+        {
+          "name": "worker",
+          "entry": "0x42024538",
+          "instructions": 150,
+          "sha256": "7bb2c019a516b2612c88c67c4d5a82d4233957e18941d8d9691aa8f764d5b6e7"
+        },
+        {
+          "name": "starter",
+          "entry": "0x420246d0",
+          "instructions": 92,
+          "sha256": "c5d1c99093489b7c7c571159b581f2dc0de1aac4e1b2de30c98c809be197e87f"
+        },
+        {
+          "name": "ready",
+          "entry": "0x420247d4",
+          "instructions": 4,
+          "sha256": "0e8b85431adeae01e336db5983d6ba0d92061048104b3b66f840576306d66c4d"
+        },
+        {
+          "name": "cooldown",
+          "entry": "0x4202203c",
+          "instructions": 5,
+          "sha256": "f8c8f0427e13c4a3c3221c982b09730829e0f8077c69788ee4d1dbb13947edbe"
+        }
+      ],
+      "album_start": "0x420129d8",
+      "album_stop": "0x42012bdc",
+      "instructions_executed_unique": 329,
+      "scenarios": [
+        {
+          "name": "publish-before-final-first-query",
+          "ready_queries": [
+            30,
+            0
+          ],
+          "requested_main_delay_ticks": 2900,
+          "request_calls": 1,
+          "starter_results": [],
+          "new_task_creates": 0,
+          "image_calls": [
+            "https://fixture.invalid/late.bin"
+          ],
+          "worker_cleaned_up": false,
+          "events": [
+            {
+              "name": "completion-give",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true,
+              "request_result": 0
+            },
+            {
+              "name": "image-helper",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-before",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 2900,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            }
+          ]
+        },
+        {
+          "name": "publish-during-final-first-delay",
+          "ready_queries": [
+            30,
+            30
+          ],
+          "requested_main_delay_ticks": 6000,
+          "request_calls": 1,
+          "starter_results": [
+            259
+          ],
+          "new_task_creates": 0,
+          "image_calls": [],
+          "worker_cleaned_up": true,
+          "events": [
+            {
+              "name": "completion-give",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 1,
+              "running": true,
+              "request_result": 0
+            },
+            {
+              "name": "clear-before",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "retry-dispatch",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "starter-return",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true,
+              "result": 259
+            },
+            {
+              "name": "key-freed",
+              "ticks": 3200,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "worker-cleaned-up",
+              "ticks": 3200,
+              "phase": 1,
+              "ready": 0,
+              "running": false
+            }
+          ]
+        },
+        {
+          "name": "old-request-publishes-in-second-window",
+          "ready_queries": [
+            30,
+            2
+          ],
+          "requested_main_delay_ticks": 3100,
+          "request_calls": 1,
+          "starter_results": [
+            259
+          ],
+          "new_task_creates": 0,
+          "image_calls": [
+            "https://fixture.invalid/late.bin"
+          ],
+          "worker_cleaned_up": false,
+          "events": [
+            {
+              "name": "clear-before",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 3000,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "retry-dispatch",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "starter-return",
+              "ticks": 3000,
+              "phase": 1,
+              "ready": 0,
+              "running": true,
+              "result": 259
+            },
+            {
+              "name": "completion-give",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true,
+              "request_result": 0
+            },
+            {
+              "name": "image-helper",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-before",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 3100,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            }
+          ]
+        },
+        {
+          "name": "error-ready-before-main-retry-rejected",
+          "ready_queries": [
+            1,
+            30
+          ],
+          "requested_main_delay_ticks": 3000,
+          "request_calls": 1,
+          "starter_results": [
+            259
+          ],
+          "new_task_creates": 0,
+          "image_calls": [],
+          "worker_cleaned_up": true,
+          "events": [
+            {
+              "name": "completion-give",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "worker-published-and-cooling",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 1,
+              "running": true,
+              "request_result": 28674
+            },
+            {
+              "name": "clear-before",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 1,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "clear-before",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "clear-after",
+              "ticks": 0,
+              "phase": 0,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "retry-dispatch",
+              "ticks": 0,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "starter-return",
+              "ticks": 0,
+              "phase": 1,
+              "ready": 0,
+              "running": true,
+              "result": 259
+            },
+            {
+              "name": "key-freed",
+              "ticks": 200,
+              "phase": 1,
+              "ready": 0,
+              "running": true
+            },
+            {
+              "name": "worker-cleaned-up",
+              "ticks": 200,
+              "phase": 1,
+              "ready": 0,
+              "running": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Each case assumes an older poll task already exists; its HTTP response is synthetic and the network call is represented when publication is injected.",
+    "The worker runs through its real 200-tick cooldown call, then pauses with saved registers before free/handle-clear; cleanup resumes after synthetic main delays reach the due tick. No RTOS scheduling or real time is executed.",
+    "Main starts after successful storage/task admission and stops before deadline selection/shutdown. Logging, network, connectivity, image and scheduling helpers are stubbed.",
+    "The completion semaphore give is modeled successful; no real semaphore contention, socket disconnect, physical image loss or frequency is established.",
+    "No device, backend, network or HA change was made."
+  ]
+}

@@ -3655,3 +3655,44 @@ criteria or changing the checklist's 12/67 and 124/188 counts.
 | `album-poll-results.json` (published as the numeric ledger) | `a5de17eb358c775f2898f38084be821307285e4264293f446ebac6908386a2fa` |
 | `poll-dispatch-large-cfg.json` | `a7f8a1fbc20a32c54fa0f951b130d420b8051ffe52fd1da37de0cfceeadcbfc5` |
 | `poll-dispatch-standard-cfg.json` | `519e03b736300422f62115e3b215e95b4181cda67a218c94843a858d0a1aca1b` |
+
+## Late poll publication across album retry: C02/S06/E01/E02
+
+The [publication audit](cloud-protocol.md#an-album-retry-can-discard-a-just-published-result)
+connects the album result-phase CFG to actual worker, starter, ready/copy/clear
+and cooldown instructions. Newly recovered starters each contain 92 instructions;
+ready getters have four and cooldowns five. Every decoded instruction is checked
+against the pinned vendor image before execution.
+
+All **four schedules per build passed**, covering 331 distinct Large instructions
+and 329 Standard instructions. An existing task handle and valid semaphore are
+seeded. A synthetic HTTP result is published before the final first-window query,
+during its final delay, during the second window's first delay, or as an error
+before main begins. The real worker sets readiness and gives completion, then
+executes its 200-tick cooldown. The instruction machine saves registers and PC
+before cleanup at Large `0x42025c6b` / Standard `0x420246b7`, resuming that exact
+state when synthetic main delays reach the due tick. The worker then frees its
+key, clears the task handle and self-deletes. No result is republished on exit.
+
+The [ledger](poll-late-cases.json) records publication, clear, starter return,
+cleanup and image-helper order. The late-final-delay and immediate-error cases
+both clear the result, receive `0x103` from the real starter and exhaust the
+second window. The two neighboring schedules instead consume the pending image.
+Every case has one synthetic request and zero new task creates; a second-window
+result can therefore come from the old request, not a successful retry.
+
+This does not run FreeRTOS, actual sleeps or network requests. Publication times
+are selected interleavings, not evidence that hardware uses those timings. Main
+stops before deadline selection, and image processing is stubbed. The model's
+worker cleanup timing is synthetic, with successful completion give and no
+semaphore contention. These limits preclude claims about physical image loss,
+frequency, elapsed wake duration or end-to-end delivery. No device, backend,
+network or HA changes occurred. Existing C02/S06/E01/E02 milestones are extended;
+the deferred physical criteria and 12/67, 124/188 counts remain unchanged.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `poll-late-cases.mjs` | `ca06fc52d8d5751d499f16bee755be0f78e5b7a6800d770170b12f5c82bc2e21` |
+| `poll-late-results.json` (published as the numeric ledger) | `a1a8f9f4070ef8eb1610c4fe1ec2813e24d359ef68467ddec1168e1d437d7bd7` |
+| `poll-starter-large-cfg.json` | `820fae2645defe0feaa06a627dc753c8ef2d32d301ca8389bddc0fadbfe70876` |
+| `poll-starter-standard-cfg.json` | `c5d1c99093489b7c7c571159b581f2dc0de1aac4e1b2de30c98c809be197e87f` |

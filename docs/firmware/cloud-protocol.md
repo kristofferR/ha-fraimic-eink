@@ -422,6 +422,42 @@ button/main callers likewise copy `user_settings` without applying members.
 Seven function pairs and two caller regions match across 425 instructions;
 this does not extend the result to every parser branch, dispatcher or loop.
 
+### An album retry can discard a just-published result
+
+The [album result windows](boot-and-scheduling.md#album-wake-has-two-result-windows-not-a-delivery-retry)
+and two-second worker cleanup delay interact. Four scripted instruction schedules
+per build execute the actual main, worker, starter, ready getter, result getter,
+clear helper and cooldown. Each assumes one older poll is already running; its
+response is synthetic. No replacement task is created in these cases.
+
+| Old worker publication relative to main | Instruction-model outcome |
+| --- | --- |
+| Before the first window's final readiness query | Main consumes the pending image on query 30; no retry dispatch |
+| During the delay after that final false query | Main does not query again, clears the newly published result, then the starter returns `0x103` because the old handle still exists; all 30 second-window queries remain false |
+| After the retry clear, during the second window's first delay | Starter has already returned `0x103`, but the old worker then publishes; query 2 consumes that older request's image |
+| Error result ready before the first query | Main clears the error and immediately retries while the old handle exists; starter returns `0x103`, then the second window expires |
+
+In the two timeout cases, the old worker later frees its key, clears its handle
+and deletes itself without republishing the erased result. The completion
+semaphore give does not rescue it: this foreground path polls the separate ready
+byte. A logged retry therefore proves neither a fresh HTTP request nor which
+attempt supplied a later result.
+
+These are explicit schedules through byte-checked instructions, not measured
+RTOS timing, physical image loss or a frequency estimate. The worker is paused
+with saved registers after its actual cooldown call and resumed at its cleanup
+tail when synthetic main delays reach 200 ticks. Main stops before deadline
+selection; the image helper and network are stubbed.
+[Cases](poll-late-cases.json) and
+[validation](validation-2026-10-22.md#late-poll-publication-across-album-retry-c02s06e01e02)
+record the limits.
+
+For a future firmware fork, make completion owned by a particular request and
+let a retry consume or explicitly retire that request before clearing it. Avoid
+using the ready byte and delayed task handle as interchangeable states. A stock
+backend can prepare assets early and retain durable offers, but cannot turn this
+caller sequence into an exactly-once display acknowledgment by response timing.
+
 ### Four foreground consumers do not acknowledge image success
 
 The complete recovered main/button bodies contain these direct result-getter

@@ -9,6 +9,7 @@ The history does not reopen C05/C10/R11/E03 or authorize new device experiments.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
+| C02/S06/E01/E02 | Four scripted instruction schedules per build connect actual album, poll-worker and starter code: a last-delay result can be cleared before a handle-blocked retry; adjacent schedules consume it | Physical scheduling/frequency, actual response timing, complete sleep lifecycle and request-owned result implementation |
 | S06/C02/E01/E02 | Twenty instruction cases per build establish two album result windows, conditional retry dispatch, Wi-Fi recovery bounds and exit despite image-helper failure | Physical wake duration, concurrent late results, actual network/task faults and delivery acknowledgments |
 | C02/E01/E02 | Four getter call sites per build recovered, including two omitted by Ghidra; twenty cases each check local settings copies, empty-URL differences and result clearing despite image-helper failure | Physical malformed/image-error behavior, arbitrary indirect references, later stack reuse and actual delivery acknowledgments |
 | C08/E01/E02 | Both cancellation flags audited; eighteen cases per build distinguish retained processing state, recording-only reset, post-presign abort and unconditional ordinary-BSS clearing at fresh startup | Real task/socket timing, computed aliases outside the census and physical cancellation/reset behavior |
