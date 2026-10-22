@@ -1168,3 +1168,44 @@ Standard's DNS internals and complete offline cutover remain to compare/test.
 Private artifacts: `dns-fallback-pass1.txt` through `dns-fallback-pass4.txt`,
 `dns-fallback-literals.jsonl`, `dns-fallback-gnu.mjs`,
 `dns-fallback-boundaries-gnu.txt` and `dns-fallback-evidence-hashes.txt`.
+
+## SNTP pending-callback lifetime: S02
+
+Two new reference/decompiler passes and earlier SNTP/DNS passes supply ten
+functions across 30 bounded GNU ranges. These check the resolver callback
+registration/completion, SNTP stop/request/DNS/send/retry/init and packet
+initialization paths, plus UDP's early null-client guard. The resolver retains
+the callback after stop. The SNTP callback uses shared state without an attempt
+identifier or hostname check; stop's timer removal is conditional on a client
+still existing. UDP returns an argument error for a null client, while SNTP's
+send path ignores that return and rearms its timer.
+
+Eight deterministic host cases passed with Clang AddressSanitizer and
+UndefinedBehaviorSanitizer, warnings treated as errors. The fixture extracts
+seven unmodified functions from pinned lwIP commit
+`fa4dffdfac52587a26c1f29258376df750cf8474`: packet initialization, retry, send,
+DNS callback, request, init and stop. Source SHA-256:
+`8695155c80c807d7ac949801b023d4e2f27db7975f78bcbba726bcdc012020e7`.
+The selected source retains its license header. Relevant compile branches were
+checked against the Large instructions rather than assumed from default SDK
+configuration.
+
+The cases cover normal completion; stop before startup dispatch; a late positive
+lookup using a replacement client; positive/negative completion without a client;
+a late negative lookup replacing the new startup timer; packet-allocation failure;
+and a repeated stop followed by a rearmed request. Assertions check destination,
+client identity, stored name/address, timer callbacks/delays and DNS count.
+
+DNS, timers, UDP and packet buffers are host stubs; addresses are simplified to
+IPv4 and startup delay is fixed at 1,000 ms within the verified firmware range.
+The fixture does not run the complete resolver, TCP/IP task queue, socket stack,
+clock or network. It establishes consequences of selected event orderings, not
+physical frequency, actual battery impact, concurrent task behavior or Standard
+equivalence. No frame, backend, DNS, router or clock state changed. S02 stays open.
+
+Private artifacts: `sntp-lifetime-pass1.txt`, `sntp-lifetime-pass2.txt`,
+`sntp-lifetime-gnu.mjs`, `sntp-lifetime-boundaries-gnu.txt`,
+`prepare-sntp-lifetime-fixture.mjs`, `sntp-lifetime-fixture.c`,
+`sntp-lifetime-source-hashes.json`, `sntp-lifetime-results.txt` and
+`sntp-lifetime-evidence-hashes.txt`. The generated fixture directory contains
+the pinned source and selected functions.

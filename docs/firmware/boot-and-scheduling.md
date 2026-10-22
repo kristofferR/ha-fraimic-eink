@@ -609,8 +609,8 @@ the request helper, so it precedes even DNS resolution. The binary's structure
 also matches the startup-delay and one-slot branches in the
 [pinned lwIP implementation](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/apps/sntp/sntp.c).
 
-Stop helper `0x4205639c` removes the pending request and retry timers before
-removing the UDP client. Timer cancellation at `0x4205ead4` matches both callback
+Stop helper `0x4205639c`, when a UDP client exists, removes the pending request
+and retry timers before removing that client. Timer cancellation at `0x4205ead4` matches both callback
 and argument. Each application retry stops and initializes the client again,
 choosing a fresh startup delay. Consequently the first two application budgets
 (2 and 4 seconds) can expire before any NTP request is sent; a healthy server
@@ -632,6 +632,50 @@ startup delay, DNS and response budget, and make recovery account for outstandin
 callbacks. For stock emulation, accurate local NTP service remains a candidate;
 the DHCP follow-up below rules out option 42, while physical offline boot is
 still untested.
+
+### Pending DNS callbacks survive SNTP stop
+
+Large's stop helper does **not cancel an outstanding DNS lookup callback**.
+Resolver enqueue `0x42056f44` stores a callback, argument and query index in its
+four 12-byte callback records at `0x3fcad9dc`. SNTP request `0x42056168` supplies
+the shared callback `0x42056200` with a null argument, so the registration has no
+SNTP attempt identifier. Resolver completion `0x4205652c` invokes that callback
+and then clears its registration; it does not check whether SNTP was stopped or
+the application's selected server changed.
+
+The SNTP callback ignores the returned hostname and argument. A successful
+lookup copies the address into the current server slot, then calls send helper
+`0x420560ec` using the **current global UDP client**. A failed lookup calls retry
+helper `0x42056098`. Neither path checks that the originating attempt is current.
+This permits several conditional event orderings:
+
+| Event order | Result established by static tracing and the host fixture |
+| --- | --- |
+| Lookup A pending; stop; initialize B; A succeeds | Sends to A's address through B's new client. The stored name remains B, so a later B request can replace the address again. |
+| Lookup A pending; stop; initialize B; A fails | Retry cancels B's startup-request timer and replaces it with a 15-second request timer. |
+| Lookup pending; stop without replacement; lookup succeeds | UDP send sees a null client and returns an argument error. SNTP ignores the return and still schedules its 15-second retry callback. |
+| Lookup pending; stop without replacement; lookup fails | Retry schedules a request after 15 seconds despite the absent client. |
+| Late callback rearms work; stop again while the client is null | Stop's client guard skips timer removal. A later request can enqueue DNS again while stopped. |
+
+The null-client guard is explicit in UDP entry `0x4205f570`; this is **not an
+established null dereference**. The send helper also schedules a 15-second
+request if packet-buffer allocation fails. A late callback's effect depends on
+the actual ordering of DNS completion, stop/init messages and timers. The host
+fixture validates selected orderings, not their probability on the frame or a
+cause of the observed battery/TLS problems.
+
+Eight isolated cases use seven unmodified functions from the
+[pinned SNTP source](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/apps/sntp/sntp.c),
+with deterministic DNS/timer/UDP/buffer stubs and the relevant compiled branches
+checked against GNU disassembly. They include normal completion, cancellation
+before any lookup, replacement and no-replacement callbacks, allocation failure
+and a repeated stop. No packets, clocks or frame state were changed.
+
+For future firmware, keep one time client alive across its lookup/response budget,
+associate callbacks with an attempt, and make shutdown invalidate outstanding
+callbacks as well as remove timers. A local backend should provide responsive DNS
+and time service, but cannot enforce callback ownership inside stock firmware.
+The equivalent Standard callback lifetime and physical event timing remain open.
 
 ### DHCP does not configure the stock time server
 

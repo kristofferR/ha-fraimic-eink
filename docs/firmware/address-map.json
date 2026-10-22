@@ -454,6 +454,12 @@
       "evidence": "static; 22 October DNS fallback/cache follow-up"
     },
     {
+      "address": "0x3fcad9dc",
+      "kind": "global",
+      "role": "DNS callback registrations: four 12-byte records; SNTP uses a shared callback and null argument",
+      "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
+    },
+    {
       "address": "0x3fcada0c",
       "kind": "global",
       "role": "Four DNS query/cache records, 296 bytes each",
@@ -2938,10 +2944,28 @@
       "evidence": "static; 22 October SNTP startup follow-up"
     },
     {
+      "address": "0x420560d4",
+      "kind": "function",
+      "role": "SNTP packet initialization: zero 48 bytes and set client mode/version byte",
+      "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
+    },
+    {
+      "address": "0x420560ec",
+      "kind": "function",
+      "role": "SNTP send using current global UDP client; ignores send error and rearms receive/retry timer",
+      "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
+    },
+    {
       "address": "0x42056168",
       "kind": "function",
       "role": "SNTP request; configured name takes precedence over saved address",
       "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x42056200",
+      "kind": "function",
+      "role": "SNTP DNS completion; ignores hostname/argument, updates current address or retries without attempt validation",
+      "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
     },
     {
       "address": "0x42056314",
@@ -2952,8 +2976,8 @@
     {
       "address": "0x4205639c",
       "kind": "function",
-      "role": "SNTP stop; removes request/retry timers and UDP client",
-      "evidence": "static; 22 October SNTP startup follow-up"
+      "role": "SNTP stop; removes request/retry timers and UDP client only when client exists; pending DNS callbacks survive",
+      "evidence": "static and bounded GNU cross-check; isolated SNTP callback-lifetime host fixture"
     },
     {
       "address": "0x42056420",
@@ -2966,6 +2990,12 @@
       "kind": "function",
       "role": "DNS immediate-backup predicate; examines next slot only, unlike timeout gap skipping",
       "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x4205652c",
+      "kind": "function",
+      "role": "DNS callback dispatch and registration clearing; no SNTP client-lifetime check",
+      "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
     },
     {
       "address": "0x420566cc",
@@ -2984,6 +3014,12 @@
       "kind": "function",
       "role": "DNS cache lookup by hostname and address family",
       "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x42056f44",
+      "kind": "function",
+      "role": "DNS query/callback enqueue; stores callback, argument and query index",
+      "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
     },
     {
       "address": "0x42057274",
@@ -3026,6 +3062,12 @@
       "kind": "function",
       "role": "lwIP timer cancellation; matches callback and argument and unlinks first match",
       "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x4205f570",
+      "kind": "function",
+      "role": "UDP send entry; null client returns argument error before dereferencing",
+      "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
     },
     {
       "address": "0x4205fc50",

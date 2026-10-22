@@ -291,7 +291,10 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   Large's [DHCPv4 parser and hooks](boot-and-scheduling.md#dhcp-does-not-configure-the-stock-time-server)
   skip option 42, including unsolicited time-server offers. The
   [Standard comparison](standard-model-comparison.md#stock-time-service-also-matches)
-  confirms the same DHCP and startup-delay branches. Check late callbacks,
+  confirms the same DHCP and startup-delay branches. Large's
+  [pending DNS callback lifetime](boot-and-scheduling.md#pending-dns-callbacks-survive-sntp-stop)
+  and eight isolated host cases show stale completion can alter a replacement
+  client or rearm work after stop. Check Standard callback equivalence,
   callback-queue failures and physical startup timing; SDK defaults alone do not
   establish build behavior.
   Large's [DNS fallback/cache trace](boot-and-scheduling.md#dns-fallback-and-cached-destinations)
