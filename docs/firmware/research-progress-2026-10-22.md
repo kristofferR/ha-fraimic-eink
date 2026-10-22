@@ -9,6 +9,7 @@ The history does not reopen C05/C10/R11/E03 or authorize new device experiments.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
+| S06/E01/E02 | Shared 82-instruction wake classifier, model-specific GPIO 1 cable flag and final EXT1 masks traced; 26 cases per model establish first idle admission and pending sleep reaching the recording wrapper | Physical wake/timing, complete lifecycle paths and hardware readback remain deferred; no battery root cause inferred |
 | S06/C06/C08/E01/E02 | Seven physical-input function pairs match; 33 instruction cases per build cover tap-window boundaries, ignored doubles, held-input admission and monitor/result lifetime | Physical gestures and task timing remain deferred; boot/wake admission comparison is separate |
 | D03 | Saved free/largest-block readings compared with full-image and maximum-WAV copies; exclusive ownership selected as the default design, with separate DMA/internal budgets | Implementation and profiling before an optional snapshot; archived readings are not a sustained pressure test |
 | H04/E02 | Controller roots and short writes audited on both models: sixteen Large and twenty-one Standard initialization writes, full-image transfers and no identified waveform/partial-window caller within scope | Physical supported modes, panel constraints and any unexamined I/O paths; no custom waveform trial authorized |

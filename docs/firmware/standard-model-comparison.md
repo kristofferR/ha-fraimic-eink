@@ -68,6 +68,22 @@ admission, double-tap handling and the selected monitor/result lifetime branches
 match. This is separate from physical gesture tolerance or whole-main-loop
 equivalence.
 
+### Boot cable classification and wake masks differ
+
+The [boot admission comparison](boot-and-scheduling.md#boot-classification-and-first-recording-admission)
+finds a Standard-only GPIO 1 sample on EXT1 wake. Low sets its boot cable flag;
+Large's recovered entry only clears the equivalent flag. The shared 82-instruction
+classifier consumes a one-byte `deep_sleep` marker before testing that flag.
+Erase/commit failures do not alter the returned classification.
+
+Both normal and storage-sleep paths request any-low EXT1 with mask 6 on Standard
+(GPIOs 1 and 2), versus mask 4 on Large (GPIO 2). The selected main-loop cases
+on both models enter idle input waiting before recording. Pending sleep can
+survive that wait's admission result to the outer recording wrapper. The
+[26 instruction cases per build and six call ranges](wake-admission-cases.json)
+use synthetic dependencies; these are not physical wake measurements, complete
+main-loop equivalence or battery-monitor diagnosis.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

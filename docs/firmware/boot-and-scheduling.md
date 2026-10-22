@@ -4,7 +4,7 @@
 
 ## Main lifecycle
 
-`0x42012810` is the main loop; `0x42012338` contains pre-sleep work. The recovered
+On Large, `0x42012810` is the main loop; `0x42012338` contains pre-sleep work. The recovered
 branches distinguish normal boot, physical-button wake, charging-cable wake,
 display-maintenance timer wake and album-image timer wake. First-time setup has
 its own instruction screens/AP mode and timeout behavior.
@@ -15,7 +15,7 @@ and recording are not independent tasks with independent image/audio memory.
 
 | Situation | Relevant behavior |
 | --- | --- |
-| Already-paired physical wake | Start background services; accept recording/button workflow |
+| Already-paired physical wake | Start background services, then enter idle input waiting before recording admission |
 | Album timer wake | Initialize storage/network, check cloud work, calculate next wake |
 | Maintenance timer wake | Restore/refresh saved display content through a separate branch |
 | Charging wake | Battery monitoring and idle/LED behavior depend on setup and switches |
@@ -31,6 +31,69 @@ Physical wake and new recording admission use different boundaries. The
 [input audit](input-and-gestures.md#held-input-in-the-idle-handler) traces the
 idle handler's held-button timeouts and the inner release wait that does not
 recheck pending sleep. Its virtual timing results are not measured wake latency.
+
+### Boot classification and first recording admission
+
+The two pinned builds differ before the shared wake classifier runs:
+
+| Path or state | Large 0.2.29 | Standard 0.2.28 |
+| --- | --- | --- |
+| Application entry | `0x420142ec` | `0x420142a8` |
+| Boot cable flag | `0x3fca6b12` | `0x3fca6b82` |
+| Entry handling | Clear the flag; no GPIO 1 sample in this path | Clear the flag, then sample GPIO 1 on EXT1 wake; low sets it to one |
+| Wake classifier | `0x4201088c` | `0x420105c8` |
+| Main loop | `0x42012810` | `0x42012770` |
+| Outer recording wrapper | `0x42010994` | `0x420106d0` |
+
+Standard configures GPIO 1 as input with pull-up enabled, pull-down disabled and
+interrupts disabled before sampling. Its six 32-bit configuration words are
+`[2, 0, 1, 1, 0, 0]`, using the
+[SDK GPIO structure](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_driver_gpio/include/driver/gpio.h)
+and [numeric definitions](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/hal/include/hal/gpio_types.h).
+This is a current GPIO-level test after wake, not a captured pin-source bitmap.
+It does not establish which physical edge woke the frame or that the level
+remained unchanged since sleep ended.
+
+The direct-reference audit finds three Large flag references, with only a zero
+write at entry, and six Standard references including its GPIO-derived write.
+Each app contains one exact initialized pointer to its flag. Thus the recovered
+normal Large path leaves its cable-specific boot branch inactive. The census
+does not exclude arbitrary computed aliases. This boot flag is distinct from
+the battery monitor's current-based cable detection; it is not a diagnosis of
+the deferred battery-drain issue.
+
+The classifier's 82-instruction body matches across models after relocation:
+
+1. Only wake cause 3, EXT1, opens `app_data/deep_sleep` and requests a one-byte
+   blob into a destination initialized to zero. Other wake causes return false
+   without touching that marker.
+2. Only a resulting byte of exactly one continues. The getter's return value is
+   ignored; the host read-failure case leaves the initialized byte unchanged.
+3. Attempt a read/write open, erase and commit before testing the boot cable
+   flag. Erase/commit results do not change classification. Failure to open for
+   writing also falls through to the flag test.
+4. Return true only when the boot cable flag is zero. A cable-classified wake
+   can therefore consume the marker even though this classifier returns false.
+
+In controlled existing-user, ready-service main-loop cases, cold boot and EXT1
+without a marker select `bg_init`; EXT1 with marker one and no cable flag selects
+`bg_init_wake`. Standard's low GPIO 1 selects `bg_init_charging`. **All these cases
+reach the idle input wait before the recording wrapper.** Waking and recording
+are separate admission steps, including when the initial wake was a button.
+
+The caller follow-up also resolves the pending-sleep question from the input
+audit. When the modeled idle handler returns recording admission with a sleep
+request still pending, both main loops reach the outer recording wrapper with
+that flag still set. A first-time-state check occurs on this selected path, but
+there is no intervening pending-sleep rejection. The wrapper still checks voice
+enablement and microphone setup can fail; this is not proof of captured audio
+or a physical sleep/recording race.
+
+The [bounded cases and references](wake-admission-cases.json) contain 26 cases
+per model, with synthetic NVS/GPIO/task results and no device operation. Entry
+cases stop before system initialization; main cases do not establish setup,
+timer, OTA, renderer or complete lifecycle equivalence. See the
+[validation record](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02).
 
 ### Pre-sleep ordering and outstanding work
 
@@ -97,16 +160,25 @@ also applies to the command/select operations in this helper.
 
 ### Final wake-source configuration is explicit
 
-The normal path clears all previously enabled wake sources and calls the EXT1
-setter with a 64-bit mask of `4` and mode `0`: GPIO 2, any-low on ESP32-S3.
-The numeric meanings match the
+Both normal and storage-sleep paths clear previously enabled wake sources before
+the final EXT1 setter. The requested masks differ:
+
+| Model | Mask and pins | Ordinary-sleep call | Storage-sleep call |
+| --- | --- | --- | --- |
+| Large | `4`: GPIO 2 | `0x4201267e` | `0x4201081f` |
+| Standard | `6`: GPIOs 1 and 2 | `0x420125de` | `0x42010f63` |
+
+Both pass zero as the high 32 bits and mode `0`, any-low on ESP32-S3. Entry-time
+calls at Large `0x420145ca` and Standard `0x420145ea` use the same respective
+masks. Six bounded instruction ranges verify these calls against the original
+image bytes; see [numeric coverage](wake-admission-cases.json). The numeric meanings match the
 [SDK sleep definitions](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_hw_support/include/esp_sleep.h).
-It then calls the unified scheduler. A timer configured earlier in the wake
+The normal path then calls the unified scheduler. A timer configured earlier in the wake
 session is therefore not enough; the final scheduling step must restore it.
-The caller ignores the button-wake setter's result, so the log saying both wake
+The caller ignores the EXT1 setter's result, so the log saying both wake
 sources are armed is not an independent readback of actual hardware state.
 
-The storage-sleep path performs the same clear-and-button setup but does not call
+The storage-sleep path performs its model-specific EXT1 setup but does not call
 the unified scheduler. It also lacks the ordinary path's explicit log-flush call
 at the end. Both attempt to store the shared sleep timestamp. These differences
 are static; physical wake behavior, interrupted cleanup and actual sleep duration

@@ -1,0 +1,841 @@
+{
+  "evidence": "Pinned-image static audit and bounded instruction interpretation with explicit external stubs; no new device operation",
+  "classifier_comparison": {
+    "function_pairs": 1,
+    "instructions_per_build": 82,
+    "branches_per_build": 10,
+    "literal_pairs": 10,
+    "direct_call_pairs": 5
+  },
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "classifier",
+          "entry": "0x4201088c",
+          "instructions": 82,
+          "ranges": 2,
+          "sha256": "0728709e09c0226e5d2f4e2d7be46a2385a52966a5e8fadc541a870e58b3a8a6"
+        },
+        {
+          "name": "entry",
+          "entry": "0x420142ec",
+          "instructions": 395,
+          "ranges": 16,
+          "sha256": "55afcc22ac67a857cfb3bcdb3c5142ee7c7c5bc10ccff42c50051721932ff7da"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "ranges": 42,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        }
+      ],
+      "reference_audit": {
+        "target": "0x3fca6b12",
+        "exact_initialized_image_pointer_locations": [
+          "0x42000f00"
+        ],
+        "pointer_uses": [
+          "0x42012fbe",
+          "0x42010915",
+          "0x4201439c"
+        ],
+        "direct_references": [
+          "0x42012fc1",
+          "0x42010918",
+          "0x420143a1"
+        ],
+        "limits": "Exact pointers and recovered references only; arbitrary computed aliases are not excluded"
+      },
+      "instructions_executed_unique": 452,
+      "scenarios": [
+        {
+          "group": "classifier",
+          "name": "not-ext1-cold",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "not-ext1-timer",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "read-open-fails",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "read-blob-fails",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "marker-zero",
+          "return_value": 0,
+          "persisted_marker": 0,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "marker-two",
+          "return_value": 0,
+          "persisted_marker": 2,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "marker-one-button",
+          "return_value": 1,
+          "persisted_marker": null,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "classifier",
+          "name": "marker-one-cable",
+          "return_value": 0,
+          "persisted_marker": null,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "classifier",
+          "name": "erase-open-fails-still-button",
+          "return_value": 1,
+          "persisted_marker": 1,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "erase-fails-still-button",
+          "return_value": 1,
+          "persisted_marker": 1,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "classifier",
+          "name": "commit-fails-still-button",
+          "return_value": 1,
+          "persisted_marker": 1,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "entry",
+          "name": "cause-0-gpio-0",
+          "cause": 0,
+          "gpio_level": 0,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-0-gpio-1",
+          "cause": 0,
+          "gpio_level": 1,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-3-gpio-0",
+          "cause": 3,
+          "gpio_level": 0,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-3-gpio-1",
+          "cause": 3,
+          "gpio_level": 1,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-4-gpio-0",
+          "cause": 4,
+          "gpio_level": 0,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-4-gpio-1",
+          "cause": 4,
+          "gpio_level": 1,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-0-marker-0",
+          "cause": 0,
+          "gpio_level": 0,
+          "initial_marker": 0,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-0-marker-1",
+          "cause": 0,
+          "gpio_level": 0,
+          "initial_marker": 1,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 1
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-1-marker-0",
+          "cause": 0,
+          "gpio_level": 1,
+          "initial_marker": 0,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-1-marker-1",
+          "cause": 0,
+          "gpio_level": 1,
+          "initial_marker": 1,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 1
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-0-marker-0",
+          "cause": 3,
+          "gpio_level": 0,
+          "initial_marker": 0,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-0-marker-1",
+          "cause": 3,
+          "gpio_level": 0,
+          "initial_marker": 1,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init_wake"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": null
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-1-marker-0",
+          "cause": 3,
+          "gpio_level": 1,
+          "initial_marker": 0,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-1-marker-1",
+          "cause": 3,
+          "gpio_level": 1,
+          "initial_marker": 1,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init_wake"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": null
+        },
+        {
+          "group": "main",
+          "name": "sleep-arrives-during-admitted-press",
+          "outcome": "record_wrapper",
+          "pending_sleep": 1
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "classifier",
+          "entry": "0x420105c8",
+          "instructions": 82,
+          "ranges": 2,
+          "sha256": "0591c8186d03ca1256a1525e6af9a09e801345461972bd33a950f20f9ace509c"
+        },
+        {
+          "name": "entry",
+          "entry": "0x420142a8",
+          "instructions": 433,
+          "ranges": 19,
+          "sha256": "47d2b32070c2f89c6e8a5eb3c56d93a20e1107a9c368807667f5cd22fbbf620c"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "ranges": 40,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        }
+      ],
+      "reference_audit": {
+        "target": "0x3fca6b82",
+        "exact_initialized_image_pointer_locations": [
+          "0x42000ec4"
+        ],
+        "pointer_uses": [
+          "0x42010651",
+          "0x42012f1e",
+          "0x42014357",
+          "0x420143a4",
+          "0x420143d4"
+        ],
+        "direct_references": [
+          "0x42012f21",
+          "0x4201435c",
+          "0x420143a7",
+          "0x420143b2",
+          "0x420143d7",
+          "0x42010654"
+        ],
+        "limits": "Exact pointers and recovered references only; arbitrary computed aliases are not excluded"
+      },
+      "instructions_executed_unique": 566,
+      "scenarios": [
+        {
+          "group": "classifier",
+          "name": "not-ext1-cold",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "not-ext1-timer",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "read-open-fails",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "read-blob-fails",
+          "return_value": 0,
+          "persisted_marker": 1,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "marker-zero",
+          "return_value": 0,
+          "persisted_marker": 0,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "marker-two",
+          "return_value": 0,
+          "persisted_marker": 2,
+          "open_modes": [
+            0
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "marker-one-button",
+          "return_value": 1,
+          "persisted_marker": null,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "classifier",
+          "name": "marker-one-cable",
+          "return_value": 0,
+          "persisted_marker": null,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "classifier",
+          "name": "erase-open-fails-still-button",
+          "return_value": 1,
+          "persisted_marker": 1,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 0,
+          "commit_calls": 0
+        },
+        {
+          "group": "classifier",
+          "name": "erase-fails-still-button",
+          "return_value": 1,
+          "persisted_marker": 1,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "classifier",
+          "name": "commit-fails-still-button",
+          "return_value": 1,
+          "persisted_marker": 1,
+          "open_modes": [
+            0,
+            1
+          ],
+          "erase_calls": 1,
+          "commit_calls": 1
+        },
+        {
+          "group": "entry",
+          "name": "cause-0-gpio-0",
+          "cause": 0,
+          "gpio_level": 0,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-0-gpio-1",
+          "cause": 0,
+          "gpio_level": 1,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-3-gpio-0",
+          "cause": 3,
+          "gpio_level": 0,
+          "boot_cable_flag": 1,
+          "gpio_reads": [
+            1
+          ],
+          "gpio_configs": [
+            [
+              2,
+              0,
+              1,
+              1,
+              0,
+              0
+            ]
+          ]
+        },
+        {
+          "group": "entry",
+          "name": "cause-3-gpio-1",
+          "cause": 3,
+          "gpio_level": 1,
+          "boot_cable_flag": 0,
+          "gpio_reads": [
+            1
+          ],
+          "gpio_configs": [
+            [
+              2,
+              0,
+              1,
+              1,
+              0,
+              0
+            ]
+          ]
+        },
+        {
+          "group": "entry",
+          "name": "cause-4-gpio-0",
+          "cause": 4,
+          "gpio_level": 0,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "entry",
+          "name": "cause-4-gpio-1",
+          "cause": 4,
+          "gpio_level": 1,
+          "boot_cable_flag": 0,
+          "gpio_reads": [],
+          "gpio_configs": []
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-0-marker-0",
+          "cause": 0,
+          "gpio_level": 0,
+          "initial_marker": 0,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-0-marker-1",
+          "cause": 0,
+          "gpio_level": 0,
+          "initial_marker": 1,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 1
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-1-marker-0",
+          "cause": 0,
+          "gpio_level": 1,
+          "initial_marker": 0,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-0-gpio-1-marker-1",
+          "cause": 0,
+          "gpio_level": 1,
+          "initial_marker": 1,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 1
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-0-marker-0",
+          "cause": 3,
+          "gpio_level": 0,
+          "initial_marker": 0,
+          "boot_cable_flag": 1,
+          "background_tasks": [
+            "bg_init_charging"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-0-marker-1",
+          "cause": 3,
+          "gpio_level": 0,
+          "initial_marker": 1,
+          "boot_cable_flag": 1,
+          "background_tasks": [
+            "bg_init_charging"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": null
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-1-marker-0",
+          "cause": 3,
+          "gpio_level": 1,
+          "initial_marker": 0,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": 0
+        },
+        {
+          "group": "main",
+          "name": "cause-3-gpio-1-marker-1",
+          "cause": 3,
+          "gpio_level": 1,
+          "initial_marker": 1,
+          "boot_cable_flag": 0,
+          "background_tasks": [
+            "bg_init_wake"
+          ],
+          "outcome": "idle_wait",
+          "persisted_marker": null
+        },
+        {
+          "group": "main",
+          "name": "sleep-arrives-during-admitted-press",
+          "outcome": "record_wrapper",
+          "pending_sleep": 1
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Entry cases stop before system-manager initialization; main cases use controlled existing-user/ready-service predicates.",
+    "All external task/network/display/NVS helpers are stubs; only the selected classifier, entry and main instructions execute.",
+    "The marker store is synthetic; no NVS data is read or changed.",
+    "Main cases cover cold/EXT1 admission, not timer/setup/render/OTA paths or complete lifecycle equivalence.",
+    "The recording checkpoint is the outer wrapper; voice-enabled checks and microphone startup remain inside it.",
+    "No boot-pin measurement or battery-calibration/root-cause experiment occurred."
+  ],
+  "wake_source_calls": {
+    "evidence": "Six bounded GNU ranges checked byte-for-byte against pinned app segments; call arguments tracked across literal register operations",
+    "ranges": [
+      {
+        "model": "large",
+        "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+        "context": "entry",
+        "start": "0x420145c4",
+        "end_exclusive": "0x420145cd",
+        "instructions": 4,
+        "calls": [
+          {
+            "site": "0x420145ca",
+            "operation": "enable_ext1",
+            "mask_low": 4,
+            "mask_high": 0,
+            "mode": 0
+          }
+        ]
+      },
+      {
+        "model": "large",
+        "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+        "context": "ordinary_sleep",
+        "start": "0x42012672",
+        "end_exclusive": "0x42012681",
+        "instructions": 6,
+        "calls": [
+          {
+            "site": "0x42012674",
+            "operation": "disable_all",
+            "argument": 1
+          },
+          {
+            "site": "0x4201267e",
+            "operation": "enable_ext1",
+            "mask_low": 4,
+            "mask_high": 0,
+            "mode": 0
+          }
+        ]
+      },
+      {
+        "model": "large",
+        "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+        "context": "storage_sleep",
+        "start": "0x42010813",
+        "end_exclusive": "0x42010822",
+        "instructions": 6,
+        "calls": [
+          {
+            "site": "0x42010815",
+            "operation": "disable_all",
+            "argument": 1
+          },
+          {
+            "site": "0x4201081f",
+            "operation": "enable_ext1",
+            "mask_low": 4,
+            "mask_high": 0,
+            "mode": 0
+          }
+        ]
+      },
+      {
+        "model": "standard",
+        "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+        "context": "entry",
+        "start": "0x420145e4",
+        "end_exclusive": "0x420145ed",
+        "instructions": 4,
+        "calls": [
+          {
+            "site": "0x420145ea",
+            "operation": "enable_ext1",
+            "mask_low": 6,
+            "mask_high": 0,
+            "mode": 0
+          }
+        ]
+      },
+      {
+        "model": "standard",
+        "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+        "context": "ordinary_sleep",
+        "start": "0x420125d2",
+        "end_exclusive": "0x420125e1",
+        "instructions": 6,
+        "calls": [
+          {
+            "site": "0x420125d4",
+            "operation": "disable_all",
+            "argument": 1
+          },
+          {
+            "site": "0x420125de",
+            "operation": "enable_ext1",
+            "mask_low": 6,
+            "mask_high": 0,
+            "mode": 0
+          }
+        ]
+      },
+      {
+        "model": "standard",
+        "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+        "context": "storage_sleep",
+        "start": "0x42010f57",
+        "end_exclusive": "0x42010f66",
+        "instructions": 6,
+        "calls": [
+          {
+            "site": "0x42010f59",
+            "operation": "disable_all",
+            "argument": 1
+          },
+          {
+            "site": "0x42010f63",
+            "operation": "enable_ext1",
+            "mask_low": 6,
+            "mask_high": 0,
+            "mode": 0
+          }
+        ]
+      }
+    ],
+    "limits": "Setter calls are not hardware readback. Complete sleep functions are not claimed; their deep-sleep calls are nonreturning."
+  }
+}

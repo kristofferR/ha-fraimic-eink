@@ -76,10 +76,12 @@ implementation is authorized merely by an unchecked box.
 ## Available next work
 
 The owner requested continued firmware/device analysis and deferred A07's
-provider choice. The S06/E01/E02 physical-input pass is complete: both-build
-gesture/held-input and monitor-lifecycle cases are documented. Continue the
-decision-relevant boot/wake admission comparison under S06/E01/E02; no live test
-or provider work is needed for that pass.
+provider choice. The S06/E01/E02 physical-input and boot/wake admission passes
+are complete: both-build gesture/held-input, monitor lifetime, marker/cable
+classification and final wake masks are documented. The caller trace resolves
+the earlier open pending-sleep admission question; physical behavior remains
+deferred. Further E01/E02 work should address a concrete remaining device or
+firmware claim rather than repeat these completed cases.
 D03's ownership-versus-snapshot memory evaluation is complete. H03's static
 audio-path audit, H04's controller-command audit and H05's registration/diagnostic
 reconciliation are complete; their physical criteria
@@ -472,6 +474,7 @@ Commit and push validated research batches periodically as requested.
   - [x] **Static:** Map lifecycle, network/display shutdown ordering and final wake-source reset. [Shutdown](boot-and-scheduling.md#pre-sleep-ordering-and-outstanding-work).
   - [x] **Device:** Preserve USB-powered reachability and separate earlier factory-test sleep evidence. [Observed scope](validation-2026-10-21.md#later-awake-read-s05s06h05h07).
   - [x] **Static/Host:** Compare seven input/clock/monitor/control function pairs and execute 33 bounded instruction cases per build: tap/quiet windows, held-input admission, single-result overwrites and start/stop failure states. [Input audit](input-and-gestures.md), [cases](button-input-cases.json), [validation](validation-2026-10-22.md#button-input-and-gesture-cases-s06e01e02). Physical transitions remain deferred.
+    The follow-up adds 26 boot/classifier/main-admission cases per build and six byte-checked wake-mask ranges: [boot classification](boot-and-scheduling.md#boot-classification-and-first-recording-admission), [results](wake-admission-cases.json), [validation](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02). This extends the completed static milestone without closing its physical parent.
   - [ ] **Deferred:** **Device:** Measure normal/button/charger/maintenance/album/setup/factory transitions and HTTP windows without treating factory sleep as normal idle behavior.
 
 - [ ] **S07 · Host/Device:** Validate a local pull playlist with wake-only scheduling,
@@ -754,7 +757,7 @@ Commit and push validated research batches periodically as requested.
 
   Status: **Ongoing**.
 
-  - [x] **Static:** Correct consequential Ghidra truncations, missing task entries and generic-Xtensa decoding with pinned bytes/GNU control flow. [Method](evidence-and-open-questions.md#method-and-private-artifacts). The response-cache follow-up adds two complete cleanup pairs and twelve bounded allocation cases: [evidence](validation-2026-10-22.md#response-cache-allocation-and-cleanup-e01e02).
+  - [x] **Static:** Correct consequential Ghidra truncations, missing task entries and generic-Xtensa decoding with pinned bytes/GNU control flow. [Method](evidence-and-open-questions.md#method-and-private-artifacts). The response-cache follow-up adds two complete cleanup pairs and twelve bounded allocation cases: [evidence](validation-2026-10-22.md#response-cache-allocation-and-cleanup-e01e02). Both boot/main bodies are now recovered for bounded wake admission; sleep coverage stops at its nonreturning boundary: [wake evidence](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02).
   - [ ] **Next:** **Static:** Audit unresolved claims used by the next implementation decision. Track each concrete missing call/body/type in its owning item; do not reopen completed work merely because more library code exists.
 
 - [ ] **E02 · Static/Device:** Compare each relevant finding with other firmware

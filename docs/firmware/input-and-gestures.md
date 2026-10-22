@@ -138,8 +138,11 @@ eventually be admitted without an intervening release.
 Pending sleep, server work, safe OTA and idle checks are in the outer wait loop,
 not in the inner release wait. A simulated sleep request arriving during that
 release wait remains pending when the handler returns recording admission.
-The caller can still check state afterward; this finding does not prove the
-complete main loop will record instead of sleeping.
+The [main-loop follow-up](boot-and-scheduling.md#boot-classification-and-first-recording-admission)
+now traces the caller on both builds: with the selected existing-user predicates,
+it reaches the outer recording wrapper with sleep still pending. That wrapper
+still checks voice enablement and capture can fail. These combined host cases
+establish an admission path, not an observed recording/sleep race.
 
 Keep these separate boundaries in a custom firmware design: physical wake,
 new recording admission, recording stop/cancel and processing cancel. A backend

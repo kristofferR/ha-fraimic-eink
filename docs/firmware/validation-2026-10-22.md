@@ -3336,3 +3336,62 @@ open. [Findings and design implications](input-and-gestures.md).
 | `button-instruction-cases.mjs` | `d3658f112d1ee620332d2079629855ed7b9122365ce199a91810d1512080b903` |
 | `button-instruction-results.json` | `6ef661e3b6697e2a5e5c53eb74db0ab908c69f91861a097a81e884542da653c6` |
 | `button-input-cases.public.json` | `e05cb01b35698ec22d4dbf43d21b09500938603cc12d42a31961e727e5335be3` |
+
+## Boot wake classification and admission: S06/E01/E02
+
+Recovered the classifier, application entry and main-loop control flow on both
+pinned builds, checking every listed instruction against the original image
+segments. Large has 2,991 instructions in 60 ranges across these three bodies;
+Standard has 3,066 in 61. Only the classifier is claimed as a matching body:
+82 instructions, ten branches, two ranges, five direct-call pairs and ten literal
+pairs. Entry and main intentionally differ. SDK/external helper body equivalence
+is not implied by their mapped addresses.
+
+The [instruction ledger](wake-admission-cases.json) records **26 cases per model**:
+eleven classifier/marker cases, six entry cause/GPIO cases, eight existing-user
+main-admission cases and one pending-sleep admission case. They execute 452
+distinct Large and 566 Standard instructions. The fixture interprets selected
+GNU instructions with synthetic memory, NVS, GPIO, task creation and readiness;
+external helpers are explicitly stubbed. It asserts classifier output, modeled
+marker retention/removal, sampled GPIOs, boot flags, selected background task,
+idle entry and pending sleep at the outer recording wrapper. Main cases do not
+execute the idle input handler itself: its return and sleep flag are injected,
+building on the separate input cases rather than claiming whole-program emulation.
+
+The flag-reference census finds three direct references/three pointer uses on
+Large and six/five on Standard, all within the byte-checked bodies. A separate
+scan of initialized image segments finds one exact pointer per flag. This
+excludes synthetic ELF symbols but does not exclude arbitrary computed aliases.
+The GPIO setup words are resolved using the pinned SDK structure/enum definitions
+linked in the [boot findings](boot-and-scheduling.md#boot-classification-and-first-recording-admission).
+
+Six further bounded GNU ranges contain 32 instructions for the entry, normal
+sleep and storage-sleep wake setters. Their bytes and argument-register values
+are checked independently. Both final sleep paths clear prior wake sources, then
+request mask 4 on Large or 6 on Standard, high word zero, EXT1 mode zero. These
+are call arguments, not readback of successful hardware configuration.
+
+Ghidra's Standard pre-sleep export incorrectly includes the subsequent maintenance
+code after the nonreturning call at `0x42012653`. An attempted full CFG recovery
+reported an unterminated path in that merged continuation; it is not presented
+as a successful whole-sleep recovery. The final wake-call check uses the exact
+bounded range `0x420125d2`–`0x420125e1` (exclusive), before that boundary, with
+the storage and entry ranges recorded separately. The analogous Large boundary
+was already documented in the shutdown pass.
+
+No device query, recording, network change, sleep experiment, firmware write or
+HA deployment occurred. S06's physical requirement remains open. The results
+extend existing completed static milestones under ongoing E01/E02; checklist
+totals remain **12/67 items and 124/188 milestones**.
+
+Private reproducibility hashes; only sanitized numeric results are published:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `compare-wake-classifier.mjs` | `d3e0473cfd2b99152ebeafb77f1aa47610a0c0e2423a7b3ea63b5702c22ffa81` |
+| `standard-wake-classifier-comparison.json` | `a98e3a9d82eaa6673ae2bf22f10b8017cb0e90d2a5d65d5f3ebcb11367b8a331` |
+| `wake-instruction-cases.mjs` | `b37440e0c2c9035a957b744853336c8747418a28d0924bb219aa24a5aca0de7f` |
+| `wake-instruction-results.json` | `722266bcce498019206ad6c524ba05fe34ac7b4945e92031823ace43d2ed58b7` |
+| `wake-final-mask-audit.mjs` | `b46a4128b879389a608de0b0bce7028508f558dc7b9f29f87e5901912a763354` |
+| `wake-final-mask-results.json` | `65fa8908fc9cf36be367ce91100856fed450bada3ccfc3872c7e92e3aac63108` |
+| `wake-admission-cases.public.json` | `c35c43001741aa64c9ba00cc5fac219b9b6cf50edb0a11d969459253c6bab1b3` |
