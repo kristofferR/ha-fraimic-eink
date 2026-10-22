@@ -3239,3 +3239,47 @@ constraints remain open.
 | `panel-command-reference-audit.combined.json` | `e029a7e0ee20ef37e740d7c591b524bf2d64092f98bde376f52f8feb5a5a68d3` |
 | `catalog-panel-commands.mjs` | `7584d136249e0abde0a747896922315111b1f97a72949bfa204a6bf03e545a38` |
 | `panel-command-coverage.public.json` | `9851281d1a37b92d9a3aabb9dd965401705f52ef341c9e627ea7ecc8f6aa0a80` |
+
+## Buffer memory evaluation: D03
+
+The extractor reads thirty **already captured** files, strips HTML and accepts
+only selected numeric heap/header-allocation fields. Eight files contain those
+fields. Their overlapping current/previous history is not a set of independent
+experiments. The [public numeric ledger](buffer-memory-evaluation.json) records
+the matched source hashes and observations; it includes no raw log text,
+credentials or signed URLs.
+
+The host evaluation verifies the free/largest-block bounds, groups equal pairs
+per model and computes four copy budgets: one image and a maximum-capacity WAV
+for each build. It rejects an unexpected additional memory state rather than
+silently choosing a convenient sample. Large's image deficit is 956,812 bytes
+against total free and 960,512 against the largest block. Standard has positive
+image margins, but both maximum-WAV-copy budgets fail against total free. These
+are arithmetic comparisons, not native allocator, Xtensa or RTOS executions.
+
+Saved allocation logs corroborate the streaming sender's header-only allocation:
+163-byte Large examples and a 3,937-byte Standard vendor example. The `Need`
+value includes the WAV body; the actual allocation is encoded length minus WAV
+length plus one. This interpretation uses the previously byte-checked multipart
+sender, not a newly executed firmware branch.
+
+The matching SDK heap header distinguishes total space, the largest allocatable
+block and per-region low-watermark aggregation. The
+[design evaluation](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)
+therefore keeps internal/DMA resources separate, requires producer admission
+before writes, retains ownership through all source readers and worker shutdown,
+and serializes panel descriptors/pins independently of the image allocation.
+
+D03 closes the bounded ownership-versus-copy recommendation. No frame was woken,
+queried or changed; no live heap profiling, stress test, allocation experiment,
+implementation or deployment occurred. Positive Standard headroom is not a
+certified load budget, and none of these readings isolates the captured TLS
+allocation failure. Optional snapshots still require fresh per-capability
+profiling before implementation decisions depend on them.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `extract-memory-observations.mjs` | `8b07e55f802d2eb8621ac9d4e7c909dc65ea9a918b0494e6fa7056ce75f6b089` |
+| `memory-observations.private.json` | `bbee8600ceb349eb2cea2d46b67feacfb18cd8b5c4d94e177448f323a9c4bf2f` |
+| `evaluate-buffer-memory.mjs` | `a7a32a75dc735d3ca85f05f519f43f7dba75843a424273d555adb00360a19c49` |
+| `buffer-memory-evaluation.public.json` | `af950c146a68f9261618635d1abd48a2c0563cd21a0a5e92591ebdbf167a263e` |

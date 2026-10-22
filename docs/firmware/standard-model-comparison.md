@@ -60,6 +60,14 @@ privately to the owner. Neither device was switched to development mode; the
 [detailed transition and error-path trace](storage-and-configuration.md#vendor-environment-switch)
 is for Large unless explicitly stated otherwise.
 
+### Saved memory states constrain extra buffers
+
+The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)
+also differs by model. Saved Standard logs report 2,100,716 free PSRAM bytes and
+a 2,097,152-byte largest block, sufficient in that recorded state to not exclude
+an additional 960,000-byte image. Large's saved state excludes its larger image
+copy. Neither result is an allocation/stress test or a reason to remove ownership.
+
 ### Controller commands remain model-specific
 
 The [panel-command audit](rendering-and-concurrency.md#controller-commands-and-waveform-limits)

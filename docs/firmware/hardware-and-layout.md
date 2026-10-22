@@ -253,3 +253,9 @@ and ordering are confirmed; a deliberate concurrent-corruption experiment was
 not performed. A firmware fork needs one explicit owner for the buffer, or a
 carefully budgeted separate allocation. A backend-only scheduler cannot enforce
 every local HTTP entry point's buffer ownership.
+
+The [saved-memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)
+now quantifies the choice for both models: the observed Large free PSRAM cannot
+hold another full image; Standard's observed largest block does not exclude one.
+Neither sample fits another maximum-capacity WAV. Explicit ownership is the
+recommended default; snapshot allocation under load remains untested.

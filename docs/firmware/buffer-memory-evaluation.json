@@ -1,0 +1,254 @@
+{
+  "evidence": "Host arithmetic over numeric fields extracted from saved device captures; no new device request or allocator execution",
+  "input_sha256": "bbee8600ceb349eb2cea2d46b67feacfb18cd8b5c4d94e177448f323a9c4bf2f",
+  "files_examined": 30,
+  "files_with_selected_memory_observations": 8,
+  "models": [
+    {
+      "model": "large",
+      "image_bytes": 2304000,
+      "wav_capacity_bytes": 2120000,
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "sample": {
+        "free_bytes": 1347188,
+        "largest_block_bytes": 1343488
+      },
+      "free_bytes_outside_largest_block": 3700,
+      "alternatives": [
+        {
+          "name": "extra_full_image_copy",
+          "required_bytes": 2304000,
+          "free_bytes_minus_request": -956812,
+          "largest_block_minus_request": -960512,
+          "conclusion": "insufficient_total_in_observed_state"
+        },
+        {
+          "name": "extra_maximum_wav_copy",
+          "required_bytes": 2120000,
+          "free_bytes_minus_request": -772812,
+          "largest_block_minus_request": -776512,
+          "conclusion": "insufficient_total_in_observed_state"
+        }
+      ],
+      "exclusive_ownership": {
+        "additional_full_image_or_wav_payload_bytes": 0,
+        "note": "Existing task, descriptor, transport, conditioning and DMA resources still need their own budget; zero is not the total operation cost"
+      },
+      "source_records": [
+        {
+          "model": "large",
+          "source": "awake-logs-auth-private.html",
+          "source_sha256": "f20b58080cd4e645b30b244f1c9c2770fd382df883bb20a5423e0dfde6d4458c",
+          "observations": [
+            {
+              "kind": "psram_before_form_headers",
+              "free_bytes": 1347188,
+              "largest_block_bytes": 1343488,
+              "logged_multipart_bytes": 159950
+            },
+            {
+              "kind": "form_headers_allocated",
+              "header_allocation_bytes": 163,
+              "wav_bytes_not_copied": 159788
+            },
+            {
+              "kind": "psram_heap",
+              "free_bytes": 1347188,
+              "minimum_ever_free_bytes": 1203904
+            },
+            {
+              "kind": "internal_heap",
+              "free_bytes": 66687,
+              "minimum_ever_free_bytes": 25523
+            }
+          ]
+        },
+        {
+          "model": "large",
+          "source": "image-test-logs-private.html",
+          "source_sha256": "e4b67019debd96b9392378234d843e7028eeb6748d469005e3f4769bea0ec4bf",
+          "observations": [
+            {
+              "kind": "psram_before_form_headers",
+              "free_bytes": 1347188,
+              "largest_block_bytes": 1343488,
+              "logged_multipart_bytes": 200910
+            },
+            {
+              "kind": "form_headers_allocated",
+              "header_allocation_bytes": 163,
+              "wav_bytes_not_copied": 200748
+            }
+          ]
+        },
+        {
+          "model": "large",
+          "source": "voice-image-logs-private.html",
+          "source_sha256": "2cbf5acb17298f809c40c0999511ae1659a3bca358d7dbd4296331c918571d61",
+          "observations": [
+            {
+              "kind": "psram_before_form_headers",
+              "free_bytes": 1347188,
+              "largest_block_bytes": 1343488,
+              "logged_multipart_bytes": 159950
+            },
+            {
+              "kind": "form_headers_allocated",
+              "header_allocation_bytes": 163,
+              "wav_bytes_not_copied": 159788
+            },
+            {
+              "kind": "psram_heap",
+              "free_bytes": 1347188,
+              "minimum_ever_free_bytes": 1203904
+            },
+            {
+              "kind": "internal_heap",
+              "free_bytes": 66687,
+              "minimum_ever_free_bytes": 25523
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_bytes": 960000,
+      "wav_capacity_bytes": 2120000,
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "sample": {
+        "free_bytes": 2100716,
+        "largest_block_bytes": 2097152
+      },
+      "free_bytes_outside_largest_block": 3564,
+      "alternatives": [
+        {
+          "name": "extra_full_image_copy",
+          "required_bytes": 960000,
+          "free_bytes_minus_request": 1140716,
+          "largest_block_minus_request": 1137152,
+          "conclusion": "not_excluded_by_reported_single_block; allocation_and_runtime_margin_not_tested"
+        },
+        {
+          "name": "extra_maximum_wav_copy",
+          "required_bytes": 2120000,
+          "free_bytes_minus_request": -19284,
+          "largest_block_minus_request": -22848,
+          "conclusion": "insufficient_total_in_observed_state"
+        }
+      ],
+      "exclusive_ownership": {
+        "additional_full_image_or_wav_payload_bytes": 0,
+        "note": "Existing task, descriptor, transport, conditioning and DMA resources still need their own budget; zero is not the total operation cost"
+      },
+      "source_records": [
+        {
+          "model": "standard",
+          "source": "latest-logs.private.html",
+          "source_sha256": "442e812f8371b00868bcff747bce55683021503c314ac79f59ca96bc4393ab89",
+          "observations": [
+            {
+              "kind": "psram_heap",
+              "free_bytes": 2100716,
+              "minimum_ever_free_bytes": 2100516
+            },
+            {
+              "kind": "internal_heap",
+              "free_bytes": 68883,
+              "minimum_ever_free_bytes": 53071
+            }
+          ]
+        },
+        {
+          "model": "standard",
+          "source": "logs-check.private.html",
+          "source_sha256": "074697027b80cd95f1e6d73dd48ce5c8e2ddad182f998bf7477be5d2b008a23c",
+          "observations": [
+            {
+              "kind": "psram_heap",
+              "free_bytes": 2100716,
+              "minimum_ever_free_bytes": 2100516
+            },
+            {
+              "kind": "internal_heap",
+              "free_bytes": 68883,
+              "minimum_ever_free_bytes": 53071
+            }
+          ]
+        },
+        {
+          "model": "standard",
+          "source": "restart-logs.private.html",
+          "source_sha256": "5e3d214e571aa73a53a5959c08d6da6bbc4b03f3376bacb8227127264bfafd73",
+          "observations": [
+            {
+              "kind": "psram_heap",
+              "free_bytes": 2100716,
+              "minimum_ever_free_bytes": 2100516
+            },
+            {
+              "kind": "internal_heap",
+              "free_bytes": 68883,
+              "minimum_ever_free_bytes": 53071
+            }
+          ]
+        },
+        {
+          "model": "standard",
+          "source": "voice-complete.private.html",
+          "source_sha256": "344b5cf1f8a33f724291a57a22082478fc54daf17fc99e5792a1fc85bc4203fc",
+          "observations": [
+            {
+              "kind": "psram_before_form_headers",
+              "free_bytes": 2100716,
+              "largest_block_bytes": 2097152,
+              "logged_multipart_bytes": 196492
+            },
+            {
+              "kind": "form_headers_allocated",
+              "header_allocation_bytes": 3937,
+              "wav_bytes_not_copied": 192556
+            },
+            {
+              "kind": "psram_heap",
+              "free_bytes": 2100716,
+              "minimum_ever_free_bytes": 2022568
+            },
+            {
+              "kind": "internal_heap",
+              "free_bytes": 62487,
+              "minimum_ever_free_bytes": 34351
+            }
+          ]
+        },
+        {
+          "model": "standard",
+          "source": "voice-result.private.html",
+          "source_sha256": "22c5435354666eb78982b79ad3dc50485642b6db59bea270acafd0f53c05d692",
+          "observations": [
+            {
+              "kind": "psram_before_form_headers",
+              "free_bytes": 2100716,
+              "largest_block_bytes": 2097152,
+              "logged_multipart_bytes": 196492
+            },
+            {
+              "kind": "form_headers_allocated",
+              "header_allocation_bytes": 3937,
+              "wav_bytes_not_copied": 192556
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Archived snapshots overlap and may include previous-boot history; source occurrences are not independent trials.",
+    "Total free and largest block are logged separate getter reads, not an atomic heap reservation or full topology.",
+    "Free-minus-largest is an aggregate difference, not a measured count of holes or allocation-failure rate.",
+    "Low-watermark totals can combine per-region minima reached at different times; they do not identify a TLS failure cause.",
+    "Positive arithmetic margin does not establish concurrent allocation, sustained load, safe reserve or physical correctness.",
+    "Internal/DMA-capable RAM is separate from the reported PSRAM pool.",
+    "No live heap profiling, stress test, firmware patch, HA implementation or deployment occurred."
+  ]
+}

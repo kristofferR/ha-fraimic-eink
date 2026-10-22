@@ -123,9 +123,9 @@ of future chunks. Keep ownership through the final consumer.
 
 The application chunk loop also overwrites its error result on later transfers,
 so an earlier error can be hidden by a later success. Its caller logs the final
-result without returning a failure to the worker. Fault injection and real
-free-memory/fragmentation measurements are still needed before choosing between
-exclusive ownership and a separate full snapshot (D03/D06).
+result without returning a failure to the worker. The [saved-memory evaluation](#exclusive-ownership-versus-a-snapshot)
+supports exclusive ownership as the fork's default. A snapshot optimization still
+needs live allocation/pressure validation; driver-fault outcomes remain D06.
 
 ### DMA staging protects only the current chunk
 
@@ -194,13 +194,80 @@ The existing render-busy policy is not this low-level lock. This identifies the
 required boundary; it does not demonstrate that stock tasks have collided on
 the physical frame or exhaust every higher-level caller's exclusion rules.
 
-**Observed sample:** immediately before multipart streaming in the successful
-fixed-image voice test, firmware reported 1,347,188 bytes of free PSRAM and a
-largest block of 1,343,488 bytes. The streaming headers needed only 163 bytes;
-the 159,788-byte WAV remained in the shared allocation. A second 2,304,000-byte
-panel snapshot would not fit in that reported free PSRAM. This is one allocation
-state, not a peak-memory, fragmentation or stress study. Buffer isolation would
-need a broader allocation/lifetime redesign or a smaller staging strategy.
+### Exclusive ownership versus a snapshot
+
+**Read/Host/Design.** Numeric extraction from thirty saved capture files found
+the selected memory fields in eight. The snapshots overlap and can include
+previous-boot history; they are not eight independent trials. The
+[memory ledger](buffer-memory-evaluation.json) preserves source hashes, numeric
+observations and arithmetic without raw logs. No new device read was needed.
+
+| Reported PSRAM state / proposed extra payload | Large | Standard |
+| --- | --- | --- |
+| Free bytes before multipart header allocation | 1,347,188 | 2,100,716 |
+| Largest allocatable block reported there | 1,343,488 | 2,097,152 |
+| Free bytes outside that largest block | 3,700 | 3,564 |
+| Additional full image | 2,304,000 | 960,000 |
+| Total free minus that image | **−956,812** | +1,140,716 |
+| Largest block minus that image | **−960,512** | +1,137,152 |
+| Additional maximum-capacity WAV copy | 2,120,000 | 2,120,000 |
+| Total free minus that WAV copy | **−772,812** | **−19,284** |
+
+Large fails the extra-image budget even before considering fragmentation or
+other allocations. Standard's sample does not exclude one extra image, but no
+such allocation was attempted. Both samples exclude an extra maximum-capacity
+WAV copy. A short observed recording fitting in memory would not establish that
+all supported recording lengths can be copied.
+
+The free-minus-largest difference is not a count of holes or a stress metric.
+The getters are separate reads, not an atomic reservation. ESP-IDF's
+[capability-aware heap API](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/heap/include/esp_heap_caps.h)
+distinguishes total free space from the largest single allocation; its minimum
+free value aggregates per-region low watermarks that can occur at different
+times. Saved internal-memory low-watermark values include 25,523 bytes on Large
+and 34,351 bytes in Standard's completed-voice log. Those values neither measure
+the largest DMA block nor identify the cause of the earlier TLS setup failure.
+TLS/internal allocations and the 4,800-byte DMA staging block need a separate
+budget from PSRAM.
+
+One log label also overstates the imminent allocation: multipart `Need` is the
+whole encoded body length. The recovered sender allocates only
+`multipart length − WAV length + 1` bytes for headers, then streams the existing
+WAV. Saved Large examples report 163-byte header allocations; the Standard vendor
+upload reports 3,937 bytes because it has additional form fields. Do not budget
+another full WAV merely from that `Need` label, or treat streaming as a WAV copy.
+
+**Design recommendation:** use explicit exclusive ownership, with no additional
+full-image or full-WAV payload allocation required by the ownership mechanism.
+Existing tasks, transport, conditioning and DMA allocations still cost memory.
+The ownership boundary must cover these phases:
+
+1. Acquire the relevant buffer before a producer's first write, including local
+   HTTP reception, cloud image reads, recording and status-artwork expansion.
+2. Keep captured audio immutable while any upload worker can read it. A cancel
+   request or timeout alone cannot return the lease; the worker must finish or
+   acknowledge that it no longer accesses the buffer.
+3. Keep an image stable through every source consumer, including all SPI chunks
+   and cache writes. Successful completion of the final SPI read alone does not
+   release a pending cache consumer. Use a job/owner identity so an old task cannot
+   release a new task's lease.
+4. Separately serialize the complete panel operation, including controller/DC
+   selection, shared descriptors, conditioning and power cleanup. A copied image
+   would not solve those shared-driver resources.
+
+For a first fork, keeping image ownership through the joined render/cache
+operation is simpler than releasing it early. Standard can retain its separate
+audio and image allocations, with one owner for each. A backend can queue pending
+originals on the host, but cannot enforce these rules on stock local HTTP/button
+paths. A future snapshot must lock its source during the copy and still share
+the panel owner. Per-chunk staging alone leaves unsent bytes exposed.
+
+This closes D03's bounded design comparison using measured saved states and the
+recovered consumption lifetime. It does not certify a new allocator, sustained
+load margin or implementation. Before choosing an optional snapshot, profile the
+correct capability pools and largest blocks across boot, capture, TLS upload,
+download, conditioning, render and cancellation, and handle allocation failure
+without releasing a live owner's buffer.
 
 ## Conditioning adds full-panel clear cycles
 

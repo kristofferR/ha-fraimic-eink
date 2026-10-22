@@ -9,20 +9,20 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**11 of 67 original items complete; 122 of 187 concrete milestones complete.**
+**12 of 67 original items complete; 123 of 187 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
-| Complete | 11 | Original bounded question answered; evidence linked below |
-| Research | 2 | Concrete static, host or design work remains available |
+| Complete | 12 | Original bounded question answered; evidence linked below |
+| Research | 1 | Concrete static, host or design work remains available |
 | Waiting for device | 27 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 9 | Owner-postponed work; do not resume automatically |
 | Ongoing | 2 | Evidence discipline applied to relevant findings/builds, not a finite feature |
 
-Completed original items: **C01, C05, C09, C10, A01, A05, R11, D01, N02, H07, E03**. The reconciliation closed
+Completed original items: **C01, C05, C09, C10, A01, A05, R11, D01, D03, N02, H07, E03**. The reconciliation closed
 C05, C10, R11 and E03 from evidence already gathered; it adds no new device tests.
 The latest 31 finalize cases are recorded under C07, whose end-to-end physical
 timeout criterion remains unchecked.
@@ -36,6 +36,9 @@ limits. Installed NVS and physical recovery remain separate criteria.
 D01 subsequently closed with the buffer-reference census, transport callback
 teardown and task-local registration audit. Physical corruption and cleanup
 outcomes remain separate deferred tests.
+D03 subsequently closed with the saved-memory/contiguous-block comparison and
+explicit ownership recommendation. This is a bounded design evaluation, not
+validation of a firmware patch or sustained heap-pressure experiment.
 
 ## How to use this list
 
@@ -71,7 +74,8 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-Continue with D03's ownership-versus-snapshot memory evaluation. H03's static
+The remaining available design decision is A07's provider/interaction choice.
+D03's ownership-versus-snapshot memory evaluation is complete. H03's static
 audio-path audit, H04's controller-command audit and H05's registration/diagnostic
 reconciliation are complete; their physical criteria
 remain deferred. A07's [feature proposal](voice-feature-proposal.md)
@@ -497,15 +501,15 @@ Commit and push validated research batches periodically as requested.
   - [x] **Host:** Execute eleven synthetic memory-copy scenarios at recovered sizes/offsets, with exact changed ranges, DMA-stage behavior, WAV structure checks and separate Standard allocation controls. [Byte-level evidence and limits](rendering-and-concurrency.md#byte-level-overlap-fixture-and-model-controls).
   - [ ] **Deferred:** **Device:** Validate an approved overlap scenario physically; static missing guards alone are not an observed failure.
 
-- [ ] **D03 · Static/Host:** Verify SPI/DMA consumption and completion semantics to
+- [x] **D03 · Static/Host:** Verify SPI/DMA consumption and completion semantics to
   establish when the source bytes can be released. Evaluate exclusive ownership
   versus a real snapshot against measured free memory and fragmentation.
 
-  Status: **Research**.
+  Status: **Complete**.
 
   - [x] **Static:** Establish blocking source consumption and per-chunk DMA staging/release. [DMA](rendering-and-concurrency.md#dma-staging-protects-only-the-current-chunk).
   - [x] **Read:** Compare observed free PSRAM with the size of a full Large snapshot. [Memory boundary](hardware-and-layout.md#one-psram-buffer-serves-audio-and-images).
-  - [ ] **Next:** **Host/Design:** Evaluate exclusive ownership versus snapshot allocation under measured fragmentation/pressure; do not infer a second full buffer from nominal PSRAM capacity.
+  - [x] **Read/Host/Design:** Evaluate both models using saved free/largest-block readings; Large cannot fit an extra image and neither sample fits a maximum WAV copy. Recommend explicit ownership, retain separate internal/DMA budgets and state the untested load/allocator limits. [Evaluation](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot), [numeric ledger](buffer-memory-evaluation.json), [validation](validation-2026-10-22.md#buffer-memory-evaluation-d03).
 
 - [ ] **D04 · Host/Device:** Exercise WAIT/DROP, simultaneous producers, stuck worker,
   task-allocation failure and early render failure. Check busy flags, semaphore
