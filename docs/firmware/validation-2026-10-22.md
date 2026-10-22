@@ -2656,3 +2656,42 @@ design/host criterion is checked; physical durability waits for layout/recovery.
 | `cache-slots-results.jsonl` | `23eb1bc22717cabca1231d2773f048942370953f3875b585c8ec1a4c68a3cb66` |
 | Pinned `ff.c` | `b6511bc0102f42b941897cd9f96f75206b6851fedbebc6dcb17c220cb1d4bede` |
 | Pinned `ffconf.h` | `27e92e97b5744d7cd0b5e9e82a885601c8eb358fbf22f1a9baec0c1246bd7f3a` |
+
+## Wake-asset validation and recovery: N06
+
+Five complete Large GNU control-flow recoveries cover validator `0x42028ae8`
+(80 instructions), writer `0x42028bc8` (168), version decision `0x4202a968` (82),
+stamper `0x4202aa48` (56), and installer `0x4202aae0` (95). All 481 instruction
+encodings were rechecked against the hash-pinned app; the bodies cover twenty
+contiguous ranges. External filesystem/NVS helpers are not recursively executed
+or compared by this pass, and Standard equivalence is not claimed.
+
+Twenty-two assertions/scenarios passed through a Python 3.14 reconstruction on
+Omarchy using `uv run --no-project`. It creates disposable POSIX files at the
+actual 2,304,000-byte Large size, with synthetic valid/invalid palette patterns.
+It reconstructs installer decisions and uses actual reads/writes/unlinks while
+modeling allocation/read limits, NVS outcomes and reported sync/close failures.
+This is not binary, FAT, NVS or physical storage execution.
+
+The [case table](storage-and-configuration.md#wake-asset-validation-and-recovery-host-cases)
+records same-size corruption acceptance, forced version replacement, missing-key
+adoption, repair-triggering resource faults, failed post-write validation unlink,
+ignored return paths, repeated failed stamping and unavailable/lost-file states.
+The reported sync/close error cases assume complete bytes are already readable;
+they do not demonstrate actual durable storage after an I/O error. Missing
+version and file-loss cases stand in for installer inputs; they do not simulate
+the complete reset or filesystem-format process. Temporary directories were
+removed automatically. No vendor artwork is included in the fixture or docs.
+
+N06's host milestone is checked. Installing custom artwork and validating
+upgrade/reset persistence on hardware remain deferred with recovery prerequisites.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `check_wake_assets.py` | `2fc8dddfbed9c25e54b88f4aca148cd4b7074f3078899f1ec662b2c5de3831b3` |
+| `wake-assets-results.json` | `1894ef4ac89eef52fe97158e94a9017ed4fd19a258541d4aa7ddd8e5eba12498` |
+| `wake-validate-large-cfg.json` | `02ea04b38f126bafaee6aca2fc967d67cd9be9d70268c5eb8f9d244122e9926c` |
+| `wake-write-large-cfg.json` | `cf79058edda00edc3ddaf710984abf9fa5e71efb80e242cc231b35821362044b` |
+| `wake-version-large-cfg.json` | `8133fa3f21108494cc7fa12a537e911d6d37c3165a7a4c67702854b34cbdc5b7` |
+| `wake-stamp-large-cfg.json` | `c89fbd5b52f0077251050f1124121f4b418f196f0f304bc56b124f668b2f33ed` |
+| `wake-install-large-cfg.json` | `caba6795b3f4bcc370989732c8279d68b0fca5e43d68122200cfb128e3b9a55e` |

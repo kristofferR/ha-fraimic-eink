@@ -906,7 +906,49 @@ an `fsync` error is logged but does not by itself fail an otherwise readable,
 full-length result. Version stamper `0x4202aa48` checks the string write but
 ignores its commit result, and the installer does not propagate stamping errors.
 Successful installation logging therefore does not prove the version marker
-will survive reboot. These branches extend N04–N06; no filesystem fault was induced.
+will survive reboot. These branches extend N04–N06; no filesystem fault was
+induced on a frame.
+
+#### Wake-asset validation and recovery host cases
+
+Twenty-two Large-only cases now reconstruct the five validator/writer/version/
+stamper/installer routines over disposable host files. The complete GNU bodies
+cover 481 instructions and twenty ranges, checked against pinned image bytes.
+Synthetic fill patterns replace vendor artwork; read/allocation/NVS/sync/close
+fault returns are modeled. The host filesystem is POSIX, not the device FAT or
+wear-level layer.
+
+| Case | Reconstructed result |
+| --- | --- |
+| Current version, readable exact-size custom file | Keep it without stamping or rewriting |
+| Current version, exact-size bytes containing invalid palette nibble 4 | Still keep it; no palette/hash check |
+| Missing, short or oversized file | Replace with the synthetic embedded counterpart |
+| Different stored version | Remove legacy setup-screen caches and overwrite a valid custom file |
+| Missing version/read error, valid custom file | Remove legacy setup caches, adopt custom file and attempt a version stamp |
+| First validation read/allocation fails, second succeeds | Rewrite an otherwise valid custom file |
+| Allocation also fails after rewrite, or post-write read is short | Unlink the replacement and return failure |
+| Short write | Unlink partial replacement; previous wake contents already lost |
+| Opening replacement fails | Return failure while retaining the existing file |
+| Sync/close reports failure but complete bytes remain readable | Installer can return success through the unchecked return paths |
+| Version string write fails | Installation still reports success; a differing old version causes another rewrite next modeled boot |
+| Missing version stamp repeatedly fails, custom file remains valid | Re-adopt without rewriting on the next modeled pass |
+| Storage not ready | Return invalid-state; do not replace the file |
+| All relevant files were lost | Restore wake artwork only; no reconstruction of the last user image |
+
+The model's legacy-cache deletion preserves `last_image.bin`. Simulated missing
+version/file states describe inputs to the installer, not proof that a real reset
+or formatter produces exactly those inputs. No reset, NVS write, installed custom
+artwork, firmware upgrade, palette fault or format operation was performed.
+The same-size invalid-palette case is accepted by validation; it is **not** a
+claim that the panel will render those bytes correctly or safely.
+
+For a future fork, make an explicit distinction between absent/corrupt content
+and temporary read/resource failure. Validate model, exact length, palette and
+integrity before adoption, preserve a prior good copy during repair, and retain
+canonical custom artwork in HA for recovery. No stock endpoint for installing
+that wake file has been established. N06's host criterion is checked, with custom
+artwork/upgrade persistence still deferred behind recovery prerequisites.
+See [validation](validation-2026-10-22.md#wake-asset-validation-and-recovery-n06).
 
 ### Account/setup screens: fetched from the backend
 
