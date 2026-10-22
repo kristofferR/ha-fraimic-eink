@@ -524,6 +524,11 @@
         "default_status": "completed",
         "result_bytes": 1604,
         "header_time_offset_bytes": 1600,
+        "fetched_length_test": "signed low 32 bits greater than zero",
+        "body_read_precedes_status_rejection": true,
+        "cached_chunked_json_consumed": false,
+        "informational_response_grouping_matters": true,
+        "retry_after_schedules_retry": false,
         "handler_retries": false
       },
       "host_validation": {
@@ -532,9 +537,10 @@
           30000,
           600000
         ],
-        "finalize_parser_groups": 8
+        "finalize_parser_groups": 8,
+        "finalize_combined_http_json_cases": 31
       },
-      "limitations": "Host caller/parser behavior is reconstructed; external helpers are not recursively compared; no new device tests, HTTP fault injection, allocation failure or peer-receipt proof"
+      "limitations": "Application response branches are reconstructed around selected original SDK/parser/cJSON source; header storage/events, full cleanup and worker execution are omitted; external helpers are not recursively compared; no new device tests, allocation failure, concurrent cancellation or peer-receipt proof"
     },
     "voice_json_request_allocation": {
       "evidence": "Previously compared complete request callers plus seven matching cJSON ownership helpers; real pinned cJSON under reconstructed host callers and injected allocator failures",

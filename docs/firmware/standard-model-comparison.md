@@ -624,6 +624,12 @@ not validate a nonempty URL or consult `success`, `message` or a job ID. Its
 body. The handler has no application-level retry/status-polling loop. The outer
 voice worker's existing cancellation/lifetime rules still apply.
 
+The [31 combined HTTP/JSON cases](voice.md#finalize-http-status-framing-and-failure-ordering)
+use the already-compared finalize branch, with no additional function-pair
+count. They verify the body read before status rejection, skipped cached
+chunked JSON, informational-response read boundaries and signed-low-word
+length test. They are one host run, not separate tests of each physical model.
+
 The [allocation-ownership follow-up](voice.md#json-request-allocation-failures-can-lose-ownership-or-fields)
 also compares seven cJSON helpers: 145 instructions, 26 branches and ten ranges
 per build. The complete callers plus these helpers support the same conditional

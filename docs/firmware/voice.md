@@ -645,7 +645,9 @@ again as a second fixture run.
 The 4,095-byte limit is a **single read capacity**, not a check that the declared
 response fits or was completely received. Large presign `0x420266d8` and finalize
 `0x42027380` call `0x4206d6a4` once when the fetched length is positive, then parse
-the returned prefix. Neither compares received bytes with the declared length
+the returned prefix. Finalize's positivity test uses the **signed low 32 bits**
+of the SDK's 64-bit return; oversized-length examples are covered below.
+Neither compares received bytes with the declared length
 or calls the SDK's completeness predicate before parsing. There is no application
 loop to finish an oversized JSON response.
 
@@ -702,6 +704,57 @@ The [panel-download trace](image-downloads.md) maps the separate image stage:
 up to three attempts reuse the same URL and restart at byte zero. There is no
 ticket renewal through another finalize call in that retry loop. The downloader
 also accepts some bodies without a positive fetched length, unlike voice JSON.
+
+### Finalize HTTP status, framing and failure ordering
+
+Thirty-one additional host cases combine the matching SDK HTTP parser, header
+fetch/body reader and cJSON with a bounded reconstruction of the finalize
+response branch. They extend the separate JSON-field and body-reader fixtures
+above. No variant was sent to a frame.
+
+| Response / condition | Host result |
+| --- | --- |
+| Ready URL JSON with HTTP 200 | Accepted |
+| Same ready URL with 201, 202, 400, 401, 403, 404, 429, 500 or 503 | Body read, then rejected without parsing the URL |
+| Empty HTTP 200 or 204 | Rejected; neither supplies a usable finalize result |
+| HTTP 200 with URL plus `status:"failed"`, `success:false`, or `status:"processing"` | Accepted; those fields do not prevent the existing worker's URL handoff |
+| HTTP 202 with processing/job ID | Rejected; no queued-job behavior |
+| Chunked JSON, including a complete body cached in the header read | Rejected; fetched length zero skips the body reader, so cached JSON is discarded |
+| Close-delimited JSON already cached | Rejected through the same skipped-read path; later FIN is not read |
+| 100 Continue or 103 Early Hints in a separate transport read | Rejected at that status; final 200 is never read |
+| The same informational response and final 200 together in one read | Final status/body accepted |
+| HTTP 503 with a slow positive-length body | Body reception delays rejection; `Retry-After: 1` does not produce a retry |
+
+The status is sampled at `0x4202767d`–`0x4202768a`, but the body-read call at
+`0x420276bb` precedes the HTTP-200 decision at `0x420276dc`–`0x420276eb`.
+The slow-503 case used two virtual 599-second body reads: 1,198 seconds elapsed
+before failure, with no real wait. This establishes ordering and the SDK's
+per-read timeout, not a physical worker surviving beyond its separate 15-minute
+outer wait. Error responses should have a small, promptly completed body.
+There is no presign/upload/finalize retry loop in the recovered upload worker;
+`Retry-After` does not schedule another finalize. Keep generation retries and job
+retention in the backend. Image retries are a separate later stage.
+
+The return-width boundary also matters. `0x420275fb` retains only the low word
+of the SDK's 64-bit fetched length. Declared lengths of 2^31 and 2^32 skip the
+read even with a complete JSON prefix cached; 2^32+1 narrows to one, takes the
+reader and accepts a complete prefix followed by a timeout despite an incomplete
+HTTP body. These cases send only short headers and JSON in the host fixture,
+not gigabytes. Use the exact small JSON length; this is not streaming support.
+
+Only a negative narrowed header result checks the shared HTTP abort flag in
+this branch. With that flag set, header timeout returns `0x103` and clears it;
+a valid response still parses, while a later body timeout returns generic `-1`
+without another abort read. The upload worker's separate processing-cancel
+check still follows successful finalize. These are sequential branch fixtures,
+not a physical cancellation or race test.
+
+For the emulator, return **one final HTTP 200, a small complete JSON object and
+its exact positive Content-Length** when the panel asset is ready. Disable
+informational responses on this route and avoid chunked/close-delimited JSON.
+Do not use a URL alongside `failed` or `processing` as a state signal. The
+[validation record](validation-2026-10-22.md#finalize-http-status-and-framing-c07c08)
+lists the reconstruction boundaries and hashes.
 
 ## Cancellation and scheduled-content races
 

@@ -2181,3 +2181,52 @@ was changed.
 | `voice-ack-message-begin.inc` | `7a7c4827a4e12a0c5287e87947e2fb654de4741e9a2270f3164cabb9c67009a2` |
 | `voice-ack-fixture.c` | `20c66a33c0cdcc6764226c0567e2081ea58c253f7b57b8491ffe6183a5ba42a0` |
 | `voice-ack-fixture-results.jsonl` | `e373113189033e8d53550dbf13e1750be180f88cf7c0e78c7c3f15813cbd784c` |
+
+## Finalize HTTP status and framing: C07/C08
+
+Thirty-one host cases combine the unchanged SDK parser and selected
+header-fetch/body-read/cache-cleanup/message callbacks from the
+[acknowledgment pass](#upload-acknowledgment-framing-and-early-success-c05c08)
+with pinned cJSON 1.7.18. A bounded reconstruction follows the response branch
+after successful request transmission in Large `0x42027380`: retain the low
+32 bits of fetched length, conditional abort read, sample status/time, one
+4,095-byte body read, exact-200 decision, termination, JSON lookup and result
+copying. Register/unregister, logging, socket close, full client cleanup and
+worker execution remain outside the fixture. Rejected output records stay
+unchanged, checked byte-for-byte.
+
+The existing complete 607-instruction finalize comparison with Standard
+`0x42025dd0` covers these application branches; no new function-pair count is
+claimed. The SDK callbacks/fetch comparison from C05 and the earlier reader
+trace supply the transport/parser linkage. Header storage/events are stubbed,
+chunk notification callbacks are omitted, and the transport supplies scripted
+byte groups with virtual delays. `Retry-After` behavior is grounded in the
+static worker/caller path and SDK header handling, not a modeled retry engine.
+
+Cases cover ten statuses carrying the same ready JSON, two empty responses,
+two misleading success/status combinations, a pending-job response, three
+chunked/close-delimited cases, four informational-response groupings, a slow
+503, four oversized-length/abort combinations, two header timeouts and two
+post-header abort-flag cases. All 31 passed on Omarchy with Clang 23.1.3, C11,
+`-Wall -Wextra -Werror`, AddressSanitizer and UndefinedBehaviorSanitizer.
+The [voice contract](voice.md#finalize-http-status-framing-and-failure-ordering)
+separates parser acceptance, complete HTTP reception and worker implications.
+
+The 1,198-second error-body delay is simulated; no real delay, task lifetime,
+watchdog or device behavior is established. Tests of declared multi-gigabyte
+lengths supply only short messages. No allocation fault, TLS/socket delivery,
+concurrent cancellation or actual image handoff is exercised. No frame,
+network, artwork or HA state changed. C07/C08 retain their physical unknowns;
+R12 remains deferred.
+
+Private artifacts: `finalize-http-cases.c`, assembled `finalize-http-fixture.c`,
+`finalize-http-results.jsonl`, `finalize-http-hashes.json`, the earlier complete
+`finalize-large-cfg.txt`, `standard-finalize-comparison.json` and upload-worker
+traces. SDK/parser hashes are unchanged from the acknowledgment pass; cJSON
+source/header hashes are recorded in the
+[field-parser contract](voice.md#finalize-response-fields-and-host-parser-checks).
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `finalize-http-fixture.c` | `41dd9717b4973b65209576ce069e6ee63115423b4615d4c29c21251c29e21ef4` |
+| `finalize-http-results.jsonl` | `f7ecae23a1cf6bca0852eb68952cb014a993b451aab8c13e9fc2440704d0dda3` |

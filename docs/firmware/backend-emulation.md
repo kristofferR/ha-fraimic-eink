@@ -218,6 +218,14 @@ experiment did not exercise voice finalize or close C03/C09 by itself.
 
 ## Combined voice/image host fixture: C09
 
+The later [31-case finalize response pass](voice.md#finalize-http-status-framing-and-failure-ordering)
+adds implementation constraints for this route: return one final HTTP 200 with
+an exact positive Content-Length; avoid chunked JSON and informational responses.
+Even a fully cached chunked JSON body is ignored by the recovered finalize
+branch. Error bodies are read before status rejection, and `Retry-After` does
+not trigger another finalize. Keep error bodies short and backend retries
+internal. These are host/static findings, separate from the physical flow below.
+
 A follow-on fixture joined the two transports on the host: synthetic one-second
 WAV → empty upload acknowledgment → synchronous finalize HTTP 200 with
 `status: completed` and `presigned_url` → the same verified panel asset. Fifteen
