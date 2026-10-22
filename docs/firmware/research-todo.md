@@ -157,6 +157,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
 - [ ] **C08 · Host/Device:** Trace cancellation through recording, upload, finalize,
   download and rendering. Determine what the backend observes on disconnect and
   what work continues; verify retry/idempotency and stale-result behavior.
+  [Ten SDK-state host cases](voice.md#sdk-cancellation-state-and-response-bookkeeping)
+  distinguish transport close, conditional reconnect, parser reset and synthetic
+  response counters. Concurrent parser/transport access, actual disconnect timing,
+  worker exit and force-delete cleanup remain unverified.
 - [x] **C09 · Host/Device:** Complete one local end-to-end voice round trip using
   fixture audio and a known panel image first, then one physical tap-to-image flow.
   Separate transport validation from paid generation and provider variability.

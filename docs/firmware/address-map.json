@@ -1767,7 +1767,7 @@
     {
       "address": "0x42025ea8",
       "kind": "function",
-      "role": "Cancel active HTTP transport and mark abort flag",
+      "role": "Abort wrapper holds slot mutex through SDK cancel, then marks abort; SDK error logged but locked attempt returns zero",
       "evidence": "static; cancellation follow-up"
     },
     {
@@ -3214,6 +3214,12 @@
       "evidence": "static; 22 October direct OTA follow-up"
     },
     {
+      "address": "0x4206d4e8",
+      "kind": "function",
+      "role": "HTTP prepare: resets parser/count/flags and frees cached response Location/WWW-Authenticate without lowering connection state",
+      "evidence": "static and bounded GNU cross-check; 22 October HTTP cancellation state follow-up"
+    },
+    {
       "address": "0x4206d664",
       "kind": "function",
       "role": "Get HTTP request header; direct OTA MIME check does not read response headers",
@@ -3238,10 +3244,22 @@
       "evidence": "static; album proxy and multipart streaming GNU follow-up"
     },
     {
+      "address": "0x4206d9d8",
+      "kind": "function",
+      "role": "Ordinary HTTP close: dispatches disconnect and resets client state before transport close",
+      "evidence": "static and bounded GNU cross-check; 22 October HTTP cancellation state follow-up"
+    },
+    {
+      "address": "0x4206da20",
+      "kind": "function",
+      "role": "HTTP connection helper: prepare then connect only when client state is below CONNECTED",
+      "evidence": "static and bounded GNU cross-check; 22 October HTTP cancellation state follow-up"
+    },
+    {
       "address": "0x4206db7c",
       "kind": "function",
-      "role": "SDK esp_http_client_cancel_request transport cancellation",
-      "evidence": "static; cancellation follow-up"
+      "role": "SDK cancellation: transport close, prepare/conditional connect, then synthetic processed-body count",
+      "evidence": "static and bounded GNU cross-check; ten isolated SDK cancellation-state host cases"
     },
     {
       "address": "0x4206dca4",
@@ -3470,6 +3488,12 @@
       "kind": "function",
       "role": "Select eligible OTA record by sequence; ties select first",
       "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420e6b44",
+      "kind": "function",
+      "role": "Transport close dispatcher; no HTTP client-state reset at this layer",
+      "evidence": "static and bounded GNU cross-check; 22 October HTTP cancellation state follow-up"
     },
     {
       "address": "0x420ebdec",

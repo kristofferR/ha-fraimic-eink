@@ -398,6 +398,52 @@ make finalize idempotent and retain a completed original even if delivery loses
 its connection. Explicit cancel/result messages require a firmware extension.
 Receiving the WAV alone is not proof the device will call finalize.
 
+### SDK cancellation state and response bookkeeping
+
+Large's SDK primitive `0x4206db7c` rejects a null client or state below
+`CONNECTED` (numeric 2). It calls transport close through `0x420e6b44`, then
+connection helper `0x4206da20`. That sequence has a narrower meaning than the
+SDK header's description of closing and opening a socket:
+
+- Cancellation calls the transport directly. It does not first call ordinary
+  HTTP close `0x4206d9d8`, which sets the client state back to `INIT` and emits
+  disconnect events.
+- The connection helper first invokes prepare `0x4206d4e8`: it clears replay and
+  first-line flags, zeros processed-body count, frees cached `Location` and
+  `WWW-Authenticate` response strings, and reinitializes the HTTP parser.
+- Prepare does not lower the connection state. If that state remains at least 2,
+  the helper returns without opening a new socket. If another operation has
+  lowered it to `INIT`, the connect branch can run. Neither branch here sends
+  the HTTP request headers/body again.
+- On accepted completion, cancellation copies the stored 64-bit content length
+  into the processed-body count. That is bookkeeping, not newly received data.
+  The length-delimited reader's loop can consequently consider its target count
+  reached. Chunked completion has its separate flag.
+
+Ten isolated cases using the unmodified pinned SDK functions confirm the
+unchanged-state path, close failure and synthetic state-change/reconnect paths.
+A state change injected by the fixture is **not a reproduced thread race**.
+The fixture also demonstrates that a count-based SDK completeness predicate can
+return true after cancellation without another body read, including when both
+stored counters are `-1`; incomplete chunked state remains false. These are SDK
+state results, not successful finalize parsing or a backend/image acknowledgment.
+
+The frame's abort wrapper `0x42025ea8` holds its global-slot mutex across the SDK
+call and sets its abort byte only afterward when a client is present. It logs an
+SDK error but still returns zero after a successfully acquired mutex. With no
+registered client it also returns zero, without setting that abort byte. The
+processing-gesture flag is separate. Its return therefore cannot prove socket
+closure, a new connection, worker exit or backend cancellation.
+
+Registration/unregistration use the same slot mutex, but it does not serialize
+the HTTP worker's parser/reader accesses against cancellation. Parser-reset and
+cached-string changes therefore need a concurrent transport test before claiming
+thread-safe cleanup or a particular corruption. No such test ran here. For the
+local backend, keep job completion independent of connection lifetime, do not
+infer a retry from the SDK cancellation call alone, and retain explicit job
+identity/idempotency. Force-deletion and worker resource cleanup remain separate
+questions.
+
 ### Timeout and error boundaries still needing validation
 
 The upload and download task-creation results are discarded before waiting on

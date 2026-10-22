@@ -1348,3 +1348,42 @@ Private artifacts: `inventory-url-hosts.mjs`, `url-host-inventory.json`,
 `dependency-audit-pass3.txt`, `dependency-audit-gnu.mjs`,
 `dependency-audit-boundaries-gnu.txt`, `dependency-audit-log-literals.jsonl`
 and `dependency-audit-evidence-hashes.txt`.
+
+## HTTP cancellation state and synthetic completion counts: C08/D01
+
+Five reference passes and 24 bounded GNU ranges cover eight functions plus a
+reader-loop region: client register/unregister, frame abort wrapper, SDK prepare,
+ordinary HTTP close, connection helper, cancellation and transport-close dispatch.
+Cancellation closes transport directly, so it does not perform ordinary HTTP
+close's state reset or disconnect-event dispatch. Prepare resets parser state
+and response bookkeeping but leaves connection state alone; reconnect is gated
+on that state. Accepted cancellation then copies content length into processed
+count. The reader-loop comparison is checked separately around alignment padding.
+
+Ten host state cases passed with Clang AddressSanitizer and
+UndefinedBehaviorSanitizer, warnings treated as errors. Four unmodified IDF
+5.4.1 functions are extracted with their license header: prepare, connect,
+cancel-request and the SDK completeness predicate. Source SHA-256:
+`7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2`.
+The active branches are cross-checked against the application instructions.
+
+Cases cover null and pre-connected clients; unchanged connected/header/body
+states; transport-close failure; a synthetic state reduction followed by connect
+success/failure; unknown-length counters; and incomplete chunked state. Assertions
+check close/connect/event counts, preserved or reset state, cached-string release,
+parser-reset calls and processed counts. No HTTP send operation is invoked.
+
+Transport, parser initialization and event delivery are stubs. Cached strings use
+real host allocation/free under the sanitizers; the complete HTTP parser, TLS,
+socket stack, FreeRTOS scheduling and authentication branches are not exercised.
+The synthetic state reduction models an ordering boundary, not an observed race.
+The standalone SDK completeness predicate is a host observation; the firmware
+reader loop's corresponding counter/flag branches are separately static evidence.
+No physical cancellation, network traffic, frame state or backend was changed.
+Standard equivalence and actual worker/transport cleanup remain open.
+
+Private artifacts: `http-cancel-pass1.txt` through `http-cancel-pass5.txt`,
+`http-cancel-gnu.mjs`, `http-cancel-boundaries-gnu.txt`,
+`http-cancel-fixture.c`, `prepare-http-cancel-fixture.mjs`,
+`http-cancel-source-hashes.json`, `http-cancel-results.txt` and
+`http-cancel-evidence-hashes.txt`.
