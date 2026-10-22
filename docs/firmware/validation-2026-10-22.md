@@ -1387,3 +1387,38 @@ Private artifacts: `http-cancel-pass1.txt` through `http-cancel-pass5.txt`,
 `http-cancel-fixture.c`, `prepare-http-cancel-fixture.mjs`,
 `http-cancel-source-hashes.json`, `http-cancel-results.txt` and
 `http-cancel-evidence-hashes.txt`.
+
+## Download timeout, task handle and cleanup: C08/D01/D07
+
+Five Ghidra/reference passes and 46 bounded GNU ranges cover twelve functions
+across the download worker/caller, HTTP unregister/client cleanup, task deletion,
+list removal, task reclamation, port callbacks and C-runtime cleanup. All 1,965
+decoded instruction byte sequences were checked against the hash-pinned Large
+application, not only the synthetic ELF. The thread-local callback dispatcher
+required a manual GNU continuation through unsupported SALTU instructions;
+alignment padding was excluded.
+
+The [download ownership map](image-downloads.md#voice-download-timeout-and-forced-task-deletion)
+records the 1,556-byte borrowed context, separate caller result/handle slots,
+8,192-byte task stack, discarded creation result and 300-second wait followed
+by an abort and five-second grace wait. Grace-period success still takes the
+failure branch without rendering. Worker completion publishes status before
+giving the semaphore and self-deleting, with no recovered context use after give.
+
+The caller's nonzero handle is not cleared by the worker or revalidated before
+forced deletion. Kernel list removal uses that pointer directly. A worker that
+finishes after the second wait times out can therefore overlap the deletion
+decision; the actual scheduler ordering and consequences have not been reproduced.
+Deleting during HTTP work can also skip unregister/close/client cleanup. Kernel
+reclamation runs registered thread-local and C-runtime cleanup plus stack/control-
+block frees, rather than unwinding the downloader's epilogue. Runtime callback
+registration and resulting resource retention are not fully established.
+
+This is a static follow-up, with no new host execution or device test. It does
+not measure leaked memory, reproduce a crash, prove a socket remains open, or
+explain the captured TLS allocation failure. No timeout was induced and no frame,
+backend or routing state changed. C08/D01/D07 remain open.
+
+Private artifacts: `download-delete-pass1.txt` through `download-delete-pass5.txt`,
+`download-delete-gnu.mjs`, `download-delete-boundaries-gnu.txt`,
+`download-delete-literals.jsonl` and `download-delete-evidence-hashes.txt`.

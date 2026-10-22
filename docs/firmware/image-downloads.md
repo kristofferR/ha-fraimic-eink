@@ -131,6 +131,88 @@ window. Do not consume a ticket on its first GET, regenerate artwork per GET,
 or mark the image displayed merely because a server completed one response.
 Use the model/content/job identity to serve identical bytes across retries.
 
+## Voice download timeout and forced task deletion
+
+Large orchestrator `0x42011adc` gives worker `0x420104a8` a **1,556-byte context**
+on its own stack at `SP + 0xe4`. The URL is copied into that context; the pixel
+buffer and result destinations remain borrowed pointers:
+
+| Context offset | Contents |
+| --- | --- |
+| `+0x000` | 1,536-byte URL field, zeroed before copying at most 1,535 bytes |
+| `+0x600` | Shared image-buffer pointer |
+| `+0x604` | Destination capacity, 2,304,000 bytes |
+| `+0x608` | Output-count pointer to caller `SP + 0x10` |
+| `+0x60c` | Pointer to completion-semaphore handle storage `0x3fca6b28` |
+| `+0x610` | Status pointer to caller `SP + 0x7d8` |
+
+The caller initializes its task-handle slot at `SP + 0x7d4` to zero, drains the
+semaphore once, and creates an 8,192-byte-stack task at priority 5 on core 0.
+It discards the creation result, then waits 30,000 ticks, about 300 seconds.
+Task-creation failure therefore still enters the wait.
+
+On timeout it invokes the shared HTTP abort wrapper, ignores its result, and
+waits another 500 ticks, about five seconds. If that second wait also fails and
+the retained handle is nonzero, it calls task deletion at `0x40384c14`. Both
+timeout outcomes then select download-error LED state 38 and return failure.
+**Even a successful download completing during the grace period does not reach
+rendering or the voice cache-save branch.** These are wait budgets, not a measured
+305-second total: the abort call, logging and scheduling also take time.
+
+### Completion is signalled before the worker deletes itself
+
+The worker writes its status, performs terminal logging, gives the completion
+semaphore at `0x4201063d`, then deletes itself at `0x42010645`. No context access
+is recovered after that give. Normal completion therefore publishes the result
+after the worker's last borrowed-context use; it does not wait for reclamation
+of the worker's stack and task control block.
+
+The worker does not clear the caller's retained task handle. After a failed second
+wait, the caller neither rechecks the semaphore nor establishes exclusive ownership
+of that handle before deletion at `0x420120d2`. **Conditional inference:** the
+worker could signal and self-delete between those operations, leaving the caller
+to delete an already-terminated task. The kernel entry treats a supplied nonzero
+handle as a task-control-block pointer and immediately removes its state-list
+item through `0x40383510`; it has no generation or liveness check at that point.
+This is a possible stale-handle ordering, not an observed crash or a measured
+race window. Merely adding a second liveness query would still need synchronization.
+
+### Task deletion does not run the downloader's normal epilogue
+
+When the common downloader returns normally after client creation, its epilogue
+at `0x420266b9` calls unregister `0x42023464`, HTTP close `0x4206d9d8`, then client
+cleanup `0x4206dbd8`. The latter releases HTTP request/response allocations,
+parser/configuration storage and the client itself. Force-deleting the task
+before this epilogue prevents those instructions from running in that task.
+The timeout caller does not execute equivalent client cleanup afterward.
+
+The recovered kernel path removes scheduler/event-list membership, defers
+reclamation for a task running on either core, or directly calls task reclamation
+`0x403838e8` otherwise. Reclamation invokes port cleanup, per-task C-runtime
+cleanup and the allocation-policy-specific stack/control-block frees. Port
+cleanup includes one registered thread-local deletion-callback slot and
+coprocessor-state cleanup. It does not unwind the interrupted HTTP call stack.
+These identities match the [IDF 5.4.1 kernel](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/freertos/FreeRTOS-Kernel/tasks.c)
+and [Xtensa port](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/freertos/FreeRTOS-Kernel/portable/xtensa/port.c);
+the application instructions, including the callback-address checks omitted by
+Ghidra's decompiler, were checked separately with GNU.
+
+**Conditional inference:** deletion during HTTP work can retain client allocations
+or leave the shared active-client slot referring to an abandoned client. Deletion
+during retry delay can instead occur after that attempt's normal cleanup.
+Exact timing matters: this pass does not establish all runtime thread-local
+callbacks, leaked bytes, socket lifetime, lock ownership, or a cause for the
+previously observed TLS allocation failure. An HTTP abort return and a task-deleted
+log are insufficient evidence of resource cleanup.
+
+For the backend, retain completed artwork and reusable tickets when delivery
+fails; a late successful GET is not proof the frame displayed it. A firmware fork
+should give each job owned context/buffers, use cooperative cancellation with a
+completion handshake, and release HTTP resources in the worker before releasing
+job ownership. Uncoordinated deletion of a worker that also self-deletes is not
+a cleanup protocol. Physical timeout/cancellation and Standard equivalence remain
+open under C08/D01/D07.
+
 ## A short asset can reach rendering and replace the cache
 
 The render-start entry `0x420208d4` checks nonzero pointer/length, waits or drops

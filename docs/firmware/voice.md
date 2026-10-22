@@ -441,8 +441,10 @@ cached-string changes therefore need a concurrent transport test before claiming
 thread-safe cleanup or a particular corruption. No such test ran here. For the
 local backend, keep job completion independent of connection lifetime, do not
 infer a retry from the SDK cancellation call alone, and retain explicit job
-identity/idempotency. Force-deletion and worker resource cleanup remain separate
-questions.
+identity/idempotency. The separate
+[download-timeout trace](image-downloads.md#voice-download-timeout-and-forced-task-deletion)
+now identifies its retained handle, completion ordering and skipped HTTP epilogue;
+actual concurrent cleanup still needs validation.
 
 ### Timeout and error boundaries still needing validation
 
@@ -469,7 +471,10 @@ Thus the outstanding risks are the borrowed task context/result and future
 reuse of shared bytes, not a demonstrated heap free of the WAV at this call.
 
 The download timeout requests HTTP abort, waits another 500 ticks (about five
-seconds), then can force-delete its retained task. A cancelled download that
+seconds), then can force-delete its retained task. The
+[caller/worker lifetime map](image-downloads.md#voice-download-timeout-and-forced-task-deletion)
+shows that even success during that grace period returns failure without rendering,
+and identifies conditional stale-handle and skipped-cleanup paths. A cancelled download that
 returns an error follows the main flow's generic download-failure branch;
 the explicit before-render cancellation branch follows successful download.
 Consequently an error indication alone is insufficient to classify cancellation.

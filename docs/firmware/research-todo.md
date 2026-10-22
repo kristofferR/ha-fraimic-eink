@@ -47,6 +47,7 @@ per question, not a count of tool calls or decompiled functions.
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
 | C07/C08/D01/D07 | Upload task creation passes a borrowed 220-byte caller context; timeout returns without joining, while every worker exit still accesses its status/semaphore pointers | Physical timing, expired-stack effects, late completion/two-job reproduction and complete cleanup design |
+| C08/D01/D07 | Download context/handle and 300-second wait plus five-second grace mapped; late success stays failed; forced deletion can skip HTTP cleanup and race self-deletion | Actual scheduler/transport ordering, runtime callback ownership, retained-resource measurements and Standard equivalence |
 | C07/C08/D05 | Task creation/WAV lifetime and cancellation windows traced; pending poll can interrupt recording even without a usable image URL; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
@@ -160,7 +161,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   [Ten SDK-state host cases](voice.md#sdk-cancellation-state-and-response-bookkeeping)
   distinguish transport close, conditional reconnect, parser reset and synthetic
   response counters. Concurrent parser/transport access, actual disconnect timing,
-  worker exit and force-delete cleanup remain unverified.
+  worker exit and force-delete outcomes remain unverified. The
+  [download lifetime trace](image-downloads.md#voice-download-timeout-and-forced-task-deletion)
+  maps semaphore-before-self-delete ordering, the unguarded retained handle and
+  HTTP cleanup bypass; none is a reproduced physical failure.
 - [x] **C09 · Host/Device:** Complete one local end-to-end voice round trip using
   fixture audio and a known panel image first, then one physical tap-to-image flow.
   Separate transport validation from paid generation and provider variability.
@@ -364,6 +368,10 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
   now follows the borrowed pointer through SDK task setup and all terminal worker
   branches. Timeout can release its caller stack before those accesses; physical
   corruption, late semaphore consumption and two-job interleavings remain untested.
+  [Download lifetime](image-downloads.md#voice-download-timeout-and-forced-task-deletion)
+  adds its borrowed 1,556-byte context, retained handle, grace-period result policy
+  and kernel-versus-HTTP cleanup distinction. Runtime thread-local cleanup,
+  concurrent deletion and complete cross-model ownership remain open.
 - [ ] **D02 · Host/Device:** Reproduce the shared-buffer interference with controlled
   overlapping operations. Record which bytes/operation are affected and when;
   static missing guards alone do not demonstrate a particular runtime failure.

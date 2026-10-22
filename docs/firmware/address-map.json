@@ -130,6 +130,12 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x3fca6b28",
+      "kind": "global",
+      "role": "Voice download completion-semaphore handle; borrowed through caller context",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+    },
+    {
       "address": "0x3fca6b2c",
       "kind": "data",
       "role": "Upload completion semaphore handle; shared across voice invocations, no job identity",
@@ -526,16 +532,52 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x403828bc",
+      "kind": "function",
+      "role": "Invoke one configured thread-local deletion callback after executable-address checks; GNU continuation covers unsupported SALTU",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+    },
+    {
+      "address": "0x40382948",
+      "kind": "function",
+      "role": "Task coprocessor-state cleanup",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+    },
+    {
       "address": "0x4038298c",
       "kind": "function",
       "role": "Xtensa initial task stack; stores task function and parameter pointer in register frame",
       "evidence": "static; upload lifetime pass and bounded GNU cross-check"
     },
     {
+      "address": "0x40382ca0",
+      "kind": "function",
+      "role": "Task port cleanup: thread-local deletion callback dispatcher and coprocessor cleanup",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+    },
+    {
+      "address": "0x40383510",
+      "kind": "function",
+      "role": "Kernel list-item removal; dereferences container and adjacent links without liveness validation",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+    },
+    {
+      "address": "0x403838e8",
+      "kind": "function",
+      "role": "Task reclamation: port and C-runtime cleanup, then allocation-policy-specific stack/control-block frees",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+    },
+    {
       "address": "0x40383af4",
       "kind": "function",
       "role": "Task initialization; forwards task function and parameter to initial-stack setup",
       "evidence": "static; upload lifetime pass and bounded GNU cross-check"
+    },
+    {
+      "address": "0x40384c14",
+      "kind": "function",
+      "role": "Task deletion; nonzero handle used as control-block pointer, immediate or deferred reclamation",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
     },
     {
       "address": "0x403858d8",
@@ -630,8 +672,8 @@
     {
       "address": "0x420104a8",
       "kind": "function",
-      "role": "Voice image-download task; bounded retry loop",
-      "evidence": "static; cancellation follow-up"
+      "role": "Voice image-download worker: borrowed 1556-byte context, retries, result publication and semaphore give before self-delete",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
     },
     {
       "address": "0x42010674",
@@ -684,8 +726,8 @@
     {
       "address": "0x42011adc",
       "kind": "function",
-      "role": "Voice orchestration; 220-byte caller-stack upload context and local status; timeout returns without joining upload",
-      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
+      "role": "Voice orchestration: borrowed upload/download contexts; upload timeout has no join, download timeout aborts then can force-delete retained handle",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
     },
     {
       "address": "0x42012338",
@@ -3262,6 +3304,12 @@
       "evidence": "static and bounded GNU cross-check; ten isolated SDK cancellation-state host cases"
     },
     {
+      "address": "0x4206dbd8",
+      "kind": "function",
+      "role": "HTTP client cleanup: close and release request/response, parser/configuration and client allocations",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+    },
+    {
       "address": "0x4206dca4",
       "kind": "function",
       "role": "HTTP URL setter: replaces scheme/host/port and updates connection/header state",
@@ -3416,6 +3464,12 @@
       "kind": "function",
       "role": "POSIX timezone parser; default US DST rules and parse-error UTC state",
       "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420d1430",
+      "kind": "function",
+      "role": "Per-task C-runtime reentrancy cleanup called before task stack/control-block reclamation",
+      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
     },
     {
       "address": "0x420e2a04",
