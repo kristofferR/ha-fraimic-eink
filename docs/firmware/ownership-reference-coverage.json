@@ -1,0 +1,463 @@
+{
+  "evidence": "Static pinned-image reference census and complete selected GNU CFG comparisons; no device experiment or executed concurrency",
+  "buffer_roots": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "unique_root_addresses": 4,
+      "decoded_reference_sites": 25,
+      "decoded_pointer_use_sites": 16,
+      "exact_pointer_words": 2,
+      "unique_owner_functions": 16,
+      "roots": [
+        {
+          "name": "record_accessor",
+          "address": "0x42028e68",
+          "recovered_instruction_references": 1,
+          "exact_pointer_words": []
+        },
+        {
+          "name": "image_accessor",
+          "address": "0x42028e88",
+          "recovered_instruction_references": 8,
+          "exact_pointer_words": []
+        },
+        {
+          "name": "image_global",
+          "address": "0x3fcabd28",
+          "recovered_instruction_references": 3,
+          "exact_pointer_words": [
+            "0x42003590"
+          ]
+        },
+        {
+          "name": "display_alias",
+          "address": "0x3fca75d4",
+          "recovered_instruction_references": 13,
+          "exact_pointer_words": [
+            "0x42000e28"
+          ]
+        },
+        {
+          "name": "record_global",
+          "address": "0x3fcabd28",
+          "recovered_instruction_references": 3,
+          "exact_pointer_words": [
+            "0x42003590"
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "unique_root_addresses": 5,
+      "decoded_reference_sites": 29,
+      "decoded_pointer_use_sites": 18,
+      "exact_pointer_words": 3,
+      "unique_owner_functions": 16,
+      "roots": [
+        {
+          "name": "record_accessor",
+          "address": "0x42027874",
+          "recovered_instruction_references": 1,
+          "exact_pointer_words": []
+        },
+        {
+          "name": "image_accessor",
+          "address": "0x42027898",
+          "recovered_instruction_references": 8,
+          "exact_pointer_words": []
+        },
+        {
+          "name": "image_global",
+          "address": "0x3fcabd80",
+          "recovered_instruction_references": 2,
+          "exact_pointer_words": [
+            "0x42003454"
+          ]
+        },
+        {
+          "name": "display_alias",
+          "address": "0x3fca7644",
+          "recovered_instruction_references": 14,
+          "exact_pointer_words": [
+            "0x42000e28"
+          ]
+        },
+        {
+          "name": "record_global",
+          "address": "0x3fcabd8c",
+          "recovered_instruction_references": 4,
+          "exact_pointer_words": [
+            "0x42003448"
+          ]
+        }
+      ]
+    }
+  ],
+  "buffer_reference_owners": [
+    {
+      "role": "saved_image_workflow",
+      "large": "0x4200fc7c",
+      "standard": "0x4200fbd0"
+    },
+    {
+      "role": "cloud_image_workflow",
+      "large": "0x42010c4c",
+      "standard": "0x4201098c"
+    },
+    {
+      "role": "voice_workflow",
+      "large": "0x42011adc",
+      "standard": "0x42011a3c"
+    },
+    {
+      "role": "startup_display_alias",
+      "large": "0x420142ec",
+      "standard": "0x420142a8"
+    },
+    {
+      "role": "local_multipart_upload",
+      "large": "0x4201ba9c",
+      "standard": "0x4201ba70"
+    },
+    {
+      "role": "local_raw_upload",
+      "large": "0x4201cc0c",
+      "standard": "0x4201cbe0"
+    },
+    {
+      "role": "recording_start",
+      "large": "0x4201fed0",
+      "standard": "0x4201fea0"
+    },
+    {
+      "role": "render_worker",
+      "large": "0x420204b8",
+      "standard": "0x42020488"
+    },
+    {
+      "role": "psram_allocator",
+      "large": "0x42028d94",
+      "standard": "0x42027734"
+    },
+    {
+      "role": "recording_accessor",
+      "large": "0x42028e68",
+      "standard": "0x42027874"
+    },
+    {
+      "role": "image_accessor",
+      "large": "0x42028e88",
+      "standard": "0x42027898"
+    },
+    {
+      "role": "instruction_image_dispatch",
+      "large": "0x4202ad38",
+      "standard": "0x42029470"
+    },
+    {
+      "role": "ota_health_check",
+      "large": "0x4202ce1c",
+      "standard": "0x4202b548"
+    },
+    {
+      "role": "status_image_decode",
+      "large": "0x4202fc34",
+      "standard": "0x4202e360"
+    },
+    {
+      "role": "status_image_restore",
+      "large": "0x4202fde0",
+      "standard": "0x4202e50c"
+    },
+    {
+      "role": "local_cache_slot_upload",
+      "large": "0x420307f8",
+      "standard": "0x4202ef24"
+    }
+  ],
+  "transport_cleanup": {
+    "paired_bodies": 17,
+    "instructions_per_build": 368,
+    "branches_per_build": 58,
+    "ranges_per_build": 27,
+    "direct_call_pairs": 27,
+    "literal_pairs": 10,
+    "functions": [
+      {
+        "role": "transport-own-destroy",
+        "large": "0x420c2518",
+        "standard": "0x420c27f0",
+        "instructions": 15,
+        "branches": 3,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-list-clean",
+        "large": "0x420c253c",
+        "standard": "0x420c2814",
+        "instructions": 12,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-list-destroy",
+        "large": "0x420c255c",
+        "standard": "0x420c2834",
+        "instructions": 8,
+        "branches": 0,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-callbacks",
+        "large": "0x420c2570",
+        "standard": "0x420c2848",
+        "instructions": 19,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-base-close",
+        "large": "0x420c2930",
+        "standard": "0x420c2c08",
+        "instructions": 29,
+        "branches": 8,
+        "ranges": 4
+      },
+      {
+        "role": "transport-own-base-destroy",
+        "large": "0x420c2e54",
+        "standard": "0x420c312c",
+        "instructions": 12,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-context-free",
+        "large": "0x420c2e44",
+        "standard": "0x420c311c",
+        "instructions": 5,
+        "branches": 0,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-foundation-free",
+        "large": "0x420c2f90",
+        "standard": "0x420c3268",
+        "instructions": 9,
+        "branches": 1,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-tls-destroy",
+        "large": "0x420c39a8",
+        "standard": "0x420c3c84",
+        "instructions": 21,
+        "branches": 4,
+        "ranges": 2
+      },
+      {
+        "role": "transport-own-tls-backend-delete",
+        "large": "0x420c4144",
+        "standard": "0x420c4420",
+        "instructions": 16,
+        "branches": 3,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-tls-free-contexts",
+        "large": "0x420c40e8",
+        "standard": "0x420c43c4",
+        "instructions": 34,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-tls-error-free",
+        "large": "0x420c3bc0",
+        "standard": "0x420c3e9c",
+        "instructions": 5,
+        "branches": 0,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-ssl-read",
+        "large": "0x420c2a34",
+        "standard": "0x420c2d0c",
+        "instructions": 75,
+        "branches": 16,
+        "ranges": 4
+      },
+      {
+        "role": "transport-own-ssl-write",
+        "large": "0x420c2984",
+        "standard": "0x420c2c5c",
+        "instructions": 67,
+        "branches": 7,
+        "ranges": 3
+      },
+      {
+        "role": "transport-own-close-dispatch",
+        "large": "0x420e6b44",
+        "standard": "0x420e6e50",
+        "instructions": 12,
+        "branches": 4,
+        "ranges": 2
+      },
+      {
+        "role": "transport-own-tls-read-dispatch",
+        "large": "0x420e6ce8",
+        "standard": "0x420e6ff4",
+        "instructions": 12,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "transport-own-tls-write-dispatch",
+        "large": "0x420e6d08",
+        "standard": "0x420e7014",
+        "instructions": 17,
+        "branches": 2,
+        "ranges": 1
+      }
+    ]
+  },
+  "task_local_cleanup": {
+    "paired_bodies": 13,
+    "instructions_per_build": 331,
+    "branches_per_build": 55,
+    "ranges_per_build": 22,
+    "direct_call_pairs": 11,
+    "literal_pairs": 37,
+    "functions": [
+      {
+        "role": "thread-own-slot-set",
+        "large": "0x40385bb0",
+        "standard": "0x40385bd0",
+        "instructions": 17,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "thread-own-key-find",
+        "large": "0x4200b1a8",
+        "standard": "0x4200b0fc",
+        "instructions": 17,
+        "branches": 3,
+        "ranges": 2
+      },
+      {
+        "role": "thread-own-cleanup",
+        "large": "0x4200b1d8",
+        "standard": "0x4200b12c",
+        "instructions": 27,
+        "branches": 5,
+        "ranges": 2
+      },
+      {
+        "role": "thread-own-key-create",
+        "large": "0x4200b220",
+        "standard": "0x4200b174",
+        "instructions": 31,
+        "branches": 4,
+        "ranges": 1
+      },
+      {
+        "role": "thread-own-set-specific",
+        "large": "0x4200b290",
+        "standard": "0x4200b1e4",
+        "instructions": 78,
+        "branches": 20,
+        "ranges": 6
+      },
+      {
+        "role": "thread-own-lwip-init",
+        "large": "0x420677cc",
+        "standard": "0x420667f8",
+        "instructions": 21,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "thread-own-lwip-sem",
+        "large": "0x42067840",
+        "standard": "0x4206686c",
+        "instructions": 42,
+        "branches": 4,
+        "ranges": 2
+      },
+      {
+        "role": "thread-own-lwip-sem-free",
+        "large": "0x4206748c",
+        "standard": "0x420664b8",
+        "instructions": 10,
+        "branches": 2,
+        "ranges": 1
+      },
+      {
+        "role": "thread-own-exception-init",
+        "large": "0x420c559c",
+        "standard": "0x420c587c",
+        "instructions": 10,
+        "branches": 0,
+        "ranges": 1
+      },
+      {
+        "role": "thread-own-exception-state",
+        "large": "0x420c5558",
+        "standard": "0x420c5838",
+        "instructions": 26,
+        "branches": 4,
+        "ranges": 1
+      },
+      {
+        "role": "thread-own-exception-free",
+        "large": "0x420c5514",
+        "standard": "0x420c57f4",
+        "instructions": 14,
+        "branches": 3,
+        "ranges": 1
+      },
+      {
+        "role": "thread-own-runtime-sem",
+        "large": "0x420eba64",
+        "standard": "0x420ebd94",
+        "instructions": 32,
+        "branches": 5,
+        "ranges": 2
+      },
+      {
+        "role": "thread-own-runtime-sem-free",
+        "large": "0x420eb860",
+        "standard": "0x420ebb90",
+        "instructions": 6,
+        "branches": 1,
+        "ranges": 1
+      }
+    ]
+  },
+  "task_local_reference_counts": [
+    {
+      "model": "large",
+      "resolved_call_sites": 7,
+      "exact_pointer_words": 4,
+      "literal_load_sites": 6,
+      "callback_arguments_rejected_as_calls": 4
+    },
+    {
+      "model": "standard",
+      "resolved_call_sites": 7,
+      "exact_pointer_words": 4,
+      "literal_load_sites": 6,
+      "callback_arguments_rejected_as_calls": 4
+    }
+  ],
+  "limits": [
+    "Root searches cover recovered instruction references and exact address words in initialized application segments, excluding synthetic ELF symbols.",
+    "Computed aliases, runtime pointer propagation, computed registrations and unexamined builds are outside this bounded census.",
+    "External allocator, socket and cryptographic internals are not recursively proved equivalent.",
+    "Static ownership consequences are not observed corruption, measured leaks, thread scheduling or physical recovery."
+  ]
+}

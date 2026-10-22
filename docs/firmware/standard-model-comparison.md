@@ -911,6 +911,30 @@ prefer `DEFAULT | SPIRAM` and fall back to `DEFAULT | INTERNAL` for each allocat
 The map now has 252 pairs. This establishes allocation policy, not actual runtime
 placement, fragmentation or the cause of an earlier TLS allocation error.
 
+### Buffer references and external cleanup ownership
+
+The [ownership reference ledger](ownership-reference-coverage.json) accounts for
+the same sixteen buffer-reference functions per build. Both have nine accessor
+calls. Large has 25 recovered root instruction references and two exact global-
+address words; Standard has 29 and three because its audio allocation is separate
+and its renderer performs two controller transfers. All identified functions map
+to the documented allocation, recording, upload, cache, image, health-check and
+rendering paths. This census does not exclude computed aliases.
+
+Seventeen paired transport bodies add 368 instructions, 58 branches and 27 ranges,
+with 27 direct-call and ten literal pairs reviewed. Close can release TLS connection
+storage without freeing the HTTP client; full teardown remains a separate path.
+Thirteen paired task-local bodies add 331 instructions, 55 branches and 22 ranges,
+with eleven direct-call and 37 literal pairs reviewed. Identified registrations
+cover semaphore/runtime state, not automatic HTTP-client cleanup on task deletion.
+
+The task-local reference census independently resolves seven call sites and four
+exact API/callback words on each build. It rejects four Ghidra callback-argument
+references per build as actual calls after checking the invoked registers.
+Runtime lifetimes, computed registrations, external allocator/socket internals and
+physical cancellation remain untested. These findings extend the static ownership
+map, not a claim of a reproduced leak or crash on either model.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering

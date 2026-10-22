@@ -3057,3 +3057,57 @@ changed; N04 remains deferred.
 | `display-health-save-standard-cfg.json` | `06046bb6cc733633549e4bfc4f8c1e15171b5a60a94bb63664f3972b6e7b0ef3` |
 | `compare-phy-nvs.mjs` | `c47d502229419d5ce5d730e267ec0e215a06559f8b861ae97e74074be400a18e` |
 | `standard-phy-nvs-comparison.json` | `1b89cfe5968ee99ee2404e31f47932bc584338914b252c61e68eb4b4cc32a59d` |
+
+## Buffer references and external cleanup: D01/E01/E02
+
+A five-root buffer census covers the recording/image accessors, their allocation
+globals and the display alias. Large's shared allocation makes these four distinct
+addresses; Standard has five. GNU decoding checks the original image bytes at
+every recovered instruction/literal-load site. An independent scan of all
+initialized segments checks exact root-address words, excluding synthetic ELF
+symbols. All sixteen reference-owner functions per build match the classified
+workflow list in [the public ledger](ownership-reference-coverage.json).
+
+| Reference evidence | Large | Standard |
+| --- | --- | --- |
+| Accessor calls | 9 | 9 |
+| Unique recovered instruction sites, including calls | 25 | 29 |
+| Unique literal-load sites | 16 | 18 |
+| Exact initialized-segment root-address words | 2 | 3 |
+
+Seventeen complete paired transport bodies contain 368 instructions, 58 branches
+and 27 ranges per build; 27 direct-call and ten literal pairs are mapped
+separately. They cover callback installation, close dispatch, list/container
+destruction, selected TLS teardown and SSL read/write dispatch. Cancellation can
+release TLS connection storage before complete HTTP-client cleanup. These bodies
+do not join the worker or add a shared lifetime lock.
+
+Thirteen paired task-local bodies contain 331 instructions, 55 branches and 22
+ranges, with eleven direct-call and 37 literal pairs reviewed. The selected
+registration/lookup/destructor paths account for the identified semaphore and
+runtime-state keys; they do not install the HTTP client as a task-local cleanup
+value. A separate four-root census checks seven actual calls per image: two
+direct and five indirect calls whose targets resolve from preceding literal
+loads. It checks six literal loads and four exact address words. Four Ghidra
+references per build are rejected as calls to the cleanup callback because the
+invoked function differs; that callback was passed as an argument.
+
+These are static reference/CFG checks, not an executed RTOS/TLS stack or a
+concurrent fault fixture. Computed aliases/registrations, live task-local values,
+external allocator/socket/cryptographic internals, leaked bytes and physical
+cleanup remain outside the result. D01 closes for the identified pinned-build
+paths; deferred physical overlap and recovery criteria stay open. No frame,
+network or HA configuration changed; N04 remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `recover-transport-ownership.mjs` | `7977c27be3c37f5ad314f651bb6d55bb2d9e26aea6ccb04a3c7349e80955f033` |
+| `compare-transport-ownership.mjs` | `e8174575c9ab0534522e1f484f2f46b5f7dd8ba9f1be97420ab782a76a880b4c` |
+| `standard-transport-ownership-comparison.json` | `6dad4f50cf8e13c7134072e76f8bec72593108f9bcf61689730ecb3c8ce9cb42` |
+| `verify-buffer-references.mjs` | `569a766a3c98416c3f4521290b78aa0d42c3951e66fc4284ea06d5612fc8315c` |
+| `buffer-reference-audit.combined.json` | `8cd4638a13ebeeff295d809f6ee65b0e0cc43ca320941f02f560c213165bef33` |
+| `recover-thread-ownership.mjs` | `9fd7af255cd29f3a0d6dff8ed1eaac1b3d03c77e82f706383f44352c5cbdfc61` |
+| `compare-thread-ownership.mjs` | `4d655a784027e19363f517a8155a0460474adb8f6c1ee2bb3679928a5ddf14c4` |
+| `standard-thread-ownership-comparison.json` | `35a996b5c0433280d80ff20bff5372f27ba059d2b1c67e1009bb6b484bc99f06` |
+| `verify-thread-references.mjs` | `b08176519b2291c3d40eb0d12245a1ea06af357e2a18558c87de319f7a9ce9b0` |
+| `thread-reference-audit.combined.json` | `c8a126cd0e739409435d2f2cf9403a5e601447f95923e2e5da7dc057dcd313b6` |

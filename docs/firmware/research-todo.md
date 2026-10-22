@@ -9,20 +9,20 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**10 of 67 original items complete; 118 of 187 concrete milestones complete.**
+**11 of 67 original items complete; 119 of 187 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
-| Complete | 10 | Original bounded question answered; evidence linked below |
-| Research | 6 | Concrete static, host or design work remains available |
+| Complete | 11 | Original bounded question answered; evidence linked below |
+| Research | 5 | Concrete static, host or design work remains available |
 | Waiting for device | 24 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 9 | Owner-postponed work; do not resume automatically |
 | Ongoing | 2 | Evidence discipline applied to relevant findings/builds, not a finite feature |
 
-Completed original items: **C01, C05, C09, C10, A01, A05, R11, N02, H07, E03**. The reconciliation closed
+Completed original items: **C01, C05, C09, C10, A01, A05, R11, D01, N02, H07, E03**. The reconciliation closed
 C05, C10, R11 and E03 from evidence already gathered; it adds no new device tests.
 The latest 31 finalize cases are recorded under C07, whose end-to-end physical
 timeout criterion remains unchecked.
@@ -33,6 +33,9 @@ and explicit remaining indirect-search limits; offline operation is not claimed.
 N02 subsequently closed with the pinned-build key inventory, Wi-Fi/PHY and
 Standard display-health records, migration cases and explicit reference-search
 limits. Installed NVS and physical recovery remain separate criteria.
+D01 subsequently closed with the buffer-reference census, transport callback
+teardown and task-local registration audit. Physical corruption and cleanup
+outcomes remain separate deferred tests.
 
 ## How to use this list
 
@@ -68,8 +71,8 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with D01's remaining
-worker/transport ownership references, while A07's [feature proposal](voice-feature-proposal.md)
+Continue with H03's audio-output initialization/call-path audit, then the remaining
+H05 handler/diagnostic contracts. A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
 overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
@@ -469,15 +472,18 @@ Commit and push validated research batches periodically as requested.
 
 ## Rendering and concurrency
 
-- [ ] **D01 · Static/Host:** Finish the ownership/lifetime map for recording, audio
+- [x] **D01 · Static/Host:** Finish the ownership/lifetime map for recording, audio
   transmission, raw/multipart HTTP, cloud downloads, system images, cache I/O and
   rendering, including indirect references and task/mutex boundaries.
 
-  Status: **Research**.
+  Status: **Complete**.
+
+  Scope: identified paths in the two pinned builds, with computed-reference and
+  runtime limits explicit. Physical overlap/cleanup outcomes remain D02/D04/D05.
 
   - [x] **Static:** Map shared audio/image/render buffers, response backing stores, system-image producers, cache paths and render arbitration. [Ownership](rendering-and-concurrency.md), [response memory](cloud-protocol.md#shared-response-ownership-and-verification-guard).
   - [x] **Static:** Recover borrowed worker contexts, timeout/cleanup boundaries and Standard separate audio allocation. [Upload lifetime](voice.md#late-upload-workers-retain-caller-stack-pointers), [model comparison](standard-model-comparison.md#separate-recording-and-image-allocations).
-  - [ ] **Next:** **Static:** Finish unresolved indirect references and external worker/transport cleanup ownership. Keep demonstrated aliases separate from hypothesized runtime corruption.
+  - [x] **Static:** Reconcile sixteen buffer-reference functions per build, seventeen paired transport bodies and thirteen task-local bodies; resolve constant callback registrations and distinguish callback arguments from calls. Keep demonstrated aliases separate from hypothesized runtime corruption. [Coverage](rendering-and-concurrency.md#ownership-coverage-across-the-two-pinned-builds), [transport](voice.md#transport-close-frees-tls-state-before-client-cleanup), [task-local cleanup](image-downloads.md#task-local-destructors-do-not-replace-http-cleanup).
 
 - [ ] **D02 · Host/Device:** Reproduce the shared-buffer interference with controlled
   overlapping operations. Record which bytes/operation are affected and when;

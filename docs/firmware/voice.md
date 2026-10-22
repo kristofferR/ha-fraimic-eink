@@ -985,6 +985,40 @@ identity/idempotency. The separate
 now identifies its retained handle, completion ordering and skipped HTTP epilogue;
 actual concurrent cleanup still needs validation.
 
+### Transport close frees TLS state before client cleanup
+
+The indirect close/destroy callbacks are now resolved in both builds. SSL and
+plain-TCP initialization install the same base close and destroy functions into
+transport offsets `+0x18` and `+0x24`. The setter, dispatchers and selected cleanup
+bodies match across seventeen complete pairs: 368 instructions, 58 branches and
+27 ranges per build. External calls and literals are mapped separately in the
+[coverage ledger](ownership-reference-coverage.json).
+
+| Resource | Recovered close/cleanup behavior |
+| --- | --- |
+| TLS connection object | Base close `0x420c2930` calls destroy `0x420c39a8` when initialized. That path tears down selected TLS contexts, attempts socket close when appropriate, frees its error handle and frees the connection object. |
+| Transport's connection fields | After destruction returns, base close clears the connection pointer and initialized/state fields and sets its socket field to `-1`. This happens even when the destroy return reports a socket-close error. |
+| Transport container and configuration | Close preserves them. Base destroy `0x420c2e54` subsequently closes, frees the foundation/error storage and transport-specific context. The list destructor also frees scheme strings, transport nodes and the list. |
+| HTTP client | Normal client cleanup later frees request/response buffers, parser/configuration and client storage. Cancellation alone does not perform that cleanup or unregister the application slot. |
+
+The SDK [transport implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/tcp_transport/transport_ssl.c)
+and [connection destructor](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp-tls/esp_tls.c)
+identify these roles; the findings above are checked against the compiled images.
+An attempted close is not proof of an observed closed socket. A second serial
+base-close call sees the cleared fields; that does not establish concurrent safety.
+
+The SSL reader/writer accesses the same connection pointer, including a read after
+its poll step. Their recovered bodies and TLS dispatch wrappers have no job join,
+reference count or shared lifetime lock. The application abort mutex protects the
+global slot, not the worker's HTTP/TLS operations. If operations overlap, releasing
+TLS state and consuming it require coordination; no particular freed-pointer
+access or physical crash is demonstrated here.
+
+For a firmware fork, transport shutdown must be part of an owned cancellation
+protocol: interrupt work in a way that preserves its live resources, wait for the
+worker to exit, then reclaim its context. The stock backend should bound response
+time and preserve delivery/job state independently of socket cancellation.
+
 ### Timeout and error boundaries still needing validation
 
 The upload and download task-creation results are discarded before waiting on

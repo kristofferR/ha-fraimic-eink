@@ -215,8 +215,39 @@ completion handshake, and release HTTP resources in the worker before releasing
 job ownership. Uncoordinated deletion of a worker that also self-deletes is not
 a cleanup protocol. The [Standard comparison](standard-model-comparison.md#cancellation-ownership-and-download-timeouts-also-match)
 now confirms matching cancellation/timeout branches with its separate 960,000-byte
-capacity. Physical timeout/cancellation and complete cleanup remain open under
-C08/D01/D07.
+capacity. Physical timeout/cancellation and cleanup outcomes remain open under
+C08/D07; the following pass completes D01's bounded static cleanup map.
+
+### Task-local destructors do not replace HTTP cleanup
+
+The task-slot registration API has one identified constant caller: pthread
+`setspecific`. It installs cleanup callback `0x4200b1d8` in slot zero, through
+setter `0x40385bb0`. The callback walks that task's registered values, looks up
+each key's destructor, invokes it when present, then frees the list entries and
+list. This matches the SDK's [pthread storage implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/pthread/pthread_local_storage.c).
+
+A reference census finds three key-creation sites and three value-setting sites:
+lwIP's per-thread semaphore, an eight-byte runtime exception-state record, and
+another runtime counting-semaphore handle. Their identified destructors operate
+on those resources. None registers the downloader's HTTP client, application abort
+slot, borrowed caller context, WAV/image allocation or normal client-cleanup
+epilogue as its value/destructor pair. Runtime/exception internals are not a general
+stack-unwind contract for a forcibly deleted task.
+
+Thirteen complete paired bodies contribute 331 instructions, 55 branches and
+22 ranges per model. A separate audit checks seven resolved call sites, six
+literal loads and four exact API/callback-address words per image. Four Ghidra
+references to the cleanup callback are rejected as calls: GNU shows that the
+callback is an argument, while the invoked register names another function.
+Synthetic ELF symbols are excluded from the pointer census.
+
+These searches account for identified constant registrations, not every possible
+computed registration or actual task-local value. They narrow the earlier cleanup
+uncertainty without measuring retained heap, socket state or task scheduling.
+Forced deletion still does not execute the interrupted HTTP epilogue, and the
+timeout caller still lacks a client/context reclamation handshake. See the
+[transport distinction](voice.md#transport-close-frees-tls-state-before-client-cleanup)
+and [coverage ledger](ownership-reference-coverage.json).
 
 ## A short asset can reach rendering and replace the cache
 

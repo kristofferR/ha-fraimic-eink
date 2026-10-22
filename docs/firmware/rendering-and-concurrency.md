@@ -24,6 +24,49 @@ marker follows render acceptance or cache-load failure, not physical completion.
 
 ## The display pointer is another alias
 
+### Ownership coverage across the two pinned builds
+
+The [reference ledger](ownership-reference-coverage.json) reconciles the recording
+and image accessors, their allocation globals and the display alias. These five
+named roots identify four distinct addresses on Large because its recording/image
+allocation is shared. Standard has five distinct addresses.
+
+| Byte-checked reference evidence | Large | Standard |
+| --- | --- | --- |
+| Accessor call sites | 9 | 9 |
+| All recovered root instruction references, including those calls | 25 | 29 |
+| Literal-load sites for the allocation/display globals | 16 | 18 |
+| Exact root-address words in initialized image segments | 2 | 3 |
+| Functions containing the identified references | 16 | 16 |
+
+All sixteen functions per build are classified in the ledger: allocation and
+accessors; recording start; startup display alias; local multipart, raw and cache-
+slot uploads; cloud, voice and saved-image workflows; instruction/status image
+production and restoration; rendering; and the OTA health check. The last checks
+buffer availability rather than establishing another image owner. Neither accessor
+has an exact function-pointer word in the initialized image segments.
+
+The resulting lifetime map is:
+
+| Resource/path | Established ownership boundary |
+| --- | --- |
+| Recording and WAV upload | Recording owns no independent Large image snapshot; the WAV cleanup helper does not release or join an upload worker. Standard separates audio from images, but successive audio jobs still share their allocation. |
+| Local raw/multipart/cache-slot reception | Reception can write the image allocation before render arbitration. Request acceptance does not reserve the source through rendering. |
+| Cloud, voice and system images | Download/decoding uses the same image allocation. Worker contexts and completion signals have the separate lifetimes traced in the linked workflow notes. |
+| Cache I/O and status restoration | Cache reads/writes consume shared bytes; acceptance, cache replacement and physical display completion are distinct events. |
+| Renderer and SPI | The render context borrows its source. Only the current DMA chunk is staged; unsent chunks and shared driver descriptors remain live through the final consumer. |
+| HTTP cancellation and teardown | A registered client is not an owned job. [Transport close](voice.md#transport-close-frees-tls-state-before-client-cleanup) releases connection state without joining the worker or freeing the complete client. |
+| Forced task deletion | Kernel/task-local reclamation is not HTTP stack unwinding. [Identified task-local callbacks](image-downloads.md#task-local-destructors-do-not-replace-http-cleanup) do not register the HTTP-client epilogue. |
+
+The new external-cleanup comparison covers seventeen transport bodies and thirteen
+task-local bodies on both builds. Together with the earlier worker, response,
+cache and driver traces, this completes D01's bounded map for identified paths.
+Recovered references and an independent exact-word scan do not exclude computed
+aliases, runtime pointer propagation or other builds. No concurrent corruption,
+leak size or recovery outcome was observed; those physical criteria remain open.
+
+### Shared allocation and render context
+
 This allocation map is for **Large**. Standard has [separate audio/image backing
 allocations](standard-model-comparison.md#separate-recording-and-image-allocations),
 although its display pointer still aliases its image allocation.
