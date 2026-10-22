@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**8 of 67 original items complete; 98 of 182 concrete milestones complete.**
+**8 of 67 original items complete; 99 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 8 | Original bounded question answered; evidence linked below |
-| Research | 21 | Concrete static, host or design work remains available |
-| Waiting for device | 13 | Remaining original criteria require physical validation |
+| Research | 20 | Concrete static, host or design work remains available |
+| Waiting for device | 14 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
@@ -63,9 +63,9 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with C11's synthetic
-enrollment fixture or C08/D05's shared two-job
-interleaving work. A02–A04 and A03's final integration check need implementation;
+For the owner's local-cloud/voice priorities, continue with C08/D05's shared
+two-job interleaving work. C11's synthetic enrollment pass is complete; its
+physical provisioning criterion remains deferred. A02–A04 and A03's final integration check need implementation;
 report that dependency rather than substituting more library decompilation.
 Preserve the remaining lower-priority static work under its original ID.
 Commit and push validated research batches periodically as requested.
@@ -180,11 +180,11 @@ Commit and push validated research batches periodically as requested.
   auth dependencies and identity persistence. Determine how independent local
   enrollment could work without unintentionally forwarding account passwords.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static/Host:** Map account/verification split, browser scripts, local forms, response acceptance and persistence hazards. [Enrollment](cloud-protocol.md#enrollment-boundary), [thirty response groups](cloud-protocol.md#host-checked-enrollment-response-boundaries).
   - [x] **Device:** Capture successful vendor enrollment and identity surviving reboot on Standard. [Comparison/capture](standard-model-comparison.md).
-  - [ ] **Next:** **Host:** Build a minimal independent enrollment fixture with synthetic identity and local-only account handling; establish required response/persistence semantics.
+  - [x] **Host/Static:** Run 28 local-only enrollment checks with a minimal response, pinned cJSON parser, downstream poll/voice identity and synthetic restart state; document the real sign-in save gate separately from the temporary-file model. [Fixture and limits](cloud-protocol.md#synthetic-local-enrollment-and-identity-continuation).
   - [ ] **Deferred:** **Device:** Validate independent local provisioning and reboot behavior without forwarding account passwords. Reset/re-enrollment needs a separate owner-directed experiment.
 
 - [ ] **C12 · Static/Host/Account/Device:** Verify album proxy headers and authorization,

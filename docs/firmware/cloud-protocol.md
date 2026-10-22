@@ -605,6 +605,65 @@ supporting unpaired or reset frames. Preserve existing paired state for the firs
 local-backend experiment. [Configuration notes](storage-and-configuration.md)
 describe production/development identity separation and migration.
 
+### Synthetic local enrollment and identity continuation
+
+A loopback-only fixture now exercises a candidate local flow with **28 passing
+checks**. It uses a synthetic local email alias and an enrollment code in the
+stock sign-in form's password field. The backend has no upstream client and
+accepts only a preapproved device-key/MAC/model tuple during an explicitly opened
+window. These are fixture policies, not recovered vendor requirements. A MAC or
+client-supplied model is not independent proof of ownership.
+
+For both synthetic model identities, this 64-byte JSON response passes the
+existing recovered parser model using the real pinned cJSON implementation:
+
+```json
+{"success": true, "device_info": {"user_id": "local-owner-001"}}
+```
+
+There is no returned device key, owner access token, settings object or telemetry.
+The sign-in copy model retains the original request key, writes the returned user
+ID, sets verified=true and clears timezone, matching the traced caller. Those
+candidate fields round-trip through a temporary file and support the fixture's
+idle poll and voice-identity check. Voice deliberately stops before issuing an
+audio ticket. This is a **host-tested identity candidate**, not proof of minimum
+physical provisioning or NVS persistence.
+
+The same setup request repeated within the enrollment window returns the same
+user ID and does not add a second binding. After replacing the backend instance
+and reopening its saved state, bindings remain usable for the voice-identity check while enrollment
+is closed. Neither the alias nor password/code is stored in the fixture's backend
+record. Structured events omit credentials and identities. Wrong codes, aliases,
+unapproved keys, mismatched MAC/model, numeric model values and an expired window
+are rejected. All network calls in this pass used loopback.
+
+The fixture also serves `get_started` metadata and full-length **synthetic black
+buffers**: 960,000 bytes for Standard and 2,304,000 for Large. These establish
+model-specific local asset transport only. They are not designed setup screens,
+orientation verification, packed artwork conversion or physical rendering.
+
+Two distinctions matter for implementation:
+
+- Both local forms call the same `/api/v1/account/setup` endpoint with the same
+  named fields. The server cannot select the sign-in caller simply by returning
+  an extra verification field. Use the stock **sign-in** path explicitly for
+  this candidate flow; create-account still starts the separate auth task. The
+  fixture intentionally has no `/auth/v1/token` implementation or forwarding.
+- Backend acceptance precedes the frame's local save. Sign-in checks the saver
+  result before reloading, but partial NVS writes remain possible. A lost response
+  or save error must not allocate a new owner identity on retry. Backend logs
+  should say “binding accepted”, not “device provisioning complete”. A successful
+  poll proves less than a usable user-ID-bearing voice request, and neither
+  replaces reboot validation.
+
+The previously traced browser dashboard link and public connectivity/time checks
+are unchanged by this local setup response. Do not reuse a vendor password for
+this flow, infer independent offline onboarding, or reset an already-paired frame
+to try it without a separate owner-directed test. The remaining C11 criterion is
+physical local provisioning and reboot behavior; it remains deferred.
+
+See [fixture boundaries and hashes](validation-2026-10-22.md#local-enrollment-continuation-c11).
+
 ## Albums and gallery
 
 The frame's local album routes are cloud proxies, not an on-device playlist

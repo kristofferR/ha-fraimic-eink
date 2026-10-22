@@ -59,6 +59,8 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Actual HA Google helper with synthetic PCM | Complete WAV must be parsed before this raw-PCM boundary | Physical recording format or transcription quality |
 | Host-side low-battery asset decoding | Recovered RLE format consumes all input and yields correct output size/palette | A newly generated asset renders correctly on the panel |
 | Integration source inspection | Existing functions to reuse in HA | Implemented emulator, voice backend or new metadata model |
+| HA deployment read and 24 boundary checks | Active HTTP config, pinned wrapper/TLS behavior and synthetic separate-listener limits/authentication | Deployed companion, production bridge, certificate renewal or durable job recovery |
+| 28 local enrollment checks | Minimal response through pinned cJSON, synthetic identity continuation, bounded enrollment and backend restart | Physical provisioning, firmware/NVS execution, offline cold boot or actual setup-screen rendering |
 
 Temporary DNS/DNAT and interception were removed after each bounded experiment.
 No custom app was flashed. The Large [backend passes](backend-emulation.md) used

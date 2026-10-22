@@ -29,8 +29,11 @@ The [enrollment follow-up](cloud-protocol.md#enrollment-boundary) identifies the
 stock sign-in branch as a candidate local-account entry point: bind the submitted
 device key, return a stable nonempty user ID and supply setup assets. Returning
 `success` alone can produce apparently registered state with broken voice.
-The separate create-account verification task and all unpaired boot behavior
-still need validation before offering independent onboarding.
+The [28-case local enrollment fixture](cloud-protocol.md#synthetic-local-enrollment-and-identity-continuation)
+now checks that candidate response with synthetic downstream identities and
+backend restart state. Physical provisioning/reboot, the separate create-account
+verification task and unpaired boot behavior still need validation before
+offering independent onboarding.
 
 WAN-free operation also needs a time-service plan. The Large startup path can
 [switch APs after failed SNTP](boot-and-scheduling.md#time-failure-also-triggers-ap-failover),

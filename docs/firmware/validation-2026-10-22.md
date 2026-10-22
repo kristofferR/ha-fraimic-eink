@@ -2280,3 +2280,44 @@ Private artifacts reside under `ha-backend-boundary/`:
 | HA `helpers/http.py` | `17a4c4532b043ea0497fb144c6ac233a8a3546afc819d6df33926eb44d9c6385` |
 | HA `components/http/server.py` | `1589da6f3330f52b6d9cc9c6a372a43ede2633b0050fd905839b98363de22e28` |
 | HA `util/ssl.py` | `a01e13013955397e13a11aa52b2ed51d3587a5f8b1c2670a2b283ad5e739fe40` |
+
+## Local enrollment continuation: C11
+
+The [local enrollment candidate](cloud-protocol.md#synthetic-local-enrollment-and-identity-continuation)
+passed **28 isolated checks** on Omarchy. The fixture runs a loopback aiohttp
+service with synthetic local credentials and two preapproved model identities.
+Its minimal 64-byte response is fed to a C CLI using the unchanged parser model
+from the earlier thirty enrollment groups and actual pinned cJSON 1.7.18.
+The CLI was built with `clang -std=c11 -Wall -Wextra -Werror`, address/undefined
+behavior sanitizers and frame pointers; no sanitizer finding occurred.
+
+The model parser accepts the nonempty user ID without a returned device key.
+Separate Python copies reconstruct the traced sign-in field selection, including
+the original request key, verified flag and cleared timezone. Temporary JSON files
+model a saved device candidate and a persisted backend binding. Replacing the
+backend object/listener and reopening that file preserves voice identity while
+leaving enrollment closed. This is not a process-crash, filesystem-durability or
+ESP NVS test.
+
+Other cases cover rejected enrollment inputs, a replay within/after the bounded
+window, poll/voice identity for both models, exact-length synthetic black setup
+assets, missing user ID despite apparent registration, rejection of a response
+key as a rotation mechanism, absent verification endpoint, and redacted stored
+state/events. The backend has no upstream HTTP client. Voice stops intentionally
+after identity validation, before an upload ticket or generation request.
+
+The real sign-in save/reload gate remains established by `0x420192c8` and the
+previous GNU-checked `0x4201951a`–`0x4201954a` sequence, not by simulated storage
+faults. An accepted binding can precede a failed or partial device save; retry
+must preserve identity. No frame was contacted, reset, re-enrolled or changed.
+All loopback listeners and temporary state were removed after the run.
+
+C11 now waits only for its deferred physical local-provisioning/reboot criterion.
+Neither parser success nor this synthetic continuation closes that criterion.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `check-local-enrollment.py` | `2a14cdbba37a98fa4f678d334e17fdf7ee7defcadbac6f0a15ec505eaf51925e` |
+| `enrollment-parser-cli.c` | `01c60474bc819df2772ded221d7011145b5a235205cb1c08e49ee77d464420fb` |
+| Extracted `enrollment-parser-core.inc` | `17cc488ed614a232b3229871791b6802f2a3933e40e4eba19a2cf62fbc7aa060` |
+| `local-enrollment-results.json` | `01209acf2a42bdb99a092d769f6032194431c4d17a8212b8e0430649b9ae3b73` |
