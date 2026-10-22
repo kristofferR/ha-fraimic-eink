@@ -594,6 +594,41 @@ sources. The later USB-powered boot reported `DEEP_SLEEP` and the existing-user
 button-wake path. Plug/tap ordering was not controlled; these observations do
 not establish ordinary unplugged idle-sleep behavior or the battery bug's cause.
 
+### Factory timeout is not a microphone lease
+
+The empty-action landing branch of `GET /test` sets factory mode and its start
+timestamp **only when that mode was previously off**. Reopening/reloading the
+page while the flag is set does not renew the timer or repeat its emergency
+LED-off call. This is independent of the browser's own microphone-state reset.
+
+Expiry helper Large `0x4201ea50` / Standard `0x4201ea24` reads that mode flag,
+then compares the unsigned 32-bit difference `ticks * 10 - start_ms` against
+599,999. Thus 599,990 ms is unexpired and 600,000 ms is expired. The comparison
+also handles the selected millisecond-counter wrap case. When factory mode is
+off, it returns false without reading ticks. This clock is not tied to
+`mic_start`; that POST does not require opening the factory landing page.
+
+The main-loop factory branch begins at Large `0x4201421a` / Standard
+`0x420141d6`. On expiry it first calls network teardown, then chooses storage
+sleep for a first-time user or ordinary pre-sleep with argument zero for an
+existing user. It does not branch on the network teardown result. Within this
+bounded phase there is no direct factory-microphone stop or microphone cleanup
+call. The network helper's [HTTP-server stop](local-api.md#server-capacity-and-lifecycle)
+can wait without an overall deadline, so the timer is **not a guaranteed upper
+bound on capture or sleep latency**. Earlier loop work and later shutdown also
+remain separate from this expiry decision.
+
+Twelve instruction cases per build cover flag-off, the threshold, counter wrap,
+first/repeat landing, main-loop skip, configured/first-time sleep selection,
+network error and suspension at network teardown. They execute 76 unique
+instructions per model from complete, byte-checked bodies, with ticks, logging,
+LED, first-time state and teardown modeled. Sleep is a call boundary, not an
+executed physical transition. [Evidence](factory-timeout-cases.json).
+
+A diagnostic capture timeout needs explicit worker-stop/exit ownership in
+firmware. Neither a browser close nor this global factory timer supplies that
+contract. [Client lifecycle](local-api.md#factory-page-state-does-not-confirm-microphone-ownership).
+
 ## Offline dependencies
 
 ### Public reachability gate

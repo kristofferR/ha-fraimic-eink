@@ -4221,3 +4221,28 @@ items and 125/189 milestones**; this extends the existing H05 evidence.
 
 Fixture SHA-256:
 `0372cf934c033e7b27a71c3925083fdb8cfbf4f2b95f19d0040009c1cac71792`.
+
+## Factory timeout and microphone lifetime: H05/S06/A06/E01/E02
+
+**Twelve instruction cases per build pass**, executing 76 unique instructions
+each. The two getter/expiry bodies are complete; the landing and main phases
+use bounded ranges within the previously complete, byte-checked handler/main
+CFGs. GNU decoding recovers the expiry predicate's final unsigned comparison
+that Ghidra had truncated. It compares elapsed milliseconds against 599,999.
+
+First landing sets mode/start time before HTML work. A repeat landing preserves
+the timestamp even after expiry. The main-loop phase first invokes network
+teardown, then selects storage or ordinary pre-sleep by first-time state; it
+ignores a returned teardown error. Its network call can wait before any sleep
+boundary, based on the earlier HTTP-server stop audit. There is no direct
+microphone-stop/cleanup call in this bounded phase. This does not exclude nested
+callee effects or prove a physical worker's lifetime.
+
+Time, logging, LED, first-time state and network outcomes are synthetic. Cases
+stop at sleep/storage calls or the selected network wait; no shutdown, recording,
+request, image, setting or network change was performed. [Findings](boot-and-scheduling.md#factory-timeout-is-not-a-microphone-lease),
+[cases and hashes](factory-timeout-cases.json). Existing counts remain **12/67
+original items and 125/189 milestones**.
+
+Fixture SHA-256:
+`8ff87e0bdb6bbee8b3f4efcce67600c1421da547b0b33dbf0d7caba7473535c0`.

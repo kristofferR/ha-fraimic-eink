@@ -401,15 +401,16 @@ this route as a liveness probe or crawl it without an explicitly reviewed action
 `mode=restart`, `sleep`, `reset` and `ota` are actions, despite using GET.
 
 Opening `/test` **without an action** enters factory-test mode at `0x4201ed28`,
-starts a roughly ten-minute timeout and changes normal background behavior. It
-is unsuitable as a passive liveness check. The page contains controls that can
+starts a roughly ten-minute timeout on first entry and changes normal background
+behavior. Reopening it does not renew the timer. It is unsuitable as a passive
+liveness check. The page contains controls that can
 reset pairing/settings; the POST handler is `0x4201ba9c`.
 
 The GET handler uses a 64-byte query buffer and a 32-byte action buffer. If query
 retrieval fails, including because the complete query does not fit, the action
-stays empty and enters the same landing-page branch. The factory flag and timer
-are set before HTML allocation, so an allocation error can follow entry into
-that mode. This branch also invokes emergency LED-off helper `0x42023210`,
+stays empty and enters the same landing-page branch. On first entry, the factory
+flag and timer are set before HTML allocation, so an allocation error can follow
+entry into that mode. This branch also invokes emergency LED-off helper `0x42023210`,
 which bypasses ordinary workflow protection.
 
 `GET /test?action=battery` follows a separate read branch and returns voltage,
@@ -489,8 +490,10 @@ attributes, and their script installs no `beforeunload`, `unload`, `pagehide` or
 `visibilitychange` handlers. Closing a page therefore does not itself send
 `mic_stop` through this client. This does not establish indefinite capture:
 factory timeout, sleep, reboot and other firmware callers remain independent.
-The [ten-minute factory-mode boundary](boot-and-scheduling.md#storage-sleep-and-factory-test-mode)
+The [ten-minute factory-mode boundary](boot-and-scheduling.md#factory-timeout-is-not-a-microphone-lease)
 is not a browser-session lease or a confirmed worker-exit acknowledgement.
+Its network shutdown can wait before reaching sleep; it is not a guaranteed
+upper bound on capture time.
 
 Nine isolated cases per build execute the original embedded JavaScript:
 

@@ -1,0 +1,289 @@
+{
+  "method": "Pinned-image byte checks and instruction execution of factory-mode getter/expiry predicate, landing admission block and main-loop expiry branch on both models.",
+  "fixture_sha256": "8ff87e0bdb6bbee8b3f4efcce67600c1421da547b0b33dbf0d7caba7473535c0",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "mode",
+          "entry": "0x4201ea44",
+          "instructions": 4,
+          "sha256": "b784d3cf993b6de1cdf963e60441f80bf80a7e9698b6bc34d012673534cca6be"
+        },
+        {
+          "name": "expired",
+          "entry": "0x4201ea50",
+          "instructions": 13,
+          "sha256": "64749b78e679efddbd3473b44c184f41c414a590b7fe5c92cb649653f74c538a"
+        },
+        {
+          "name": "page",
+          "entry": "0x4201ed28",
+          "instructions": 361,
+          "sha256": "d025103ab100d0490b3fe1e9b819d80155804d603b64bf8faaef0888e38ee803"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        }
+      ],
+      "bounded_landing": {
+        "start": "0x4201ed67",
+        "end_exclusive": "0x4201eda4"
+      },
+      "bounded_main": {
+        "start": "0x4201421a",
+        "end_exclusive": "0x4201427e"
+      },
+      "instructions_executed_unique": 76,
+      "cases": [
+        {
+          "name": "factory-mode-off-has-no-expiry",
+          "expired": false,
+          "tick_reads": 0,
+          "passed": true
+        },
+        {
+          "name": "599990-ms-not-expired",
+          "expired": false,
+          "tick_reads": 1,
+          "passed": true
+        },
+        {
+          "name": "600000-ms-expired",
+          "expired": true,
+          "tick_reads": 1,
+          "passed": true
+        },
+        {
+          "name": "millisecond-counter-wrap-retains-ten-minute-delta",
+          "expired": true,
+          "tick_reads": 1,
+          "passed": true
+        },
+        {
+          "name": "first-landing-arms-timer-before-html-work",
+          "start_ms": 700000,
+          "emergency_led_off_calls": 1,
+          "passed": true
+        },
+        {
+          "name": "repeat-landing-does-not-renew-expired-timer",
+          "start_ms": 700000,
+          "now_ms": 1300000,
+          "expired": true,
+          "emergency_led_off_calls": 1,
+          "passed": true
+        },
+        {
+          "name": "inactive-main-phase-skips-teardown",
+          "events": [],
+          "boundary": "phase-end",
+          "factory_mode": false,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "unexpired-main-phase-skips-teardown",
+          "events": [],
+          "boundary": "phase-end",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "configured-expiry-calls-network-then-presleep",
+          "events": [
+            "network-teardown",
+            "ordinary-presleep"
+          ],
+          "boundary": "ordinary-presleep",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "first-time-expiry-calls-network-then-storage",
+          "events": [
+            "network-teardown",
+            "storage"
+          ],
+          "boundary": "storage",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "blocked-network-teardown-precedes-any-sleep-boundary",
+          "events": [
+            "network-teardown"
+          ],
+          "boundary": "network-teardown",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "network-error-is-ignored-before-presleep",
+          "events": [
+            "network-teardown",
+            "ordinary-presleep"
+          ],
+          "boundary": "ordinary-presleep",
+          "factory_mode": true,
+          "network_error": 259,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "mode",
+          "entry": "0x4201ea18",
+          "instructions": 4,
+          "sha256": "83196d8370451fc9a75202eaa1db43d9e989058646da537987976e2023e48ed8"
+        },
+        {
+          "name": "expired",
+          "entry": "0x4201ea24",
+          "instructions": 13,
+          "sha256": "1942f4454d670100a9faceae70230732b72ea7c7893d888aa71268c3bb90e74a"
+        },
+        {
+          "name": "page",
+          "entry": "0x4201ecfc",
+          "instructions": 361,
+          "sha256": "d94b203e7647b1a72e278e29c306ea2702b3f85a9099b9176a2831b15dbb9f4a"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        }
+      ],
+      "bounded_landing": {
+        "start": "0x4201ed3b",
+        "end_exclusive": "0x4201ed78"
+      },
+      "bounded_main": {
+        "start": "0x420141d6",
+        "end_exclusive": "0x4201423a"
+      },
+      "instructions_executed_unique": 76,
+      "cases": [
+        {
+          "name": "factory-mode-off-has-no-expiry",
+          "expired": false,
+          "tick_reads": 0,
+          "passed": true
+        },
+        {
+          "name": "599990-ms-not-expired",
+          "expired": false,
+          "tick_reads": 1,
+          "passed": true
+        },
+        {
+          "name": "600000-ms-expired",
+          "expired": true,
+          "tick_reads": 1,
+          "passed": true
+        },
+        {
+          "name": "millisecond-counter-wrap-retains-ten-minute-delta",
+          "expired": true,
+          "tick_reads": 1,
+          "passed": true
+        },
+        {
+          "name": "first-landing-arms-timer-before-html-work",
+          "start_ms": 700000,
+          "emergency_led_off_calls": 1,
+          "passed": true
+        },
+        {
+          "name": "repeat-landing-does-not-renew-expired-timer",
+          "start_ms": 700000,
+          "now_ms": 1300000,
+          "expired": true,
+          "emergency_led_off_calls": 1,
+          "passed": true
+        },
+        {
+          "name": "inactive-main-phase-skips-teardown",
+          "events": [],
+          "boundary": "phase-end",
+          "factory_mode": false,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "unexpired-main-phase-skips-teardown",
+          "events": [],
+          "boundary": "phase-end",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "configured-expiry-calls-network-then-presleep",
+          "events": [
+            "network-teardown",
+            "ordinary-presleep"
+          ],
+          "boundary": "ordinary-presleep",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "first-time-expiry-calls-network-then-storage",
+          "events": [
+            "network-teardown",
+            "storage"
+          ],
+          "boundary": "storage",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "blocked-network-teardown-precedes-any-sleep-boundary",
+          "events": [
+            "network-teardown"
+          ],
+          "boundary": "network-teardown",
+          "factory_mode": true,
+          "network_error": 0,
+          "passed": true
+        },
+        {
+          "name": "network-error-is-ignored-before-presleep",
+          "events": [
+            "network-teardown",
+            "ordinary-presleep"
+          ],
+          "boundary": "ordinary-presleep",
+          "factory_mode": true,
+          "network_error": 259,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Landing execution begins after empty-action selection and stops before HTML/header work. Query parsing and HTML allocation are not re-executed.",
+    "Main execution begins at the factory check; reaching that point, prior loop work and wall-clock latency are not established.",
+    "Ticks, logging, emergency LED, first-time flag and network teardown are stubbed; sleep/storage stop at their call boundaries. No hardware shutdown or microphone worker exit is executed.",
+    "The blocked network case captures an existing documented wait boundary, not a measured hang or new SDK stop test. The no-direct-microphone-call assertion covers only the bounded executed main phase, not every nested callee.",
+    "No device request, recording, image, settings or network change."
+  ]
+}
