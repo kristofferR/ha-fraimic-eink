@@ -922,3 +922,32 @@ Private artifacts: `enrollment-parser-pass1.txt`, `enrollment-parser-pass2.txt`,
 `enrollment-parser-gnu.mjs`, `enrollment-parser-boundaries-gnu.txt`,
 `enrollment-json-fixture.c`, `enrollment-json-results.jsonl` and
 `enrollment-parser-evidence-hashes.txt`.
+
+## Upload worker context lifetime: C07/C08/D01/D07
+
+Three reference/decompiler passes and 22 bounded GNU ranges cover the upload
+worker, orchestration, no-op cleanup, task creation/initialization/stack setup and
+the main-loop return site. GNU decoding is used where Ghidra truncates task
+creation at an unsupported `SALTU` instruction or has no initializer entry.
+The source corroboration is the pinned IDF 5.4.1 Xtensa port, not a claim that the
+entire SDK binary was rebuilt or proved identical.
+
+The caller-stack context is 220 bytes, with a separate local status word. The
+URL buffer and completion semaphore are global. Tracing follows the original
+context pointer into the new task's initial register frame, with no context copy.
+After the 90,000-tick wait expires, the caller returns without joining the upload
+worker. All recovered success/error/cancel exits later read through that context
+to publish status and give the semaphore. Main resumes without checking the
+orchestration return and prints its generic workflow-complete message.
+
+This narrows the earlier lifetime question to a concrete **conditional static
+use-after-return path** if the worker survives the caller. It does not reproduce
+an expired-stack write, a late result consumed by another job, or any crash on a
+frame. No additional host lifetime simulation was substituted for device evidence;
+the prior SDK response fixture already shows transport reads can exceed the
+outer wait. No recording, stalled request, task fault or device action was induced.
+
+Private artifacts: `upload-lifetime-pass1.txt`, `upload-lifetime-pass2.txt`,
+`upload-lifetime-pass3.txt`, `upload-lifetime-gnu.mjs`,
+`upload-lifetime-boundaries-gnu.txt`, `upload-lifetime-literals.jsonl` and
+`upload-lifetime-evidence-hashes.txt`.

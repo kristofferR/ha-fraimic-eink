@@ -46,6 +46,7 @@ per question, not a count of tool calls or decompiled functions.
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
+| C07/C08/D01/D07 | Upload task creation passes a borrowed 220-byte caller context; timeout returns without joining, while every worker exit still accesses its status/semaphore pointers | Physical timing, expired-stack effects, late completion/two-job reproduction and complete cleanup design |
 | C07/C08/D05 | Task creation/WAV lifetime and cancellation windows traced; pending poll can interrupt recording even without a usable image URL; five fixture TLS checks passed | Deferred physical cancellation, response/body-read gaps, worker lifetime and two-job validation |
 | C09 | Fifteen host checks and one physical recording-to-fixed-image protocol/driver flow completed, including cache save and return to ready | Complete for bounded transport scope; same-card optical refresh was not witnessed, and STT/generation were not invoked |
 | C10 | Captured Standard audio job/panel linked to gallery transcript/original; expired URL refreshed to identical PNG bytes; gallery ID differs from object-key UUID | Long-term retention, changing pagination and final vendor prompt availability |
@@ -314,6 +315,10 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
   [Standard's allocation comparison](standard-model-comparison.md#separate-recording-and-image-allocations)
   rules out Large's specific audio/image alias there; image producers still share
   an allocation, and recording/upload reuse still needs job ownership.
+  [Large upload-context lifetime](voice.md#late-upload-workers-retain-caller-stack-pointers)
+  now follows the borrowed pointer through SDK task setup and all terminal worker
+  branches. Timeout can release its caller stack before those accesses; physical
+  corruption, late semaphore consumption and two-job interleavings remain untested.
 - [ ] **D02 · Host/Device:** Reproduce the shared-buffer interference with controlled
   overlapping operations. Record which bytes/operation are affected and when;
   static missing guards alone do not demonstrate a particular runtime failure.

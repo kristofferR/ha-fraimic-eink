@@ -409,9 +409,11 @@ proof that a network request was ever started. Allocation failure was not induce
 
 The 15-minute outer upload wait does not retain an upload-task handle or perform
 the explicit abort/join sequence used for download timeout. Its task context and
-result pointer refer to the caller's stack. Whether a worker can still access
-that state after the timeout is a remaining lifetime question, not a reproduced
-crash. Do not use a 15-minute stall on the physical frame as the first experiment.
+status-result pointer refer to the caller's stack. The later
+[lifetime trace](#late-upload-workers-retain-caller-stack-pointers) identifies
+the worker's reads and writes after that wait can expire; it remains a conditional
+static path rather than a reproduced physical crash. Do not use a 15-minute stall
+on the physical frame as the first experiment.
 
 The apparent WAV cleanup call (`0x42020294`) does not free or zero the shared
 audio allocation, cancel a worker, or wait for it. It is a no-op for the expected
@@ -427,6 +429,57 @@ the explicit before-render cancellation branch follows successful download.
 Consequently an error indication alone is insufficient to classify cancellation.
 Physical timing, cleanup, socket closure, stale-result behavior and every retry
 boundary remain open under C07/C08/D05.
+
+### Late upload workers retain caller-stack pointers
+
+Large orchestration `0x42011adc` places a **220-byte context** at its stack pointer
+plus `0x6f8`; the separate status word is at stack pointer plus `0x7dc`. It gives
+that context pointer directly to upload worker `0x42010108`:
+
+| Context offset | Contents and owner |
+| --- | --- |
+| `0x00` | Device-key text, 65-byte field in caller stack |
+| `0x41` | User-ID text, 128-byte field in caller stack |
+| `0xc4` / `0xc8` | Existing WAV pointer and byte count |
+| `0xcc` / `0xd0` | URL destination `0x3fca64dc`, capacity 1,536; destination is global |
+| `0xd4` | Address of global upload-completion semaphore handle at `0x3fca6b2c` |
+| `0xd8` | Pointer to the caller's local status word |
+
+The task-creation call passes a null output-handle pointer. GNU tracing follows
+the unchanged parameter through creation `0x403858d8`, initialization
+`0x40383af4` and stack setup `0x4038298c`; the last stores the parameter pointer
+in the new task's initial register frame. It does **not copy the context**.
+This matches the parameter handling in the
+[IDF 5.4.1 Xtensa port](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/freertos/FreeRTOS-Kernel/portable/xtensa/port.c).
+
+After one nonblocking semaphore drain, the caller waits 90,000 ticks. A timeout
+takes `0x42011e5c` through the no-op WAV cleanup to a failure return. There is no
+upload join, task deletion or abort request on that path. The main-loop caller
+then stops the button monitor and resumes its ordinary loop without inspecting
+the returned status. Its “Workflow complete” log also runs after this failure;
+that message is not an upload/render acknowledgment.
+
+The worker retains the original context pointer across all three network stages.
+Every recovered terminal branch reads the status pointer from context `+0xd8`,
+writes success/error/cancel status, reads the semaphore-handle address from
+`+0xd4`, gives that semaphore, then deletes itself. The success branch additionally
+reads `+0xcc/+0xd0` to copy the image URL. Setting the processing-cancel flag does
+not remove these terminal context accesses.
+
+**Static consequence:** if the worker remains alive after the caller returns and
+later finishes a stage, it dereferences expired caller-stack storage. A successful
+late result can also replace the shared URL and give the unscoped semaphore;
+draining it before the next launch cannot reject a completion that arrives after
+that drain. Reuse of the same stack region by a later invocation can redirect
+these accesses into the later context. No physical stale completion, memory
+corruption or particular two-job interleaving has been observed.
+
+This path is consistent with the earlier SDK host result where repeated transport
+reads outlasted the outer wait; a per-read timeout does not prove the worker has
+ended. A firmware change needs owned context/result storage, an absolute deadline,
+and cancellation followed by worker exit before releasing or reusing state.
+The stock emulator can bound its own work and leave timeout headroom, but it
+cannot repair the caller's lifetime contract with a response field.
 
 ### Candidate stale cancellation across two jobs
 

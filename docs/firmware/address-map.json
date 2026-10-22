@@ -76,6 +76,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3fca64dc",
+      "kind": "data",
+      "role": "Shared 1,536-byte voice result URL buffer; distinct from caller-stack upload status",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
+    },
+    {
       "address": "0x3fca6b01",
       "kind": "data",
       "role": "Button monitor pending-event flag; distinct from processing cancellation",
@@ -104,6 +110,12 @@
       "kind": "state",
       "role": "Render termination semaphore handle storage",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x3fca6b2c",
+      "kind": "data",
+      "role": "Upload completion semaphore handle; shared across voice invocations, no job identity",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
     },
     {
       "address": "0x3fca6b40",
@@ -424,6 +436,24 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x4038298c",
+      "kind": "function",
+      "role": "Xtensa initial task stack; stores task function and parameter pointer in register frame",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
+    },
+    {
+      "address": "0x40383af4",
+      "kind": "function",
+      "role": "Task initialization; forwards task function and parameter to initial-stack setup",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
+    },
+    {
+      "address": "0x403858d8",
+      "kind": "function",
+      "role": "Dynamic pinned-task creation; forwards parameter pointer without copying context",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
+    },
+    {
       "address": "0x42000e28",
       "kind": "literal",
       "role": "Address of display buffer pointer alias",
@@ -498,8 +528,8 @@
     {
       "address": "0x42010108",
       "kind": "function",
-      "role": "Voice presign/upload/finalize task; returns URL to orchestrator",
-      "evidence": "static; task literal and GNU entry verified, cancellation follow-up"
+      "role": "Voice presign/upload/finalize worker; all terminal branches access borrowed context for status and semaphore",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
     },
     {
       "address": "0x420104a8",
@@ -558,8 +588,8 @@
     {
       "address": "0x42011adc",
       "kind": "function",
-      "role": "Voice connectivity readiness wait",
-      "evidence": "static"
+      "role": "Voice orchestration; 220-byte caller-stack upload context and local status; timeout returns without joining upload",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
     },
     {
       "address": "0x42012338",
@@ -1311,8 +1341,8 @@
     {
       "address": "0x42020294",
       "kind": "function",
-      "role": "WAV cleanup compatibility helper; no free, zero or worker join",
-      "evidence": "static; cancellation lifetime follow-up"
+      "role": "WAV cleanup label; expected shared pointer produces no free, zero, cancellation or join",
+      "evidence": "static; upload lifetime pass and bounded GNU cross-check"
     },
     {
       "address": "0x420202bc",
