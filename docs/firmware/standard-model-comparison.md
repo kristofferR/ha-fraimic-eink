@@ -808,6 +808,14 @@ establishing its development history or testing a low-battery update.
 
 ## Enrollment and setup screens
 
+The complete [setup metadata and fetch paths](cloud-protocol.md#setup-metadata-comparison-and-host-boundaries)
+now match across three function pairs, 422 GNU instructions and 38 branch
+destinations, apart from the expected `133` / `315` model literal. Both accept
+chunked metadata after a zero header-fetch result and reject URLs of 1,536 bytes
+or more instead of truncating them. Nineteen isolated reader/parser host cases
+cover those boundaries and partial-response acceptance; they do not add a new
+physical setup test or prove every external SDK/driver helper equivalent.
+
 The trace records these owner-initiated API calls:
 
 | Route | Result |

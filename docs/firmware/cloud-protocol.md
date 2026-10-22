@@ -401,6 +401,60 @@ onboarding needs corresponding assets or an explicit firmware fallback.
 Their [background task and poll-deferral limits](rendering-and-concurrency.md#setup-screen-tasks-and-the-two-minute-poll-hold)
 also matter: fetching a screen is not an atomic handoff of its image memory.
 
+### Setup metadata comparison and host boundaries
+
+The complete metadata client, instruction-key selector and fetch caller now
+match Standard at `0x42022640`, `0x42028fc0` and `0x42029324` respectively
+(Large `0x42023bcc`, `0x4202a8b8`, `0x4202abe8`). Three paired bodies contain
+422 byte-matched GNU instructions, 38 branch destinations and 12 contiguous
+ranges per image. The expected model path segment differs (`315` / `133`);
+other compared strings, the three-entry instruction-name table and normalized
+operations agree. External SDK/driver calls are mapped, not recursively proved
+equivalent by this pass.
+
+The request builder has a 512-byte URL buffer and rejects a formatted length
+of 512 or more. It supplies `User-Agent: ESP32-Fraimic/1.0` and `Accept:
+application/json`, with no device-key or account-authorization header in this
+path. The fetch caller adds `?ip=<four decimal octets>` only for `create_account`
+and only after successful station-netif/IP-info lookup. It does not separately
+reject an all-zero returned IP. `get_started` receives no such query, and the
+local `wake_up` type has no server-key mapping. An emulator should treat the IP
+as display/setup information, not proof of device identity.
+
+A new isolated fixture combines unchanged IDF 5.4.1 header/body reader functions
+and HTTP parser with the pinned cJSON implementation and a reconstructed setup
+response branch. It uses the actual 512-byte receive buffer, 2,047-byte body cap,
+1,536-byte URL destination and 10-second per-transport timeout. Nineteen cases
+passed with AddressSanitizer and UndefinedBehaviorSanitizer:
+
+| Host case | Result |
+| --- | --- |
+| Exact HTTP 200 JSON | URL accepted |
+| Header and two body reads, each progressing after 9,990 ms | Accepted after 29,970 virtual ms; no ten-second whole-request limit |
+| Complete JSON prefix followed by timeout before declared body end | Accepted with HTTP completion false |
+| Incomplete JSON prefix, or timeout before any body | Rejected; the latter reader returns HTTP EAGAIN |
+| Explicit zero Content-Length | Body read attempted, returns zero, rejected |
+| Valid chunked JSON, whose header-fetch result is zero | Read and accepted, including ordinary chunk termination |
+| Same chunked JSON without its terminating chunk, then timeout | Accepted with HTTP completion false |
+| HTTP 302 | Rejected before reading its body; no redirect follow |
+| 2,500-byte declared body with complete JSON at the front | First 2,047 bytes accepted, HTTP completion still false |
+| Empty URL with `success:false` | Parser success; neither field supplies a usable image or backend success guarantee |
+| Differently cased duplicate URL keys | First matching member wins; an invalid first member rejects a later valid one |
+| Decoded NUL within URL | C-string prefix accepted |
+| Missing URL or non-object root | Rejected |
+| Valid JSON followed by trailing text | Prefix accepted |
+| URL lengths 1,535 / 1,536 bytes | First accepted; second returns `0x104` without truncating into the destination |
+
+On these rejection paths the destination begins with NUL; successful parsing
+does not validate URL syntax or fetch its asset. These host results do not include
+real sockets, TLS, DNS, allocation faults, a display or execution on either frame.
+The HTTP source SHA-256 remains
+`7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2`,
+and the [cJSON pin](voice.md#json-request-allocation-failures-can-lose-ownership-or-fields)
+is unchanged. The cases are one shared host run, not nineteen device tests per
+model. Use compact, complete HTTP 200 JSON and a short, nonempty asset URL for
+the emulator; parser permissiveness is not a reason to emit incomplete responses.
+
 ## Enrollment boundary
 
 `POST /api/v1/account/setup` (`0x42023ed4`) sends JSON fields `email`, `password`,

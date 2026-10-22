@@ -653,6 +653,35 @@
         "ranges": 12
       },
       "limitations": "Preservation lists are attempted backups/restores, not guaranteed final state. No Standard SDK/caller equivalence, live reset, interruption or later cache/state/artwork recovery validation."
+    },
+    "setup_metadata": {
+      "evidence": "Three complete paired GNU bodies plus nineteen SDK-reader/cJSON host cases; no live frame requests",
+      "compared_functions": 3,
+      "instructions_per_image": 422,
+      "compared_branches": 38,
+      "gnu_ranges_per_image": 12,
+      "direct_call_pairs": 19,
+      "literal_pairs": 46,
+      "model_path_segment": {
+        "large": "315",
+        "standard": "133"
+      },
+      "request_url_capacity": 512,
+      "body_read_cap": 2047,
+      "url_destination_capacity": 1536,
+      "receive_buffer_bytes": 512,
+      "transport_timeout_ms": 10000,
+      "chunked_zero_header_result_read": true,
+      "exact_http_status_required": 200,
+      "redirects_followed": false,
+      "complete_http_message_required": false,
+      "overlong_url": "Reject at 1536 bytes; no truncation",
+      "host_cases": 19,
+      "host_sanitizers": [
+        "AddressSanitizer",
+        "UndefinedBehaviorSanitizer"
+      ],
+      "limitations": "Scripted transport and reconstructed application response branch, not sockets/TLS/device/heap faults or complete recursive SDK/driver equivalence"
     }
   },
   "function_map": [
@@ -1700,6 +1729,21 @@
       "role": "reset_production_preserve_development",
       "large": "0x4201800c",
       "standard": "0x42017fe0"
+    },
+    {
+      "role": "setup_image_metadata",
+      "large": "0x42023bcc",
+      "standard": "0x42022640"
+    },
+    {
+      "role": "setup_image_fetch",
+      "large": "0x4202abe8",
+      "standard": "0x42029324"
+    },
+    {
+      "role": "instruction_server_key",
+      "large": "0x4202a8b8",
+      "standard": "0x42028fc0"
     }
   ],
   "live_standard": {

@@ -96,7 +96,8 @@ per question, not a count of tool calls or decompiled functions.
 | H05/N03/A01 | Both builds' mDNS setup, MAC-suffix names, ignored errors, one-time delegated address and blocking action waits match; HTTP service registration is absent from the recovered setup path | Actual service packets, collisions, changed IPs, action faults and credential identity across reset/environment changes |
 | N03/C11/A01 | Five identity bodies match: stored-key precedence, user-ID-gated legacy migration, deterministic generation and different save-error handling; embedded material compared privately | Physical identity/reset behavior, interrupted saves, MAC/read faults and remaining reset/SDK paths |
 | N03/H05/C11 | Both reset backups/restores match; Large whole-NVS erase, recovery erase before backup, unchecked field writes and reset handoff despite helper error traced | Physical/interrupted recovery, remaining caller/SDK comparison, cached identity and later recreated state/artwork |
-| E02/H04/D01 | Both app hashes pinned; 42 routes and 73 function pairs compared; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/driver/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
+| C04/C11/E02 | Three complete setup metadata/fetch bodies match except model literal; nineteen SDK/parser host cases cover chunked zero-header results, incomplete bodies, URL limits and field lookup | Physical local setup assets, heap/transport faults, external SDK/driver equivalence and independent enrollment |
+| E02/H04/D01 | Both app hashes pinned; initial 42-route/73-function comparison extended by the topic passes above; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/driver/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
 | E02/H05/D01/D07 | Thirteen LED-related function pairs match across 826 relocated GNU instructions; 22 host groups cover pending replacement, latch timing, factory gates and conditional stale completion | Physical indications/interleavings, complete caller meanings, SDK/output-driver comparison and other releases |
 | E02/C05/C07 | Standard's selected upload/finalize branches match empty upload acknowledgment, 4 KiB WAV chunks, 4,095-byte JSON reads and synchronous finalize; its voice image limit remains 960,000 bytes | Full error/SDK comparison, device response faults, cancellation and late-worker/two-job behavior |
 
@@ -160,6 +161,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
 - [ ] **C04 · Host/Device:** Supply local `create_account` and `get_started` assets;
   verify IP-query handling, format, fetch failures and actual setup-screen behavior.
   Establish what an offline fallback would need.
+  [Complete metadata/fetch comparison and nineteen host cases](cloud-protocol.md#setup-metadata-comparison-and-host-boundaries)
+  now establish shared request/response boundaries, chunked acceptance and strict
+  URL destination limits. Actual local onboarding assets, render behavior,
+  allocation/transport faults and independent enrollment remain open.
 - [ ] **C05 · Host/Device:** Test multipart voice upload against a plain local HTTP
   service, including empty `{}` fields, required fields, upload tickets, status
   codes, size limits and malformed presign responses. Confirm no S3 service is needed.
