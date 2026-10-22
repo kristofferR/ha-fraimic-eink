@@ -505,8 +505,10 @@ The two reset-helper bodies match Standard `0x42017a80` / `0x42017fe0` across
 969 byte-matched GNU instructions, 60 branch destinations and 17 contiguous
 ranges per build, with 13 direct-call and 79 literal pairs reviewed. A separate
 Large pass checks three SDK bodies and the HTTP/main-loop reset regions across
-12 ranges and 396 instructions. That second pass is not a Standard SDK/caller
-comparison. These findings argue for a dedicated backend migration setting that
+12 ranges and 396 instructions. The later
+[Standard lifecycle comparison](standard-model-comparison.md#identity-persistence-and-reset-handoff-comparison)
+covers the selected SDK bodies and HTTP handler and identifies different
+main-loop wait placement. These findings argue for a dedicated backend migration setting that
 preserves identity and storage, rather than repurposing factory reset.
 
 ### Cached identity and later writes after reset
@@ -553,8 +555,21 @@ not establish that the erased account is restored.
 This follow-up checks 15 complete Large helper bodies across 661 byte-matched
 GNU instructions, 68 branches and 31 contiguous ranges, alongside the recovered
 storage-sleep caller. It does not compare these SDK/cache paths on Standard or
-execute them on either device. Internal SDK cleanup, concurrent writers,
-interrupted shutdown, subsequent boot and actual final storage remain open.
+execute them on either device. The later comparison below extends those fifteen
+selected helper bodies to Standard; deeper external SDK cleanup, concurrent
+writers, interrupted shutdown, subsequent boot and actual final storage remain open.
+
+The [subsequent model comparison](standard-model-comparison.md#identity-persistence-and-reset-handoff-comparison)
+also checks the complete identity saver, legacy-field migrator, HTTP action
+handler and three NVS initialization/erase wrappers. Its main-loop reset regions
+are deliberately compared separately: Standard adds a 1,000-tick wait before
+the reset LED/teardown, after the shared 200-tick delay, and another 1,000-tick
+wait after receiving the wake-image completion signal. At the known 10 ms tick,
+those are two conditional ten-second differences. The second applies only on
+the completion-success branch. Both regions use a 12,000-tick (120-second)
+completion wait; that shared signal is not a per-image rendering acknowledgment.
+No actual reset duration was measured, and the final model-specific sleep
+helpers are external to the compared main-loop regions.
 
 ### Identity saves and reset restoration: host cases
 

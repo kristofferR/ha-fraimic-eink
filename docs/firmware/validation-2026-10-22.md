@@ -2819,3 +2819,44 @@ Wi-Fi/timezone and reenrollment validation remains deferred.
 | `identity-save-large-cfg.json` | `78e5e19b168c4bfcfafaa212995bb38968eaf094d2163a766e3c828f6880374f` |
 | `reset-development-large-cfg.json` | `434b9de12df1c47d42cdb91f70b49b880d8e50fecf35da73e65ad9278798c7b5` |
 | `reset-production-large-cfg.json` | `546c111b326025ca907050e0db73a55bf3733d915c4fe33f4d325f58bd02a2fb` |
+
+## Standard identity persistence and reset lifecycle: N03/E02
+
+Twenty-one complete paired bodies cover the saver, legacy-field migrator,
+HTTP action handler, three SDK NVS initialization/erase wrappers and the fifteen
+cached-state/credential/teardown helpers from the earlier Large pass. Each build
+contributes **1,573 instructions, 155 internal branches and 66 ranges**. GNU
+control-flow recovery checks instruction encodings against the pinned images;
+the comparison checks prologues, normalized opcodes/registers and branch
+destination indices. Seventy direct-call and 172 literal pairs are reviewed
+separately. A source-line argument to the erase-error diagnostic differs;
+terminated strings and pointed-to Wi-Fi/IP event names match. Corresponding RAM
+and external code pointers do not prove runtime values or recursively equivalent
+callees. The private comparison JSON fingerprints every complete body.
+
+The main-loop reset regions are unequal and are not forced through the matching
+body assertion. Separate bounded CFG recoveries cover Large `0x42014079` through
+exclusive `0x4201421a` (152 instructions/four ranges) and Standard `0x42013ff7`
+through exclusive `0x420141d6` (177 instructions/three ranges). An explicit region
+exit terminates traversal; this is not a claim of whole-main-loop coverage.
+The recovered Standard sequence adds 1,000-tick waits before teardown and after
+successful wake-image completion. Both use 200 initial delay ticks and a 12,000-tick
+completion wait. The [comparison table](standard-model-comparison.md#identity-persistence-and-reset-handoff-comparison)
+states branch conditions and the distinction between shared completion and render
+acknowledgment. Tick conversions use the previously established 10 ms tick.
+
+The check script asserts the selected delay loads/call targets, their placement
+in the decoded regions and the absence of the two added waits in Large. No sleep
+helper, RTOS, display or flash behavior is executed. Final sleep callees, deeper
+NVS storage internals, unselected indirect references and physical final state
+retain their explicit remaining criteria. N03's bounded comparison milestone is
+checked; its physical reset/isolation criterion remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `compare-reset-lifecycle.mjs` | `0c4c4c76bc865a2a2bf78140821c0bb8450b022b31caba7c4894d23aa93059be` |
+| `standard-reset-lifecycle-comparison.json` | `a0b9bd1a4a7568f2bd9f4b425a934b93dbd16bd3528e8368b2699c12c4188520` |
+| `check-reset-handoff.mjs` | `1f66ff82ab0a0e6dd3625b57e6d7154908da2775042fa845732c031257b91202` |
+| `reset-handoff-summary.json` | `5b8fd7ab729242482cd591e46e3104c9958bd44fe977ac685c6ff1ce0658c52c` |
+| `reset-handoff-large-cfg.json` | `0c73bc1c0976be0af188d8b26aba9ade5e6cbcdb6f9abe5ace55faac8318509f` |
+| `reset-handoff-standard-cfg.json` | `4bf407bd4d1d5fc0ea081861b7d1be84b16b8928db0b9120b1cc2bc7c0631bad` |

@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 112 of 183 concrete milestones complete.**
+**9 of 67 original items complete; 113 of 183 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 9 | Original bounded question answered; evidence linked below |
-| Research | 8 | Concrete static, host or design work remains available |
-| Waiting for device | 23 | Remaining original criteria require physical validation |
+| Research | 7 | Concrete static, host or design work remains available |
+| Waiting for device | 24 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 9 | Owner-postponed work; do not resume automatically |
@@ -65,14 +65,14 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with N03's remaining
-Standard SDK/caller comparison after its bounded identity save/reset pass,
+For the owner's local-cloud/voice priorities, continue with N02's remaining
+SDK/indirect NVS references, including Standard storage-writer/vtable coverage,
 while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
 overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
 N06's wake-asset cases, D06's driver-fault/watchdog pass and S02's bounded
-time-control/overlapping-waiter cases
+time-control/overlapping-waiter cases and N03's bounded identity/save/reset comparison
 are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
@@ -565,17 +565,17 @@ Commit and push validated research batches periodically as requested.
 
   - [x] **Static:** Map application key types, blob layouts, defaults and SDK Wi-Fi/PHY namespaces. [Schema](storage-and-configuration.md#recovered-nvs-types-and-record-sizes).
   - [x] **Static:** Compare selected settings/identity paths and establish non-atomic per-key writes. [Persistence](storage-and-configuration.md#nvs-commit-does-not-make-the-four-switches-atomic).
-  - [ ] **Next:** **Static/Host:** Audit remaining indirect/SDK key references, version compatibility and migration faults; preserve credentials outside public artifacts.
+  - [ ] **Next:** **Static/Host:** Audit remaining indirect/SDK key references, Standard storage-writer/vtable coverage, version compatibility and migration faults; preserve credentials outside public artifacts.
 
 - [ ] **N03 · Host/Device:** Verify production/development identity and Wi-Fi isolation,
   legacy-key migration, reset semantics, timezone sharing and interrupted/failed
   saves. Determine exactly what is preserved and what requires reenrollment.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static:** Map environment namespaces, deterministic key selection, legacy migration, whole-NVS reset backups and subsequent cached-state writes. [Identity](storage-and-configuration.md#identity-layout-and-migration), [reset](storage-and-configuration.md#cached-identity-and-later-writes-after-reset).
   - [x] **Host:** Exercise interrupted saves/reset restoration with synthetic identity: nineteen groups, 34 successful-mutation cut points and 28 setter errors. These are API-boundary models, not physical power-loss tests. [Persistence cases](storage-and-configuration.md#identity-saves-and-reset-restoration-host-cases).
-  - [ ] **Next:** **Static/Host:** Resolve remaining Standard SDK/caller differences around identity saving, reset and cached-state handoff; retain the boundary between helper equivalence and whole-workflow equivalence.
+  - [x] **Static:** Compare 21 selected Standard SDK/caller bodies around identity saving, reset and cached-state handoff; separately trace both main-loop regions and their different waits. Deeper storage internals remain N02, and whole-workflow physical equivalence is not claimed. [Comparison](standard-model-comparison.md#identity-persistence-and-reset-handoff-comparison).
   - [ ] **Deferred:** **Device:** Verify final production/development/Wi-Fi/timezone state and reenrollment after approved reset/mode-switch cases.
 
 - [ ] **N04 · Host/Device:** Validate mount retries and format-on-failure decisions

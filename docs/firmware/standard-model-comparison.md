@@ -735,8 +735,56 @@ build. The helpers back up six fields from the opposite environment, erase NVS,
 reinitialize and attempt restoration. Backup failures do not stop erasure;
 individual restore writes are unchecked. Development reset also attempts to
 restore mode 1 and the first-time override. Production reset makes no such writes.
-These matching application bodies do not establish Standard's SDK erase internals,
-all caller behavior or physical recovery after faults. No reset was performed.
+The later selected SDK/caller comparison below extends this application-only
+pass. Neither establishes physical recovery after faults. No reset was performed.
+
+### Identity persistence and reset handoff comparison
+
+Twenty-one additional paired bodies cover the identity saver and legacy-field
+migrator, HTTP action handler, three NVS initialization/erase wrappers, and fifteen
+cached-account, credential, statistics, timestamp and Wi-Fi teardown helpers.
+Across **1,573 instructions, 155 branches and 66 ranges per build**, normalized
+opcodes/register operands and internal branch destinations match. Seventy
+direct-call pairs and 172 literal pairs are mapped separately. Matching strings
+and event-base names were checked; RAM pointers establish corresponding accesses,
+not equal runtime state. One diagnostic source-line argument differs.
+
+| Selected role | Large | Standard |
+| --- | --- | --- |
+| Identity saver | `0x42018af0` | `0x42018ac4` |
+| Legacy-field migration | `0x42017350` | `0x42017324` |
+| HTTP action/reset handler | `0x4201c740` | `0x4201c714` |
+| NVS initialization wrapper | `0x42049c00` | `0x42048cd8` |
+| Named-partition erase / default-`nvs` wrapper | `0x42049d40` / `0x42049d8c` | `0x42048e18` / `0x42048e64` |
+| Initialized identity cache accessor | `0x4201912c` | `0x42019100` |
+| Wi-Fi credential predicate / user reevaluation | `0x4201ea80` / `0x42015264` | `0x4201ea54` / `0x42015284` |
+| Network teardown / dirty-statistics flush | `0x4201eae0` / `0x4202e9b0` | `0x4201eab4` / `0x4202d0dc` |
+
+This supports the same selected save order, unchecked legacy aliases, reset
+error handoff, cached-account behavior, credential fallback after deinitialization
+and later statistics/timestamp writes. The API-boundary host fixture remains a
+reconstruction; matching helpers do not execute Standard NVS or prove power-loss
+behavior. Lower storage-writer/vtable coverage and other indirect key consumers
+remain N02, rather than being silently included in this comparison.
+
+The main-loop reset handoff **does differ**. Large's bounded region
+`0x42014079`–`0x4201421a` has 152 instructions in four ranges; Standard's
+`0x42013ff7`–`0x420141d6` has 177 in three. End addresses are exclusive, and
+neither is a whole-function comparison.
+
+| Reset handoff operation | Large | Standard |
+| --- | --- | --- |
+| Initial delay after clearing pending flag | 200 ticks (2 s) | 200 ticks (2 s) |
+| Additional wait before reset LED and network teardown | None in this region | 1,000 ticks (10 s) |
+| Wait after accepted wake-image submission | Up to 12,000 ticks (120 s) for shared completion signal | Same wait value |
+| Additional wait after successful completion signal and wake-image marker call | None in this region | 1,000 ticks (10 s) |
+| Final handoff | Storage-sleep helper `0x42010674` | Model-specific sleep helper `0x42010db4` |
+
+The extra waits are compiled delay requests, not measured wall-clock durations
+or guaranteed maximums. A successful shared completion wait is not proof of the
+requested pixels reaching the panel. Final sleep/display implementations and
+the code outside these two regions are not recursively compared by this pass.
+No reset, HTTP request, storage mutation or device timing experiment was performed.
 
 ### Cache recovery and persistence boundaries also match
 
