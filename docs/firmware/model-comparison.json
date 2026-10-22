@@ -358,6 +358,35 @@
       },
       "powered_definition": "Charging detected or keep-awake enabled",
       "limitations": "Only selected app/getsockopt functions compared; external Wi-Fi/transport helpers not recursively proven equivalent, counters are runtime RAM and timing is not measured"
+    },
+    "recording_capture": {
+      "evidence": "Nine-function static GNU operation/branch/literal comparison; earlier nine SDK host groups are one fixture run, not new Standard tests",
+      "compared_function_pairs": 9,
+      "compared_instructions_per_image": 1226,
+      "compared_internal_branches": 107,
+      "gnu_ranges_standard": 30,
+      "read_request_bytes": 4096,
+      "read_timeout_ms_per_wait": 50,
+      "admits_partial_timed_out_reads": false,
+      "replays_consumed_partial_timed_out_audio": false,
+      "copies_partial_block_to_fill_capacity": false,
+      "success_clears_failure_count": false,
+      "abort_failure_count_exceeds": 50,
+      "timeout_branch_checks_abort_count": false,
+      "stop_poll_ticks": 10,
+      "stop_has_overall_deadline": false,
+      "outer_completion_wait_ticks": 6000,
+      "tick_ms": 10,
+      "inactive_getter_exit_signals_completion": false,
+      "state": {
+        "large_active": "0x3fca75d0",
+        "standard_active": "0x3fca7640",
+        "large_task_handle": "0x3fca75cc",
+        "standard_task_handle": "0x3fca763c",
+        "large_completion_semaphore": "0x3fca6b30",
+        "standard_completion_semaphore": "0x3fca6ba0"
+      },
+      "limitations": "Physical microphone and dropout/stop timing untested; not a recursive equivalence proof of external helpers or hardware configuration; allocation ownership remains model-specific"
     }
   },
   "function_map": [
@@ -1215,6 +1244,41 @@
       "role": "lwip_getsockopt",
       "large": "0x42055aec",
       "standard": "0x42054b18"
+    },
+    {
+      "role": "recording_capture_worker",
+      "large": "0x4201fa24",
+      "standard": "0x4201f9f8"
+    },
+    {
+      "role": "recording_stop",
+      "large": "0x42020090",
+      "standard": "0x42020060"
+    },
+    {
+      "role": "recording_interrupt",
+      "large": "0x42020124",
+      "standard": "0x420200f4"
+    },
+    {
+      "role": "recording_state_getter",
+      "large": "0x42020150",
+      "standard": "0x42020120"
+    },
+    {
+      "role": "recording_orchestration",
+      "large": "0x42010994",
+      "standard": "0x420106d0"
+    },
+    {
+      "role": "recording_button_control",
+      "large": "0x42011314",
+      "standard": "0x42011274"
+    },
+    {
+      "role": "i2s_channel_read",
+      "large": "0x4204fbec",
+      "standard": "0x4204ecc4"
     }
   ],
   "live_standard": {

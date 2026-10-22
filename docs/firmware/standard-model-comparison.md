@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 171 corresponding functions, including the subsequent
+The preserved metadata maps 178 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -321,6 +321,37 @@ to Standard. Standard still shares one image allocation among image producers
 and rendering, and one audio allocation among recordings/uploads. Separate
 allocations alone do not prove safe overlapping jobs or fix the shared HTTP
 response/abort state. No concurrent operation or allocation fault was exercised.
+
+### Capture loss and stop behavior also match
+
+Nine paired functions compare the capture worker, start/stop/interrupt/state
+helpers, WAV writer, recording orchestration, button-control task and SDK I2S
+reader. GNU checks cover **1,226 instructions in 30 Standard ranges**, with
+matching normalized operations, register operands and **107 internal branches**.
+Task-entry pointers, relocated state pointers and direct helper calls were
+mapped separately; this does not recursively compare every external SDK helper
+or microphone configuration path.
+
+Standard capture worker `0x4201f9f8` and SDK reader `0x4204ecc4` retain the same
+4,096-byte requests, 50 ms per-wait timeout, positive-success-only admission and
+whole-block capacity check. Partial timed-out reads advance the SDK buffer
+position but are discarded by the app. The cumulative failure count and its
+non-timeout-only abort check also match. The nine earlier
+[SDK host groups](voice.md#capture-reads-can-lose-audio-without-invalidating-wav-structure)
+are one fixture run, not nine new Standard executions or a measured dropout.
+
+Stop `0x42020060` clears Standard's active byte at `0x3fca7640` and waits without
+a deadline for the task handle at `0x3fca763c`. Its recording-state getter
+`0x42020120` can report false on a mutex timeout. Button-control task
+`0x42011274` then has the same exit without a completion signal, while outer
+orchestration `0x420106d0` waits 6,000 ticks and uses the same generic timeout
+handling. The recording-completion semaphore handle is at `0x3fca6ba0`.
+
+Separate audio/image allocations therefore do not remove these capture/stop
+limitations. Keep that memory-layout difference explicit while sharing the
+backend interpretation: WAV byte duration is stored audio, and missing presign
+does not reveal the recording's stop reason. No new physical recording or
+cancellation test was performed.
 
 ### Voice transport comparison
 

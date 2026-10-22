@@ -155,10 +155,11 @@ handle is zero, or its ten-tick mutex acquisition failed. The outer wait can the
 reach its generic “user never stopped recording” timeout path even though the
 proximate cause was internal. That log is not proof of user inaction.
 
-These are Large static lifecycle findings, not new physical cancellation tests
-or an independently completed Standard capture-worker comparison. They reinforce
-why a missing presign request cannot identify whether the user cancelled,
-capture failed, or the recording was never started.
+The [Standard capture comparison](standard-model-comparison.md#capture-loss-and-stop-behavior-also-match)
+confirms these selected read/error/stop paths in nine function pairs. It adds no
+second host-fixture run or physical cancellation test. A missing presign request
+cannot identify whether the user cancelled, capture failed, or the recording
+was never started.
 
 ## Presign
 

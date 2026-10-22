@@ -45,7 +45,7 @@ per question, not a count of tool calls or decompiled functions.
 | C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
-| C06/D01/A06 | Recovered capture worker; nine matching-SDK host groups verify partial-timeout data loss, continued DMA position, per-wait timeout and whole-block admission; unbounded stop and missing completion-signal paths traced | Physical recording/dropout/stop timing, Standard capture-worker comparison and structured capture-result events |
+| C06/D01/A06/E02 | Recovered capture worker; nine matching-SDK host groups verify partial-timeout data loss and whole-block admission; nine Standard function pairs match capture, stop and completion-signal branches | Physical recording/dropout/stop timing, remaining external SDK/configuration paths and structured capture-result events |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
 | C05/D01/E02 | Twenty-five host parser/field groups verify copy limits, duplicate/NUL/type handling, raw string-part projection and formatted-fields growth; ten Standard/Large function pairs match copying, printing and first-member lookup | Physical malformed-response/allocation controls, complete streaming/framing faults and remaining external parser/helper comparison |
 | S01/E02 | Both models distinguish immediate TCP refusal from post-selection error, ignore socket-error query failure and preserve manager cycles after recovery; thirteen function pairs compare probe/queue and recovery thresholds | Controlled backend/WAN outages, refusal/error timing, retained-cycle sequences and full external Wi-Fi/transport faults |
@@ -169,6 +169,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   [stop/completion trace](voice.md#recording-stop-and-completion-are-separate-signals)
   distinguishes the outer wait from task exit and shows why a timeout log need
   not mean user inaction. These do not replace the deferred physical tests.
+  The [nine-function Standard comparison](standard-model-comparison.md#capture-loss-and-stop-behavior-also-match)
+  confirms matching selected capture/stop paths despite separate audio/image
+  allocations; it does not count the host groups again.
 - [ ] **C07 · Host/Device:** Exercise finalize with slow responses, timeout, non-200
   statuses, missing URL, status variants, chunked/missing length, truncated/oversized
   JSON and network retry. Establish end-to-end timeout behavior through the proxy.
