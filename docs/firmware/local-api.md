@@ -410,6 +410,10 @@ that getter is not an ownership reservation. Its stop helper returns success
 after its bounded wait even if the task handle has not cleared. Neither the
 `ok` response nor `active:false` alone proves the worker has finished.
 
+For normal voice control, these factory actions are not reusable start/finish
+endpoints. The [voice hook map](voice-local-control-hooks.md) traces normal
+admission and verifies why capture stop alone does not submit a recording.
+
 `/dev` selects the vendor development environment, not a root shell or configurable
 URL. See [the complete mode-switch sequence](storage-and-configuration.md#vendor-environment-switch).
 

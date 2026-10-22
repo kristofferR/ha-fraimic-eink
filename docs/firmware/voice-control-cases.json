@@ -1,0 +1,278 @@
+{
+  "evidence": "Byte-checked recording wrapper and control-task instructions, with synchronous synthetic task and semaphore outcomes; no device operation",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "start",
+          "entry": "0x420110a4",
+          "instructions": 141,
+          "ranges": 2,
+          "sha256": "a0050d4f0ccbb2b43a012d8e37fdebf808583898299d7f1dd7aa59c3a1f52c4c"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011314",
+          "instructions": 260,
+          "ranges": 4,
+          "sha256": "3874826d2dcc3f30da800c82a597dc7d7ef39dfa9932c4839252abff36f21988"
+        },
+        {
+          "name": "record-start",
+          "entry": "0x42010994",
+          "instructions": 256,
+          "ranges": 4,
+          "sha256": "49340af04cbeae6382fb4d79f6e07642adc5b9cd318ff1a0ac67121cc862e6d9"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "ranges": 42,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        },
+        {
+          "name": "workflow",
+          "entry": "0x42011adc",
+          "instructions": 793,
+          "ranges": 11,
+          "sha256": "c8f897eace812858b45c8508e21b4879b9d5db659b0805be2889741c1cbc0495"
+        }
+      ],
+      "reference_audit": [
+        {
+          "role": "admission",
+          "address": "0x42010994",
+          "direct_calls": [
+            "0x42013b99"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        },
+        {
+          "role": "control",
+          "address": "0x42011314",
+          "direct_calls": [],
+          "initialized_pointers": [
+            "0x42000f38"
+          ],
+          "pointer_loads": [
+            "0x42010a9c"
+          ]
+        },
+        {
+          "role": "capture_start",
+          "address": "0x4201fed0",
+          "direct_calls": [
+            "0x4201133c"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        },
+        {
+          "role": "capture_wav",
+          "address": "0x420201d4",
+          "direct_calls": [
+            "0x42011c89"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        },
+        {
+          "role": "processing",
+          "address": "0x42011adc",
+          "direct_calls": [
+            "0x42013c15"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        }
+      ],
+      "instructions_executed_unique": 456,
+      "scenarios": [
+        {
+          "group": "completion",
+          "name": "finish-request",
+          "wrapper_return": 0,
+          "completion_signals": 1,
+          "recording_cancel": 0,
+          "microphone_stop_calls": 1,
+          "microphone_cleanup_calls": 1,
+          "worker_outcome": "task_exit"
+        },
+        {
+          "group": "completion",
+          "name": "cancel-request",
+          "wrapper_return": 259,
+          "completion_signals": 1,
+          "recording_cancel": 1,
+          "microphone_stop_calls": 1,
+          "microphone_cleanup_calls": 1,
+          "worker_outcome": "task_exit"
+        },
+        {
+          "group": "completion",
+          "name": "microphone-already-stopped",
+          "wrapper_return": 4294967295,
+          "completion_signals": 0,
+          "recording_cancel": 0,
+          "microphone_stop_calls": 1,
+          "microphone_cleanup_calls": 2,
+          "worker_outcome": "task_exit"
+        },
+        {
+          "group": "completion",
+          "name": "microphone-start-failed",
+          "wrapper_return": 4294967295,
+          "completion_signals": 1,
+          "recording_cancel": 0,
+          "microphone_stop_calls": 0,
+          "microphone_cleanup_calls": 1,
+          "worker_outcome": "task_exit"
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "start",
+          "entry": "0x42011004",
+          "instructions": 141,
+          "ranges": 2,
+          "sha256": "50a3bf97301a8b0ca21c1a3a06331033f93f473a2180ea03c46ce8b4469ee9a3"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011274",
+          "instructions": 260,
+          "ranges": 4,
+          "sha256": "3f4689ae24b99438ef951cc730585917feb3a9dcd21332d08a967a203537aced"
+        },
+        {
+          "name": "record-start",
+          "entry": "0x420106d0",
+          "instructions": 256,
+          "ranges": 6,
+          "sha256": "53a56557b4cf48c5ced71b718ec20ff416cbc85e11a7e59c781099ba26c13630"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "ranges": 40,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        },
+        {
+          "name": "workflow",
+          "entry": "0x42011a3c",
+          "instructions": 793,
+          "ranges": 11,
+          "sha256": "4306f5626ba89844137cd478296a5e3c354deaf88f09b3eb5b237f35f510a6f4"
+        }
+      ],
+      "reference_audit": [
+        {
+          "role": "admission",
+          "address": "0x420106d0",
+          "direct_calls": [
+            "0x42013b19"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        },
+        {
+          "role": "control",
+          "address": "0x42011274",
+          "direct_calls": [],
+          "initialized_pointers": [
+            "0x42000efc"
+          ],
+          "pointer_loads": [
+            "0x420107d8"
+          ]
+        },
+        {
+          "role": "capture_start",
+          "address": "0x4201fea0",
+          "direct_calls": [
+            "0x4201129c"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        },
+        {
+          "role": "capture_wav",
+          "address": "0x420201a4",
+          "direct_calls": [
+            "0x42011be9"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        },
+        {
+          "role": "processing",
+          "address": "0x42011a3c",
+          "direct_calls": [
+            "0x42013b95"
+          ],
+          "initialized_pointers": [],
+          "pointer_loads": []
+        }
+      ],
+      "instructions_executed_unique": 456,
+      "scenarios": [
+        {
+          "group": "completion",
+          "name": "finish-request",
+          "wrapper_return": 0,
+          "completion_signals": 1,
+          "recording_cancel": 0,
+          "microphone_stop_calls": 1,
+          "microphone_cleanup_calls": 1,
+          "worker_outcome": "task_exit"
+        },
+        {
+          "group": "completion",
+          "name": "cancel-request",
+          "wrapper_return": 259,
+          "completion_signals": 1,
+          "recording_cancel": 1,
+          "microphone_stop_calls": 1,
+          "microphone_cleanup_calls": 1,
+          "worker_outcome": "task_exit"
+        },
+        {
+          "group": "completion",
+          "name": "microphone-already-stopped",
+          "wrapper_return": 4294967295,
+          "completion_signals": 0,
+          "recording_cancel": 0,
+          "microphone_stop_calls": 1,
+          "microphone_cleanup_calls": 2,
+          "worker_outcome": "task_exit"
+        },
+        {
+          "group": "completion",
+          "name": "microphone-start-failed",
+          "wrapper_return": 4294967295,
+          "completion_signals": 1,
+          "recording_cancel": 0,
+          "microphone_stop_calls": 0,
+          "microphone_cleanup_calls": 1,
+          "worker_outcome": "task_exit"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Microphone start/state/stop/cleanup, mutexes, clocks and task creation are stubbed. No recording or real scheduling occurs.",
+    "The stopped-microphone case starts with an inactive state at the first control-task check; it does not reproduce a particular physical stopping mechanism.",
+    "The outer wrapper consumes a modeled semaphore; its 6000-tick timeout is returned immediately in the fixture. No wall-clock latency is measured.",
+    "Reference census covers recovered references and exact initialized pointers, not arbitrary computed calls. Call sites are checked against complete byte-verified GNU CFGs.",
+    "The factory microphone contract and full route inventory are prior static evidence; no diagnostic request is sent."
+  ]
+}

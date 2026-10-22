@@ -112,3 +112,12 @@ The owner deferred the physical cancellation experiment. Continue static work;
 the prepared fixture is stopped and does not need another recording now.
 Commit and push completed, validated research batches periodically. The owner
 requested more frequent checkpoints after the accumulated static passes.
+
+The owner subsequently selected voice and local-control hooks. The
+[capability map](voice-local-control-hooks.md) distinguishes stock-compatible
+dashboard/library results from firmware start/finish/cancel and no-image success.
+Five exact-reference targets per build locate the normal entry points; four
+completion cases per build execute 456 distinct instructions each and establish
+that stopping capture alone is not successful voice completion. No implementation,
+recording or provider call was made. Existing A06/H05/E01/E02 evidence is extended;
+physical and implementation milestones remain open.

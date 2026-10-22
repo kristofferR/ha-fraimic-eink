@@ -3821,3 +3821,46 @@ unchanged at 12/67 and 124/188.
 | `keepawake-results.json` (published as the numeric ledger) | `6ea57cc83d4ee964f36f7380f8bcf387d69ed02804df5fc04eaa8131bd8a5b98` |
 | `keepawake-idle-large-cfg.json` | `3154d32969804558fea429983aabcb6bc78b3f2479afdc8f25bc653da3de84b6` |
 | `keepawake-idle-standard-cfg.json` | `a974efdb999d73e691dae5748454ad67f4e41a8008c7b8c6ceb8ae98325636e4` |
+
+## Voice and local-control hooks: A06/H05/E01/E02
+
+The owner selected voice/local-control capabilities instead of further shared
+response-buffer analysis. The [hook map](voice-local-control-hooks.md) connects
+stock-compatible visual commands to existing HA render-only primitives and
+identifies the normal admission/completion boundaries for future firmware.
+
+The exact-reference audit covers the recording wrapper, control task, capture
+start, WAV construction and processing orchestrator on both pinned images.
+Each has one direct caller, except the task entry, whose one initialized function
+pointer is loaded by the wrapper. All selected direct calls, pointer loads and
+pointer contents are checked against the existing complete GNU CFGs and image
+bytes. This is a recovered-reference census, not exclusion of arbitrary computed
+aliases. Standard's main call sites are inside the complete main CFG despite
+Ghidra's earlier fragment attribution.
+
+**Four cases per build passed**, executing 456 distinct instructions in each.
+The actual wrapper launches the actual control-task instructions through a
+synchronous task stub on a separate synthetic stack. Semaphore give/take stubs
+retain completion state, allowing the wrapper to consume what control signals.
+Finish returns zero; cancellation gives completion but returns `0x103`; an
+already-inactive microphone exits without giving completion and reaches the
+modeled outer timeout; capture-start failure gives completion with a failure
+flag. [Results and source-CFG hashes](voice-control-cases.json) are published.
+
+Microphone start/state/stop/cleanup, locks, clocks, task creation and semaphore
+behavior are modeled. No RTOS concurrency, actual waveform, elapsed timeout or
+remote stop is tested. The inactive state is scripted at the first control-task
+check, not induced by a physical API. Main's success-to-processing branch is
+checked statically; these cases stop at the recording wrapper's return.
+
+Factory diagnostic and route behavior are reused from the prior static audit.
+The proposed queue, state events and no-image branch remain unimplemented.
+No device, network, HA, provider or firmware change occurred. Existing A06/H05
+and E01/E02 evidence is extended; checklist totals remain 12/67 and 124/188.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `voice-control-cases.mjs` | `129101e0a3c497fd935fa9bc115c0809690191ab20738f2d8d036b5bc4199793` |
+| `voice-control-cases.json` (published) | `2dc758aa6d02e5cc337c73cb57a250c05e7cdc8bbf28d17fd713a4d9d1c28b65` |
+| `voice-control-reference-large.tsv` | `47a9e5148d48455120f8f0702b8d0d3e90003102a324f56b229755e888a1b636` |
+| `voice-control-reference-standard.tsv` | `2c815eda5655530258ba13765d36b22ccb0fa753cd0a59222141a6a3775bceb9` |

@@ -75,6 +75,13 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
+The owner selected **voice and local-control hooks** for the next direction,
+superseding further shared-JSON buffer/race analysis. The
+[hook map](voice-local-control-hooks.md) now separates stock-compatible visual
+commands from firmware extensions and verifies normal start/finish/cancel
+boundaries on both builds. Continue decision-relevant capability research;
+do not resume deferred provider selection or physical experiments automatically.
+
 The owner requested continued firmware/device analysis and deferred A07's
 provider choice. The S06/E01/E02 physical-input and boot/wake admission passes
 are complete: both-build gesture/held-input, monitor lifetime, marker/cable
@@ -304,6 +311,7 @@ control-flow boundary; physical timing and delivery remain deferred.
 
   - [x] **Static/Design:** Identify stock limitations and required firmware/protocol changes for events, sleeping jobs, no-redraw success, streaming STT and end-of-speech. [Capability map](home-assistant-roadmap.md#extension-boundaries).
   - [x] **Design/Host:** Define a separate negotiated protocol and legacy behavior for all six extensions; check eight examples against the stock parser and eighteen proposed-policy/message properties. [Proposal and limits](protocol-extensions.md), [messages](extension-examples.json).
+    The local-control follow-up maps normal voice entry points and checks four completion cases per build; capture stop alone does not complete a voice job. [Hooks](voice-local-control-hooks.md), [numeric cases](voice-control-cases.json).
   - [ ] **Deferred:** **Device:** Validate selected transitions only after an extension is implemented and a recovery path exists.
 
 - [ ] **A07 · Design/Host:** Check that proposed voice creations, image edits,
@@ -810,6 +818,7 @@ This table records the audit scope, not completion of its checks.
 | [Cloud protocol](cloud-protocol.md) | C01–C05, C10–C12, R08, S01–S04 |
 | [Schema/client reconciliation](schema-and-client-contract.md) / [metadata](schema-comparison.json) | E03, C01/C02/C05/C07/C10–C12 |
 | [Voice](voice.md) | C05–C09, A01/A04/A06, D01–D05 |
+| [Voice/local-control hooks](voice-local-control-hooks.md) / [cases](voice-control-cases.json) | A06, H05, E01/E02 |
 | [Image downloads](image-downloads.md) | C03/C04/C07/C08, D03/D05–D07, N05 |
 | [Boot and scheduling](boot-and-scheduling.md) | S01–S07, C04/C11, R10/R12 |
 | [Physical input and gestures](input-and-gestures.md) | S06, C06/C08, E01/E02 |

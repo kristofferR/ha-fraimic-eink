@@ -37,6 +37,7 @@ No transcription or AI generation was invoked.
 | [Schema versus client contract](schema-and-client-contract.md) | July/October schema differences, captured extra fields and limits of generated API models |
 | [Image downloads](image-downloads.md) | Length/framing checks, restart-from-zero retries, incomplete images and cache consequences |
 | [Voice](voice.md) | Recording, WAV upload, synchronous generation, cancellation, concurrency |
+| [Voice and local-control hooks](voice-local-control-hooks.md) | Stock-compatible features, normal recording entry points and firmware hooks for HA controls and no-redraw commands |
 | [Physical input and gestures](input-and-gestures.md) | Tap windows, ignored double taps, held-input admission and monitor/result lifetime on both builds |
 | [Rendering and concurrency](rendering-and-concurrency.md) | Buffer aliases, upload ordering, render policies, error propagation and completion signals |
 | [Boot and scheduling](boot-and-scheduling.md) | Model-specific wake pins, boot classification, recording admission, timers and offline dependencies |
