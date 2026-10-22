@@ -12,6 +12,9 @@ addresses and static findings in the original topic pages refer to Large.
 
 The [research checklist](research-todo.md) tracks the unknowns and unverified
 claims across these documents, with stable task IDs and concrete validation work.
+It separates checked evidence milestones from remaining research, implementation,
+device tests and recovery prerequisites. The earlier cumulative table is retained
+as [pass history](research-progress-2026-10-22.md); the checklist owns current status.
 The [21 October validation](validation-2026-10-21.md) records owner gallery reads,
 installed HA capabilities, five library host checks and deeper firmware traces.
 The [22 October continuation](validation-2026-10-22.md) adds HTTP-server lifecycle,
@@ -54,6 +57,13 @@ The [LED state table](led-states.json) preserves the Large build's numeric recor
 The [Large](outbound-dependencies.json) and
 [Standard](standard-outbound-dependencies.json) outbound dependency inventories
 separate client call sites, selectors, dynamic URL sources and non-request URL literals.
+
+Validate documentation links, JSON, checklist counts/statuses and evidence links
+with `bun scripts/validate_firmware_docs.mjs` from the repository root. The
+[validator](../../scripts/validate_firmware_docs.mjs) accepts an optional repository
+path. Research maintainers can set `FRAIMIC_RESEARCH_DEVICE_KEY_FILE` to a private
+credential file for an additional exact-match leak check; its contents are never
+printed. Completion IDs are derived from the checklist, not frozen in the script.
 
 The [existing frame API reference](../frame-api/routes.md) describes tested
 HTTP behavior across multiple firmware versions. The

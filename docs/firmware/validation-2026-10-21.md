@@ -13,6 +13,11 @@ and owner-directed microphone experiments are recorded separately in
 [backend emulation](backend-emulation.md), including a response-length bug found
 only after testing the physical upload client.
 
+Completion statements below describe that historical pass. The 22 October
+[checklist reconciliation](research-todo.md#current-status) closes C10's bounded
+account-read question; concurrent-pagination importing and original retention
+remain A02 work. It does not claim indefinite vendor retention or a deployed importer.
+
 ## HA capability inspection: A01
 
 The installed HA version is 2026.10.2. Complete STT and AI Task entity listings,

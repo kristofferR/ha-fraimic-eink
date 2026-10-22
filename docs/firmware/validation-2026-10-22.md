@@ -1,5 +1,10 @@
 # Static and host validation: 22 October 2026
 
+This is a chronological evidence record. Later results can supersede an earlier
+“remains open” statement. Use the [reconciled checklist](research-todo.md#current-status)
+for current completion and remaining criteria; C05, C10, R11 and E03 were closed
+against their original bounded scope after these passes.
+
 [Research index](README.md) · [Checklist](research-todo.md)
 
 This continuation uses the same hash-pinned Large 0.2.29 application. It does not
