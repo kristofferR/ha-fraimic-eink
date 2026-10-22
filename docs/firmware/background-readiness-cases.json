@@ -1,0 +1,2855 @@
+{
+  "evidence": "Byte-checked GNU instruction interpretation with synthetic external helpers, semaphore and memory; no device operation",
+  "ap_body_comparison": {
+    "instructions_per_build": 264,
+    "branches_per_build": 8,
+    "ranges_per_build": 3,
+    "direct_call_pairs": 7,
+    "literal_pairs": 29
+  },
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "worker",
+          "entry": "0x420167b4",
+          "instructions": 963,
+          "ranges": 28,
+          "sha256": "67a4f1c42f13dd759cfbc7f4fd555c249e83958e226f0cd81470d31f5d51bc6a"
+        },
+        {
+          "name": "ap",
+          "entry": "0x42015a58",
+          "instructions": 264,
+          "ranges": 3,
+          "sha256": "4a50dcaed1f914f875c9852076314f978932ab6eca8c139f7ac7b5b1bdaeca2e"
+        },
+        {
+          "name": "entry",
+          "entry": "0x420142ec",
+          "instructions": 395,
+          "ranges": 16,
+          "sha256": "55afcc22ac67a857cfb3bcdb3c5142ee7c7c5bc10ccff42c50051721932ff7da"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "ranges": 42,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        }
+      ],
+      "reference_audit": {
+        "target": "0x3fca6b20",
+        "exact_pointer_locations": [
+          "0x4200127c"
+        ],
+        "direct_references": [
+          "0x4201380e",
+          "0x42012a7e",
+          "0x42013a97",
+          "0x42013ac7",
+          "0x42015cd7",
+          "0x42015cfd",
+          "0x42014620",
+          "0x420171d4"
+        ],
+        "pointer_uses": [
+          "0x42012a7b",
+          "0x4201380b",
+          "0x42013a94",
+          "0x42013ac4",
+          "0x42015cd4",
+          "0x42015cfa",
+          "0x4201461d",
+          "0x420171d1"
+        ],
+        "limits": "Exact initialized pointers and recovered references; arbitrary computed aliases are not excluded"
+      },
+      "instructions_executed_unique": 1169,
+      "scenarios": [
+        {
+          "group": "worker",
+          "name": "normal",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "flash_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "display_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "config_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "settings_load-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "settings_defaults",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "battery_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "battery_start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "ota_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "health_check-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "default_schedule-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "connectivity_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "connectivity_start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "wifi-init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "wifi-start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "wifi-start-fallback-ap",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "connection-event-times-out",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "fallback_schedule",
+            "wifi_connected",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "no-event-group-disconnected",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "wifi_connected",
+            "fallback_schedule",
+            "wifi_connected",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "no-event-group-connected",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "wifi_connected",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-fails-failover-unavailable",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "fallback_schedule",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-fails-failover-error",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "fallback_schedule",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-fails-again-after-failover",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "time_sync",
+            "fallback_schedule",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 2,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-recovers-after-failover",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 2,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "null-completion-handle",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "completion-give-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 0
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "completion-token-already-full",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171e1",
+              "result": 0
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "normal",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d02",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "wifi-init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "wifi-start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "set_led",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d02",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "config-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d02",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "display-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d02",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "null-completion-handle",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "completion-give-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d02",
+              "result": 0
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "entry",
+          "name": "completion-allocation-succeeds",
+          "outcome": "after_completion_allocation",
+          "events": [
+            "set_led",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": [
+            {
+              "site": "0x4201461a",
+              "queue_length": 1,
+              "item_size": 0,
+              "type": 3
+            }
+          ]
+        },
+        {
+          "group": "entry",
+          "name": "completion-allocation-fails",
+          "outcome": "after_completion_allocation",
+          "events": [
+            "set_led",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": [
+            {
+              "site": "0x4201461a",
+              "queue_length": 1,
+              "item_size": 0,
+              "type": 3
+            }
+          ]
+        },
+        {
+          "group": "main",
+          "name": "null-handle-reaches-cold-wait",
+          "outcome": "take_boundary",
+          "events": [],
+          "gives": [],
+          "takes": [
+            {
+              "site": "0x42013813",
+              "handle": 0,
+              "ticks": 6000
+            }
+          ],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": []
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "worker",
+          "entry": "0x42016790",
+          "instructions": 964,
+          "ranges": 26,
+          "sha256": "694ec3f65982d10342d8c06396edec605c92d5f73d1a523ec74b51a58aefca55"
+        },
+        {
+          "name": "ap",
+          "entry": "0x42015a78",
+          "instructions": 264,
+          "ranges": 3,
+          "sha256": "1c0ca6840caac95fcd912b23dcbb4ddca0723143a18f3976791d853aa0120933"
+        },
+        {
+          "name": "entry",
+          "entry": "0x420142a8",
+          "instructions": 433,
+          "ranges": 19,
+          "sha256": "47d2b32070c2f89c6e8a5eb3c56d93a20e1107a9c368807667f5cd22fbbf620c"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "ranges": 40,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        }
+      ],
+      "reference_audit": {
+        "target": "0x3fca6b90",
+        "exact_pointer_locations": [
+          "0x42001278"
+        ],
+        "direct_references": [
+          "0x42013a17",
+          "0x42013a47",
+          "0x4201378e",
+          "0x420171a8",
+          "0x420129de",
+          "0x42015cf7",
+          "0x42015d1d",
+          "0x42014640"
+        ],
+        "pointer_uses": [
+          "0x420129db",
+          "0x4201378b",
+          "0x42013a14",
+          "0x42013a44",
+          "0x4201463d",
+          "0x42015cf4",
+          "0x42015d1a",
+          "0x420171a5"
+        ],
+        "limits": "Exact initialized pointers and recovered references; arbitrary computed aliases are not excluded"
+      },
+      "instructions_executed_unique": 1166,
+      "scenarios": [
+        {
+          "group": "worker",
+          "name": "normal",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "flash_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "display_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "config_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "settings_load-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "settings_defaults",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "battery_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "battery_start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "ota_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "health_check-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "default_schedule-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "connectivity_init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "connectivity_start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "wifi-init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "wifi-start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "wifi-start-fallback-ap",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "connection-event-times-out",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "fallback_schedule",
+            "wifi_connected",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "no-event-group-disconnected",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "wifi_connected",
+            "fallback_schedule",
+            "wifi_connected",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "no-event-group-connected",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "wifi_connected",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-fails-failover-unavailable",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "fallback_schedule",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-fails-failover-error",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "fallback_schedule",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-fails-again-after-failover",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "time_sync",
+            "fallback_schedule",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 2,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "time-recovers-after-failover",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "ap_failover",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 2,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "null-completion-handle",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "completion-give-fails",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 0
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "worker",
+          "name": "completion-token-already-full",
+          "outcome": "task_delete",
+          "events": [
+            "flash_init",
+            "display_init",
+            "config_init",
+            "settings_load",
+            "battery_init",
+            "battery_start",
+            "ota_init",
+            "running_partition",
+            "ota_state",
+            "health_check",
+            "wifi_init",
+            "wifi_start",
+            "wifi_event_group",
+            "time_sync",
+            "schedule_load",
+            "default_schedule",
+            "request_poll",
+            "wifi_connected",
+            "connectivity_init",
+            "connectivity_start",
+            "led_state"
+          ],
+          "gives": [
+            {
+              "site": "0x420171b5",
+              "result": 0
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [
+            {
+              "bits": 1,
+              "clear_on_exit": 0,
+              "wait_all": 1,
+              "ticks": 3000
+            }
+          ],
+          "time_sync_calls": 1,
+          "completion_notice_calls": 1,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "normal",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d22",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "wifi-init-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "wifi-start-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "set_led",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d22",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "config-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d22",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "display-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d22",
+              "result": 1
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 1,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "null-completion-handle",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": []
+        },
+        {
+          "group": "ap",
+          "name": "completion-give-fails",
+          "outcome": "task_delete",
+          "events": [
+            "wifi_init",
+            "wifi_start",
+            "config_init",
+            "display_init"
+          ],
+          "gives": [
+            {
+              "site": "0x42015d22",
+              "result": 0
+            }
+          ],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": []
+        },
+        {
+          "group": "entry",
+          "name": "completion-allocation-succeeds",
+          "outcome": "after_completion_allocation",
+          "events": [
+            "set_led",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 1441792,
+          "created": [
+            {
+              "site": "0x4201463a",
+              "queue_length": 1,
+              "item_size": 0,
+              "type": 3
+            }
+          ]
+        },
+        {
+          "group": "entry",
+          "name": "completion-allocation-fails",
+          "outcome": "after_completion_allocation",
+          "events": [
+            "set_led",
+            "set_led"
+          ],
+          "gives": [],
+          "takes": [],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": [
+            {
+              "site": "0x4201463a",
+              "queue_length": 1,
+              "item_size": 0,
+              "type": 3
+            }
+          ]
+        },
+        {
+          "group": "main",
+          "name": "null-handle-reaches-cold-wait",
+          "outcome": "take_boundary",
+          "events": [],
+          "gives": [],
+          "takes": [
+            {
+              "site": "0x42013793",
+              "handle": 0,
+              "ticks": 6000
+            }
+          ],
+          "wifi_waits": [],
+          "time_sync_calls": 0,
+          "completion_notice_calls": 0,
+          "final_token": 0,
+          "handle": 0,
+          "created": []
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Only the AP initializer is claimed as a normalized matching body; normal worker bodies differ and are interpreted separately.",
+    "Service results, event-group waits, time synchronization, scheduling, LED state, heap objects and queue operations are explicit stubs.",
+    "Task deletion and the null-semaphore consumer are stopping boundaries; no real task, kernel assertion or panic is executed.",
+    "No hardware, NVS, OTA metadata, network, frame or HA setting is changed.",
+    "Completion is not proven service readiness, a broadcast, or a job-specific result."
+  ]
+}

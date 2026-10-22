@@ -38,7 +38,7 @@ No transcription or AI generation was invoked.
 | [Physical input and gestures](input-and-gestures.md) | Tap windows, ignored double taps, held-input admission and monitor/result lifetime on both builds |
 | [Rendering and concurrency](rendering-and-concurrency.md) | Buffer aliases, upload ordering, render policies, error propagation and completion signals |
 | [Boot and scheduling](boot-and-scheduling.md) | Model-specific wake pins, boot classification, recording admission, timers and offline dependencies |
-| [Startup and readiness](startup-and-readiness.md) | Early errors that stop boot, tolerated failures and wake-dependent background-completion waits |
+| [Startup and readiness](startup-and-readiness.md) | Early errors, wake-dependent waits, normal/setup worker failures and completion-token limits |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
 | [Diagnostics and logs](diagnostics-and-logs.md) | Visibility controls, retention/loss, previous-log storage and redaction limits |

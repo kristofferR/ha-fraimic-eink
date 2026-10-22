@@ -3441,3 +3441,63 @@ Private hashes; the result JSON is published without raw firmware or credentials
 | `standard-startup-fast-comparison.json` | `d8d1561536a402f64ae83d1e971edfe3349c230dfbf6df6b5ffb602c04271f9b` |
 | `startup-instruction-cases.mjs` | `39bd54da7e22c4c3f1860f01127e7753482b5f0121985d8b1857c2d76233ece8` |
 | `startup-instruction-results.json` | `87f2eb11a472706e811bf6e74b4cc1bcf82482b99ddef3e14b7c437e936dd730` |
+
+## Background completion and failure policy: S06/E01/E02
+
+Recovered normal workers Large `0x420167b4` (963 instructions, 28 ranges) and
+Standard `0x42016790` (964 instructions, 26 ranges), plus AP/setup workers
+`0x42015a58` / `0x42015a78` (264 instructions, three ranges each). The AP pair
+matches after relocation across eight branches, seven mapped direct-call pairs
+and 29 literal pairs. The normal bodies are interpreted separately; their
+whole-body equivalence and recursive external-helper equivalence are not claimed.
+The first-time main task callback is identified separately from direct calls.
+
+For completion handles `0x3fca6b20` / `0x3fca6b90`, the reference audit finds
+eight direct references and eight uses of the sole exact initialized pointer
+in each image. Every identified site lies in the byte-checked entry, main or
+worker bodies. This bounded census does not exclude arbitrary computed aliases.
+Queue-creation arguments are length 1, item size 0, type 3. The store does not
+check the returned handle; producer null guards and selected consumer behavior
+are documented in the [readiness contract](startup-and-readiness.md#the-completion-token-carries-no-readiness-result).
+
+All **35 cases per build passed**, executing 1,169 Large / 1,166 Standard distinct
+instructions. The [public ledger](background-readiness-cases.json) records:
+
+- 25 normal-worker cases covering service failures, connection/time fallbacks,
+  null completion handles, a failed give and an already-full token.
+- Seven AP/setup cases covering normal completion, Wi-Fi/config/display failure,
+  a null handle and a failed give.
+- Two entry allocation outcomes and one selected cold-main null-handle case,
+  which stops before the SDK semaphore take.
+
+The normal worker tolerates many component failures but deletes itself without
+signaling on selected Wi-Fi errors; AP/setup continues after Wi-Fi-start failure.
+The normal worker's semaphore-signaled notice also runs after a modeled failed
+give. The special accepted Wi-Fi-start result `0x3001` is the logged AP-fallback
+case, not an inferred already-started status. The 3,000-tick connection wait is
+checked as a requested budget. No wall-clock, late-worker race or kernel failure
+was simulated.
+
+The fixture checks pinned image hashes and original bytes, and interprets
+recovered instructions. It stubs service/driver calls, partition metadata,
+time, scheduling and kernel operations; token capacity is modeled as zero/one.
+The AP elapsed-time diagnostic additionally requires float32 conversion/register
+instructions. The first-time take/give-back diagnostic is statically traced,
+not run as an actual periodic task. This does not induce or establish real fault
+reachability, service availability, hardware state or recovery.
+
+No frame, network, recording, flash or HA operation occurred. Existing E01/E02
+and S06 static evidence is extended; the checklist remains 12/67 original items
+and 124/188 milestones. Physical S06 criteria remain open, and postponed N04,
+R12 and A07 work remains deferred.
+
+Private artifact hashes; the result JSON alone is published as the numeric ledger:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `background-ready-cases.mjs` | `fe5cdd7141be253f9adb4ee546687ef2486a690a118c58ffb101c4b45c2b37a6` |
+| `background-ready-results.json` | `50c1ac2f52af85ee12850ca2a98bf1049b56123da8582bec6c682382671b691a` |
+| `compare-background-ap.mjs` | `6db5b822cf033ca844345b8e3717cc8cb386ef5d1900cf4d9d38cab85331de0b` |
+| `standard-background-ap-comparison.json` | `8fd0da36de5588fe8e7719040f9574a188713bee520cd8eaa8c2f51c7f45e4fc` |
+| `background-ready-reference-large.tsv` | `63a22ca5d8cc4c4c05d4a85bf74346dab40ebfce7f8286b36a0f25a3ac6fcce7` |
+| `background-ready-reference-standard.tsv` | `04ea6598764ec015aed7f10e7b87406360cbd14537b2d2c95a578a13b8bc6f57` |

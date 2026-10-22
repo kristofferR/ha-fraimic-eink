@@ -95,6 +95,17 @@ without that wait and album task-creation-failure sleep. Standard's cable branch
 also reaches idle without the wait. The [24/25 bounded cases](startup-admission-cases.json)
 do not execute the background worker or prove network/service readiness.
 
+The later [background-completion pass](startup-and-readiness.md#the-completion-token-carries-no-readiness-result)
+adds 35 instruction cases per build. Both normal workers signal after many
+component failures, but exit without signaling after selected Wi-Fi errors.
+Both AP/setup workers instead continue after a Wi-Fi-start error. Completion
+is a one-token semaphore with no result payload; the normal worker's signaled
+notice ignores the give result. Allocation is unchecked at its store boundary,
+and the selected cold consumer can pass null into the SDK take boundary.
+The AP bodies match across 264 instructions. The 963/964-instruction normal
+workers are interpreted separately, without a whole-body equivalence claim.
+Actual semaphore faults, service availability and timing remain untested.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

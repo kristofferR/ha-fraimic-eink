@@ -80,7 +80,9 @@ provider choice. The S06/E01/E02 physical-input and boot/wake admission passes
 are complete: both-build gesture/held-input, monitor lifetime, marker/cable
 classification and final wake masks are documented. The startup pass also
 resolves early error propagation and selected background-task failure/readiness
-branches on both builds. The caller trace resolves
+branches on both builds. A further 35 cases per build check the normal/setup
+workers, tolerated failures and completion-token limits, including unchecked
+allocation and a completion log that ignores give failure. The caller trace resolves
 the earlier open pending-sleep admission question; physical behavior remains
 deferred. Further E01/E02 work should address a concrete remaining device or
 firmware claim rather than repeat these completed cases.
@@ -477,6 +479,7 @@ Commit and push validated research batches periodically as requested.
   - [x] **Device:** Preserve USB-powered reachability and separate earlier factory-test sleep evidence. [Observed scope](validation-2026-10-21.md#later-awake-read-s05s06h05h07).
   - [x] **Static/Host:** Compare seven input/clock/monitor/control function pairs and execute 33 bounded instruction cases per build: tap/quiet windows, held-input admission, single-result overwrites and start/stop failure states. [Input audit](input-and-gestures.md), [cases](button-input-cases.json), [validation](validation-2026-10-22.md#button-input-and-gesture-cases-s06e01e02). Physical transitions remain deferred.
     The follow-up adds 26 boot/classifier/main-admission cases per build and six byte-checked wake-mask ranges: [boot classification](boot-and-scheduling.md#boot-classification-and-first-recording-admission), [results](wake-admission-cases.json), [validation](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02). This extends the completed static milestone without closing its physical parent.
+    The startup follow-ups add 24/25 early/task-admission cases and 35 background-completion cases per build: [readiness and failure policy](startup-and-readiness.md), [background results](background-readiness-cases.json), [validation](validation-2026-10-22.md#background-completion-and-failure-policy-s06e01e02). Physical service readiness remains untested.
   - [ ] **Deferred:** **Device:** Measure normal/button/charger/maintenance/album/setup/factory transitions and HTTP windows without treating factory sleep as normal idle behavior.
 
 - [ ] **S07 · Host/Device:** Validate a local pull playlist with wake-only scheduling,
@@ -760,6 +763,7 @@ Commit and push validated research batches periodically as requested.
   Status: **Ongoing**.
 
   - [x] **Static:** Correct consequential Ghidra truncations, missing task entries and generic-Xtensa decoding with pinned bytes/GNU control flow. [Method](evidence-and-open-questions.md#method-and-private-artifacts). The response-cache follow-up adds two complete cleanup pairs and twelve bounded allocation cases: [evidence](validation-2026-10-22.md#response-cache-allocation-and-cleanup-e01e02). Both boot/main bodies are now recovered for bounded wake admission; sleep coverage stops at its nonreturning boundary: [wake evidence](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02). The fast initializer's inferred void return is corrected, with both-build entry propagation and task/wait cases: [startup evidence](validation-2026-10-22.md#startup-failure-propagation-and-readiness-s06e01e02).
+    The background follow-up recovers both normal workers, compares the AP/setup pair, audits completion-handle references and executes 35 cases per build: [completion evidence](validation-2026-10-22.md#background-completion-and-failure-policy-s06e01e02).
   - [ ] **Next:** **Static:** Audit unresolved claims used by the next implementation decision. Track each concrete missing call/body/type in its owning item; do not reopen completed work merely because more library code exists.
 
 - [ ] **E02 · Static/Device:** Compare each relevant finding with other firmware
@@ -795,7 +799,7 @@ This table records the audit scope, not completion of its checks.
 | [Image downloads](image-downloads.md) | C03/C04/C07/C08, D03/D05–D07, N05 |
 | [Boot and scheduling](boot-and-scheduling.md) | S01–S07, C04/C11, R10/R12 |
 | [Physical input and gestures](input-and-gestures.md) | S06, C06/C08, E01/E02 |
-| [Startup and readiness](startup-and-readiness.md) / [cases](startup-admission-cases.json) | S06, E01/E02 |
+| [Startup and readiness](startup-and-readiness.md) / [admission cases](startup-admission-cases.json) / [background cases](background-readiness-cases.json) | S06, E01/E02 |
 | [Storage and configuration](storage-and-configuration.md) | N01–N08, R04/R06, H06 |
 | [OTA and recovery](ota-and-recovery.md) | R01–R12, B02 |
 | [Local API](local-api.md) | C12, H05, D01/D02/D04/D07, A05/A06 |
