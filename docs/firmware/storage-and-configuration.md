@@ -693,9 +693,10 @@ Neither cache routine enforces the exact panel length. The
 shows how poll/voice workflows can attempt cache replacement even when the render
 worker rejects the length. Its termination signal is not a success result.
 
-**Proposed:** atomic replacement, content hash metadata, distinct cache/display
-results, and backend restoration from canonical HA assets. Flash wear policy and
-filesystem support for the chosen atomicity strategy need validation.
+**Proposed:** recoverable replacement, content hash metadata, distinct cache/display
+results, and backend restoration from canonical HA assets. The rename and sync
+boundaries below constrain that design; space, wear and interruption behavior
+still need validation.
 
 ### Cache success and failure leave different state behind
 
@@ -727,6 +728,62 @@ and 29 contiguous ranges per image. Their model-specific save caps are
 exact panel assets. The underlying stdio, FAT and wear-leveling implementations
 are not recursively validated by this comparison. No file fault or concurrent
 cache access was performed on a frame.
+
+### Rename does not replace an existing cache file
+
+The registered FAT rename wrapper `0x420366b8` calls `f_rename` at `0x420346b0`
+under its VFS lock. It does not unlink an existing destination first. If the
+destination names a different existing object, the FAT routine returns
+`FR_EXIST` (8), which the wrapper maps to `-1` with `EEXIST` (17). The recovered
+branch matches the pinned
+[FatFs implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/fatfs/src/ff.c).
+
+On a disposable RAM FAT12 filesystem, renaming `pending_image.bin` over an
+existing `last_image.bin` failed and preserved both files. Renaming to an absent
+destination succeeded across remount. Explicitly unlinking the old destination
+first left a remountable state with no canonical `last_image.bin`, even though
+the pending file remained valid. A successful rename to an absent path is not
+proof of power-loss atomicity during its internal directory updates.
+
+A fork therefore cannot assume that writing a temporary file and renaming it
+over the old name implements atomic replacement on this filesystem. Retaining
+two validated versions with explicit recovery is a candidate only if measured
+capacity permits it. Preserve canonical artwork in the backend regardless;
+the replacement protocol and interrupted-write recovery still need design and
+validation before changing firmware.
+
+### A second sync can conceal an earlier metadata-sync failure
+
+The registered `fsync` wrapper `0x42036a80` calls `f_sync` at `0x42033f4c` and
+propagates a FAT error as `-1`/errno. Inside `f_sync`, an early file-buffer write
+error returns before clearing the file's dirty/modified state. That path can be
+retried. Later, after updating directory metadata in the filesystem window, it
+calls `sync_fs` and clears the file's `FA_MODIFIED` bit **regardless of that
+call's result**. A following `f_sync` can then return success without attempting
+the pending metadata work again. `f_close` first calls this same sync function.
+
+The isolated RAM-disk fixture distinguishes these paths:
+
+| Injected condition | Observed host result |
+| --- | --- |
+| Directory-sector write fails while saving a full sector to an existing empty file | First sync fails; second sync and close succeed without another write. After discarding the filesystem cache and remounting, the file still has its old zero length. |
+| File-data-buffer write fails for a 1,000-byte payload | First sync fails; the next sync retries and the complete payload survives remount. |
+| Disk `CTRL_SYNC` reports failure after writes | First sync fails; second file sync does not call `CTRL_SYNC` again. The RAM disk already contains the writes, so this case does not establish actual media loss. |
+
+This compounds the application's ignored `fflush`/`fclose` results and its logged
+but nonfatal `fsync` error. A later successful close cannot erase an earlier
+durability failure. The VFS close wrapper also releases its file-slot allocation
+after `f_close` returns, including an error return; that is separate from the
+application's success decision.
+
+Seven paired rename/sync/close/error-mapping bodies match across 384 GNU
+instructions, 93 branches and 16 ranges per model. Six host groups use unchanged
+SDK FatFs source on an 8 MiB RAM FAT12 volume with 4,096-byte sectors, heap long
+filenames, per-file buffers and single-thread mutex stubs. The configuration
+matches the relevant recovered branches, not every device build setting or
+32-bit ABI. Whole-sector I/O and selected errors are simulated; actual partition
+geometry, torn writes, wear leveling, concurrency and physical power loss are
+not. No frame cache or artwork was modified.
 
 ## Three different kinds of system artwork
 

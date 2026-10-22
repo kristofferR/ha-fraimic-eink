@@ -2848,6 +2848,24 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x42033f4c",
+      "kind": "function",
+      "role": "FatFs sync: early buffer-write failure retains retry flags; late sync_fs result does not prevent FA_MODIFIED clear",
+      "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
+    },
+    {
+      "address": "0x42034000",
+      "kind": "function",
+      "role": "FatFs close: f_sync first; validate/invalidate object only after sync success",
+      "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
+    },
+    {
+      "address": "0x420346b0",
+      "kind": "function",
+      "role": "FatFs rename: different existing destination returns FR_EXIST; new-entry/old-entry update sequence",
+      "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
+    },
+    {
       "address": "0x420352a4",
       "kind": "function",
       "role": "SDK FAT mount/format gate: only errors 2/13 with permission; 4096-byte work buffer, successful format flag before remount",
@@ -2864,6 +2882,30 @@
       "kind": "function",
       "role": "Disk I/O registration helper; null implementation frees registration only, without wear-level unmount",
       "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
+      "address": "0x42035a6c",
+      "kind": "function",
+      "role": "FatFs result-to-errno mapping, including FR_EXIST 8 to EEXIST 17",
+      "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
+    },
+    {
+      "address": "0x4203600c",
+      "kind": "function",
+      "role": "FAT VFS close wrapper: f_close followed by file-slot release even when close fails",
+      "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
+    },
+    {
+      "address": "0x420366b8",
+      "kind": "function",
+      "role": "FAT VFS rename wrapper: lock, prepend drive, f_rename and errno conversion; no destination unlink",
+      "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
+    },
+    {
+      "address": "0x42036a80",
+      "kind": "function",
+      "role": "FAT VFS fsync wrapper: f_sync result propagated as errno failure",
+      "evidence": "static; 22 October paired cache replacement/sync GNU comparison"
     },
     {
       "address": "0x42036ab8",

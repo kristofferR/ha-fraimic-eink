@@ -84,6 +84,7 @@ per question, not a count of tool calls or decompiled functions.
 | N04/N05/E02 | Nine cache/mount functions match across models; 24 SDK/reconstructed host groups check formatting eligibility, repeated recovery and misleading success logs; partial-write/read state traced | Real FAT corruption, stdio and wear-leveling faults, concurrent replacement, interruption and durable artwork recovery |
 | N04/E01/E02 | Three additional allocator/cleanup pairs and 12 SDK-wrapper host groups establish conditional retention of eight wear-leveling slots after late mount failures | Real driver/heap effects, remaining cleanup paths, concurrent mounts, interruption and physical recovery |
 | N04/E01/E02 | Registration helper matches; accepted already-registered error leaves the caller's filesystem pointer unset; four-file context/flags request 25,392 bytes | Duplicate-registration reachability, other callbacks, physical heap placement/pressure and recovery |
+| N05/E01/E02 | Seven rename/sync/close/error functions match; six RAM FAT12 groups verify destination-exists rejection and successful second sync/close after a metadata write was not retried | Installed geometry, actual wear leveling, torn writes, concurrency and interruption-safe replacement design |
 | N08/D01/D07 | Sixteen Large and eighteen Standard RLE host cases verify model geometry, partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; both show/restore paths write before DROP and change markers before completion | Physical rendering, overlap, storage faults, other releases and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
 | S03/S04/S05/S06 | Thirty-three host case groups cover deadline selection, missed-album retry and scheduling faults; timer/reason ordering, maintenance correction and conditional recursive fallback traced | Physical wake timing, actual persisted correction, clock changes, concurrency and real timer/NVS faults |
@@ -569,6 +570,11 @@ Source: [storage and configuration](storage-and-configuration.md).
   now match across models, including ignored flush/close errors, retained partial
   files and partial-read destination changes. Real stdio/storage faults,
   concurrent replacements and reboot durability remain open.
+  [Six RAM-filesystem groups](storage-and-configuration.md#a-second-sync-can-conceal-an-earlier-metadata-sync-failure)
+  now reproduce an old zero-length file after failed metadata sync followed by
+  successful sync/close, while a file-buffer error remains retryable. Renaming
+  over an existing cache is rejected. These do not validate real wear leveling,
+  torn writes, physical power loss or an atomic replacement design.
 - [ ] **N06 · Static/Host/Device:** Verify custom wake-up artwork feasibility and
   persistence across version changes, missing/truncated/same-size corrupt files,
   resets and cache recovery. Establish the true validation/palette contract.

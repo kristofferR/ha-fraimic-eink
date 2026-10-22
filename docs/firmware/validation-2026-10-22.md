@@ -1871,3 +1871,49 @@ established. Private artifacts: `cache-registration-pass1.txt`,
 `standard-cache-registration-comparison.json` and
 `standard-cache-registration-boundaries-gnu.txt`. No device, storage, network
 or HA changes were made; runtime reachability, concurrency and recovery remain open.
+
+## FAT cache replacement and late sync errors: N05/E01/E02
+
+Seven complete FAT/VFS rename, sync, close and error-mapping bodies match across
+384 instructions, 93 branches and sixteen ranges per model. Twenty direct-call
+and thirteen literal pairs are reviewed. The function map reaches 249 entries.
+The [replacement/sync findings](storage-and-configuration.md#rename-does-not-replace-an-existing-cache-file)
+connect existing-destination rejection with the file-modified flag cleared after
+a failed late filesystem sync, and distinguish the earlier retryable buffer-write
+error. These are selected function comparisons, not whole-driver equivalence.
+
+Six host case groups passed using unchanged ESP-IDF v5.4.1 FatFs sources, C11,
+Wall/Wextra/Werror, AddressSanitizer and UndefinedBehaviorSanitizer. The fixture
+uses an 8 MiB RAM FAT12 image with 4,096-byte sectors, two FAT copies, heap
+255-character long names, per-file sector buffers, no shared-file lock table
+and single-thread mutex stubs. ASCII paths avoid dependence on the selected
+437 code page. The target's relevant branches match; the fixture does not claim
+all firmware build settings or the target ABI are reproduced.
+
+The metadata failure is targeted to the file's directory sector, rather than
+the first arbitrary write during sync: earlier FAT/data writes can take different
+error branches. After this failure, a successful second sync and close perform
+no additional write, and unregister/remount discards the filesystem window; the
+RAM image still contains the old zero-length entry. A separate file-buffer fault
+remains retryable. A CTRL_SYNC error case confirms lack of retry without claiming
+media loss, because the RAM disk stores completed writes immediately.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `fat-cache-fixture/ff.c` | `b6511bc0102f42b941897cd9f96f75206b6851fedbebc6dcb17c220cb1d4bede` |
+| `fat-cache-fixture/ff.h` | `90d3efa38c24078651702dd5997ac022ddef127f336f25b9aac1eafcdbb660fc` |
+| `fat-cache-fixture/ffconf.h` | `27e92e97b5744d7cd0b5e9e82a885601c8eb358fbf22f1a9baec0c1246bd7f3a` |
+| `fat-cache-fixture/diskio.h` | `60beaaca712a9d5126f41362fa68ce7f30e26e115b310a20d79e5639b6fcc3b5` |
+| `fat-cache-fixture/ffunicode.c` | `f2e03e97fccd9d7b0614b48ee02b7e49fb21c5196d3ff77ba5d8e4558a064d5d` |
+| `fat-cache-fixture/sdkconfig.h` | `80451c4e17c5f8d9adf9ce3d2d44cc6033192d80a1a37537dc8ce6652d69c503` |
+| `fat-cache-fixture/cache-fixture.c` | `a9f433858ecb09f31bc7a92298cb7b2c1ea4cf799945186bb063963c0231f3a6` |
+| `fat-cache-fixture/results.jsonl` | `335b7217177912468e30baf8a0884bf57d52655440b43b94542576c87347b4e7` |
+
+Other private artifacts: `cache-replace-pass1.txt`/`cache-replace-pass2.txt`,
+`run-cache-replace-cfg.mjs`, per-function `cache-replace-*-cfg.json`/`.txt`,
+`compare-standard-cache-replace.mjs`, `standard-cache-replace-comparison.json`,
+`standard-cache-replace-boundaries-gnu.txt` and the fixture's
+`evidence-hashes.json`, which also pins its two FreeRTOS compatibility headers.
+No frame, artwork, flash, network or HA changes were made. Installed FAT geometry,
+wear leveling, torn writes, concurrency and physical power-loss recovery remain
+open; successful RAM remounts are not a power-loss atomicity guarantee.

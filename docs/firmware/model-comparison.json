@@ -816,6 +816,23 @@
         "four_file_flags_bytes": 16,
         "total_requested_bytes": 25392,
         "limitations": "Conditional static handoff; no crash, race, heap-placement measurement or real allocation-failure experiment. Prior injected invalid-state host case supplied a valid pointer."
+      },
+      "rename_sync": {
+        "evidence": "Seven complete paired GNU functions; six unchanged-source RAM FAT12 case groups",
+        "instructions_per_image": 384,
+        "branches_per_image": 93,
+        "gnu_ranges_per_image": 16,
+        "direct_call_pairs": 20,
+        "literal_pairs": 13,
+        "replace_existing_different_object": false,
+        "existing_destination_fresult": 8,
+        "existing_destination_errno": 17,
+        "late_sync_error_clears_file_modified": true,
+        "early_file_buffer_write_error_preserves_retry": true,
+        "host_ram_volume_bytes": 8388608,
+        "host_sector_bytes": 4096,
+        "host_case_groups": 6,
+        "limits": "RAM whole-sector I/O and selected errors; not installed geometry, wear leveling, torn writes, physical power loss, concurrency or a complete target ABI/configuration match"
       }
     }
   },
@@ -2029,6 +2046,41 @@
       "role": "fat_vfs_register_configuration",
       "large": "0x42036ab8",
       "standard": "0x4203557c"
+    },
+    {
+      "role": "fat_vfs_rename",
+      "large": "0x420366b8",
+      "standard": "0x4203517c"
+    },
+    {
+      "role": "fat_vfs_fsync",
+      "large": "0x42036a80",
+      "standard": "0x42035544"
+    },
+    {
+      "role": "fat_vfs_close",
+      "large": "0x4203600c",
+      "standard": "0x42034ad0"
+    },
+    {
+      "role": "fat_rename",
+      "large": "0x420346b0",
+      "standard": "0x42033174"
+    },
+    {
+      "role": "fat_sync",
+      "large": "0x42033f4c",
+      "standard": "0x42032a10"
+    },
+    {
+      "role": "fat_close",
+      "large": "0x42034000",
+      "standard": "0x42032ac4"
+    },
+    {
+      "role": "fat_result_to_errno",
+      "large": "0x42035a6c",
+      "standard": "0x42034530"
     }
   ],
   "live_standard": {

@@ -773,6 +773,15 @@ callbacks are mapped separately; their bodies are not all compared. This adds
 one function pair, bringing the map to 242. No duplicate-registration crash or
 actual heap-pressure failure was induced.
 
+Seven cache-replacement primitives are compared next: FAT/VFS rename, sync and
+close plus FAT error mapping. All 384 instructions, 93 branches and sixteen
+ranges per model match, with twenty direct-call and thirteen literal pairs
+reviewed. The map reaches 249 pairs. Both reject renaming over a different
+existing object and clear the file-modified flag after the late filesystem sync
+call even on error. Six unchanged-source RAM-filesystem groups distinguish
+metadata failure from retryable file-buffer failure; they do not establish
+the installed partition layout or physical power-loss behavior.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering
