@@ -55,6 +55,7 @@ per question, not a count of tool calls or decompiled functions.
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | S01/C01/C11 | Cached reachability survives station disconnect; fallback AP request ordering and persistent wildcard captive-DNS worker traced | Physical recovery, actual AP configuration, DNS reachability/lifetime and setup/bind failure tests |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
+| D01/D03/D06 | DMA staging copies one 4,800-byte PSRAM chunk at a time; completion frees it; shared descriptors/manual select state and truncated/overwritten errors traced | Measured DMA-memory fragmentation, controlled transfer/overlap faults and complete higher-level driver exclusion audit |
 | C01/D01/D04 | Setup metadata framing and background screen tasks traced; shared pixels written before WAIT/DROP, two-minute Get Started poll hold, 90-second unscoped completion wait | Controlled task/heap faults, overlapping screens/producers, full metadata framing coverage and independent provisioning |
 | D06/E01 | Task-watchdog startup is 5 seconds, both idle tasks, panic disabled; renderer unsubscribes before power/conditioning/transfer/refresh | Physical failure/recovery tests, interrupt-watchdog and hardware fallback coverage, remaining indirect references |
 | H04/D06/S05 | Conditioning uses full-panel black or white/black clears and a temporary 288 KB block; elapsed selector uses 12/48-hour boundaries; MID suppresses clear errors and can advance the shared timestamp | Panel waveform constraints, physical conditioning/fault tests, other controller paths and interrupted timestamp writes |
@@ -275,6 +276,10 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
 - [ ] **D03 · Static/Host:** Verify SPI/DMA consumption and completion semantics to
   establish when the source bytes can be released. Evaluate exclusive ownership
   versus a real snapshot against measured free memory and fragmentation.
+  [DMA staging](rendering-and-concurrency.md#dma-staging-protects-only-the-current-chunk)
+  now establishes current-chunk copy/release and the separate DMA-memory allocation.
+  Unsent chunks and shared descriptors/manual controller state still need ownership;
+  no concurrent producer or DMA-allocation fault has been exercised.
 - [ ] **D04 · Host/Device:** Exercise WAIT/DROP, simultaneous producers, stuck worker,
   task-allocation failure and early render failure. Check busy flags, semaphore
   behavior, recording-state query failures and timeout cleanup.

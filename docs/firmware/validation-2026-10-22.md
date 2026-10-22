@@ -526,3 +526,26 @@ Private artifacts: `http-config-gnu.mjs`, `http-config-boundaries-gnu.txt`,
 `voice-http-read-pass1.txt`, `ota-download-pass1.txt` and the multipart export.
 No device request, certificate installation, network change or firmware update
 was performed. No new host fixture was needed for these config-store corrections.
+
+## SPI staging and shared driver state: D01/D03/D06
+
+Three focused Ghidra exports and 32 bounded GNU ranges across 17 functions
+cross-check the application transfer/select helpers, bus initialization, SDK
+queue, DMA staging, completion cleanup and blocking wrapper. Literal reads
+establish the direct-DMA address range, 10 MHz request, 4,800-byte chunk size and
+shared globals. The compiled bus initializer supplies four-byte DMA alignment.
+
+The [transfer follow-up](rendering-and-concurrency.md#dma-staging-protects-only-the-current-chunk)
+distinguishes a copied current chunk from unsent shared pixels. It also traces
+original-descriptor references through SDK completion, the two logical device
+handles, manual select/DC operations, low-byte error truncation and later-error
+overwrite. No new full-image snapshot, private per-call application descriptor
+or finite wrapper deadline was found in these paths. This is not a complete
+interrupt/HAL or higher-level exclusion audit, nor a physical concurrency test.
+
+Private artifacts: `spi-lifetime-pass1.txt` through `spi-lifetime-pass3.txt`,
+`spi-lifetime-gnu.mjs`, `spi-lifetime-boundaries-gnu.txt`,
+`spi-lifetime-literals.jsonl`, `spi-dma-literals.jsonl` and the earlier
+`checklist-pass7.txt`. No frame request, image change, hardware fault, modified
+firmware execution or routing change was performed. D03 remains open for measured
+memory/fragmentation and design evaluation; D01/D06 retain their broader scope.

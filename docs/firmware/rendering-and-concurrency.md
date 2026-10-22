@@ -74,6 +74,73 @@ result without returning a failure to the worker. Fault injection and real
 free-memory/fragmentation measurements are still needed before choosing between
 exclusive ownership and a separate full snapshot (D03/D06).
 
+### DMA staging protects only the current chunk
+
+Bus initialization `0x42022140` requests DMA auto-selection, a maximum transfer
+size of 4,800 bytes and two logical devices on the same host. Both devices request
+10 MHz, mode 0, eight command bits, half-duplex operation and a queue depth of ten.
+Their hardware chip-select pin is `-1`; the application drives controller selects
+itself. These values were read from this binary, with field/flag names checked
+against the SDK [device](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_driver_spi/include/driver/spi_master.h)
+and [bus](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_driver_spi/include/driver/spi_common.h)
+headers. They do not establish measured clock timing or permission to increase it.
+
+The compiled SDK setup routine `0x4037ad4c` accepts a direct TX pointer only in
+the internal DMA address range `0x3fc88000` through `0x3fcfffff`, when DMA is enabled.
+An ordinary PSRAM source falls outside that range. For each such transaction it
+allocates a DMA-capable temporary block and copies the requested bytes before
+queueing. The bus initializer sets alignment to four bytes, so a full application
+chunk needs a 4,800-byte payload allocation, plus allocator overhead. This is a
+separate requirement on DMA-capable memory; a large free-PSRAM figure does not
+establish that the allocation will succeed.
+
+Queue submission `0x4037ae60` stores the original descriptor pointer together with
+the temporary buffer in its private context. Result retrieval `0x4037aef8` calls
+cleanup `0x4037a8e4` after receiving completion; cleanup frees the temporary TX
+block. The normal wrapper submits and collects one transaction before starting
+the next. Queue depth ten therefore does not mean ten artwork chunks are staged
+by this loop. A complete artwork uses 60 data transactions per controller, 480
+across the eight controllers, excluding commands, status reads and conditioning.
+
+This establishes the normal source lifetime more precisely: bytes already copied
+into the current DMA block are isolated from later PSRAM writes, but the copy
+itself and every unsent chunk still require ownership. A concurrent producer can
+change subsequent chunks, even though the current DMA transfer is protected.
+The blocking wrapper supplies an all-ones wait to both queue and result APIs; it
+does not impose a finite panel-transfer deadline. These are static conclusions,
+not induced allocation, overlap or stuck-transfer tests.
+
+The command/data helper truncates every SDK result to its low eight bits before
+returning it, in addition to overwriting earlier errors. For example, SDK
+`0x101` (allocation failure) becomes `1`, and `0x102` becomes `2`. Preserve full
+error codes and stop on the first failed transaction in a fork; the existing
+return cannot be treated as an intact SDK error or proof that every chunk sent.
+
+### Descriptors and manual controller selection also need ownership
+
+The command descriptor at `0x3fca7620`, extended data descriptor at `0x3fca75f0`
+and active device handle at `0x3fca75e0` are globals reused by the panel helpers.
+They are not copied into a private descriptor for each caller. SDK completion
+cleanup still reads the original descriptor, including its buffer pointers and
+lengths. Waiting for one caller's transaction does not prevent another caller
+from clearing or rewriting that same descriptor while the first caller waits.
+
+Selector `0x420220a8` switches the active handle when driving a controller select
+low. GPIOs 15–18 choose the first device; GPIOs 8, 3, 46 and 9 choose the second.
+Both handles are used. Driving a select high does not change the active handle.
+The command/data helper also drives both DC pins, GPIOs 4 and 5, around separate
+command and data transactions. Its chunk loop reloads the shared active handle
+for each call. No application mutex spans this selection, descriptor setup,
+command/data sequence and final deselection in the recovered low-level helpers.
+
+Thus SDK bus arbitration alone cannot protect the application's shared
+descriptors or manual select/DC state. A firmware fork should give one panel
+owner the whole operation, including conditioning, status reads and cleanup,
+and keep descriptor storage alive and unchanged through result retrieval.
+The existing render-busy policy is not this low-level lock. This identifies the
+required boundary; it does not demonstrate that stock tasks have collided on
+the physical frame or exhaust every higher-level caller's exclusion rules.
+
 **Observed sample:** immediately before multipart streaming in the successful
 fixed-image voice test, firmware reported 1,347,188 bytes of free PSRAM and a
 largest block of 1,343,488 bytes. The streaming headers needed only 163 bytes;

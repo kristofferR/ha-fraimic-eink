@@ -196,6 +196,36 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x3fca75e0",
+      "kind": "global",
+      "role": "Shared active SPI device handle; selected on manual CS-low, reloaded per transfer",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x3fca75e4",
+      "kind": "global",
+      "role": "Second SPI device handle for controllers 5 through 8",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x3fca75f0",
+      "kind": "global",
+      "role": "Shared extended data transaction descriptor, 48 bytes",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x3fca7620",
+      "kind": "global",
+      "role": "Shared command transaction descriptor, 40 bytes",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x3fca7648",
+      "kind": "global",
+      "role": "First SPI device handle for controllers 1 through 4",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x3fca7660",
       "kind": "data",
       "role": "LED manager mutex handle",
@@ -310,10 +340,34 @@
       "evidence": "static; watchdog follow-up with GNU checks"
     },
     {
+      "address": "0x4037a8e4",
+      "kind": "function",
+      "role": "SPI private-context cleanup; frees staged TX and copies/frees staged RX using original descriptor",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4037ad4c",
+      "kind": "function",
+      "role": "SPI DMA staging: internal address-range test, per-transaction allocation and TX copy",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4037ae60",
+      "kind": "function",
+      "role": "SPI queue submission with original descriptor and staging context",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4037aef8",
+      "kind": "function",
+      "role": "SPI result retrieval; DMA cleanup after completion",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x4037af80",
       "kind": "function",
-      "role": "SPI transmit wrapper: queue transaction, wait for result, assert descriptor identity",
-      "evidence": "static"
+      "role": "SPI transmit wrapper: queue/result waits use all-ones timeout; assert descriptor identity",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x40381d68",
@@ -1305,14 +1359,20 @@
     {
       "address": "0x42021e5c",
       "kind": "function",
-      "role": "Controller command/data SPI sends in blocking 4800-byte chunks",
-      "evidence": "static"
+      "role": "Controller command/data SPI sends in blocking 4800-byte chunks; shared descriptors, low-byte result truncation and overwrite",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420220a8",
+      "kind": "function",
+      "role": "Manual controller select and shared device-handle selection",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x42022140",
       "kind": "function",
-      "role": "Panel bus/GPIO initialization",
-      "evidence": "static"
+      "role": "Panel bus/GPIO initialization; DMA auto, 4800-byte maximum, two 10 MHz half-duplex devices with manual CS",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x42022648",
@@ -2498,6 +2558,12 @@
       "kind": "function",
       "role": "NVS U64 getter",
       "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x4204e28c",
+      "kind": "function",
+      "role": "SDK SPI bus initializer; DMA-enabled branch sets four-byte alignment",
+      "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x420500e0",
