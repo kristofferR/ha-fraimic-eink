@@ -812,6 +812,65 @@ downstream size comparison has a ±1,024-byte tolerance, but the earlier cap
 rejects the upper half; clients should always produce the exact expected size.
 Do not add an extra refresh after a successful image upload.
 
+### Raw image acceptance and failure boundaries on both models
+
+The complete raw-upload handlers and save/start wrappers match across both builds:
+245 plus 80 reachable instructions each, with model-specific size literals.
+Standard's entries are `0x4202ef24` and `0x42017250`; Large's are
+`0x420307f8` and `0x4201727c`. This comparison covers their operations and internal
+branches, not recursive equivalence of all external callees.
+
+The Content-Type value must be 1–63 bytes and contain the **case-sensitive
+substring** `application/octet-stream`. This is not an exact media-type parser:
+parameters and even a prefixed/suffixed token pass; `Application/Octet-Stream`
+and a 64-byte value fail with `501 unsupported_content_type`. The ROM call is
+`strstr`, confirmed by the [ESP32-S3 SDK bindings](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_rom/esp32s3/ld/esp32s3.rom.newlib.ld).
+Use the plain canonical value. The handler updates last activity before these
+checks; a rejected request is not necessarily neutral to the idle timer.
+
+| Boundary | Standard | Large |
+| --- | --- | --- |
+| Required complete panel payload | 960,000 bytes | 2,304,000 bytes |
+| Handler upper cap | 960,000 bytes | 2,304,000 bytes |
+| Lengths admitted by handler plus immediate wrapper | 958,976–960,000 | 2,302,976–2,304,000 |
+| Largest individual receive request | 4,096 bytes | 4,096 bytes |
+| Consecutive timeout results before rejection | 5 | 5 |
+
+The admitted lower range is tolerance, not a usable alternative format. In the
+instruction cases, a payload 1,024 bytes short reaches render-start with the tail
+unchanged. One byte shorter is rejected only **after** its bytes were received
+into the image allocation. Neither handler has the Large refresh endpoint's
+early recording/protection check. Standard's separate audio allocation remains
+a model difference; this pass does not infer physical concurrency failures.
+
+The receive loop resets its timeout count after every positive read. Five
+consecutive `-3` results produce `408 upload_timeout`; zero or another negative
+result produces `400 receive_failed`. Four timeouts, progress, then four more
+timeouts can still complete. There is no whole-upload deadline in this handler.
+On receive failure, already received bytes remain in the image buffer; the
+save/start wrapper has not run. No restore or clearing step appears on that exit.
+
+After reception, the wrapper checks size, attempts cache save, clears the system-
+image marker and calls render-start with WAIT policy. Cache-save failure is logged
+but does not prevent render-start. A render-start failure therefore follows a
+cache-save attempt and marker-clear call. Only after successful render-start does
+the handler allocate/serialize/send its success response: `500 out_of_memory`,
+`500 json_serialization_failed`, or a failed response send can all occur after
+render-start has succeeded. None proves that the panel remained unchanged.
+
+Twenty-one cases per build check these boundaries, including buffer readiness,
+capacity, length limits, partial reception, timeout reset and response failures.
+They execute **373 distinct instructions per build** with HTTP/cJSON, ROM helpers,
+buffer accessors, activity/LED, save/marker and render outcomes modeled. The
+unsigned-to-double result used for `bytes_received` follows the
+[SDK ROM binding](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_rom/esp32s3/ld/esp32s3.rom.libgcc.ld).
+[Results and hashes](image-api-cases.json) are host evidence, not physical render,
+socket timing, real allocation failure or durable-cache validation. For HA, send
+the exact model payload, serialize producers and treat a failed request after
+transfer as an uncertain outcome rather than automatically retrying or refreshing.
+
+### Older multipart transport
+
 The older `/upload` endpoint accepts multipart field `image`, filename `image.bin`.
 That is different from the cloud voice multipart field `file`, filename
 `recording.wav`. Existing [`api.py`](../../custom_components/fraimic/api.py)

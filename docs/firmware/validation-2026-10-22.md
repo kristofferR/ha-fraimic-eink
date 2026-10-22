@@ -3966,3 +3966,29 @@ the 12/67 item and 125/189 milestone totals.
 and fixture SHA-256
 `ec38e07a20a8c27ff8e73ed5fd1acb124fbda40d5de94bc91cb0fc72eca23720`.
 No device, network, HA source or deployment change was made.
+
+## Raw-image API acceptance and response failures: H05/E02
+
+The raw-upload handler and immediate save/start wrapper match normalized
+operations and internal branch targets across both pinned builds: **245 + 80
+reachable GNU instructions per build**, with model-specific size literals and
+18 mapped direct-call pairs. Ghidra corroboration was read-only. External bodies
+are not recursively equated by this comparison.
+
+**Forty-two instruction cases pass**, 21 per build, covering 373 distinct
+instructions each across those two functions and the existing JSON/error senders.
+They check MIME substring/case/63-versus-64-byte limits, empty/oversize/short
+payloads, unready/undersized buffers, EOF and timeout after partial reception,
+timeout reset after progress, failed cache save, failed render-start and response
+allocation/serialization/send failure after render-start. The received prefix and
+untouched tail are verified byte-for-byte in synthetic host memory.
+
+HTTP/header parsing, cJSON/ROM helpers, image accessors, activity/LED, save/marker
+and render results are modeled. This does not test physical display, actual
+filesystem durability, wall-clock socket timeout, scheduling or allocator failure.
+No device request, network/HA change or deployment was made. H05/E02 gain evidence
+within existing milestones; counts remain **12/67 items and 125/189 milestones**.
+
+[Public results](image-api-cases.json) contain per-function CFG hashes, the paired
+comparison hash and fixture SHA-256
+`ce1df16f9da23fce99049c02fadfd7a44da127b99121e698fec6604051352cd2`.
