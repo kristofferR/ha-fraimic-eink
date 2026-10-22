@@ -15,6 +15,13 @@ handler and registration-record file offset are in
 [route-registrations.json](route-registrations.json). Descriptions summarize the
 recovered role; they are not complete request schemas.
 
+The [handler contract ledger](route-contract-coverage.json) reconciles all 42
+registrations, covering 39 distinct handlers, to consumed inputs, response shape,
+access checks, effects and the detailed evidence below. Its method/path/handler
+triples are checked against the original registration bytes. It closes the
+bounded static inventory; it does not establish live availability in every boot
+state, every browser behavior or all Standard handler equivalents.
+
 | Method | Path | Role / effect |
 | --- | --- | --- |
 | GET | `/complete` | Completion HTML; does not itself complete pairing |
@@ -467,6 +474,40 @@ establishes a complete or durable execution record.
 
 ## Interpreting the JSON status snapshot
 
+### Remaining status and HTML contracts
+
+The two battery endpoints have different wire shapes:
+
+| Route | Fields in this Large build |
+| --- | --- |
+| `/api/battery` | `percent`, `voltage_mv`, `charging`, `cable_connected`, `source` (`fuel_gauge` or `adc_estimation`) |
+| `/battery/status` | `charging`, `voltage_v`, `percentage`, `status`, `fuel_gauge`, `data_source` (`Fuel Gauge` or `ADC Estimation`); the gauge branch adds `current_ma`, `temperature_c`, `cycle_count`, `soh` |
+
+The first uses JSON builder `0x42030bf8`; the second formats into a 512-byte stack
+buffer at `0x4202a154`, sets `Access-Control-Allow-Origin: *` and no-cache headers.
+Voltage units and field names are not interchangeable. The gauge branch initializes
+extra diagnostic values, calls their getters and does not check those getter
+results before formatting, so a default value is not necessarily a successful
+measurement. These handlers contain no request-field setter or direct
+last-activity call. That does not prove their repeated use has no power cost.
+
+`GET /connect` (`0x4201b3f8`) renders the current connection flag and cached
+disconnect reason. Its wrong-password and network-failure text is a mapping from
+that reason, not a new credential test. The GET does not apply Wi-Fi configuration.
+`GET /upload` (`0x4201b3ac`) updates activity and returns embedded upload HTML;
+viewing it does not submit an image.
+
+`GET /portal` (`0x4201e81c`) updates activity, renders connection/setup, battery
+and firmware summaries, and includes the already traced three-second battery
+poll script. `GET /info` (`0x4201f0f8`) updates activity and assembles HTML sections
+for device/account, battery, Wi-Fi, maintenance schedule, preferences and time.
+Its preferences are display values, not hidden form setters in this handler.
+Sequential getter reads do not form a locked snapshot. Cached identity access can
+retain its previously documented first-use side effects. Displayed maintenance
+history and gauge labels retain their limitations elsewhere in these notes.
+
+### JSON snapshot semantics
+
 Large `/api/info` handler `0x42030c98` assembles a snapshot rather than reporting
 a workflow or image-job state. Its fields have these narrower meanings:
 
@@ -639,6 +680,24 @@ contains `ssid` (string), `rssi` (signed number), `band` (string), `channel`
 (number) and `bssid` (colon-separated string); there is no authentication-mode
 field in this formatter. The band label is selected solely by channel below 15
 versus 15 or above; the `5GHz` string is not evidence of fitted 5 GHz hardware.
+
+### AP selection can change before an error response
+
+`POST /switch-ap` (`0x4201c4cc`) receives at most **63 bytes once**, decodes the
+whole prefix into a 64-byte buffer, then searches for `bssid=` and `channel=`.
+It requires six parsed hexadecimal BSSID bytes and rejects all-zero bytes.
+The optional channel uses integer conversion, then an eight-bit value; the
+handler supplies zero when absent and performs no separate range check.
+These are parsing rules, not proof that the Wi-Fi driver accepts every value.
+
+After reading the current configuration, it disconnects and applies the new
+BSSID/channel **before** allocating the 1,589-byte confirmation page. Failure
+of that allocation therefore follows a possible configuration change. That
+branch sends a server error without reaching the later stats-save/restart path.
+Successful page construction sends HTML without checking delivery, waits 50 ticks,
+saves statistics and restarts. There is no rollback in the handler on either
+configuration or response failure. An error response must not be interpreted as
+proof the radio/settings remained unchanged. No AP-switch request was sent.
 
 ### Scan-result escaping is incomplete
 

@@ -55,6 +55,7 @@ No transcription or AI generation was invoked.
 
 Machine-readable references: [firmware identity](firmware-identity.json),
 [route registrations](route-registrations.json),
+[handler contract coverage](route-contract-coverage.json),
 [selected addresses](address-map.json), and
 [model comparison with type-only live schemas](model-comparison.json).
 The [LED state table](led-states.json) preserves the Large build's numeric records.

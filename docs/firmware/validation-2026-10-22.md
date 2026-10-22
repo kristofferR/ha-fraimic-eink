@@ -3148,3 +3148,56 @@ network change or HA deployment occurred.
 | `audio-reference-audit.combined.json` | `4a0b6cc4c0d9ba8c1a4b618ca3ed0010a488d6879fe78f5bbea3b90194efc55c` |
 | `compare-audio-output.mjs` | `6b1e245453635b02592ce42610966441e1258d81a5a5428470bae3fc07415219` |
 | `standard-audio-output-comparison.json` | `17cc87775e6d0624de293c15c6664bed090ee82bc9f6340066f97102d4d15f1b` |
+
+## Handler contracts and diagnostic instruction cases: H05
+
+The [contract ledger](route-contract-coverage.json) reconciles all 42 registered
+method/path pairs, covering 39 distinct handlers, to consumed input, output,
+access checks, effects and existing detailed research. Each record's method enum,
+path pointer/string and handler pointer is rechecked against the pinned Large
+application: 504 registration bytes plus the referenced path strings. This is a
+coverage index, not a fresh physical test of all routes or a complete browser
+audit. Registration failures, startup/sleep and shared-task blocking retain
+their documented availability limits.
+
+Seven additional complete GNU CFGs cover the battery JSON builder, battery status,
+connection/portal/info/upload pages and AP switch: **1,628 instructions and 49
+ranges**. These establish the two battery schemas, cached HTML status, activity
+calls and AP configuration-before-response-allocation branch. They are not a
+new battery investigation or an AP mutation experiment.
+
+The [41 diagnostic cases](diagnostic-host-cases.json) use a bounded interpreter
+over eight complete byte-checked GNU CFGs, totaling 1,043 decoded instructions
+and 28 ranges; the chosen cases execute 929 distinct instruction addresses.
+There are 21 redaction cases, four log-initializer allocation cases, eight flush
+cases and eight log-page allocation/send cases. The hex/MAC predicates and
+replacement helper are interpreted too. Buffer-boundary canaries remain intact
+in the selected redaction cases, and tracked page allocations are released.
+
+External memory/string helpers, allocations, mutexes, file calls and HTTP are
+modeled. The page's current formatter, authentication/query checks and time calls
+are stubs; its previous-log reader runs against one synthetic seventeen-byte
+payload. Chunk capture records attempted output, not delivery. The interpreter
+does not model interrupts, register-window exceptions, RTOS scheduling, actual
+heap behavior or storage durability. Flush cases assume mounted storage and do
+not resume N04's deferred mount/recovery work.
+
+Results support the documented redaction gaps, omitted-history allocation
+branches, ignored HTTP-send failures and successful return after failed/short
+flush writes or failed close. They do not explain a particular live TLS-memory
+failure or establish all Standard equivalents. H05's static/host milestone is
+complete; its physical availability/mutation/concurrency criterion remains open.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `diagnostic-instruction-cases.mjs` | `2a959abc50591ec074268ed47dd81480a48b882c7163b294c9d1669bc81d9e4a` |
+| `diagnostic-instruction-results.json` | `cc7ae56feecc172e0f559290d26df90a3a62b5e8b942df550eaa40121fa6963e` |
+| `build-route-contracts.mjs` | `803834ef44da807f499c3910ea07a1fb2b9f0a82a67153f5790dadd5ab7a42c9` |
+| `route-contract-coverage.public.json` | `e7786542020724b5a8dee1419c3fb44c89026e1022d0b8bc0565d3b55cf642fc` |
+| `remaining-battery-json-large-cfg.json` | `da497a45ce61dd03ee059288954d799c4f52c30506c7b293ee70ac32f49d94a0` |
+| `remaining-battery-status-large-cfg.json` | `010e090c3b1043643b2209a98bfc20241eb157c9b98b4e80f2cbc463de03ab1d` |
+| `remaining-connect-page-large-cfg.json` | `856b8ef609d918b1b2dc5bc3513944699a19242f99191494a5c53b9404bc133c` |
+| `remaining-portal-page-large-cfg.json` | `65ccfa48ab1092b91040dd7b9d16ca80505068d252a89d6c3f118618d4fa31cf` |
+| `remaining-info-page-large-cfg.json` | `76e42eaf128b7c6f1a08e3dfd993a9d750b031bf5b08c47e091d5f5f32a7c17c` |
+| `remaining-upload-page-large-cfg.json` | `7951d6a70c7dfdbe16a992991831272ad8a35bc0e6df434b12d290a30c9ccba0` |
+| `remaining-switch-ap-large-cfg.json` | `7420599785e95a39c28d9df7f674d90c42b8e3e9e9fbe5bb12371aa1d4311bd0` |

@@ -1,0 +1,472 @@
+{
+  "evidence": "Bounded interpretation of pinned decoded Xtensa instructions, with synthetic memory and named external stubs; no firmware/RTOS/filesystem execution",
+  "cfgs": [
+    {
+      "name": "redact",
+      "entry": "0x4202dae8",
+      "instructions": 275,
+      "ranges": 7,
+      "sha256": "af4977ebcc06f0d52705f6bcefadd4b81b46fa175be44a733b97d7e07063f7a9"
+    },
+    {
+      "name": "replace",
+      "entry": "0x4202daac",
+      "instructions": 25,
+      "ranges": 1,
+      "sha256": "58313973aaa95131a6d5797b99952ea6c12f94ac93814f9e398d6b95d24b0fae"
+    },
+    {
+      "name": "mac-match",
+      "entry": "0x4202da54",
+      "instructions": 32,
+      "ranges": 2,
+      "sha256": "38758e0ecf9a9158a238e1f41059d86a1a6a7496a490403ae21beb022cdc3702"
+    },
+    {
+      "name": "hex-match",
+      "entry": "0x420e2b28",
+      "instructions": 26,
+      "ranges": 1,
+      "sha256": "255e2671b6994d7840765c8b9400c57dabee6ee61563ab661ca7d736e6aed4d6"
+    },
+    {
+      "name": "init",
+      "entry": "0x4202dff0",
+      "instructions": 80,
+      "ranges": 3,
+      "sha256": "35916d629ea4dddd5e8624fa60004fd96550374745a59e03da8659becf5149a6"
+    },
+    {
+      "name": "flush",
+      "entry": "0x4202e484",
+      "instructions": 165,
+      "ranges": 5,
+      "sha256": "35afc8ed19f9cb4751ec1c5895a1a18af9c87c2748d1a7dd216e621f8cc3f2a6"
+    },
+    {
+      "name": "previous",
+      "entry": "0x4202e644",
+      "instructions": 136,
+      "ranges": 3,
+      "sha256": "fc62b951bdd6d8a72ca57b8019f5f14186ad6ba35b88e75815abab2def0b2b83"
+    },
+    {
+      "name": "page",
+      "entry": "0x4201c0d0",
+      "instructions": 304,
+      "ranges": 6,
+      "sha256": "a1b2601c413f2975d6d69e9173b0ff6d47c976d753c0f69c5e2f144839c0dbed"
+    }
+  ],
+  "unique_executed_instructions": 929,
+  "cases": [
+    {
+      "group": "redaction",
+      "name": "plain-password",
+      "instructions_executed": 574,
+      "input": "password=synthetic",
+      "output": "password=[REDACTED]",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "mixed-case",
+      "instructions_executed": 450,
+      "input": "TOKEN: synthetic",
+      "output": "TOKEN: [REDACTED]",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "json-key",
+      "instructions_executed": 5479,
+      "input": "{\"password\":\"synthetic\"}",
+      "output": "{\"password\":\"synthetic\"}",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "space-before-equals",
+      "instructions_executed": 1956,
+      "input": "password = synthetic",
+      "output": "password [REDACTED] synthetic",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "ssid-space",
+      "instructions_executed": 4038,
+      "input": "ssid Example Network",
+      "output": "ssid Example Network",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "ssid-equals-space-value",
+      "instructions_executed": 1706,
+      "input": "ssid=Example Network",
+      "output": "ssid=[REDACTED] Network",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "preceding-letter",
+      "instructions_executed": 3073,
+      "input": "mytoken=synthetic",
+      "output": "mytoken=synthetic",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "preceding-underscore",
+      "instructions_executed": 2343,
+      "input": "device_token=synthetic",
+      "output": "device_token=[REDACTED]",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "ellipsis-prefix",
+      "instructions_executed": 3903,
+      "input": "token=...synthetic",
+      "output": "token=...synthetic",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "bare-device-key-path",
+      "instructions_executed": 9661,
+      "input": "/api/v1/upload/example-device-key/check",
+      "output": "/api/v1/upload/example-device-key/check",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "signed-query",
+      "instructions_executed": 12823,
+      "input": "[synthetic AWS signature/credential query parameters; URI omitted from public artifact]",
+      "output": "[unchanged by redaction]",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "mac",
+      "instructions_executed": 2693,
+      "input": "AA:BB:CC:DD:EE:FF",
+      "output": "...DD:EE:FF",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "mac-ellipsis-prefix",
+      "instructions_executed": 5047,
+      "input": "...AA:BB:CC:DD:EE:FF",
+      "output": "...AA:BB:CC:DD:EE:FF",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "email",
+      "instructions_executed": 4757,
+      "input": "example@example.invalid",
+      "output": "e***@example.invalid",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "short-email",
+      "instructions_executed": 4283,
+      "input": "a@example.invalid",
+      "output": "a***@example.invalid",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "already-masked-email",
+      "instructions_executed": 4565,
+      "input": "a***@example.invalid",
+      "output": "a***@example.invalid",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "email-no-dot",
+      "instructions_executed": 3278,
+      "input": "example@localhost",
+      "output": "example@localhost",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "capacity-expansion-refused",
+      "instructions_executed": 180,
+      "input": "pwd=x",
+      "output": "pwd=x",
+      "capacity": 6
+    },
+    {
+      "group": "redaction",
+      "name": "email-expansion-refused",
+      "instructions_executed": 3333,
+      "input": "a@example.invalid",
+      "output": "a@example.invalid",
+      "capacity": 18
+    },
+    {
+      "group": "redaction",
+      "name": "later-keyword",
+      "instructions_executed": 2291,
+      "input": "prefix token=synthetic",
+      "output": "prefix token=[REDACTED]",
+      "capacity": 256
+    },
+    {
+      "group": "redaction",
+      "name": "two-keywords",
+      "instructions_executed": 1361,
+      "input": "token=first secret=second",
+      "output": "token=[REDACTED] secret=[REDACTED]",
+      "capacity": 256
+    },
+    {
+      "group": "allocation",
+      "name": "already-initialized",
+      "instructions_executed": 6,
+      "return_code": 0,
+      "hook_installations": 0,
+      "mutex_deletions": 0
+    },
+    {
+      "group": "allocation",
+      "name": "mutex-allocation-fails",
+      "instructions_executed": 22,
+      "return_code": 257,
+      "hook_installations": 0,
+      "mutex_deletions": 0
+    },
+    {
+      "group": "allocation",
+      "name": "psram-allocation-fails",
+      "instructions_executed": 36,
+      "return_code": 257,
+      "hook_installations": 0,
+      "mutex_deletions": 1
+    },
+    {
+      "group": "allocation",
+      "name": "normal-initialization",
+      "instructions_executed": 50,
+      "return_code": 0,
+      "hook_installations": 1,
+      "mutex_deletions": 0
+    },
+    {
+      "group": "flush",
+      "name": "uninitialized",
+      "instructions_executed": 16,
+      "return_code": 259,
+      "opened_for_overwrite": false,
+      "write_calls": 0,
+      "accepted_bytes": 0,
+      "close_return": 0
+    },
+    {
+      "group": "flush",
+      "name": "mutex-timeout",
+      "instructions_executed": 27,
+      "return_code": 263,
+      "opened_for_overwrite": false,
+      "write_calls": 0,
+      "accepted_bytes": 0,
+      "close_return": 0
+    },
+    {
+      "group": "flush",
+      "name": "empty-keeps-previous",
+      "instructions_executed": 37,
+      "return_code": 0,
+      "opened_for_overwrite": false,
+      "write_calls": 0,
+      "accepted_bytes": 0,
+      "close_return": 0
+    },
+    {
+      "group": "flush",
+      "name": "open-failure",
+      "instructions_executed": 44,
+      "return_code": 4294967295,
+      "opened_for_overwrite": true,
+      "write_calls": 0,
+      "accepted_bytes": 0,
+      "close_return": 0
+    },
+    {
+      "group": "flush",
+      "name": "full-write",
+      "instructions_executed": 87,
+      "return_code": 0,
+      "opened_for_overwrite": true,
+      "write_calls": 3,
+      "accepted_bytes": 20,
+      "close_return": 0
+    },
+    {
+      "group": "flush",
+      "name": "header-write-failure",
+      "instructions_executed": 87,
+      "return_code": 0,
+      "opened_for_overwrite": true,
+      "write_calls": 3,
+      "accepted_bytes": 16,
+      "close_return": 0
+    },
+    {
+      "group": "flush",
+      "name": "body-short-write",
+      "instructions_executed": 87,
+      "return_code": 0,
+      "opened_for_overwrite": true,
+      "write_calls": 3,
+      "accepted_bytes": 11,
+      "close_return": 0
+    },
+    {
+      "group": "flush",
+      "name": "close-failure",
+      "instructions_executed": 87,
+      "return_code": 0,
+      "opened_for_overwrite": true,
+      "write_calls": 3,
+      "accepted_bytes": 20,
+      "close_return": -1
+    },
+    {
+      "group": "log-page",
+      "name": "normal-log-page",
+      "instructions_executed": 315,
+      "return_code": 0,
+      "allocation_requests": [
+        65536,
+        65536,
+        17
+      ],
+      "error_responses": 0,
+      "chunk_calls": 21,
+      "previous_text_attempted": true,
+      "live_allocations_after_handler": 0
+    },
+    {
+      "group": "log-page",
+      "name": "current-psram-fallback",
+      "instructions_executed": 319,
+      "return_code": 0,
+      "allocation_requests": [
+        65536,
+        2048,
+        65536,
+        17
+      ],
+      "error_responses": 0,
+      "chunk_calls": 21,
+      "previous_text_attempted": true,
+      "live_allocations_after_handler": 0
+    },
+    {
+      "group": "log-page",
+      "name": "both-current-allocations-fail",
+      "instructions_executed": 31,
+      "return_code": 4294967295,
+      "allocation_requests": [
+        65536,
+        2048
+      ],
+      "error_responses": 1,
+      "chunk_calls": 0,
+      "previous_text_attempted": false,
+      "live_allocations_after_handler": 0
+    },
+    {
+      "group": "log-page",
+      "name": "previous-output-allocation-fails",
+      "instructions_executed": 169,
+      "return_code": 0,
+      "allocation_requests": [
+        65536,
+        65536
+      ],
+      "error_responses": 0,
+      "chunk_calls": 18,
+      "previous_text_attempted": false,
+      "live_allocations_after_handler": 0
+    },
+    {
+      "group": "log-page",
+      "name": "previous-payload-psram-fallback",
+      "instructions_executed": 320,
+      "return_code": 0,
+      "allocation_requests": [
+        65536,
+        65536,
+        17,
+        17
+      ],
+      "error_responses": 0,
+      "chunk_calls": 21,
+      "previous_text_attempted": true,
+      "live_allocations_after_handler": 0
+    },
+    {
+      "group": "log-page",
+      "name": "both-previous-payload-allocations-fail",
+      "instructions_executed": 236,
+      "return_code": 0,
+      "allocation_requests": [
+        65536,
+        65536,
+        17,
+        17
+      ],
+      "error_responses": 0,
+      "chunk_calls": 18,
+      "previous_text_attempted": false,
+      "live_allocations_after_handler": 0
+    },
+    {
+      "group": "log-page",
+      "name": "current-formatter-zero",
+      "instructions_executed": 307,
+      "return_code": 0,
+      "allocation_requests": [
+        65536,
+        65536,
+        17
+      ],
+      "error_responses": 0,
+      "chunk_calls": 21,
+      "previous_text_attempted": true,
+      "live_allocations_after_handler": 0
+    },
+    {
+      "group": "log-page",
+      "name": "chunk-send-error-ignored",
+      "instructions_executed": 315,
+      "return_code": 0,
+      "allocation_requests": [
+        65536,
+        65536,
+        17
+      ],
+      "error_responses": 0,
+      "chunk_calls": 21,
+      "previous_text_attempted": true,
+      "live_allocations_after_handler": 0
+    }
+  ],
+  "limits": [
+    "ROM memory/string helpers modeled; no cycle timing, interrupts, register-window exceptions or actual allocator.",
+    "Page current formatter, authentication/query checks, time and HTTP sends are explicit stubs; previous-log reader instructions run against a synthetic file.",
+    "Output records attempted chunk bodies, not peer delivery.",
+    "Flush assumes storage already mounted; mount/recovery policy is excluded and remains deferred.",
+    "No device inputs, saved credentials, network request or filesystem write by interpreted code."
+  ]
+}

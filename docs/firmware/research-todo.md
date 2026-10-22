@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**11 of 67 original items complete; 120 of 187 concrete milestones complete.**
+**11 of 67 original items complete; 121 of 187 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 11 | Original bounded question answered; evidence linked below |
-| Research | 4 | Concrete static, host or design work remains available |
-| Waiting for device | 25 | Remaining original criteria require physical validation |
+| Research | 3 | Concrete static, host or design work remains available |
+| Waiting for device | 26 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 9 | Owner-postponed work; do not resume automatically |
@@ -71,9 +71,9 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-Continue with the remaining H05 handler/diagnostic contracts, then H04's controller
-command audit. H03's static audio-path audit is complete; physical output hardware
-remains deferred. A07's [feature proposal](voice-feature-proposal.md)
+Continue with H04's controller command audit. H03's static audio-path audit and
+H05's registration/diagnostic reconciliation are complete; their physical criteria
+remain deferred. A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
 overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
@@ -683,11 +683,11 @@ Commit and push validated research batches periodically as requested.
   controls and undiscovered setters; validate read-only branches first and track
   mutating/destructive branches as explicit separate experiments. Albums are C12.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static:** Inventory all 42 registrations; recover dev authentication, factory/action side effects, server capacity and diagnostic behavior. [Local API](local-api.md), [logs](diagnostics-and-logs.md).
   - [x] **Static/Host:** Check selected setup/Wi-Fi forms/scripts, mDNS lifecycle and LED arbitration. [Forms](local-api.md#wi-fi-field-matching-and-byte-limits), [LEDs](led-and-workflow-state.md).
-  - [ ] **Next:** **Static/Host:** Reconcile the remaining per-handler schemas/setters and explicit diagnostic allocation/redaction/flush cases against the registration inventory.
+  - [x] **Static/Host:** Reconcile 42 registrations/39 handlers to input/output/effect contracts; trace remaining battery/HTML/AP-selection branches and check 41 synthetic diagnostic instruction cases. [Contract ledger](route-contract-coverage.json), [allocation/write cases](diagnostics-and-logs.md#diagnostic-allocation-and-write-failure-cases), [validation](validation-2026-10-22.md#handler-contracts-and-diagnostic-instruction-cases-h05).
   - [ ] **Deferred:** **Device:** Validate remaining boot-state availability, concurrent reads, LED/discovery timing and separately approved mutating controls. Keep destructive actions separate.
 
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery

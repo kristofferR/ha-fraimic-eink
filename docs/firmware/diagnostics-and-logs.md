@@ -2,8 +2,9 @@
 
 [Research index](README.md)
 
-These are static findings for the pinned Large 0.2.29 application. No log-clear,
-authentication-bypass, filesystem-fault or logging stress test was performed.
+These are static findings and bounded host instruction cases for the pinned
+Large 0.2.29 application. No device log-clear, authentication-bypass,
+filesystem-fault or logging stress test was performed.
 The purpose is to interpret existing evidence and design better local-backend
 diagnostics, not to treat a log page as a complete execution trace.
 
@@ -109,6 +110,35 @@ has a 2 KiB ordinary-heap fallback; the previous-log output allocation does not.
 These are bounded code-path costs, not measured peak usage during a particular
 voice request.
 
+## Diagnostic allocation and write failure cases
+
+[Forty-one isolated cases](diagnostic-host-cases.json) interpret selected,
+byte-checked Xtensa instructions with synthetic memory and explicit external
+stubs: 21 redaction cases, four initializer cases, eight flush cases and eight
+log-page cases. This is not execution of the firmware, allocator, RTOS or storage.
+Mount/recovery decisions are excluded; flush cases assume storage already mounted.
+
+| Injected condition | Recovered result |
+| --- | --- |
+| Initial log-mutex allocation fails | Return `0x101`; no capture hook installed |
+| Initial 64 KiB history allocation fails | Delete the newly created mutex, clear its pointer, return `0x101`; no capture hook installed |
+| Current page's PSRAM allocation fails | Try a 2 KiB ordinary-heap output buffer; failure of both sends an error before chunk output |
+| Previous page-output allocation fails | Continue with current logs and omit the previous tab; no equivalent output fallback |
+| Saved binary payload's PSRAM allocation fails | Try ordinary heap for that payload; failure of both is converted to no previous text |
+| Current formatter returns zero | Show the ordinary “No log entries” message, including when zero means mutex contention |
+| Page chunk sends fail | Continue attempted output, free the selected allocations and return zero; handler success does not prove peer delivery |
+| Flush cannot acquire mutex | Return `0x107`; do not open the file |
+| Current history is empty | Return zero without opening/truncating the previous file |
+| Flush file-open fails | Release mutex and return `-1` |
+| Header write fails, body write is short, or close fails | Continue and return zero; the final success message is still reached |
+
+In the page cases, all modeled successful allocations are released. That bounded
+result does not establish absence of leaks in the SDK, other branches or live
+concurrency. The synthetic saved payload is only seventeen bytes; it exercises
+fallback selection without claiming measured 192 KiB peak usage on the frame.
+Likewise, a stubbed short write establishes unchecked caller behavior, not actual
+filesystem corruption or a durable partial file.
+
 ## Redaction is heuristic
 
 `0x4202dae8` recognizes MAC-like text, email local parts and seven keyword
@@ -122,6 +152,27 @@ segments or every signed-URL parameter. The album logger separately masks a
 suffix but prints credential-bearing paths. Keep raw diagnostics private and
 apply explicit field/path redaction before exporting captures. A visible mask
 elsewhere in a line does not make the whole line safe to publish.
+
+The instruction cases make several limitations concrete, using only synthetic
+values:
+
+| Input | Result |
+| --- | --- |
+| `password=synthetic` | `password=[REDACTED]` |
+| `{"password":"synthetic"}` | Unchanged: the quote after the keyword is not an accepted delimiter |
+| `password = synthetic` | `password [REDACTED] synthetic`: the equals sign is treated as the value |
+| `ssid=Example Network` | `ssid=[REDACTED] Network`: masking stops at the first space |
+| `ssid Example Network` | Unchanged: SSID requires `=` or `:` rather than a space |
+| `token=...synthetic` | Unchanged: values starting with three dots are skipped |
+| `pwd=x` in a six-byte buffer including NUL | Unchanged: expansion to the mask would exceed capacity |
+| Synthetic AWS signature/credential query parameters | Unchanged by these keyword rules |
+
+Keyword comparison is ASCII case-insensitive and rejects a preceding ASCII
+letter, but not an underscore or digit. Email masking requires a dot after `@`
+and retains the first local-part byte plus the domain. Short email local parts
+can require expansion and are also left unchanged when capacity is insufficient.
+MAC masking retains the last three byte pairs. These are formatting heuristics,
+not a guarantee that a diagnostic export is safe.
 
 For a local backend, retain structured job events with stable job/device IDs,
 stage, monotonic timing, result and safe error codes. Keep recordings, transcripts
