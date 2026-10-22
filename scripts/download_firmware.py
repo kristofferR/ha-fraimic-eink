@@ -17,6 +17,8 @@ import http.client
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 from datetime import UTC, datetime
@@ -160,7 +162,7 @@ def check_firmware(args: argparse.Namespace, key: str) -> tuple[str, str] | None
     return version, url
 
 
-def download_firmware(args: argparse.Namespace, version: str, url: str) -> Path:
+def download_firmware(args: argparse.Namespace, version: str, url: str) -> Path | None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     # Publish the binary and metadata together, only after a complete download.
     # A failed or interrupted transfer leaves no apparently finished archive.
@@ -229,13 +231,67 @@ def download_firmware(args: argparse.Namespace, version: str, url: str) -> Path:
         )
         destination = args.output_dir / f"fraimic-{args.model}-{version}-{sha256[:12]}"
         if destination.exists():
-            raise DownloadError(
-                "This firmware archive already exists; use another --output-dir to download again."
-            )
+            try:
+                saved = json.loads((destination / "metadata.json").read_text())
+                with (destination / "firmware.bin").open("rb") as existing:
+                    saved_hash = hashlib.file_digest(existing, "sha256").hexdigest()
+            except (OSError, ValueError):
+                raise DownloadError(
+                    "Existing firmware archive is unreadable or incomplete."
+                ) from None
+            if (
+                not isinstance(saved, dict)
+                or any(
+                    saved.get(field) != metadata[field]
+                    for field in (
+                        "sha256",
+                        "bytes",
+                        "file",
+                        "model",
+                        "display_type",
+                        "offered_version",
+                    )
+                )
+                or saved_hash != sha256
+            ):
+                raise DownloadError(
+                    "Existing firmware archive failed content or metadata verification; it was not overwritten."
+                )
+            print(f"Already archived: {version} ({args.model})")
+            return None
         staging.rename(destination)
     print(f"Saved {destination / 'firmware.bin'} ({size:,} bytes)")
     print(f"SHA-256: {sha256}")
     return destination
+
+
+def notify_download(archive: Path, model: str, version: str) -> None:
+    notifier = shutil.which("terminal-notifier")
+    if notifier is None:
+        raise DownloadError(
+            "Firmware saved, but terminal-notifier is not installed or not on PATH."
+        )
+    try:
+        subprocess.run(
+            [
+                notifier,
+                "-title",
+                "Fraimic firmware downloaded",
+                "-message",
+                f"{model.title()}: {version}. Saved for analysis.",
+                "-group",
+                f"fraimic-firmware-{model}",
+                "-open",
+                archive.resolve().as_uri(),
+            ],
+            check=True,
+            capture_output=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError):
+        raise DownloadError(
+            "Firmware saved, but macOS notification failed. Check terminal-notifier permissions."
+        ) from None
 
 
 def parser() -> argparse.ArgumentParser:
@@ -273,6 +329,11 @@ def parser() -> argparse.ArgumentParser:
         help="Check for an offer without downloading it",
     )
     result.add_argument(
+        "--notify",
+        action="store_true",
+        help="Send a macOS notification only for a newly saved archive (requires terminal-notifier)",
+    )
+    result.add_argument(
         "--sha256", help="Require a separately known SHA-256 for the downloaded file"
     )
     return result
@@ -295,7 +356,9 @@ def main(argv: list[str] | None = None) -> int:
         version, url = offer
         print(f"Firmware offered: {version} ({args.model})")
         if not args.check_only:
-            download_firmware(args, version, url)
+            archive = download_firmware(args, version, url)
+            if archive is not None and args.notify:
+                notify_download(archive, args.model, version)
     except DownloadError as error:
         print(f"Error: {error}", file=sys.stderr)
         return 1

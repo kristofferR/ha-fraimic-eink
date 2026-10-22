@@ -63,7 +63,8 @@ download creates `fraimic-<model>-<offered-version>-<hash-prefix>/` containing:
 
 Device keys, signed URLs, account data and optional telemetry are excluded from
 the metadata. A completed directory is never overwritten. If it already exists,
-the script exits with an error; choose another output directory for a new copy.
+the script verifies its binary and saved SHA-256, then reports “Already archived”
+and exits successfully. An unreadable, incomplete or corrupt archive is an error.
 Ordinary failures and interruptions clean up temporary downloads before publishing
 an archive. Exit codes are `0` for a successful check/download (including no offer),
 `1` for an operational failure, `2` for invalid CLI arguments and `130` for Ctrl-C.
@@ -121,3 +122,30 @@ and archive preservation. They do not depend on vendor availability:
 ```bash
 uv run --with pytest pytest tests/test_download_firmware.py -q
 ```
+
+## Daily checks and macOS notifications
+
+Add `--notify` to notify through `terminal-notifier` only when a new archive was
+saved. Clicking the notification opens that archive in Finder. Install the tool
+with `brew install terminal-notifier` if needed and allow its notifications in
+System Settings. A notification error leaves the downloaded firmware intact and
+returns exit code 1; the error is logged, not automatically notified again.
+
+The [daily runner](../../scripts/check_firmware_daily.sh) checks both models even
+if one fails. It reads `~/.config/fraimic/standard.key` and `large.key` (or the
+equivalent under `XDG_CONFIG_HOME`) and saves archives under
+`~/Library/Application Support/Fraimic/firmware`. It reports `0.0.1` each time so
+the server can offer its eligible release. Every offered binary is downloaded
+and hashed; identical content produces no new archive or notification. Changed
+bytes under an unchanged version are archived and notified separately.
+
+For an unattended Mac installation, copy both scripts into the same persistent
+directory, such as `~/Library/Application Support/Fraimic/bin`. Schedule
+`/bin/sh /absolute/path/to/check_firmware_daily.sh` with a per-user launchd agent
+using `StartCalendarInterval` (`Hour: 9`, `Minute: 0`). A LaunchAgent runs in the
+logged-in user's session and catches a missed calendar event after sleep. Keep
+stdout/stderr in `~/Library/Logs/Fraimic` and set `Umask` to decimal `63` (`077`).
+This avoids depending on a disposable worktree or a running coding assistant.
+The runner uses `uv --offline`; run the downloader once interactively first so a
+compatible Python is already available. macOS notification permissions and Focus
+settings still control whether a successfully submitted notification is visible.

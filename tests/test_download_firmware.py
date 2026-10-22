@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import subprocess
 from contextlib import contextmanager
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -248,10 +249,65 @@ def test_existing_archive_is_preserved(vendor):
     assert downloader.main(vendor["args"]) == 0
     (archive,) = vendor["output"].iterdir()
     metadata = (archive / "metadata.json").read_bytes()
-    assert downloader.main(vendor["args"]) == 1
+    assert downloader.main(vendor["args"]) == 0
     assert list(vendor["output"].iterdir()) == [archive]
     assert (archive / "firmware.bin").read_bytes() == IMAGE
     assert (archive / "metadata.json").read_bytes() == metadata
+
+
+def test_corrupt_existing_archive_is_not_silently_skipped(vendor):
+    assert downloader.main(vendor["args"]) == 0
+    (archive,) = vendor["output"].iterdir()
+    (archive / "firmware.bin").write_bytes(b"damaged")
+    assert downloader.main(vendor["args"]) == 1
+    assert (archive / "firmware.bin").read_bytes() == b"damaged"
+
+
+def test_incomplete_archive_metadata_is_rejected(vendor):
+    assert downloader.main(vendor["args"]) == 0
+    (archive,) = vendor["output"].iterdir()
+    metadata_file = archive / "metadata.json"
+    metadata = json.loads(metadata_file.read_text())
+    del metadata["model"]
+    metadata_file.write_text(json.dumps(metadata))
+    assert downloader.main(vendor["args"]) == 1
+
+
+def test_notifications_only_for_new_content(vendor, monkeypatch):
+    monkeypatch.setattr(downloader.shutil, "which", lambda _: "/test/terminal-notifier")
+    notify = Mock()
+    monkeypatch.setattr(downloader.subprocess, "run", notify)
+    args = vendor["args"] + ["--notify"]
+    assert downloader.main(args + ["--check-only"]) == 0
+    notify.assert_not_called()
+    assert downloader.main(args) == 0
+    (archive,) = vendor["output"].iterdir()
+    command = notify.call_args.args[0]
+    assert command[0] == "/test/terminal-notifier"
+    assert archive.resolve().as_uri() in command
+    assert "Large: 0.2.30. Saved for analysis." in command
+    assert downloader.main(args) == 0
+    assert notify.call_count == 1
+    # A vendor reissue with the same version and different bytes is new content.
+    vendor["image"] = IMAGE[:-1] + b"!"
+    assert downloader.main(args) == 0
+    assert notify.call_count == 2
+    vendor["poll"]["firmware"] = None
+    assert downloader.main(args) == 0
+    assert notify.call_count == 2
+
+
+def test_notification_failure_keeps_download(vendor, monkeypatch, capsys):
+    monkeypatch.setattr(downloader.shutil, "which", lambda _: "/test/terminal-notifier")
+    monkeypatch.setattr(
+        downloader.subprocess,
+        "run",
+        Mock(side_effect=subprocess.CalledProcessError(3, "notifier")),
+    )
+    assert downloader.main(vendor["args"] + ["--notify"]) == 1
+    (archive,) = vendor["output"].iterdir()
+    assert (archive / "firmware.bin").read_bytes() == IMAGE
+    assert "Firmware saved, but macOS notification failed" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("key", ["", "...masked", "…masked", "two words"])
