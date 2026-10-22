@@ -475,6 +475,51 @@ page alone does not establish correct credentials, persistent first-time-setup
 state or a successful association. No Wi-Fi configuration was changed in this
 static pass.
 
+### Wi-Fi field matching and byte limits
+
+Unlike account forms, `/connect` uses case-sensitive `strstr` for the literal
+fragments `ssid=` and `password=`. It finds both pointers before inserting NUL
+at each value's next ampersand. It does not require a field-name boundary,
+reject duplicates, validate the request Content-Type or reject missing fields
+before attempting the driver configuration.
+
+Selected outcomes from a reconstructed host fixture:
+
+| Submitted form fragment | Result before the driver call |
+| --- | --- |
+| `notssid=Wrong&ssid=Lab` | SSID becomes `Wrong` |
+| `SSID=Lab` | SSID remains empty |
+| `ssid=First&ssid=Second` | First value wins |
+| `ssid=A%26B%2BC` | SSID becomes `A&B+C` |
+| `ssid=One%00Two` | Subsequent string copies retain only `One` |
+| 32 ASCII SSID bytes | Final driver field contains 31 |
+| Sixteen UTF-8 `é` characters | 32 decoded bytes become 31, ending in an incomplete UTF-8 sequence |
+| 64 password bytes | Final driver field contains 63 |
+
+Decoder `0x4201b628` bounds decoded output, converts plus to space, and accepts
+a two-character percent conversion only when `strtol` consumes both characters.
+Malformed escapes are copied literally. It does not validate UTF-8 or prevent
+embedded NUL. These findings describe parsed bytes and do not establish that the
+driver accepts or associates with an invalid/empty configuration.
+
+The zeroed station configuration is then given authentication threshold value
+3 at offset `0x78`, corresponding to `WIFI_AUTH_WPA2_PSK` in the
+[matching SDK types](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_wifi_types_generic.h).
+Thus the scan list is not evidence that every listed network is accepted by this
+setup path. Actual driver/AP compatibility and complete connection failures were
+not exercised.
+
+There is also a pre-parse side effect: if background retry is active, the handler
+calls `0x4201a650` **before** its first body read. That helper clears the run flag,
+signals the saved task when present and clears its attempt counter, without
+joining the task. A later body-read error therefore does not mean no state was
+changed. This is distinct from the connectivity monitor's own state machine.
+
+The confirmation-page SSID passes through HTML escaper `0x42019924`, which
+escapes ampersand, angle brackets and both quote types into a 128-byte buffer.
+Expansion can truncate the displayed name; that is separate from the 31-byte
+driver copy. This escaper is not the unescaped email insertion in account pages.
+
 ## Wi-Fi diagnostic and AP-control routes
 
 These handlers were inspected statically; no scans, AP changes or counter clears
@@ -505,6 +550,23 @@ contains `ssid` (string), `rssi` (signed number), `band` (string), `channel`
 (number) and `bssid` (colon-separated string); there is no authentication-mode
 field in this formatter. The band label is selected solely by channel below 15
 versus 15 or above; the `5GHz` string is not evidence of fitted 5 GHz hardware.
+
+### Scan-result escaping is incomplete
+
+The SSID formatter `0x420e2a04` escapes quote, backslash, backspace, tab, newline,
+form feed and carriage return. Other nonzero control bytes are copied unchanged.
+A synthetic SSID containing byte `0x01` therefore produces invalid JSON, while
+quote/backslash and the listed whitespace cases round-trip through a JSON parser.
+It also copies non-ASCII bytes without UTF-8 validation. Embedded NUL ends the
+string, and a record starting with NUL is omitted by the response loop.
+
+The handler gives this helper 66 bytes; 32 quote characters expand to 64 bytes
+and fit. It allocates 92 bytes per AP record and a separate JSON buffer of
+`150 * count + 100` bytes. Return values from retrieving the AP count and records
+are ignored, so an empty result does not independently prove that the scan found
+no networks. These are static/error-boundary findings, not a live unusual-SSID
+or driver-failure experiment. Future setup UI should distinguish scan failure,
+invalid response and a valid empty list.
 
 AP switching (`0x4201c4cc`) reads at most 63 form bytes once, URL-decodes the whole
 body, requires six parsed BSSID bytes and rejects an all-zero BSSID. Missing

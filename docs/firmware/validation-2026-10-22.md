@@ -692,3 +692,34 @@ Private artifacts: `status-rle-pass1.txt`, `status-rle-gnu.mjs`,
 `status-rle-boundaries-gnu.txt`, `status-rle-literals.jsonl`,
 `status-rle-fixture.c`, `status-rle-fixture-results.txt`,
 `status-rle-fixture-hashes.txt` and `extract-status-rle.mjs`.
+
+## Wi-Fi forms and scan escaping: H05/N03
+
+Two Ghidra passes and 18 bounded GNU ranges across six functions trace `/connect`,
+`/scan.json`, their decoding/escaping helpers and background-retry cancellation.
+Literal targets establish the substring keys and scan JSON format; instruction
+checks establish the final 31/63-byte copies, pre-read cancellation and station
+authentication-threshold write. The latter's field/value interpretation uses the
+[versioned SDK type definition](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_wifi_types_generic.h).
+
+The reconstructed C fixture passed **15 cases** under AddressSanitizer and
+UndefinedBehaviorSanitizer: ordinary/reversed fields, substring-name matching,
+case sensitivity, first duplicate, encoded delimiters/NUL, malformed escape,
+short receive, missing fields, 31/32-byte SSIDs, 64-byte password truncation,
+split UTF-8 and maximum quote expansion. All values are synthetic.
+
+Three exported scan-escape results were then wrapped in the recovered JSON
+shape and parsed with Bun: quote/backslash and supported control escapes round-
+tripped; the raw `0x01` case raised a JSON syntax error as expected. These are
+**three additional host checks**, not three more C cases or actual AP scans.
+No driver was invoked, no Wi-Fi configuration was saved, and no page was submitted.
+
+HTML escaping and ignored AP-count/record return values are separately traced
+statically. The fixture does not reproduce all driver behavior, asynchronous
+retry shutdown, live browser display or every invalid byte sequence.
+
+Private artifacts: `wifi-form-pass1.txt`, `wifi-form-pass2.txt`,
+`wifi-form-gnu.mjs`, `wifi-form-boundaries-gnu.txt`, `wifi-form-literals.jsonl`,
+`wifi-form-fixture.c`, `wifi-form-fixture-results.txt`,
+`wifi-scan-json-fixture.mjs`, `wifi-scan-escaped.hex` and
+`wifi-scan-json-results.json`.

@@ -70,6 +70,7 @@ per question, not a count of tool calls or decompiled functions.
 | H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
 | H05/N03/C11 | Onboarding GET/cache semantics and eight embedded page selections mapped; seven script host checks establish local submissions, recurring checks and error-body behavior | Initialization/read faults, remaining pages, real browser behavior, cache refresh and independent enrollment |
 | C11/H05 | Account handlers parse one 511-byte receive prefix and cap encoded fields at 127 bytes; thirteen host cases cover encoding expansion, duplicates, omissions and shortened values | Physical fragmented forms, full server parsing/cleanup, remaining form handlers and complete enrollment faults |
+| H05/N03 | Wi-Fi form substring matching, decoded-byte truncation, retry cancellation before read and scan escaping traced; 15 C cases plus three JSON checks passed | Physical setup/scan faults, driver acceptance, asynchronous retry termination and other-build comparison |
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
@@ -392,7 +393,10 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   physical LED timing, remaining state meanings, contended guards and Wi-Fi
   form boundary behavior are untested. Standard table bytes now match; its full
   LED arbitration comparison remains in E02. Wi-Fi scan/escape, AP-switch fault,
-  separate reachability and stats-erasure behaviors still need controlled checks.
+  separate reachability and stats-erasure behaviors still need physical checks.
+  [Wi-Fi parsing and scan escaping](local-api.md#wi-fi-field-matching-and-byte-limits)
+  now have isolated host cases for truncation, substring fields and invalid JSON;
+  no credentials, scan requests or network changes were submitted to a frame.
   [Diagnostic storage](diagnostics-and-logs.md) adds fixed-cookie detail filtering,
   whole-history resets and unchecked persistence; retain the remaining log-loss,
   allocation, redaction and clear/flush fault cases as untested.

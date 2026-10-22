@@ -934,6 +934,12 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x42019924",
+      "kind": "function",
+      "role": "Bounded HTML escape of SSID; ampersand, angle brackets and quotes",
+      "evidence": "static; Wi-Fi GNU follow-up"
+    },
+    {
       "address": "0x420199b0",
       "kind": "function",
       "role": "Captive DNS worker: wildcard UDP/53, fixed 192.168.4.1 answer, no post-bind shutdown path",
@@ -944,6 +950,12 @@
       "kind": "function",
       "role": "Cached portal SSID from final two MAC bytes, with generic fallback",
       "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4201a650",
+      "kind": "function",
+      "role": "Clear background Wi-Fi retry flag, notify task, reset attempt counter; no join",
+      "evidence": "static; Wi-Fi GNU follow-up"
     },
     {
       "address": "0x4201a69c",
@@ -1017,8 +1029,8 @@
     {
       "address": "0x4201b628",
       "kind": "function",
-      "role": "Bounded form URL decoder: percent escapes and plus-to-space conversion",
-      "evidence": "static; GNU cross-check"
+      "role": "Bounded URL decoder: plus/percent conversion, no UTF-8 or embedded-NUL rejection",
+      "evidence": "static; Wi-Fi GNU and host-fixture follow-up"
     },
     {
       "address": "0x4201b6a0",
@@ -1110,8 +1122,8 @@
     {
       "address": "0x4201d07c",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "Wi-Fi form: substring fields, one receive, 31/63-byte copies, retry cancel before read",
+      "evidence": "static; Wi-Fi GNU and host-fixture follow-up",
       "routes": [
         "POST /connect"
       ]
@@ -1119,8 +1131,8 @@
     {
       "address": "0x4201d28c",
       "kind": "function",
-      "role": "Local HTTP handler",
-      "evidence": "static registration",
+      "role": "Blocking AP scan and JSON formatting; count/record errors ignored",
+      "evidence": "static; Wi-Fi GNU and host-fixture follow-up",
       "routes": [
         "GET /scan.json"
       ]
@@ -2862,8 +2874,8 @@
     {
       "address": "0x420e2a04",
       "kind": "function",
-      "role": "Bounded SSID JSON escaping helper",
-      "evidence": "static; Wi-Fi handler follow-up"
+      "role": "Bounded scan SSID escaping; selected JSON escapes, other controls unchanged",
+      "evidence": "static; Wi-Fi GNU follow-up"
     },
     {
       "address": "0x420e2ac0",
