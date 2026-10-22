@@ -1058,6 +1058,10 @@ not proof of user intent to generate; let unused tickets expire.
 
 ### Prepared bounded finalize experiment
 
+The later [two-job host model](#bounded-two-job-ownership-and-completion-model)
+exercises the recovered ownership consequences without requiring a recording.
+It does not replace this deferred physical experiment.
+
 A private fixture accepts one local recording and holds finalize for at most
 45 seconds. It observes peer disconnect and otherwise returns intentional
 HTTP 409. It never returns an image URL, invokes transcription/generation or
@@ -1073,6 +1077,64 @@ the owner deferred the recording/three-tap test and requested static research.
 Fixture SHA-256:
 `4df7e41a2c3d3f2ea61ac62e80d7ca79ae46fee48f683f504010d0c7df55c8c7`.
 
+### Bounded two-job ownership and completion model
+
+A deterministic host model now enumerates **70 client-slot event orders** and
+explicit late-completion/cancellation traces. It reconstructs the documented
+register, unregister and abort transitions; it does not execute Xtensa, FreeRTOS,
+the SDK cancel function, sockets or an allocator. Model object labels represent
+client lifetimes, so no freed memory is actually dereferenced.
+
+The enumeration preserves A's register → unregister → free order and B's
+register → cancel → unregister → free order. Their 35 possible merges are run
+once with successful A unregistration and once with an injected lock timeout.
+It assumes overlapping requests are possible, as allowed by the previously
+traced unjoined-worker/shared-slot paths. It does not prove those orderings occur
+under the frame's scheduler.
+
+| Result when B requests cancellation | All unregistrations succeed | A unregister is forced to time out |
+| --- | ---: | ---: |
+| Target B | 21 | 25 |
+| Target A, still alive | 6 | 9 |
+| No registered target | 8 | 0 |
+| Target freed A storage | 0 | 1 |
+
+These are counts of a deliberately bounded state space, **not probabilities or
+device failure rates**. Example counterexamples are:
+
+- A registers → B registers → A unregisters → B cancels: the target is gone.
+- B registers → A registers → A unregister times out → A is freed → B cancels:
+  the slot still names A's released client storage.
+- A unregisters after download → B registers → A's common cleanup unregisters
+  again: B loses its target. A failed-open epilogue can do the same without ever
+  registering A.
+
+A separate trace holds cancellation's lock while A's cleanup times out and
+continues to free A. It records a possible lifetime conflict, without pretending
+to execute the concurrent SDK access or establish its resulting memory effects.
+
+The completion model admits an outer upload timeout, then B's launch and initial
+semaphore drain, followed by A's late success. Without stack reuse, A's borrowed
+context is simply expired; no result can safely be inferred from dereferencing
+it. **If reuse of the same caller-stack region is additionally assumed**, A can
+write B's status, replace the shared URL and give the unscoped semaphore after
+B's drain. The model then allows B to consume A's result while B's own worker
+has not completed. Stack reuse and the required network/task timing remain
+explicit assumptions, not measured behavior.
+
+A final trace follows cancellation after A's pre-render check: normal render
+completion and monitor stop preserve the processing flag; B then completes
+presign but exits before WAV upload, after which the explicit cancelled-upload
+branch clears it. This exercises the earlier same-wake stale-flag hypothesis.
+It neither tests sleep/reboot nor proves the absence of all indirect flag writes.
+
+The useful backend rule remains: retain job identity across disconnects, bound
+work below outer waits, and do not treat presign, socket closure or a shared
+completion indication as a per-job delivery acknowledgment. Firmware ownership
+needs a job-scoped result/cancel record, expected-owner cleanup and worker exit
+before releasing context. A backend response field cannot supply that ownership.
+See [validation](validation-2026-10-22.md#two-job-and-recording-interleavings-c08d05).
+
 ### Scheduled content can interrupt recording
 
 The [poll field-selection trace](cloud-protocol.md#field-selection-and-permissive-json-parsing)
@@ -1084,6 +1146,24 @@ The background poll worker `0x42025aec` can interrupt an active recording when
 server work is pending. The backend only learns about the voice job at presign,
 after recording ends. Furthermore every poll reports `is_periodic_poll=false`.
 A server-side lock beginning at presign cannot protect the earlier recording.
+
+A bounded host model enumerated the 15 merges of recording start → stop →
+presign → job finish with poll decision → device consumption. With a hold that
+starts at presign, two orders interrupt recording. With a proposed immediate
+recording-start event, one remains: **poll response decided → recording starts →
+pending response consumed**. Once the model interrupts recording, its later
+nominal presign event is skipped, matching the no-upload path. These counts are
+coverage of this small model, not event frequencies.
+
+A hypothetical device arbiter that defers pending content while recording
+eliminates interruption in those same orders by construction. That is a proposed
+policy, not a tested firmware patch. Recording events help the backend withhold
+new offers but cannot recall an already-issued response; rejecting its later
+asset GET is too late to prevent the interruption before download. The existing
+HA scheduling hold similarly blocks new dispatch, not work already dispatched.
+Use both backend coordination and device-side ownership for the full guarantee.
+The [host record](validation-2026-10-22.md#two-job-and-recording-interleavings-c08d05)
+retains state assumptions and remaining physical criteria.
 
 **Proposed firmware additions:** `recording_started`, `recording_stopped`,
 `busy`, `cancel_requested`, and `render_complete` events with job/content IDs.

@@ -2321,3 +2321,46 @@ Neither parser success nor this synthetic continuation closes that criterion.
 | `enrollment-parser-cli.c` | `01c60474bc819df2772ded221d7011145b5a235205cb1c08e49ee77d464420fb` |
 | Extracted `enrollment-parser-core.inc` | `17cc488ed614a232b3229871791b6802f2a3933e40e4eba19a2cf62fbc7aa060` |
 | `local-enrollment-results.json` | `01209acf2a42bdb99a092d769f6032194431c4d17a8212b8e0430649b9ae3b73` |
+
+## Two-job and recording interleavings: C08/D05
+
+The private `two-job-interleavings.mjs` ran on Omarchy with **11 assertions** over
+bounded transition models, including 70 slot event orders and 45 recording/poll
+policy orders. It reconstructs selected application transitions from the existing
+GNU-checked helpers and caller traces. This is model exploration, not firmware,
+SDK, RTOS, allocator or concurrent socket execution; no physical frame/network
+access occurred.
+
+The [voice ownership section](voice.md#bounded-two-job-ownership-and-completion-model)
+records the exact event constraints, counts and counterexamples. Two chains of
+three/four events yield 35 merges; they run with successful cleanup and with A's
+unregister lock timeout injected. The model distinguishes B, live A, no target
+and freed-A targets. It labels lifetimes rather than dereferencing real freed
+storage. Additional traces cover double/failed-open cleanup and cleanup while
+the abort operation holds the slot lock.
+
+Late upload completion is explored separately with an expired borrowed context
+and with explicitly assumed stack reuse after a subsequent job's initial drain.
+The latter can misattribute status/URL/semaphore completion to the new job.
+Another trace exercises the previously identified late-render cancellation flag
+reaching the next successful presign. No actual stale result or device crash is
+reported; scheduler timing, allocator reuse and indirect stores remain outside
+the model.
+
+The recording model preserves each event chain's order, separates backend poll
+decision from device consumption and skips presign after an interruption. A
+presign hold admits two interrupting orders, a hypothetical immediate recording
+event admits one, and a proposed device deferral policy admits none in this
+15-order set. The last result is a policy property by construction, not evidence
+of implemented firmware. The counts are not probabilities or complete state-space
+coverage. HA's already-dispatched sends and real event latency are not simulated.
+
+C08 and D05 now wait for their deferred physical criteria. Stock retry/idempotency
+limitations and the earlier bounded server-disconnect fixture remain distinct
+from these models. A production adapter, job ownership implementation and actual
+frame cancellation still require their stated validation.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `two-job-interleavings.mjs` | `b890396fdbe3854f9f5f4dcb22d5eb1e9a3dd8bcac91625cbaa90293ae92456d` |
+| `two-job-interleavings.results.json` | `73b628acaf37832b853360a1f042823ba5643617bc8801d3a94316913c7d113e` |

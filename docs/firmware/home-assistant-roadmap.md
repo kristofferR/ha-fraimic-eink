@@ -174,6 +174,11 @@ same logical update. Asset generation or an issued URL must not call these as
 though a confirmed upload occurred. Define separate processing holds and delivery
 evidence, persist their job identity, and balance releases on failure/reload.
 The backend still cannot hold for stock recording before presign reveals it.
+The [bounded event-order model](voice.md#scheduled-content-can-interrupt-recording)
+also shows why a proposed recording-start event is insufficient alone: a poll
+response issued before that event can arrive during recording. Firmware must
+defer that pending content before interrupting capture; a rejected asset GET
+cannot restore the already-interrupted recording.
 
 These helper/lock statements are source traces. The six host checks cover asset
 preparation and cache faults, not a working pull scheduler, overlay flow or

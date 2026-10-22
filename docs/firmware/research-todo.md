@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**8 of 67 original items complete; 99 of 182 concrete milestones complete.**
+**8 of 67 original items complete; 101 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 8 | Original bounded question answered; evidence linked below |
-| Research | 20 | Concrete static, host or design work remains available |
-| Waiting for device | 14 | Remaining original criteria require physical validation |
+| Research | 18 | Concrete static, host or design work remains available |
+| Waiting for device | 16 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
@@ -63,9 +63,10 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with C08/D05's shared
-two-job interleaving work. C11's synthetic enrollment pass is complete; its
-physical provisioning criterion remains deferred. A02–A04 and A03's final integration check need implementation;
+For the owner's local-cloud/voice priorities, continue with A06's compatibility
+fixtures or C01's remaining destination coverage. C08/D05's bounded interleaving
+pass and C11's synthetic enrollment pass are complete; their physical criteria
+remain deferred. A02–A04 and A03's final integration check need implementation;
 report that dependency rather than substituting more library decompilation.
 Preserve the remaining lower-priority static work under its original ID.
 Commit and push validated research batches periodically as requested.
@@ -150,11 +151,11 @@ Commit and push validated research batches periodically as requested.
   download and rendering. Determine what the backend observes on disconnect and
   what work continues; verify retry/idempotency and stale-result behavior.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static/Host:** Map cancellation at each stage, all 21 direct active-client operations, SDK close/reconnect state and selected Standard equivalents. [Cancellation](voice.md#which-stages-can-abort-their-socket), [slot ownership](voice.md#active-client-ownership-and-failed-unregistration).
   - [x] **Static:** Trace borrowed upload/download contexts, timeout returns, forced deletion and stale-result candidates. [Download lifetime](image-downloads.md#voice-download-timeout-and-forced-task-deletion).
-  - [ ] **Next:** **Host:** Exercise a bounded two-job late-result/cancel interleaving with explicit client ownership; retain untested scheduler/socket assumptions.
+  - [x] **Host:** Enumerate 70 client-slot orders and explicit late-result/stale-cancel traces using bounded transition models; retain overlap, stack-reuse and scheduler/socket assumptions. [Model and counterexamples](voice.md#bounded-two-job-ownership-and-completion-model).
   - [ ] **Deferred:** **Device:** Run the postponed cancellation experiment and correlate backend disconnect, continuing work and final state. This is the owner-deferred recording test.
 
 - [x] **C09 · Host/Device:** Complete one local end-to-end voice round trip using
@@ -500,10 +501,10 @@ Commit and push validated research batches periodically as requested.
   cancellation stage, including recording before presign. Check how far HA locks
   and backend holds help and which cases require firmware ownership/events.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static:** Establish that a pending scheduled response can interrupt recording and that HA locks do not cover frame-originated capture. [Race](voice.md#scheduled-content-can-interrupt-recording), [HA boundaries](home-assistant-roadmap.md#delivery-helpers-have-additional-side-effects).
-  - [ ] **Next:** **Design/Host:** Test schedule/voice interleavings and document which backend holds help versus cases requiring firmware events/ownership; reuse C08 interleavings.
+  - [x] **Design/Host:** Enumerate 15 recording/poll orders under three policies; distinguish presign holds, proposed recording events and device-side deferral. Reuse the C08 ownership model; no physical race is claimed. [Recording boundary](voice.md#scheduled-content-can-interrupt-recording).
   - [ ] **Deferred:** **Device:** Validate selected cancellation stages and scheduled-content races when physical testing resumes.
 
 - [ ] **D06 · Static/Host/Device:** Trace and inject controller/SPI, BUSY, PMIC and I2C

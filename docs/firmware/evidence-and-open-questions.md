@@ -61,6 +61,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Integration source inspection | Existing functions to reuse in HA | Implemented emulator, voice backend or new metadata model |
 | HA deployment read and 24 boundary checks | Active HTTP config, pinned wrapper/TLS behavior and synthetic separate-listener limits/authentication | Deployed companion, production bridge, certificate renewal or durable job recovery |
 | 28 local enrollment checks | Minimal response through pinned cJSON, synthetic identity continuation, bounded enrollment and backend restart | Physical provisioning, firmware/NVS execution, offline cold boot or actual setup-screen rendering |
+| Bounded two-job/recording models | Explicit shared-slot, late-completion and in-flight poll counterexamples under stated event-order assumptions | Actual scheduler/socket timing, allocator reuse, a reproduced frame failure or implemented job arbitration |
 
 Temporary DNS/DNAT and interception were removed after each bounded experiment.
 No custom app was flashed. The Large [backend passes](backend-emulation.md) used
