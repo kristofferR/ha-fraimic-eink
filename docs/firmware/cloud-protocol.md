@@ -101,8 +101,24 @@ from literal hostnames. The URL scan also excludes non-HTTP services: the four
 bare time-server names, DNS fallback and public TCP probe remain separate
 dependencies. For already-paired backend work, cover the central API and returned
 storage URLs, preserve deliberate OTA withholding, and validate local DNS/time
-and connectivity independently. This is a Large static inventory, not an
-air-gap test, a Standard-wide consumer comparison or an independent enrollment.
+and connectivity independently. This inventory is static evidence, not an
+air-gap test or an independent enrollment.
+
+The later [Standard inventory](standard-outbound-dependencies.json) confirms the
+same eleven constructor roles, ten API-selector calls, two dashboard-selector
+calls and one authentication-selector call in 0.2.28. All six selected origins
+and all eleven literal HTTP(S) hosts match Large. Standard's logging-only API
+calls are `0x42016987` and `0x42023723`; its multipart constructor call is
+`0x42025a2d`. Its unused legacy LAN/manifest literals are at `0x3c123e84` and
+`0x3c123e9c`, again with no exact pointer occurrences in the vendor application.
+
+The Standard raw scan produced 25 candidate byte matches but only 24 actual
+calls. The extra candidate at `0x4200ba4e` starts inside a jump instruction and
+crosses into the next instruction. Ghidra also omits the genuine multipart call
+after unsupported `SALTU` instructions. Thirty bounded GNU ranges, covering 874
+unique instructions with bytes checked against the pinned image, resolve both
+cases. Matching consumer roles support a shared stock-protocol adapter; they do
+not prove every consumer body, TLS configuration or indirect path equivalent.
 
 ## Poll
 

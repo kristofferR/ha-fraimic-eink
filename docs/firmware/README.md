@@ -50,8 +50,9 @@ Machine-readable references: [firmware identity](firmware-identity.json),
 [selected addresses](address-map.json), and
 [model comparison with type-only live schemas](model-comparison.json).
 The [LED state table](led-states.json) preserves the Large build's numeric records.
-The [outbound dependency inventory](outbound-dependencies.json) separates client
-call sites, selectors, dynamic URL sources and non-request URL literals.
+The [Large](outbound-dependencies.json) and
+[Standard](standard-outbound-dependencies.json) outbound dependency inventories
+separate client call sites, selectors, dynamic URL sources and non-request URL literals.
 
 The [existing frame API reference](../frame-api/routes.md) describes tested
 HTTP behavior across multiple firmware versions. The

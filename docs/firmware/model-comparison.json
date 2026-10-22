@@ -387,6 +387,18 @@
         "standard_completion_semaphore": "0x3fca6ba0"
       },
       "limitations": "Physical microphone and dropout/stop timing untested; not a recursive equivalence proof of external helpers or hardware configuration; allocation ownership remains model-specific"
+    },
+    "outbound_inventory": {
+      "large": "outbound-dependencies.json",
+      "standard": "standard-outbound-dependencies.json",
+      "http_constructor_sites_per_image": 11,
+      "api_selector_calls_per_image": 10,
+      "web_selector_calls_per_image": 2,
+      "auth_selector_calls_per_image": 1,
+      "http_url_literal_occurrences_per_image": 43,
+      "distinct_http_literal_hosts_per_image": 11,
+      "matching_recovered_roles_and_hosts": true,
+      "scope": "Static inventory only; dynamic returned URL hosts, computed indirect paths and complete offline boot remain outside the result"
     }
   },
   "function_map": [

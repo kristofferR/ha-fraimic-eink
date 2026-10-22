@@ -44,6 +44,7 @@ per question, not a count of tool calls or decompiled functions.
 | C02/C08/D01/D07 | Settings copy consumers rechecked; shared poll result, completion byte, two-second post-result task lifetime and non-joining clear mapped | Controlled overlap/late-clear faults, Standard comparison, full indirect-reference audit and per-job acknowledgement |
 | C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
+| C01/E01/E02 | Both models have eleven recovered constructor sites, thirteen selector calls and the same eleven HTTP literal hosts; GNU continuation recovers missing multipart calls and rejects Standard's misaligned raw match | Dynamic destinations, indirect/non-HTTP paths, recursive consumer/TLS equivalence and complete offline operation |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C06/D01/A06/E02 | Recovered capture worker; nine matching-SDK host groups verify partial-timeout data loss and whole-block admission; nine Standard function pairs match capture, stop and completion-signal branches | Physical recording/dropout/stop timing, remaining external SDK/configuration paths and structured capture-result events |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
@@ -122,9 +123,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   reports. No network response or update outcome is implied by those cases.
   The [outbound-client inventory](cloud-protocol.md#outbound-client-and-url-inventory)
   accounts for eleven constructor sites, thirteen selector calls and 43 literal
-  HTTP(S) URL occurrences. Startup/error-log selector calls, SVG namespaces and
-  an unreferenced legacy LAN literal are distinguished from request destinations.
-  Standard-wide consumer equivalence, remaining indirect/non-HTTP paths and
+  HTTP(S) URL occurrences in each model. Startup/error-log selector calls, SVG
+  namespaces and an unreferenced legacy LAN literal are distinguished from request destinations.
+  Complete consumer-body equivalence, remaining indirect/non-HTTP paths and
   complete state-dependent offline validation remain open.
 - [ ] **C02 · Host/Device:** Validate poll parser behavior for settings snapshots,
   missing/invalid fields, schedule clearing and persistence failures. Trace which

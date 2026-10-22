@@ -99,13 +99,14 @@ To reproduce static work with a legitimately obtained matching image:
 6. Cross-check consequential comparisons, offsets and branch conditions in a GNU
    Xtensa disassembler configured for ESP32-S3 before drawing conclusions.
 
-Example bounded disassembly, using locally installed toolchain paths:
+Example bounded disassembly of Standard's API-selector entry block, using
+locally installed toolchain paths:
 
 ```sh
 XTENSA_GNU_CONFIG="/path/to/lib/xtensa_esp32s3.so" \
-  "/path/to/xtensa-esp-elf-objdump" -d \
-  --start-address=0x42015de8 --stop-address=0x42015f2c \
-  "/path/to/stock-symbolized.elf"
+  "/path/to/xtensa-esp-elf-objdump" -D \
+  --start-address=0x42017a20 --stop-address=0x42017a2f \
+  "/path/to/standard-symbol-free.elf"
 ```
 
 Ghidra's generic Xtensa language can miss ESP32-S3 instructions such as `SALT` /
@@ -113,7 +114,20 @@ Ghidra's generic Xtensa language can miss ESP32-S3 instructions such as `SALT` /
 selector is a concrete example: treating its multi-register structure as a scalar
 loses information. GNU decoding without the matching core configuration can also
 mislabel these instructions. Linear disassembly starting in padding can become
-misaligned; begin at a confirmed function address.
+misaligned; begin at a confirmed function or branch-target address and split
+ranges at padding. Analysis-generated symbols can also fall inside instructions;
+use a separate symbol-free ELF copy for GNU checks, preserving the original app
+and analysis database. Verify every decoded byte against the app's segment map
+and require complete coverage of the requested half-open range. A stop address
+inside a three-byte instruction can leave an opcode printed without its bytes;
+successful tool exit alone does not establish complete decoding.
+
+A raw call-encoding scan is a candidate finder, not an instruction inventory.
+The [Standard outbound audit](standard-model-comparison.md#outbound-service-inventory-also-matches)
+both rejects a misaligned byte match and recovers a genuine call omitted by
+Ghidra's incomplete control flow. Exact-pointer searches must use vendor app
+segments; pointers in a synthetic ELF's `.symtab` are analysis metadata, not
+additional firmware references.
 
 The DROM/IROM mappings in [hardware](hardware-and-layout.md#address-translation)
 translate virtual addresses into app-file bytes. Addresses in tables may be code,

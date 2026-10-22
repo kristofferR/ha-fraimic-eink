@@ -60,6 +60,31 @@ privately to the owner. Neither device was switched to development mode; the
 [detailed transition and error-path trace](storage-and-configuration.md#vendor-environment-switch)
 is for Large unless explicitly stated otherwise.
 
+### Outbound-service inventory also matches
+
+The [Standard inventory](standard-outbound-dependencies.json) independently maps
+eleven HTTP-client constructor sites at `0x4206d590`, covering the same roles as
+the [Large inventory](outbound-dependencies.json). The three selectors are
+`0x42017a20` (API), `0x42017a38` (dashboard) and `0x42017a50` (authentication).
+Their ten, two and one direct calls respectively match the Large role counts;
+two API calls only log the chosen origin. All six production/development origins
+are identical across these builds.
+
+Both apps contain 43 printable HTTP(S) URL occurrences across eleven hosts,
+including 29 SVG namespace declarations and local/navigation links. Neither
+app has a recovered reference or serialized exact pointer to its legacy
+`http://192.168.1.145` / manifest-path literals. Returned image, audio-upload and
+firmware URLs remain dynamic; the four NTP names, DNS fallback and TCP
+reachability probe are separately traced dependencies.
+
+Thirty Standard GNU ranges cover 874 unique instructions, with exact bytes
+checked against the pinned app and complete coverage of each requested range.
+This recovers the multipart constructor omitted by Ghidra and rejects one
+misaligned call-encoding match inside another instruction. No traffic was sent,
+and no additional host protocol fixture was run. The comparison supports one
+backend adapter with separate model renderers; it does not establish all
+indirect callers, complete offline boot or recursive consumer/TLS equivalence.
+
 ### Calendar and LED follow-up
 
 Two independently hash-validated application images contain exact copies of:
