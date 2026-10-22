@@ -299,6 +299,65 @@
         "sha256": "18d8bbbe62a9d3b02204ef690e3c05730bc45c5fc59c77b9dd04718ce3ed979b"
       },
       "limitations": "External helper targets and initial allocator hooks mapped; not a recursive equivalence proof for all JSON/HTTP/allocator/multipart helpers"
+    },
+    "connectivity": {
+      "evidence": "Static GNU instruction/branch and literal comparison of both pinned apps; no additional host or device fault test",
+      "compared_function_pairs": 13,
+      "compared_instructions_per_image": 1022,
+      "compared_internal_branches": 128,
+      "gnu_ranges_standard": 40,
+      "probe": {
+        "transport": "TCP IPv4",
+        "address": "8.8.8.8",
+        "port": 53,
+        "sends_application_payload": false,
+        "readiness_timeout_seconds": 3,
+        "has_overall_deadline": false,
+        "checks_nonblocking_setup_result": false,
+        "checks_socket_error_query_return": false,
+        "accepted_post_selection_socket_errors": [
+          0,
+          111
+        ],
+        "accepted_immediate_connect_errors": [],
+        "in_progress_errno": 119
+      },
+      "counters": {
+        "failure": {
+          "large": "0x3fcaca88",
+          "standard": "0x3fcacae0",
+          "threshold": 3
+        },
+        "retry": {
+          "large": "0x3fcaca84",
+          "standard": "0x3fcacadc",
+          "threshold": 2
+        },
+        "passive": {
+          "large": "0x3fcaca7c",
+          "standard": "0x3fcacad4",
+          "threshold": 3
+        },
+        "failover_cycles": {
+          "large": "0x3fcaca80",
+          "standard": "0x3fcacad8",
+          "passive_threshold": 2,
+          "reset_on_probe_success": false,
+          "reset_on_initialization": true,
+          "reset_on_passive_exit": true
+        }
+      },
+      "interval_ms": {
+        "healthy": 60000,
+        "suspect": 15000,
+        "verify": 0,
+        "retry_powered": 30000,
+        "retry_battery": 60000,
+        "passive_powered": 60000,
+        "passive_battery": 300000
+      },
+      "powered_definition": "Charging detected or keep-awake enabled",
+      "limitations": "Only selected app/getsockopt functions compared; external Wi-Fi/transport helpers not recursively proven equivalent, counters are runtime RAM and timing is not measured"
     }
   },
   "function_map": [
@@ -1096,6 +1155,66 @@
       "role": "json_ascii_case_compare",
       "large": "0x420383b0",
       "standard": "0x42036e74"
+    },
+    {
+      "role": "connectivity_reset_three_counters",
+      "large": "0x4202ed68",
+      "standard": "0x4202d494"
+    },
+    {
+      "role": "connectivity_powered_selector",
+      "large": "0x4202ee94",
+      "standard": "0x4202d5c0"
+    },
+    {
+      "role": "connectivity_interval_selector",
+      "large": "0x4202eeb4",
+      "standard": "0x4202d5e0"
+    },
+    {
+      "role": "connectivity_initialize",
+      "large": "0x4202efdc",
+      "standard": "0x4202d708"
+    },
+    {
+      "role": "connectivity_start",
+      "large": "0x4202f098",
+      "standard": "0x4202d7c4"
+    },
+    {
+      "role": "connectivity_probe_success",
+      "large": "0x4202f294",
+      "standard": "0x4202d9c0"
+    },
+    {
+      "role": "connectivity_probe_failure",
+      "large": "0x4202f2f0",
+      "standard": "0x4202da1c"
+    },
+    {
+      "role": "connectivity_monitor",
+      "large": "0x4202f674",
+      "standard": "0x4202dda0"
+    },
+    {
+      "role": "connectivity_set_state",
+      "large": "0x4202f214",
+      "standard": "0x4202d940"
+    },
+    {
+      "role": "connectivity_save_channel",
+      "large": "0x4202ef0c",
+      "standard": "0x4202d638"
+    },
+    {
+      "role": "connectivity_failure_event",
+      "large": "0x4202ef8c",
+      "standard": "0x4202d6b8"
+    },
+    {
+      "role": "lwip_getsockopt",
+      "large": "0x42055aec",
+      "standard": "0x42054b18"
     }
   ],
   "live_standard": {

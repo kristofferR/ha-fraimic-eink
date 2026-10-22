@@ -418,9 +418,11 @@ not establish ordinary unplugged idle-sleep behavior or the battery bug's cause.
 
 ### Public reachability gate
 
-`0x4202ed80` opens a nonblocking TCP connection to `8.8.8.8:53` and waits up to
-three seconds. A successful connection or `ECONNREFUSED` (111) after selection
-counts as reachable. This is neither a DNS lookup nor ICMP ping.
+`0x4202ed80` attempts a nonblocking TCP connection to `8.8.8.8:53`, with a
+three-second socket-readiness wait. A successful connection or `ECONNREFUSED`
+(111) returned by the subsequent socket-error query counts as reachable.
+An immediate refusal takes a different branch, described below. This is neither
+a DNS lookup nor ICMP ping, and three seconds is not a whole-operation deadline.
 
 `0x4202f18c` returns the cached connectivity result. Voice processing at
 `0x42011adc` waits about five seconds, then aborts before upload if it stays false.
@@ -450,8 +452,9 @@ not proof a probe has succeeded.
 Failure handler `0x4202f2f0` moves healthy to suspect, marks connectivity false
 and enables the fallback AP. Repeated failures lead to AP failover/verification,
 retry cycles and eventually passive checks. It can clear the AP blacklist and
-retry after exhaustion. Success handler `0x4202f294` clears failure counters,
+retry after exhaustion. Success handler `0x4202f294` clears three failure counters,
 marks healthy, disables fallback AP and records channel/BSSID information.
+It preserves the separate failover-cycle counter, as detailed below.
 Disconnected wait/passive states also attempt Wi-Fi reconnection.
 
 Consequently WAN loss can provoke AP recovery even while a local API is healthy.
@@ -466,6 +469,85 @@ stability. That exception was removed after the capture; the original policy
 again blocks the Standard probe. See the [live comparison](standard-model-comparison.md#public-reachability-caused-a-real-transfer-failure).
 This confirms an operational consequence on Standard without establishing full
 offline operation or every Large transition.
+
+### Reachability result branches and timeout scope
+
+The full probe and selected supporting routines were checked against GNU-decoded
+bytes from the pinned Large app. It creates an IPv4 stream socket, requests
+`F_GETFL` / `F_SETFL(flags | 0x4000)`, converts the numeric address and calls
+`connect`. It sends no DNS request, HTTP request, TLS handshake or application
+payload. Its decision table is:
+
+| Socket outcome | Reachability result |
+| --- | --- |
+| Socket creation fails | False |
+| `connect` returns zero immediately | True |
+| `connect` fails with anything except `EINPROGRESS` (119), including immediate 111 | False |
+| In-progress connection, readiness wait returns zero or negative | False |
+| Positive readiness result, queried `SO_ERROR` is zero or 111 | True |
+| Positive readiness result, queried `SO_ERROR` has another value | False |
+
+After a positive readiness result, the app initializes the error output to zero,
+calls `getsockopt(SOL_SOCKET, SO_ERROR)`, ignores that call's return value, closes
+the socket and decides from the output integer. If the query fails without
+writing the output, the retained zero is classified as reachable. This is a
+conditional static path, not an observed false-positive probe. The same applies
+to both ignored `fcntl` results: the app requests nonblocking mode but does not
+verify that it was installed.
+
+The compiled error-query wrapper `0x42055aec` posts a callback through
+`0x42055f24` and waits using `0x420675bc` with timeout zero, meaning indefinite
+completion wait in this port. Callback allocation/enqueue failure returns
+without writing the app's error output. This matches the pinned
+[lwIP socket implementation](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/api/sockets.c)
+and the already traced [queue semantics](#sntp-control-queue-ordering-and-allocation-failures).
+Therefore the three-second `select` timeout cannot bound the entire probe;
+post-selection callback/queue waiting is outside it. No socket, queue or
+allocation fault was injected in this pass.
+
+For backend emulation, TCP reachability is a separate stock dependency, not a
+health check for the replacement API. Do not infer that DNS queries, TLS or
+generation work merely because the cached flag is true. A future firmware
+probe should validate its own API calls, use an overall deadline and track
+local-backend health separately from WAN reachability.
+
+### Recovery thresholds and retained cycle count
+
+The failure handler uses counters, rather than measuring time since the outage.
+The state numbers below correspond to the wait table above. These transitions
+require a probe to run; disconnected and first-time-user iterations can skip
+the handler entirely.
+
+| State before failed probe | Counter/action and next state |
+| --- | --- |
+| Healthy (1) | Set failure count to 1; enter suspect (2), clear internet flag and enable fallback AP |
+| Suspect (2) | Increment failures; on the third, reset that count, increment failover cycles and invoke AP failover |
+| After that failover call | Return zero enters verify (3); any other result enters wait/retry (4), clears its retry count and requests reconnection |
+| Verify (3) | A failed check enters wait/retry when cycles are below 2; otherwise enters passive (5) |
+| Wait/retry (4) | Every second failed check resets the retry count, resets the portal's failover-attempt budget, increments manager cycles and tries failover; success enters verify, failure with cycles at least 2 enters passive |
+| Passive (5) | Every third failed check clears passive/failure/cycle counts and the blacklist, then enters suspect with failure count zero |
+
+The manager's cycle count at `0x3fcaca80` is separate from its failure,
+wait/retry and passive counters. Reset helper `0x4202ed68`, called after a
+successful probe, clears only those three other counters. Initialization clears
+cycles; the passive-to-suspect branch also clears them. The monitor's ordinary
+start/stop paths do not reset them. These are RAM values, not evidence of
+persistence across reboot.
+
+Consequently, a recovered connection need not begin the next outage with a
+fresh two-cycle budget. For example, failover cycle 1 can succeed, return to
+healthy, and remain recorded; a later outage can increment it to 2 and enter
+passive if the replacement AP then fails verification. This is a branch-level
+consequence, not a reproduced sequence on the owner's network.
+
+Some log durations are arithmetic labels: the third suspect failure prints
+`60 + 3 × 15 = 105` seconds, while ordinary waits before three successive
+failures sum to `60 + 15 + 15 = 90` seconds. Wait/retry logs use 60 seconds per
+failure even when keep-awake/charging selects 30-second waits. Probe time,
+failover work, event wakeups and skipped checks also change elapsed time.
+Use timestamps and state/counter transitions, not those labels, to analyze a
+capture. The [Standard comparison](standard-model-comparison.md#reachability-probe-and-recovery-counters-also-match)
+confirms the selected probe and recovery branches in both builds.
 
 ### Reachability cache and monitor lifecycle
 

@@ -47,6 +47,7 @@ per question, not a count of tool calls or decompiled functions.
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
 | C05/D01/E02 | Twenty-five host parser/field groups verify copy limits, duplicate/NUL/type handling, raw string-part projection and formatted-fields growth; ten Standard/Large function pairs match copying, printing and first-member lookup | Physical malformed-response/allocation controls, complete streaming/framing faults and remaining external parser/helper comparison |
+| S01/E02 | Both models distinguish immediate TCP refusal from post-selection error, ignore socket-error query failure and preserve manager cycles after recovery; thirteen function pairs compare probe/queue and recovery thresholds | Controlled backend/WAN outages, refusal/error timing, retained-cycle sequences and full external Wi-Fi/transport faults |
 | C07/C08/D01/D07 | Upload task creation passes a borrowed 220-byte caller context; timeout returns without joining, while every worker exit still accesses its status/semaphore pointers | Physical timing, expired-stack effects, late completion/two-job reproduction and complete cleanup design |
 | C08/D01/D07 | Download context/handle and 300-second wait plus five-second grace mapped; late success stays failed; forced deletion can skip HTTP cleanup and race self-deletion | Actual scheduler/transport ordering, runtime callback ownership, retained-resource measurements and Standard equivalence |
 | C08/D01/D07 | All 21 direct register/unregister/abort-read/reset sites checked; ignored lock failures, double/unowned unregister and false-on-failed-read semantics mapped | Concurrent request/cancellation tests, stale-client effects, allocator/lock timing and Standard comparison |
@@ -310,6 +311,13 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   [Fallback lifecycle](boot-and-scheduling.md#fallback-ap-configuration-and-captive-dns)
   now distinguishes the cached result, Wi-Fi events, AP mode and DNS worker;
   AP disable does not explicitly stop the wildcard DNS listener.
+  [Probe branches](boot-and-scheduling.md#reachability-result-branches-and-timeout-scope)
+  distinguish immediate refusal, post-selection socket errors and an unchecked
+  query failure; three seconds is not a whole-operation deadline.
+  [Recovery counters](boot-and-scheduling.md#recovery-thresholds-and-retained-cycle-count)
+  retain failover cycles after a successful probe and use count-based thresholds,
+  not the elapsed time printed in some logs. Thirteen Standard function pairs
+  match these selected paths; actual outage/fault sequences remain untested.
 - [ ] **S02 · Static/Device:** Verify local time-source configuration, DNS/service
   dependencies, unsynchronized cold boot and RTC-preserving sleep. Establish
   offline TLS/time/scheduling behavior, including drift and clock corrections.

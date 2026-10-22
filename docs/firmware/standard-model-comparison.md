@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 159 corresponding functions, including the subsequent
+The preserved metadata maps 171 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -264,6 +264,30 @@ wrappers have the corresponding call structure. This supports sharing the
 The 19 host cases remain a fixture of the recovered Large helper and pinned
 cJSON source; this comparison does not represent another executed firmware test
 or establish equivalence of every Standard proxy/error branch.
+
+### Reachability probe and recovery counters also match
+
+Thirteen function pairs cover the TCP probe, three-counter reset, powered-state
+selector, intervals, manager initialization/start, success/failure handlers,
+monitor loop, state setter, channel save, failure event and socket-error query.
+GNU checks compare **1,022 instructions in 40 Standard ranges**, including
+**128 internal branches**. Non-relocated instructions and their offsets match;
+direct calls, code/data pointers, strings and constants were checked separately.
+This is not a recursive comparison of the external Wi-Fi/transport implementation.
+
+Standard probe `0x4202d4ac` has the same immediate-error versus asynchronous
+`SO_ERROR` distinction, ignored error-query return and three-second readiness
+timeout as [Large](boot-and-scheduling.md#reachability-result-branches-and-timeout-scope).
+Its compiled query wrapper `0x42054b18` also uses a networking callback followed
+by an indefinite completion wait, so that timeout is not an overall deadline.
+
+Standard reset helper `0x4202d494` clears failure/retry/passive counters but
+preserves manager cycles at `0x3fcacad8`. Success `0x4202d9c0`, failure
+`0x4202da1c` and monitor `0x4202dda0` retain the same
+[recovery thresholds](boot-and-scheduling.md#recovery-thresholds-and-retained-cycle-count).
+Its cached reachability byte is `0x3fcacae7`, separate from its station-event
+byte `0x3fcacae6`. The earlier live transfer interruption remains the physical
+evidence; no refusal, repeated-outage, queue or allocation experiment was added.
 
 ### Separate recording and image allocations
 

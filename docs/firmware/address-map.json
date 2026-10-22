@@ -424,6 +424,12 @@
       "evidence": "static; 22 October diagnostic follow-up"
     },
     {
+      "address": "0x3fcaca80",
+      "kind": "data",
+      "role": "Connectivity-manager failover-cycle count; preserved by successful-probe reset",
+      "evidence": "static; connectivity follow-up and GNU byte/branch verification"
+    },
+    {
       "address": "0x3fcaca8e",
       "kind": "global",
       "role": "Connectivity station-event flag, separate from cached reachability",
@@ -2488,10 +2494,16 @@
       "evidence": "static; Wi-Fi handler follow-up"
     },
     {
+      "address": "0x4202ed68",
+      "kind": "function",
+      "role": "Reset failure/retry/passive counters, preserving failover cycles",
+      "evidence": "static; connectivity follow-up and GNU byte/branch verification"
+    },
+    {
       "address": "0x4202ed80",
       "kind": "function",
-      "role": "Public TCP reachability probe",
-      "evidence": "static"
+      "role": "TCP probe: immediate success or post-selection SO_ERROR zero/111 accepted; ignores fcntl/getsockopt errors",
+      "evidence": "static; connectivity follow-up and GNU byte/branch verification"
     },
     {
       "address": "0x4202ee94",
@@ -2532,14 +2544,14 @@
     {
       "address": "0x4202f294",
       "kind": "function",
-      "role": "Successful reachability transition, counters and fallback AP cleanup",
-      "evidence": "static"
+      "role": "Probe recovery: reset three counters, retain cycles, mark healthy, disable fallback AP and record channel/BSSID",
+      "evidence": "static; connectivity follow-up and GNU byte/branch verification"
     },
     {
       "address": "0x4202f2f0",
       "kind": "function",
-      "role": "Failed reachability state machine, AP failover and passive retry",
-      "evidence": "static"
+      "role": "Connectivity failure transitions with 3/2/3 probe-count thresholds and retained cycle budget",
+      "evidence": "static; connectivity follow-up and GNU byte/branch verification"
     },
     {
       "address": "0x4202f674",
@@ -3098,6 +3110,12 @@
       "kind": "function",
       "role": "Set SNTP hostname through synchronous stack-backed TCP/IP API call",
       "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42055aec",
+      "kind": "function",
+      "role": "lwIP getsockopt: queued callback with indefinite completion wait; enqueue failure leaves caller output unchanged",
+      "evidence": "static; connectivity follow-up and GNU byte/branch verification"
     },
     {
       "address": "0x42055d88",
