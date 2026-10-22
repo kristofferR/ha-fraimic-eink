@@ -9,6 +9,7 @@ The history does not reopen C05/C10/R11/E03 or authorize new device experiments.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
+| H04/E02 | Controller roots and short writes audited on both models: sixteen Large and twenty-one Standard initialization writes, full-image transfers and no identified waveform/partial-window caller within scope | Physical supported modes, panel constraints and any unexamined I/O paths; no custom waveform trial authorized |
 | C01/C11/D01 | Setup/verification split and redirects traced; response backing memory, conditional verification/poll guard, duplicate-worker and stale-pointer branches mapped; verification JSON is unescaped | Independent enrollment, controlled response/concurrency faults and remaining boot dependencies |
 | C11/C01/D01 | Thirty enrollment host groups verify minimal parser acceptance, identity/type/duplicate/NUL boundaries and event-dependent overflow that can alter parsed JSON | Physical response variants, persistence, independent enrollment, actual transport event grouping and verification lifecycle |
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |

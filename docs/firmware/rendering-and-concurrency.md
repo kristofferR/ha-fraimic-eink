@@ -263,6 +263,51 @@ actual results. Do not remove conditioning merely to reduce apparent refresh
 latency without establishing the panel's requirements. H04/D06 retain physical
 mode, failure and waveform validation; neither mode was newly exercised here.
 
+## Controller commands and waveform limits
+
+**Static, both pinned builds.** The [command ledger](panel-command-coverage.json)
+records initialization and refresh writes, their constant payload bytes and the
+reference-search boundary. Large has ten audited low-level/wrapper roots, 36
+direct calls and twelve owner functions; Standard has eight roots, 33 calls and
+nine owners. Neither initialized-image scan finds an exact pointer word to those
+roots. That excludes neither computed aliases nor a separate unexamined I/O path.
+
+| Selected path | Large | Standard |
+| --- | --- | --- |
+| Initialization | `0x42020c34`: 16 constant writes, largest payload 7 bytes | `0x42020aa0`: 21 constant writes, largest payload 9 bytes |
+| Refresh | `0x42021048`: command `04`, then one-byte writes to `12` and `02`, with busy/power waits | `0x42020c90`: same command order, model-specific waits/error handling |
+| Artwork transfer | `0x42021120` → `0x42021e5c`, command `10`, eight 288,000-byte blocks | `0x42020d98` → `0x42020e6c`, command `10`, two 480,000-byte halves |
+| Two-byte read after command `40` | `0x420210d4` | `0x42020d44` |
+
+The firmware labels that last read **TSC data**; it is not established as a chip
+identity read. Large also reads three bytes with command `f2` in its status
+routine (`0x42020dd4`). Its power/settings routine (`0x42020ea0`) includes `40`,
+`9b` and `8a` reads. These observed command numbers do not establish undocumented
+register meanings.
+
+The initialization sequences differ substantially. Even Large's two writes to
+command `03` address different controller groups. Standard's refresh routine
+returns `-1` after selected failed busy waits; Large's previously documented
+nonfatal branches differ. Do not substitute one model's driver or assume every
+caller propagates a lower-level failure.
+
+Within the audited paths, there is **no identified waveform-table upload or
+partial-window selection caller**. Artwork and clear paths send full controller
+buffers. Fixed short initialization writes are not evidence of a user-selectable
+waveform interface. Controller-resident behavior, arbitrary computed calls and
+physical capabilities remain outside this result.
+
+Fraimic's pinned [EL315 conversion specification](https://github.com/Fraimic/fraimic_bin_converter/blob/1b794a390fb3f4243cac31b6bc703c7e82d8ff1a/EL315TWI%20Image%20Conversion%20Spec.txt)
+and [EL133 conversion specification](https://github.com/Fraimic/fraimic_bin_converter/blob/1b794a390fb3f4243cac31b6bc703c7e82d8ff1a/EL133UF1%20Image%20Conversion%20Spec.txt)
+describe those full output formats and explicitly exclude device/firmware
+details. They supply no partial-update protocol or custom-waveform format.
+
+For the backend adapter, keep complete model-specific packed images and preserve
+the stock conditioning/driver sequence. Changing the cloud server alone does not
+add region refresh or waveform selection. H04's static audit is complete;
+supported hardware modes and their power/panel constraints remain unverified.
+No panel command was executed for this pass.
+
 ## Readiness is not ownership
 
 Both readiness accessors, `0x42028e7c` and `0x42028e9c`, return the byte at

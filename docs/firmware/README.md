@@ -61,6 +61,8 @@ Machine-readable references: [firmware identity](firmware-identity.json),
 The [LED state table](led-states.json) preserves the Large build's numeric records.
 The [audio-path coverage](audio-output-coverage.json) records model-specific
 microphone/LED configuration and the limits of the output-path search.
+The [panel-command coverage](panel-command-coverage.json) records fixed command
+payloads and the bounded search for partial-update/waveform callers on both models.
 The [Large](outbound-dependencies.json) and
 [Standard](standard-outbound-dependencies.json) outbound dependency inventories
 separate client call sites, selectors, dynamic URL sources and non-request URL literals.

@@ -60,6 +60,17 @@ privately to the owner. Neither device was switched to development mode; the
 [detailed transition and error-path trace](storage-and-configuration.md#vendor-environment-switch)
 is for Large unless explicitly stated otherwise.
 
+### Controller commands remain model-specific
+
+The [panel-command audit](rendering-and-concurrency.md#controller-commands-and-waveform-limits)
+finds sixteen fixed initialization writes on Large and twenty-one on Standard,
+with different payloads and refresh failure handling. Both identified artwork
+paths send their full model-specific buffers. No waveform-table upload or
+partial-window selection caller was identified within the audited roots;
+hardware capability and unexamined I/O paths remain unproven. The
+[command ledger](panel-command-coverage.json) preserves the exact short writes
+without publishing a firmware image.
+
 ### Outbound-service inventory also matches
 
 The [Standard inventory](standard-outbound-dependencies.json) independently maps

@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**11 of 67 original items complete; 121 of 187 concrete milestones complete.**
+**11 of 67 original items complete; 122 of 187 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 11 | Original bounded question answered; evidence linked below |
-| Research | 3 | Concrete static, host or design work remains available |
-| Waiting for device | 26 | Remaining original criteria require physical validation |
+| Research | 2 | Concrete static, host or design work remains available |
+| Waiting for device | 27 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 9 | Owner-postponed work; do not resume automatically |
@@ -71,8 +71,9 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-Continue with H04's controller command audit. H03's static audio-path audit and
-H05's registration/diagnostic reconciliation are complete; their physical criteria
+Continue with D03's ownership-versus-snapshot memory evaluation. H03's static
+audio-path audit, H04's controller-command audit and H05's registration/diagnostic
+reconciliation are complete; their physical criteria
 remain deferred. A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
@@ -672,10 +673,10 @@ Commit and push validated research batches periodically as requested.
   waveform modes and their panel/power constraints; do not transfer capabilities
   from another display model without evidence.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static:** Establish MIN/MID full-panel conditioning and model-specific clear-buffer behavior. [Conditioning](rendering-and-concurrency.md#conditioning-adds-full-panel-clear-cycles).
-  - [ ] **Next:** **Static:** Audit remaining controller command paths and available panel-specific evidence for partial refresh/custom waveforms.
+  - [x] **Static/Read:** Audit controller roots and fixed initialization/refresh writes on both models; reconcile the vendor's full-image format specifications. No waveform-upload or partial-window caller identified within the stated search boundary. [Commands and limits](rendering-and-concurrency.md#controller-commands-and-waveform-limits), [ledger](panel-command-coverage.json), [validation](validation-2026-10-22.md#panel-command-audit-h04).
   - [ ] **Deferred:** **Hardware/Device:** Verify supported modes and power/panel constraints before trying any custom waveform.
 
 - [ ] **H05 · Static/Device:** Map request/response schemas, authentication, boot-state

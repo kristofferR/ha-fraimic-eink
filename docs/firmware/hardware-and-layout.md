@@ -216,7 +216,9 @@ The vendor display power-down path contains discharge delays totaling about
 13 seconds. Recovered [conditioning modes](rendering-and-concurrency.md#conditioning-adds-full-panel-clear-cycles)
 add a black or white/black full-panel clear before the artwork. They use the
 ordinary refresh path and do not establish partial-refresh/custom-waveform
-support. Such support and a speech-output speaker remain unverified. Retaining
+support. The [two-model command audit](rendering-and-concurrency.md#controller-commands-and-waveform-limits)
+also finds no identified waveform-upload or partial-window caller within its
+stated roots. Such support and a speech-output speaker remain unverified. Retaining
 the display driver and power sequencing is a much smaller first step than
 replacing the complete firmware.
 

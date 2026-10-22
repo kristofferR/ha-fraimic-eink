@@ -1,0 +1,623 @@
+{
+  "evidence": "Pinned-image call-site, short constant-write and selected complete CFG audit; no panel experiment",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "reference_census": {
+        "roots": 10,
+        "direct_call_sites": 36,
+        "owner_functions": 12,
+        "exact_api_pointer_words": 0,
+        "root_records": [
+          {
+            "name": "command",
+            "address": "0x42021cdc",
+            "call_sites": [
+              "0x42020c1e",
+              "0x42020ecf",
+              "0x420210e5"
+            ]
+          },
+          {
+            "name": "write",
+            "address": "0x42021f30",
+            "call_sites": [
+              "0x42020bfc"
+            ]
+          },
+          {
+            "name": "read",
+            "address": "0x42021fac",
+            "call_sites": [
+              "0x42020c10"
+            ]
+          },
+          {
+            "name": "bulk_write",
+            "address": "0x42021e5c",
+            "call_sites": [
+              "0x4202115b"
+            ]
+          },
+          {
+            "name": "raw_write",
+            "address": "0x42021d68",
+            "call_sites": [
+              "0x42020c2d"
+            ]
+          },
+          {
+            "name": "raw_read",
+            "address": "0x42022028",
+            "call_sites": [
+              "0x42020eda",
+              "0x420210f0"
+            ]
+          },
+          {
+            "name": "write_wrapper",
+            "address": "0x42020bf0",
+            "call_sites": [
+              "0x42020c64",
+              "0x42020c79",
+              "0x42020c8e",
+              "0x42020ca2",
+              "0x42020cb6",
+              "0x42020cca",
+              "0x42020cde",
+              "0x42020cf3",
+              "0x42020d08",
+              "0x42020d1d",
+              "0x42020d32",
+              "0x42020d47",
+              "0x42020d5c",
+              "0x42020d79",
+              "0x42020d9b",
+              "0x42020db0",
+              "0x42020f8d",
+              "0x4202108d",
+              "0x420210ab"
+            ]
+          },
+          {
+            "name": "read_wrapper",
+            "address": "0x42020c04",
+            "call_sites": [
+              "0x42020f28",
+              "0x42020faa",
+              "0x42020e1a"
+            ]
+          },
+          {
+            "name": "command_wrapper",
+            "address": "0x42020c18",
+            "call_sites": [
+              "0x42027d00",
+              "0x42027bb0",
+              "0x42020f0c",
+              "0x42021070"
+            ]
+          },
+          {
+            "name": "raw_write_wrapper",
+            "address": "0x42020c24",
+            "call_sites": [
+              "0x42027bb7"
+            ]
+          }
+        ]
+      },
+      "selected_complete_cfgs": [
+        {
+          "name": "panel-command-init-cfg",
+          "entry": "0x42020c34",
+          "instructions": 161,
+          "ranges": 1,
+          "sha256": "5943e384b5684e8178d7c6aeff99bca84d93eaec59e34b9ef8d7f74a2f5520c6"
+        },
+        {
+          "name": "panel-refresh-cfg",
+          "entry": "0x42021048",
+          "instructions": 54,
+          "ranges": 1,
+          "sha256": "6cc257c2caafa9bfac1ffbd504ca3be544e2ea37d9348f75255aa06d9f3f48c0"
+        },
+        {
+          "name": "panel-command-read-id-cfg",
+          "entry": "0x420210d4",
+          "instructions": 28,
+          "ranges": 1,
+          "sha256": "ad5415670d74bb575077ea7803145c631f0f8a23237b88bf923422d8eaf15017"
+        },
+        {
+          "name": "panel-command-raw-write-cfg",
+          "entry": "0x42021d68",
+          "instructions": 94,
+          "ranges": 3,
+          "sha256": "b5e92336e4153dc8a7cf7c0da29baf441374118245795aee833463fe6e402ecc"
+        },
+        {
+          "name": "panel-command-write-cfg",
+          "entry": "0x42021f30",
+          "instructions": 49,
+          "ranges": 1,
+          "sha256": "e1c599b667093dce04864cfbe6ebaa54997a18f2b93f9ec74b1e02b30da4fcf6"
+        },
+        {
+          "name": "panel-command-read-cfg",
+          "entry": "0x42021fac",
+          "instructions": 49,
+          "ranges": 1,
+          "sha256": "948e28831df451ee676c70702dbb344d58b4015a55f069f32bbed25ffc90fb56"
+        },
+        {
+          "name": "panel-spi-transfer-cfg",
+          "entry": "0x42021e5c",
+          "instructions": 82,
+          "ranges": 2,
+          "sha256": "2f0680470e39eface197b703d1a15526d856ffaaa00d09818c9513eb707c5a9e"
+        },
+        {
+          "name": "panel-controller-transfer-cfg",
+          "entry": "0x42021120",
+          "instructions": 39,
+          "ranges": 2,
+          "sha256": "517c8beec39f1426ee5924c1ece50d918d19821704efc1939c8dd8871725485c"
+        },
+        {
+          "name": "panel-power-settings-cfg",
+          "entry": "0x42020ea0",
+          "instructions": 161,
+          "ranges": 2,
+          "sha256": "4c60086bd56bbbaba4917768866b7fa4b92555769b9743689ca4731cd9e74b41"
+        },
+        {
+          "name": "panel-controller-status-cfg",
+          "entry": "0x42020dd4",
+          "instructions": 76,
+          "ranges": 3,
+          "sha256": "650c41bfa7477a84d3bc3f9d91888f1300d4e1944567fd69e76cabc3bb13b1d7"
+        }
+      ],
+      "constant_write_sequences": [
+        {
+          "role": "controller initialization",
+          "entry": "0x42020c34",
+          "writes": [
+            {
+              "site": "0x42020c64",
+              "command": "0xb4",
+              "data_bytes": 6,
+              "data_hex": "040080ffca1b"
+            },
+            {
+              "site": "0x42020c79",
+              "command": "0xd2",
+              "data_bytes": 7,
+              "data_hex": "00f48140000000"
+            },
+            {
+              "site": "0x42020c8e",
+              "command": "0xf0",
+              "data_bytes": 6,
+              "data_hex": "4955135d0510"
+            },
+            {
+              "site": "0x42020ca2",
+              "command": "0x0",
+              "data_bytes": 2,
+              "data_hex": "d369"
+            },
+            {
+              "site": "0x42020cb6",
+              "command": "0x1",
+              "data_bytes": 6,
+              "data_hex": "000000000000"
+            },
+            {
+              "site": "0x42020cca",
+              "command": "0x30",
+              "data_bytes": 1,
+              "data_hex": "08"
+            },
+            {
+              "site": "0x42020cde",
+              "command": "0x50",
+              "data_bytes": 1,
+              "data_hex": "f7"
+            },
+            {
+              "site": "0x42020cf3",
+              "command": "0x60",
+              "data_bytes": 2,
+              "data_hex": "0303"
+            },
+            {
+              "site": "0x42020d08",
+              "command": "0x61",
+              "data_bytes": 4,
+              "data_hex": "032002d0"
+            },
+            {
+              "site": "0x42020d1d",
+              "command": "0xb6",
+              "data_bytes": 1,
+              "data_hex": "00"
+            },
+            {
+              "site": "0x42020d32",
+              "command": "0xe3",
+              "data_bytes": 1,
+              "data_hex": "22"
+            },
+            {
+              "site": "0x42020d47",
+              "command": "0xe6",
+              "data_bytes": 1,
+              "data_hex": "00"
+            },
+            {
+              "site": "0x42020d5c",
+              "command": "0xe0",
+              "data_bytes": 1,
+              "data_hex": "01"
+            },
+            {
+              "site": "0x42020d79",
+              "command": "0x3",
+              "data_bytes": 4,
+              "data_hex": "00c000a4"
+            },
+            {
+              "site": "0x42020d9b",
+              "command": "0x3",
+              "data_bytes": 4,
+              "data_hex": "00c00095"
+            },
+            {
+              "site": "0x42020db0",
+              "command": "0xa5",
+              "data_bytes": 3,
+              "data_hex": "445400"
+            }
+          ]
+        },
+        {
+          "role": "refresh/power-off writes; command-only power-on is separate",
+          "entry": "0x42021048",
+          "writes": [
+            {
+              "site": "0x4202108d",
+              "command": "0x12",
+              "data_bytes": 1,
+              "data_hex": "00"
+            },
+            {
+              "site": "0x420210ab",
+              "command": "0x2",
+              "data_bytes": 1,
+              "data_hex": "01"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "reference_census": {
+        "roots": 8,
+        "direct_call_sites": 33,
+        "owner_functions": 9,
+        "exact_api_pointer_words": 0,
+        "root_records": [
+          {
+            "name": "command",
+            "address": "0x42020e0c",
+            "call_sites": [
+              "0x42020a8a",
+              "0x42020d55"
+            ]
+          },
+          {
+            "name": "write",
+            "address": "0x42020f48",
+            "call_sites": [
+              "0x42020a7c"
+            ]
+          },
+          {
+            "name": "bulk_write",
+            "address": "0x42020e6c",
+            "call_sites": [
+              "0x42020de2"
+            ]
+          },
+          {
+            "name": "raw_write",
+            "address": "0x42020e34",
+            "call_sites": [
+              "0x42020a99"
+            ]
+          },
+          {
+            "name": "raw_read",
+            "address": "0x42020f80",
+            "call_sites": [
+              "0x42020d7a"
+            ]
+          },
+          {
+            "name": "write_wrapper",
+            "address": "0x42020a70",
+            "call_sites": [
+              "0x42020ad3",
+              "0x42020ae8",
+              "0x42020afc",
+              "0x42020b13",
+              "0x42020b27",
+              "0x42020b3b",
+              "0x42020b50",
+              "0x42020b66",
+              "0x42020b7c",
+              "0x42020b91",
+              "0x42020ba6",
+              "0x42020bbb",
+              "0x42020bd0",
+              "0x42020be7",
+              "0x42020bfd",
+              "0x42020c14",
+              "0x42020c2a",
+              "0x42020c41",
+              "0x42020c58",
+              "0x42020c6f",
+              "0x42020c86",
+              "0x42020cdf",
+              "0x42020d14"
+            ]
+          },
+          {
+            "name": "command_wrapper",
+            "address": "0x42020a84",
+            "call_sites": [
+              "0x420265b9",
+              "0x42020ca3",
+              "0x4202671c"
+            ]
+          },
+          {
+            "name": "raw_write_wrapper",
+            "address": "0x42020a90",
+            "call_sites": [
+              "0x420265cf"
+            ]
+          }
+        ]
+      },
+      "selected_complete_cfgs": [
+        {
+          "name": "panel-command-init-cfg",
+          "entry": "0x42020aa0",
+          "instructions": 194,
+          "ranges": 1,
+          "sha256": "873cd364e955b53c79a755319d04dc5eb4413724e78e59fc23cf9f9b28f8ef63"
+        },
+        {
+          "name": "panel-command-refresh-cfg",
+          "entry": "0x42020c90",
+          "instructions": 66,
+          "ranges": 1,
+          "sha256": "fcfe594ebb73004e3e47844908ec59831588d8ca5a35d4c759880ae5e6cb5316"
+        },
+        {
+          "name": "panel-command-read-id-cfg",
+          "entry": "0x42020d44",
+          "instructions": 29,
+          "ranges": 2,
+          "sha256": "953ae11f2dfbe3585d3f7f00faa165fdda80e4c6061d18c62b109f0e3a01ba34"
+        },
+        {
+          "name": "panel-command-transfer-cfg",
+          "entry": "0x42020d98",
+          "instructions": 36,
+          "ranges": 1,
+          "sha256": "8b41881b1fd0f789129252cafd94b5d5e313a8bb59c23ca2693122a23831da27"
+        },
+        {
+          "name": "panel-command-command-cfg",
+          "entry": "0x42020e0c",
+          "instructions": 14,
+          "ranges": 1,
+          "sha256": "e02f787918775b878f6da8855294bddb8f4d94807433ef7f6853ba21a91475af"
+        },
+        {
+          "name": "panel-command-raw-write-cfg",
+          "entry": "0x42020e34",
+          "instructions": 21,
+          "ranges": 1,
+          "sha256": "6868330ddeaee76d8f6421ec789e04412ca38c71ff0172c6df37bd799ed9cf2f"
+        },
+        {
+          "name": "panel-command-bulk-write-cfg",
+          "entry": "0x42020e6c",
+          "instructions": 82,
+          "ranges": 3,
+          "sha256": "f3bc71db21e2f10fd1b9b8fa521c435021c2bc7c83b829b96965096017bb06b0"
+        },
+        {
+          "name": "panel-command-write-cfg",
+          "entry": "0x42020f48",
+          "instructions": 21,
+          "ranges": 1,
+          "sha256": "5fb867a1d6d39da67505cbf9ab2e300314b99a29098ae27e0c3a9468a552627e"
+        },
+        {
+          "name": "panel-command-raw-read-cfg",
+          "entry": "0x42020f80",
+          "instructions": 22,
+          "ranges": 1,
+          "sha256": "63ad5d4cb38c3ff3e6159146665a014bce7677925c5948546e8c068f7d995f35"
+        }
+      ],
+      "constant_write_sequences": [
+        {
+          "role": "controller initialization",
+          "entry": "0x42020aa0",
+          "writes": [
+            {
+              "site": "0x42020ad3",
+              "command": "0x74",
+              "data_bytes": 9,
+              "data_hex": "000c0cd9dddd151555"
+            },
+            {
+              "site": "0x42020ae8",
+              "command": "0xf0",
+              "data_bytes": 6,
+              "data_hex": "4955135d0510"
+            },
+            {
+              "site": "0x42020afc",
+              "command": "0x0",
+              "data_bytes": 2,
+              "data_hex": "df6b"
+            },
+            {
+              "site": "0x42020b13",
+              "command": "0xa5",
+              "data_bytes": 3,
+              "data_hex": "445400"
+            },
+            {
+              "site": "0x42020b27",
+              "command": "0x30",
+              "data_bytes": 1,
+              "data_hex": "08"
+            },
+            {
+              "site": "0x42020b3b",
+              "command": "0x50",
+              "data_bytes": 1,
+              "data_hex": "37"
+            },
+            {
+              "site": "0x42020b50",
+              "command": "0x60",
+              "data_bytes": 2,
+              "data_hex": "0303"
+            },
+            {
+              "site": "0x42020b66",
+              "command": "0x3",
+              "data_bytes": 4,
+              "data_hex": "00c003a8"
+            },
+            {
+              "site": "0x42020b7c",
+              "command": "0x3",
+              "data_bytes": 4,
+              "data_hex": "00c0039a"
+            },
+            {
+              "site": "0x42020b91",
+              "command": "0x86",
+              "data_bytes": 1,
+              "data_hex": "10"
+            },
+            {
+              "site": "0x42020ba6",
+              "command": "0xe3",
+              "data_bytes": 1,
+              "data_hex": "22"
+            },
+            {
+              "site": "0x42020bbb",
+              "command": "0xe0",
+              "data_bytes": 1,
+              "data_hex": "01"
+            },
+            {
+              "site": "0x42020bd0",
+              "command": "0x61",
+              "data_bytes": 4,
+              "data_hex": "04b00320"
+            },
+            {
+              "site": "0x42020be7",
+              "command": "0xa4",
+              "data_bytes": 9,
+              "data_hex": "030001030003000000"
+            },
+            {
+              "site": "0x42020bfd",
+              "command": "0x1",
+              "data_bytes": 6,
+              "data_hex": "0f00282c2838"
+            },
+            {
+              "site": "0x42020c14",
+              "command": "0xb6",
+              "data_bytes": 1,
+              "data_hex": "07"
+            },
+            {
+              "site": "0x42020c2a",
+              "command": "0x6",
+              "data_bytes": 2,
+              "data_hex": "e020"
+            },
+            {
+              "site": "0x42020c41",
+              "command": "0xb7",
+              "data_bytes": 1,
+              "data_hex": "01"
+            },
+            {
+              "site": "0x42020c58",
+              "command": "0x5",
+              "data_bytes": 2,
+              "data_hex": "e020"
+            },
+            {
+              "site": "0x42020c6f",
+              "command": "0xb0",
+              "data_bytes": 1,
+              "data_hex": "01"
+            },
+            {
+              "site": "0x42020c86",
+              "command": "0xb1",
+              "data_bytes": 1,
+              "data_hex": "02"
+            }
+          ]
+        },
+        {
+          "role": "refresh/power-off writes; command-only power-on is separate",
+          "entry": "0x42020c90",
+          "writes": [
+            {
+              "site": "0x42020cdf",
+              "command": "0x12",
+              "data_bytes": 1,
+              "data_hex": "00"
+            },
+            {
+              "site": "0x42020d14",
+              "command": "0x2",
+              "data_bytes": 1,
+              "data_hex": "01"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Configuration bytes identify stock writes, not validated register semantics or a custom waveform format.",
+    "The historical private read-id artifact name refers to command 0x40 with a two-byte response; the firmware labels it TSC data, not proven chip identity.",
+    "Exact-root references do not exclude computed aliases, unexamined I/O paths, controller-resident firmware or undocumented panel commands.",
+    "No alternate waveform, partial refresh, optical result, power behavior or cross-model driver compatibility established."
+  ]
+}

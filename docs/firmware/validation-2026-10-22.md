@@ -3201,3 +3201,41 @@ complete; its physical availability/mutation/concurrency criterion remains open.
 | `remaining-info-page-large-cfg.json` | `76e42eaf128b7c6f1a08e3dfd993a9d750b031bf5b08c47e091d5f5f32a7c17c` |
 | `remaining-upload-page-large-cfg.json` | `7951d6a70c7dfdbe16a992991831272ad8a35bc0e6df434b12d290a30c9ccba0` |
 | `remaining-switch-ap-large-cfg.json` | `7420599785e95a39c28d9df7f674d90c42b8e3e9e9fbe5bb12371aa1d4311bd0` |
+
+## Panel command audit: H04
+
+The [sanitized command ledger](panel-command-coverage.json) pins both application
+hashes and records ten Large/eight Standard low-level or wrapper roots. The
+independent verifier checks **36/33 direct calls**, **12/9 owner functions** and
+zero exact API-address words in initialized image segments. Synthetic ELF symbol
+tables are excluded; computed aliases and separate I/O implementations are not
+excluded by a negative pointer search.
+
+Selected complete GNU CFGs cover ten Large functions (**793 instructions,
+seventeen ranges**) and nine Standard functions (**485 instructions, twelve
+ranges**). Every decoded instruction is checked against the pinned bytes. These
+counts describe selected bodies, not a recursive proof of every root/callee.
+An initial Standard Ghidra request used an incorrect wrapper boundary; the
+correct `0x42020a90` entry was recovered with GNU and the subsequent pass
+succeeded. The failed request is not evidence of missing code.
+
+The constant-write catalog verifies the argument-loading instructions and actual
+payload bytes for **41 writes**: sixteen Large/twenty-one Standard initialization
+writes and two refresh writes per model. Command-only calls and full artwork
+transfers are described separately. The short command `40` read is labeled TSC
+by the application, not established as an identity operation.
+
+Fraimic's model-specific conversion specifications were read at repository commit
+`1b794a390fb3f4243cac31b6bc703c7e82d8ff1a`; the pinned links are in the
+[findings](rendering-and-concurrency.md#controller-commands-and-waveform-limits).
+Those output-format documents do not supply a custom waveform/partial-update
+contract. No frame read, panel command, power change, firmware flash or hardware
+experiment occurred. H04's static milestone is checked; hardware capability and
+constraints remain open.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `verify-panel-command-references.mjs` | `e0bd00fa88211861330176be2642947097f2bbf3e96fd0deffb8928b93568751` |
+| `panel-command-reference-audit.combined.json` | `e029a7e0ee20ef37e740d7c591b524bf2d64092f98bde376f52f8feb5a5a68d3` |
+| `catalog-panel-commands.mjs` | `7584d136249e0abde0a747896922315111b1f97a72949bfa204a6bf03e545a38` |
+| `panel-command-coverage.public.json` | `9851281d1a37b92d9a3aabb9dd965401705f52ef341c9e627ea7ecc8f6aa0a80` |
