@@ -1494,3 +1494,32 @@ Private artifacts: `standard-cancel-pass1.txt`, `standard-cancel-pass2.txt`,
 `compare-standard-cancel.mjs`, `standard-cancel-boundaries-gnu.txt`,
 `standard-cancel-comparison.json`, `standard-cancel-literals.jsonl` and
 `standard-cancel-evidence-hashes.txt`.
+
+## Maintenance setter reachability and fixed arguments: S05/S02
+
+Three reference passes cover the maintenance setter, record writer and sole
+terminated `refresh_sched` key. A hash-checked full-image direct-call scan finds
+eight setter calls plus one writer call, with no exact pointer words to either
+function. All eight setter invocations load four days, hour three and minute zero
+immediately before the call. The writer's only direct caller is that setter;
+recovered key references belong to the loader and writer.
+
+Nineteen GNU ranges cover those eight argument/call regions and three full
+functions. All 324 decoded instruction byte sequences match the original pinned
+Large app. The maintenance call at `0x42012790` belongs to entry `0x420126f8`,
+after ordinary sleep's nonreturning call; the older Ghidra export's overextended
+`0x42012338` function boundary is not used as its identity.
+
+The [interface conclusion](boot-and-scheduling.md#maintenance-parameters-have-only-fixed-default-callers)
+is deliberately bounded: these references establish no configurable stock
+maintenance setter, not proof that arbitrary computed code/key construction is
+impossible. The correction field is preserved by the setter, with no other direct
+record writer supplying a learned value. This does not read installed NVS or
+measure RTC drift. Standard caller equivalence, persistence/clock-change behavior
+and physical wake timing remain open under S05/S02. No host behavioral fixture
+was added for these literal/reference checks, and no device setting changed.
+
+Private artifacts: `schedule-api-pass1.txt` through `schedule-api-pass3.txt`,
+`scan-schedule-api-calls.mjs`, `schedule-api-call-candidates.json`,
+`schedule-api-gnu.mjs`, `schedule-api-boundaries-gnu.txt`,
+`schedule-api-string-hits.json` and `schedule-api-evidence-hashes.txt`.

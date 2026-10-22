@@ -199,7 +199,8 @@ with host boundary/fault models, not physical wake or induced storage failures.
 
 `0x42016274` creates a schedule with `(interval_days=4, hour=3, minute=0)` when
 none is stored. `0x42015f2c` accepts intervals 1–30 days, hours 0–23 and minutes
-0–59. These are internal function parameters, not proof of a public setter API.
+0–59. The caller audit below finds only fixed default arguments; these accepted
+parameter ranges are not a public setter API.
 
 `0x42014dcc` calculates in local calendar time. The initial target can be today's
 03:00 if at least 15 minutes away; otherwise it adds the configured day interval.
@@ -210,6 +211,46 @@ The awake USB-powered read on 21 October actually reported `EST5EDT` in `/info`;
 the synchronized log time was UTC−04:00. This confirms that timezone on this
 unit at the time of the read, not merely a static fallback. No timezone was
 changed. Album UTC epochs and maintenance local-calendar times must stay distinct.
+
+### Maintenance parameters have only fixed default callers
+
+A raw instruction scan of the pinned Large application finds **eight direct calls**
+to setter `0x42015f2c`. Every call loads `(4, 3, 0)` immediately before invoking
+it; none passes request, poll, UI or stored-parameter values:
+
+| Caller context | Call sites |
+| --- | --- |
+| Scheduled maintenance workflow, entry `0x420126f8` | `0x42012790` |
+| Time-invalid/default fallback helper `0x42016144` | `0x42016218` |
+| Unified maintenance/album scheduler `0x42016274` | `0x420162b4` |
+| Wi-Fi recovery task `0x420166c8` | `0x4201671a` |
+| System initialization/wake branches `0x420167b4` | `0x42016da9`, `0x42016e2e`, `0x42016f5e`, `0x42016fa5` |
+
+The 32-byte `app_data/refresh_sched` writer `0x42014d48` has one direct caller,
+inside that setter at `0x420160b4`. The image contains one terminated occurrence
+of the key string at `0x3c0fcec8`; its recovered references belong to the record
+loader `0x42014ad4` and writer. No exact pointer words to either the setter or
+writer occur in the application image. GNU checks verify all nine calls and the
+literal argument loads, with bytes checked against the original app.
+
+This supports a **bounded negative result**: no configurable maintenance interval
+or hour/minute entry point is established in the stock local/cloud interface.
+The full-image direct-call/pointer search complements the 42 registered routes
+and known poll-field parser; it cannot exclude an arbitrary computed indirect
+call or dynamically assembled NVS key. In particular, a function that accepts
+1–30 days is not evidence that an emulator can request those values.
+
+The record's correction double is preserved by the setter rather than learned
+from elapsed sleep here; no additional direct record writer supplies a recovered
+drift estimator. This is not a measurement of the installed correction or RTC
+accuracy. A pre-existing nonzero target can be reused, but whenever these callers
+recalculate maintenance they again supply the fixed four-day/03:00 parameters.
+
+For stock emulation, use `next_image_utc` for album deadlines and retain maintenance
+as a separate firmware-owned schedule. Custom maintenance timing, an explicit
+disable switch and timezone-change recalculation need a verified firmware setting
+and persistence design. No schedule, timezone or NVS contents were changed in
+this audit; Standard call-site equivalence and physical timing remain separate.
 
 ### Timezone format and default rules
 
@@ -296,9 +337,10 @@ timezone change, or every ambiguous/nonexistent local-time case.
 A firmware correction should set `tm_isdst = -1` before **each** `mktime` call,
 check conversion failure, and define the policy for ambiguous/nonexistent local
 times. Resetting it only before the first call is insufficient because that call
-normalizes and writes the flag again. The current local API has no identified
-dedicated maintenance-schedule setter; the remaining indirect-reference audit
-and device checks keep S05 open.
+normalizes and writes the flag again. The
+[setter caller audit](#maintenance-parameters-have-only-fixed-default-callers)
+now narrows the missing public-setting question; persistence, timezone-change
+recalculation and physical timing keep S05 open.
 
 The subsequent [Standard comparison](standard-model-comparison.md#calendar-and-led-follow-up)
 confirmed matching relevant calendar, DST-correction and POSIX-parser branches,

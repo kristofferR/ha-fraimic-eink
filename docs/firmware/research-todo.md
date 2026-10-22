@@ -74,6 +74,7 @@ per question, not a count of tool calls or decompiled functions.
 | N08/D01/D07 | Sixteen Large and eighteen Standard RLE host cases verify model geometry, partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; both show/restore paths write before DROP and change markers before completion | Physical rendering, overlap, storage faults, other releases and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
 | S03/S04/S05/S06 | Thirty-three host case groups cover deadline selection, missed-album retry and scheduling faults; timer/reason ordering, maintenance correction and conditional recursive fallback traced | Physical wake timing, actual persisted correction, clock changes, concurrency and real timer/NVS faults |
+| S05/S02 | Eight direct maintenance-setter calls all pass four days/03:00; only that setter directly writes the record; key references map to load/save | Standard caller comparison, installed correction, persistence/clock changes and physical timing; computed indirect references remain outside the negative result |
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
 | H05/N03/C11 | Onboarding GET/cache semantics and eight embedded page selections mapped; seven script host checks establish local submissions, recurring checks and error-body behavior | Initialization/read faults, remaining pages, real browser behavior, cache refresh and independent enrollment |
@@ -345,6 +346,10 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   [Timezone and calendar fixtures](boot-and-scheduling.md#timezone-format-and-default-rules)
   now establish the POSIX-only parser and reproduce stale-DST target shifts on
   the host; physical transitions and stored-schedule recalculation remain open.
+  [Setter caller audit](boot-and-scheduling.md#maintenance-parameters-have-only-fixed-default-callers)
+  finds eight fixed `(4,3,0)` calls and no configurable public entry point in the
+  bounded direct-call/pointer/key search. The internal accepted parameter range
+  does not establish a backend setting; Standard caller equivalence remains open.
 - [ ] **S06 · Device:** Map actual wake sources and transitions for normal, button,
   charger, maintenance, album, first-setup/storage and factory-test modes. Verify
   HTTP reachability and timeout behavior in each, without treating test-mode sleep

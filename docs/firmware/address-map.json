@@ -4,6 +4,12 @@
   "names": "Analytical descriptions, not recovered original symbols",
   "entries": [
     {
+      "address": "0x3c0fcec8",
+      "kind": "string",
+      "role": "Sole terminated refresh_sched NVS key in Large app; recovered references belong to loader and writer",
+      "evidence": "static; maintenance caller/key audit and GNU byte cross-check"
+    },
+    {
       "address": "0x3c0ffd20",
       "kind": "string",
       "role": "Separate build-log timestamp 2026-07-16 10:15:17 -0400; app file offset 0xfd20",
@@ -804,8 +810,8 @@
     {
       "address": "0x42014d48",
       "kind": "function",
-      "role": "Save 32-byte maintenance schedule with checked set/commit result",
-      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
+      "role": "Save 32-byte maintenance record with checked set/commit; sole direct caller is setter at 0x420160b4",
+      "evidence": "static; maintenance caller/key audit and GNU byte cross-check"
     },
     {
       "address": "0x42014dcc",
@@ -918,8 +924,8 @@
     {
       "address": "0x42015f2c",
       "kind": "function",
-      "role": "Validate and persist maintenance schedule before timer arming; busy guard returns zero",
-      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
+      "role": "Validate/save/arm maintenance schedule; all eight direct callers pass (4,3,0), no exact function-pointer words recovered",
+      "evidence": "static; maintenance caller/key audit and GNU byte cross-check"
     },
     {
       "address": "0x42016144",
