@@ -78,6 +78,10 @@ The later [microphone ownership audit](local-api.md#factory-and-normal-microphon
 finds asymmetric admission: factory then normal capture can create two readers
 of one I2S channel, and factory stop can return before its worker exits. Keep
 factory diagnostics outside the normal voice-command path.
+Ordinary taps have an additional [factory-mode admission guard](input-and-gestures.md#factory-mode-guards-idle-admission-not-capture-ownership).
+It qualifies the usual page-then-tap sequence, but direct diagnostic POSTs do
+not require that mode, and a mode change after the input check is not a capture
+reservation. The helper overlap cases remain distinct from physical observation.
 The [channel-disable trace](voice.md#channel-disable-is-not-worker-termination)
 adds the cleanup boundary: normal voice cleanup does not terminate a factory
 worker, and later re-enable can give that existing reader access again. Device

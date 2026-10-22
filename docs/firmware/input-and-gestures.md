@@ -40,6 +40,50 @@ that start result. In the bounded task-creation-failure case, it continues its
 recording-control loop with no monitor running. The separate outer recording
 timeout remains relevant; this does not prove a physical stuck recording.
 
+## Factory mode guards idle admission, not capture ownership
+
+Ordinary button wait checks factory mode both on entry and in its outer wait
+loop. If active, it delays ten ticks and returns zero instead of admitting a
+new recording. At entry this happens before any GPIO read. A normal sequence
+of opening the factory page and then tapping therefore has an admission guard;
+the [two-reader helper result](local-api.md#factory-and-normal-microphone-capture-can-both-be-admitted)
+must not be described as proof that this usual page/tap sequence overlaps audio.
+
+This guard reads **factory mode**, not the separate factory microphone-active
+flag. Direct `POST /test?action=mic_start` does not require the landing page or
+arm that mode. Nor is the outer input check a reservation: factory mode can
+change after it while an already-observed press is being accepted/released.
+The inner release wait has no factory-mode recheck.
+
+Six instruction cases per model distinguish these boundaries:
+
+| Scripted state/transition | Result |
+| --- | --- |
+| Factory mode active at idle-handler entry | Return zero after ten ticks; no GPIO read. |
+| Factory mode enters while waiting for a button already held on entry | The later outer check catches it; return zero. |
+| Factory mode off, fresh tap | Return one, recording admission. |
+| Factory mode enters after the outer check as the low sample is read | Return one with factory mode now active. |
+| Factory mode enters during release wait | Return one with factory mode active. |
+| Recording-control task already admitted, factory mode active | It calls normal microphone start; no additional factory admission check occurs in that task. Microphone/task helpers are stubbed in this case. |
+
+The existing main-loop trace carries a positive idle result to the outer
+recording wrapper, which still checks voice enablement and can fail capture.
+The factory guard, voice preference and microphone ownership are separate
+boundaries. Mode changes do not retroactively cancel an admitted control task.
+
+An exact-reference/pointer-word search identifies seven mode-getter call sites
+per build: two in idle wait, plus ordinary idle/sleep, main factory expiry,
+time synchronization, LED selection and rendering. The identified flag store
+is the landing-page entry; neither the recovered microphone-stop helper nor
+its route clears it. Leaving the page or stopping its microphone does not
+restore ordinary input through a recovered factory-mode exit operation. The
+search does not exclude arbitrary computed access; startup/reboot is separate.
+
+These six cases execute 433 unique instructions per model, with the real mode
+getter and synthetic GPIO/time transitions. They establish admission paths,
+not physical overlap, task scheduling or measured latency. [Evidence](factory-input-cases.json).
+A firmware owner must reserve capture independently of the UI mode guard.
+
 ## Three timing rules, not one tap timeout
 
 The monitor initially samples the input and treats an already-held button as

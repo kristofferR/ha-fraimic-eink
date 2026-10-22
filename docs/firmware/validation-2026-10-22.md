@@ -4246,3 +4246,28 @@ original items and 125/189 milestones**.
 
 Fixture SHA-256:
 `8ff87e0bdb6bbee8b3f4efcce67600c1421da547b0b33dbf0d7caba7473535c0`.
+
+## Factory mode and normal recording admission: H05/A06/S06/E01/E02
+
+**Six cases per model pass**, covering 433 unique instructions each from the
+complete, byte-checked button paths plus the actual factory-mode getter. Factory
+mode already active at handler entry prevents even a GPIO read and returns zero
+after ten ticks. Entry-held release reaches another guard. A mode change after
+the outer check or during the inner release wait still permits a positive
+admission result; the already-admitted recording-control case calls its modeled
+microphone start without a new factory admission gate.
+
+This qualifies the earlier helper-level two-reader result: the usual sequence
+of opening the factory page and then tapping is guarded. Direct diagnostic POSTs
+do not require factory mode, and the guard is not a microphone reservation.
+GPIO/time, task and microphone behavior are synthetic. No physical overlap or
+live recording was tested.
+
+Exact-reference searches identify seven getter call sites and the landing-page
+flag store on each build; computed accesses remain outside that search. The
+recovered stop route/helper does not clear factory mode. [Findings](input-and-gestures.md#factory-mode-guards-idle-admission-not-capture-ownership),
+[cases and reference hashes](factory-input-cases.json). Existing checklist counts
+remain **12/67 original items and 125/189 milestones**.
+
+Fixture SHA-256:
+`bd5df6c2429813749ace0e0205fb639b3840ca884dcba1caf2da8535911e3922`.

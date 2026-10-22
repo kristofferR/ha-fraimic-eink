@@ -526,6 +526,13 @@ recording was used. [Cases and hashes](factory-page-cases.json).
 
 ### Factory and normal microphone capture can both be admitted
 
+This is a helper-level ownership finding. Ordinary idle input has an additional
+[factory-mode guard](input-and-gestures.md#factory-mode-guards-idle-admission-not-capture-ownership):
+opening the factory page first normally suppresses a subsequent tap's recording
+admission. Direct microphone POST actions do not require that page/mode, and a
+mode change after the outer input check is not caught by its release wait.
+Neither the guard nor these bounded host paths prove physical overlapping audio.
+
 The factory starter checks the normal recording-state getter, but normal
 recording start does not check factory activity. Both use the same I2S channel
 handle and accept `ESP_ERR_INVALID_STATE` (`0x103`) from channel-enable as well

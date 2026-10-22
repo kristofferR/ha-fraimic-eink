@@ -109,6 +109,11 @@ restart before worker exit and the factory reader's partial-timeout handling.
 Standard's separate recording/image allocations do not separate these two
 microphone readers: both still use one I2S channel handle. No physical overlap
 or battery effect was tested. [Evidence](factory-mic-cases.json).
+Six further [input-admission cases](input-and-gestures.md#factory-mode-guards-idle-admission-not-capture-ownership)
+per model qualify that helper result: active factory mode suppresses ordinary
+idle taps, but it is distinct from microphone activity and is not rechecked in
+the inner release wait or used as recording-task ownership. The selected paths
+match across 433 executed instructions each. [Cases](factory-input-cases.json).
 Three more [cleanup/disable/reader pairs](voice.md#channel-disable-is-not-worker-termination)
 match across 196 instructions, with five cleanup call sites per model reconciled
 to their callers. Seven matching-SDK host cases distinguish ready state, retained
