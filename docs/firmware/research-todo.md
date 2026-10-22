@@ -78,7 +78,9 @@ implementation is authorized merely by an unchecked box.
 The owner requested continued firmware/device analysis and deferred A07's
 provider choice. The S06/E01/E02 physical-input and boot/wake admission passes
 are complete: both-build gesture/held-input, monitor lifetime, marker/cable
-classification and final wake masks are documented. The caller trace resolves
+classification and final wake masks are documented. The startup pass also
+resolves early error propagation and selected background-task failure/readiness
+branches on both builds. The caller trace resolves
 the earlier open pending-sleep admission question; physical behavior remains
 deferred. Further E01/E02 work should address a concrete remaining device or
 firmware claim rather than repeat these completed cases.
@@ -757,7 +759,7 @@ Commit and push validated research batches periodically as requested.
 
   Status: **Ongoing**.
 
-  - [x] **Static:** Correct consequential Ghidra truncations, missing task entries and generic-Xtensa decoding with pinned bytes/GNU control flow. [Method](evidence-and-open-questions.md#method-and-private-artifacts). The response-cache follow-up adds two complete cleanup pairs and twelve bounded allocation cases: [evidence](validation-2026-10-22.md#response-cache-allocation-and-cleanup-e01e02). Both boot/main bodies are now recovered for bounded wake admission; sleep coverage stops at its nonreturning boundary: [wake evidence](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02).
+  - [x] **Static:** Correct consequential Ghidra truncations, missing task entries and generic-Xtensa decoding with pinned bytes/GNU control flow. [Method](evidence-and-open-questions.md#method-and-private-artifacts). The response-cache follow-up adds two complete cleanup pairs and twelve bounded allocation cases: [evidence](validation-2026-10-22.md#response-cache-allocation-and-cleanup-e01e02). Both boot/main bodies are now recovered for bounded wake admission; sleep coverage stops at its nonreturning boundary: [wake evidence](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02). The fast initializer's inferred void return is corrected, with both-build entry propagation and task/wait cases: [startup evidence](validation-2026-10-22.md#startup-failure-propagation-and-readiness-s06e01e02).
   - [ ] **Next:** **Static:** Audit unresolved claims used by the next implementation decision. Track each concrete missing call/body/type in its owning item; do not reopen completed work merely because more library code exists.
 
 - [ ] **E02 · Static/Device:** Compare each relevant finding with other firmware
@@ -793,6 +795,7 @@ This table records the audit scope, not completion of its checks.
 | [Image downloads](image-downloads.md) | C03/C04/C07/C08, D03/D05–D07, N05 |
 | [Boot and scheduling](boot-and-scheduling.md) | S01–S07, C04/C11, R10/R12 |
 | [Physical input and gestures](input-and-gestures.md) | S06, C06/C08, E01/E02 |
+| [Startup and readiness](startup-and-readiness.md) / [cases](startup-admission-cases.json) | S06, E01/E02 |
 | [Storage and configuration](storage-and-configuration.md) | N01–N08, R04/R06, H06 |
 | [OTA and recovery](ota-and-recovery.md) | R01–R12, B02 |
 | [Local API](local-api.md) | C12, H05, D01/D02/D04/D07, A05/A06 |

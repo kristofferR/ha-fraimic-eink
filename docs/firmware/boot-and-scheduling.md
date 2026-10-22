@@ -95,6 +95,11 @@ cases stop before system initialization; main cases do not establish setup,
 timer, OTA, renderer or complete lifecycle equivalence. See the
 [validation record](validation-2026-10-22.md#boot-wake-classification-and-admission-s06e01e02).
 
+The subsequent [startup-readiness audit](startup-and-readiness.md) separates
+early errors that exit application entry from tolerated cache/instruction
+failures. It also follows failed background-task creation and shows that an
+idle-entry checkpoint is not a service-readiness acknowledgment.
+
 ### Pre-sleep ordering and outstanding work
 
 The ordinary pre-sleep routine first checks for a pending OTA and its safety

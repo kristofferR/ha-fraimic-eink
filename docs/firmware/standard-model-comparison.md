@@ -84,6 +84,17 @@ survive that wait's admission result to the outer recording wrapper. The
 use synthetic dependencies; these are not physical wake measurements, complete
 main-loop equivalence or battery-monitor diagnosis.
 
+### Early startup errors and readiness policy also match
+
+The [startup comparison](startup-and-readiness.md) adds a 413-instruction fast
+initializer pair, with one diagnostic source-line difference. NVS, PSRAM and
+existing-user recording initialization errors propagate to application entry;
+flash-cache/instruction failures follow different continuation branches. Selected
+main-loop cases share the cold-boot completion-wait timeout, button-wake path
+without that wait and album task-creation-failure sleep. Standard's cable branch
+also reaches idle without the wait. The [24/25 bounded cases](startup-admission-cases.json)
+do not execute the background worker or prove network/service readiness.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

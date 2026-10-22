@@ -3395,3 +3395,49 @@ Private reproducibility hashes; only sanitized numeric results are published:
 | `wake-final-mask-audit.mjs` | `b46a4128b879389a608de0b0bce7028508f558dc7b9f29f87e5901912a763354` |
 | `wake-final-mask-results.json` | `65fa8908fc9cf36be367ce91100856fed450bada3ccfc3872c7e92e3aac63108` |
 | `wake-admission-cases.public.json` | `c35c43001741aa64c9ba00cc5fac219b9b6cf50edb0a11d969459253c6bab1b3` |
+
+## Startup failure propagation and readiness: S06/E01/E02
+
+Recovered the complete fast initializer on both pinned images: Large
+`0x420153b0`, Standard `0x420153d0`, each 413 instructions in twelve ranges.
+Normalized comparison checks 38 branches, sixteen direct-call pairs and 43
+literal pairs. One reviewed immediate differs: the NVS-erase error-check source
+line is 515 versus 516. Instruction order, branch destinations and remaining
+operations match; mapped allocator/driver bodies are not recursively compared.
+
+This corrects Ghidra's inferred `void` return. The preserved return register and
+application-entry check demonstrate propagated NVS/PSRAM/recording-system errors.
+Flash-image/instruction-manager failures have separate continuation branches.
+Wi-Fi presence and development `force_ftu` select the early first-time byte;
+account-complete alone does not decide it. See the
+[failure table and readiness distinctions](startup-and-readiness.md).
+
+The [sanitized ledger](startup-admission-cases.json) contains **24 Large and 25
+Standard cases**, executing 701/782 distinct instructions. Fifteen cases per
+model cover initialization/state/error decisions; four execute the actual
+entry-to-initializer path until return or the immediate post-success checkpoint.
+Five Large and six Standard cases exercise existing-user main-loop task creation
+and requested completion waits. Standard adds its reachable cable branch.
+
+Cold boot requests a 6,000-tick completion wait even after task creation fails;
+a modeled failed wait still reaches idle. Button wake and Standard cable wake
+reach idle without that wait, while album task-creation failure calls pre-sleep.
+An album success case stops at its 6,000-tick wait. The fixture checks the exact
+requested ticks, task names and outcomes but consumes no real time or semaphore.
+It seeds a synthetic background-completion handle and stubs every external
+service. The background worker, driver bodies and actual readiness are outside
+this pass. The failure handler is a host stop, not an emulated panic/reset.
+
+No device operation, NVS erase, recording, network change or HA deployment
+occurred. This extends the existing E01/E02 evidence without creating another
+checklist milestone or completing S06's physical requirement. The static pass
+does not resume the deferred N04 filesystem or R12 OTA host experiments.
+
+Private hashes; the result JSON is published without raw firmware or credentials:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `compare-startup-fast.mjs` | `4b99d46d84f59fb1ee3e9ca4a45f9b30b41ed48463f6f0e81b5eb76385c6ca4e` |
+| `standard-startup-fast-comparison.json` | `d8d1561536a402f64ae83d1e971edfe3349c230dfbf6df6b5ffb602c04271f9b` |
+| `startup-instruction-cases.mjs` | `39bd54da7e22c4c3f1860f01127e7753482b5f0121985d8b1857c2d76233ece8` |
+| `startup-instruction-results.json` | `87f2eb11a472706e811bf6e74b4cc1bcf82482b99ddef3e14b7c437e936dd730` |

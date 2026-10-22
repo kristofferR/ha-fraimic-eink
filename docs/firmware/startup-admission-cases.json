@@ -1,0 +1,996 @@
+{
+  "evidence": "Pinned-image instruction interpretation with synthetic service results; no device operation",
+  "fast_comparison": {
+    "instructions_per_build": 413,
+    "branches_per_build": 38,
+    "ranges_per_build": 12,
+    "direct_call_pairs": 16,
+    "literal_pairs": 43,
+    "diagnostic_differences": [
+      {
+        "large": "0x42015403",
+        "standard": "0x42015423",
+        "kind": "NVS erase failure ESP_ERROR_CHECK source line",
+        "large_value": 515,
+        "standard_value": 516
+      }
+    ]
+  },
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "fast",
+          "entry": "0x420153b0",
+          "instructions": 413,
+          "ranges": 12,
+          "sha256": "b24be855537d8976e07236e21394c40ca5b9b37a143ecff9280ac2dc282cbe09"
+        },
+        {
+          "name": "entry",
+          "entry": "0x420142ec",
+          "instructions": 395,
+          "ranges": 16,
+          "sha256": "55afcc22ac67a857cfb3bcdb3c5142ee7c7c5bc10ccff42c50051721932ff7da"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "ranges": 42,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        }
+      ],
+      "instructions_executed_unique": 701,
+      "scenarios": [
+        {
+          "group": "fast",
+          "name": "ready",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "no-wifi",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 1,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "wifi-without-complete-account",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "force-first-time-production",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "server_mode",
+            "server_mode",
+            "clear_force_ftu",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "force-first-time-development",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 1,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "server_mode",
+            "psram_init",
+            "flash_init",
+            "instruction_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-failure",
+          "outcome": "returned",
+          "return_value": 257,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-no-free-pages-recovery",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase",
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-new-version-recovery",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase",
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-erase-failure",
+          "outcome": "error_check_abort",
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-reinitialize-failure",
+          "outcome": "returned",
+          "return_value": 258,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase",
+            "nvs_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "psram-failure",
+          "outcome": "returned",
+          "return_value": 257,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "existing-user-flash-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "first-time-flash-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 1,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "instruction-manager-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "recording-system-failure",
+          "outcome": "returned",
+          "return_value": 257,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "ready",
+          "outcome": "post_fast_initialization",
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "nvs-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "psram-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "recording-system-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "main",
+          "name": "cold-background-create-fails",
+          "outcome": "idle_wait",
+          "first_time_flag": 0,
+          "events": [],
+          "background": [
+            {
+              "name": "bg_init",
+              "result": 0,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": [
+            {
+              "site": "0x42013813",
+              "ticks": 6000
+            }
+          ]
+        },
+        {
+          "group": "main",
+          "name": "cold-background-wait-times-out",
+          "outcome": "idle_wait",
+          "first_time_flag": 0,
+          "events": [],
+          "background": [
+            {
+              "name": "bg_init",
+              "result": 1,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": [
+            {
+              "site": "0x42013813",
+              "ticks": 6000
+            }
+          ]
+        },
+        {
+          "group": "main",
+          "name": "button-background-create-fails",
+          "outcome": "idle_wait",
+          "first_time_flag": 0,
+          "events": [],
+          "background": [
+            {
+              "name": "bg_init_wake",
+              "result": 0,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": []
+        },
+        {
+          "group": "main",
+          "name": "album-background-create-fails",
+          "outcome": "ordinary_sleep",
+          "first_time_flag": 0,
+          "events": [
+            "flash_init"
+          ],
+          "background": [
+            {
+              "name": "bg_init_album",
+              "result": 0,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": []
+        },
+        {
+          "group": "main",
+          "name": "album-background-create-succeeds",
+          "outcome": "readiness_wait",
+          "first_time_flag": 0,
+          "events": [
+            "flash_init"
+          ],
+          "background": [
+            {
+              "name": "bg_init_album",
+              "result": 1,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": [
+            {
+              "site": "0x42012a83",
+              "ticks": 6000
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "fast",
+          "entry": "0x420153d0",
+          "instructions": 413,
+          "ranges": 12,
+          "sha256": "5678b0404d521b0fb9d796c08c890ec95ca79354d394f24a0d836544386219e3"
+        },
+        {
+          "name": "entry",
+          "entry": "0x420142a8",
+          "instructions": 433,
+          "ranges": 19,
+          "sha256": "47d2b32070c2f89c6e8a5eb3c56d93a20e1107a9c368807667f5cd22fbbf620c"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "ranges": 40,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        }
+      ],
+      "instructions_executed_unique": 782,
+      "scenarios": [
+        {
+          "group": "fast",
+          "name": "ready",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "no-wifi",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 1,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "wifi-without-complete-account",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "force-first-time-production",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "server_mode",
+            "server_mode",
+            "clear_force_ftu",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "force-first-time-development",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 1,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "server_mode",
+            "psram_init",
+            "flash_init",
+            "instruction_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-failure",
+          "outcome": "returned",
+          "return_value": 257,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-no-free-pages-recovery",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase",
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-new-version-recovery",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase",
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-erase-failure",
+          "outcome": "error_check_abort",
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "nvs-reinitialize-failure",
+          "outcome": "returned",
+          "return_value": 258,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "nvs_erase",
+            "nvs_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "psram-failure",
+          "outcome": "returned",
+          "return_value": 257,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "existing-user-flash-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "first-time-flash-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 1,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "instruction-manager-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "fast",
+          "name": "recording-system-failure",
+          "outcome": "returned",
+          "return_value": 257,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "ready",
+          "outcome": "post_fast_initialization",
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "nvs-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "psram-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "entry",
+          "name": "recording-system-failure",
+          "outcome": "returned",
+          "return_value": 0,
+          "first_time_flag": 0,
+          "events": [
+            "nvs_init",
+            "wifi_present",
+            "account_complete",
+            "nvs_open",
+            "force_ftu_read",
+            "psram_init",
+            "flash_init",
+            "instruction_init",
+            "recording_init"
+          ],
+          "background": [],
+          "waits": []
+        },
+        {
+          "group": "main",
+          "name": "cold-background-create-fails",
+          "outcome": "idle_wait",
+          "first_time_flag": 0,
+          "events": [],
+          "background": [
+            {
+              "name": "bg_init",
+              "result": 0,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": [
+            {
+              "site": "0x42013793",
+              "ticks": 6000
+            }
+          ]
+        },
+        {
+          "group": "main",
+          "name": "cold-background-wait-times-out",
+          "outcome": "idle_wait",
+          "first_time_flag": 0,
+          "events": [],
+          "background": [
+            {
+              "name": "bg_init",
+              "result": 1,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": [
+            {
+              "site": "0x42013793",
+              "ticks": 6000
+            }
+          ]
+        },
+        {
+          "group": "main",
+          "name": "button-background-create-fails",
+          "outcome": "idle_wait",
+          "first_time_flag": 0,
+          "events": [],
+          "background": [
+            {
+              "name": "bg_init_wake",
+              "result": 0,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": []
+        },
+        {
+          "group": "main",
+          "name": "cable-background-create-fails",
+          "outcome": "idle_wait",
+          "first_time_flag": 0,
+          "events": [],
+          "background": [
+            {
+              "name": "bg_init_charging",
+              "result": 0,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": []
+        },
+        {
+          "group": "main",
+          "name": "album-background-create-fails",
+          "outcome": "ordinary_sleep",
+          "first_time_flag": 0,
+          "events": [
+            "flash_init"
+          ],
+          "background": [
+            {
+              "name": "bg_init_album",
+              "result": 0,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": []
+        },
+        {
+          "group": "main",
+          "name": "album-background-create-succeeds",
+          "outcome": "readiness_wait",
+          "first_time_flag": 0,
+          "events": [
+            "flash_init"
+          ],
+          "background": [
+            {
+              "name": "bg_init_album",
+              "result": 1,
+              "stack_bytes": 8192,
+              "priority": 5
+            }
+          ],
+          "waits": [
+            {
+              "site": "0x420129e3",
+              "ticks": 6000
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "External services, error-check abort, tasks, NVS and hardware are stubs; no erase or reboot occurred.",
+    "Entry success stops immediately after fast initialization, before the remaining setup and main call.",
+    "Main task-creation cases use controlled existing-user and wake predicates; background workers are not executed.",
+    "Reaching idle is not proof of local HTTP/network/display readiness; the album case stops on the readiness wait without consuming a real semaphore.",
+    "Fast-initializer body equivalence does not establish equivalence of its model-specific allocators/drivers."
+  ]
+}
