@@ -47,6 +47,7 @@ per question, not a count of tool calls or decompiled functions.
 | C01/E01/E02 | Both models have eleven recovered constructor sites, thirteen selector calls and the same eleven HTTP literal hosts; GNU continuation recovers missing multipart calls and rejects Standard's misaligned raw match | Dynamic destinations, indirect/non-HTTP paths, recursive consumer/TLS equivalence and complete offline operation |
 | E03/C01/C05/C07/C11 | July/October saved schemas retain the same 25 operations; five structural differences mapped; offline audit of 24 captured exchanges finds undeclared stock query/voice fields | Server implementation, unobserved values/coercion, other authorization cases, mutations and independent enrollment |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
+| C05/C07/E02 | Complete presign/finalize application paths match across models; eight JSON-write checks cover zero after partial progress; eight finalize-parser groups cover field/default/truncation boundaries | Physical response faults, actual peer delivery, request allocation faults and remaining external SDK helpers |
 | C06/D01/A06/E02 | Recovered capture worker; nine matching-SDK host groups verify partial-timeout data loss and whole-block admission; nine Standard function pairs match capture, stop and completion-signal branches | Physical recording/dropout/stop timing, remaining external SDK/configuration paths and structured capture-result events |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
 | C05/C08/D01/E02 | Eight SDK/sender host groups verify framing and partial-progress failures; complete reachable uploaders and SDK writers match across both builds in 771 instructions and 67 branches | Real TCP/TLS delivery, allocation faults, concurrent cancellation, remaining external helpers and physical response variants |
@@ -194,6 +195,11 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   Twelve host cases now cover selected fixed-length reader/parser boundaries;
   incomplete HTTP bodies can supply accepted JSON prefixes. Per-transport timeout
   is not an absolute request deadline. Device faults and outer-worker lifetime remain.
+  [Complete application comparison](standard-model-comparison.md#presign-and-finalize-application-paths-also-match)
+  now confirms corresponding Standard branches. New host checks cover
+  [zero request-write handling](voice.md#json-request-writes-can-proceed-after-zero)
+  and [finalize field parsing](voice.md#finalize-response-fields-and-host-parser-checks);
+  they do not exercise actual peer receipt or a physical malformed response.
 - [ ] **C08 · Host/Device:** Trace cancellation through recording, upload, finalize,
   download and rendering. Determine what the backend observes on disconnect and
   what work continues; verify retry/idempotency and stale-result behavior.

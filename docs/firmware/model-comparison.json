@@ -499,6 +499,42 @@
         "standard_abort_register": "0x42025c43"
       },
       "limitations": "External HTTP/TLS, allocator, formatting and transport helpers are mapped but not recursively proved equivalent; prior host groups were Large-derived and were not rerun as device tests"
+    },
+    "voice_json_requests": {
+      "evidence": "Complete recovered presign/finalize application control-flow comparison plus separate host writer/parser checks",
+      "compared_functions": 2,
+      "compared_instructions_per_image": 1056,
+      "compared_branches": 88,
+      "large_gnu_ranges": 26,
+      "standard_gnu_ranges": 25,
+      "direct_call_pairs": 23,
+      "literal_pairs": 80,
+      "presign_timeout_ms": 30000,
+      "finalize_timeout_ms": 600000,
+      "json_request_zero_write_proceeds": true,
+      "json_request_exact_write_count_checked": false,
+      "response_read_capacity_bytes": 4095,
+      "finalize": {
+        "required_http_status": 200,
+        "url_requires_string": true,
+        "url_requires_nonempty": false,
+        "success_field_consulted": false,
+        "url_capacity_bytes": 1536,
+        "status_capacity_bytes": 64,
+        "default_status": "completed",
+        "result_bytes": 1604,
+        "header_time_offset_bytes": 1600,
+        "handler_retries": false
+      },
+      "host_validation": {
+        "json_write_checks": 8,
+        "json_write_transport_timeouts_ms": [
+          30000,
+          600000
+        ],
+        "finalize_parser_groups": 8
+      },
+      "limitations": "Host caller/parser behavior is reconstructed; external helpers are not recursively compared; no new device tests, HTTP fault injection, allocation failure or peer-receipt proof"
     }
   },
   "function_map": [

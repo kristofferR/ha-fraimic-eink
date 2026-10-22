@@ -401,8 +401,8 @@ for Large:
   polling loop. Missing status defaults to completed in the parser, consistent
   with the observed successful Standard response that omitted it.
 
-These are selected matching static branches, not full SDK/control-flow
-equivalence or a new fault-injection run. The earlier host parser/timeout fixtures
+The comparisons below extend coverage to the complete recovered application
+paths, not every external SDK helper or a new fault-injection run. Host fixtures
 remain Large-derived. Keep the synchronous adapter contract shared and the
 renderers, capacities and ownership models explicit per build.
 
@@ -484,6 +484,36 @@ One local multipart handler can serve these two stock builds. It should validate
 the entire form, retain the upload by job key, return an empty acknowledgment,
 and wait for finalize before generation. Separate recording-buffer ownership,
 model-specific panel rendering and outer-worker lifetimes still apply.
+
+### Presign and finalize application paths also match
+
+The complete recovered direct-branch control flow now matches for presign
+`0x420266d8` / `0x42025124` and finalize `0x42027380` / `0x42025dd0`.
+The comparison covers **1,056 instructions per image and 88 branches**, over
+26 Large and 25 Standard GNU ranges. Each decoded instruction matches the pinned
+app bytes; normalized operations, registers and internal branch destinations
+match. Twenty-three direct-call pairs and 80 literal pairs were mapped separately.
+This does not prove every called HTTP, TLS, allocation or JSON helper equivalent.
+
+Both JSON request paths reject a negative write return but proceed after zero,
+including the SDK's zero-after-partial-progress result. Both make one bounded
+response-body read after a positive fetched length, rather than requiring whole
+HTTP-body completion. The selected presign empty-read initialization hazard also
+has matching instructions; it remains unexercised.
+
+Finalize requires HTTP 200 and a string URL, copies at most 1,535 URL bytes and
+63 status bytes, and defaults missing/non-string status to `completed`. It does
+not validate a nonempty URL or consult `success`, `message` or a job ID. Its
+32-bit processing-time field is sampled after headers and before reading the
+body. The handler has no application-level retry/status-polling loop. The outer
+voice worker's existing cancellation/lifetime rules still apply.
+
+The [JSON write checks](voice.md#json-request-writes-can-proceed-after-zero) and
+[finalize parser groups](voice.md#finalize-response-fields-and-host-parser-checks)
+exercise SDK/reconstructed behavior on the host. No new traffic, malformed
+responses, timeouts or recordings were sent to either frame. Keep the local
+finalize endpoint synchronous and return a short complete response only when
+the panel asset is ready.
 
 ### Poll result ownership also matches
 

@@ -392,6 +392,40 @@ This corrects the earlier claim that any 2xx response suffices. The first Ghidra
 export truncated the upload function before this check; live validation exposed
 the missing condition.
 
+### JSON request writes can proceed after zero
+
+Presign and finalize check only whether `esp_http_client_write` returned a
+negative value. Large call/branch pairs are `0x4202688f` / `0x42026892` and
+`0x420275b7` / `0x420275ba`; Standard equivalents are `0x420252df` /
+`0x420252e2` and `0x4202600b` / `0x4202600e`. A zero result goes on to abort
+registration and response-header fetching. These JSON paths do not compare
+written bytes with their declared request-body length or retry an unsent suffix.
+
+The [SDK writer behavior](#host-checked-write-failures-and-framing-length)
+makes this consequential: after accepting a prefix, a later transport zero is
+returned as zero, without the earlier byte count. The client can therefore reach
+header fetching with an empty or incomplete request body. This is not evidence
+that a server parsed the request, started generation or received any particular
+number of bytes. A server waiting for the remaining body and a client waiting for
+response headers can instead end in a timeout.
+
+Four isolated SDK/reconstructed-caller cases were run at both configured timeouts
+(30,000 and 600,000 ms), for **eight checks**:
+
+| Scripted transport result for a 14-byte synthetic JSON body | Caller result |
+| --- | --- |
+| Zero immediately | Zero bytes accepted; proceeds to header-fetch branch |
+| Five bytes, then zero | Five bytes accepted; proceeds to header-fetch branch |
+| Five bytes, then −1 | Five bytes accepted; closes without header fetch |
+| Five bytes, then nine | Full body accepted; proceeds normally |
+
+All passed with compiler warnings treated as errors and address/undefined-behavior
+sanitizers. The fixture uses the unchanged, previously pinned SDK writer and
+reconstructs only the caller's write-result branch. It performs no HTTP-header
+exchange, socket/TLS operation, real wait or device test. A backend must validate
+the complete JSON request before starting work; custom firmware should require
+the full request count and use an explicit operation deadline.
+
 ## Finalize
 
 `0x42027380` sends:
@@ -434,6 +468,12 @@ this successful path; `202` and a job ID do not queue work on the frame.
 Other server fields such as `upload_public_id` do not establish firmware-level
 job identity or display confirmation.
 
+More precisely, successful parsing requires a **string-valued** `presigned_url`,
+not a nonempty or syntactically valid URL. The parser ignores `success` and
+`message`. An empty URL or `success:false` can still reach its success return;
+that does not make the subsequent download usable. The response fixture below
+separates these parser rules from actual delivery.
+
 The upload worker at `0x42010108` does not inspect the copied status string.
 After successful finalize and a cancellation check, it copies only the URL into
 the shared result and signals success. GNU instructions at `0x42010428`–
@@ -467,6 +507,37 @@ presigned URL” describe its fixed workflow labels, not services used by this t
 Hold finalize until the panel asset is ready. Align reverse-proxy timeouts with
 the long request. Persist the job and deduplicate finalize calls so a retry does
 not pay for another generation or create duplicate library entries.
+
+### Finalize response fields and host parser checks
+
+The output record has a 1,536-byte URL at offset `0x000`, a 64-byte status string
+at `0x600`, and a 32-bit header-time measurement at `0x640`, totaling 1,604 bytes.
+Copies take at most 1,535 and 63 bytes, then terminate. Missing or non-string
+status becomes `completed`; string status is copied without checking its meaning.
+
+Eight host groups use the pinned cJSON 1.7.18 source and reconstructed successful
+HTTP-200 parsing/copying instructions:
+
+| Input group | Result |
+| --- | --- |
+| Missing/non-string URL, non-object root or malformed JSON | Rejects; the result record remains unchanged |
+| Empty URL with `success:false` | Parser succeeds with empty URL and default status |
+| Missing, null or numeric status | Defaults to `completed` |
+| `status:"processing"` with a URL; processing/job ID without a URL | First parses successfully, second rejects; neither creates a queued-job protocol |
+| Case-varied duplicate fields | First case-insensitive match wins; invalid first URL prevents using a later valid duplicate |
+| Escaped NUL within URL/status | C-string copies retain only the prefix before the decoded NUL |
+| Overlong URL/status | Silently truncates to 1,535/63 bytes |
+| Complete JSON followed by extra text | Accepts the complete prefix |
+
+All groups passed with compiler warnings treated as errors and
+address/undefined-behavior sanitizers. cJSON source/header SHA-256 values are
+`75c51de8fa40ac9d7a99319c6330719bd692eb81c0a869265f3d4c682533f9b9` and
+`0578cc29132912edbc88f83207a8fc76e5db3db0605497e909a9384ef3cc474b`.
+These are host checks of a reconstruction, not execution of Xtensa firmware,
+HTTP-status handling, allocation faults or physical malformed responses.
+The [complete two-build application comparison](standard-model-comparison.md#presign-and-finalize-application-paths-also-match)
+supports the same field/copy branches on Standard; it does not count these groups
+again as a second fixture run.
 
 ### Body completeness and timeout scope
 
