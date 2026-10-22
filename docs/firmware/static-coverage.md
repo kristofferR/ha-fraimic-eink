@@ -14,7 +14,7 @@ the firmware has been exhaustively analyzed**.
 | --- | --- | --- |
 | Microphone DMA sizing, ring, receive callback, overflow and buffer lifetime | Complete for the stated boundaries | [Producer analysis](microphone-dma.md), [15 cases per build](microphone-producer-cases.json) |
 | GDMA interrupt dispatch and error-handler path | Complete for the stated boundaries | [EOF flags, callback masks and hardware start wait](microphone-dma.md#interrupt-flags-do-not-reach-the-saved-recording), [13 cases per build](microphone-interrupt-cases.json) |
-| Model-specific initialization and excluded allocators/drivers | In progress | [First ten-root audit](initialization-helpers.md): portal/display/connectivity/I2C/instruction/config/abort, PSRAM, microphone and battery boundaries; continue remaining driver dependencies |
+| Model-specific initialization and excluded allocators/drivers | In progress | [Helper and driver audit](initialization-helpers.md): ten initial roots, Large PMIC/expander/SPI and both LED initializers; [38 additional driver cases](driver-initialization-cases.json); continue dependencies found by the census |
 | Application function and callback coverage census | In progress | Reconcile fresh Ghidra entries, byte-checked CFGs, earlier disassembly and documented roles; prioritize actual gaps |
 | Remaining reachable application gaps found by that census | Pending | Name each bounded question and its evidence before closing it |
 

@@ -97,7 +97,73 @@ initialization. Large does not contain those extra GPIO steps in this helper.
 This is a firmware-behavior comparison, not diagnosis of the physical battery
 or permission to change power settings.
 
-## Validation scope
+## Large PMIC readiness precedes expander success
+
+Large's PMIC initializer `0x42021264` checks the communication I2C helper, then
+sets its own ready byte at `0x3fca75d9` **before** calling TCA9534 initialization
+at `0x42021a1c`. The TCA9534 routine sets its own byte at `0x3fca75db`, writes
+configuration register 3 with value 4, clears its cached output byte, then writes
+output register 1 with value 0. Either write failure clears the TCA9534 ready
+byte and returns the error. The PMIC initializer propagates that error without
+clearing its own ready byte.
+
+Executing both original bodies with either write failing therefore leaves
+**PMIC ready and expander not ready**. A second PMIC initialization returns zero
+without retrying the expander. Failure of the earlier I2C helper does not latch
+PMIC ready. These distinctions matter for any future recovery mechanism; a
+nonnull handle or initialized flag is not a hardware-health acknowledgement.
+
+PMIC configuration at `0x420212dc` skips initialization when its ready byte is
+already set. It then performs 17 ordered writes, starting at registers
+`1, 5, 9, 3, 7, 11, 13, 15, 17, 19, 20, 21, 22, 24, 26, 27, 28`, stopping at
+the first returned error. Cases cover failure at each write and success while
+the expander remains uninitialized. This establishes the local failure path,
+not a physical occurrence or the absence of every other recovery path.
+
+The separate helper at `0x42021694` converts five bytes obtained from the panel
+into cached voltage-configuration records through `0x4202151c`. It updates RAM;
+it is not itself a write to the panel's OTP. Configuration is subsequently sent
+through the PMIC write routine.
+
+## Large SPI failure retains partially initialized resources
+
+Large's SPI initializer `0x42022140` configures GPIOs, initializes host 1 and
+adds two SPI devices. Bus-init and device-add errors exit the routine. Preparatory
+GPIO errors and a MISO pull configuration error are logged or ignored without
+preventing the subsequent setup stages.
+
+If the second device fails, the first device handle remains at `0x3fca7648`
+while initialized byte `0x3fca75dc` remains false. There is no device-remove or
+bus-free call in this failure path. A synthetic retry in which bus initialization
+reports already initialized exits before another device-add attempt. This
+case models that SDK result; it does not execute the SDK bus registry.
+
+Success stores the first device as the active handle at `0x3fca75e0`, retains
+the second at `0x3fca75e4` and latches ready. A later call skips setup. These
+findings are Large-specific and do not imply compatible Standard hardware.
+
+## LED initialization can announce completion without a worker
+
+Large `0x42022d6c` / Standard `0x4202181c` use fatal SDK checks for PWM timer
+and channel setup. The cases stop at that handler. Other failures are handled
+differently: an unexpected fade-service installation error is logged, mutex
+allocation is stored without a null check, and the LED task-creation result is
+ignored. The final initialization message still executes for each of those
+three injected failures.
+
+The worker request is 4,096 stack bytes, priority 5, core 1. Mutex slots are
+Large `0x3fca7660` / Standard `0x3fca76b8`. A success log therefore does not prove
+the mutex or worker exists. This is distinct from the
+[runtime LED state's own guards](led-and-workflow-state.md), and does not
+establish how a physical LED looked during any previous operation.
+
+[Driver instruction cases](driver-initialization-cases.json) cover 32 Large
+and six Standard scenarios. Five Large bodies contain 830 decoded instructions;
+the shared LED initializer contains 179 per build. The cases execute 787 Large
+and 160 Standard distinct sites. GPIO, peripheral, allocation and task outcomes
+are synthetic; no hardware initialization or induced device fault occurred.
+
+## First helper-pass validation scope
 
 [Numeric evidence](initializer-cases.json) records eight corresponding helper
 pairs totaling 565 instructions per build. Seven pairs match normalized

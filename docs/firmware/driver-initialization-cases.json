@@ -1,0 +1,378 @@
+{
+  "evidence": "Original decoded instructions with synthetic peripheral, heap and RTOS results; no device I/O.",
+  "models": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "pmic",
+          "entry": "0x42021264",
+          "instructions": 44,
+          "sha256": "a24710e4477fbaada3dfb5585b54e2ed8ea3f7670a9d588a882c16b48d83f54c"
+        },
+        {
+          "name": "pmic-config",
+          "entry": "0x420212dc",
+          "instructions": 218,
+          "sha256": "9f257a515d1ecd07d718232177da2c7d7580006ca8095e2e79357c3236e2679e"
+        },
+        {
+          "name": "expander",
+          "entry": "0x42021a1c",
+          "instructions": 70,
+          "sha256": "437defc6621f5be3a5003d92ea00099b6250973b293b48ab268449b94cf63149"
+        },
+        {
+          "name": "spi",
+          "entry": "0x42022140",
+          "instructions": 319,
+          "sha256": "1e074f22c5ae57e6b18cfbeabf4acbb64bc88555622a348a52855c6d36229304"
+        },
+        {
+          "name": "led",
+          "entry": "0x42022d6c",
+          "instructions": 179,
+          "sha256": "6881ad2f72fe5a9c6b1e72f9ea105cfcf4310d80e87eac11add0fad06acb9db5"
+        }
+      ],
+      "executed_instruction_sites": 787,
+      "results": [
+        {
+          "name": "pmic-expander-failure-0-repeat",
+          "passed": true,
+          "injected_write": null,
+          "pmic_ready": true,
+          "expander_ready": true,
+          "second_init_result": 0,
+          "register_writes": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "name": "pmic-expander-failure-1-repeat",
+          "passed": true,
+          "injected_write": 1,
+          "pmic_ready": true,
+          "expander_ready": false,
+          "second_init_result": 0,
+          "register_writes": [
+            [
+              3,
+              4
+            ]
+          ]
+        },
+        {
+          "name": "pmic-expander-failure-2-repeat",
+          "passed": true,
+          "injected_write": 2,
+          "pmic_ready": true,
+          "expander_ready": false,
+          "second_init_result": 0,
+          "register_writes": [
+            [
+              3,
+              4
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "name": "pmic-i2c-unavailable-does-not-latch-ready",
+          "passed": true,
+          "result": 259
+        },
+        {
+          "name": "pmic-config-stop-at-write-0",
+          "passed": true,
+          "result": 0,
+          "write_count": 17,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-1",
+          "passed": true,
+          "result": 263,
+          "write_count": 1,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-2",
+          "passed": true,
+          "result": 263,
+          "write_count": 2,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-3",
+          "passed": true,
+          "result": 263,
+          "write_count": 3,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-4",
+          "passed": true,
+          "result": 263,
+          "write_count": 4,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-5",
+          "passed": true,
+          "result": 263,
+          "write_count": 5,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-6",
+          "passed": true,
+          "result": 263,
+          "write_count": 6,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-7",
+          "passed": true,
+          "result": 263,
+          "write_count": 7,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-8",
+          "passed": true,
+          "result": 263,
+          "write_count": 8,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-9",
+          "passed": true,
+          "result": 263,
+          "write_count": 9,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-10",
+          "passed": true,
+          "result": 263,
+          "write_count": 10,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-11",
+          "passed": true,
+          "result": 263,
+          "write_count": 11,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-12",
+          "passed": true,
+          "result": 263,
+          "write_count": 12,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-13",
+          "passed": true,
+          "result": 263,
+          "write_count": 13,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-14",
+          "passed": true,
+          "result": 263,
+          "write_count": 14,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-15",
+          "passed": true,
+          "result": 263,
+          "write_count": 15,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-16",
+          "passed": true,
+          "result": 263,
+          "write_count": 16,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "pmic-config-stop-at-write-17",
+          "passed": true,
+          "result": 263,
+          "write_count": 17,
+          "expander_reinitialized": false
+        },
+        {
+          "name": "spi-bus-failure",
+          "passed": true,
+          "bus_calls": 1,
+          "device_calls": 0,
+          "ready": false,
+          "gpio_errors_ignored": true,
+          "first_device_retained": false
+        },
+        {
+          "name": "spi-first-device-failure",
+          "passed": true,
+          "bus_calls": 1,
+          "device_calls": 1,
+          "ready": false,
+          "gpio_errors_ignored": true,
+          "first_device_retained": false
+        },
+        {
+          "name": "spi-second-device-failure",
+          "passed": true,
+          "bus_calls": 2,
+          "device_calls": 2,
+          "ready": false,
+          "gpio_errors_ignored": true,
+          "first_device_retained": true
+        },
+        {
+          "name": "spi-none-failure",
+          "passed": true,
+          "bus_calls": 1,
+          "device_calls": 2,
+          "ready": true,
+          "gpio_errors_ignored": true,
+          "first_device_retained": false
+        },
+        {
+          "name": "led-none-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        },
+        {
+          "name": "led-timer-failure",
+          "passed": true,
+          "channel_calls": 0,
+          "task_calls": 0,
+          "fatal_boundary": true,
+          "completed_initialization_log": false
+        },
+        {
+          "name": "led-channel-failure",
+          "passed": true,
+          "channel_calls": 2,
+          "task_calls": 0,
+          "fatal_boundary": true,
+          "completed_initialization_log": false
+        },
+        {
+          "name": "led-fade-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        },
+        {
+          "name": "led-mutex-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        },
+        {
+          "name": "led-task-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "led",
+          "entry": "0x4202181c",
+          "instructions": 179,
+          "sha256": "782638c178b82409d9d583c34d0f5882308be082113bbbc91603e6b509eac698"
+        }
+      ],
+      "executed_instruction_sites": 160,
+      "results": [
+        {
+          "name": "led-none-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        },
+        {
+          "name": "led-timer-failure",
+          "passed": true,
+          "channel_calls": 0,
+          "task_calls": 0,
+          "fatal_boundary": true,
+          "completed_initialization_log": false
+        },
+        {
+          "name": "led-channel-failure",
+          "passed": true,
+          "channel_calls": 2,
+          "task_calls": 0,
+          "fatal_boundary": true,
+          "completed_initialization_log": false
+        },
+        {
+          "name": "led-fade-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        },
+        {
+          "name": "led-mutex-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        },
+        {
+          "name": "led-task-failure",
+          "passed": true,
+          "channel_calls": 3,
+          "task_calls": 1,
+          "fatal_boundary": false,
+          "completed_initialization_log": true
+        }
+      ]
+    }
+  ],
+  "fixture_sha256": "c7aa5be66e1b71f75dcf11ac75b1f14e2f45a28a1a3cede83c358944e73b9b18",
+  "limits": [
+    "Peripheral results, heap allocations, RTOS task creation and retries use explicit synthetic models. No hardware was touched.",
+    "The SPI retry case injects an already-initialized bus result; it does not execute the SDK bus registry or establish every possible application recovery path.",
+    "The LED fatal cases stop at the SDK error-check handler. No physical panic/reset or LED outcome is claimed.",
+    "Large PMIC/SPI findings apply only to that model. Standard has a different display driver.",
+    "The PMIC config cases begin with the PMIC ready flag set and expander ready flag clear, the inconsistent state reached by the separately executed PMIC failure cases."
+  ]
+}
