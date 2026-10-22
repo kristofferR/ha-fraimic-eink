@@ -120,6 +120,56 @@ unique instructions with bytes checked against the pinned image, resolve both
 cases. Matching consumer roles support a shared stock-protocol adapter; they do
 not prove every consumer body, TLS configuration or indirect path equivalent.
 
+### Destination coverage and remaining indirect-call limits
+
+The two saved inventories reconcile **all 22 identified constructor sites**,
+eleven per build, to the same eleven roles and URL-source classes. No identified
+direct constructor site remains without a classified destination source. The
+following separates an unresolved runtime value from an unexamined call:
+
+| Client role | Established source | Remaining coverage limit |
+| --- | --- | --- |
+| System-image metadata | API selector, `/api/v1/upload/global/<model>/<screen>` | The later image URL comes from its response, not a fixed storage host |
+| Account setup | API selector, `/api/v1/account/setup` | Automatic redirects can change destination and preserve submitted credentials |
+| Poll | API selector, `/api/v1/upload/check/<key>` | Automatic redirects and returned image/firmware URLs remain response-controlled |
+| Audio presign | API selector, `/api/v1/upload/audio/presign` | The multipart destination is a separate response field |
+| Audio finalize | API selector, `/api/v1/upload/audio/finalize` | The returned panel URL is a separate destination; status text does not select an asynchronous API |
+| Album proxy | API selector, album paths transformed by the local proxy | Path/query/body behavior is mapped; arbitrary backend album semantics are not established |
+| Email verification | Auth selector, `/auth/v1/token?grant_type=password` | Separate create-account worker and automatic redirects; not needed by the examined sign-in branch |
+| Common image downloader | Caller URL from poll, setup metadata or voice finalize | Runtime hostnames are not enumerable from literals; recovered manual downloader rejects redirect status |
+| Multipart audio upload | Presign response `url` | Runtime host, port and scheme are server-provided; manual upload is not browser redirect handling |
+| Direct firmware updater | Pending poll firmware URL queued in RAM | A previously queued offer is not revoked by an empty poll; no new OTA experiment is implied |
+| Older firmware updater | Validated URL loaded from the saved NVS manifest | Installed value and the historical writer are unknown; no current queue-to-manifest writer was recovered |
+
+For the selectors themselves, the known direct references and exact serialized
+pointer searches are exhausted. For the eleven constructors, the bounded GNU
+checks resolve the raw call-scan candidates, including the Standard false match
+and the genuine multipart call missing from Ghidra's references. **Neither search
+proves whole-program absence of computed function pointers, runtime-written
+configuration or a separately implemented socket client.** There is no specific
+remaining direct constructor awaiting a guessed URL; the remaining indirect
+uncertainty is this search-method limit.
+
+The unreferenced legacy LAN/manifest literals likewise retain a precise negative
+result: no recovered reference or exact pointer occurrence. They do not identify
+an active service to redirect or probe. The
+[legacy updater trace](ota-and-recovery.md#legacy-manifest-and-retained-bookkeeping)
+establishes the saved-manifest input but cannot supply an installed NVS value.
+
+The bounded replacement inventory is therefore: the selected API origin, every
+storage URL the replacement backend deliberately returns, the separate auth flow
+if create-account is supported, and DNS/time/reachability dependencies already
+listed. Dashboard/account/policy links are browser navigation; the audited setup
+scripts use local routes. Dynamic DHCP/DNS answers and server-returned URLs are
+configuration/response inputs, not additional fixed domains discovered by a
+literal scan. Use direct local responses and local asset URLs; do not infer that
+blocking or replacing only the API hostname establishes offline operation.
+
+This closes C01's bounded inventory/coverage question. WAN-free boot, resolver
+failure, time-service recovery and physical traffic completeness retain their
+own criteria in S01/S02/N01–N04. No new packet capture, NVS read, firmware update
+or network change was performed for this reconciliation.
+
 ## Poll
 
 The [saved-schema comparison](schema-and-client-contract.md) distinguishes

@@ -2397,3 +2397,22 @@ until a selected extension exists and recovery prerequisites are established.
 | Private `finalize-parser-cli.c` | `9a7958f2eb8a1e883f1849fd27f5a9dcc56187de8cd8213ff49ff889ef71f8fa` |
 | Extracted `finalize-parser-core.inc` | `a299027797968f1e21392446616351c225251595d587b42798b996d19d66dfc4` |
 | Private `extension-examples.results.json` | `ae6cde5c4f1f433a99f8c7ce0c013ea5ae453148c8bdcf11a0d0bc8a506f1a92` |
+
+## Destination-inventory reconciliation: C01
+
+The two existing hash-pinned [Large](outbound-dependencies.json) and
+[Standard](standard-outbound-dependencies.json) inventories were reconciled by
+role, constructor-site uniqueness and URL source. Each has eleven distinct
+identified constructors; all eleven roles have matching classified sources.
+There are no unclassified identified direct constructor sites.
+
+The new [coverage ledger](cloud-protocol.md#destination-coverage-and-remaining-indirect-call-limits)
+records the remaining uncertainty per role: dynamic returned URLs, redirects,
+installed legacy-manifest values, and the limits of direct-call/reference/exact-
+pointer searches. It retains the negative evidence for the legacy literals and
+does not claim whole-program computed-call exclusion, all boot-state traffic or
+offline operation. The earlier paired GNU checks remain the binary evidence;
+this pass is an evidence reconciliation, not a new binary execution or fault test.
+
+C01's bounded inventory question is complete. No device/network operation, NVS
+read or OTA work was performed, and deferred R12 was not resumed.

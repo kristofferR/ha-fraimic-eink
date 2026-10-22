@@ -9,25 +9,27 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**8 of 67 original items complete; 102 of 182 concrete milestones complete.**
+**9 of 67 original items complete; 103 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
-| Complete | 8 | Original bounded question answered; evidence linked below |
-| Research | 17 | Concrete static, host or design work remains available |
+| Complete | 9 | Original bounded question answered; evidence linked below |
+| Research | 16 | Concrete static, host or design work remains available |
 | Waiting for device | 17 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
 | Ongoing | 2 | Evidence discipline applied to relevant findings/builds, not a finite feature |
 
-Completed original items: **C05, C09, C10, A01, A05, R11, H07, E03**. The reconciliation closed
+Completed original items: **C01, C05, C09, C10, A01, A05, R11, H07, E03**. The reconciliation closed
 C05, C10, R11 and E03 from evidence already gathered; it adds no new device tests.
 The latest 31 finalize cases are recorded under C07, whose end-to-end physical
 timeout criterion remains unchecked.
 A05 subsequently closed with the deployment comparison and 24 isolated boundary
 checks; production bridge/job implementation remains A02–A04.
+C01 subsequently closed with all identified constructor destinations classified
+and explicit remaining indirect-search limits; offline operation is not claimed.
 
 ## How to use this list
 
@@ -63,8 +65,8 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with C01's remaining
-destination coverage or A07's concrete feature proposal. A06's compatibility
+For the owner's local-cloud/voice priorities, continue with A07's concrete
+feature proposal or the remaining host fault cases under D04/E01. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
 remain deferred. A02–A04 and A03's final integration check need implementation;
@@ -74,15 +76,15 @@ Commit and push validated research batches periodically as requested.
 
 ## Local cloud and voice
 
-- [ ] **C01 · Static/Host:** Audit every consumer of the API, web and auth selectors,
+- [x] **C01 · Static/Host:** Audit every consumer of the API, web and auth selectors,
   redirects and server-supplied URLs. Establish the full hostname/dependency set
   an already-paired local backend must replace.
 
-  Status: **Research**.
+  Status: **Complete**.
 
   - [x] **Static:** Inventory eleven client-constructor sites, thirteen selector calls, literal hosts, returned URLs and non-HTTP dependencies on both builds. [Inventory](cloud-protocol.md#outbound-client-and-url-inventory).
   - [x] **Static/Host:** Trace redirects, request encoding, local-name resolution and first-address behavior, with bounded SDK fixtures. [URL behavior](cloud-protocol.md#redirect-url-handling-differs-from-a-browser), [DNS](boot-and-scheduling.md#outbound-local-names-and-blocking-resolution).
-  - [ ] **Next:** **Static:** Resolve the remaining computed/indirect client destinations, or explicitly document the coverage limit of each unresolved call. Actual WAN-free operation belongs to S01/S02; it is not another inventory milestone.
+  - [x] **Static/Read:** Reconcile every identified constructor to a URL source in both builds; explicitly bound dynamic response/NVS values, legacy literals and computed-call search limits. No unclassified direct constructor remains; WAN-free operation is separate. [Coverage ledger](cloud-protocol.md#destination-coverage-and-remaining-indirect-call-limits).
 
 - [ ] **C02 · Host/Device:** Validate poll parser behavior for settings snapshots,
   missing/invalid fields, schedule clearing and persistence failures. Trace which
