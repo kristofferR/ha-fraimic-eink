@@ -106,4 +106,7 @@ names match the [ESP32-S3 SDK bindings](https://github.com/espressif/esp-idf/blo
 The binary search wrapper itself executes; its lower bounded byte search is
 modeled. No claim is made about every malformed multipart form, socket teardown,
 actual heap failure, cache durability, physical display, or the cause of the
-earlier persistent failure. SDK request cleanup is a separate boundary.
+earlier persistent failure. The subsequent [SDK cleanup trace](local-api.md#unread-bodies-are-drained-after-some-error-responses)
+establishes that a zero-returning handler can be followed by a 32-byte-per-read
+drain of the declared remainder; a failed drain closes that session. This remains
+separate from actual socket timing and the historical persistent failure.

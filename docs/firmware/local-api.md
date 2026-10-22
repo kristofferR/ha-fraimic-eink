@@ -197,6 +197,57 @@ device operations and avoid overlapping diagnostic polls with large uploads.
 Background voice/display tasks remain separate and can still contend for the
 shared image buffer.
 
+### Unread bodies are drained after some error responses
+
+An HTTP error status does not itself tell ESP-IDF to close the connection.
+Both builds propagate the URI handler's **return value** through request/session
+processing. If it is zero, the server runs unread-body cleanup before returning
+to its socket loop. A nonzero handler return instead cleans the request and
+closes that session without this drain.
+
+The actual purge routine (`0x42070370` Large / `0x4206f968` Standard) receives at
+most **32 bytes per iteration** until the remaining-length field reaches zero.
+A nonpositive receive result, including timeout or EOF, ends the drain and causes
+that socket to close. Positive short reads continue; there is no whole-drain
+deadline in this routine. The receive wrapper subtracts only nonnegative returned
+byte counts. On failure, the session-delete path closes the socket, marks its slot
+free and decreases the active-client count; it does not stop the entire server.
+
+| Response/handler outcome | After the handler |
+| --- | --- |
+| Raw unsupported-type error successfully sent; handler returns zero | Drain any unread body, despite HTTP 501 |
+| HTTP 500 sent but handler returns zero | Same drain rule |
+| Handler returns failure, regardless of HTTP status | Clean request and close socket, no purge loop |
+| Purge reads all remaining bytes | Clean request and retain session for reuse |
+| Purge times out or encounters EOF | Clean request and close only that session |
+| Multipart accepted an incomplete body and returned zero | Purge the declared remainder after the HTML response |
+
+Thus a rejected raw upload can still occupy the sole HTTP task after its error
+response. Draining an entirely unread 2,304,000-byte body requires at least
+72,000 successful reads with this 32-byte cap; 960,000 bytes requires 30,000.
+These are arithmetic bounds on call count, not measured transfer time. If the
+sender stops instead, a receive failure ends the drain. An early response does
+not guarantee that unrelated controls can be serviced immediately.
+
+This refines the upload comment in [`api.py`](../../custom_components/fraimic/api.py):
+the raw **handler** rejects without reading, but SDK cleanup can drain afterward.
+It provides a bounded mechanism for temporary blocking, not proof of the cause
+of the historical persistent upload failure or a reason to restart automatically.
+
+Nine complete function pairs, **389 instructions per build**, match normalized
+operations and internal branches. They cover parser-to-URI return propagation,
+request/session lifecycle, receive/purge and dispatch-to-close. The structure
+also agrees with [SDK request cleanup](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_http_server/src/httpd_parse.c)
+and [session processing](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_http_server/src/httpd_sess.c).
+Twenty-four [instruction cases](http-purge-cases.json), twelve per build, exercise
+seven of those bodies and 221 distinct instructions each. Parser/handler returns,
+HTTP status, initializers, lower socket I/O, events, context destruction and close
+are modeled. No wall-clock timing, live socket failure or persistent stall was
+measured. Registered ordinary handlers still run synchronously; the checked
+asynchronous-session skip branch does not mean these uploads use that API.
+
+### Registration failures
+
 Registration comprises 25 portal routes, six account/configuration routes, one
 battery route and ten integration API routes: 42 entries in 43 available slots.
 There is no common transactional registration check:

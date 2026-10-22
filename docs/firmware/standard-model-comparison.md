@@ -1282,6 +1282,13 @@ and produces a capacity error. Both can render after incomplete reception and
 return HTTP 200 for a render-start failure. Thirty host cases establish those
 branches without identifying the historical persistent upload failure's cause.
 
+The [post-handler SDK cleanup](local-api.md#unread-bodies-are-drained-after-some-error-responses)
+matches across nine function pairs and 389 instructions per build. Both drain
+unread bytes in at most 32-byte reads after a zero handler return, even following
+an HTTP error, and close only the affected session on handler/purge failure.
+Twenty-four bounded instruction cases check these paths; actual socket timing
+and the historical persistent failure remain separate.
+
 Static power differences also matter: the Standard voltage getter returns the
 gauge reading without Large's doubling and has an ADC fallback. Large's examined
 path doubles the gauge result and returns zero on gauge failure. Post-update

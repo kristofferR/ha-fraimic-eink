@@ -1,0 +1,731 @@
+{
+  "method": "Byte-checked SDK dispatch, request/session lifecycle and purge/receive instructions",
+  "limits": "Parser/URI-handler outcome and sent HTTP status, request initializers, lower socket receives, event dispatch, context destruction and socket close are modeled. No real sockets, timing, task scheduling or reproduction of persistent upload failure.",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "functions": [
+        {
+          "name": "session",
+          "entry": "0x42070a7c",
+          "instructions": 35,
+          "sha256": "56a4d4460e48168b4387ead70035edab3ffe93f24d263dbbe2cf19dd1683e6df"
+        },
+        {
+          "name": "new",
+          "entry": "0x42070318",
+          "instructions": 34,
+          "sha256": "cb52ed19987e497ebc73ce3938b8b071c95e3618ee9436e6ba7045764cedd4e3"
+        },
+        {
+          "name": "purge",
+          "entry": "0x42070370",
+          "instructions": 22,
+          "sha256": "0ce88495bace339c94b49dd96adefb7f298d67d93f34af392ee84e63039af9fc"
+        },
+        {
+          "name": "recv",
+          "entry": "0x420711fc",
+          "instructions": 36,
+          "sha256": "a820d045f513d98ec7ec0c476b9a3654262950c70b58b9ad78c1e37cac50ad40"
+        },
+        {
+          "name": "cleanup",
+          "entry": "0x420702d4",
+          "instructions": 29,
+          "sha256": "8fb39ff14034eb92255a9e18d918dbe2544d5cedce8f6c69abdbdf2e52172d89"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x4206f0c4",
+          "instructions": 47,
+          "sha256": "d2e17cf025cd9a945b92efbb9d20c5b130645889b6aa27a0ad6789330cb309c3"
+        },
+        {
+          "name": "delete",
+          "entry": "0x42070798",
+          "instructions": 60,
+          "sha256": "94f95fa7226412bc07e9731da19caed62f19fb96190a4cf2bb337c8418e17019"
+        }
+      ],
+      "distinct_instructions": 221,
+      "cases": [
+        {
+          "name": "http-501-handler-success-drains",
+          "sent_http_status": 501,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 501,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 1,
+              "result": 1
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "http-500-handler-success-drains",
+          "sent_http_status": 500,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 500,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 1,
+              "result": 1
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "http-200-handler-failure-closes-without-purge",
+          "sent_http_status": 200,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 200,
+              "returned_failure": true,
+              "remaining": 65
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "http-400-handler-failure-closes-without-purge",
+          "sent_http_status": 400,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 400,
+              "returned_failure": true,
+              "remaining": 65
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-first-timeout-closes",
+          "sent_http_status": 501,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 501,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": -3
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-progress-then-timeout-closes",
+          "sent_http_status": 408,
+          "socket_closed": true,
+          "remaining_bytes": 33,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 408,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": -3
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-eof-closes",
+          "sent_http_status": 200,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 200,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 0
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-small-positive-reads-continue",
+          "sent_http_status": 501,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 501,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 1
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 7
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 9
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 16,
+              "result": 16
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "complete-body-keeps-session",
+          "sent_http_status": 200,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 200,
+              "returned_failure": false,
+              "remaining": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "last-session-failure-resets-lru",
+          "sent_http_status": 400,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 0,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 400,
+              "returned_failure": true,
+              "remaining": 65
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "unready-session-skipped",
+          "sent_http_status": null,
+          "socket_closed": false,
+          "remaining_bytes": null,
+          "active_sessions": 2,
+          "events": [],
+          "passed": true
+        },
+        {
+          "name": "async-session-skipped",
+          "sent_http_status": null,
+          "socket_closed": false,
+          "remaining_bytes": null,
+          "active_sessions": 2,
+          "events": [],
+          "passed": true
+        }
+      ]
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "functions": [
+        {
+          "name": "session",
+          "entry": "0x42070074",
+          "instructions": 35,
+          "sha256": "08b2e6608757db910dfb66d83fc1cb8960d28601a524b552dfbab7cf6d42eefc"
+        },
+        {
+          "name": "new",
+          "entry": "0x4206f910",
+          "instructions": 34,
+          "sha256": "7d250283fe16e19007ec090327a7e283d5e3233a87d48202f423c9d663fb7e9b"
+        },
+        {
+          "name": "purge",
+          "entry": "0x4206f968",
+          "instructions": 22,
+          "sha256": "eda47914492d56fa3e316f448c3e7abf0e4b7ebb3cb3d5224836767be6d54139"
+        },
+        {
+          "name": "recv",
+          "entry": "0x420707f4",
+          "instructions": 36,
+          "sha256": "05a4b3ca82bc49d08e318d62aefb11667eb23cede85f0ff0ece0623a1eee1b07"
+        },
+        {
+          "name": "cleanup",
+          "entry": "0x4206f8cc",
+          "instructions": 29,
+          "sha256": "981aa1d66a7c73da31853a175f0ae0879f4dbb4187f8aa545f0f8883f25bbf58"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x4206e6bc",
+          "instructions": 47,
+          "sha256": "39f385d5c3c31175d1b2358ad97aedf5bc1c0375ae5fb3fdc2a3cb2bd2bced33"
+        },
+        {
+          "name": "delete",
+          "entry": "0x4206fd90",
+          "instructions": 60,
+          "sha256": "37976c4802846ab18de385ab551fc372346fe90ed96a8785cf85310f62f5da40"
+        }
+      ],
+      "distinct_instructions": 221,
+      "cases": [
+        {
+          "name": "http-501-handler-success-drains",
+          "sent_http_status": 501,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 501,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 1,
+              "result": 1
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "http-500-handler-success-drains",
+          "sent_http_status": 500,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 500,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 1,
+              "result": 1
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "http-200-handler-failure-closes-without-purge",
+          "sent_http_status": 200,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 200,
+              "returned_failure": true,
+              "remaining": 65
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "http-400-handler-failure-closes-without-purge",
+          "sent_http_status": 400,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 400,
+              "returned_failure": true,
+              "remaining": 65
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-first-timeout-closes",
+          "sent_http_status": 501,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 501,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": -3
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-progress-then-timeout-closes",
+          "sent_http_status": 408,
+          "socket_closed": true,
+          "remaining_bytes": 33,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 408,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": -3
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-eof-closes",
+          "sent_http_status": 200,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 1,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 200,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 0
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "purge-small-positive-reads-continue",
+          "sent_http_status": 501,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 501,
+              "returned_failure": false,
+              "remaining": 65
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 1
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 7
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 9
+            },
+            {
+              "event": "purge-read",
+              "requested": 32,
+              "result": 32
+            },
+            {
+              "event": "purge-read",
+              "requested": 16,
+              "result": 16
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "complete-body-keeps-session",
+          "sent_http_status": 200,
+          "socket_closed": false,
+          "remaining_bytes": 0,
+          "active_sessions": 2,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 200,
+              "returned_failure": false,
+              "remaining": 0
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "last-session-failure-resets-lru",
+          "sent_http_status": 400,
+          "socket_closed": true,
+          "remaining_bytes": 65,
+          "active_sessions": 0,
+          "events": [
+            {
+              "event": "handler-return",
+              "sent_http_status": 400,
+              "returned_failure": true,
+              "remaining": 65
+            },
+            {
+              "event": "socket-close",
+              "fd": 7
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "unready-session-skipped",
+          "sent_http_status": null,
+          "socket_closed": false,
+          "remaining_bytes": null,
+          "active_sessions": 2,
+          "events": [],
+          "passed": true
+        },
+        {
+          "name": "async-session-skipped",
+          "sent_http_status": null,
+          "socket_closed": false,
+          "remaining_bytes": null,
+          "active_sessions": 2,
+          "events": [],
+          "passed": true
+        }
+      ]
+    }
+  },
+  "static_comparison": {
+    "sha256": "7f14fbb779d6635b822d5ef3538c40adb0cfdeca9cabf1561ad22119b40a67d0",
+    "functions": [
+      {
+        "name": "parse",
+        "large": "0x4207025c",
+        "standard": "0x4206f854",
+        "instructions": 46,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "uri",
+        "large": "0x420715a0",
+        "standard": "0x42070b98",
+        "instructions": 80,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "session",
+        "large": "0x42070a7c",
+        "standard": "0x42070074",
+        "instructions": 35,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "new",
+        "large": "0x42070318",
+        "standard": "0x4206f910",
+        "instructions": 34,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "purge",
+        "large": "0x42070370",
+        "standard": "0x4206f968",
+        "instructions": 22,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "recv",
+        "large": "0x420711fc",
+        "standard": "0x420707f4",
+        "instructions": 36,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "cleanup",
+        "large": "0x420702d4",
+        "standard": "0x4206f8cc",
+        "instructions": 29,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "dispatch",
+        "large": "0x4206f0c4",
+        "standard": "0x4206e6bc",
+        "instructions": 47,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "delete",
+        "large": "0x42070798",
+        "standard": "0x4206fd90",
+        "instructions": 60,
+        "normalized_operations_match": true
+      }
+    ],
+    "mapped_direct_call_pairs": 22,
+    "limits": "Pinned image bytes and complete reachable GNU CFGs checked. Operations and branch indices match; external calls and relocated literals are listed separately, not recursively proven equivalent."
+  },
+  "fixture_sha256": "322311837924a7c45319bae2dbbca42825a3b6e30e3ebecac7b5020106dcbc6f"
+}

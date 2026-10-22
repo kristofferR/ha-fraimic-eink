@@ -1087,6 +1087,19 @@
       },
       "evidence": "legacy-upload-cases.json",
       "limits": "Selected byte-checked instructions with modeled I/O, allocator, lower ROM/byte-search/format, state and storage/render outcomes. No physical reproduction or cause established for the historical persistent upload failure."
+    },
+    "http_server_purge": {
+      "compared_function_pairs": 9,
+      "instructions_per_build": 389,
+      "mapped_direct_call_pairs": 22,
+      "maximum_purge_read_bytes": 32,
+      "handler_return_controls_cleanup": true,
+      "http_error_status_alone_forces_close": false,
+      "purge_failure_closes_session": true,
+      "host_cases": 24,
+      "executed_distinct_instructions_per_build": 221,
+      "evidence": "http-purge-cases.json",
+      "limits": "Selected SDK instructions; parser/handler results, HTTP status, initializers, lower I/O, events, context destruction and close modeled. No live timing or cause of historical persistent upload failure established."
     }
   },
   "function_map": [
@@ -2749,6 +2762,51 @@
       "role": "legacy_multipart_bounded_string_search",
       "large": "0x420cf7bc",
       "standard": "0x420cfaa0"
+    },
+    {
+      "role": "http_server_parse",
+      "large": "0x4207025c",
+      "standard": "0x4206f854"
+    },
+    {
+      "role": "http_server_uri",
+      "large": "0x420715a0",
+      "standard": "0x42070b98"
+    },
+    {
+      "role": "http_server_session",
+      "large": "0x42070a7c",
+      "standard": "0x42070074"
+    },
+    {
+      "role": "http_server_new",
+      "large": "0x42070318",
+      "standard": "0x4206f910"
+    },
+    {
+      "role": "http_server_purge",
+      "large": "0x42070370",
+      "standard": "0x4206f968"
+    },
+    {
+      "role": "http_server_recv",
+      "large": "0x420711fc",
+      "standard": "0x420707f4"
+    },
+    {
+      "role": "http_server_cleanup",
+      "large": "0x420702d4",
+      "standard": "0x4206f8cc"
+    },
+    {
+      "role": "http_server_dispatch",
+      "large": "0x4206f0c4",
+      "standard": "0x4206e6bc"
+    },
+    {
+      "role": "http_server_delete",
+      "large": "0x42070798",
+      "standard": "0x4206fd90"
     }
   ],
   "live_standard": {

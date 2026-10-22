@@ -4018,3 +4018,31 @@ network or HA source change occurred. [Findings](multipart-uploads.md) and
 [case evidence](legacy-upload-cases.json) extend existing milestones; totals stay
 **12/67 items and 125/189 milestones**. Fixture SHA-256:
 `8fb898bf14480cff5e9e846a8a1bc2fdbc45b42513f6bb966c24f7f196f89899`.
+
+## HTTP unread-body purge and session cleanup: H05/E01/E02
+
+Nine full GNU function pairs match across the builds: parser and URI propagation,
+new request, session processing, purge, receive, request cleanup, selected-session
+dispatch and session deletion. They total **389 instructions per build**, with
+22 mapped direct-call pairs. The purge's compiled maximum request is 32 bytes;
+HTTP status does not replace the handler return-value check. Read-only Ghidra and
+the matching SDK source corroborate the recovered control flow.
+
+**Twenty-four instruction cases pass**, twelve per build, executing seven of
+those bodies and 221 distinct instructions each. Cases separate HTTP 200/400/500/
+501 status from handler success/failure, successful purge and timeout/EOF after
+zero or positive progress, short reads, empty remainder, last-session counters
+and ready/asynchronous dispatch exclusions. Cleanup clears request/aux linkage;
+session failure marks that socket free and updates the active count.
+
+Parser/handler returns and HTTP status, initializers, lower reads, event dispatch,
+context destruction and close are modeled. No request was sent to a device;
+socket timing, client behavior, complete HTTP parsing, all context/destructor
+paths and the historical persistent upload failure remain outside this fixture.
+The [published contract](local-api.md#unread-bodies-are-drained-after-some-error-responses)
+distinguishes temporary single-task blocking from that unproven cause.
+
+[Case evidence](http-purge-cases.json) contains CFG/comparison hashes and fixture
+SHA-256 `322311837924a7c45319bae2dbbca42825a3b6e30e3ebecac7b5020106dcbc6f`.
+Existing H05/E01/E02 evidence is extended without changing the **12/67 items or
+125/189 milestones**. No device, network, HA source or deployment change occurred.

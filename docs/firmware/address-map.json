@@ -3904,10 +3904,46 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x4207025c",
+      "kind": "function",
+      "role": "HTTP parser entry; propagates URI dispatch outcome",
+      "evidence": "static/host; paired complete GNU body and bounded HTTP purge/session instruction cases"
+    },
+    {
+      "address": "0x420702d4",
+      "kind": "function",
+      "role": "Clear HTTP request links and carry context state back to session",
+      "evidence": "static/host; paired complete GNU body and bounded HTTP purge/session instruction cases"
+    },
+    {
+      "address": "0x42070318",
+      "kind": "function",
+      "role": "Initialize HTTP request and clean it on parser/handler failure",
+      "evidence": "static/host; paired complete GNU body and bounded HTTP purge/session instruction cases"
+    },
+    {
+      "address": "0x42070370",
+      "kind": "function",
+      "role": "Drain unread HTTP body in at most 32-byte receives; fail on nonpositive receive",
+      "evidence": "static/host; paired complete GNU body and bounded HTTP purge/session instruction cases"
+    },
+    {
       "address": "0x420703b0",
       "kind": "function",
       "role": "SDK query lookup: first case-insensitive field, encoded-size limit and truncation status",
       "evidence": "static; 22 October account-form follow-up, GNU and SDK source cross-check"
+    },
+    {
+      "address": "0x42070798",
+      "kind": "function",
+      "role": "Close HTTP session, free its slot and decrease active-client count",
+      "evidence": "static/host; paired complete GNU body and bounded HTTP purge/session instruction cases"
+    },
+    {
+      "address": "0x42070a7c",
+      "kind": "function",
+      "role": "HTTP session process; success requires request execution and purge",
+      "evidence": "static/host; paired complete GNU body and bounded HTTP purge/session instruction cases"
     },
     {
       "address": "0x420711fc",
@@ -3926,6 +3962,12 @@
       "kind": "function",
       "role": "SDK URI registration helper",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x420715a0",
+      "kind": "function",
+      "role": "HTTP URI dispatch; nonzero handler result becomes failure",
+      "evidence": "static/host; paired complete GNU body and bounded HTTP purge/session instruction cases"
     },
     {
       "address": "0x4207174c",
