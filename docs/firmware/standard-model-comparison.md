@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 178 corresponding functions, including the subsequent
+The preserved metadata maps 185 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -439,6 +439,42 @@ the shared field-copying/printing contract; it does not count those cases again,
 test Standard's hardware, or recursively compare the whole JSON parser and
 multipart writer. Both models should receive short, unique ASCII field names,
 a short upload ticket and a stable object key within the byte limit.
+
+### Poll result ownership also matches
+
+Seven function pairs and two foreground caller regions match across 425
+GNU-decoded instructions and 39 branch comparisons, accounting for relocated
+literals/calls and equivalent narrow/move encodings. Standard's 18 bounded
+ranges and the corresponding Large ranges were checked byte-for-byte against
+their pinned apps. This is static comparison, not a new host or device test.
+
+| State / helper | Large | Standard |
+| --- | --- | --- |
+| Result region, 13,744 bytes | `0x3fca8680` | `0x3fca86d8` |
+| Separate ready byte | `0x3fca867c` | `0x3fca86d4` |
+| Semaphore / worker handle | `0x3fcabc30` / `0x3fcabc34` | `0x3fcabc88` / `0x3fcabc8c` |
+| Worker / starter | `0x42025aec` / `0x42025c84` | `0x42024538` / `0x420246d0` |
+| Ready / running getters | `0x42025d84` / `0x42025d90` | `0x420247d4` / `0x420247e0` |
+| Copy / clear helpers | `0x42025da0` / `0x42025e10` | `0x420247f0` / `0x42024860` |
+
+Both workers clear the result region, perform the request with one EAGAIN retry,
+attempt recording interruption for a successful pending result, publish readiness
+and signal the semaphore. They then wait 200 ticks / two seconds before freeing
+the copied argument, clearing the handle and deleting themselves. The ready byte
+is outside the cleared region; neither a new starter nor its worker resets it.
+Copying checks neither readiness nor ownership, and clearing does not join or
+cancel the worker. The located semaphore references cover creation/giving,
+without a recovered foreground take/join.
+
+Standard's two copied `user_settings` consumers also do not parse its members in
+the compared regions. The button path copies at most three URL/settings bytes
+plus NUL and preserves a successful pending result for main. Main retrieves the
+1,536-byte URL / 512-byte settings destinations, calls its image helper, then
+clears the result. These shared signals cannot acknowledge a particular displayed
+image. The [conditional stale-result and late-clear hazards](cloud-protocol.md#poll-completion-is-one-shared-result-not-a-delivery-receipt)
+therefore apply to both builds, without demonstrating a physical race. Complete
+parser/loop equivalence and computed references remain outside this comparison;
+the known dispatcher exclusions still differ as described below.
 
 ### Cancellation ownership and download timeouts also match
 

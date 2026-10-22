@@ -349,6 +349,13 @@ per-image physical-render acknowledgement. A local adapter needs its own durable
 offer/job identity and conservative retry policy; the stock poll response has
 no result-generation token or render receipt to make those signals equivalent.
 
+The [Standard lifecycle comparison](standard-model-comparison.md#poll-result-ownership-also-matches)
+confirms the same result offsets/capacities, separate ready byte, two-second
+post-publication lifetime and non-joining copy/clear behavior. Its compared
+button/main callers likewise copy `user_settings` without applying members.
+Seven function pairs and two caller regions match across 425 instructions;
+this does not extend the result to every parser branch, dispatcher or loop.
+
 ## System and setup screens
 
 ```http

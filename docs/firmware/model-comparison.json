@@ -399,6 +399,46 @@
       "distinct_http_literal_hosts_per_image": 11,
       "matching_recovered_roles_and_hosts": true,
       "scope": "Static inventory only; dynamic returned URL hosts, computed indirect paths and complete offline boot remain outside the result"
+    },
+    "poll_result_lifecycle": {
+      "evidence": "Seven-function and two caller-region static comparison; no new host protocol fixture or physical experiment",
+      "compared_function_pairs": 7,
+      "compared_caller_regions": 2,
+      "compared_instructions_per_image": 425,
+      "compared_branches": 39,
+      "standard_gnu_ranges": 18,
+      "result_clear_bytes": 13744,
+      "url_capacity_bytes": 1536,
+      "settings_capacity_bytes": 2048,
+      "offsets": {
+        "pending": 0,
+        "url": 1,
+        "settings": 1537,
+        "result_code": 3588
+      },
+      "state": {
+        "large_result": "0x3fca8680",
+        "standard_result": "0x3fca86d8",
+        "large_ready": "0x3fca867c",
+        "standard_ready": "0x3fca86d4",
+        "large_semaphore": "0x3fcabc30",
+        "standard_semaphore": "0x3fcabc88",
+        "large_worker_handle": "0x3fcabc34",
+        "standard_worker_handle": "0x3fcabc8c"
+      },
+      "publication_before_worker_cleanup_ticks": 200,
+      "tick_ms": 10,
+      "start_or_worker_clears_ready": false,
+      "result_copy_checks_ready": false,
+      "result_copy_acquires_lock": false,
+      "clear_joins_or_cancels_worker": false,
+      "caller_buffers": {
+        "button_url_bytes": 4,
+        "button_settings_bytes": 4,
+        "main_url_bytes": 1536,
+        "main_settings_bytes": 512
+      },
+      "limitations": "Computed references and runtime interleavings remain untested; does not compare the complete poll parser or foreground loops; dispatcher differences remain documented separately"
     }
   },
   "function_map": [
@@ -1291,6 +1331,41 @@
       "role": "i2s_channel_read",
       "large": "0x4204fbec",
       "standard": "0x4204ecc4"
+    },
+    {
+      "role": "poll_post_result_delay",
+      "large": "0x4202358c",
+      "standard": "0x4202203c"
+    },
+    {
+      "role": "poll_worker",
+      "large": "0x42025aec",
+      "standard": "0x42024538"
+    },
+    {
+      "role": "poll_worker_start",
+      "large": "0x42025c84",
+      "standard": "0x420246d0"
+    },
+    {
+      "role": "poll_result_ready",
+      "large": "0x42025d84",
+      "standard": "0x420247d4"
+    },
+    {
+      "role": "poll_worker_running",
+      "large": "0x42025d90",
+      "standard": "0x420247e0"
+    },
+    {
+      "role": "poll_result_copy",
+      "large": "0x42025da0",
+      "standard": "0x420247f0"
+    },
+    {
+      "role": "poll_result_clear",
+      "large": "0x42025e10",
+      "standard": "0x42024860"
     }
   ],
   "live_standard": {

@@ -41,7 +41,7 @@ per question, not a count of tool calls or decompiled functions.
 | C01/C11/D01 | Setup/verification split and redirects traced; response backing memory, conditional verification/poll guard, duplicate-worker and stale-pointer branches mapped; verification JSON is unescaped | Independent enrollment, controlled response/concurrency faults and remaining boot dependencies |
 | C11/C01/D01 | Thirty enrollment host groups verify minimal parser acceptance, identity/type/duplicate/NUL boundaries and event-dependent overflow that can alter parsed JSON | Physical response variants, persistence, independent enrollment, actual transport event grouping and verification lifecycle |
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
-| C02/C08/D01/D07 | Settings copy consumers rechecked; shared poll result, completion byte, two-second post-result task lifetime and non-joining clear mapped | Controlled overlap/late-clear faults, Standard comparison, full indirect-reference audit and per-job acknowledgement |
+| C02/C08/D01/D07/E02 | Both models share poll-result offsets, separate readiness, two-second post-result task lifetime and non-joining clear; seven function pairs and two caller regions match | Controlled overlap/late-clear faults, full indirect-reference audit, remaining parser/loop comparison and per-job acknowledgement |
 | C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C01/E01/E02 | Both models have eleven recovered constructor sites, thirteen selector calls and the same eleven HTTP literal hosts; GNU continuation recovers missing multipart calls and rejects Standard's misaligned raw match | Dynamic destinations, indirect/non-HTTP paths, recursive consumer/TLS equivalence and complete offline operation |
@@ -135,6 +135,8 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   The two recovered `user_settings` consumers copy but do not apply members;
   [result ownership](cloud-protocol.md#poll-completion-is-one-shared-result-not-a-delivery-receipt)
   now distinguishes readiness, task lifetime and clearing from image completion.
+  The selected [Standard lifecycle and caller comparison](standard-model-comparison.md#poll-result-ownership-also-matches)
+  confirms those behaviors there; it does not cover every parser branch or loop.
 - [ ] **C03 · Host/Device:** Verify owner-hosted HTTPS JSON and panel assets, including
   explicit lengths, redirects, response limits and download errors. Test hostname
   and trust behavior with controlled positive/negative certificates; do not infer
