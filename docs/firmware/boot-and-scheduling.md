@@ -679,6 +679,63 @@ and time service, but cannot enforce callback ownership inside stock firmware.
 The [Standard comparison](standard-model-comparison.md#dns-fallback-cache-and-late-callbacks-also-match)
 confirms these relevant static branches there too. Physical event timing remains open.
 
+### NTP response contract and clock application
+
+Large's request initializer `0x420560d4` emits a 48-byte packet: first byte
+`0x23` (version 4, client mode), all remaining bytes zero, including the transmit
+timestamp. Send uses UDP destination port 123. Receive callback `0x4205624c`
+applies these checks in the application's poll mode:
+
+| Field or condition | Compiled receive behavior |
+| --- | --- |
+| Total payload length | Must equal 48 bytes; even a valid base header with extra bytes is rejected here |
+| Low three bits of the first byte | Must be server mode 4; broadcast mode 5 is rejected in poll mode |
+| Stratum byte | Zero takes the Kiss-of-Death retry path; all nonzero byte values pass this check |
+| Leap/version bits | Not validated by this callback |
+| Source address/port arguments | Not compared by this callback |
+| Originate/receive timestamps | Not read; no request-timestamp match or round-trip compensation |
+| Transmit timestamp | Copies exactly eight bytes at offset 40 for clock conversion; no nonzero/freshness test |
+
+The absent source/port check concerns a datagram **already delivered to this UDP
+callback**. It is not evidence of off-LAN reachability or a full network-stack
+acceptance test. A local service should send proper responses from its configured
+NTP endpoint, rather than depend on missing validation. Header checks and clock
+conversion match the relevant branches in the
+[pinned lwIP SNTP implementation](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/apps/sntp/sntp.c).
+
+Conversion `0x42056224` decodes both network-order words, adds `2,085,978,496`
+to the seconds word with 32-bit wrap, and converts the fraction with
+`floor(fraction * 1,000,000 / 2^32)`. Wrapper `0x420530e8` zero-extends the
+resulting seconds into a 64-bit time value and invokes `0x42052fec`.
+Thus an all-zero transmit timestamp becomes **2036-02-07 06:28:16 UTC**;
+`0xffffffff` seconds becomes one second before that. Half and maximum fractions
+become 500,000 and 999,999 microseconds. Zero-filled placeholder time is not a
+harmless failure response.
+
+The SDK's immediate-mode branch calls `settimeofday` (`0x4200af88`), marks its
+own status complete, and then invokes the application callback. Its clock-setting
+return is not used as an additional success check. The application callback
+`0x42014728` independently reads the resulting clock and tests local year >= 2020
+before setting its synchronized flag and signaling completion. It has no upper
+year bound or drift check; the early-year warning branch also does not clear a
+previously true flag. A successful SDK packet parse therefore does not establish
+accurate time or a newly completed application attempt.
+
+After a nonzero-stratum response passes the parser, the receive path resets retry
+delay to 15 seconds and schedules the next SDK request using interval getter
+`0x420530dc`. Its stored initial value is **3,600,000 ms**. This one-hour timer is
+distinct from the application's startup retry budgets and does not prove that
+the frame stays awake for an hour. Invalid length/mode leaves existing retry
+work alone; stratum zero uses the current retry backoff. The application may
+stop/reinitialize the client independently, as described above.
+
+Eighteen isolated host cases validate these receive/conversion boundaries using
+four unmodified pinned functions and buffer/timer/clock-recording stubs. They
+perform no actual clock setting or network I/O. The local-backend requirement is
+an **accurate time service returning plain 48-byte server responses**, alongside
+working DNS and the separate connectivity gate. No physical local-NTP test or
+Standard receive-path equivalence is established by this pass.
+
 ### DHCP does not configure the stock time server
 
 Large 0.2.29 **does not consume DHCPv4 option 42 as an NTP configuration**. This

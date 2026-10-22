@@ -1243,3 +1243,43 @@ Private Standard artifacts: `standard-dns-pass1.txt`, `standard-dns-pass2.txt`,
 `standard-dns-comparison.json`, `standard-dns-literals.jsonl` and
 `standard-dns-evidence-hashes.txt`. The symbol-stripped ELF is a private analysis
 copy, not a flashable replacement or a changed vendor firmware image.
+
+## NTP response acceptance and clock conversion: S02
+
+Four Large reference/decompiler passes and 12 bounded GNU ranges cover nine
+functions: request initialization, receive, timestamp processing, interval getter,
+time wrapper, SDK synchronization, callback registration, application callback
+and the clock-setter entry. Literal reads establish the epoch offset,
+microsecond multiplier, callback/mode/status locations and the initialized
+one-hour update interval. The receive path has no source/port, leap/version,
+originate-timestamp or timestamp-freshness check; its explicit guards are length,
+operating/response mode and stratum-zero handling. This describes callback-level
+behavior, not arbitrary packet delivery through the network stack.
+
+Eighteen host cases passed under Clang AddressSanitizer and
+UndefinedBehaviorSanitizer with warnings treated as errors. Four unmodified
+functions from pinned lwIP commit `fa4dffdfac52587a26c1f29258376df750cf8474`
+are extracted with their license header: receive, timestamp processing, retry
+and request initialization. Source SHA-256 remains
+`8695155c80c807d7ac949801b023d4e2f27db7975f78bcbba726bcdc012020e7`.
+Macro branches and the timestamp-recording boundary follow the inspected binary.
+
+Cases cover normal time, half/max fractions, 47/49-byte lengths, client/broadcast
+modes, stratum 0/16/255, alarm leap bits, version 0/7, unrelated originate/receive
+fields, zero/last-before-era transmit seconds, Unix epoch conversion and the
+zero-filled client request. Every receive case uses synthetic source arguments
+with port 9999; the callback ignores them. Assertions check conversion values,
+packet release, reachability, retry reset/backoff and timer scheduling calls.
+
+Buffers are contiguous host stubs and timers only record calls. The timestamp
+setter records arguments; neither the host clock nor the actual SDK time setter
+is invoked by the fixture. Application flag behavior and SDK clock invocation
+are separate static findings, not simulated full boot/TLS/scheduler behavior.
+No sockets, frame requests, DNS/routing/backend changes or real NTP response
+occurred. Standard reception and physical local-time compatibility remain open.
+
+Private artifacts: `ntp-response-pass1.txt` through `ntp-response-pass4.txt`,
+`ntp-response-gnu.mjs`, `ntp-response-boundaries-gnu.txt`,
+`ntp-response-literals.jsonl`, `ntp-response-fixture.c`,
+`prepare-ntp-response-fixture.mjs`, `ntp-response-source-hashes.json`,
+`ntp-response-results.txt` and `ntp-response-evidence-hashes.txt`.

@@ -334,6 +334,9 @@ Certificates, private keys and raw captures remain outside the repository.
   not overwritten. Serving a download is not proof of a completed panel refresh.
 - Test WAN loss, local time and cold boot separately. This experiment left public
   reachability probes and SNTP available and preserved existing pairing.
+  The later [NTP receive trace](boot-and-scheduling.md#ntp-response-contract-and-clock-application)
+  calls for accurate time in plain 48-byte server responses; a zero timestamp
+  becomes 2036 and is not a safe placeholder. Local-NTP compatibility is untested.
 - Establish a sustainable URL/trust configuration. The short-lived test chain for
   the vendor hostname proves compatibility; it is not an owner-controlled hostname
   or a durable deployment mechanism. No arbitrary self-signed acceptance was shown.

@@ -88,6 +88,12 @@
       "evidence": "static; 22 October DHCP time-source follow-up"
     },
     {
+      "address": "0x3fca12b0",
+      "kind": "global",
+      "role": "SNTP SDK update interval initialized to 3600000 milliseconds",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
       "address": "0x3fca64dc",
       "kind": "data",
       "role": "Shared 1,536-byte voice result URL buffer; distinct from caller-stack upload status",
@@ -424,6 +430,24 @@
       "evidence": "static; watchdog follow-up with GNU checks"
     },
     {
+      "address": "0x3fcad588",
+      "kind": "global",
+      "role": "SDK time-sync notification callback pointer",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
+      "address": "0x3fcad58c",
+      "kind": "global",
+      "role": "SDK synchronization status, separate from application time flags",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
+      "address": "0x3fcad590",
+      "kind": "global",
+      "role": "SDK clock synchronization mode read by immediate/smooth branches",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
       "address": "0x3fcad968",
       "kind": "global",
       "role": "SNTP retry delay in milliseconds; initialized to 15000, exponential ceiling 150000",
@@ -578,6 +602,12 @@
       "kind": "literal",
       "role": "Pointer to instruction description table",
       "evidence": "static"
+    },
+    {
+      "address": "0x4200af88",
+      "kind": "function",
+      "role": "Clock-setter entry used by SDK SNTP synchronization",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
     },
     {
       "address": "0x4200f770",
@@ -2932,6 +2962,30 @@
       "evidence": "static"
     },
     {
+      "address": "0x42052fec",
+      "kind": "function",
+      "role": "SDK SNTP synchronization; immediate/smooth clock paths then application callback",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
+      "address": "0x420530d0",
+      "kind": "function",
+      "role": "Install SDK time-sync notification callback",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
+      "address": "0x420530dc",
+      "kind": "function",
+      "role": "Read SNTP update interval in milliseconds",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
+      "address": "0x420530e8",
+      "kind": "function",
+      "role": "Zero-extend converted NTP seconds into 64-bit time structure and invoke SDK synchronization",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
       "address": "0x42055f24",
       "kind": "function",
       "role": "TCP/IP callback enqueue; allocation can fail and SNTP stop/init/mode wrappers discard result",
@@ -2966,6 +3020,18 @@
       "kind": "function",
       "role": "SNTP DNS completion; ignores hostname/argument, updates current address or retries without attempt validation",
       "evidence": "static and bounded GNU cross-check; 22 October SNTP callback-lifetime follow-up"
+    },
+    {
+      "address": "0x42056224",
+      "kind": "function",
+      "role": "NTP timestamp conversion: wrapped epoch offset and microsecond fraction",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
+    },
+    {
+      "address": "0x4205624c",
+      "kind": "function",
+      "role": "SNTP receive: exact 48 bytes, mode and stratum guards; accepted transmit timestamp applied before scheduling next update",
+      "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
     },
     {
       "address": "0x42056314",
