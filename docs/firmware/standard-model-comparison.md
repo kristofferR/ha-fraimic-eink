@@ -118,6 +118,18 @@ the deep-sleep-specific RTC branch. This bounds the stale flag to the current
 wake session when normal startup is used; it does not demonstrate physical
 concurrency, reset behavior or complete driver equivalence.
 
+### All identified foreground poll consumers share the copy limits
+
+The [consumer audit](cloud-protocol.md#four-foreground-consumers-do-not-acknowledge-image-success)
+recovers four direct getter calls per model, including album/cold sites missing
+from the earlier Ghidra reference list. Three main calls copy at most 511
+settings bytes; button wait copies at most three. Twenty instruction cases per
+build observe no local-settings read within their consumer boundaries. Album
+checks for an empty image URL; cold/ordinary paths call the helper with it.
+All three main paths clear the shared result despite a helper error. Button
+wait instead leaves a successful pending result for main. These are bounded
+consumer cases, not actual image faults or whole-main equivalence.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

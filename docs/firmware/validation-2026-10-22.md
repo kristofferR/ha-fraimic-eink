@@ -3557,3 +3557,55 @@ existing static/host milestones are extended without changing the 12/67 or
 | `cancel-state-results.json` (published as the numeric ledger) | `097aad4f41cb2615549cffef89cb952d59b343f774ce406e97b8ca585edd5b87` |
 | `cancel-state-reference-large.tsv` | `6a30305561afb27a661c01de76e68d11b915e83896455fd5446eff6a9a545cc5` |
 | `cancel-state-reference-standard.tsv` | `1b87c5bf1582d72b4c33ca29b77c081784cb4ba80d27accc8044a88057fde48f` |
+
+## Poll result consumer coverage: C02/E01/E02
+
+Scanned the complete byte-checked main/button CFGs for direct calls to getter
+Large `0x42025da0` / Standard `0x420247f0`. Each model has four identified
+calls: three main and one button wait. Ghidra's reference list reported only
+the ordinary-main and button sites; album and cold-start sites were omitted.
+The [consumer table](cloud-protocol.md#four-foreground-consumers-do-not-acknowledge-image-success)
+records all eight addresses. This census is scoped to those complete bodies,
+not arbitrary indirect callers throughout the image.
+
+Fresh recovery verifies the 40-instruction getter, 12-instruction clear helper
+and 150-instruction poll worker on both builds. The shared settings field and
+result base each have one exact initialized pointer per image. All their
+identified literal-load uses resolve to the worker, getter or clear helper.
+The public ledger counts literal-load sites rather than treating every Ghidra
+call-associated reference as an actual memory access. Arbitrary computed
+aliases remain outside this search.
+
+All **20 cases per build passed**, exercising 295 distinct instructions each.
+Five states at each of four consumer entries cover idle, pending valid URL,
+pending empty URL, getter error and image-helper error. Each starts at the
+consumer's actual stack-buffer preparation and stops at recorded successor
+checkpoints. The fixture executes the original getter and shared-result clear,
+models ROM string copying, and stubs logging, timing and image processing.
+Neither full startup nor full subsequent main-loop execution is claimed.
+
+The [numeric ledger](poll-consumer-cases.json) verifies copy capacities of
+512/4 bytes, final NULs, image-helper calls and preserved/cleared ready state.
+Instruction-load observation finds no read of the copied settings destination
+within these consumer paths. It does not include later stack reuse or execute
+the external image/network/render helpers. The album empty-URL guard differs
+from cold/ordinary handling. All main paths consume the result without checking
+the image helper's injected error; the successful pending button branch leaves
+it ready for main. These outcomes reinforce that consumption is not delivery
+acknowledgment, without predicting a physical display outcome.
+
+The separately inspected poll worker sets completion only while its semaphore
+handle exists; the starter rejects failed semaphore allocation before creating
+the worker. The prose now states that guard explicitly. No allocation-failure
+device test or new task-lifetime conclusion is attached to that correction.
+
+No device/network/HA change occurred. This extends C02/E01/E02's existing static
+evidence; C02's physical controls remain deferred and checklist counts remain
+12/67 original questions and 124/188 milestones.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `poll-consumer-cases.mjs` | `974ab239ec19fddb38e319198ae3e5fe4320585c46bb4c3d5539e66dc0ee0dae` |
+| `poll-consumer-results.json` (published as the numeric ledger) | `86f6421dfc699ae9205c77161603182cd696c4a142c527446c59afd305da3438` |
+| `poll-consumer-reference-large.tsv` | `4133ba0e16294c6fd530a01fd459822d8d993fb538b0aa95f04047b804794e51` |
+| `poll-consumer-reference-standard.tsv` | `8f1a36c977efd09394f0150ff0f91486ea6ad51e7a6c31e7807754603fac5722` |

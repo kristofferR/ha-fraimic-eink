@@ -127,6 +127,7 @@ Commit and push validated research batches periodically as requested.
 
   - [x] **Host:** Exercise poll field precedence, settings snapshots and missing/invalid deadlines in 25 cases. [Parser](cloud-protocol.md#field-selection-and-permissive-json-parsing).
   - [x] **Static:** Trace copied-but-unapplied user settings, result lifetime and failed-save/no-retry behavior on both builds. [Consumers](cloud-protocol.md#user_settings-is-copied-with-no-recovered-local-application), [persistence](storage-and-configuration.md#failed-settings-saves-are-not-retried-by-an-identical-snapshot).
+    The complete main/button CFGs add two previously omitted main getter sites per model. Twenty instruction cases each check all four identified consumers, settings-copy read boundaries, empty-URL handling and clearing despite image-helper errors: [consumer audit](cloud-protocol.md#four-foreground-consumers-do-not-acknowledge-image-success), [cases](poll-consumer-cases.json).
   - [x] **Device:** Receive five local idle polls while preserving the observed switches and future deadline. [Experiment](backend-emulation.md#idle-experiment-c02c03c12).
   - [ ] **Deferred:** **Device:** Inject selected malformed/partial snapshots and NVS failures, then verify state after reboot. Coordinate with S03 rather than repeating its schedule tests.
 

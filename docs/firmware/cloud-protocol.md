@@ -360,8 +360,10 @@ offering an update. See [update policy](ota-and-recovery.md#update-policy).
 The poll worker serializes any present `user_settings` value, without first
 requiring an object, into a 2,048-byte output buffer at
 `0x3fca8c81`. Getter `0x42025da0` copies it to its caller. The recovered callers
-are the button-wait path (`0x4201163c`) and main loop (`0x42012810`); neither was
-found parsing or applying members of that copy. Main receives at most 511 bytes
+are the button-wait path (`0x4201163c`) and main loop (`0x42012810`); the complete
+GNU bodies contain one button call and three main calls per build. Two main
+sites were missing from the earlier Ghidra reference list. No member application
+was identified in their bounded consumer paths. Main receives at most 511 bytes
 plus NUL; the button path supplies four-byte destinations for both settings and
 URL, taking at most three bytes plus NUL. It only checks result/pending state,
 then returns to main without clearing a successful pending image. Main obtains
@@ -370,8 +372,11 @@ the full bounded URL itself; the short button copy is not the download URL.
 This does not make backend-owned preferences meaningless. It means a setting
 such as style can affect server generation without a local parser. Do not assume
 that adding a member to `user_settings` creates a firmware setting. The distinct
-`device_settings` branch above does apply its switches. Device fixtures and
-remaining indirect-reference checks are still tracked in C02/E01.
+`device_settings` branch above does apply its switches. The
+[consumer follow-up](#four-foreground-consumers-do-not-acknowledge-image-success)
+checks every identified direct main/button call and exact shared-field pointer
+uses. Arbitrary computed references and physical fixtures remain outside that
+bounded result.
 
 ### Poll completion is one shared result, not a delivery receipt
 
@@ -380,8 +385,10 @@ before polling. Its pending byte is at offset 0, 1,536-byte URL at offset 1,
 2,048-byte settings string at offset `0x601`, and result code at `0xe04`.
 The completion byte at `0x3fca867c` is **outside** that cleared region.
 
-After the request/retry and any recording-stop attempt, the worker sets that
-completion byte and gives its semaphore. It then delays **200 ticks / two seconds**
+After the request/retry and any recording-stop attempt, the worker checks its
+semaphore handle, then sets that completion byte and gives the semaphore when
+the handle exists. The starter returns before task creation if allocating this
+semaphore fails. The worker then delays **200 ticks / two seconds**
 in `0x4202358c`, frees the copied device key, clears its task handle and deletes
 itself. Thus result-ready and task-running can both be true for two seconds after
 the request finishes. The running getter reflects a nonzero handle, not ongoing
@@ -414,6 +421,47 @@ post-publication lifetime and non-joining copy/clear behavior. Its compared
 button/main callers likewise copy `user_settings` without applying members.
 Seven function pairs and two caller regions match across 425 instructions;
 this does not extend the result to every parser branch, dispatcher or loop.
+
+### Four foreground consumers do not acknowledge image success
+
+The complete recovered main/button bodies contain these direct result-getter
+calls. The album and cold-start sites were absent from the earlier Ghidra
+reference list; their original bytes and reachable GNU instructions establish
+the calls on both builds.
+
+| Consumer | Large call | Standard call | Settings destination capacity |
+| --- | --- | --- | ---: |
+| Album wake | `0x42012bd5` | `0x42012b35` | 512 bytes |
+| Cold-start result wait | `0x42013877` | `0x420137f7` | 512 bytes |
+| Ordinary main loop | `0x42013f2c` | `0x42013eac` | 512 bytes |
+| Button wait | `0x42011a1a` | `0x4201197a` | 4 bytes |
+
+The [twenty instruction cases per build](poll-consumer-cases.json) use idle,
+pending/valid-URL, pending/empty-URL, result-error and image-helper-error states
+at each site. All copy the bounded settings prefix and terminate it with NUL,
+including when the getter ultimately returns an error. No instruction reads
+the local settings copy before the recorded consumer boundary in these cases.
+The exact shared-settings pointer loads belong to the poll worker's two request
+attempts and the getter's copy. This strengthens the bounded no-local-application
+finding; it is not proof against every computed alias or later stack reuse.
+
+| Result state | Album consumer | Cold/ordinary consumers | Button consumer |
+| --- | --- | --- | --- |
+| Idle or error result | Clear shared result; no image helper | Clear shared result; no image helper | Clear shared result |
+| Pending, nonempty URL | Call image helper, then clear | Call image helper, then clear | Leave result ready for main; no image helper |
+| Pending, empty URL | Skip image helper and clear | Call image helper with empty URL, then clear | Leave result ready for main |
+| Image helper returns an error | Still clear the result | Still clear the result and follow the same tested post-call path | No image helper is called here |
+
+None of these three main calls gates result clearing on the image helper's
+return value. Clearing marks consumption of shared state, not successful
+download or display. The fixture injects the helper error; it does not execute
+network/render work or establish which visible LED/artwork outcome follows.
+For a local backend, offer only a prepared nonempty model-specific asset URL
+and retain its own delivery state. The stock consumer supplies no per-offer
+success acknowledgment that would justify deleting the backend job at this point.
+
+See the [validation record](validation-2026-10-22.md#poll-result-consumer-coverage-c02e01e02)
+for exact boundaries and reference-search limits.
 
 ## System and setup screens
 

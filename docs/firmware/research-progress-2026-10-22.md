@@ -9,6 +9,7 @@ The history does not reopen C05/C10/R11/E03 or authorize new device experiments.
 
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
+| C02/E01/E02 | Four getter call sites per build recovered, including two omitted by Ghidra; twenty cases each check local settings copies, empty-URL differences and result clearing despite image-helper failure | Physical malformed/image-error behavior, arbitrary indirect references, later stack reuse and actual delivery acknowledgments |
 | C08/E01/E02 | Both cancellation flags audited; eighteen cases per build distinguish retained processing state, recording-only reset, post-presign abort and unconditional ordinary-BSS clearing at fresh startup | Real task/socket timing, computed aliases outside the census and physical cancellation/reset behavior |
 | S06/E01/E02 | Normal/setup worker failure branches and completion handle audited; 35 instruction cases per build show tolerated failures, unchecked allocation and misleading completion logs; AP bodies match across 264 instructions | Real driver/RTOS faults, physical service readiness, late completion and complete normal-worker/driver equivalence |
 | S06/E01/E02 | Fast initializer return corrected and 413-instruction pair compared; 24/25 cases distinguish fatal/tolerated early errors and wake-dependent background-task failure/completion waits | Physical failures/readiness and complete background-worker execution; an idle checkpoint is not service readiness |
