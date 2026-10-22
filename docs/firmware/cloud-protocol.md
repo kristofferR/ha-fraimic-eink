@@ -367,6 +367,12 @@ does not reset the existing activity timestamp in the tested setting path.
 See [wake-context behavior](boot-and-scheduling.md#keep-awake-changes-ordinary-idle-admission-not-the-album-wake-path)
 before using this field as an interactive-session command.
 
+Voice enablement similarly updates the next admission without requiring reboot,
+but does not stop an active recording. A mid-capture instruction case finishes
+normally with the preference already false, then rejects the next admission.
+Treat it as [allowing future recordings](voice-local-control-hooks.md#voice-enablement-is-an-admission-preference),
+not immediate mute or cancellation; the factory microphone path is separate.
+
 `autoUpdateEnabled=false` does **not** locally block an otherwise accepted
 firmware offer in the recovered path. Withhold `firmware` unless deliberately
 offering an update. See [update policy](ota-and-recovery.md#update-policy).

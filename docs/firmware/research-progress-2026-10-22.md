@@ -121,3 +121,10 @@ completion cases per build execute 456 distinct instructions each and establish
 that stopping capture alone is not successful voice completion. No implementation,
 recording or provider call was made. Existing A06/H05/E01/E02 evidence is extended;
 physical and implementation milestones remain open.
+
+The voice-preference follow-up adds three cases per build: a complete settings
+snapshot disables the next admission immediately in RAM, even after a save error,
+but disabling during capture does not cancel that admitted request. Normal finish
+still succeeds and the following admission is blocked. Getter/backing-byte
+references distinguish the admission preference from a microphone mute, active
+job cancellation and factory diagnostics. No live setting was changed.

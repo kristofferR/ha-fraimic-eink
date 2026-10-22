@@ -1,0 +1,167 @@
+{
+  "evidence": "Actual settings applicator, preference getter, recording wrapper and control instructions with synthetic capture/persistence/task outcomes",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "voice_preference_address": "0x3fca0c11",
+      "cfgs": [
+        {
+          "name": "start",
+          "entry": "0x420110a4",
+          "instructions": 141,
+          "ranges": 2,
+          "sha256": "a0050d4f0ccbb2b43a012d8e37fdebf808583898299d7f1dd7aa59c3a1f52c4c"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011314",
+          "instructions": 260,
+          "ranges": 4,
+          "sha256": "3874826d2dcc3f30da800c82a597dc7d7ef39dfa9932c4839252abff36f21988"
+        },
+        {
+          "name": "record-start",
+          "entry": "0x42010994",
+          "instructions": 256,
+          "ranges": 4,
+          "sha256": "49340af04cbeae6382fb4d79f6e07642adc5b9cd318ff1a0ac67121cc862e6d9"
+        },
+        {
+          "name": "apply",
+          "entry": "0x420158cc",
+          "instructions": 58,
+          "ranges": 5,
+          "sha256": "89e24ff71d0e94dfcd1116ccd081812b935fcb4d758fe523daa8809c79953895"
+        },
+        {
+          "name": "preference",
+          "entry": "0x4201589c",
+          "instructions": 4,
+          "ranges": 1,
+          "sha256": "f1976cd9359e05c35a900a6af5a08c93ed3380777d67bb2d78e9c568fde0ed5d"
+        }
+      ],
+      "instructions_executed_unique": 394,
+      "scenarios": [
+        {
+          "group": "voice-preference",
+          "name": "disable-before-admission",
+          "settings_return": 0,
+          "voice_enabled": 0,
+          "first_wrapper_return": 4294967295,
+          "next_wrapper_return": null,
+          "capture_start_calls": 0,
+          "completion_signals": 0,
+          "save_calls": 1
+        },
+        {
+          "group": "voice-preference",
+          "name": "disable-before-admission-save-fails",
+          "settings_return": 257,
+          "voice_enabled": 0,
+          "first_wrapper_return": 4294967295,
+          "next_wrapper_return": null,
+          "capture_start_calls": 0,
+          "completion_signals": 0,
+          "save_calls": 1
+        },
+        {
+          "group": "voice-preference",
+          "name": "disable-during-active-capture",
+          "settings_return": 0,
+          "voice_enabled": 0,
+          "first_wrapper_return": 0,
+          "next_wrapper_return": 4294967295,
+          "capture_start_calls": 1,
+          "completion_signals": 1,
+          "save_calls": 1
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "voice_preference_address": "0x3fca0c99",
+      "cfgs": [
+        {
+          "name": "start",
+          "entry": "0x42011004",
+          "instructions": 141,
+          "ranges": 2,
+          "sha256": "50a3bf97301a8b0ca21c1a3a06331033f93f473a2180ea03c46ce8b4469ee9a3"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011274",
+          "instructions": 260,
+          "ranges": 4,
+          "sha256": "3f4689ae24b99438ef951cc730585917feb3a9dcd21332d08a967a203537aced"
+        },
+        {
+          "name": "record-start",
+          "entry": "0x420106d0",
+          "instructions": 256,
+          "ranges": 6,
+          "sha256": "53a56557b4cf48c5ced71b718ec20ff416cbc85e11a7e59c781099ba26c13630"
+        },
+        {
+          "name": "apply",
+          "entry": "0x420158ec",
+          "instructions": 58,
+          "ranges": 5,
+          "sha256": "bd3905279c34caa9138328351ba20eaf836549cadf8615ec5f9a78fffdf8e93b"
+        },
+        {
+          "name": "preference",
+          "entry": "0x420158bc",
+          "instructions": 4,
+          "ranges": 1,
+          "sha256": "f693d34611cd64dd25cfc44ee3b3b75eda0f2f4217b0070dc033e6a45aa78b07"
+        }
+      ],
+      "instructions_executed_unique": 394,
+      "scenarios": [
+        {
+          "group": "voice-preference",
+          "name": "disable-before-admission",
+          "settings_return": 0,
+          "voice_enabled": 0,
+          "first_wrapper_return": 4294967295,
+          "next_wrapper_return": null,
+          "capture_start_calls": 0,
+          "completion_signals": 0,
+          "save_calls": 1
+        },
+        {
+          "group": "voice-preference",
+          "name": "disable-before-admission-save-fails",
+          "settings_return": 257,
+          "voice_enabled": 0,
+          "first_wrapper_return": 4294967295,
+          "next_wrapper_return": null,
+          "capture_start_calls": 0,
+          "completion_signals": 0,
+          "save_calls": 1
+        },
+        {
+          "group": "voice-preference",
+          "name": "disable-during-active-capture",
+          "settings_return": 0,
+          "voice_enabled": 0,
+          "first_wrapper_return": 0,
+          "next_wrapper_return": 4294967295,
+          "capture_start_calls": 1,
+          "completion_signals": 1,
+          "save_calls": 1
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Disabling during capture is injected at the control-task state query after the wrapper has admitted recording; no real overlapping task or live poll is executed.",
+    "Capture and NVS saving are stubs. Save failure proves the immediate RAM decision only, not reboot persistence.",
+    "The following admission is checked without reboot; actual HTTP poll arrival, sleep availability and wall-clock timing remain untested.",
+    "No device request, microphone recording, settings change or firmware flash occurred."
+  ]
+}

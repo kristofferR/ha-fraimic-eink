@@ -312,6 +312,7 @@ control-flow boundary; physical timing and delivery remain deferred.
   - [x] **Static/Design:** Identify stock limitations and required firmware/protocol changes for events, sleeping jobs, no-redraw success, streaming STT and end-of-speech. [Capability map](home-assistant-roadmap.md#extension-boundaries).
   - [x] **Design/Host:** Define a separate negotiated protocol and legacy behavior for all six extensions; check eight examples against the stock parser and eighteen proposed-policy/message properties. [Proposal and limits](protocol-extensions.md), [messages](extension-examples.json).
     The local-control follow-up maps normal voice entry points and checks four completion cases per build; capture stop alone does not complete a voice job. [Hooks](voice-local-control-hooks.md), [numeric cases](voice-control-cases.json).
+    Three further cases per build show voice enablement gates the next admission, including a failed-save case, but does not cancel admitted capture. [Preference semantics](voice-local-control-hooks.md#voice-enablement-is-an-admission-preference), [cases](voice-preference-cases.json).
   - [ ] **Deferred:** **Device:** Validate selected transitions only after an extension is implemented and a recovery path exists.
 
 - [ ] **A07 · Design/Host:** Check that proposed voice creations, image edits,

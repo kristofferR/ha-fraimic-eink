@@ -23,6 +23,7 @@ the exact applications, not stable APIs or a deployable patch.
 | HA command with a meaningful result card | Execute a supported action and render its result | Command policy, deduplication and an intentional artwork-replacement choice |
 | HA command preserving the current artwork | No clean stock finalize result | Firmware no-image success branch; empty URL, 204 or a status string is insufficient |
 | HA start, finish or cancel for normal voice | No corresponding route in the recovered 42 registrations | Firmware command path into the normal voice lifecycle |
+| Allow future voice recordings | Apply `voiceRecordingEnabled` through a complete backend settings snapshot | Backend preference UI and poll delivery; this is not immediate mute or active-job cancellation |
 | Automatic end-of-speech | Backend receives WAV only after capture ends | Device VAD, or streaming plus live finish control |
 | Spoken response from the frame | No speech-output path identified in either app | Physical output capability remains unestablished |
 
@@ -100,6 +101,44 @@ wait, audio, scheduling or network operation is measured. See the
 [validation](validation-2026-10-22.md#voice-and-local-control-hooks-a06h05e01e02).
 
 ## Firmware hooks with useful outcomes
+
+### Voice enablement is an admission preference
+
+The stock flag is checked when the outer wrapper admits a new recording. The
+settings applicator updates its RAM byte immediately, before saving, but does
+not stop capture, signal completion or cancel an upload. Three additional
+instruction cases per build verify:
+
+- Disable before admission: no capture task starts, without requiring reboot.
+- Disable with a failed NVS save: the next admission is still blocked in RAM;
+  persistence across reboot is not established by that result.
+- Disable during admitted capture: the ordinary finish still returns success;
+  the following admission is blocked. The preference alone does not cancel the
+  recording already in progress.
+
+The getter has three recovered callers per build: recording admission, HTML
+device information and JSON device information. Exact references to the backing
+byte are confined to the getter, settings loader, saver and applicator in this
+census. The factory microphone starter does not consult this preference. These
+findings support **“allow voice recordings”**, not **“microphone muted”**, as an
+HA control label. Neither the flag nor its status response proves an electrical
+microphone shutdown.
+
+An emulator can deliver this switch in the next completed poll's full
+`device_settings` object; it is not an immediate LAN stop endpoint. Preserve the
+other three switches: an incomplete object supplies firmware defaults and can
+change unrelated preferences. Backend intent, frame-applied state and durable
+state should remain distinct. Sleep/network availability and poll timing still
+determine when a backend change reaches the frame.
+
+These cases execute 394 distinct instructions per build using the real applicator,
+getter and recording/control paths. The mid-capture change is injected at a
+state query, with microphone/task/persistence stubs. It is not a live overlapping
+poll test. [Results](voice-preference-cases.json) and
+[validation](validation-2026-10-22.md#voice-preference-admission-a06c02h05e01e02)
+record the scope. Actual cancellation still needs the separate workflow hook.
+
+### Proposed command and result hooks
 
 These are implementation directions, not enabled features:
 

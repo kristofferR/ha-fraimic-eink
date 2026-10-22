@@ -3864,3 +3864,40 @@ and E01/E02 evidence is extended; checklist totals remain 12/67 and 124/188.
 | `voice-control-cases.json` (published) | `2dc758aa6d02e5cc337c73cb57a250c05e7cdc8bbf28d17fd713a4d9d1c28b65` |
 | `voice-control-reference-large.tsv` | `47a9e5148d48455120f8f0702b8d0d3e90003102a324f56b229755e888a1b636` |
 | `voice-control-reference-standard.tsv` | `2c815eda5655530258ba13765d36b22ccb0fa753cd0a59222141a6a3775bceb9` |
+
+## Voice preference admission: A06/C02/H05/E01/E02
+
+The [voice preference follow-up](voice-local-control-hooks.md#voice-enablement-is-an-admission-preference)
+recovers the four-instruction getter at Large `0x4201589c` / Standard
+`0x420158bc`. Its backing byte is `0x3fca0c11` / `0x3fca0c99`.
+The existing complete 58-instruction settings applicators are reused, along with
+the recording wrapper/control paths. All loaded instruction bytes are checked
+against the pinned applications.
+
+**Three cases per build passed**, covering 394 distinct instructions each.
+Disabling before admission blocks capture with either successful or failed
+synthetic persistence. Disabling at the first active recording-state query does
+not prevent normal finish; a subsequent wrapper invocation is blocked without
+reboot. The actual preference getter executes at wrapper admission. No equivalent
+preference read occurs inside the exercised recording-control continuation.
+
+Ghidra's reference census finds three getter callers on each model: the recording
+wrapper and HTML/JSON information handlers. Six direct accesses and six literal
+loads through one initialized pointer identify only the getter, loader, saver
+and applicator. This is an exact-reference search, not proof against arbitrary
+computed aliases. The complete applicator has no capture-stop/cancel call.
+The previously recovered factory starter also lacks a preference gate.
+
+The mid-capture application is synchronous injection at a chosen control-task
+call, not a concurrent live poll. Task, microphone, synchronization, time and
+NVS results remain stubs; actual delivery delay, reboot persistence and hardware
+mute are not tested. [Numeric results and CFG hashes](voice-preference-cases.json)
+preserve those limits. No device/network/HA change occurred. Checklist counts
+remain 12/67 original items and 124/188 milestones.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `voice-preference-cases.mjs` | `568705ac858c0bdf223a9488f21f3f5d9c65ddb093d062abf48b7ec2bc12ec84` |
+| `voice-preference-cases.json` (published) | `662e8fa84c48f8b97cd3042ba74e191a4ffbd5dc33541550d4cb96a23f312340` |
+| `voice-preference-reference-large.tsv` | `4bfb37bdf05c064f3019c8a302648fd049f143311e4f70b76ed921d1417e7d16` |
+| `voice-preference-reference-standard.tsv` | `38b4b6cf958db5effea718b742e07492d577f4ff812a7574be8591d249a3d73c` |
