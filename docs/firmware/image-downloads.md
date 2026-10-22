@@ -2,13 +2,13 @@
 
 [Research index](README.md)
 
-These findings are **static** for Large 0.2.29 / f1555ee5, pinned by the
+These findings are **static and host-validated** for Large 0.2.29 / f1555ee5, pinned by the
 [identity manifest](firmware-identity.json). Ghidra call/data flow was checked
 against GNU ESP32-S3 instructions. The successful local card and Standard vendor
 transfer are separate positive observations; no malformed image was sent to either
 frame during this pass. Do not transfer the Large renderer's limits to Standard.
 
-## The downloader checks HTTP completeness, not panel completeness
+## The downloader checks declared length, not exact panel size
 
 Common downloader `0x4202606c` is used by voice worker `0x420104a8`, poll-image
 workflow `0x42010c4c` and setup-screen fetcher `0x4202abe8`. It opens a new HTTP
@@ -54,17 +54,57 @@ a total download deadline. The voice workflow has its separate five-minute wait.
 
 When the destination fills, the next application read requests zero bytes. The
 SDK returns zero without proving that the response stream is complete, and the
-application has no separate final complete-data check. **Inferred fault case:**
-an unknown-length response can fill the panel buffer and be accepted even if
-more body bytes or chunk termination remain unread. This is not a verified
-device result, and not evidence that chunked transfers are a supported emulator
-baseline. Serve a direct 200 with the exact explicit model-specific length.
+application has no separate final complete-data check. A host reconstruction
+using the matching SDK reader reproduced an unknown-length response filling the
+panel buffer and being accepted while more body bytes and chunk termination
+remain unread. The full 2,304,000-byte-capacity case also passed with the parser
+reporting **incomplete**. This is not a verified device result or a supported
+emulator baseline. Serve a direct 200 with the exact explicit model-specific length.
 
 The output count is reset only after successful headers/status/capacity checks.
 Early failures can leave a caller's previous count untouched. The recovered
 normal callers gate rendering on the returned error as well; that count alone
 is not a success signal. The downloader also does not clear or roll back bytes
 already written into shared PSRAM when a transfer fails.
+
+### Host results with the matching SDK reader
+
+Nineteen cases passed under address/undefined-behavior sanitizers using the same
+seven unchanged IDF 5.4.1 HTTP functions and actual parser as the earlier voice
+harness. The surrounding Large download loop is reconstructed; transport is
+scripted and elapsed time virtual. Most boundary cases use a 16-byte capacity,
+with two additional cases at the actual Large capacity. No socket, TLS session,
+frame, display driver or flash cache participates.
+
+| Host response | Observed reconstructed-download result |
+| --- | --- |
+| Exact positive Content-Length | Success; full Large case receives 2,304,000 bytes |
+| Complete declared short body | Success with the shorter count; untouched destination tail remains unchanged |
+| Declared length truncated by FIN | Failure; already copied prefix remains in the destination |
+| Length above capacity, redirect, or header timeout | Reject before resetting the supplied output-count sentinel |
+| Full-capacity chunked body, terminator missing or still unread | Success with parser incomplete |
+| Large-capacity chunk followed by extra data | Success after the first 2,304,000 bytes; extra chunk and terminator remain unread |
+| Short chunked body with terminator | Success; the same short body missing its terminator fails |
+| Close-delimited body | Short body succeeds after FIN; full-capacity body succeeds before FIN |
+| Three consecutive zero-progress transport timeouts | Failure after 90,000 virtual ms, with three EAGAIN returns |
+| Progress interleaved with six transport timeouts | Success after 269,997 virtual ms; only four calls return EAGAIN, in two nonfatal streaks |
+
+The progress case distinguishes transport timeouts from application-visible
+errors: a timeout after bytes were accumulated returns those bytes as progress,
+resetting the application's consecutive-error counter. It does not establish a
+hard overall deadline or model the voice caller's separate five-minute wait.
+
+One additional reduced-capacity control coalesces a complete 32-byte chunked body
+with headers: the SDK caches all of it, but the reconstructed caller accepts only
+16 bytes while 16 decoded bytes remain cached. Its parser reports complete.
+This checks SDK cached-data behavior with a destination smaller than the header
+receive buffer; it is **not** evidence that a whole oversized Large image fits
+that 4 KiB header read. The full-size case above independently demonstrates the
+unread-extra-data boundary at the real panel capacity.
+
+All destination guards stayed intact. The harness omits the non-200 diagnostic
+body read, allocation failures, cancellation races, reconnect retries and the
+physical renderer. It tests no palette acceptance or image correctness.
 
 ## Whole-download retries reuse the same URL
 
@@ -139,7 +179,8 @@ and [last-artwork storage](storage-and-configuration.md#last-artwork).
   replacement, verify stream completion, and propagate the worker's result.
   Buffer ownership still needs to cover download, render and storage.
 
-Fault injection remains open under C03/C07/C08/D06/D07/N04: chunked/missing-length
-responses, short declared assets, partial transport, stalls, retry expiry,
-network failover and cache recovery. The physical cancellation test remains
+Device fault injection remains open under C03/C07/C08/D06/D07/N04: chunked/missing-
+length responses, short declared assets, partial transport and stalls now have
+bounded host coverage; retry expiry, network failover and cache recovery remain
+separate. The physical cancellation test remains
 deferred. No frame routing, setting, artwork or firmware changed in this pass.

@@ -823,3 +823,38 @@ physical, lifetime, indirect-reference and per-job acknowledgement questions.
 Private artifacts: `poll-settings-pass1.txt`, `poll-settings-pass2.txt`,
 `poll-settings-gnu.mjs`, `poll-settings-boundaries-gnu.txt`,
 `poll-settings-literals.jsonl` and `poll-settings-evidence-hashes.txt`.
+
+## Image HTTP framing and progress timeouts: C03/C07/C08/D06
+
+The download loop was rechecked in 14 bounded GNU ranges. A new host fixture
+reuses the seven unchanged SDK callbacks/readers and HTTP parser pinned in the
+[earlier voice harness](#voice-response-completeness-and-timeouts-c05c07c08),
+then reconstructs the Large header/status/capacity checks and body-read loop.
+Transport reads, error codes and delays are scripted. It makes no network call.
+
+**Nineteen cases passed** with C11 warnings-as-errors, AddressSanitizer and
+UndefinedBehaviorSanitizer. Exact/short/truncated declared lengths, chunked and
+close-delimited framing, early output-count preservation and timeout streaks
+are covered. Two cases allocate the real 2,304,000-byte Large destination:
+an exact declared transfer and a chunked transfer with more data after capacity.
+The latter returns success with the HTTP parser still incomplete and those bytes
+unread. This promotes the earlier bounded inference to host reproduction, not
+to a physical-frame observation.
+
+The small-capacity cached-body control is documented separately because its
+destination is smaller than a header receive. It must not be generalized into
+an oversized whole-image header cache. Six scripted timeout events interleaved
+with progress complete after 269,997 virtual ms; three consecutive no-progress
+events fail after 90,000 virtual ms. These times do not include the real caller's
+outer wait, cancellation, TLS or hardware.
+
+The [download contract](image-downloads.md#host-results-with-the-matching-sdk-reader)
+lists results and limitations. All destination guards remained intact. No display,
+cache, firmware, route or backend was changed; broader checklist items remain open.
+
+The fixture SHA-256 is
+`4a8182c12863b11250beeee8ab3548f74fd73c66c071ea97f9ff22b8d3826f8e`.
+Parser and selected-SDK hashes match the earlier pinned values. Private artifacts:
+`image-http-pass1.txt`, `image-http-gnu.mjs`, `image-http-boundaries-gnu.txt`,
+`image-http-fixture.c`, `image-http-results.jsonl`, `image-http-source-hashes.txt`
+and the isolated `image-http-fixture/` source/build directory on Omarchy.

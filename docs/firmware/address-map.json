@@ -1623,8 +1623,8 @@
     {
       "address": "0x4202606c",
       "kind": "function",
-      "role": "Packed-image downloader; HTTP 200, capacity/declared-length checks, three consecutive no-progress read retries",
-      "evidence": "static; image-download fault follow-up"
+      "role": "Common image downloader: declared-length checks, remaining-capacity reads, three-consecutive-EAGAIN limit",
+      "evidence": "static GNU validation; 19 matching-SDK host framing/timeout cases, 22 October"
     },
     {
       "address": "0x420266d8",

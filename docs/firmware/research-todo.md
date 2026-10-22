@@ -41,7 +41,7 @@ per question, not a count of tool calls or decompiled functions.
 | C01/C11/D01 | Setup/verification split and redirects traced; response backing memory, conditional verification/poll guard, duplicate-worker and stale-pointer branches mapped; verification JSON is unescaped | Independent enrollment, controlled response/concurrency faults and remaining boot dependencies |
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
 | C02/C08/D01/D07 | Settings copy consumers rechecked; shared poll result, completion byte, two-second post-result task lifetime and non-joining clear mapped | Controlled overlap/late-clear faults, Standard comparison, full indirect-reference audit and per-job acknowledgement |
-| C03 | Local panel/TLS controls completed; static downloader length/framing, same-URL retries and short-asset behavior mapped | Device response faults, other TLS consumers and Standard negative controls |
+| C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
@@ -114,6 +114,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   explicit lengths, redirects, response limits and download errors. Test hostname
   and trust behavior with controlled positive/negative certificates; do not infer
   arbitrary self-signed acceptance from the earlier test-chain result.
+  [Nineteen SDK-reader host cases](image-downloads.md#host-results-with-the-matching-sdk-reader)
+  now reproduce short-body acceptance, incomplete chunked success at Large
+  capacity, partial-write retention and timeout-streak behavior. No malformed
+  response was sent to either frame.
 - [ ] **C04 · Host/Device:** Supply local `create_account` and `get_started` assets;
   verify IP-query handling, format, fetch failures and actual setup-screen behavior.
   Establish what an offline fallback would need.
