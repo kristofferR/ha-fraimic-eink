@@ -109,6 +109,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   verify selected URL shapes, method/body/header retention, status branches and
   the replay limit. Full transport/TLS, device behavior and the remaining
   dependency/consumer audit are still open.
+  [Poll request construction](cloud-protocol.md#poll-request-encoding-and-url-limits)
+  adds 27 combined host cases for SSID escaping, URL length and one-shot OTA
+  reports. No network response or update outcome is implied by those cases.
 - [ ] **C02 · Host/Device:** Validate poll parser behavior for settings snapshots,
   missing/invalid fields, schedule clearing and persistence failures. Trace which
   `user_settings` members are actually applied locally rather than merely copied.
@@ -250,6 +253,9 @@ Sources: [OTA and recovery](ota-and-recovery.md),
   now includes 22 host case groups. Long versions miss their truncated failure
   identity, a future failure timestamp has a one-hour boundary, and an empty poll
   does not revoke a pending offer. Physical update tests remain deferred.
+  [Result consumption](ota-and-recovery.md#result-reporting) now distinguishes
+  state/error clearing, compiled versus current version, and report loss before
+  URL/client/transport success; durable delivery remains unproven.
 - [ ] **R11 · Static/Host:** Trace forced-version bookkeeping and every active OTA
   entry point, including factory controls; establish which newer paths still use
   the older manifest/hash, force-version and statistics mechanisms.

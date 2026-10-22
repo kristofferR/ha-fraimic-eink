@@ -1016,3 +1016,33 @@ Private artifacts: `redirect-boundaries-pass1.txt`,
 `redirect-fixture.c`, `redirect-results.jsonl`, `redirect-source-hashes.json`
 and `redirect-evidence-hashes.txt`. No frame contact, account action, DNS/proxy
 change or credential-bearing network request occurred.
+
+## Poll request encoding and report consumption: C01/R10/E01
+
+Two reference/decompiler passes and 15 bounded GNU ranges examine four Large
+functions/call regions: the SSID encoder, current-version snapshot, destructive
+OTA-result getter and poll construction through client initialization. Ghidra
+truncates the encoder at `SALTU`; GNU decoding starts at the real loop target
+after padding and covers the complete classification/percent-write body. Literal
+reads supply all three URL formats, reporting globals and compiled version.
+
+**Twenty-seven reconstructed C host cases passed** with C11 warnings-as-errors,
+AddressSanitizer and UndefinedBehaviorSanitizer. Cases cover unreserved/reserved
+bytes, UTF-8 bytes, embedded NUL, empty SSID, conservative small-buffer behavior,
+32 fully escaped bytes, delimiter containment, report states/error categories,
+compiled versus overridden version, repeated consumption and 511/512-byte URL
+limits. The fixture's three format strings are checked against the extracted
+firmware literals. Long API origins are synthetic inputs for the length check,
+not a claim that an ordinary stock request exceeds the buffer.
+
+The report getter clears terminal RAM state before URL/client/transport success;
+host checks establish that ordering, not an actual failed HTTP transaction.
+No Wi-Fi configuration, SSID, identity, NVS, firmware or network state changed.
+There was no device request or update. Generalized short-buffer misuse, malformed
+identity storage, physical report loss and cross-model behavior remain outside
+this pass.
+
+Private artifacts: `poll-request-pass1.txt`, `poll-request-pass2.txt`,
+`poll-request-gnu.mjs`, `poll-request-boundaries-gnu.txt`,
+`poll-request-literals.jsonl`, `poll-request-fixture.c`,
+`poll-request-results.txt` and `poll-request-evidence-hashes.txt`.

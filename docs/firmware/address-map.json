@@ -370,6 +370,18 @@
       "evidence": "static; 22 October instruction lifetime follow-up"
     },
     {
+      "address": "0x3fcac614",
+      "kind": "global",
+      "role": "OTA reporting error word; nonzero failure report consumption clears it",
+      "evidence": "static; poll request GNU and host reconstruction follow-up"
+    },
+    {
+      "address": "0x3fcac618",
+      "kind": "global",
+      "role": "OTA reporting state word; terminal report consumption clears it before HTTP",
+      "evidence": "static; poll request GNU and host reconstruction follow-up"
+    },
+    {
       "address": "0x3fcac6d0",
       "kind": "global",
       "role": "Pointer to 65,536-byte diagnostic PSRAM store",
@@ -1549,6 +1561,12 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x42023300",
+      "kind": "function",
+      "role": "SSID URL encoder: ASCII unreserved bytes pass through; other bytes become uppercase percent escapes",
+      "evidence": "static; poll request GNU and host reconstruction follow-up"
+    },
+    {
       "address": "0x420233b0",
       "kind": "function",
       "role": "Register active HTTP client; overwrites one global slot",
@@ -2178,8 +2196,8 @@
     {
       "address": "0x4202d1d0",
       "kind": "function",
-      "role": "Consume OTA reporting state",
-      "evidence": "static"
+      "role": "Consume terminal OTA report before HTTP; compiled version, success clears state, failure clears state and error",
+      "evidence": "static; poll request GNU and host reconstruction follow-up"
     },
     {
       "address": "0x4202d3a4",

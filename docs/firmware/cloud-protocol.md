@@ -81,6 +81,38 @@ The key in the URL path is a credential. Redact it in application, reverse-proxy
 and observability logs. Do not confuse an account-facing device ID or masked info
 value with the full provisioned key.
 
+### Poll request encoding and URL limits
+
+The poll reads at most 32 SSID bytes from the station snapshot into a zeroed
+33-byte array. Encoder `0x42023300` keeps ASCII letters, digits and `-_.~`, and
+encodes every other byte as uppercase `%HH`. Spaces become `%20`; a literal plus
+becomes `%2B`. UTF-8 is encoded byte by byte, with no Unicode validation. An
+embedded NUL ends the input. The 97-byte destination fits the full worst case of
+32 escaped bytes plus NUL. An unavailable station snapshot produces an empty
+`wifi_ssid` value rather than omitting that field.
+
+The final request has a **512-byte URL buffer**, including NUL. All three ordinary,
+OTA-success and OTA-failure formats reject a required length above 511 with
+`0x104`, before constructing the HTTP client. They do not send the truncated
+prefix. This bound includes the API origin, credential path and all query fields;
+a future longer configurable origin must account for the whole URL.
+
+The SSID encoder is not applied to every field. The device key and version
+strings are interpolated directly. OTA failure text comes from fixed firmware
+messages, is copied to a 128-byte array, and only has spaces replaced with `+`.
+For example, its fixed server-error message retains literal parentheses and a
+slash. These current messages contain no `&` or `#`; this does not establish a
+safe encoder for future arbitrary error text. LAN IP is formatted from the
+station's four address bytes, and `include_account=true` is a fixed suffix.
+
+Twenty-seven host cases cover selected encoding, URL and report-state rules.
+They confirm that SSID `&`, `#`, `+` and `=` remain encoded inside the value,
+and that 511/512-byte URL boundaries differ. The long-origin cases are synthetic
+boundary tests, not observed stock-host failures. Backend parsing should decode
+query values once and treat SSID/IP/version as telemetry; the
+[OTA report](ota-and-recovery.md#result-reporting) is consumed before any HTTP
+acknowledgment and carries no durable job or artifact identity.
+
 ### Successful response fields
 
 | Field | Client behavior |

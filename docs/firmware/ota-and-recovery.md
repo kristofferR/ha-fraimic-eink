@@ -318,6 +318,30 @@ the compiled version string, not a durable image hash. Backend rollout tracking
 must not assume every result is delivered exactly once or accurately identifies a
 URL-only modified artifact.
 
+The reporting getter reads the initialized flag at `0x3fcabd80`, state word at
+`0x3fcac618` and error word at `0x3fcac614`:
+
+| Input state | Report and immediate RAM change |
+| --- | --- |
+| Initialized, state 7 | Success with compiled `0.2.29`; state becomes zero, error word is left unchanged |
+| Initialized, state 8 and nonzero error | Failure with compiled `0.2.29` and a fixed error-category string; state and error both become zero |
+| Uninitialized, other state, or state 8 with zero error | No report; state/error remain unchanged |
+
+Error codes 1, 2, 4, 6, 8 and 9 select network, checksum, partition-space,
+download, boot-health and server-error descriptions respectively; other nonzero
+codes select the generic unknown-error message. These are reporting labels, not
+proof that each validation was executed by every update path. In particular, the
+older checksum label does not add a payload-hash check to the direct updater.
+
+The poll calls this getter before SSID/orientation preparation, URL-length
+validation and HTTP-client creation. A rejected overlong URL or later allocation,
+connection or response failure has already consumed the report. A subsequent
+poll does not resend it automatically. The request's separate `current_version`
+can be the one-poll `0.0.0` override while `ota_version` remains `0.2.29`.
+Twenty-seven combined host cases verify selected URL/encoding and report-state
+boundaries, including one-shot consumption and URL rejection. They do not perform
+an update, induce a network failure or establish actual boot outcome delivery.
+
 NVS includes `ota_fail`, `pend_force`, `force_ver`, `cur_ver`, `last_ver`,
 `upd_cnt`, `rb_cnt`, `boot_cnt` and `last_ts`. Names alone do not establish that
 every forced-version mechanism remains active in this newer direct-download path.
