@@ -57,6 +57,7 @@ per question, not a count of tool calls or decompiled functions.
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | D01/D03/D06 | DMA staging copies one 4,800-byte PSRAM chunk at a time; completion frees it; shared descriptors/manual select state and truncated/overwritten errors traced | Measured DMA-memory fragmentation, controlled transfer/overlap faults and complete higher-level driver exclusion audit |
 | S06/D01/D06 | Pre-sleep ordering and final wake-source reset traced; display shutdown discards BUSY timeout, suppresses hardware results and has no render join | Physical shutdown/wake controls, outstanding-worker faults and verified safe power-down |
+| R02/R05/R09 | App-side NEW/VALID/INVALID operations and alternate-image checks traced; failed rollback return is discarded, confirmation precedes initializer's Wi-Fi start | Installed bootloader/eFuses, actual alternate-slot contents, interrupted metadata writes and physical rollback |
 | C01/D01/D04 | Setup metadata framing and background screen tasks traced; shared pixels written before WAIT/DROP, two-minute Get Started poll hold, 90-second unscoped completion wait | Controlled task/heap faults, overlapping screens/producers, full metadata framing coverage and independent provisioning |
 | D06/E01 | Task-watchdog startup is 5 seconds, both idle tasks, panic disabled; renderer unsubscribes before power/conditioning/transfer/refresh | Physical failure/recovery tests, interrupt-watchdog and hardware fallback coverage, remaining indirect references |
 | H04/D06/S05 | Conditioning uses full-panel black or white/black clears and a temporary 288 KB block; elapsed selector uses 12/48-hour boundaries; MID suppresses clear errors and can advance the shared timestamp | Panel waveform constraints, physical conditioning/fault tests, other controller paths and interrupted timestamp writes |
@@ -196,6 +197,9 @@ Sources: [OTA and recovery](ota-and-recovery.md),
   NVS, and determine what form of backup/restore is possible without exposing keys.
 - [ ] **R05 · Static/Device:** Determine anti-rollback/security-version policy,
   accepted downgrade conditions and implications for returning to stock.
+  [App-side evidence](ota-and-recovery.md#ota-metadata-and-anti-rollback-evidence-remain-separate)
+  matches rollback-enabled, anti-rollback-disabled SDK branches in selected APIs;
+  this does not establish installed bootloader/eFuse policy or downgrade acceptance.
 - [ ] **R06 · Static/Device:** Establish a complete backup/restore strategy including
   provisioning, calibration and original images. Verify backup coverage/integrity
   and restoration prerequisites; the downloaded app alone is insufficient.
@@ -208,6 +212,9 @@ Sources: [OTA and recovery](ota-and-recovery.md),
 - [ ] **R09 · Host/Device:** Verify pending-validation checks, confirmation timing,
   actual rollback and stock restoration. Include an unreachable configured backend
   and failed changed functionality, not only PSRAM/I2C health.
+  [Rollback selection](ota-and-recovery.md#rollback-requires-a-usable-alternate-image)
+  now distinguishes candidate verification, metadata writing and restart. The
+  application counts an attempt before the API and discards its failure result.
 - [ ] **R10 · Host/Device:** Validate update offers against the disabled auto-update
   preference, repeated/same-version offers, truncation, the three-failure cooldown,
   missing clock, result-report loss and compiled-version/artifact identity mismatch.

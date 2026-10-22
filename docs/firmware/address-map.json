@@ -2428,6 +2428,18 @@
       "evidence": "static; 22 October album proxy follow-up"
     },
     {
+      "address": "0x42044f64",
+      "kind": "function",
+      "role": "Read both 32-byte OTA-selection records from separate erase-sector boundaries",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42044ff0",
+      "kind": "function",
+      "role": "Rewrite one OTA-selection record: sequence CRC, sector erase then 32-byte write; no readback",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x420450bc",
       "kind": "function",
       "role": "Sequential OTA write; erase precedes first-byte ESP magic validation",
@@ -2446,16 +2458,64 @@
       "evidence": "static; 22 October direct OTA follow-up"
     },
     {
+      "address": "0x42045328",
+      "kind": "function",
+      "role": "Choose next OTA-selection record and sequence; write NEW state from helper",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x420453bc",
       "kind": "function",
       "role": "Validate and select OTA boot partition",
       "evidence": "static; 22 October direct OTA follow-up"
     },
     {
+      "address": "0x4204546c",
+      "kind": "function",
+      "role": "Check alternate OTA or fallback factory image for rollback; record eligibility and image verification",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42045514",
+      "kind": "function",
+      "role": "Confirm active OTA record or check alternate, invalidate current record and restart after successful metadata write",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420455e8",
+      "kind": "function",
+      "role": "App-valid confirmation wrapper",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420455f4",
+      "kind": "function",
+      "role": "App-invalid rollback/restart wrapper; can return failure without reboot",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42045600",
+      "kind": "function",
+      "role": "Look up running/requested OTA slot state in two selection records",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
       "address": "0x42045694",
       "kind": "function",
       "role": "Begin OTA; direct updater uses sequential-write size sentinel -2",
       "evidence": "static; 22 October direct OTA follow-up"
+    },
+    {
+      "address": "0x42045e64",
+      "kind": "function",
+      "role": "OTA-selection CRC over four-byte sequence only",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42045e78",
+      "kind": "function",
+      "role": "OTA record eligibility: non-invalid state/sequence plus CRC",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x42047ba0",
@@ -2828,6 +2888,24 @@
       "kind": "function",
       "role": "cJSON_IsObject predicate used for settings/account/firmware fields",
       "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+    },
+    {
+      "address": "0x420e30b0",
+      "kind": "function",
+      "role": "Return NEW=0 for new OTA metadata, matching rollback-enabled SDK app branch",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420e30b8",
+      "kind": "function",
+      "role": "Reject erased OTA sequence or INVALID/ABORTED state",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420e30dc",
+      "kind": "function",
+      "role": "Select eligible OTA record by sequence; ties select first",
+      "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
     },
     {
       "address": "0x420ebdec",

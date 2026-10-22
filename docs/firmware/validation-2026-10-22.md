@@ -575,3 +575,26 @@ Private artifacts: `sleep-lifecycle-pass1.txt` through
 The fourth pass inspects an additional network cleanup callee without claiming
 complete SDK resource-lifetime coverage. Hardware state and late-worker effects
 remain open despite the statically recovered success logs.
+
+## App-side rollback and metadata: R02/R05/R09
+
+Three Ghidra passes and 40 bounded GNU ranges across 17 entries/call sites trace
+NEW-state selection, confirmation, alternate-image checks, invalidation/restart,
+state lookup and the application's health-failure return. Literal targets resolve
+the NEW-state helper, record selector, CRC primitive and `0x1505` rollback error.
+The metadata rewriter and record-invalid predicate are checked past truncated or
+misaligned exploratory disassembly at their actual branch boundaries.
+
+The [rollback follow-up](ota-and-recovery.md#app-side-confirmation-is-real-but-is-not-a-recovery-guarantee)
+separates app-compiled support from unknown installed bootloader/eFuse state.
+The selected app-side branches lack the SDK's optional secure-version checks/
+confirmation update; this is not evidence that the physical unit accepts arbitrary
+downgrades. The health caller discards a failed rollback request, and its counter
+increments before the attempt. Initialization confirms before its Wi-Fi start.
+No app was executed, flashed, invalidated, confirmed or rebooted by this pass.
+
+Private artifacts: `rollback-selection-pass1.txt` through
+`rollback-selection-pass3.txt`, `rollback-selection-gnu.mjs`,
+`rollback-selection-boundaries-gnu.txt` and `rollback-literals.jsonl`.
+The metadata trace describes code and record format, not a dump of actual OTA
+records or a backup of either installed slot. No new host fixture was needed.

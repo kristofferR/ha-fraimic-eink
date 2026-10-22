@@ -159,6 +159,86 @@ Future firmware health checks should cover the changed functionality and retain
 an owner-accessible way to correct backend configuration. Whether the actual
 bootloader reliably returns to the previous slot still needs a controlled test.
 
+### App-side confirmation is real, but is not a recovery guarantee
+
+The application contains working OTA-data operations, rather than unsupported
+stubs. Boot selection `0x42045328` obtains its new-state value from
+`0x420e30b0`, which returns **0 / NEW**. Confirmation wrapper `0x420455e8`
+calls `0x42045514(true)`; rollback wrapper `0x420455f4` calls the same function
+with false. The state values are NEW=0, PENDING_VERIFY=1, VALID=2, INVALID=3 and
+ABORTED=4, matching the
+[SDK record definitions](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/bootloader_support/include/esp_flash_partitions.h).
+
+The NEW-state setter and the previously traced pending-image check in OTA begin
+match the SDK's rollback-enabled application branches. This establishes compiled
+app-side support; it does **not** read the separately installed bootloader,
+its configuration, the current OTA records or either unit's actual eFuses.
+
+Confirmation locates the active OTA record. If already VALID it returns zero;
+otherwise it rewrites that record as VALID and returns the storage result.
+The application health checker propagates confirmation failure, but its background
+initializer only logs that failure and continues. That initializer calls the
+health checker at `0x42016bf6`, before its Wi-Fi-start call at `0x42016c44`.
+The recovered ordering therefore supplies no test of the configured backend,
+local time service or voice/image workflow before confirmation.
+
+If reading the running partition's state fails, the health checker also returns
+zero without running its pending-image tests. This can be a non-OTA/factory case
+or another state-read failure; its zero result alone does not mean health was
+checked or an app was newly confirmed.
+
+### Rollback requires a usable alternate image
+
+Checker `0x4204546c` reads both OTA records, chooses the active one, then examines
+the other. An eligible alternate record maps to a slot with
+`(sequence - 1) % app_partition_count`; that partition must exist and pass image
+verification. If the alternate record is ineligible, the compiled function can
+instead try a factory partition. A missing/invalid image or missing usable record
+can leave no rollback candidate. The downloaded vendor app does not establish
+what is currently in those on-device slots.
+
+Record eligibility is weaker than confirmed application health. Helper
+`0x420e30b8` rejects an erased sequence or INVALID/ABORTED state; `0x42045e78`
+also checks the sequence CRC. It does not require state VALID. The subsequent
+image-format check is not a test that the alternate app can reach the backend.
+Thus the SDK's “previously worked” log should not be treated as proof of a fully
+functional fallback image for the owner's intended configuration.
+
+With no candidate, the rollback request returns `0x1505` without invalidating
+the active record or restarting. With a candidate, it marks the active record
+INVALID, rewrites it and calls restart **only if that write succeeds**. The
+matching [SDK implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/app_update/esp_ota_ops.c)
+corroborates the API meanings; the conditions and constants above were checked
+in the downloaded Large binary.
+
+The application health-failure branch increments its rollback counter, records
+failure and sets visible/internal failure state **before** calling this API.
+At `0x4202d193` it discards a returned rollback error and returns the earlier zero
+status. The background initializer can therefore continue into network startup
+after a failed rollback request. A changed `rb_cnt` or “triggering rollback” log
+is evidence of an attempt, not evidence of another app booting. No failed-health
+or rollback experiment was performed.
+
+### OTA metadata and anti-rollback evidence remain separate
+
+Reader `0x42044f64` loads two 32-byte records, one at each erase-sector boundary
+of the OTA-data partition. Rewriter `0x42044ff0` updates the sequence and its CRC,
+erases the selected record's sector, then writes 32 bytes. It returns an erase
+or write error and has no readback in this helper. The CRC routine at
+`0x42045e64` covers the four sequence bytes, not the image or all record fields.
+Preserving application bytes alone therefore does not preserve boot-selection
+state. Interrupted metadata writes and the bootloader's resulting choice remain
+untested.
+
+In the examined Large app, boot selection proceeds from image validation to OTA
+record rewriting without the SDK's optional explicit secure-version check.
+Rollback-candidate validation also lacks that optional check, and successful
+confirmation returns after the record write without the optional eFuse
+secure-version update. These paths match the SDK's **anti-rollback-disabled
+application branches**. This does not establish the installed bootloader's policy,
+actual secure-version eFuses, all image-validation checks or acceptance of a
+downgrade/custom image. R02/R03/R05/R09 remain open.
+
 ## Failure tracking and reporting
 
 `0x4202b8a8` records failed offered version, count, timestamp and reason in NVS.
