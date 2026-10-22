@@ -346,6 +346,9 @@ The tally has no artwork ID, job ID or timestamp; its presence in logs is useful
 aggregate evidence, not a durable acknowledgment for a local-backend job.
 The [Standard-only API fields](local-api.md#standard-only-render-counters) expose
 these RAM counters through a read-only getter; Large omits those fields.
+Their [render-side coverage](rendering-and-concurrency.md#standard-counters-cover-the-final-ready-pin-waits)
+is narrower than all attempted images: the identified worker caller updates them
+only after final refresh returns; early rejection and conditioning bypass it.
 
 The pinned Large app has no terminated `disphealth` literal and no counterpart
 among its identified NVS API callers. This is a build-scoped difference, not a

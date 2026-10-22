@@ -558,6 +558,7 @@ control-flow boundary; physical timing and delivery remain deferred.
 
   - [x] **Static:** Map WAIT/DROP, pre-arbitration writes, setup-task waits and maintenance DROP-as-success. [Render policy](rendering-and-concurrency.md#what-wait-and-drop-actually-guarantee), [maintenance](rendering-and-concurrency.md#maintenance-refresh-has-separate-completion-rules).
   - [x] **Host:** Exercise twenty Large renderer/query scenarios and 140 admission orders, including context/task failures, early cleanup, stuck waits and stale/collapsed completion. SDK/hardware and scheduling remain modeled. [Results and limits](rendering-and-concurrency.md#bounded-renderer-fault-and-admission-model).
+    The Standard [counter/driver follow-up](rendering-and-concurrency.md#standard-counters-cover-the-final-ready-pin-waits) adds twelve instruction cases for early rejection, initialization continuation, final ready waits and conditioning. Counter changes do not acknowledge a specific job. [Cases](render-health-cases.json).
   - [ ] **Deferred:** **Device:** Validate selected timeout/cleanup outcomes after a bounded fixture exists.
 
 - [ ] **D05 · Host/Device:** Validate voice versus scheduled-content races and every

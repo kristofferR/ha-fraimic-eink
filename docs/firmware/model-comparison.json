@@ -16,6 +16,17 @@
       "model": "133",
       "log_history_bytes": 32768,
       "api_info_render_counters": true,
+      "render_health_boundary": {
+        "evidence": "render-health-cases.json",
+        "worker": "0x42020488",
+        "counter_update_call": "0x420206b4",
+        "final_refresh": "0x42020c90",
+        "ready_wait": "0x42020978",
+        "ready_gpio": 7,
+        "timeout_microseconds": 50000000,
+        "requires_low_to_high_edge": false,
+        "limits": "Final refresh return only; early worker failures and conditioning bypass counters; not job attribution or physical outcome proof"
+      },
       "application_bytes": 2589216,
       "sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
       "panel_payload_bytes": 960000,

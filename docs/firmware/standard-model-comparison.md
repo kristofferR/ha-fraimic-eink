@@ -1295,6 +1295,12 @@ Its exact panel part number remains unidentified. Large uses EL315TW1 with a
 portrait-native 1440 × 2560 layout and eight padded controller blocks. Packing,
 rotation, waveforms, GPIOs and power sequencing belong to the model profile.
 
+Standard's [render-health counters](rendering-and-concurrency.md#standard-counters-cover-the-final-ready-pin-waits)
+only observe final refresh returns. Twelve instruction cases establish the
+50-second GPIO-7 ready threshold, initialization-failure continuation, early
+worker bypass and uncounted conditioning refreshes. Large's separate GPIO-6
+wait/error behavior must not be inferred from that Standard result.
+
 The Standard local upload handler rejects lengths above 960,000. A downstream
 render-start tolerance of ±1,024 bytes is not a format specification: produce
 exactly the model's expected payload. Both local handlers can report `rendering`

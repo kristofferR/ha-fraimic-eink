@@ -1,0 +1,997 @@
+{
+  "model": "standard",
+  "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+  "method": "Byte-checked instruction interpretation of Standard worker, init, data, refresh, ready wait and conditioning clear.",
+  "functions": [
+    {
+      "name": "render-worker",
+      "entry": "0x42020488",
+      "instructions": 290,
+      "sha256": "d7d2dded490a09cb383948f521f4fe47f1b09f90cb689c682d8d1251af1b4f0a"
+    },
+    {
+      "name": "panel-refresh",
+      "entry": "0x42020c90",
+      "instructions": 66,
+      "sha256": "fcfe594ebb73004e3e47844908ec59831588d8ca5a35d4c759880ae5e6cb5316"
+    },
+    {
+      "name": "busy-wait",
+      "entry": "0x42020978",
+      "instructions": 79,
+      "sha256": "f46dd9da09ffbb586ec88c9140acfc061102e634ea5bc51e24d7636763242565"
+    },
+    {
+      "name": "clear-panel",
+      "entry": "0x42026570",
+      "instructions": 43,
+      "sha256": "2b6499562cfc3ed0d677f90873e6662189112cff4cc37b792d8f8a6f623aba09"
+    },
+    {
+      "name": "panel-data",
+      "entry": "0x42020d98",
+      "instructions": 36,
+      "sha256": "8b41881b1fd0f789129252cafd94b5d5e313a8bb59c23ca2693122a23831da27"
+    },
+    {
+      "name": "panel-init",
+      "entry": "0x42020aa0",
+      "instructions": 194,
+      "sha256": "873cd364e955b53c79a755319d04dc5eb4413724e78e59fc23cf9f9b28f8ef63"
+    }
+  ],
+  "distinct_instructions": 599,
+  "cases": [
+    {
+      "name": "normal-worker-ready-pin-always-high",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [
+        1
+      ],
+      "gpio_reads": 8,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 1000
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 116,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 240,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 0,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 165,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 48,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 80,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 96,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 134,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 227,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 224,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 97,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 164,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 1,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 182,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 6,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 183,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 5,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 176,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 177,
+          "stage": "INIT"
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "command",
+          "command": 4,
+          "stage": "PON"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 100
+        },
+        {
+          "event": "command-data",
+          "command": 18,
+          "stage": "DRF"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 2,
+          "stage": "POF"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "health-update",
+          "success": 1
+        },
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "worker-null-input",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [],
+      "gpio_reads": 0,
+      "events": [
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "worker-invalid-size",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [],
+      "gpio_reads": 0,
+      "events": [
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "worker-missing-panel-buffer",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [],
+      "gpio_reads": 0,
+      "events": [
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "worker-init-timeout-then-refresh-ready",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [
+        1
+      ],
+      "gpio_reads": 33,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 1000
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "command",
+          "command": 4,
+          "stage": "PON"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 100
+        },
+        {
+          "event": "command-data",
+          "command": 18,
+          "stage": "DRF"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 2,
+          "stage": "POF"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "health-update",
+          "success": 1
+        },
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "worker-power-on-timeout",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [
+        0
+      ],
+      "gpio_reads": 29,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 1000
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 116,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 240,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 0,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 165,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 48,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 80,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 96,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 134,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 227,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 224,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 97,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 164,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 1,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 182,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 6,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 183,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 5,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 176,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 177,
+          "stage": "INIT"
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "command",
+          "command": 4,
+          "stage": "PON"
+        },
+        {
+          "event": "health-update",
+          "success": 0
+        },
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "worker-refresh-timeout",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [
+        0
+      ],
+      "gpio_reads": 31,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 1000
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 116,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 240,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 0,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 165,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 48,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 80,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 96,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 134,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 227,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 224,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 97,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 164,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 1,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 182,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 6,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 183,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 5,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 176,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 177,
+          "stage": "INIT"
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "command",
+          "command": 4,
+          "stage": "PON"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 100
+        },
+        {
+          "event": "command-data",
+          "command": 18,
+          "stage": "DRF"
+        },
+        {
+          "event": "health-update",
+          "success": 0
+        },
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "worker-power-off-timeout",
+      "returned": null,
+      "task_deleted": true,
+      "health_success_arguments": [
+        0
+      ],
+      "gpio_reads": 33,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 1000
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 116,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 240,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 0,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 165,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 48,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 80,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 96,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 134,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 227,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 224,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 97,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 164,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 1,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 182,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 6,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 183,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 5,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 176,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 177,
+          "stage": "INIT"
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "panel-half",
+          "bytes": 480000
+        },
+        {
+          "event": "command",
+          "command": 4,
+          "stage": "PON"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 100
+        },
+        {
+          "event": "command-data",
+          "command": 18,
+          "stage": "DRF"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 2,
+          "stage": "POF"
+        },
+        {
+          "event": "health-update",
+          "success": 0
+        },
+        {
+          "event": "completion-signal"
+        },
+        {
+          "event": "task-delete"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "conditioning-refresh-failure-unreported",
+      "returned": 0,
+      "task_deleted": false,
+      "health_success_arguments": [],
+      "gpio_reads": 31,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 1000
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "command-data",
+          "command": 116,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 240,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 0,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 165,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 48,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 80,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 96,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 3,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 134,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 227,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 224,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 97,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 164,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 1,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 182,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 6,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 183,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 5,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 176,
+          "stage": "INIT"
+        },
+        {
+          "event": "command-data",
+          "command": 177,
+          "stage": "INIT"
+        },
+        {
+          "event": "command",
+          "command": 16,
+          "stage": "INIT"
+        },
+        {
+          "event": "command",
+          "command": 4,
+          "stage": "PON"
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        },
+        {
+          "event": "delay-ms",
+          "milliseconds": 100
+        },
+        {
+          "event": "command-data",
+          "command": 18,
+          "stage": "DRF"
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "busy-before-50s-then-high",
+      "returned": 0,
+      "task_deleted": false,
+      "health_success_arguments": [],
+      "gpio_reads": 3,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "busy-at-50s-fails",
+      "returned": 4294967295,
+      "task_deleted": false,
+      "health_success_arguments": [],
+      "gpio_reads": 2,
+      "events": [],
+      "passed": true
+    },
+    {
+      "name": "busy-already-high-no-low-edge",
+      "returned": 0,
+      "task_deleted": false,
+      "health_success_arguments": [],
+      "gpio_reads": 2,
+      "events": [
+        {
+          "event": "delay-ms",
+          "milliseconds": 10
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "fixture_sha256": "8227ba83bdf213405c38349de05747c97b2a12fc957ceeda532f53e1cbe47d8b",
+  "limits": "GPIO inputs, virtual time, lower commands/SPI, delays, watchdog, logging, buffers, allocation, task deletion/completion and health persistence are explicit models. The counter updater is observed at its call boundary; NVS writes are not executed here. No physical panel, electrical timing, storage durability or job attribution is proven. Normal task deletion terminates interpretation before the following failure-cleanup block."
+}

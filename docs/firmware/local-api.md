@@ -619,6 +619,9 @@ not a job ID or guaranteed durable completion record. Child/field allocation
 failures can still omit them. The integration already consumes them as optional
 fields; clients should preserve the distinction between absent and zero.
 [Full handler/counter evidence](local-handler-comparison.json).
+The [caller and driver follow-up](rendering-and-concurrency.md#standard-counters-cover-the-final-ready-pin-waits)
+shows that these count final refresh returns, bypass early worker rejection and
+conditioning, and cannot attribute success to a particular backend job.
 
 ## Restart, sleep and refresh acknowledgments
 

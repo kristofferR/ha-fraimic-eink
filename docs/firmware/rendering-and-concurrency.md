@@ -598,6 +598,50 @@ context probes do not imply ordinary render-start accepts invalid input. No actu
 byte corruption, physical race, power-safe recovery or Standard equivalence is
 claimed by this Large-only pass. See [validation](validation-2026-10-22.md#renderer-fault-and-admission-model-d04).
 
+### Standard counters cover the final ready-pin waits
+
+Standard's render-health updater has one identified direct caller, in worker
+`0x42020488` at `0x420206b4`. The worker first sends two 480,000-byte panel halves,
+then calls refresh `0x42020c90` and passes `result == 0` to the updater. The
+attempt counter therefore advances **after refresh returns**, not when a local
+request is accepted, the worker starts or bytes are transferred. Null/invalid
+worker input and a missing panel buffer take early cleanup without updating it.
+
+Refresh checks ready-wait `0x42020978` after PON (`0x04`), DRF (`0x12`) and POF
+(`0x02`). Any failed wait returns `-1`, skipping later commands. The wait samples
+GPIO 7 and succeeds whenever it reads high; it does not require a preceding low
+or a complete low-to-high edge. Its elapsed-time comparison is against
+49,999,999 microseconds, so a continuously low input fails at 50,000,000
+microseconds. The watchdog/yield interval uses a separate 99,999-microsecond
+comparison. These are recovered thresholds, not measured panel timing.
+
+The counter has further blind spots:
+
+| Path | What the counter can establish |
+| --- | --- |
+| Initialization wait fails | Initializer logs and returns without a status. The worker continues; later successful refresh waits still produce a successful health update. |
+| Ready signal already high | The wait succeeds without checking that a fresh refresh cycle began. This is a logical limitation, not evidence that a physical pin is stuck. |
+| Conditioning clear | Helper `0x42026570` calls the same refresh routine but discards its return and never calls the health updater. A non-allocation refresh failure still returns zero here. |
+| Early worker rejection | Completion is signaled but neither counter advances. Ordinary render-start validation is separate from these direct worker-input cases. |
+| Health update observed | It precedes the completion signal, remaining GPIO shutdown, a 1,000-tick delay, context release and busy clear. It does not mean all cleanup has ended. |
+
+**Twelve instruction cases** execute 599 distinct instructions across six
+byte-checked bodies: worker, initializer, panel-data wrapper, final refresh,
+ready wait and conditioning clear. Cases check each refresh-stage timeout,
+initialization-timeout continuation, three early-worker failures, ignored clear
+failure and the exact ready-wait boundary. GPIO, virtual time, lower SPI/commands,
+task operations and persistence are modeled; the updater is observed at its
+call boundary. The six complete bodies contain 708 instructions. The reference
+search does not exclude arbitrary computed calls.
+
+For backend state, retain these counters as optional aggregate diagnostics.
+Even a one-attempt increase with no added failure is not a receipt for a specific
+artwork: no content/job ID is carried, some failures are outside the tally, and
+[NVS persistence is unchecked](storage-and-configuration.md#standard-also-stores-per-build-display-health-counters).
+The existing owner-confirmed voice result remains physical evidence for that
+particular capture; this pass adds no device experiment.
+[Case evidence](render-health-cases.json).
+
 ## Completion currently means the worker ended
 
 The render worker gives the semaphore stored at `0x3fca6b24` and clears render-busy

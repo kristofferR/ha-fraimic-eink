@@ -4071,3 +4071,32 @@ execution cases or device requests were performed in this inventory. A matching
 handler body does not recursively validate its callees, RAM layout, all binary
 assets or live behavior. Existing milestones are extended; totals remain
 **12/67 original items and 125/189 milestones**.
+
+## Standard render-health coverage: D04/D06/H05/E02
+
+The identified direct counter-update caller is Standard worker `0x42020488` at
+`0x420206b4`, immediately after the final refresh result. Read-only Ghidra
+references find that caller and two direct callers of refresh: the worker and
+conditioning clear. Exact pointer-word/reference searches add no other updater
+caller; arbitrary computed calls remain outside this census.
+
+Six complete GNU bodies contain **708 byte-checked instructions**. Twelve host
+cases execute **599 distinct instructions**, checking null/invalid worker input,
+missing panel buffer, initialization timeout followed by successful refresh,
+PON/DRF/POF timeout propagation, ignored conditioning-refresh failure and ready
+wait at 49,999,999 versus 50,000,000 microseconds. An already-high input succeeds
+without a low-to-high edge. Normal task deletion ends execution before Ghidra's
+apparent fallthrough into the next failure-cleanup block.
+
+GPIO/time, lower SPI and commands, logging, watchdog, task operations, allocation
+and counter persistence are modeled. Counter updates are observed at the call
+boundary; this fixture does not execute NVS or establish physical panel outcome,
+hardware faults, real timing or image attribution. Early failure still signals
+completion without incrementing either counter. Normal health update precedes
+remaining shutdown and busy clear. [Findings](rendering-and-concurrency.md#standard-counters-cover-the-final-ready-pin-waits)
+and [case evidence](render-health-cases.json) extend existing milestones without
+changing **12/67 original items or 125/189 milestones**.
+
+Fixture SHA-256:
+`8227ba83bdf213405c38349de05747c97b2a12fc957ceeda532f53e1cbe47d8b`.
+No device, network, HA source or deployment change occurred.

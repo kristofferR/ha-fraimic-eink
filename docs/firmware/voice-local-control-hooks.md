@@ -38,6 +38,10 @@ send method already dispatch to frames; calling either and then returning the
 same image from finalize creates two delivery paths. Keep the original/library
 record separate from model-specific panel bytes. Serving an asset does not
 confirm physical display.
+Standard's optional render counters add aggregate diagnostics, but their
+[driver coverage and timing](rendering-and-concurrency.md#standard-counters-cover-the-final-ready-pin-waits)
+do not supply a per-job acknowledgment. Preserve a separate backend delivery
+state until explicit device-side identity/outcome events exist.
 
 ## Normal voice admission
 
