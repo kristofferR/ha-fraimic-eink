@@ -46,7 +46,7 @@ per question, not a count of tool calls or decompiled functions.
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
-| C05/D01 | Twenty-five host parser/field groups verify copy limits, duplicate/NUL/type handling, raw string-part projection and formatted-fields growth beyond 4,095 bytes despite a smaller complete response | Physical malformed-response/allocation controls, complete streaming/framing faults and Standard parser comparison |
+| C05/D01/E02 | Twenty-five host parser/field groups verify copy limits, duplicate/NUL/type handling, raw string-part projection and formatted-fields growth; ten Standard/Large function pairs match copying, printing and first-member lookup | Physical malformed-response/allocation controls, complete streaming/framing faults and remaining external parser/helper comparison |
 | C07/C08/D01/D07 | Upload task creation passes a borrowed 220-byte caller context; timeout returns without joining, while every worker exit still accesses its status/semaphore pointers | Physical timing, expired-stack effects, late completion/two-job reproduction and complete cleanup design |
 | C08/D01/D07 | Download context/handle and 300-second wait plus five-second grace mapped; late success stays failed; forced deletion can skip HTTP cleanup and race self-deletion | Actual scheduler/transport ordering, runtime callback ownership, retained-resource measurements and Standard equivalence |
 | C08/D01/D07 | All 21 direct register/unregister/abort-read/reset sites checked; ignored lock failures, double/unowned unregister and false-on-failed-read semantics mapped | Concurrent request/cancellation tests, stale-client effects, allocator/lock timing and Standard comparison |
@@ -156,6 +156,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   truncation, first-duplicate lookup and serialization allocation failure.
   Complete incoming JSON can still become unusable copied fields; physical
   response variants and transport/framing failures remain open.
+  [Ten Standard function pairs](standard-model-comparison.md#presign-copying-and-member-lookup-also-match)
+  confirm the same result layout, formatted serializer and ASCII first-match
+  lookup; the earlier host groups are not counted as a second run.
 - [ ] **C06 · Device:** Verify actual WAV format, duration/size limits, initial tap
   suppression, completion taps, cancellation and deadline behavior with a short
   owner-directed recording. Check the near-60-second boundary separately.

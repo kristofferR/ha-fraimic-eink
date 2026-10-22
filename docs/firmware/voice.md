@@ -141,7 +141,7 @@ differing only beyond those limits copy to identical strings. Key truncation can
 split UTF-8. Decoded `\u0000` shortens URL, key, field names and values at their
 first NUL. None of those results establishes that the resulting URL is usable.
 
-Required-member lookup is case-insensitive and selects the first duplicate.
+Required-member lookup is ASCII case-insensitive and selects the first duplicate.
 An invalid first `url` blocks a later valid one; a first non-object `fields`
 produces the empty fields string even if a later duplicate is an object.
 Missing/non-object fields and an injected `cJSON_Print` allocation failure all
@@ -156,6 +156,11 @@ storage; it deliberately does not execute the uninitialized empty-response path
 discussed below. For the local adapter, issue one short ASCII upload-ticket field
 with a unique name, keep the job key within 255 bytes, and validate issued fields
 before returning them. Wire JSON size alone is not a sufficient fields bound.
+
+The [Standard comparison](standard-model-comparison.md#presign-copying-and-member-lookup-also-match)
+confirms the same copying, formatted-print and first-member lookup branches in
+ten function pairs. That static comparison adds no second host-fixture run or
+physical malformed-response test.
 
 ### Multipart construction and streaming
 

@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 150 corresponding functions, including the subsequent
+The preserved metadata maps 159 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -325,6 +325,40 @@ These are selected matching static branches, not full SDK/control-flow
 equivalence or a new fault-injection run. The earlier host parser/timeout fixtures
 remain Large-derived. Keep the synchronous adapter contract shared and the
 renderers, capacities and ownership models explicit per build.
+
+### Presign copying and member lookup also match
+
+A focused comparison covers ten function pairs: the complete presign routine,
+formatted-print wrapper and allocation context, value/object printers,
+object-member wrapper and walker, case-insensitive string comparison,
+string-value getter and object-type predicate. GNU checks compare **875
+instructions in 35 ranges**, with matching normalized operations, register
+operands and **146 internal branch destinations**. Relocated calls and literals
+are mapped separately. This does not claim every external parser, transport or
+allocator helper is equivalent.
+
+Standard presign `0x42025124` has the same 5,888-byte result layout and silent
+byte truncation: URL 1,535, object key 255, and formatted fields 4,095 bytes plus
+their terminators. Its call to `0x42038108` selects formatted printing, whose
+object printer `0x42037a54` adds the same indentation/newlines. Complete compact
+wire JSON can therefore expand beyond the fields buffer. Missing/non-object
+fields or print-allocation failure leave an empty fields string without changing
+presign's successful return. The three initialized allocator-hook pointers were
+mapped; allocator behavior and physical memory pressure were not exercised.
+
+Member walker `0x42037bc4` stops at the first matching child, using comparator
+`0x42036e74` through the case-insensitive wrapper. The 256-entry character table
+reachable by its unsigned-byte loads matches Large; only ASCII `A`–`Z` take the
+lowercase conversion. Duplicate or case-variant `url`, `key` and `fields` names
+therefore have the same first-match behavior. This is byte-oriented matching,
+not general Unicode case folding.
+
+The earlier [25 presign host groups](voice.md#presign-copying-and-field-reserialization)
+remain one Large-derived fixture run. This comparison extends static support for
+the shared field-copying/printing contract; it does not count those cases again,
+test Standard's hardware, or recursively compare the whole JSON parser and
+multipart writer. Both models should receive short, unique ASCII field names,
+a short upload ticket and a stable object key within the byte limit.
 
 ### Cancellation ownership and download timeouts also match
 

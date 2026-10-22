@@ -263,6 +263,42 @@
       "standard_key": "0x3c0fd0a8",
       "configurable_stock_entry_point_established": false,
       "limitations": "Computed indirect calls and assembled keys are not excluded; installed correction and physical persistence/timing not read or tested"
+    },
+    "voice_presign": {
+      "evidence": "Static GNU instruction/branch and data comparison of both pinned applications; no additional host fixture or device test",
+      "compared_function_pairs": 10,
+      "compared_instructions_per_image": 875,
+      "compared_internal_branches": 146,
+      "gnu_ranges_per_image": 35,
+      "result_bytes": 5888,
+      "fields": [
+        {
+          "name": "url",
+          "offset": 0,
+          "capacity": 1536
+        },
+        {
+          "name": "key",
+          "offset": 1536,
+          "capacity": 256
+        },
+        {
+          "name": "fields",
+          "offset": 1792,
+          "capacity": 4096
+        }
+      ],
+      "serialized_fields_formatted": true,
+      "truncation_reports_failure": false,
+      "field_print_failure_changes_presign_success": false,
+      "member_lookup": "First duplicate, ASCII case-insensitive",
+      "classification_table": {
+        "large": "0x3c3cab81",
+        "standard": "0x3c253cd1",
+        "bytes": 256,
+        "sha256": "18d8bbbe62a9d3b02204ef690e3c05730bc45c5fc59c77b9dd04718ce3ed979b"
+      },
+      "limitations": "External helper targets and initial allocator hooks mapped; not a recursive equivalence proof for all JSON/HTTP/allocator/multipart helpers"
     }
   },
   "function_map": [
@@ -1015,6 +1051,51 @@
       "role": "maintenance_record_save",
       "large": "0x42014d48",
       "standard": "0x42014d68"
+    },
+    {
+      "role": "json_formatted_print_wrapper",
+      "large": "0x42039644",
+      "standard": "0x42038108"
+    },
+    {
+      "role": "json_print_allocation_context",
+      "large": "0x42038e3c",
+      "standard": "0x42037900"
+    },
+    {
+      "role": "json_print_value",
+      "large": "0x42038d08",
+      "standard": "0x420377cc"
+    },
+    {
+      "role": "json_print_object",
+      "large": "0x42038f90",
+      "standard": "0x42037a54"
+    },
+    {
+      "role": "json_get_member_wrapper",
+      "large": "0x4203966c",
+      "standard": "0x42038130"
+    },
+    {
+      "role": "json_get_string_value",
+      "large": "0x420398c4",
+      "standard": "0x42038388"
+    },
+    {
+      "role": "json_is_object",
+      "large": "0x420e2e40",
+      "standard": "0x420e3124"
+    },
+    {
+      "role": "json_get_first_member",
+      "large": "0x42039100",
+      "standard": "0x42037bc4"
+    },
+    {
+      "role": "json_ascii_case_compare",
+      "large": "0x420383b0",
+      "standard": "0x42036e74"
     }
   ],
   "live_standard": {
