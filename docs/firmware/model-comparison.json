@@ -13,7 +13,15 @@
       "controller_transfer_bytes": [
         480000,
         480000
-      ]
+      ],
+      "buffer_layout": {
+        "recording_allocation_bytes": 2120000,
+        "image_allocation_bytes": 1048576,
+        "recording_and_image_share_allocation": false,
+        "recording_pointer_global": "0x3fcabd8c",
+        "image_pointer_global": "0x3fcabd80",
+        "display_pointer_alias": "0x3fca7644"
+      }
     },
     "large": {
       "version": "0.2.29",
@@ -21,7 +29,14 @@
       "model": "315",
       "application_bytes": 4123920,
       "sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
-      "panel_payload_bytes": 2304000
+      "panel_payload_bytes": 2304000,
+      "buffer_layout": {
+        "shared_allocation_bytes": 2304000,
+        "recording_exposed_capacity_bytes": 2120000,
+        "recording_and_image_share_allocation": true,
+        "shared_pointer_global": "0x3fcabd28",
+        "display_pointer_alias": "0x3fca75d4"
+      }
     }
   },
   "shared": {
@@ -329,6 +344,46 @@
       "role": "maintenance_refresh_restore",
       "large": "0x42027f84",
       "standard": "0x42026a18"
+    },
+    {
+      "role": "psram_allocator",
+      "large": "0x42028d94",
+      "standard": "0x42027734"
+    },
+    {
+      "role": "recording_buffer_pointer",
+      "large": "0x42028e68",
+      "standard": "0x42027874"
+    },
+    {
+      "role": "recording_buffer_capacity",
+      "large": "0x42028e74",
+      "standard": "0x42027880"
+    },
+    {
+      "role": "image_buffer_pointer",
+      "large": "0x42028e88",
+      "standard": "0x42027898"
+    },
+    {
+      "role": "image_buffer_capacity",
+      "large": "0x42028e94",
+      "standard": "0x420278a4"
+    },
+    {
+      "role": "recording_start",
+      "large": "0x4201fed0",
+      "standard": "0x4201fea0"
+    },
+    {
+      "role": "wav_header_in_place",
+      "large": "0x420201d4",
+      "standard": "0x420201a4"
+    },
+    {
+      "role": "voice_multipart_upload",
+      "large": "0x42026b9c",
+      "standard": "0x420255ec"
     }
   ],
   "live_standard": {

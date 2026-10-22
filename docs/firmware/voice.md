@@ -62,10 +62,14 @@ the existing buffer. Approximately 1.92 MB of audio fits within 60 seconds; this
 is a sizing estimate, not a guarantee of a successfully submitted exact-duration
 recording. Silence is not the stock completion signal.
 
-The microphone/image buffer is [shared](hardware-and-layout.md#one-psram-buffer-serves-audio-and-images).
+On Large, the microphone/image buffer is [shared](hardware-and-layout.md#one-psram-buffer-serves-audio-and-images).
 Do not introduce image downloads during recording or reuse that memory before
 audio transmission finishes. A separate WAV allocation is not implicit in the
 header-generation function.
+
+Standard 0.2.28 instead has [separate audio and image allocations](standard-model-comparison.md#separate-recording-and-image-allocations).
+Its selected presign/upload/finalize branches match the transport contract below,
+but Large's audio/image alias must not be generalized to it.
 
 ## Presign
 

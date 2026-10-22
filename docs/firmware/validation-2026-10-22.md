@@ -598,3 +598,28 @@ Private artifacts: `rollback-selection-pass1.txt` through
 `rollback-selection-boundaries-gnu.txt` and `rollback-literals.jsonl`.
 The metadata trace describes code and record format, not a dump of actual OTA
 records or a backup of either installed slot. No new host fixture was needed.
+
+## Standard voice and buffer ownership: E02/D01/C05/C07
+
+Two Standard Ghidra passes, its earlier renderer/instruction exports, and 67
+bounded GNU ranges across 13 entries/call sites trace the allocator, accessors,
+recording start/WAV header, startup display pointer and voice transport worker.
+Literal reads are pinned to the Standard app hash. The presign branch at
+`0x420253e4` crosses a spurious synthetic-ELF symbol boundary; GNU `-D` decodes
+the actual three-byte conditional instruction, rather than treating its last
+byte as a separate function. Uploader blocks were checked at this build's actual
+branch targets, including its final status/return branches.
+
+The [model comparison](standard-model-comparison.md#separate-recording-and-image-allocations)
+records separate 2,120,000-byte audio and 1,048,576-byte image allocations, the
+display alias and the distinct 960,000-byte voice-download/panel limit. The same
+pass checks empty upload acknowledgment, post-body abort registration, 4 KiB WAV
+writes, the 120/600-second transport settings, single 4,095-byte JSON reads and
+the synchronous finalize worker. It does not promote the earlier Large host
+fixtures into Standard execution evidence or establish full SDK equivalence.
+
+Private artifacts: `small-frame/standard-voice-lifetime-pass1.txt`,
+`standard-voice-lifetime-pass2.txt`, `standard-voice-gnu.mjs`,
+`standard-voice-boundaries-gnu.txt`, `standard-voice-literals.jsonl` and earlier
+`standard-instruction-pass2.txt`. Model metadata now maps 54 function pairs.
+No frame request, recording, image change or firmware execution occurred.

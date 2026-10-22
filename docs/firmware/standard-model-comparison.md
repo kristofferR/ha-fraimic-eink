@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 46 corresponding functions, including the subsequent
+The preserved metadata maps 54 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning and maintenance comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
@@ -116,6 +116,67 @@ wrappers have the corresponding call structure. This supports sharing the
 The 19 host cases remain a fixture of the recovered Large helper and pinned
 cJSON source; this comparison does not represent another executed firmware test
 or establish equivalence of every Standard proxy/error branch.
+
+### Separate recording and image allocations
+
+Standard allocator `0x42027734` makes **two separate PSRAM allocations**. This is
+a material difference from Large's single backing block, verified through the
+allocator, pointer accessors, recording start and display initialization.
+
+| Storage | Standard | Large |
+| --- | --- | --- |
+| Recording backing allocation | 2,120,000 bytes at pointer global `0x3fcabd8c` | Shares the 2,304,000-byte image allocation; recorder capacity is 2,120,000 |
+| Image backing allocation | 1,048,576 bytes at pointer global `0x3fcabd80` | 2,304,000 bytes at pointer global `0x3fcabd28` |
+| Display pointer alias | `0x3fca7644`, initialized from image accessor `0x42027898` | `0x3fca75d4`, initialized from image accessor `0x42028e88` |
+| Packed panel asset | **960,000 bytes** | **2,304,000 bytes** |
+
+Standard recording start `0x4201fea0` gets the audio pointer from `0x42027874`;
+WAV helper `0x420201a4` writes the 44-byte header in that allocation. Startup's
+call/store at `0x42014642` / `0x42014648` instead installs the image pointer as
+the display alias. The voice download context in `0x42011a3c` uses this display
+pointer with a **960,000-byte** limit. Render worker `0x42020488` copies into the
+same image alias and later sends two 480,000-byte blocks. The spare allocation
+capacity does not change the backend's required panel payload size.
+
+The allocator prechecks total free PSRAM against **3,168,576 bytes**, then makes
+the two allocations separately. That check does not establish two sufficiently
+large free blocks. It zeroes each allocation; failure of the second allocation
+frees and clears the first and its ready flag. The transient recording-ready
+flag is initialization state, not a job ownership lock.
+
+Thus Large's specific audio-versus-image alias hazard must **not** be generalized
+to Standard. Standard still shares one image allocation among image producers
+and rendering, and one audio allocation among recordings/uploads. Separate
+allocations alone do not prove safe overlapping jobs or fix the shared HTTP
+response/abort state. No concurrent operation or allocation fault was exercised.
+
+### Voice transport comparison
+
+The Standard presign, multipart and finalize functions (`0x42025124`,
+`0x420255ec`, `0x42025dd0`) have the relevant client branches already documented
+for Large:
+
+- Multipart builds separate framing storage and streams the existing WAV in
+  chunks of at most 4,096 bytes, requiring exact write counts. Its transport
+  timeout is 120,000 ms. Abort registration occurs after the final body write,
+  immediately around header fetch, rather than covering audio transmission.
+- The upload acknowledgment path requires header fetch to return zero before
+  checking for a 200–299 status. A positive declared response length takes the
+  error path. Use an empty success response; the earlier Standard live capture
+  observed HTTP 204. This is not a claim that every possible empty/chunked
+  response has been physically tested.
+- Presign and finalize each make one body-read call capped at 4,095 bytes before
+  parsing, without requiring complete HTTP-body consumption. Finalize requests
+  a 600,000 ms transport timeout, which is not an absolute end-to-end deadline.
+- Worker `0x4201005c` samples orientation after upload, calls finalize
+  synchronously, and copies its URL on success. It does not implement a status
+  polling loop. Missing status defaults to completed in the parser, consistent
+  with the observed successful Standard response that omitted it.
+
+These are selected matching static branches, not full SDK/control-flow
+equivalence or a new fault-injection run. The earlier host parser/timeout fixtures
+remain Large-derived. Keep the synchronous adapter contract shared and the
+renderers, capacities and ownership models explicit per build.
 
 ### Maintenance refresh differences
 

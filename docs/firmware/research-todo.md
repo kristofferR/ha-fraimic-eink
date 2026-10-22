@@ -72,7 +72,8 @@ per question, not a count of tool calls or decompiled functions.
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02/H04/D01 | Both app hashes pinned; 42 routes and 46 function pairs compared; Standard lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/LED/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
+| E02/H04/D01 | Both app hashes pinned; 42 routes and 54 function pairs compared; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/LED/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
+| E02/C05/C07 | Standard's selected upload/finalize branches match empty upload acknowledgment, 4 KiB WAV chunks, 4,095-byte JSON reads and synchronous finalize; its voice image limit remains 960,000 bytes | Full error/SDK comparison, device response faults, cancellation and late-worker/two-job behavior |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
 local-backend polling, microphone transport, an approved test-card display and
@@ -281,6 +282,9 @@ Source: [rendering and concurrency](rendering-and-concurrency.md).
   [Instruction tasks](rendering-and-concurrency.md#setup-screen-tasks-and-the-two-minute-poll-hold)
   add a safe copied task context but shared pixel writes before render arbitration,
   a time-limited polling hold and unscoped render-completion signals.
+  [Standard's allocation comparison](standard-model-comparison.md#separate-recording-and-image-allocations)
+  rules out Large's specific audio/image alias there; image producers still share
+  an allocation, and recording/upload reuse still needs job ownership.
 - [ ] **D02 · Host/Device:** Reproduce the shared-buffer interference with controlled
   overlapping operations. Record which bytes/operation are affected and when;
   static missing guards alone do not demonstrate a particular runtime failure.

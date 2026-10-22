@@ -181,6 +181,10 @@ replacing the complete firmware.
 
 ## One PSRAM buffer serves audio and images
 
+This is **Large's** allocation design. [Standard uses separate recording and
+image allocations](standard-model-comparison.md#separate-recording-and-image-allocations)
+in the pinned 0.2.28 build.
+
 `0x42028d94` allocates **2,304,000 bytes** of PSRAM and stores its pointer through
 the literal at `0x42003590`. Both accessors return that same pointer:
 

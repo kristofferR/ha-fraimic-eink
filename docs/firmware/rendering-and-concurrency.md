@@ -18,6 +18,10 @@ ownership, and a candidate cancellation flag left over for the next recording.
 
 ## The display pointer is another alias
 
+This allocation map is for **Large**. Standard has [separate audio/image backing
+allocations](standard-model-comparison.md#separate-recording-and-image-allocations),
+although its display pointer still aliases its image allocation.
+
 The PSRAM manager allocates one 2,304,000-byte block. Recording and image accessors
 return it. Initialization also assigns the result of `0x42028e88` to the display
 pointer at `0x3fca75d4`; the call/store are at `0x42014622` / `0x42014628`.
