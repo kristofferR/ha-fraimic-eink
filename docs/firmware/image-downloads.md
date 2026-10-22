@@ -204,6 +204,9 @@ Exact timing matters: this pass does not establish all runtime thread-local
 callbacks, leaked bytes, socket lifetime, lock ownership, or a cause for the
 previously observed TLS allocation failure. An HTTP abort return and a task-deleted
 log are insufficient evidence of resource cleanup.
+The [active-client follow-up](voice.md#active-client-ownership-and-failed-unregistration)
+also traces failed unregister followed by client cleanup, duplicate unregister,
+and cleanup after an open failure that never registered this client.
 
 For the backend, retain completed artwork and reusable tickets when delivery
 fails; a late successful GET is not proof the frame displayed it. A firmware fork

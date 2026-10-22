@@ -347,9 +347,9 @@
     },
     {
       "address": "0x3fcabcd0",
-      "kind": "data",
-      "role": "Single HTTP-abort-manager client slot and mutex/state",
-      "evidence": "static; cancellation follow-up"
+      "kind": "global",
+      "role": "24-byte HTTP abort manager: client +0, mutex +4, abort byte +8, label +12, start time +16; no owner identity",
+      "evidence": "static; active-client ownership pass and GNU byte/call cross-check"
     },
     {
       "address": "0x3fcabce8",
@@ -1695,14 +1695,14 @@
     {
       "address": "0x420233b0",
       "kind": "function",
-      "role": "Register active HTTP client; overwrites one global slot",
-      "evidence": "static; cancellation follow-up"
+      "role": "Register active HTTP client: replace slot and clear abort byte; all four direct callers ignore failure",
+      "evidence": "static; active-client ownership pass and GNU byte/call cross-check"
     },
     {
       "address": "0x42023464",
       "kind": "function",
-      "role": "Unregister active HTTP client without owner comparison",
-      "evidence": "static; cancellation follow-up"
+      "role": "Unregister without expected client: clear slot/label/time but preserve abort byte; all seven direct callers ignore failure",
+      "evidence": "static; active-client ownership pass and GNU byte/call cross-check"
     },
     {
       "address": "0x420234cc",
@@ -1807,6 +1807,12 @@
       "evidence": "static GNU validation; 22 October poll-result ownership audit"
     },
     {
+      "address": "0x42025e34",
+      "kind": "function",
+      "role": "Initialize abort-manager mutex if absent; existing-manager path does not reset client or abort byte",
+      "evidence": "static; active-client ownership pass and GNU byte/call cross-check"
+    },
+    {
       "address": "0x42025ea8",
       "kind": "function",
       "role": "Abort wrapper holds slot mutex through SDK cancel, then marks abort; SDK error logged but locked attempt returns zero",
@@ -1815,14 +1821,14 @@
     {
       "address": "0x42025fc4",
       "kind": "function",
-      "role": "Read HTTP-abort flag under its mutex",
-      "evidence": "static; cancellation follow-up"
+      "role": "Read shared HTTP-aborted byte; returns false if mutex absent or ten-tick acquisition fails",
+      "evidence": "static; active-client ownership pass and GNU byte/call cross-check"
     },
     {
       "address": "0x42026014",
       "kind": "function",
-      "role": "Clear HTTP-abort flag under its mutex",
-      "evidence": "static; cancellation follow-up"
+      "role": "Clear shared HTTP-aborted byte under mutex; all five direct callers ignore failure",
+      "evidence": "static; active-client ownership pass and GNU byte/call cross-check"
     },
     {
       "address": "0x4202606c",

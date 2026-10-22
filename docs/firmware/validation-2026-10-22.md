@@ -1422,3 +1422,36 @@ backend or routing state changed. C08/D01/D07 remain open.
 Private artifacts: `download-delete-pass1.txt` through `download-delete-pass5.txt`,
 `download-delete-gnu.mjs`, `download-delete-boundaries-gnu.txt`,
 `download-delete-literals.jsonl` and `download-delete-evidence-hashes.txt`.
+
+## Active HTTP-client slot and lock failures: C08/D01/D07
+
+One targeted reference pass covers the six manager helpers and their recovered
+callers. A separate byte-wise Xtensa direct-call scan finds 21 candidates: four
+register, seven unregister, five aborted-read and five reset sites. Each matches
+GNU instructions in its caller context, including the multipart acknowledgment
+tail omitted by Ghidra. No exact pointer words for these four helper addresses
+were found; computed indirect calls remain outside that negative result.
+
+The nine full functions plus multipart-tail region span 56 bounded GNU ranges.
+All 2,009 decoded instruction byte sequences match the pinned application.
+Register, unregister and reset callers discard their return values. Missing mutex
+and ten-tick acquisition failure are therefore not a stop condition for HTTP work
+or client cleanup. The aborted getter returns false on those failures.
+
+The [ownership trace](voice.md#active-client-ownership-and-failed-unregistration)
+adds the 24-byte record layout, diagnostic-only label/time, preserved abort byte
+on unregister and reset on registration. The image downloader unregisters after
+body reading and again in the common epilogue. Its open-failure branch also reaches
+that epilogue without having registered this invocation. Unregister failure can
+leave the slot unchanged while the worker proceeds to client cleanup.
+
+The resulting stale-client, other-client clearing and cross-request abort-state
+cases are conditional static interleavings. There is no new host concurrency
+test, physical cancellation, measured memory fault or socket-lifetime result.
+These findings do not establish the cause of captured TLS allocation failures.
+No frame, network policy, backend or HA implementation changed. C08/D01/D07
+remain open, including Standard equivalence and runtime timing.
+
+Private artifacts: `http-slot-pass1.txt`, `scan-http-slot-calls.mjs`,
+`http-slot-call-candidates.json`, `http-slot-gnu.mjs`,
+`http-slot-boundaries-gnu.txt` and `http-slot-evidence-hashes.txt`.

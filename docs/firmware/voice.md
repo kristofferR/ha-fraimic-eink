@@ -398,6 +398,73 @@ make finalize idempotent and retain a completed original even if delivery loses
 its connection. Explicit cancel/result messages require a firmware extension.
 Receiving the WAV alone is not proof the device will call finalize.
 
+### Active-client ownership and failed unregistration
+
+The cancellation manager is a 24-byte record at `0x3fcabcd0`: client pointer at
+`+0`, mutex at `+4`, HTTP-aborted byte at `+8`, borrowed operation-label pointer
+at `+0xc`, and 64-bit start time at `+0x10`. The label and timestamp are diagnostics;
+they are not an ownership token. The processing-gesture byte at `0x3fca6b19` is
+separate.
+
+| Helper | Successful locked operation | Missing mutex / ten-tick lock timeout |
+| --- | --- | --- |
+| Register `0x420233b0` | Replace current client/label/time and clear HTTP-aborted byte | Return `-1` / `0x107`; preserve record |
+| Unregister `0x42023464` | Clear client/label/time, preserve HTTP-aborted byte | Return `-1` / `0x107`; preserve record |
+| Read aborted `0x42025fc4` | Return HTTP-aborted byte | Return false in either case |
+| Reset aborted `0x42026014` | Clear HTTP-aborted byte | Return `-1` / `0x107`; preserve record |
+
+Ten ticks is approximately 100 ms in this build. Initializer `0x42025e34` creates
+the mutex if absent; calling it again with an existing mutex does not reset a
+stale client or abort byte.
+
+A raw direct-call scan and GNU checks identify **four register sites, seven
+unregister sites, five aborted reads and five resets**. They belong to the common
+image downloader, voice presign, multipart acknowledgment and finalize. All
+register/unregister/reset results are discarded. Thus registration failure does
+not stop the request, and failed unregister does not prevent later client cleanup.
+No exact function-pointer words for those four helpers were found in the image;
+this bounds the reference search rather than excluding computed indirect calls.
+
+The common downloader has two additional details:
+
+- After body reception it unregisters at `0x4202648f`, then later unregisters
+  again in the common cleanup epilogue at `0x420266b9`. Header-error branches also
+  unregister before reaching that epilogue. There is no expected-client argument.
+- A failed HTTP open at `0x420261ac` reaches the same unregister/close/cleanup
+  epilogue even though this invocation never reached registration at `0x420261df`.
+
+These establish several **conditional interleavings**, not reproduced failures:
+
+| Ordering | Consequence permitted by the recovered code |
+| --- | --- |
+| A registers, B replaces it, A unregisters | A clears B's cancellation target |
+| A unregisters after receiving its image; B registers before A's final epilogue | A's second unregister clears B |
+| A cannot open its connection while B is registered | A's common epilogue can clear B despite never registering A |
+| A's unregister times out, then A reaches client cleanup | The slot can retain a pointer to freed HTTP-client storage |
+| Another registration/reset occurs between an aborted read and subsequent handling | Shared cancellation classification can change across requests |
+
+In the fourth case, a later abort can pass that stale pointer into the SDK. Also,
+the abort wrapper holds the slot mutex while calling SDK cancellation, whereas a
+worker can proceed with freeing its client after its unregister wait fails. The
+mutex therefore does not itself establish safe HTTP-client lifetime. Actual
+scheduler ordering, held-lock duration, allocator reuse and resulting memory or
+socket effects remain untested. These paths do not explain the earlier TLS-memory
+failure without additional evidence.
+
+Unregister deliberately preserves the HTTP-aborted byte so the caller can inspect
+it afterward; a successful new registration clears it. The getter's false-on-lock-
+failure behavior can instead classify a cancellation-related read error as an
+ordinary error. For image download that classification affects retry handling;
+the separate processing flag can still stop the outer worker. A log label or
+`0x103` result should not be treated as a reliable per-job cancellation receipt.
+
+For a firmware fork, registration and cleanup need an expected client/job identity
+and a lifetime handshake: do not free a client while cancellation may use it, and
+do not clear a different client's slot. Keep abort/result state with its job.
+For stock-backend operation, serialize content producers where possible and keep
+job retention/idempotency independent of connection or LED state. This backend
+discipline does not repair the firmware's internal ownership paths.
+
 ### SDK cancellation state and response bookkeeping
 
 Large's SDK primitive `0x4206db7c` rejects a null client or state below
