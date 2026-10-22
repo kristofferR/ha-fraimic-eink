@@ -47,6 +47,7 @@ No transcription or AI generation was invoked.
 | [Rendering and concurrency](rendering-and-concurrency.md) | Buffer aliases, upload ordering, render policies, error propagation and completion signals |
 | [Boot and scheduling](boot-and-scheduling.md) | Model-specific wake pins, boot classification, recording admission, timers and offline dependencies |
 | [Startup and readiness](startup-and-readiness.md) | Early errors, wake-dependent waits, normal/setup worker failures and completion-token limits |
+| [Initialization helpers](initialization-helpers.md) | Component retry/cleanup policies, null event-group success and model-specific memory/I2C/GPIO failures |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
 | [Firmware downloader](downloader.md) | Standalone offer check and application download while frames stay blocked from the web |

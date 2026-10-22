@@ -1,0 +1,923 @@
+{
+  "method": "Complete byte-checked initializer CFGs, paired normalized comparison, original-instruction fault cases and exact direct/reference-pointer census.",
+  "comparison": {
+    "functions": [
+      {
+        "name": "instruction",
+        "large": "0x4202b068",
+        "standard": "0x42029808",
+        "instructions": 84,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "display",
+        "large": "0x42028224",
+        "standard": "0x42026bc4",
+        "instructions": 78,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "i2c",
+        "large": "0x42028f38",
+        "standard": "0x4202fd6c",
+        "instructions": 89,
+        "normalized_operations_match": false,
+        "differences": [
+          {
+            "large": "0x42028f52",
+            "standard": "0x4202fd86",
+            "large_asm": "movi.n\ta8, 11",
+            "standard_asm": "movi.n\ta8, 10"
+          },
+          {
+            "large": "0x42028f56",
+            "standard": "0x4202fd8a",
+            "large_asm": "movi.n\ta15, 10",
+            "standard_asm": "movi.n\ta15, 9"
+          },
+          {
+            "large": "0x42028fcf",
+            "standard": "0x4202fe03",
+            "large_asm": "movi.n\ta10, 10",
+            "standard_asm": "movi.n\ta10, 9"
+          },
+          {
+            "large": "0x42028fd6",
+            "standard": "0x4202fe0a",
+            "large_asm": "movi\ta10, 11",
+            "standard_asm": "movi\ta10, 10"
+          },
+          {
+            "large": "0x42028fe7",
+            "standard": "0x4202fe1b",
+            "large_asm": "movi.n\ta12, 11",
+            "standard_asm": "movi.n\ta12, 10"
+          },
+          {
+            "large": "0x42028fe9",
+            "standard": "0x4202fe1d",
+            "large_asm": "movi.n\ta11, 10",
+            "standard_asm": "movi.n\ta11, 9"
+          }
+        ]
+      },
+      {
+        "name": "i2c-install",
+        "large": "0x42028ea8",
+        "standard": "0x4202fcdc",
+        "instructions": 58,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "config",
+        "large": "0x42019670",
+        "standard": "0x42019644",
+        "instructions": 103,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "portal",
+        "large": "0x4201da30",
+        "standard": "0x4201da04",
+        "instructions": 39,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "connectivity",
+        "large": "0x4202efdc",
+        "standard": "0x4202d708",
+        "instructions": 71,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "http-abort",
+        "large": "0x42025e34",
+        "standard": "0x42024884",
+        "instructions": 43,
+        "normalized_operations_match": true,
+        "differences": []
+      }
+    ],
+    "instructions_per_build": 565,
+    "direct_call_pairs": 26,
+    "sha256": "e1299ac2087c30736a46ec8cf4568010a5471286143f37a6fa2395a387e8b288",
+    "literal_qualifications": [
+      "Three portal diagnostic source-line literals differ by 40; this is not a runtime-policy difference.",
+      "I2C GPIO template mask is 0xC00 on Large and 0x600 on Standard; six immediate operands reflect GPIO 10/11 versus 9/10.",
+      "Two Unicode log strings omitted by the ASCII comparison filter were separately compared as complete identical NUL-terminated bytes.",
+      "Code/RAM relocations do not prove external callee equivalence or identical runtime state."
+    ]
+  },
+  "models": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "instruction",
+          "entry": "0x4202b068",
+          "instructions": 84,
+          "sha256": "cae00344431dbce3ab1119d7026fe967455996216844e1b1be38eec4e8934dcf"
+        },
+        {
+          "name": "display",
+          "entry": "0x42028224",
+          "instructions": 78,
+          "sha256": "c1c20dc6b96310813d4a59a7c7b1178293d8dea0c76fd5887fa9fece4d082ea9"
+        },
+        {
+          "name": "i2c",
+          "entry": "0x42028f38",
+          "instructions": 89,
+          "sha256": "d7561eeccaac0954e919de1244e3932481e7a4d1fe27cbfcede8102028e6aa50"
+        },
+        {
+          "name": "i2c-install",
+          "entry": "0x42028ea8",
+          "instructions": 58,
+          "sha256": "5f957a9e68bb6a49542224079c928ffb9cca032a7e9586c78e3f337cbb8e4a61"
+        },
+        {
+          "name": "config",
+          "entry": "0x42019670",
+          "instructions": 103,
+          "sha256": "d7d95c6393c3c32f88e25a2007fac5703fe3adb3cce3aad81786c0f77c6a4b04"
+        },
+        {
+          "name": "portal",
+          "entry": "0x4201da30",
+          "instructions": 39,
+          "sha256": "ba8772c334a3a687f50acfa6c15961a07d883b0e21c2b60670bce38d22d2f367"
+        },
+        {
+          "name": "connectivity",
+          "entry": "0x4202efdc",
+          "instructions": 71,
+          "sha256": "35f648d8a31bd8b6cfb883586ae2a98cd664a923d7086f6d5288c8fcde44ead3"
+        },
+        {
+          "name": "http-abort",
+          "entry": "0x42025e34",
+          "instructions": 43,
+          "sha256": "eae4d4b3da1c68678bc8ae9b4e5fd1e276edd0ff3fe627c9d5e14dccb9443891"
+        },
+        {
+          "name": "psram",
+          "entry": "0x42028d94",
+          "instructions": 76,
+          "sha256": "70f5da53158fe74b9738b95b25c86c57c933d9b0a3c70ce296067bee9d2b222d"
+        },
+        {
+          "name": "battery",
+          "entry": "0x42029af0",
+          "instructions": 91,
+          "sha256": "d928babfda2564db82df7877a01bbc80c932d92fa290baa4a3dd7985d4f25f89"
+        },
+        {
+          "name": "mic",
+          "entry": "0x4201fd90",
+          "instructions": 100,
+          "sha256": "8b88016caeb5cb7061955a2ac087073d816ce4292baa0bae2301910cc7c27383"
+        }
+      ],
+      "executed_instruction_sites": 565,
+      "results": [
+        {
+          "name": "portal-null-event-group-is-latched-as-initialized",
+          "passed": true,
+          "result": 0,
+          "event_group": 0,
+          "allocation_attempts_after_two_calls": 1
+        },
+        {
+          "name": "portal-nvs-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 259,
+          "initialized": false
+        },
+        {
+          "name": "portal-network-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 259,
+          "initialized": false
+        },
+        {
+          "name": "portal-event-loop-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 259,
+          "initialized": false
+        },
+        {
+          "name": "config-nvs-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 261
+        },
+        {
+          "name": "display-mutex-failure-retains-uninitialized-state",
+          "passed": true,
+          "result": 257
+        },
+        {
+          "name": "display-latches-ready-and-ignores-transition-result-and-reinit-config",
+          "passed": true,
+          "transition_status": 263,
+          "result": 0,
+          "mutex_allocations": 1
+        },
+        {
+          "name": "connectivity-semaphore-failure-cleans-mutex-and-allows-retry",
+          "passed": true,
+          "deletes": 1,
+          "mutex_allocations": 2,
+          "retry_result": 0
+        },
+        {
+          "name": "instruction-error-state-retries-ready-state-skips-revalidation",
+          "passed": true,
+          "initial_result": 259,
+          "retry_result": 0,
+          "installs": 1
+        },
+        {
+          "name": "i2c-config-failure-boundary",
+          "passed": true,
+          "result": 261,
+          "retained_mutex": true,
+          "ready": false,
+          "parameters": {
+            "port": 1,
+            "sda": 10,
+            "scl": 11,
+            "frequency": 100000
+          },
+          "install_calls": 0
+        },
+        {
+          "name": "i2c-install-failure-boundary",
+          "passed": true,
+          "result": 259,
+          "retained_mutex": true,
+          "ready": false,
+          "parameters": {
+            "port": 1,
+            "sda": 10,
+            "scl": 11,
+            "frequency": 100000
+          },
+          "install_calls": 1
+        },
+        {
+          "name": "i2c-none-failure-boundary",
+          "passed": true,
+          "result": 0,
+          "retained_mutex": true,
+          "ready": true,
+          "parameters": {
+            "port": 1,
+            "sda": 10,
+            "scl": 11,
+            "frequency": 100000
+          },
+          "install_calls": 1
+        },
+        {
+          "name": "psram-absent",
+          "passed": true,
+          "required_total_free_bytes": 2304000,
+          "result": 261,
+          "allocation_sizes": [],
+          "freed_allocations": 0
+        },
+        {
+          "name": "psram-insufficient",
+          "passed": true,
+          "required_total_free_bytes": 2304000,
+          "result": 257,
+          "allocation_sizes": [],
+          "freed_allocations": 0
+        },
+        {
+          "name": "psram-allocation",
+          "passed": true,
+          "required_total_free_bytes": 2304000,
+          "result": 257,
+          "allocation_sizes": [
+            2304000
+          ],
+          "freed_allocations": 0
+        },
+        {
+          "name": "psram-success",
+          "passed": true,
+          "required_total_free_bytes": 2304000,
+          "result": 0,
+          "allocation_sizes": [
+            2304000
+          ],
+          "freed_allocations": 0
+        },
+        {
+          "name": "microphone-pdm-failure-retains-created-channel-slot",
+          "passed": true,
+          "result": 257,
+          "rx_slot_nonzero": true
+        },
+        {
+          "name": "battery-i2c-unavailable-gpio-failure-0",
+          "passed": true,
+          "result": 0,
+          "gpio_config_calls": 0,
+          "gpio_set_calls": 0
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "instruction",
+          "entry": "0x42029808",
+          "instructions": 84,
+          "sha256": "278049f490f728cb331992af600d819c5c1659e8a6e73d3f98eae0e622ffa380"
+        },
+        {
+          "name": "display",
+          "entry": "0x42026bc4",
+          "instructions": 78,
+          "sha256": "b88730cc81a44a132c607f772d924fe5945788db7444730adfb74a4fe98363b6"
+        },
+        {
+          "name": "i2c",
+          "entry": "0x4202fd6c",
+          "instructions": 89,
+          "sha256": "3a98adca0e319bbcd2e7f3d8da3d485ed3a588e2966e5b299f8c396f90d88d2d"
+        },
+        {
+          "name": "i2c-install",
+          "entry": "0x4202fcdc",
+          "instructions": 58,
+          "sha256": "ba979bb4d1ec3be484aa6d230847159c2309d24bc7f05a5bb93118d2e3082d1e"
+        },
+        {
+          "name": "config",
+          "entry": "0x42019644",
+          "instructions": 103,
+          "sha256": "87803deafc6a06387cf376449ab9abad781e362190f758197165674e9f876039"
+        },
+        {
+          "name": "portal",
+          "entry": "0x4201da04",
+          "instructions": 39,
+          "sha256": "3ebd6c3a4ce05ccf0e17744abcc910452cfdb4ddb308ce664e65412ea5039935"
+        },
+        {
+          "name": "connectivity",
+          "entry": "0x4202d708",
+          "instructions": 71,
+          "sha256": "d008dcd7e2a2624b56e6828a26af7a5df8cb0ec9b647733ff08128920909bdca"
+        },
+        {
+          "name": "http-abort",
+          "entry": "0x42024884",
+          "instructions": 43,
+          "sha256": "9189e971691f5e9436b5609af79a8fee1ab4680fd9868b1de8a9e1f641c73b22"
+        },
+        {
+          "name": "psram",
+          "entry": "0x42027734",
+          "instructions": 115,
+          "sha256": "7df291587f7cc4302a677adff39f747c5d20f524908284d886d2c5f1a940b407"
+        },
+        {
+          "name": "battery",
+          "entry": "0x42028330",
+          "instructions": 131,
+          "sha256": "f603cf7af01f40f1a7d4537fc21f135cc84bbe077f46d96f9d4d422b70bfbf47"
+        },
+        {
+          "name": "mic",
+          "entry": "0x4201fd64",
+          "instructions": 99,
+          "sha256": "13c67f14c747854a366cb12fed01e02cee78e4b17cb91e4bee85298a65b03903"
+        }
+      ],
+      "executed_instruction_sites": 643,
+      "results": [
+        {
+          "name": "portal-null-event-group-is-latched-as-initialized",
+          "passed": true,
+          "result": 0,
+          "event_group": 0,
+          "allocation_attempts_after_two_calls": 1
+        },
+        {
+          "name": "portal-nvs-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 259,
+          "initialized": false
+        },
+        {
+          "name": "portal-network-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 259,
+          "initialized": false
+        },
+        {
+          "name": "portal-event-loop-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 259,
+          "initialized": false
+        },
+        {
+          "name": "config-nvs-error-reaches-fatal-check",
+          "passed": true,
+          "injected_status": 261
+        },
+        {
+          "name": "display-mutex-failure-retains-uninitialized-state",
+          "passed": true,
+          "result": 257
+        },
+        {
+          "name": "display-latches-ready-and-ignores-transition-result-and-reinit-config",
+          "passed": true,
+          "transition_status": 263,
+          "result": 0,
+          "mutex_allocations": 1
+        },
+        {
+          "name": "connectivity-semaphore-failure-cleans-mutex-and-allows-retry",
+          "passed": true,
+          "deletes": 1,
+          "mutex_allocations": 2,
+          "retry_result": 0
+        },
+        {
+          "name": "instruction-error-state-retries-ready-state-skips-revalidation",
+          "passed": true,
+          "initial_result": 259,
+          "retry_result": 0,
+          "installs": 1
+        },
+        {
+          "name": "i2c-config-failure-boundary",
+          "passed": true,
+          "result": 261,
+          "retained_mutex": true,
+          "ready": false,
+          "parameters": {
+            "port": 1,
+            "sda": 9,
+            "scl": 10,
+            "frequency": 100000
+          },
+          "install_calls": 0
+        },
+        {
+          "name": "i2c-install-failure-boundary",
+          "passed": true,
+          "result": 259,
+          "retained_mutex": true,
+          "ready": false,
+          "parameters": {
+            "port": 1,
+            "sda": 9,
+            "scl": 10,
+            "frequency": 100000
+          },
+          "install_calls": 1
+        },
+        {
+          "name": "i2c-none-failure-boundary",
+          "passed": true,
+          "result": 0,
+          "retained_mutex": true,
+          "ready": true,
+          "parameters": {
+            "port": 1,
+            "sda": 9,
+            "scl": 10,
+            "frequency": 100000
+          },
+          "install_calls": 1
+        },
+        {
+          "name": "psram-absent",
+          "passed": true,
+          "required_total_free_bytes": 3168576,
+          "result": 261,
+          "allocation_sizes": [],
+          "freed_allocations": 0
+        },
+        {
+          "name": "psram-insufficient",
+          "passed": true,
+          "required_total_free_bytes": 3168576,
+          "result": 257,
+          "allocation_sizes": [],
+          "freed_allocations": 0
+        },
+        {
+          "name": "psram-allocation",
+          "passed": true,
+          "required_total_free_bytes": 3168576,
+          "result": 257,
+          "allocation_sizes": [
+            2120000
+          ],
+          "freed_allocations": 0
+        },
+        {
+          "name": "psram-success",
+          "passed": true,
+          "required_total_free_bytes": 3168576,
+          "result": 0,
+          "allocation_sizes": [
+            2120000,
+            1048576
+          ],
+          "freed_allocations": 0
+        },
+        {
+          "name": "psram-second-allocation",
+          "passed": true,
+          "required_total_free_bytes": 3168576,
+          "result": 257,
+          "allocation_sizes": [
+            2120000,
+            1048576
+          ],
+          "freed_allocations": 1
+        },
+        {
+          "name": "microphone-pdm-failure-retains-created-channel-slot",
+          "passed": true,
+          "result": 257,
+          "rx_slot_nonzero": true
+        },
+        {
+          "name": "battery-i2c-unavailable-gpio-failure-0",
+          "passed": true,
+          "result": 0,
+          "gpio_config_calls": 2,
+          "gpio_set_calls": 1
+        },
+        {
+          "name": "battery-i2c-unavailable-gpio-failure-1",
+          "passed": true,
+          "result": 4294967295,
+          "gpio_config_calls": 1,
+          "gpio_set_calls": 0
+        },
+        {
+          "name": "battery-i2c-unavailable-gpio-failure-2",
+          "passed": true,
+          "result": 4294967295,
+          "gpio_config_calls": 2,
+          "gpio_set_calls": 0
+        }
+      ]
+    }
+  ],
+  "references": {
+    "large": {
+      "roots": [
+        {
+          "name": "psram",
+          "address": "0x42028d94",
+          "direct_references": [
+            {
+              "site": "0x420155c6",
+              "ghidra_owner": "0x420153b0"
+            }
+          ]
+        },
+        {
+          "name": "microphone",
+          "address": "0x4201fd90",
+          "direct_references": [
+            {
+              "site": "0x420157c7",
+              "ghidra_owner": "0x420153b0"
+            },
+            {
+              "site": "0x42020322",
+              "ghidra_owner": "0x420202bc"
+            }
+          ]
+        },
+        {
+          "name": "display",
+          "address": "0x42028224",
+          "direct_references": [
+            {
+              "site": "0x42013184",
+              "ghidra_owner": "0x42012810"
+            },
+            {
+              "site": "0x420134f0",
+              "ghidra_owner": "0x42012810"
+            },
+            {
+              "site": "0x42013648",
+              "ghidra_owner": "0x42012810"
+            },
+            {
+              "site": "0x42015c18",
+              "ghidra_owner": "0x42015a58"
+            },
+            {
+              "site": "0x42016843",
+              "ghidra_owner": "0x420167b4"
+            }
+          ]
+        },
+        {
+          "name": "portal",
+          "address": "0x4201da30",
+          "direct_references": [
+            {
+              "site": "0x42015aab",
+              "ghidra_owner": "0x42015a58"
+            },
+            {
+              "site": "0x42016c44",
+              "ghidra_owner": "0x420167b4"
+            }
+          ]
+        },
+        {
+          "name": "i2c",
+          "address": "0x42028f38",
+          "direct_references": [
+            {
+              "site": "0x42029b32",
+              "ghidra_owner": "0x42029af0"
+            },
+            {
+              "site": "0x42020552",
+              "ghidra_owner": "0x420204b8"
+            },
+            {
+              "site": "0x42029523",
+              "ghidra_owner": "0x42029520"
+            }
+          ]
+        },
+        {
+          "name": "config",
+          "address": "0x42019670",
+          "direct_references": [
+            {
+              "site": "0x42015bd3",
+              "ghidra_owner": "0x42015a58"
+            },
+            {
+              "site": "0x4201686c",
+              "ghidra_owner": "0x420167b4"
+            }
+          ]
+        },
+        {
+          "name": "instruction",
+          "address": "0x4202b068",
+          "direct_references": [
+            {
+              "site": "0x420131af",
+              "ghidra_owner": "0x42012810"
+            },
+            {
+              "site": "0x4201351b",
+              "ghidra_owner": "0x42012810"
+            },
+            {
+              "site": "0x42015676",
+              "ghidra_owner": "0x420153b0"
+            },
+            {
+              "site": "0x4201571e",
+              "ghidra_owner": "0x420153b0"
+            },
+            {
+              "site": "0x4202b19e",
+              "ghidra_owner": "0x4202b178"
+            }
+          ]
+        },
+        {
+          "name": "connectivity",
+          "address": "0x4202efdc",
+          "direct_references": [
+            {
+              "site": "0x4201675d",
+              "ghidra_owner": "0x420166c8"
+            },
+            {
+              "site": "0x42017069",
+              "ghidra_owner": "0x420167b4"
+            }
+          ]
+        },
+        {
+          "name": "battery",
+          "address": "0x42029af0",
+          "direct_references": [
+            {
+              "site": "0x42013000",
+              "ghidra_owner": "0x42012810"
+            },
+            {
+              "site": "0x420168c4",
+              "ghidra_owner": "0x420167b4"
+            }
+          ]
+        },
+        {
+          "name": "http_abort",
+          "address": "0x42025e34",
+          "direct_references": [
+            {
+              "site": "0x420145a7",
+              "ghidra_owner": "0x420142ec"
+            }
+          ]
+        }
+      ],
+      "sha256": "1f25a2624590d0aa4490646b62d1145d58bb3063fed56f2e987d2c4013f3c10f"
+    },
+    "standard": {
+      "roots": [
+        {
+          "name": "psram",
+          "address": "0x42027734",
+          "direct_references": [
+            {
+              "site": "0x420155e6",
+              "ghidra_owner": "0x420153d0"
+            }
+          ]
+        },
+        {
+          "name": "microphone",
+          "address": "0x4201fd64",
+          "direct_references": [
+            {
+              "site": "0x420157e7",
+              "ghidra_owner": "0x420153d0"
+            },
+            {
+              "site": "0x420202f2",
+              "ghidra_owner": "0x4202028c"
+            }
+          ]
+        },
+        {
+          "name": "display",
+          "address": "0x42026bc4",
+          "direct_references": [
+            {
+              "site": "0x420130e4",
+              "ghidra_owner": "0x42012770"
+            },
+            {
+              "site": "0x42013450",
+              "ghidra_owner": "0x42012770"
+            },
+            {
+              "site": "0x420135c8",
+              "ghidra_owner": "0x42012770"
+            },
+            {
+              "site": "0x42015c38",
+              "ghidra_owner": "0x42015a78"
+            },
+            {
+              "site": "0x4201681f",
+              "ghidra_owner": "0x42016790"
+            }
+          ]
+        },
+        {
+          "name": "portal",
+          "address": "0x4201da04",
+          "direct_references": [
+            {
+              "site": "0x42015acb",
+              "ghidra_owner": "0x42015a78"
+            },
+            {
+              "site": "0x42016c1c",
+              "ghidra_owner": "0x42016790"
+            }
+          ]
+        },
+        {
+          "name": "i2c",
+          "address": "0x4202fd6c",
+          "direct_references": [
+            {
+              "site": "0x42027d63",
+              "ghidra_owner": "0x42027d60"
+            },
+            {
+              "site": "0x42028372",
+              "ghidra_owner": "0x42028330"
+            }
+          ]
+        },
+        {
+          "name": "config",
+          "address": "0x42019644",
+          "direct_references": [
+            {
+              "site": "0x42015bf3",
+              "ghidra_owner": "0x42015a78"
+            },
+            {
+              "site": "0x42016848",
+              "ghidra_owner": "0x42016790"
+            }
+          ]
+        },
+        {
+          "name": "instruction",
+          "address": "0x42029808",
+          "direct_references": [
+            {
+              "site": "0x4201310f",
+              "ghidra_owner": "0x42012770"
+            },
+            {
+              "site": "0x4201347b",
+              "ghidra_owner": "0x42012770"
+            },
+            {
+              "site": "0x42015696",
+              "ghidra_owner": "0x420153d0"
+            },
+            {
+              "site": "0x4201573e",
+              "ghidra_owner": "0x420153d0"
+            },
+            {
+              "site": "0x4202993e",
+              "ghidra_owner": "0x42029918"
+            }
+          ]
+        },
+        {
+          "name": "connectivity",
+          "address": "0x4202d708",
+          "direct_references": [
+            {
+              "site": "0x42016739",
+              "ghidra_owner": "0x420166a4"
+            },
+            {
+              "site": "0x4201703d",
+              "ghidra_owner": "0x42016790"
+            }
+          ]
+        },
+        {
+          "name": "battery",
+          "address": "0x42028330",
+          "direct_references": [
+            {
+              "site": "0x42012f60",
+              "ghidra_owner": "0x42012770"
+            },
+            {
+              "site": "0x420168a0",
+              "ghidra_owner": "0x42016790"
+            }
+          ]
+        },
+        {
+          "name": "http_abort",
+          "address": "0x42024884",
+          "direct_references": [
+            {
+              "site": "0x420145c7",
+              "ghidra_owner": "0x420142a8"
+            }
+          ]
+        }
+      ],
+      "sha256": "bfeaa58062457b6b483179d6c827c65f4c2b4859d3e6dcbfb7347dc44bfdd804"
+    }
+  },
+  "fixture_sha256": "5c55bcea1b025d967039cf5414c43a2ddf9f1e12ff9a08016b95230b025dff90",
+  "limits": [
+    "Allocation, NVS, peripheral, storage, semaphore and RTOS results are synthetic. No installed state was read or changed.",
+    "Fatal error-check cases stop at the SDK failure-handler call; a physical panic/reset is not executed.",
+    "Repeated initializer calls test that function alone, not all application recovery paths.",
+    "PSRAM tests model requested sizes and allocation results; no fragmentation or physical heap pressure is reproduced.",
+    "Reference census covers recovered direct calls and exact initialized pointers, not arbitrary computed aliases. Ghidra owner labels can be fragments of larger functions."
+  ]
+}

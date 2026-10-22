@@ -86,6 +86,9 @@ queue-overflow/lifetime and allocation-failure evidence on both builds, with
 the hardware-start wait with 13 cases per build. Excluded initialization helpers
 and the application census remain active research. No implementation is needed
 to continue those investigations.
+The [initializer follow-up](initialization-helpers.md) adds 18 Large / 21
+Standard cases and ten-root reference audits; remaining driver dependencies
+and the broader census stay on the supplemental ledger.
 
 The owner selected **voice and local-control hooks** for the next direction,
 superseding further shared-JSON buffer/race analysis. The

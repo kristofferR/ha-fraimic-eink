@@ -20,6 +20,11 @@ already-initialized peripherals subsequently do.
 The selected fast bodies contain 413 instructions and match after relocation,
 apart from an error-check diagnostic source line: 515 on Large, 516 on Standard.
 Their model-specific allocators and drivers are external to this equivalence.
+The [23 October helper audit](initialization-helpers.md) enters selected excluded
+callees. It distinguishes fatal NVS/network initialization checks, unchecked
+portal event-group allocation, component retry policies and model-specific
+PSRAM/battery behavior. The synthetic worker-return cases below retain their
+original scope.
 
 | Fast-initialization result | Recovered caller behavior |
 | --- | --- |
