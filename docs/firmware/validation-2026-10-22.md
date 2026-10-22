@@ -1637,3 +1637,45 @@ Private artifacts: `voice-presign-pass1.txt` through `voice-presign-pass3.txt`,
 `voice-presign-gnu.mjs`, `voice-presign-boundaries-gnu.txt`,
 `voice-presign-literals.jsonl`, `voice-presign-fixture.c`,
 `voice-presign-results.jsonl` and `voice-presign-evidence-hashes.txt`.
+
+## Outbound local-name resolution: C01/S02/E02
+
+Ten complete paired functions cover hostname classification, query/cache state,
+the TCP/IP-thread handoff and the ESP-TLS hostname-to-socket helper. Both pinned
+images pass byte, entry, contiguous-range and internal-target checks across
+1,339 instructions, 246 branches and 52 ranges each. All 29 direct-call pairs
+and 50 literal pairs are reviewed separately. This extends the public map to
+219 function pairs without claiming complete firmware equivalence.
+
+The [local-name findings](boot-and-scheduling.md#outbound-local-names-and-blocking-resolution)
+include case-sensitive multicast classification despite case-insensitive cache
+and pending-query matches, four query/four callback limits and the absence of an
+HTTP deadline argument at the blocking DNS barrier. A mistaken constant-offset
+candidate for Standard's transport helper was rejected; its verified entry is
+`0x420c3424`, while `getaddrinfo` is `0x420c5320`. Correct entries, bytes and
+complete paths are checked independently.
+
+Twenty-three host cases passed with `clang -std=c11 -Wall -Wextra -Werror
+-fsanitize=address,undefined -g`. Three unchanged functions are extracted from
+lwIP commit `fa4dffdfac52587a26c1f29258376df750cf8474`, the submodule pinned by
+ESP-IDF v5.4.1. The fixture reconstructs the applicable configuration and asserts
+the 24-byte IP-address and 296-byte cache-record layouts. Sends, timers and PCB
+allocation are stubs; numeric-address parsing uses the host library and is not
+the subject of these cases. Case comparison uses the host case-insensitive
+routine for the ASCII test names. No resolver response packets or real waits
+are simulated, and vendor machine code is not executed.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| Pinned `dns.c` | `9bd5eb675274eb9e0025cc6af76afe16eb3328de22fab3bb13ab0d7` |
+| Three extracted functions | `093bb08ab357c30fcc0015af11e9a4606bd658dd0ff2ca07b36b7ae7b49b882f` |
+| Host fixture | `3a152c466492a578c75ed98192a6c45b7f9479cb9ac1a20320c396c78850a653` |
+| 23-case JSONL results | `089932ec470b2939411d42b1e10c8b8461f1822ed115b10efca415683c3feb96` |
+
+Private artifacts also include `local-resolver-pass1.txt` through
+`local-resolver-pass5.txt`, per-function `local-resolver-*-cfg.json`/`.txt`,
+`compare-standard-local-resolver.mjs`, `standard-local-resolver-comparison.json`,
+`standard-local-resolver-boundaries-gnu.txt`, `extract-local-resolver.mjs` and
+`local-resolver-fixture.c`. No physical frame, DNS/router policy, HA source or
+deployment changed. C01/S02/E02 remain open for packet/transport faults, fresh
+local-backend resolution, multicast/TLS compatibility and actual offline behavior.

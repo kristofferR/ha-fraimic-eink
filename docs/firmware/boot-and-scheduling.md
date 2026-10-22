@@ -630,6 +630,77 @@ separate from backend health. Stock emulation still needs the API, asset, time
 and public-probe dependencies described here; the captive DNS service does not
 replace them.
 
+### Outbound local names and blocking resolution
+
+Both pinned builds can issue one-shot multicast DNS queries for a backend or
+artifact hostname ending in lowercase `.local`. This is the **outbound resolver**,
+separate from the frame's [own mDNS advertisement](local-api.md#local-discovery-and-hostname-lifetime).
+It does not establish DNS-SD service browsing, an editable API origin, TLS trust
+for a new hostname or multicast reachability across the owner's VLANs.
+
+Large resolver entry `0x42057844` first handles numeric addresses and cache hits.
+For a fresh name it subtracts one final dot from the effective length, then
+compares the **first case-sensitive `strstr(name, ".local")` result** with the
+position six bytes before that effective end. The ROM call is identified by
+Espressif's ESP32-S3 symbol map; the instructions and `.local` literal are checked
+against the pinned application.
+
+| Fresh lookup, with a unicast DNS server configured | Selected route |
+| --- | --- |
+| `homeassistant.local` or `homeassistant.local.` | Multicast |
+| `HOMEASSISTANT.local` | Multicast |
+| `homeassistant.LOCAL` or `homeassistant.Local` | Ordinary DNS |
+| `foo.local.bar.local` or `foo.localhost.bar.local` | Ordinary DNS: the first substring is not the final suffix |
+| `homeassistant.local..` | Ordinary DNS: only one final dot is removed |
+
+An eligible multicast name bypasses the configured-DNS-server presence check.
+Sender `0x420567e0` uses UDP port 5353 and the checked constants `224.0.0.251`
+for IPv4 or `ff02::fb` for IPv6. Other names use the selected DNS server on port
+53. The multicast flag occupies offset `0x127` of each 296-byte cache/query record.
+On exhausted timeout retries, `0x42056a40` fails a multicast query instead of
+advancing it to another unicast server. Its nominal retry counters are described
+[below](#dns-fallback-and-cached-destinations); they are not a wall-clock guarantee.
+
+Cache lookup `0x42056d2c` and pending-query matching in `0x42056f44` are
+case-insensitive. Neither uses the multicast flag as part of its hostname match.
+Consequently a cached lowercase name can satisfy an uppercase request before
+suffix classification or server availability is checked. With a server configured,
+concurrent requests of the same address type also share the first pending query:
+lowercase after uppercase can inherit ordinary DNS, and uppercase after lowercase
+can inherit multicast. Different requested address types do not merge. This
+explains why a warm-cache test alone would not establish fresh-name compatibility.
+
+The recovered transport chain is synchronous:
+`0x420c314c` (`esp_tls_hostname_to_fd`) → `0x420c5040` (`getaddrinfo`) →
+`0x42068368` (netconn resolver) → TCP/IP-thread dispatcher `0x42069b48` →
+`0x42057844`. The netconn wrapper uses a thread semaphore and
+`0x42055fb8`, which posts a stack-backed message and waits without a finite
+semaphore timeout. The dispatcher signals immediately for a cached/error result;
+an in-progress query relies on its completion callback. No HTTP timeout value
+is passed down this chain. Therefore an HTTP transport timeout must not be
+treated as an independently enforced DNS deadline; normal resolver retries,
+TCP/IP scheduling and callback progress remain relevant. This is a static
+boundary, not an observed deadlock or measured frame delay.
+
+Twenty-three isolated host cases pass under AddressSanitizer and
+UndefinedBehaviorSanitizer. They compile unchanged `dns_gethostbyname_addrtype`,
+`dns_lookup` and `dns_enqueue` from the
+[IDF v5.4.1-pinned lwIP source](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/core/dns.c),
+with reconstructed configuration/layout and stubbed sends, allocation and timers.
+Cases cover the table above, no-server behavior, cache precedence, both pending
+route-inheritance orders, distinct address types, four-query/four-callback limits,
+255/256-byte names, final-dot trimming, null/empty names and PCB-allocation cleanup.
+The 255-byte test establishes enqueue acceptance, not legal DNS-label lengths
+or successful packet delivery. These tests exercise neither UDP packets, actual
+elapsed waits, TLS nor either frame.
+
+For an emulator, use one consistent lowercase hostname. A `.local` URL is a
+candidate when multicast reaches the frame; a hostname served consistently by
+its configured unicast resolvers is another option. Validate fresh resolution,
+cache expiry, address changes and certificate identity independently. Neither
+choice removes the separate public connectivity/time dependencies. All ten
+selected functions [match in Standard](standard-model-comparison.md#outbound-local-resolution-also-matches).
+
 ### DNS fallback and cached destinations
 
 Large has a separate hardcoded use of `8.8.8.8`: **DNS server slot 2**. This is

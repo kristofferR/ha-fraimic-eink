@@ -221,6 +221,41 @@ assuming relocated data is identical. External helpers are not all recursively
 compared. There is no new host behavioral execution, queue/heap fault injection
 or device test, and this does not establish WAN-free boot.
 
+### Outbound local resolution also matches
+
+The [outbound `.local` trace](boot-and-scheduling.md#outbound-local-names-and-blocking-resolution)
+also applies to Standard. This concerns resolving the backend, independently of
+advertising the frame's own name or HTTP service.
+
+| Function | Large | Standard |
+| --- | --- | --- |
+| Hostname classification/cache dispatch | `0x42057844` | `0x42056870` |
+| DNS/multicast packet sender | `0x420567e0` | `0x4205580c` |
+| Cache lookup | `0x42056d2c` | `0x42055d58` |
+| Query enqueue/coalescing | `0x42056f44` | `0x42055f70` |
+| Query retry/cache state | `0x42056a40` | `0x42055a6c` |
+| TCP/IP resolver dispatcher | `0x42069b48` | `0x42068b74` |
+| Netconn resolver | `0x42068368` | `0x42067394` |
+| TCP/IP message/semaphore barrier | `0x42055fb8` | `0x42054fe4` |
+| `getaddrinfo` | `0x420c5040` | `0x420c5320` |
+| ESP-TLS hostname-to-socket helper | `0x420c314c` | `0x420c3424` |
+
+Complete GNU control-flow recovery checks **1,339 instructions, 246 branches and
+52 contiguous ranges per image**. Instruction bytes/offsets match apart from
+relocated literal loads and direct calls. The 29 distinct direct-call pairs and
+50 literal pairs are mapped separately; multicast IP structures, strings and
+numeric values match. Each function's entry prologue, reachable branch targets
+and bytes are verified against the pinned app. Do not derive Standard entries
+from one global relocation: the transport helper and `getaddrinfo` have different
+offsets even within the same SDK region.
+
+The 23 host cases are one shared source-fixture run, not additional device or
+Standard machine-code executions. They support the lowercase-suffix, cached-name,
+pending-query and capacity boundaries described in the linked trace. Multicast
+packets, IPv4/IPv6 routing, DNS response faults, actual wait durations, TLS and
+fresh local-backend operation remain untested. External helpers are not all
+recursively compared. No device or network configuration changed.
+
 ### DNS fallback, cache and late callbacks also match
 
 Standard initializer `0x420567e8` installs the same `8.8.8.8` fallback in DNS

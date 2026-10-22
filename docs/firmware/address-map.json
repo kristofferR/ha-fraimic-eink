@@ -3160,6 +3160,12 @@
       "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
     },
     {
+      "address": "0x42055fb8",
+      "kind": "function",
+      "role": "tcpip_send_msg_wait_sem; outbound local-name resolver/transport chain",
+      "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
+    },
+    {
       "address": "0x42056010",
       "kind": "function",
       "role": "Synchronous TCP/IP API call with stack message and per-thread completion semaphore; no null-semaphore guard",
@@ -3254,6 +3260,12 @@
       "kind": "function",
       "role": "DNS successful-response completion and zero-TTL removal after callbacks",
       "evidence": "static; 22 October DNS fallback/cache follow-up"
+    },
+    {
+      "address": "0x420567e0",
+      "kind": "function",
+      "role": "dns_send; outbound local-name resolver/transport chain",
+      "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
     },
     {
       "address": "0x42056a40",
@@ -3428,6 +3440,18 @@
       "kind": "function",
       "role": "Get or create cached per-thread TCP/IP completion semaphore",
       "evidence": "static and bounded GNU byte cross-check; 22 October SNTP control-queue follow-up"
+    },
+    {
+      "address": "0x42068368",
+      "kind": "function",
+      "role": "netconn_gethostbyname_addrtype; outbound local-name resolver/transport chain",
+      "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
+    },
+    {
+      "address": "0x42069b48",
+      "kind": "function",
+      "role": "lwip_netconn_do_gethostbyname; outbound local-name resolver/transport chain",
+      "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
     },
     {
       "address": "0x4206a398",
@@ -3638,6 +3662,18 @@
       "kind": "function",
       "role": "HTTP URL parser; records fields, requires a host for a scheme and bounds port to 65535",
       "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
+    },
+    {
+      "address": "0x420c314c",
+      "kind": "function",
+      "role": "esp_tls_hostname_to_fd; outbound local-name resolver/transport chain",
+      "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
+    },
+    {
+      "address": "0x420c5040",
+      "kind": "function",
+      "role": "lwip_getaddrinfo; outbound local-name resolver/transport chain",
+      "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
     },
     {
       "address": "0x420cfe14",

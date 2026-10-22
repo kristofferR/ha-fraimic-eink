@@ -682,6 +682,33 @@
         "UndefinedBehaviorSanitizer"
       ],
       "limitations": "Scripted transport and reconstructed application response branch, not sockets/TLS/device/heap faults or complete recursive SDK/driver equivalence"
+    },
+    "local_backend_resolution": {
+      "evidence": "Ten complete paired GNU control-flow bodies and twenty-three isolated pinned-lwIP host cases; no frame or network requests",
+      "compared_functions": 10,
+      "instructions_per_image": 1339,
+      "compared_branches": 246,
+      "gnu_ranges_per_image": 52,
+      "direct_call_pairs": 29,
+      "literal_pairs": 50,
+      "mdns": {
+        "suffix": ".local",
+        "classification": "First case-sensitive substring must equal the position six bytes before the end, excluding one trailing dot",
+        "ipv4_destination": "224.0.0.251",
+        "ipv6_destination": "ff02::fb",
+        "udp_port": 5353,
+        "requires_configured_unicast_server": false
+      },
+      "cache_and_pending_name_comparison": "Case-insensitive; cache lookup precedes classification; same-address-type pending queries share the first selected route",
+      "query_slots": 4,
+      "callback_slots": 4,
+      "http_timeout_passed_to_dns_barrier": false,
+      "host_cases": 23,
+      "host_sanitizers": [
+        "AddressSanitizer",
+        "UndefinedBehaviorSanitizer"
+      ],
+      "limitations": "Stubbed packet send, timer and PCB allocation; no DNS response packets, elapsed waits, transport/TLS, device execution or complete recursive SDK equivalence"
     }
   },
   "function_map": [
@@ -1744,6 +1771,41 @@
       "role": "instruction_server_key",
       "large": "0x4202a8b8",
       "standard": "0x42028fc0"
+    },
+    {
+      "role": "dns_gethostbyname_addrtype",
+      "large": "0x42057844",
+      "standard": "0x42056870"
+    },
+    {
+      "role": "dns_send",
+      "large": "0x420567e0",
+      "standard": "0x4205580c"
+    },
+    {
+      "role": "lwip_netconn_do_gethostbyname",
+      "large": "0x42069b48",
+      "standard": "0x42068b74"
+    },
+    {
+      "role": "netconn_gethostbyname_addrtype",
+      "large": "0x42068368",
+      "standard": "0x42067394"
+    },
+    {
+      "role": "tcpip_send_msg_wait_sem",
+      "large": "0x42055fb8",
+      "standard": "0x42054fe4"
+    },
+    {
+      "role": "lwip_getaddrinfo",
+      "large": "0x420c5040",
+      "standard": "0x420c5320"
+    },
+    {
+      "role": "esp_tls_hostname_to_fd",
+      "large": "0x420c314c",
+      "standard": "0x420c3424"
     }
   ],
   "live_standard": {

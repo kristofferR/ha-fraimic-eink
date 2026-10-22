@@ -340,6 +340,12 @@ Certificates, private keys and raw captures remain outside the repository.
 - Establish a sustainable URL/trust configuration. The short-lived test chain for
   the vendor hostname proves compatibility; it is not an owner-controlled hostname
   or a durable deployment mechanism. No arbitrary self-signed acceptance was shown.
+  Both builds contain an [outbound `.local` resolver](boot-and-scheduling.md#outbound-local-names-and-blocking-resolution),
+  so a consistently lowercase local name is a candidate for returned asset URLs
+  and a future configurable API origin. Fresh resolution differs from cached or
+  coalesced requests. Multicast reachability, certificate identity and the separate
+  public connectivity/time dependencies still need validation; no such hostname
+  was tested on a frame in this static pass.
 
 Hardware inspection and custom-firmware boot/recovery tests remain deferred under
 the owner's closed-enclosure preference. They are not prerequisites for further
