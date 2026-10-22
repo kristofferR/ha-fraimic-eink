@@ -851,6 +851,37 @@
         ],
         "limitations": "Policy only; actual placement, fragmentation, common failure-handler behavior and TLS impact not established"
       }
+    },
+    "tls_setup_allocation": {
+      "evidence": "Fourteen complete paired GNU bodies and eight unchanged-source host fault groups",
+      "compared_functions": 14,
+      "instructions_per_image": 644,
+      "branches_per_image": 100,
+      "gnu_ranges_per_image": 36,
+      "direct_call_pairs": 43,
+      "literal_pairs": 48,
+      "tls_version_min": 771,
+      "tls_version_max": 771,
+      "calloc_capabilities": "0x804",
+      "calloc_region": "INTERNAL | 8BIT; no PSRAM fallback in traced port",
+      "record_buffers_bytes": [
+        16717,
+        4429
+      ],
+      "negotiating_structures_bytes": [
+        220,
+        144,
+        584
+      ],
+      "initial_five_requested_bytes": 22094,
+      "checksum_contexts_bytes": [
+        116,
+        224
+      ],
+      "initial_five_failure_return": -32512,
+      "checksum_allocation_failure_return": -20864,
+      "host_case_groups": 8,
+      "limits": "Initial dispatch configuration and selected function bodies; not total connection memory, actual heap placement/fragmentation, complete external cleanup, TLS negotiation or cause of the observed Standard failure"
     }
   },
   "function_map": [
@@ -2113,6 +2144,76 @@
       "role": "heap_caps_malloc_prefer",
       "large": "0x40376b14",
       "standard": "0x40376b1c"
+    },
+    {
+      "role": "esp_create_mbedtls_handle",
+      "large": "0x420c44c8",
+      "standard": "0x420c47a4"
+    },
+    {
+      "role": "mbedtls_ssl_setup",
+      "large": "0x42072598",
+      "standard": "0x42071b90"
+    },
+    {
+      "role": "ssl_handshake_init",
+      "large": "0x420724f4",
+      "standard": "0x42071aec"
+    },
+    {
+      "role": "mbedtls_calloc_dispatch",
+      "large": "0x4207f408",
+      "standard": "0x4207ea34"
+    },
+    {
+      "role": "mbedtls_free_dispatch",
+      "large": "0x4207f41c",
+      "standard": "0x4207ea48"
+    },
+    {
+      "role": "esp_mbedtls_mem_calloc",
+      "large": "0x42081dbc",
+      "standard": "0x42080a4c"
+    },
+    {
+      "role": "esp_mbedtls_mem_free",
+      "large": "0x42081dd0",
+      "standard": "0x42080a60"
+    },
+    {
+      "role": "mbedtls_ssl_reset_checksum",
+      "large": "0x42071ebc",
+      "standard": "0x420714b4"
+    },
+    {
+      "role": "mbedtls_md_setup",
+      "large": "0x4207da28",
+      "standard": "0x4207d054"
+    },
+    {
+      "role": "mbedtls_ssl_config_defaults",
+      "large": "0x42072760",
+      "standard": "0x42071d58"
+    },
+    {
+      "role": "ssl_conf_check",
+      "large": "0x42071774",
+      "standard": "0x42070d6c"
+    },
+    {
+      "role": "ssl_conf_version_check",
+      "large": "0x4207174c",
+      "standard": "0x42070d44"
+    },
+    {
+      "role": "esp_mbedtls_cleanup",
+      "large": "0x420c40e8",
+      "standard": "0x420c43c4"
+    },
+    {
+      "role": "mbedtls_ssl_free",
+      "large": "0x420726c0",
+      "standard": "0x42071cb8"
     }
   ],
   "live_standard": {

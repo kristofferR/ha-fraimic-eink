@@ -3844,6 +3844,78 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x4207174c",
+      "kind": "function",
+      "role": "ssl_conf_version_check; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x42071774",
+      "kind": "function",
+      "role": "ssl_conf_check; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x42071ebc",
+      "kind": "function",
+      "role": "mbedtls_ssl_reset_checksum; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x420724f4",
+      "kind": "function",
+      "role": "ssl_handshake_init; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x42072598",
+      "kind": "function",
+      "role": "mbedtls_ssl_setup; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x420726c0",
+      "kind": "function",
+      "role": "mbedtls_ssl_free; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x42072760",
+      "kind": "function",
+      "role": "mbedtls_ssl_config_defaults; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x4207da28",
+      "kind": "function",
+      "role": "mbedtls_md_setup; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x4207f408",
+      "kind": "function",
+      "role": "mbedtls_calloc_dispatch; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x4207f41c",
+      "kind": "function",
+      "role": "mbedtls_free_dispatch; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x42081dbc",
+      "kind": "function",
+      "role": "esp_mbedtls_mem_calloc; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x42081dd0",
+      "kind": "function",
+      "role": "esp_mbedtls_mem_free; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
       "address": "0x4209bc88",
       "kind": "function",
       "role": "Locked Wi-Fi initialized-state predicate, true only for internal state 3",
@@ -3956,6 +4028,18 @@
       "kind": "function",
       "role": "esp_tls_conn_new_sync; address-family selection and connection failure boundary",
       "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c40e8",
+      "kind": "function",
+      "role": "esp_mbedtls_cleanup; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x420c44c8",
+      "kind": "function",
+      "role": "esp_create_mbedtls_handle; TLS setup allocation/configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
     },
     {
       "address": "0x420c5040",

@@ -1935,3 +1935,51 @@ per-function `cache-allocator-*-cfg.json`/`.txt`,
 `compare-standard-cache-allocator.mjs`, `standard-cache-allocator-comparison.json`
 and `standard-cache-allocator-boundaries-gnu.txt`. No frame, network or HA
 changes were made.
+
+## TLS setup allocation and version boundaries: C03/E01/E02
+
+Fourteen paired GNU bodies cover handle construction, SSL setup, negotiating
+allocation, allocator dispatch/port, checksum setup, digest allocation, defaults,
+configuration/version validation and selected outer/SSL cleanup. All 644
+instructions, 100 internal branches and 36 reachable ranges per image match
+after address normalization. Forty-three direct-call and 48 literal pairs are
+mapped separately. Seven immutable preset/profile tables are byte-compared at
+their explicit lengths; RAM configuration references remain runtime values.
+Both allocator slots' initial function pointers select the compared internal-only
+port. Reference audits found their dispatch readers and no direct writer.
+
+The matching Mbed TLS source is ESP-IDF v5.4.1's submodule commit
+`98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8`. Two functions, `mbedtls_ssl_setup`
+and `ssl_handshake_init`, were extracted unchanged from
+[the pinned source](https://raw.githubusercontent.com/espressif/mbedtls/98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8/library/ssl_tls.c).
+The host fixture selects their recovered TLS 1.2 allocation branches with
+target-sized opaque structures. Configuration checks, checksum initialization,
+object initialization and derived-buffer-pointer reset are explicit stubs.
+It does not reproduce the target's complete configuration, struct layout, ABI,
+crypto, heap regions or any socket operation.
+
+Eight groups passed under C11, Wall/Wextra/Werror, AddressSanitizer and
+UndefinedBehaviorSanitizer: successful ordered allocation, independent failure
+at each of five sites, propagated checksum failure, and a pre-allocation
+configuration error. Each of the first five failure cases returns `-0x7f00`
+with the traced allocations freed and pointers cleared. A checksum error retains
+the three negotiating objects for outer cleanup; assertions inspect that state
+before explicit harness disposal. This is not evidence that every real cleanup
+path is leak-free. No allocation was failed on either frame.
+
+Private artifacts include `tls-allocation-pass1.txt` through `pass7.txt`, Standard
+reference passes, `run-tls-allocation-cfg.mjs`, per-function
+`tls-allocation-*-cfg.json`/`.txt`, `compare-standard-tls-allocation.mjs`,
+`standard-tls-allocation-comparison.json`, `extract-tls-allocation.mjs` and
+`tls-allocation-evidence-hashes.json`. No frame, network, artwork or HA change
+was made. Actual failure identity, fragmentation, concurrent-request effects,
+full external cleanup and negotiated TLS behavior remain open.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `tls-allocation-ssl_tls.c` | `32bd6c6b487dd4a67998ced23a03e641eba7d4e54f5ba4887c4cf199d8716df6` |
+| `tls-allocation-esp_tls_mbedtls.c` | `ad6f9f8e3224e546f62f61925ced0221c9d16c66d14554fea8b47e0c4c6cbdfe` |
+| `tls-allocation-esp_mem.c` | `5b4d710ddb779b83c36aadb861bbfa1e59dac236e72f4b545fad2fb2f5154bb0` |
+| `tls-allocation-selected.inc` | `b3f3f1e90b55d35bb8c358b83abf06d49e720c664395ea54bb307b8510b65056` |
+| `tls-allocation-fixture.c` | `0eeac85c3ca86a09146425856068fa39a18fe177aecf29546e89e8bc5c67af8e` |
+| `tls-allocation-fixture-results.jsonl` | `ff5ac7b37c19562bf0f32cfac18a9085001f1e1b62db2b9245accddda3e5dd85` |

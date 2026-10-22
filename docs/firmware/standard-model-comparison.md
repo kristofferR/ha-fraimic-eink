@@ -1085,6 +1085,26 @@ library and playlists. Keep model-specific packed assets derived from that
 canonical original. The local job record is a proposed feature, not recovered
 vendor prompt data or an implemented integration.
 
+## TLS setup allocation and configuration also match
+
+Fourteen complete function pairs match across 644 instructions, 100 branches
+and 36 GNU ranges per image. Forty-three direct-call and 48 literal pairs are
+mapped; seven fixed configuration tables are compared at their actual lengths,
+and both allocator dispatch slots select the compared helpers. The public map
+now contains 266 pairs. This does not establish every external callee's behavior
+or equivalence of runtime configuration values.
+
+Both builds have the same [TLS 1.2 configuration and setup memory requirements](cloud-protocol.md#tls-setup-needs-internal-ram-before-authentication),
+including 16,717/4,429-byte record buffers, 220/144/584-byte negotiating
+structures, and allocator mask INTERNAL | 8BIT. Unlike the separately traced
+FatFs allocator, this initial TLS allocation route has no PSRAM fallback.
+
+The eight host groups are one shared source-fixture run with target-sized opaque
+allocation objects and stubbed configuration, crypto and pointer-reset helpers.
+They do not execute Xtensa code, establish heap fragmentation, perform a TLS
+handshake or reproduce the observed Standard failure. That failure's exact
+allocation and runtime cause remain unknown.
+
 ## Coverage and cleanup
 
 The 24 decoded origin-API exchanges were complete and all HTTP 200: one

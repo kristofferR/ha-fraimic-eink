@@ -738,6 +738,62 @@ default 512-byte TX, and zero bundle/global-CA/explicit-certificate fields in it
 configuration. It is separate from the direct OTA row and is not evidence that
 the currently used updater accepts untrusted HTTPS. No update was attempted.
 
+### TLS setup needs internal RAM before authentication
+
+The pinned Large and Standard builds configure **TLS 1.2 only**. Defaults helper
+`0x42072760` sets minimum and maximum to `0x0303`; version check `0x4207174c`
+rejects another range. Handle constructor `0x420c44c8` warns and retains defaults
+when asked for TLS 1.3. The local HTTPS endpoint must therefore support TLS 1.2;
+a TLS-1.3-only listener is incompatible with this recovered configuration.
+This is static evidence, not a new negotiated-version test.
+
+Setup `0x42072598` and handshake initializer `0x420724f4` request these five
+allocations for a freshly initialized context, in order:
+
+| Allocation | Requested bytes |
+| --- | ---: |
+| Incoming TLS record buffer | 16,717 |
+| Outgoing TLS record buffer | 4,429 |
+| Negotiating transform | 220 |
+| Negotiating session | 144 |
+| Handshake parameters | 584 |
+| **Subtotal** | **22,094** |
+
+These sizes come from the binary's literal values and call arguments. They
+include record-buffer overhead and are not HTTP RX/TX sizes. Checksum setup
+`0x42071ebc` also requests 116- and 224-byte digest contexts through
+`0x4207da28`. Neither subtotal is the complete connection or peak heap cost:
+the outer TLS object, hostname, RNG, certificates, socket, HTTP client and later
+handshake allocations are additional.
+
+The calloc/free dispatch slots initially select `0x42081dbc` / `0x42081dd0`.
+Allocation passes capability mask **`0x804`, INTERNAL | 8BIT**, to the heap
+allocator, without a PSRAM fallback. The slot-reference audit found the dispatch
+reads and no direct setter reference in either image; arbitrary computed writes
+are outside that negative result. This matches the internal-memory branch of
+the [pinned allocator port](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/mbedtls/port/esp_mem.c)
+and the [capability definitions](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/heap/include/esp_heap_caps.h).
+Free PSRAM does not satisfy these allocations. Internal free bytes alone also
+do not establish that a contiguous allocation of the required size is available.
+
+Failure of either record allocation or any of the three negotiating allocations
+returns `-0x7f00`. The three small allocations are attempted before their combined
+failure check, so failure of the first does not skip the other two. Their failure
+branch releases all three; setup then releases and clears the record buffers and
+derived pointers. A later checksum failure follows a different return code and
+leaves negotiating subcontexts for outer cleanup. Constructor failure invokes
+`0x420c40e8`, including SSL cleanup `0x420726c0`, before returning `0x8017`
+for a setup failure. External cleanup routines were not exhaustively audited.
+
+Eight [isolated source case groups](validation-2026-10-22.md#tls-setup-allocation-and-version-boundaries-c03e01e02)
+verify these selected allocation/cleanup boundaries. The observed Standard
+`mbedtls_ssl_setup -0x7F00` precedes the network handshake and HTTP credentials
+for that connection. It does not establish a rejected password, bad server
+certificate, which allocation failed, or why memory was unavailable. Reducing
+JSON size or shortening a certificate chain cannot reduce these initial fixed
+allocations. Serializing client work and measuring internal largest-free-block
+are candidates for a future firmware change; neither is implemented here.
+
 ### Address selection does not recover from a bad IPv4 destination
 
 The recovered HTTP transports start with an unspecified address family. Transport

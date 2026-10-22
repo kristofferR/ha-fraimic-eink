@@ -44,6 +44,7 @@ per question, not a count of tool calls or decompiled functions.
 | C02/C08/D01/D07/E02 | Both models share poll-result offsets, separate readiness, two-second post-result task lifetime and non-joining clear; seven function pairs and two caller regions match | Controlled overlap/late-clear faults, full indirect-reference audit, remaining parser/loop comparison and per-job acknowledgement |
 | C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
+| C03/E01/E02 | Fourteen TLS allocation/configuration/cleanup bodies match; internal-only allocator, TLS 1.2 restriction and fixed setup allocations mapped; eight source fault groups passed | Actual allocation failure identity, internal fragmentation/concurrency, complete handshake/cleanup coverage and physical TLS variants |
 | C01/E01/E02 | Both models have eleven recovered constructor sites, thirteen selector calls and the same eleven HTTP literal hosts; GNU continuation recovers missing multipart calls and rejects Standard's misaligned raw match | Dynamic destinations, indirect/non-HTTP paths, recursive consumer/TLS equivalence and complete offline operation |
 | E03/C01/C05/C07/C11 | July/October saved schemas retain the same 25 operations; five structural differences mapped; offline audit of 24 captured exchanges finds undeclared stock query/voice fields | Server implementation, unobserved values/coercion, other authorization cases, mutations and independent enrollment |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
@@ -178,6 +179,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   now reproduce short-body acceptance, incomplete chunked success at Large
   capacity, partial-write retention and timeout-streak behavior. No malformed
   response was sent to either frame.
+  [TLS setup comparison and eight host fault groups](cloud-protocol.md#tls-setup-needs-internal-ram-before-authentication)
+  establish TLS 1.2 configuration, internal-memory allocation policy and selected
+  cleanup boundaries in both builds. They do not identify the allocation that
+  failed during the earlier Standard run or replace physical TLS controls.
 - [ ] **C04 · Host/Device:** Supply local `create_account` and `get_started` assets;
   verify IP-query handling, format, fetch failures and actual setup-screen behavior.
   Establish what an offline fallback would need.
