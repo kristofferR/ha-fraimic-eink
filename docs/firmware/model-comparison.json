@@ -469,6 +469,36 @@
         "standard_startup_default_save": "0x42016894"
       },
       "limitations": "Physical flash durability, storage errors and all Standard SDK helpers remain untested; does not compare the full poll parser or boot sequence"
+    },
+    "multipart_upload": {
+      "evidence": "Recovered reachable application control flow and SDK HTTP writer; static two-build comparison, not new upload tests",
+      "compared_functions": 2,
+      "compared_instructions_per_image": 771,
+      "application_instructions": 749,
+      "sdk_writer_instructions": 22,
+      "compared_branches": 67,
+      "large_gnu_ranges": 21,
+      "standard_gnu_ranges": 19,
+      "direct_call_pairs": 17,
+      "literal_pairs": 59,
+      "audio_chunk_bytes": 4096,
+      "transport_timeout_ms": 120000,
+      "tx_buffer_bytes": 8192,
+      "abort_registration_after_footer": true,
+      "write_requires_full_count": true,
+      "body_length_formula": "sum(boundary_bytes + field_name_bytes + field_value_bytes + 49) + audio_bytes + 2 * boundary_bytes + 110",
+      "framing_allocation_formula": "body_bytes - audio_bytes + 1",
+      "call_sites": {
+        "large_prefix_write": "0x420270b3",
+        "standard_prefix_write": "0x42025b03",
+        "large_audio_write": "0x42027133",
+        "standard_audio_write": "0x42025b83",
+        "large_footer_write": "0x420271a4",
+        "standard_footer_write": "0x42025bf4",
+        "large_abort_register": "0x420271f3",
+        "standard_abort_register": "0x42025c43"
+      },
+      "limitations": "External HTTP/TLS, allocator, formatting and transport helpers are mapped but not recursively proved equivalent; prior host groups were Large-derived and were not rerun as device tests"
     }
   },
   "function_map": [
@@ -1406,6 +1436,11 @@
       "role": "settings_save",
       "large": "0x42014968",
       "standard": "0x42014988"
+    },
+    {
+      "role": "http_client_write",
+      "large": "0x4206d930",
+      "standard": "0x4206cf28"
     }
   ],
   "live_standard": {

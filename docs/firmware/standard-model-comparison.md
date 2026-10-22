@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 187 corresponding functions, including the subsequent
+The preserved metadata maps 188 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -439,6 +439,51 @@ the shared field-copying/printing contract; it does not count those cases again,
 test Standard's hardware, or recursively compare the whole JSON parser and
 multipart writer. Both models should receive short, unique ASCII field names,
 a short upload ticket and a stable object key within the byte limit.
+
+### Complete multipart upload paths also match
+
+The earlier decompiler stopped at Xtensa unsigned-comparison instructions in the
+multipart builder. A GNU control-flow walk now follows every direct branch from
+the application entry to its returns, checks each decoded byte against the pinned
+image, and rejects gaps, overlapping instruction starts or out-of-function
+branches. The recovered uploaders each contain **749 instructions**:
+Large `0x42026b9c` and Standard `0x420255ec`.
+
+Including SDK writer `0x4206d930` / `0x4206cf28`, the comparison covers **771
+instructions and 67 branches**, over 21 Large and 19 Standard contiguous GNU
+ranges. Normalized operations, registers and internal branch destinations match.
+Seventeen direct-call pairs and 59 literal pairs are tracked separately; matching
+strings/constants do not establish recursive equivalence of every external
+allocator, formatter, HTTP/TLS or transport helper.
+
+Both application paths have the same field ordering/filtering, raw `%s` framing,
+length calculation, framing-only PSRAM allocation, bounded formatting checks and
+4,096-byte maximum audio writes. The network timeout is 120,000 ms per transport
+call; it is not an overall upload deadline. The SDK writer can accumulate positive
+short writes, but returns a later zero/error without including earlier progress.
+The application requires the exact requested count and stops on a failed prefix,
+audio chunk or footer instead of resuming from a partial offset.
+
+| Stage | Large call | Standard call |
+| --- | --- | --- |
+| Prefix write | `0x420270b3` | `0x42025b03` |
+| Audio-loop write | `0x42027133` | `0x42025b83` |
+| Footer write | `0x420271a4` | `0x42025bf4` |
+| Abort registration, after footer | `0x420271f3` | `0x42025c43` |
+| Fetch response headers | `0x420271f8` | `0x42025c48` |
+
+The post-body cancellation, acknowledgment/status, cleanup and return branches
+also match. Neither body loop queries cancellation. The same
+[empty upload acknowledgment requirement](voice.md#upload-acknowledgment-must-have-an-empty-body)
+and [partial-write consequences](voice.md#host-checked-write-failures-and-framing-length)
+therefore have static support on Standard. Those eight host groups remain one
+Large-derived fixture run, not additional device tests. The earlier successful
+Standard vendor upload remains its physical positive control.
+
+One local multipart handler can serve these two stock builds. It should validate
+the entire form, retain the upload by job key, return an empty acknowledgment,
+and wait for finalize before generation. Separate recording-buffer ownership,
+model-specific panel rendering and outer-worker lifetimes still apply.
 
 ### Poll result ownership also matches
 

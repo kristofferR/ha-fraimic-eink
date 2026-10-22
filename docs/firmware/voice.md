@@ -354,8 +354,10 @@ the extracted writer body is
 `a2eb7832c2bff78b0a8e09cf9ae300d5d58d8574a58fede8eee448306c721453`.
 The sink proves only scripted transport acceptance, not delivery to a real peer.
 No socket/TLS traffic, recordings, real delay, allocation fault or physical
-upload failure was induced. The reconstructed sender is Large-specific; this
-pass does not compare Standard's whole multipart function.
+upload failure was induced. The reconstructed sender was Large-derived. A later
+[complete multipart and SDK-writer comparison](standard-model-comparison.md#complete-multipart-upload-paths-also-match)
+confirms matching application branches and writer behavior in Standard; it does
+not add physical fault tests or prove every external helper equivalent.
 
 For the emulator, validate and retain a complete upload under its issued job key,
 start generation on finalize, and expire uploads that never finalize. Receipt of
