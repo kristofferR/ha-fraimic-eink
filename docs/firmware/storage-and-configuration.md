@@ -243,7 +243,8 @@ The saver returns the selected-key write or commit error; Ghidra's initial `void
 prototype was misleading. GNU disassembly retains that result in the return
 register through NVS close. Legacy-alias write results are not checked separately.
 The create-account caller ignores the result and updates RAM anyway; sign-in
-checks it before reloading. No storage failure was injected.
+checks it before reloading. The later [identity persistence model](#identity-saves-and-reset-restoration-host-cases)
+injects selected API failures; no physical storage failure was induced.
 
 Sign-in at `0x420192c8` clears byte `0x64` of its identity copy before saving,
 so it persists an empty timezone instead of preserving the previous value.
@@ -554,6 +555,59 @@ GNU instructions, 68 branches and 31 contiguous ranges, alongside the recovered
 storage-sleep caller. It does not compare these SDK/cache paths on Standard or
 execute them on either device. Internal SDK cleanup, concurrent writers,
 interrupted shutdown, subsequent boot and actual final storage remain open.
+
+### Identity saves and reset restoration: host cases
+
+An API-boundary reconstruction now exercises **34 interruption points and 28
+setter failures across nineteen scenario groups**, using synthetic identity and
+an in-memory namespace/key store. Successful mutations take effect wholly and
+immediately; injected setter/erase errors happen before mutation. Cuts stop before
+the next operation or final commit. This tests application sequencing and return
+handling, not NVS page recovery, partial erase, physical power loss or reboot
+durability. In particular, a real setter error can have effects excluded by this
+model, as the [storage-writer trace](#nvs-commit-does-not-make-the-four-switches-atomic)
+already shows.
+
+The saver writes selected email, shared timezone, selected device key, selected
+user ID and selected verification, in that order. Production then writes four
+legacy aliases before commit; development does not. The ten production and six
+development cut points include the window immediately after the third successful
+setter: **new device key with old user ID**. Earlier successful setters remain
+in the model when a later checked setter fails. A completed production save's
+selected identity can also disagree with a legacy alias whose unchecked write
+failed, while the saver returns success. A development save changes shared
+timezone while preserving the production account keys.
+
+The ten development-reset and eight production-reset cut points include the
+empty-partition window after erase and the partial opposite-environment restore.
+All successful erase paths discard shared timezone/schedule and other namespaces
+unless later code explicitly recreates them. The tests assume readable backup
+fields; separate cases exercise missing reads, failed backup open and short or
+empty successful values.
+
+| Fault/condition in the reconstruction | Consequence |
+| --- | --- |
+| Any of five checked save writes fails, in either environment | Saver returns that error without undoing earlier mutations |
+| Any of four production alias writes fails | Selected fields can be current while that alias stays old; successful commit still yields success |
+| Any of eight development-reset or six production-reset restore writes fails | Other writes continue; successful commit can hide the missing field, including mode/first-time flags |
+| Backup open fails | Erase still occurs; development restores only mode/first-time flags, production skips the empty restore |
+| Primary production key read fails during development reset | Readable legacy key is used; a successfully read empty primary key instead suppresses fallback |
+| Post-erase initialization or restore-open fails | Helper returns an error after the model's partition is already empty |
+| HTTP recovery erase occurs before selecting mode/backing up | Mode falls back to production and the later helper has no opposite-environment backup source |
+| Create-account ignores a save error | Its requested RAM identity can differ from storage; sign-in's error branch does not perform the success-only explicit reload |
+| Later statistics/sleep writes succeed | New records can appear after reset without reconstituting the erased account |
+
+Commit-error controls retain earlier successful model mutations. The readable
+short Wi-Fi example preserves returned lengths; it does not execute the blob
+reader's type/capacity checks. Later-write controls model only selected successful
+write calls, not full network teardown, blob layout or sleep. Cached account
+status and reset HTML therefore remain unsuitable as persistence acknowledgments.
+
+For a backend migration, keep identity changes separate from reset/environment
+switching and verify the complete identity record after saving. A future firmware
+format should publish one validated generation of related identity fields, with
+explicit recovery selection. These observations do not establish a new format,
+prove atomic flash support or require reproducing the vendor key derivation.
 
 ## Mounting the image partition
 

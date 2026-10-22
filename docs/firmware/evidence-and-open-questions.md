@@ -65,6 +65,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Six playlist/queue/scene API checks | Saved versus active state, duplicate append, source validation and per-frame queued/failed outcomes in unchanged integration code | Live HA, actual conversion/upload, durable jobs or a confirmed display |
 | HTTP response-cache fault checks | Two paired cleanup bodies and twelve SDK/parser cases show lost ownership after failed cache growth and unchecked upload acceptance | A reproduced device leak, full allocator/client teardown execution or the cause of captured TLS failures |
 | Time-control and overlapping waiters | Nine complete Large CFG bodies and 25 bounded model cases cover queue ownership, allocation faults and single-signal completion conflicts | Actual RTOS scheduling, caller overlap, a frame crash, offline clock accuracy or full Standard lifecycle equivalence |
+| Identity save/reset boundary model | Nineteen groups cover 34 successful-mutation cut points and 28 setter errors with synthetic records | Real NVS pages, effects of torn writes/partial erase, reboot recovery, device identity loss or complete Standard SDK/caller equivalence |
 
 Temporary DNS/DNAT and interception were removed after each bounded experiment.
 No custom app was flashed. The Large [backend passes](backend-emulation.md) used

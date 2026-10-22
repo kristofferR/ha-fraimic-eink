@@ -9,7 +9,7 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 111 of 182 concrete milestones complete.**
+**9 of 67 original items complete; 112 of 183 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
@@ -65,8 +65,9 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with N03's interrupted
-identity saves/reset restoration while A07's [feature proposal](voice-feature-proposal.md)
+For the owner's local-cloud/voice priorities, continue with N03's remaining
+Standard SDK/caller comparison after its bounded identity save/reset pass,
+while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
 overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
@@ -573,7 +574,8 @@ Commit and push validated research batches periodically as requested.
   Status: **Research**.
 
   - [x] **Static:** Map environment namespaces, deterministic key selection, legacy migration, whole-NVS reset backups and subsequent cached-state writes. [Identity](storage-and-configuration.md#identity-layout-and-migration), [reset](storage-and-configuration.md#cached-identity-and-later-writes-after-reset).
-  - [ ] **Next:** **Host:** Exercise interrupted saves/reset restoration and remaining Standard SDK/caller differences with synthetic identity.
+  - [x] **Host:** Exercise interrupted saves/reset restoration with synthetic identity: nineteen groups, 34 successful-mutation cut points and 28 setter errors. These are API-boundary models, not physical power-loss tests. [Persistence cases](storage-and-configuration.md#identity-saves-and-reset-restoration-host-cases).
+  - [ ] **Next:** **Static/Host:** Resolve remaining Standard SDK/caller differences around identity saving, reset and cached-state handoff; retain the boundary between helper equivalence and whole-workflow equivalence.
   - [ ] **Deferred:** **Device:** Verify final production/development/Wi-Fi/timezone state and reenrollment after approved reset/mode-switch cases.
 
 - [ ] **N04 · Host/Device:** Validate mount retries and format-on-failure decisions

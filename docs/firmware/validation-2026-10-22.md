@@ -2779,3 +2779,43 @@ artifacts preserved.
 | `time-control-model.ts` | `7d74f38ffc8455745488bf7d7ba93094b3703a04493060a01b1e1c003752e56c` |
 | `time-control-results.json` | `d380281e86f3b96ad2f9f6ec2ea8d68d5660b785a441e9e6ffeb794dac41244a` |
 | `time-control-cfg-manifest.json` | `23f7fc96c898415817f121067a243c02e9660a5c0464fa193984bee0e4956e70` |
+
+## Identity save/reset interruption boundaries: N03
+
+Complete Large saver `0x42018af0` covers 177 verified instructions in seven
+ranges. The already recovered reset helpers cover 969 instructions in seventeen
+ranges. These **1,146 instructions across three bodies** support the selected
+write/return ordering, with the previous SDK and caller traces supplying the
+documented commit and handoff context. The newly recovered legacy-migration body
+is retained for further comparison; it is not executed by this fixture.
+
+The Bun 1.4.3 host reconstruction passed **nineteen scenario groups**. Four groups
+enumerate **34 cuts** before mutation calls or final commit: ten production-save,
+six development-save, ten development-reset and eight production-reset points.
+Failure groups separately inject **28 setter errors**: ten checked save writes,
+four unchecked legacy aliases and fourteen reset restore writes. Other groups
+cover backup loss, empty/short readable values, legacy fallback, init/open/commit
+errors, an earlier handler recovery erase, caller RAM divergence and selected
+later sleep/statistics writes.
+
+The [persistence case table](storage-and-configuration.md#identity-saves-and-reset-restoration-host-cases)
+records mixed identity, hidden restore failure and shared-state consequences.
+All data are synthetic. The store is an in-memory map with whole immediate
+successful mutations and before-effect injected errors. It is not an NVS, flash,
+wear-leveling or reboot emulator. A cut means the application stops at that API
+boundary; it does not claim the same records survive physical power loss. The
+fixture does not model the known write-then-old-item-removal error path, string
+buffer/type checks, whole HTTP form parsing or concurrent writers.
+
+No device, network or HA state was changed. N03's previous combined host/comparison
+step is split into a checked bounded-host milestone and the remaining Standard
+SDK/caller comparison, making the partial completion explicit. Physical identity,
+Wi-Fi/timezone and reenrollment validation remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `identity-persistence-model.ts` | `09f1c22cf1e05964c457ef0dc86511f5d55e70deadb0109dba3bb301642a76a3` |
+| `identity-persistence-results.json` | `842889db631bdd5b3655276f20b78bce822e08d274c3452f8f0eabede2da9ee9` |
+| `identity-save-large-cfg.json` | `78e5e19b168c4bfcfafaa212995bb38968eaf094d2163a766e3c828f6880374f` |
+| `reset-development-large-cfg.json` | `434b9de12df1c47d42cdb91f70b49b880d8e50fecf35da73e65ad9278798c7b5` |
+| `reset-production-large-cfg.json` | `546c111b326025ca907050e0db73a55bf3733d915c4fe33f4d325f58bd02a2fb` |
