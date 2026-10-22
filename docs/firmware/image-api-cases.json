@@ -1,0 +1,1954 @@
+{
+  "method": "Selected byte-checked Xtensa handler, save/start wrapper and JSON/error sender instructions",
+  "limits": "HTTP/parser, cJSON, ROM helpers, image-buffer getters, LED/activity, filesystem save, marker cleanup and render-start outcomes are modeled. No live request, real allocator, flash durability, scheduling or physical rendering.",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "expected_payload_bytes": 2304000,
+      "functions": [
+        {
+          "name": "handler",
+          "entry": "0x420307f8",
+          "instructions": 245,
+          "sha256": "e835055d9cf68e0c3900944078c27ca624404656c45a4bbec93eff48056bcac2"
+        },
+        {
+          "name": "wrapper",
+          "entry": "0x4201727c",
+          "instructions": 80,
+          "sha256": "d308b387ea14b3243c65e56614a79a1154c9cd2eb878bf021558d1966d3c188c"
+        },
+        {
+          "name": "json",
+          "entry": "0x4202ffd0",
+          "instructions": 33,
+          "sha256": "ad95c4f5a841c49c1a6cbd955bc815ec7f889d314e263a01d755792c46a96c7d"
+        },
+        {
+          "name": "error",
+          "entry": "0x42030028",
+          "instructions": 22,
+          "sha256": "3ca7b2aeea5c741896fda59e106f6bfc58657e92765961fd644549e62726580a"
+        }
+      ],
+      "distinct_instructions": 373,
+      "cases": [
+        {
+          "name": "exact",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2304000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2304000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-parameter",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream; charset=binary",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2304000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2304000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-substring",
+          "content_length": 2304000,
+          "content_type": "x-application/octet-stream-x",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2304000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2304000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-case-mismatch",
+          "content_length": 2304000,
+          "content_type": "Application/Octet-Stream",
+          "response": {
+            "event": "response",
+            "status": "501 Not Implemented",
+            "body": {
+              "error": "unsupported_content_type"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 2304000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "501 Not Implemented",
+              "body": {
+                "error": "unsupported_content_type"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-63-bytes",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream                                       ",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2304000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2304000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-64-bytes",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream                                        ",
+          "response": {
+            "event": "response",
+            "status": "501 Not Implemented",
+            "body": {
+              "error": "unsupported_content_type"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 2304000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "501 Not Implemented",
+              "body": {
+                "error": "unsupported_content_type"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "empty",
+          "content_length": 0,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "empty_body"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 2304000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "empty_body"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "one-byte-oversize",
+          "content_length": 2304001,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "file_too_large"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 2304000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "file_too_large"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "buffer-unready",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "503 Service Unavailable",
+            "body": {
+              "error": "buffer_not_ready"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 2304000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "503 Service Unavailable",
+              "body": {
+                "error": "buffer_not_ready"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "capacity-too-small",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "buffer_invalid"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 2304000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "buffer_invalid"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "partial-then-eof",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "receive_failed"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 256,
+          "unwritten_tail_bytes": 2303744,
+          "read_calls": 2,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "receive_failed"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "five-timeouts",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "408 Request Timeout",
+            "body": {
+              "error": "upload_timeout"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 2304000,
+          "read_calls": 5,
+          "timeout_results": 5,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "408 Request Timeout",
+              "body": {
+                "error": "upload_timeout"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "partial-then-five-timeouts",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "408 Request Timeout",
+            "body": {
+              "error": "upload_timeout"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 256,
+          "unwritten_tail_bytes": 2303744,
+          "read_calls": 6,
+          "timeout_results": 5,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "408 Request Timeout",
+              "body": {
+                "error": "upload_timeout"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "progress-resets-timeout-count",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2304000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 572,
+          "timeout_results": 8,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2304000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "short-by-1024",
+          "content_length": 2302976,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2302976
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2302976,
+          "unwritten_tail_bytes": 1024,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2302976,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2302976,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2302976
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "short-by-1025",
+          "content_length": 2302975,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "invalid_image_size"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2302975,
+          "unwritten_tail_bytes": 1025,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "invalid_image_size"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "cache-save-fails",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2304000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": true
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2304000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "render-start-fails-after-save",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "render_failed"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": true
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "render_failed"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-allocation-fails-after-render",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-serialization-fails-after-render",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": -1,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-send-fails-after-render",
+          "content_length": 2304000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 2304000
+            },
+            "send_failed": true
+          },
+          "bytes_written": 2304000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 563,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": -1,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 2304000
+              },
+              "send_failed": true
+            }
+          ],
+          "passed": true
+        }
+      ]
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "expected_payload_bytes": 960000,
+      "functions": [
+        {
+          "name": "handler",
+          "entry": "0x4202ef24",
+          "instructions": 245,
+          "sha256": "155c7f4a4dc7cdd77947eddc9cd76dde1c158a53cff69451fb53717707444e0a"
+        },
+        {
+          "name": "wrapper",
+          "entry": "0x42017250",
+          "instructions": 80,
+          "sha256": "ded76be4a18fd5d31a268619a7736f459161619d84a33d268fcfbf692f4042d8"
+        },
+        {
+          "name": "json",
+          "entry": "0x4202e6fc",
+          "instructions": 33,
+          "sha256": "58dd3bbd096b4cddf955af99198359a79a60f08ece985dbd2126e49b7b74fcf1"
+        },
+        {
+          "name": "error",
+          "entry": "0x4202e754",
+          "instructions": 22,
+          "sha256": "59cbcd44717c1b74d95b837bef5be9b25696d867216798f67526f313dace18e1"
+        }
+      ],
+      "distinct_instructions": 373,
+      "cases": [
+        {
+          "name": "exact",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 960000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 960000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-parameter",
+          "content_length": 960000,
+          "content_type": "application/octet-stream; charset=binary",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 960000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 960000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-substring",
+          "content_length": 960000,
+          "content_type": "x-application/octet-stream-x",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 960000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 960000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-case-mismatch",
+          "content_length": 960000,
+          "content_type": "Application/Octet-Stream",
+          "response": {
+            "event": "response",
+            "status": "501 Not Implemented",
+            "body": {
+              "error": "unsupported_content_type"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 960000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "501 Not Implemented",
+              "body": {
+                "error": "unsupported_content_type"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-63-bytes",
+          "content_length": 960000,
+          "content_type": "application/octet-stream                                       ",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 960000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 960000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "mime-64-bytes",
+          "content_length": 960000,
+          "content_type": "application/octet-stream                                        ",
+          "response": {
+            "event": "response",
+            "status": "501 Not Implemented",
+            "body": {
+              "error": "unsupported_content_type"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 960000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "501 Not Implemented",
+              "body": {
+                "error": "unsupported_content_type"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "empty",
+          "content_length": 0,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "empty_body"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 960000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "empty_body"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "one-byte-oversize",
+          "content_length": 960001,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "file_too_large"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 960000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "file_too_large"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "buffer-unready",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "503 Service Unavailable",
+            "body": {
+              "error": "buffer_not_ready"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 960000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "503 Service Unavailable",
+              "body": {
+                "error": "buffer_not_ready"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "capacity-too-small",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "buffer_invalid"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 960000,
+          "read_calls": 0,
+          "timeout_results": 0,
+          "max_receive_request": 0,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "buffer_invalid"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "partial-then-eof",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "receive_failed"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 256,
+          "unwritten_tail_bytes": 959744,
+          "read_calls": 2,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "receive_failed"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "five-timeouts",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "408 Request Timeout",
+            "body": {
+              "error": "upload_timeout"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 0,
+          "unwritten_tail_bytes": 960000,
+          "read_calls": 5,
+          "timeout_results": 5,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "408 Request Timeout",
+              "body": {
+                "error": "upload_timeout"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "partial-then-five-timeouts",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "408 Request Timeout",
+            "body": {
+              "error": "upload_timeout"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 256,
+          "unwritten_tail_bytes": 959744,
+          "read_calls": 6,
+          "timeout_results": 5,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "408 Request Timeout",
+              "body": {
+                "error": "upload_timeout"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "progress-resets-timeout-count",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 960000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 244,
+          "timeout_results": 8,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 960000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "short-by-1024",
+          "content_length": 958976,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 958976
+            },
+            "send_failed": false
+          },
+          "bytes_written": 958976,
+          "unwritten_tail_bytes": 1024,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 958976,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 958976,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 958976
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "short-by-1025",
+          "content_length": 958975,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "400 Bad Request",
+            "body": {
+              "error": "invalid_image_size"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 958975,
+          "unwritten_tail_bytes": 1025,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "400 Bad Request",
+              "body": {
+                "error": "invalid_image_size"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "cache-save-fails",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 960000
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": true
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 960000
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "render-start-fails-after-save",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "render_failed"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": true
+            },
+            {
+              "event": "led",
+              "state": 31
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "render_failed"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-allocation-fails-after-render",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-serialization-fails-after-render",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": -1,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-send-fails-after-render",
+          "content_length": 960000,
+          "content_type": "application/octet-stream",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "rendering",
+              "bytes_received": 960000
+            },
+            "send_failed": true
+          },
+          "bytes_written": 960000,
+          "unwritten_tail_bytes": 0,
+          "read_calls": 235,
+          "timeout_results": 0,
+          "max_receive_request": 4096,
+          "handler_return": -1,
+          "events": [
+            {
+              "event": "activity"
+            },
+            {
+              "event": "led",
+              "state": 29
+            },
+            {
+              "event": "save",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "rendering",
+                "bytes_received": 960000
+              },
+              "send_failed": true
+            }
+          ],
+          "passed": true
+        }
+      ]
+    }
+  },
+  "fixture_sha256": "ce1df16f9da23fce99049c02fadfd7a44da127b99121e698fec6604051352cd2",
+  "static_comparison": {
+    "sha256": "b085b6d50e688d22e17bec84d8ea27c8ce1c3b8988ca2a16954001d1d9d2eb86",
+    "functions": [
+      {
+        "name": "handler",
+        "large": "0x420307f8",
+        "standard": "0x4202ef24",
+        "instructions": 245,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "wrapper",
+        "large": "0x4201727c",
+        "standard": "0x42017250",
+        "instructions": 80,
+        "normalized_operations_match": true
+      }
+    ],
+    "mapped_direct_call_pairs": 18,
+    "limits": "Pinned image bytes and complete reachable GNU CFGs checked. Operations and branch indices match; external calls and relocated literals are listed separately, not recursively proven equivalent."
+  }
+}

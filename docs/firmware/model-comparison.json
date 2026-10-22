@@ -1051,6 +1051,24 @@
       },
       "evidence": "local-control-cases.json",
       "limits": "Selected byte-checked handlers/wrappers with modeled JSON/HTTP, state getters, RTOS delay, restart and lower maintenance. No physical action or concurrent rendering proof; external callees not recursively equated."
+    },
+    "raw_image_api": {
+      "complete_function_pairs": 2,
+      "matching_instructions_per_build": 325,
+      "mapped_direct_call_pairs": 18,
+      "content_type_check": "case-sensitive substring application/octet-stream in a 1-63 byte value",
+      "maximum_receive_request": 4096,
+      "consecutive_timeout_limit": 5,
+      "progress_resets_timeout_count": true,
+      "handler_whole_upload_deadline": false,
+      "partial_receive_restores_buffer": false,
+      "missing_tail_filled": false,
+      "cache_save_failure_prevents_render_start": false,
+      "response_allocation_precedes_render_start": false,
+      "host_cases": 42,
+      "executed_distinct_instructions_per_build": 373,
+      "evidence": "image-api-cases.json",
+      "limits": "Byte-checked selected instructions with HTTP/cJSON/ROM, buffer getters, activity/LED, save/marker and render results modeled; no physical or durable-storage fault test."
     }
   },
   "function_map": [

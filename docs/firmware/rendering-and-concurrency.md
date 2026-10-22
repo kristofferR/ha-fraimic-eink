@@ -460,6 +460,14 @@ voice upload and background downloads add other users of the same allocation.
 The exact timing of corruption has not been exercised on the device; the missing
 early ownership guard and ordering are established from the code.
 
+The [both-model raw API comparison](local-api.md#raw-image-acceptance-and-failure-boundaries-on-both-models)
+also traces error outcomes. Partial receive failure leaves the written prefix;
+the accepted short-length tolerance does not fill the missing tail. Cache save
+precedes render-start, and success-response allocation follows it. Forty-two
+bounded instruction cases verify those orders with the actual I/O and render
+results modeled. An HTTP error is therefore not a general indication that the
+buffer, cache or display workflow is unchanged.
+
 ### What WAIT and DROP actually guarantee
 
 `0x420208d4` uses render-busy byte `0x3fca75d1`:

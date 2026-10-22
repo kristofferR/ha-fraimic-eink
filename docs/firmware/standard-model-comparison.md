@@ -1267,6 +1267,13 @@ render-start tolerance of ±1,024 bytes is not a format specification: produce
 exactly the model's expected payload. Both local handlers can report `rendering`
 before physical completion.
 
+The [complete raw API comparison](local-api.md#raw-image-acceptance-and-failure-boundaries-on-both-models)
+matches 325 handler/wrapper instructions per build, with different size literals.
+Both use the same MIME substring and consecutive-timeout rules; neither adds an
+early recording/protection guard. Forty-two instruction cases cover partial
+reception, short tails, cache/render failures and response failures after render
+acceptance. These are scoped host checks, not another physical display test.
+
 Static power differences also matter: the Standard voltage getter returns the
 gauge reading without Large's doubling and has an ADC fallback. Large's examined
 path doubles the gauge result and returns zero on gauge failure. Post-update
