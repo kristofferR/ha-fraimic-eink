@@ -9,17 +9,17 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**12 of 67 original items complete; 123 of 187 concrete milestones complete.**
+**12 of 67 original items complete; 124 of 188 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 12 | Original bounded question answered; evidence linked below |
-| Research | 1 | Concrete static, host or design work remains available |
+| Research | 0 | Concrete static, host or design work remains available |
 | Waiting for device | 27 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
-| Deferred | 9 | Owner-postponed work; do not resume automatically |
+| Deferred | 10 | Owner-postponed work; do not resume automatically |
 | Ongoing | 2 | Evidence discipline applied to relevant findings/builds, not a finite feature |
 
 Completed original items: **C01, C05, C09, C10, A01, A05, R11, D01, D03, N02, H07, E03**. The reconciliation closed
@@ -68,18 +68,24 @@ expand the acceptance criteria. In particular:
 
 The owner chose backend emulation with the enclosure closed. Physical recording/
 cancellation tests, flashing/recovery experiments and battery work remain
-deferred; R12's unfinished host work and N04's filesystem pass were also explicitly postponed. Do not
+deferred; R12's unfinished host work, N04's filesystem pass and A07's provider
+choice were also explicitly postponed. Do not
 repeatedly request a recording or board access. No device/network change or HA
 implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-The remaining available design decision is A07's provider/interaction choice.
+The owner requested continued firmware/device analysis and deferred A07's
+provider choice. The S06/E01/E02 physical-input pass is complete: both-build
+gesture/held-input and monitor-lifecycle cases are documented. Continue the
+decision-relevant boot/wake admission comparison under S06/E01/E02; no live test
+or provider work is needed for that pass.
 D03's ownership-versus-snapshot memory evaluation is complete. H03's static
 audio-path audit, H04's controller-command audit and H05's registration/diagnostic
 reconciliation are complete; their physical criteria
 remain deferred. A07's [feature proposal](voice-feature-proposal.md)
-awaits provider/interaction choices; the owner selected all three feature groups.
+is retained with all three owner-selected feature groups; do not revisit the
+provider choice unless requested.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
 overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
 N06's wake-asset cases, D06's driver-fault/watchdog pass and S02's bounded
@@ -287,10 +293,10 @@ Commit and push validated research batches periodically as requested.
   library/scheduler behavior. Resolve provider capability, ambiguous-current-image
   and UI/interaction choices before implementation.
 
-  Status: **Research**.
+  Status: **Deferred**.
 
   - [x] **Static/Design:** Map candidate library/scheduler reuse and provider limitations for voice creations, edits and commands. [Roadmap](home-assistant-roadmap.md).
-  - [ ] **Next:** **Design:** Select/validate provider capabilities and settle interaction details before implementation. The owner selected new artwork/history, edits and HA/playlist commands; current-image and target semantics are defined in the [concrete proposal](voice-feature-proposal.md).
+  - [ ] **Deferred:** **Design:** Provider selection/capability checks and remaining interaction choices were postponed by the owner in favor of firmware/device analysis. Preserve the selected feature groups and [concrete proposal](voice-feature-proposal.md); do not resume provider research automatically.
   - [x] **Host:** Check six playlist/queue/scene scenarios against unchanged integration APIs, including replay, missing sources, partial success and queued delivery. [Results and limits](validation-2026-10-22.md#voice-feature-reuse-a07).
 
 ## Recovery and OTA prerequisites
@@ -465,6 +471,7 @@ Commit and push validated research batches periodically as requested.
 
   - [x] **Static:** Map lifecycle, network/display shutdown ordering and final wake-source reset. [Shutdown](boot-and-scheduling.md#pre-sleep-ordering-and-outstanding-work).
   - [x] **Device:** Preserve USB-powered reachability and separate earlier factory-test sleep evidence. [Observed scope](validation-2026-10-21.md#later-awake-read-s05s06h05h07).
+  - [x] **Static/Host:** Compare seven input/clock/monitor/control function pairs and execute 33 bounded instruction cases per build: tap/quiet windows, held-input admission, single-result overwrites and start/stop failure states. [Input audit](input-and-gestures.md), [cases](button-input-cases.json), [validation](validation-2026-10-22.md#button-input-and-gesture-cases-s06e01e02). Physical transitions remain deferred.
   - [ ] **Deferred:** **Device:** Measure normal/button/charger/maintenance/album/setup/factory transitions and HTTP windows without treating factory sleep as normal idle behavior.
 
 - [ ] **S07 · Host/Device:** Validate a local pull playlist with wake-only scheduling,
@@ -782,6 +789,7 @@ This table records the audit scope, not completion of its checks.
 | [Voice](voice.md) | C05–C09, A01/A04/A06, D01–D05 |
 | [Image downloads](image-downloads.md) | C03/C04/C07/C08, D03/D05–D07, N05 |
 | [Boot and scheduling](boot-and-scheduling.md) | S01–S07, C04/C11, R10/R12 |
+| [Physical input and gestures](input-and-gestures.md) | S06, C06/C08, E01/E02 |
 | [Storage and configuration](storage-and-configuration.md) | N01–N08, R04/R06, H06 |
 | [OTA and recovery](ota-and-recovery.md) | R01–R12, B02 |
 | [Local API](local-api.md) | C12, H05, D01/D02/D04/D07, A05/A06 |

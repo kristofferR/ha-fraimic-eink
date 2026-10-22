@@ -816,6 +816,12 @@ It ignores additional press edges less than 100 ms apart and groups edges within
 single/double taps do not take that processing-mode branch. These are recovered
 thresholds, not measured physical gesture tolerances.
 
+The [two-model input audit](input-and-gestures.md) now checks exact 100/800 ms
+boundaries, the separate quiet-time rule, held input, ignored recording double
+taps and the single result slot. Thirty-three instruction cases per build also
+cover start/stop failures and seeded stale results; no physical gesture test was
+added.
+
 In processing mode it sets the byte at `0x3fca6b19` and calls `0x42025ea8`, the
 HTTP-abort manager. The main loop switches to that mode after the recording's
 completion indication. For a controlled test, wait until the fixture has received

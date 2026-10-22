@@ -1,0 +1,1097 @@
+{
+  "evidence": "Bounded interpretation of byte-checked selected instructions on both images, with scripted GPIO/time and external stubs; not a physical or RTOS test",
+  "models": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "monitor",
+          "entry": "0x4200f770",
+          "instructions": 494,
+          "ranges": 9,
+          "sha256": "b1a9455056ea33b567d88daa343109fb6dbe92e13a73c3222ca80d2ec07342d5"
+        },
+        {
+          "name": "start",
+          "entry": "0x420110a4",
+          "instructions": 141,
+          "ranges": 2,
+          "sha256": "a0050d4f0ccbb2b43a012d8e37fdebf808583898299d7f1dd7aa59c3a1f52c4c"
+        },
+        {
+          "name": "stop",
+          "entry": "0x42011218",
+          "instructions": 94,
+          "ranges": 2,
+          "sha256": "8e440714342338e86d36b6b30d6cc5a52876698efcd47e15dd4aa1b8b6b41faf"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011314",
+          "instructions": 260,
+          "ranges": 4,
+          "sha256": "3874826d2dcc3f30da800c82a597dc7d7ef39dfa9932c4839252abff36f21988"
+        },
+        {
+          "name": "wait",
+          "entry": "0x4201163c",
+          "instructions": 427,
+          "ranges": 10,
+          "sha256": "bc623d8b7545cebc89eba73c6a59a1be5613651872e8bda01d036802eada71b0"
+        },
+        {
+          "name": "input",
+          "entry": "0x42011070",
+          "instructions": 19,
+          "ranges": 1,
+          "sha256": "01525a24fd83821d4732f81b560b5d12a4cb6675d825690ac33aa00b1da1b407"
+        },
+        {
+          "name": "clock",
+          "entry": "0x403780a0",
+          "instructions": 9,
+          "ranges": 1,
+          "sha256": "ef14ff32fb6879c56483b83a9d7b726b86ec4db2ebb4d6ac8897e3d2e838a8c5"
+        }
+      ],
+      "instructions_executed_unique": 1084,
+      "scenarios": [
+        {
+          "group": "monitor",
+          "name": "single-quiet-800-boundary",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "double-after-last-edge-quiet",
+          "events": [
+            {
+              "at_ms": 1001,
+              "count": 2
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 2,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "triple-recording",
+          "events": [
+            {
+              "at_ms": 300,
+              "count": 3
+            }
+          ],
+          "record_cancel": 1,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "triple-processing",
+          "events": [
+            {
+              "at_ms": 300,
+              "count": 3
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 1,
+          "abort_calls": 1,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "third-at-first-plus-800",
+          "events": [
+            {
+              "at_ms": 900,
+              "count": 3
+            }
+          ],
+          "record_cancel": 1,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "third-at-first-plus-801-replaces-group",
+          "events": [
+            {
+              "at_ms": 1702,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "99ms-edge-rejected",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "100ms-edge-accepted",
+          "events": [
+            {
+              "at_ms": 1001,
+              "count": 2
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 2,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "held-at-monitor-start",
+          "events": [
+            {
+              "at_ms": 1901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "new-hold-publishes-without-release",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "missed-quiet-poll-replaces-old-single",
+          "events": [
+            {
+              "at_ms": 1801,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "unconsumed-result-overwritten",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            },
+            {
+              "at_ms": 1901,
+              "count": 2
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 2,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "millisecond-low-word-wrap",
+          "events": [
+            {
+              "at_ms": 4294967396,
+              "count": 3
+            }
+          ],
+          "record_cancel": 1,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "ota-suppressed-edge",
+          "events": [
+            {
+              "at_ms": 1101,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "mutex-failed-edge",
+          "events": [],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 0,
+          "ready": 0
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-keeps-stale-result",
+          "return_code": 0,
+          "running": 1,
+          "ready": 1,
+          "pending_count": 1,
+          "task_create_calls": 1,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-mutex-allocation-fails",
+          "return_code": 4294967295,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-lock-fails",
+          "return_code": 4294967295,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-already-running",
+          "return_code": 259,
+          "running": 1,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-task-create-fails",
+          "return_code": 4294967295,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 1,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-active-clears-result",
+          "return_code": 0,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": [
+            5
+          ]
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-inactive-retains-result",
+          "return_code": 0,
+          "running": 0,
+          "ready": 1,
+          "pending_count": 3,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-lock-fails",
+          "return_code": 4294967295,
+          "running": 1,
+          "ready": 1,
+          "pending_count": 3,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-mutex-missing",
+          "return_code": 259,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "idle-wait",
+          "name": "fresh-tap",
+          "return_code": 1,
+          "elapsed_ms": 150,
+          "sleep_pending": 0
+        },
+        {
+          "group": "idle-wait",
+          "name": "held-new-press",
+          "return_code": 1,
+          "elapsed_ms": 5160,
+          "sleep_pending": 0
+        },
+        {
+          "group": "idle-wait",
+          "name": "held-at-entry",
+          "return_code": 1,
+          "elapsed_ms": 15180,
+          "sleep_pending": 0
+        },
+        {
+          "group": "idle-wait",
+          "name": "sleep-request-during-release-wait",
+          "return_code": 1,
+          "elapsed_ms": 5160,
+          "sleep_pending": 1
+        },
+        {
+          "group": "record-control",
+          "name": "pending-1",
+          "outcome": "task_exit",
+          "elapsed_ms": 2000,
+          "record_cancel": 0,
+          "monitor_created": 1,
+          "ready": 0
+        },
+        {
+          "group": "record-control",
+          "name": "pending-2",
+          "outcome": "input_end",
+          "elapsed_ms": 2350,
+          "record_cancel": 0,
+          "monitor_created": 1,
+          "ready": 0
+        },
+        {
+          "group": "record-control",
+          "name": "pending-3",
+          "outcome": "task_exit",
+          "elapsed_ms": 2000,
+          "record_cancel": 1,
+          "monitor_created": 1,
+          "ready": 0
+        },
+        {
+          "group": "record-control",
+          "name": "monitor-creation-failure-not-propagated",
+          "outcome": "input_end",
+          "elapsed_ms": 2350,
+          "monitor_create_attempts": 1,
+          "monitor_running": 0
+        },
+        {
+          "group": "initialization",
+          "name": "input-helper-errors-not-checked",
+          "helper_calls": [
+            {
+              "large_reference_address": "0x420445c8",
+              "args": [
+                2
+              ]
+            },
+            {
+              "large_reference_address": "0x42044390",
+              "args": [
+                2,
+                1
+              ]
+            },
+            {
+              "large_reference_address": "0x420410fc",
+              "args": [
+                2
+              ]
+            }
+          ],
+          "all_three_helpers_attempted": true
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "monitor",
+          "entry": "0x4200f6c4",
+          "instructions": 494,
+          "ranges": 9,
+          "sha256": "36dbe7091c26537374f1aa5516ee5244d500fbfb1dc5c6eada37fe1468ae2142"
+        },
+        {
+          "name": "start",
+          "entry": "0x42011004",
+          "instructions": 141,
+          "ranges": 2,
+          "sha256": "50a3bf97301a8b0ca21c1a3a06331033f93f473a2180ea03c46ce8b4469ee9a3"
+        },
+        {
+          "name": "stop",
+          "entry": "0x42011178",
+          "instructions": 94,
+          "ranges": 2,
+          "sha256": "bbbbdcda5ea6bf5fbb93fe8ce5885faaa3181fe60a79d61f4f6ce3f9a0f5dcc7"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011274",
+          "instructions": 260,
+          "ranges": 4,
+          "sha256": "3f4689ae24b99438ef951cc730585917feb3a9dcd21332d08a967a203537aced"
+        },
+        {
+          "name": "wait",
+          "entry": "0x4201159c",
+          "instructions": 427,
+          "ranges": 10,
+          "sha256": "5714177a5104be086e3f7257ea6826d8fab7bdaf54b353a9cbbafa5d973d08f4"
+        },
+        {
+          "name": "input",
+          "entry": "0x42010fd0",
+          "instructions": 19,
+          "ranges": 1,
+          "sha256": "9532cf7c9b81b453912a3236e55656f22d703f621f4392a250e00802b3be0a2b"
+        },
+        {
+          "name": "clock",
+          "entry": "0x403780a8",
+          "instructions": 9,
+          "ranges": 1,
+          "sha256": "6524ecf44d8b2b3c1840627c46db8d7bc9dd66ddff4be51e9ddcfb24d8a2d1ea"
+        }
+      ],
+      "instructions_executed_unique": 1084,
+      "scenarios": [
+        {
+          "group": "monitor",
+          "name": "single-quiet-800-boundary",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "double-after-last-edge-quiet",
+          "events": [
+            {
+              "at_ms": 1001,
+              "count": 2
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 2,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "triple-recording",
+          "events": [
+            {
+              "at_ms": 300,
+              "count": 3
+            }
+          ],
+          "record_cancel": 1,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "triple-processing",
+          "events": [
+            {
+              "at_ms": 300,
+              "count": 3
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 1,
+          "abort_calls": 1,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "third-at-first-plus-800",
+          "events": [
+            {
+              "at_ms": 900,
+              "count": 3
+            }
+          ],
+          "record_cancel": 1,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "third-at-first-plus-801-replaces-group",
+          "events": [
+            {
+              "at_ms": 1702,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "99ms-edge-rejected",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "100ms-edge-accepted",
+          "events": [
+            {
+              "at_ms": 1001,
+              "count": 2
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 2,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "held-at-monitor-start",
+          "events": [
+            {
+              "at_ms": 1901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "new-hold-publishes-without-release",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "missed-quiet-poll-replaces-old-single",
+          "events": [
+            {
+              "at_ms": 1801,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "unconsumed-result-overwritten",
+          "events": [
+            {
+              "at_ms": 901,
+              "count": 1
+            },
+            {
+              "at_ms": 1901,
+              "count": 2
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 2,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "millisecond-low-word-wrap",
+          "events": [
+            {
+              "at_ms": 4294967396,
+              "count": 3
+            }
+          ],
+          "record_cancel": 1,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 3,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "ota-suppressed-edge",
+          "events": [
+            {
+              "at_ms": 1101,
+              "count": 1
+            }
+          ],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 1,
+          "ready": 1
+        },
+        {
+          "group": "monitor",
+          "name": "mutex-failed-edge",
+          "events": [],
+          "record_cancel": 0,
+          "processing_cancel": 0,
+          "abort_calls": 0,
+          "pending_count": 0,
+          "ready": 0
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-keeps-stale-result",
+          "return_code": 0,
+          "running": 1,
+          "ready": 1,
+          "pending_count": 1,
+          "task_create_calls": 1,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-mutex-allocation-fails",
+          "return_code": 4294967295,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-lock-fails",
+          "return_code": 4294967295,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-already-running",
+          "return_code": 259,
+          "running": 1,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "start-task-create-fails",
+          "return_code": 4294967295,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 1,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-active-clears-result",
+          "return_code": 0,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": [
+            5
+          ]
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-inactive-retains-result",
+          "return_code": 0,
+          "running": 0,
+          "ready": 1,
+          "pending_count": 3,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-lock-fails",
+          "return_code": 4294967295,
+          "running": 1,
+          "ready": 1,
+          "pending_count": 3,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "lifecycle",
+          "name": "stop-mutex-missing",
+          "return_code": 259,
+          "running": 0,
+          "ready": 0,
+          "pending_count": 0,
+          "task_create_calls": 0,
+          "task_delete_calls": 0,
+          "delay_ticks": []
+        },
+        {
+          "group": "idle-wait",
+          "name": "fresh-tap",
+          "return_code": 1,
+          "elapsed_ms": 150,
+          "sleep_pending": 0
+        },
+        {
+          "group": "idle-wait",
+          "name": "held-new-press",
+          "return_code": 1,
+          "elapsed_ms": 5160,
+          "sleep_pending": 0
+        },
+        {
+          "group": "idle-wait",
+          "name": "held-at-entry",
+          "return_code": 1,
+          "elapsed_ms": 15180,
+          "sleep_pending": 0
+        },
+        {
+          "group": "idle-wait",
+          "name": "sleep-request-during-release-wait",
+          "return_code": 1,
+          "elapsed_ms": 5160,
+          "sleep_pending": 1
+        },
+        {
+          "group": "record-control",
+          "name": "pending-1",
+          "outcome": "task_exit",
+          "elapsed_ms": 2000,
+          "record_cancel": 0,
+          "monitor_created": 1,
+          "ready": 0
+        },
+        {
+          "group": "record-control",
+          "name": "pending-2",
+          "outcome": "input_end",
+          "elapsed_ms": 2350,
+          "record_cancel": 0,
+          "monitor_created": 1,
+          "ready": 0
+        },
+        {
+          "group": "record-control",
+          "name": "pending-3",
+          "outcome": "task_exit",
+          "elapsed_ms": 2000,
+          "record_cancel": 1,
+          "monitor_created": 1,
+          "ready": 0
+        },
+        {
+          "group": "record-control",
+          "name": "monitor-creation-failure-not-propagated",
+          "outcome": "input_end",
+          "elapsed_ms": 2350,
+          "monitor_create_attempts": 1,
+          "monitor_running": 0
+        },
+        {
+          "group": "initialization",
+          "name": "input-helper-errors-not-checked",
+          "helper_calls": [
+            {
+              "large_reference_address": "0x420445c8",
+              "args": [
+                2
+              ]
+            },
+            {
+              "large_reference_address": "0x42044390",
+              "args": [
+                2,
+                1
+              ]
+            },
+            {
+              "large_reference_address": "0x420410fc",
+              "args": [
+                2
+              ]
+            }
+          ],
+          "all_three_helpers_attempted": true
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "GPIO traces specify sampled levels and integer milliseconds, not bounce waveform or cycle timing.",
+    "Mutex/task/clock/ROM division and external firmware helpers are modeled; no concurrent tasks or interrupt/register-window exceptions are executed.",
+    "The seven complete CFG pairs are compared separately; selected cases do not cover all branches or recursively execute every callee.",
+    "Idle-wait cases stub network/settings/OTA/idle predicates and do not test battery behavior.",
+    "Recording-control cases use preseeded pending results and stub microphone helpers; no recording is made."
+  ],
+  "comparison": {
+    "function_pairs": 7,
+    "instructions_per_build": 1444,
+    "branches_per_build": 144,
+    "ranges_per_build": 29,
+    "direct_call_pairs": 33,
+    "literal_pairs": 93,
+    "limits": "Complete selected bodies only; calls and pointer literals mapped separately. RAM content, recursively called helper semantics and physical behavior are not proven by normalized body matching.",
+    "direct_calls": [
+      {
+        "large": "0x42044248",
+        "standard": "0x42040430"
+      },
+      {
+        "large": "0x42016564",
+        "standard": "0x42016584"
+      },
+      {
+        "large": "0x42025ea8",
+        "standard": "0x420248f8"
+      },
+      {
+        "large": "0x42022f48",
+        "standard": "0x420219f8"
+      },
+      {
+        "large": "0x4201fed0",
+        "standard": "0x4201fea0"
+      },
+      {
+        "large": "0x4201fe94",
+        "standard": "0x4201fe64"
+      },
+      {
+        "large": "0x420110a4",
+        "standard": "0x42011004"
+      },
+      {
+        "large": "0x42011218",
+        "standard": "0x42011178"
+      },
+      {
+        "large": "0x42020090",
+        "standard": "0x42020060"
+      },
+      {
+        "large": "0x42020150",
+        "standard": "0x42020120"
+      },
+      {
+        "large": "0x4201ea44",
+        "standard": "0x4201ea18"
+      },
+      {
+        "large": "0x4201e050",
+        "standard": "0x4201e024"
+      },
+      {
+        "large": "0x4201581c",
+        "standard": "0x4201583c"
+      },
+      {
+        "large": "0x4201d8f0",
+        "standard": "0x4201d8c4"
+      },
+      {
+        "large": "0x42015258",
+        "standard": "0x42015278"
+      },
+      {
+        "large": "0x420151dc",
+        "standard": "0x420151fc"
+      },
+      {
+        "large": "0x42015210",
+        "standard": "0x42015230"
+      },
+      {
+        "large": "0x4201064c",
+        "standard": "0x420105a0"
+      },
+      {
+        "large": "0x42029ed0",
+        "standard": "0x42028ae8"
+      },
+      {
+        "large": "0x420158a8",
+        "standard": "0x420158c8"
+      },
+      {
+        "large": "0x42011624",
+        "standard": "0x42011584"
+      },
+      {
+        "large": "0x4202f18c",
+        "standard": "0x4202d8b8"
+      },
+      {
+        "large": "0x42016570",
+        "standard": "0x42016590"
+      },
+      {
+        "large": "0x42025d84",
+        "standard": "0x420247d4"
+      },
+      {
+        "large": "0x42025da0",
+        "standard": "0x420247f0"
+      },
+      {
+        "large": "0x42025e10",
+        "standard": "0x42024860"
+      },
+      {
+        "large": "0x4202b984",
+        "standard": "0x4202a0b0"
+      },
+      {
+        "large": "0x42016400",
+        "standard": "0x42016420"
+      },
+      {
+        "large": "0x42010f4c",
+        "standard": "0x42010c90"
+      },
+      {
+        "large": "0x420445c8",
+        "standard": "0x420407b0"
+      },
+      {
+        "large": "0x42044390",
+        "standard": "0x42040578"
+      },
+      {
+        "large": "0x420410fc",
+        "standard": "0x4203fbc0"
+      },
+      {
+        "large": "0x40388818",
+        "standard": "0x40388838"
+      }
+    ]
+  }
+}

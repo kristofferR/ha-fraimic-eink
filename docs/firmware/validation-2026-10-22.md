@@ -3283,3 +3283,56 @@ profiling before implementation decisions depend on them.
 | `memory-observations.private.json` | `bbee8600ceb349eb2cea2d46b67feacfb18cd8b5c4d94e177448f323a9c4bf2f` |
 | `evaluate-buffer-memory.mjs` | `a7a32a75dc735d3ca85f05f519f43f7dba75843a424273d555adb00360a19c49` |
 | `buffer-memory-evaluation.public.json` | `af950c146a68f9261618635d1abd48a2c0563cd21a0a5e92591ebdbf167a263e` |
+
+## Button input and gesture cases: S06/E01/E02
+
+Seven complete GNU function pairs cover the input initializer, idle button wait,
+monitor/start/stop, recording-control task and clock wrapper: **1,444 instructions,
+144 branch destinations and 29 contiguous ranges per build**. Every decoded
+instruction is checked against its pinned application image. Thirty-three direct
+call pairs and 93 literal pairs are classified; external helpers and RAM contents
+are not recursively proven equivalent. The clock wrapper relocates by eight
+bytes, unlike several other IRAM helpers; its nine-instruction body is compared
+explicitly instead of assuming one universal relocation.
+
+The [bounded instruction results](button-input-cases.json) contain **33 cases per
+model**: fifteen monitor traces, nine start/stop states, four idle/held-input
+paths, four recording-control states and one input-helper failure case. They
+execute 1,084 distinct instruction addresses per build and produce matching
+normalized outcomes. These are selected cases, not exhaustive path coverage.
+
+The interpreter supplies synthetic GPIO samples, clock/ticks, mutex/task returns,
+ROM division and external firmware helpers. The clock wrapper is compared
+statically but its underlying timer is not executed by the cases. Memory barriers
+do not simulate a real SMP memory model. No RTOS scheduling, hardware interrupts,
+register-window exceptions, electrical bounce or microphone capture is modeled.
+Idle cases hold network/settings/OTA/idle predicates constant and do not resume
+the battery investigation. The recording cases deliberately seed pending results;
+they are not evidence that normal use has produced a stale result.
+
+Checked boundaries include 99 versus 100 ms debounce, 800 versus 801 ms grouping
+and quiet comparisons, replacement of an unpublished group, a held input at
+monitor start, publication before release, low-word clock wrap, an OTA-suppressed
+edge, mutex failure and overwrite of the one pending result. The idle fixtures
+assert exact virtual return times of 150, 5,160 and 15,180 ms. A fourth case
+retains a pending sleep request while returning recording admission after the
+inner release wait. Caller behavior afterward is outside that case.
+
+Start/stop cases establish retained published results on start/inactive stop,
+active-stop clearing, five-tick stop delay without a task join, and allocation/
+lock/task-creation returns. Recording cases establish count-two consumption
+without stopping and unchecked monitor-creation failure. Three failing input
+helper stubs are all called; the ready log is not a hardware verification.
+
+No frame read, tap, recording, network change, provider call, firmware flash or HA
+deployment occurred. A07's provider decision is marked deferred as requested.
+The additional S06 static/host milestone is complete; the physical parent remains
+open. [Findings and design implications](input-and-gestures.md).
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `compare-button-paths.mjs` | `d6ab9ea2fe633b873db2cd592794f9c535e215f2fdea099c5ce17b81c3d1e61c` |
+| `standard-button-comparison.json` | `49fc56a954511ff252d8041048dfc1e11f6b03204c6197043f4fbb68d5ab0c7b` |
+| `button-instruction-cases.mjs` | `d3658f112d1ee620332d2079629855ed7b9122365ce199a91810d1512080b903` |
+| `button-instruction-results.json` | `6ef661e3b6697e2a5e5c53eb74db0ab908c69f91861a097a81e884542da653c6` |
+| `button-input-cases.public.json` | `e05cb01b35698ec22d4dbf43d21b09500938603cc12d42a31961e727e5335be3` |

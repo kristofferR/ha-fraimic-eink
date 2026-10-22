@@ -27,6 +27,11 @@ A plain LAN packet cannot wake a frame already in deep sleep. More frequent
 scheduled wakeups trade battery life for responsiveness. HA's existing push queue
 and a proposed frame-driven pull scheduler solve different parts of that problem.
 
+Physical wake and new recording admission use different boundaries. The
+[input audit](input-and-gestures.md#held-input-in-the-idle-handler) traces the
+idle handler's held-button timeouts and the inner release wait that does not
+recheck pending sleep. Its virtual timing results are not measured wake latency.
+
 ### Pre-sleep ordering and outstanding work
 
 The ordinary pre-sleep routine first checks for a pending OTA and its safety

@@ -92,6 +92,10 @@ the higher-level render-and-upload helper.
 
 ## Choices still open before implementation
 
+**Deferred by the owner:** provider research/selection and the remaining design
+choices are postponed while firmware/device analysis continues. Do not interpret
+the open choices below as a request to compare providers or run generation calls.
+
 The owner selected all three feature groups. Provider selection and editing
 capability remain open; no paid-generation test has run. The proposal defines
 target/current-image semantics conservatively and identifies the reusable APIs.

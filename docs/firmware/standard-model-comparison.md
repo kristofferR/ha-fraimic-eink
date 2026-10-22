@@ -60,6 +60,14 @@ privately to the owner. Neither device was switched to development mode; the
 [detailed transition and error-path trace](storage-and-configuration.md#vendor-environment-switch)
 is for Large unless explicitly stated otherwise.
 
+### Physical input paths match within the audited scope
+
+The [physical-input comparison](input-and-gestures.md) covers seven complete
+function pairs and 33 instruction cases per model. Tap windows, held-input
+admission, double-tap handling and the selected monitor/result lifetime branches
+match. This is separate from physical gesture tolerance or whole-main-loop
+equivalence.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)
