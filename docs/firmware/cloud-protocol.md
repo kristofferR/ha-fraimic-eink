@@ -613,6 +613,40 @@ not just total response size. Serve one direct, bounded response instead of
 depending on either behavior. These consequences are now reproduced in the
 bounded host fixture below, but remain untested as physical response variants.
 
+### Redirect URL handling differs from a browser
+
+Twenty host cases execute the unmodified IDF 5.4.1 URL setter, redirect setter and
+response checker with the pinned HTTP URL parser. GNU checks of the corresponding
+Large functions and URL-parser branches support these results. The fixture uses
+synthetic request data and stubbed header storage, close and event hooks; it does
+not make a network request or execute TLS, the full `perform` loop or a frame.
+
+| Redirect input | Host-checked result |
+| --- | --- |
+| 301, 302, 303, 307 or 308 with an absolute HTTPS URL | Updates destination and requests replay; POST method/body and unrelated custom-header state remain unchanged |
+| `/next?new=2` | Keeps scheme/host/port, replaces path and query |
+| `next` or `?new=2` | Fails URL parsing; no browser-style relative resolution |
+| `//other.invalid/next` | Keeps the original host and treats the entire value as a path |
+| Absolute URL without a query, or with a fragment | Clears the old query; the fragment is not copied into path/query |
+| Absolute HTTP URL or explicit port | Updates scheme/port; no HTTPS-only redirect policy in this setter |
+| Missing `Location` or malformed `http://` | Response checker returns failure without scheduling replay |
+| 304 | Not a redirect; no replay |
+
+The counter permits ten successive redirects. The next redirect returns `0x7001`;
+any non-2xx status also hits that limit check before status-specific handling. A
+2xx status resets the counter first. This limits replay count, not elapsed time.
+With automatic redirects enabled, the checker posts its redirect event to the
+SDK event loop; it invokes the client's redirect callback only when automatic
+redirects are disabled. These are distinct event paths.
+
+This strengthens the earlier request-state trace without claiming an observed
+cross-host credential transmission. For an emulator, use final absolute asset
+URLs and return setup, verification and poll JSON directly. If the HTTP server
+normally redirects a missing trailing slash or moves users to a login page,
+exempt the device protocol routes. Manual voice/image/album/OTA clients still do
+not execute this redirect loop. An HTTP-success redirect fixture is not evidence
+that those clients will follow the same URL.
+
 ### Overflow can change the JSON being parsed
 
 The enrollment fixture models this callback with scripted data events of at most

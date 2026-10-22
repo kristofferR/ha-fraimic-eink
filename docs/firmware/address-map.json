@@ -2905,7 +2905,7 @@
       "address": "0x4206dca4",
       "kind": "function",
       "role": "HTTP URL setter: replaces scheme/host/port and updates connection/header state",
-      "evidence": "static; HTTP configuration GNU follow-up and SDK comparison"
+      "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
     },
     {
       "address": "0x4206df98",
@@ -2923,19 +2923,25 @@
       "address": "0x4206e470",
       "kind": "function",
       "role": "HTTP redirect URL replacement and replay flag",
-      "evidence": "static; enrollment and HTTP follow-up"
+      "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
     },
     {
       "address": "0x4206e748",
       "kind": "function",
       "role": "HTTP status checker and automatic redirect decision",
-      "evidence": "static; enrollment and HTTP follow-up"
+      "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
     },
     {
       "address": "0x4206e804",
       "kind": "function",
       "role": "HTTP perform state machine and redirect replay",
       "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x4206ef5c",
+      "kind": "function",
+      "role": "HTTP string-assignment helper; allocates/reallocates and NUL-terminates copied URL fields",
+      "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
     },
     {
       "address": "0x4206f0c4",
@@ -3020,6 +3026,18 @@
       "kind": "function",
       "role": "PHY namespace write-open helper",
       "evidence": "static; GNU instruction cross-check"
+    },
+    {
+      "address": "0x420befa4",
+      "kind": "function",
+      "role": "HTTP URL character-state parser; slash starts a path, alphabetic input starts a scheme",
+      "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
+    },
+    {
+      "address": "0x420c2234",
+      "kind": "function",
+      "role": "HTTP URL parser; records fields, requires a host for a scheme and bounds port to 65535",
+      "evidence": "static; redirect follow-up, bounded GNU cross-check and pinned SDK host fixture"
     },
     {
       "address": "0x420cfe14",

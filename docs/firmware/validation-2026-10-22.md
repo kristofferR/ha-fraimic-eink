@@ -982,3 +982,37 @@ Private Standard artifacts: `standard-status-rle-pass1.txt`,
 `standard-status-rle-literals.jsonl`, `extract-standard-status-rle.mjs`,
 `standard-status-rle-fixture.c`, `standard-status-rle-results.txt`,
 `standard-status-rle-asset.json` and `standard-status-rle-evidence-hashes.txt`.
+
+## Redirect status and URL boundaries: C01/C03/C11
+
+Two reference/decompiler passes and 50 bounded GNU ranges cover seven Large
+functions: URL replacement, redirect scheduling, status checking, string
+assignment, URL parsing/character-state selection and the `perform` replay loop.
+Checks include the five redirect codes, the ten-redirect boundary, counter reset
+before the 2xx return, distinct callback/event-loop branches, root-relative path
+handling and the absence of browser-style relative URL resolution.
+
+**Twenty host cases passed** with C11 warnings-as-errors, AddressSanitizer and
+UndefinedBehaviorSanitizer. Three IDF client functions are extracted without edits
+from the same pinned source used in the earlier HTTP-reader fixtures, together
+with its pinned URL parser. Header storage, successful string allocation,
+connection close and event dispatch use stubs. The request contains only fixture
+data. Tests check destination state and retained method/body/custom-header fields;
+they do not transmit a replayed request, execute the complete client state machine
+or demonstrate physical cross-host credential forwarding. Allocation failure,
+authentication retry, TLS and real event/task scheduling remain outside this pass.
+
+The earlier source fingerprints remain unchanged: client SHA-256
+`7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2`,
+parser SHA-256
+`c164edcb06099b026e7ed853ed4d25536e83b4463d5e79921b28621e16588455`.
+The [protocol notes](cloud-protocol.md#redirect-url-handling-differs-from-a-browser)
+record the practical consequence: direct device-route responses and final asset
+URLs avoid behavior that differs between `perform` and manual consumers.
+
+Private artifacts: `redirect-boundaries-pass1.txt`,
+`redirect-boundaries-pass2.txt`, `redirect-gnu.mjs`,
+`redirect-boundaries-gnu.txt`, `prepare-redirect-fixture.mjs`,
+`redirect-fixture.c`, `redirect-results.jsonl`, `redirect-source-hashes.json`
+and `redirect-evidence-hashes.txt`. No frame contact, account action, DNS/proxy
+change or credential-bearing network request occurred.
