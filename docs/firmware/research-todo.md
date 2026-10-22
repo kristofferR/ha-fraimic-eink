@@ -77,7 +77,7 @@ per question, not a count of tool calls or decompiled functions.
 | H04/D06/S05 | Conditioning uses full-panel black or white/black clears and a temporary 288 KB block; elapsed selector uses 12/48-hour boundaries; MID suppresses clear errors and can advance the shared timestamp | Panel waveform constraints, physical conditioning/fault tests, other controller paths and interrupted timestamp writes |
 | D04/D07/D08/S05 | Maintenance helpers drain the semaphore but treat DROP as success; Standard waits 60 seconds, Large 90; Large blank path can wait on its own busy state, and scheduled history ignores refresh results | Physical maintenance/failure tests, other shutdown callers, concurrent state changes and persisted history errors |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
-| C02/N02/E01 | Settings saver returns errors, but poll continues; identical snapshots skip retries after failed saves; individual key-read failures do not trigger startup default saving | Lower-level NVS failure/durability cases, Standard comparison and physical fault/reboot observations |
+| C02/N02/E01/E02 | Both models skip identical-snapshot save retries and suppress per-key load errors at startup; Large's resolved NVS commit is a valid-handle check, with separate per-key writes and no rollback | Page/flash fault recovery, Standard SDK bodies and physical fault/reboot observations |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | N08/D01/D07 | Sixteen Large and eighteen Standard RLE host cases verify model geometry, partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; both show/restore paths write before DROP and change markers before completion | Physical rendering, overlap, storage faults, other releases and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
@@ -142,7 +142,8 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   confirms those behaviors there; it does not cover every parser branch or loop.
   [Settings persistence tracing](storage-and-configuration.md#failed-settings-saves-are-not-retried-by-an-identical-snapshot)
   establishes the no-retry-on-identical-snapshot boundary after a failed save;
-  no storage fault or reboot consequence has been induced on either device.
+  selected [Standard application paths also match](standard-model-comparison.md#settings-persistence-also-matches).
+  No storage fault or reboot consequence has been induced on either device.
 - [ ] **C03 · Host/Device:** Verify owner-hosted HTTPS JSON and panel assets, including
   explicit lengths, redirects, response limits and download errors. Test hostname
   and trust behavior with controlled positive/negative certificates; do not infer
@@ -480,8 +481,10 @@ Source: [storage and configuration](storage-and-configuration.md).
   namespaces and references omitted from the current table. Map compatibility and
   migration across versions without publishing identity/password values.
   The four-switch saver/loader and their poll/startup callers are now checked
-  instruction by instruction; per-key storage failures and durable recovery
-  still need separate evidence.
+  instruction by instruction on both builds. Large's
+  [resolved NVS dispatch](storage-and-configuration.md#nvs-commit-does-not-make-the-four-switches-atomic)
+  establishes separate writes and a non-flushing commit method; page/flash faults,
+  duplicate-item recovery and the corresponding Standard SDK bodies remain open.
 - [ ] **N03 · Host/Device:** Verify production/development identity and Wi-Fi isolation,
   legacy-key migration, reset semantics, timezone sharing and interrupted/failed
   saves. Determine exactly what is preserved and what requires reenrollment.

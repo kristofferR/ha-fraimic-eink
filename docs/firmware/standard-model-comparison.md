@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 185 corresponding functions, including the subsequent
+The preserved metadata maps 187 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -475,6 +475,36 @@ image. The [conditional stale-result and late-clear hazards](cloud-protocol.md#p
 therefore apply to both builds, without demonstrating a physical race. Complete
 parser/loop equivalence and computed references remain outside this comparison;
 the known dispatcher exclusions still differ as described below.
+
+### Settings persistence also matches
+
+Three application functions and two bounded caller regions were compared with
+GNU Xtensa disassembly: **431 instructions per image, 49 branches and 22 Standard
+ranges**, all byte-matched against the pinned apps with complete range coverage.
+Normalized instructions/registers and internal branch destinations match; eleven
+direct-call pairs and 32 literal pairs were mapped separately. This does not
+compare every external helper, the whole poll parser or the full boot sequence.
+
+| Role | Large | Standard |
+| --- | --- | --- |
+| Load four switches | `0x42014780` | `0x420147a0` |
+| Save four switches | `0x42014968` | `0x42014988` |
+| Apply changed snapshot | `0x420158cc` | `0x420158ec` |
+| Poll call to apply | `0x4202513a` | `0x42023b8a` |
+| Startup call to load | `0x42016898` | `0x42016874` |
+| Startup fallback save | `0x420168b8` | `0x42016894` |
+
+Both builds update RAM before saving, stop at the first failed I32 write, and
+skip the saver when an incoming snapshot already matches RAM. Thus an identical
+poll snapshot does not retry a previous failed save. Both poll callers log a save
+error and continue response processing. The startup loaders return the namespace
+open result even when individual reads fail; only a nonzero loader result enters
+the default-save branch, whose result is ignored. See the
+[full persistence trace](storage-and-configuration.md#failed-settings-saves-are-not-retried-by-an-identical-snapshot).
+
+This extends static support to Standard; it is not a fault-injection or reboot
+test. The separate resolved NVS vtable/storage-writer investigation is Large-only
+until those external SDK bodies are also compared.
 
 ### Cancellation ownership and download timeouts also match
 

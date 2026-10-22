@@ -140,9 +140,51 @@ These findings were checked against the pinned app with nine bounded function
 bodies and two caller regions: 29 GNU ranges and 522 byte-matched instructions,
 with contiguous coverage enforced for each range. They are static paths and
 inferred failure consequences, not induced NVS faults or reboot observations.
-The lower-level storage behavior and the Standard build remain separate checks.
+The [Standard comparison](standard-model-comparison.md#settings-persistence-also-matches)
+now confirms the selected application paths on that build; the following section
+resolves the Large build's lower-level transaction boundary.
 For custom firmware, track pending persistence independently of RAM equality,
 retry failed saves, and distinguish applied settings from durable settings.
+
+### NVS commit does not make the four switches atomic
+
+The Large application's open path `0x42049e60` → `0x42049de8` → `0x4204b840`
+constructs a handle with vtable `0x3c3c3cc4`. Resolving that table in the pinned
+image establishes the actual indirect targets, rather than assuming SDK source
+alone describes this binary:
+
+| Operation | Compiled path / behavior |
+| --- | --- |
+| I32 set | `0x42049f68` → `0x42049f3c` → `0x420e34a4`; virtual slot `+0x30` is `0x4204b29c`, with type `0x14` and four data bytes |
+| Typed setter | Rejects invalid/read-only handles; otherwise calls storage writer `0x4204af28` immediately |
+| Commit | Wrapper `0x42049974` invokes slot `+0x28`, `0x4204b258`; returns success when the handle's valid byte is nonzero, otherwise `0x1107`. No storage flush occurs in this method |
+| Close | Removes the API handle entry, destroys its object and frees it; the object destructor removes it from the manager's handle list. There is no settings rollback |
+
+For non-blob items such as these switches, the storage writer checks an existing
+same-type value and can return success without writing if it matches. Otherwise
+it calls the page writer (`0x4204bee0`), handles page-full/new-page retries, and
+then removes any previous item. This is per-key work, not a four-key commit.
+The compiled call sequence agrees with the matching
+[handle methods](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/src/nvs_handle_simple.cpp),
+[storage writer](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/src/nvs_storage.cpp)
+and [handle manager](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/src/nvs_partition_manager.cpp).
+
+**Consequences:** a failure on the third switch does not undo successful first
+and second setters. A later wake can therefore load a mixture of old and new
+switches, while the current wake retains the full requested RAM snapshot. Skipping
+the final commit after a set error does not restore the earlier snapshot.
+Conversely, a setter error is not proof that it changed nothing: the storage
+writer can successfully write a replacement and then fail while removing the
+old item, translating flash-operation failure `0x6001` to remove-failed `0x1108`.
+The post-reboot resolution of such duplicate/error states was not exercised.
+
+The follow-up checked eleven additional functions over 26 GNU ranges and 416
+byte-matched instructions. This resolves the selected Large SDK dispatch and
+transaction semantics, not every page/flash fault, power-loss recovery, encryption
+or Standard SDK implementation. An emulator should keep its desired settings as
+authoritative state and avoid interpreting successful polls as durable receipts.
+A firmware change needs explicit persistence status and recovery, rather than
+relying on the final `nvs_commit` call to make these four writes atomic.
 
 ### A failed schedule clear can reload the old deadline
 

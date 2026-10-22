@@ -439,6 +439,36 @@
         "main_settings_bytes": 512
       },
       "limitations": "Computed references and runtime interleavings remain untested; does not compare the complete poll parser or foreground loops; dispatcher differences remain documented separately"
+    },
+    "settings_persistence": {
+      "evidence": "Three application functions and two caller regions compared statically; not NVS fault injection or a complete SDK comparison",
+      "compared_functions": 3,
+      "compared_caller_regions": 2,
+      "compared_instructions_per_image": 431,
+      "compared_branches": 49,
+      "standard_gnu_ranges": 22,
+      "direct_call_pairs": 11,
+      "literal_pairs": 32,
+      "save_order": [
+        "voice_rec",
+        "keep_awake",
+        "auto_update",
+        "chg_led"
+      ],
+      "ram_updated_before_save": true,
+      "identical_snapshot_retries_failed_save": false,
+      "poll_continues_after_save_error": true,
+      "loader_returns_namespace_open_result": true,
+      "startup_retries_individual_read_failures": false,
+      "call_sites": {
+        "large_poll": "0x4202513a",
+        "standard_poll": "0x42023b8a",
+        "large_startup_load": "0x42016898",
+        "standard_startup_load": "0x42016874",
+        "large_startup_default_save": "0x420168b8",
+        "standard_startup_default_save": "0x42016894"
+      },
+      "limitations": "Physical flash durability, storage errors and all Standard SDK helpers remain untested; does not compare the full poll parser or boot sequence"
     }
   },
   "function_map": [
@@ -1366,6 +1396,16 @@
       "role": "poll_result_clear",
       "large": "0x42025e10",
       "standard": "0x42024860"
+    },
+    {
+      "role": "settings_load",
+      "large": "0x42014780",
+      "standard": "0x420147a0"
+    },
+    {
+      "role": "settings_save",
+      "large": "0x42014968",
+      "standard": "0x42014988"
     }
   ],
   "live_standard": {
