@@ -46,9 +46,9 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 73 corresponding functions, including the subsequent
+The preserved metadata maps 82 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
-maintenance, LED and status-image comparisons. The poll paths share 86
+maintenance, LED, status-image and SNTP/DHCP comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -96,6 +96,34 @@ unsupported instruction. The POSIX parser at `0x420d1238` has the same default
 US rules and IANA-name parse-error path. The [Large-supported host fixtures](boot-and-scheduling.md#dst-flag-survives-the-calendar-calculation)
 therefore have matching relevant static paths in Standard too. No physical
 timezone/DST experiment was performed on either frame.
+
+### Stock time service also matches
+
+Standard `0x42014eb0` uses the same four time-server names from `0x3c13be18`.
+Its background initializer passes five attempts, and the synchronization routine
+uses the same 2/4/8/10/10-second waits. SDK initializer `0x42055340` introduces the
+same random 0–4,999 ms delay before requesting time. Stop `0x420553c8` removes
+request/retry timers, and name setter `0x4205544c` accepts only slot zero at
+`0x3fcad9fc`. The [early-attempt timing problem](boot-and-scheduling.md#sntp-server-selection-and-startup-delay)
+therefore has the same relevant static branches on both models. The final
+application timeout also leaves SNTP running in Standard.
+
+Standard's DHCP request list at `0x3c24debc` is again `01 03 1c 06`, without NTP.
+Five builders use exactly four requested options. Reply parser `0x4205f478` sends
+option 42 through the unknown-option hook `0x42066310`, which returns immediately
+unless the option is 26; the parser skips the payload without storing it. ACK
+application `0x4205f818` has no time-server installation, and append hook
+`0x4206638c` adds client identifier option 61, not a time-server request.
+This corroborates the [Large DHCP result](boot-and-scheduling.md#dhcp-does-not-configure-the-stock-time-server).
+
+The parser comparison covers 324 decoded instructions and 111 internal branches
+per image. All non-`l32r` instruction bytes match at corresponding offsets; 17
+literal loads retain their registers but have model-specific addresses. The
+relevant constants, tables, hook and ACK paths were checked separately. This is
+not full SDK equivalence or a physical packet test. Both stock models need the
+same candidate local DNS/NTP compatibility plan; DHCP option 42 alone will not
+configure their time source. Cold boot, retained RTC behavior, actual retry
+timing and WAN-free operation remain open.
 
 ### Orientation and album-body follow-up
 

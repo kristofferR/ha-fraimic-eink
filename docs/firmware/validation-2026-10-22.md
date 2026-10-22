@@ -1116,3 +1116,33 @@ Private artifacts: `find-dhcp-table.mjs`, `dhcp-table-candidates.json`,
 `dhcp-time-boundaries-gnu.txt` and `dhcp-time-evidence-hashes.txt`.
 `dhcp-parser-exploratory-gnu.txt` is discovery output with padding misdecodes;
 use the bounded output as the instruction evidence.
+
+## Standard time-service comparison: S02/E02
+
+Three Standard reference/decompiler passes and 80 bounded GNU ranges cover 25
+functions/call regions, including the first/recovery background call sites,
+application synchronization, SDK wrappers and the relevant SNTP/DHCP helpers.
+Hash-checked literals establish the four time-server names, startup-delay
+constants, one server record and the four-byte DHCP request list.
+
+The DHCP parser has 324 decoded instructions and 111 internal branches per model.
+A comparison verifies every internal target is present in the bounded output,
+the instruction offsets match and all bytes other than 17 relocated literal
+loads are identical. The literal registers match; relevant constants and data
+uses were inspected separately. The hook's non-26 return and ACK/append paths
+were checked too, so the option-42 result does not rest on parser similarity
+alone. No whole-SDK equivalence is claimed.
+
+The function map now contains 82 pairs. Both models have the same relevant
+one-slot selection, startup-delay/retry mismatch and DHCP time-server limitation.
+No host clock, DHCP lease, device, DNS or network configuration changed. Physical
+offline boot, late-callback timing, DHCPv6 and live failure frequency remain
+outside this comparison; it supersedes the earlier Standard-untested scope for
+these specific static SNTP/DHCP findings.
+
+Private Standard artifacts: `find-standard-time.mjs`,
+`standard-time-candidates.json`, `standard-time-pass1.txt` through
+`standard-time-pass3.txt`, `standard-time-literals.jsonl`,
+`standard-time-gnu.mjs`, `standard-time-boundaries-gnu.txt`,
+`compare-dhcp-parser.mjs`, `standard-dhcp-parser-comparison.json` and
+`standard-time-evidence-hashes.txt`.

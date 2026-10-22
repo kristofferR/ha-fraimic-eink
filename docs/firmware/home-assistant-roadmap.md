@@ -35,7 +35,7 @@ before its public-connectivity monitor starts. Supplying only the local API and
 a substitute TCP reachability target is insufficient. Accurate local NTP via
 the stock server names is a candidate to test; configurable time sources and
 separate backend/time/WAN health are the longer-term firmware direction.
-Large's [DHCP option-42 path](boot-and-scheduling.md#dhcp-does-not-configure-the-stock-time-server)
+Both models' [DHCP option-42 paths](boot-and-scheduling.md#dhcp-does-not-configure-the-stock-time-server)
 ignores time-server offers, so advertising the HA/local NTP address through DHCP
 alone does not remove the stock hostname dependency.
 

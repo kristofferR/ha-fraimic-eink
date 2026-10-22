@@ -609,7 +609,9 @@ The option identities and conditional SDK feature align with the
 The binary checks establish that enabling NTP advertisement on the router alone
 will not replace the application-selected names in this build. Unsolicited option
 42 does not provide a workaround. This is a static IPv4 DHCP result; it is not
-a DHCP packet experiment, a Standard-model comparison or a claim about DHCPv6.
+a DHCP packet experiment or a claim about DHCPv6. The separate
+[Standard comparison](standard-model-comparison.md#stock-time-service-also-matches)
+confirms the same option-42 handling, one-slot selection and startup timing there.
 
 For stock emulation, resolving the four configured names to an accurate local
 NTP service remains the candidate to validate. A later custom firmware can expose
