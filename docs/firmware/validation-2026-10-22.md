@@ -2615,3 +2615,44 @@ deferred account/device criterion.
 | `custom_components/fraimic/cloud.py` | `30b9fa1e9d206204505689c5b8b913bb0f41d1d605942d92e85d132f0bfaaaf1` |
 | `custom_components/fraimic/cloud_delivery.py` | `c9f936f6ffc77f6067fb9b4e462586ff74ed1769332c444a0ae25aa1de4848a0` |
 | `custom_components/fraimic/playlists.py` | `9e52cca63246e2b8bf4989a58cbd98d0a2901d7e9e6cd37b7099d6db88726e1d` |
+
+## Recoverable cache-slot design: N05
+
+The private C fixture extends the earlier RAM FAT12 disk harness with a proposed
+two-record format and recovery scan, leaving pinned FatFs unchanged. It uses
+4,096-byte sectors, an 8 MiB volume, actual Large/Standard payload sizes and
+OpenSSL 3.6.5 SHA-256 for record integrity. The hash covers model/length/generation
+metadata as well as the payload. This is new host design code, not recovered
+stock functionality or firmware written to a frame.
+
+Normal replacement succeeds for both payload sizes. Its disk-write call counts
+are 241 for Standard and 569 for Large. The fixture then restores the baseline
+and cuts before every call, plus after the last write before final sync, yielding
+**242 + 570 = 812 interrupted cases**. A cut prevents that and all subsequent
+writes/syncs; each successful disk call copies all requested sectors atomically
+to RAM. After APIs unwind, the fixture discards filesystem state and remounts.
+At every cut, the previous active record still validates. Recovery selects the
+old generation except for the last cut per model, where the complete new record
+exists despite the reported sync failure. No cut case is reported as a successful
+save. The full positive-control writes are separate from that fault count.
+
+Sixteen further assertions/groups test corruption, metadata hash coverage,
+palette, model, equal-generation ambiguity, truncation, low space, absent records
+and counter exhaustion. The space preflight is cluster-rounded with a two-cluster
+fixture reserve; it does not measure installed capacity or prove a universal
+space/wear bound. No-valid/ambiguous recovery is explicit rather than choosing
+an unvalidated file. Proposed control failures do not erase the canonical source.
+
+Built/run on Omarchy with C11 warnings-as-errors, AddressSanitizer and
+UndefinedBehaviorSanitizer; no sanitizer finding occurred. This is one shared
+FAT configuration tested at two payload sizes, not a complete comparison of the
+devices' installed filesystem configurations. Torn sectors, write reordering,
+wear leveling, concurrent operations and real power loss are excluded. N05's
+design/host criterion is checked; physical durability waits for layout/recovery.
+
+| Private source / artifact | SHA-256 |
+| --- | --- |
+| `cache-slots-fixture.c` | `d0d85d8af573a177577e7e5caf945837d570cc4aea4e8d6be2da6b00e0969037` |
+| `cache-slots-results.jsonl` | `23eb1bc22717cabca1231d2773f048942370953f3875b585c8ec1a4c68a3cb66` |
+| Pinned `ff.c` | `b6511bc0102f42b941897cd9f96f75206b6851fedbebc6dcb17c220cb1d4bede` |
+| Pinned `ffconf.h` | `27e92e97b5744d7cd0b5e9e82a885601c8eb358fbf22f1a9baec0c1246bd7f3a` |

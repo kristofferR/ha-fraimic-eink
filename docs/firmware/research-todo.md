@@ -9,16 +9,16 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 107 of 182 concrete milestones complete.**
+**9 of 67 original items complete; 108 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 9 | Original bounded question answered; evidence linked below |
-| Research | 13 | Concrete static, host or design work remains available |
+| Research | 12 | Concrete static, host or design work remains available |
 | Waiting for device | 20 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
-| Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
+| Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
 | Ongoing | 2 | Evidence discipline applied to relevant findings/builds, not a finite feature |
 
@@ -66,10 +66,11 @@ implementation is authorized merely by an unchecked box.
 ## Available next work
 
 For the owner's local-cloud/voice priorities, continue with the remaining driver
-faults under D06 or N05's cache fault cases while A07's [feature proposal](voice-feature-proposal.md)
+faults under D06 or N06's wake-asset cases while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
-overlap and D04's bounded renderer fault model are complete. A06's compatibility
+overlap, D04's bounded renderer fault model and N05's recoverable cache-slot pass
+are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
 remain deferred. A02–A04 and A03's final integration check need implementation;
@@ -588,10 +589,10 @@ Commit and push validated research batches periodically as requested.
   last-image loads and save-failure-with-render behavior. Assess an atomic cache
   replacement/hash design against actual FAT support and available space.
 
-  Status: **Research**.
+  Status: **Waiting for recovery**.
 
   - [x] **Static/Host:** Map partial cache reads/writes, ignored flush/close, destination-exists rename and late sync behavior in RAM FAT. [Cache](storage-and-configuration.md#cache-success-and-failure-leave-different-state-behind), [sync cases](storage-and-configuration.md#a-second-sync-can-conceal-an-earlier-metadata-sync-failure).
-  - [ ] **Next:** **Design/Host:** Validate an atomic cache/hash replacement design with interrupted writes and bounded space assumptions; label unknown installed capacity.
+  - [x] **Design/Host:** Assess atomic replacement limits and test a recoverable two-slot/hash proposal against pinned FatFs: 812 whole-write cut points plus sixteen integrity/space/recovery checks. Installed capacity and physical atomicity remain unknown. [Design and limits](storage-and-configuration.md#recoverable-cache-replacement-proposal-and-interrupted-write-checks).
   - [ ] **Blocked:** **Recovery/Device:** Verify actual wear-leveling, power-loss and reboot durability once the layout and recovery route are known.
 
 - [ ] **N06 · Static/Host/Device:** Verify custom wake-up artwork feasibility and

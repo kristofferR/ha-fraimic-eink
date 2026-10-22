@@ -799,6 +799,69 @@ matches the relevant recovered branches, not every device build setting or
 geometry, torn writes, wear leveling, concurrency and physical power loss are
 not. No frame cache or artwork was modified.
 
+### Recoverable cache replacement proposal and interrupted-write checks
+
+For a future firmware change, use two independently validated cache records and
+recover by scanning them, rather than unlinking the current file before rename.
+This avoids assuming POSIX replacement semantics on the inspected FAT code.
+It is **recoverable under the tested failure model, not proven flash-atomic**.
+Stock firmware does not implement this format or slot selection; adding a header
+to its existing raw `last_image.bin` is not a compatible backend-only change.
+
+The proposed record is one file containing a 64-byte header and the exact packed
+panel payload. Header fields include format magic/version, model, generation,
+payload length and SHA-256 covering both the first 32 metadata bytes and payload.
+Before selection, require exact model/length, a complete read, supported format,
+valid six-colour nibbles and a matching digest. Hashing only the payload would
+leave generation metadata unprotected. This checks integrity, not publisher
+authentication or physical display.
+
+Scan both slots and select the highest valid generation. Treat equal valid
+generations as ambiguous and request explicit recovery; do not wrap an exhausted
+generation counter. If neither validates, preserve evidence and restore from the
+canonical HA original rather than formatting storage automatically. Rewrite only
+the inactive slot, retain every write/sync/close failure, and re-open/validate
+before making an in-session success claim. A later successful close must not
+clear an earlier error. Cache recovery, accepted delivery and panel completion
+remain separate states.
+
+The proposed format was exercised with unchanged pinned FatFs on the existing
+8 MiB RAM FAT12 fixture. Each baseline contained two records and one synthetic
+system asset of the model's panel size. The model-specific sizes here are real;
+the volume geometry and existing free space are **fixture choices**, not observed
+Fraimic partition capacity.
+
+| Payload | One record | Two records + one same-size system asset, before FAT/cluster overhead | Interrupted-write boundaries |
+| --- | --- | --- | --- |
+| Standard, 960,000 bytes | 960,064 bytes | 2,880,128 bytes | 242 |
+| Large, 2,304,000 bytes | 2,304,064 bytes | 6,912,128 bytes | 570 |
+
+For all **812 cut points**, the previous active slot remained valid after dropping
+the filesystem cache and remounting. Cuts are before whole `disk_write` calls,
+whose multi-sector writes are all-or-nothing in this model; subsequent writes and
+syncs fail. They are not arbitrary byte/sector tears or physical power cuts. For
+241 Standard / 569 Large cuts, recovery selected the old generation. At the last
+cut per model, all file writes had reached RAM but final sync failed: the save
+still reported failure, while remount selected the complete new generation. This
+is an uncertain save outcome, not grounds to erase the earlier error.
+
+Sixteen additional checks cover same-size valid-palette corruption, hashed
+generation metadata, invalid palette despite a matching hash, wrong model,
+equal-generation ambiguity, truncation, low space, no valid slot and generation
+exhaustion. Low-space admission uses measured fixture free clusters plus the
+inactive file's reclaimable cluster-rounded size, and reserves two extra clusters.
+That reserve is a test policy, not a proven bound on all device metadata/wear costs.
+The active slot is left untouched when the preflight fails.
+
+These results do not establish recovery from torn/shared FAT directory sectors,
+wear-level metadata corruption, interrupted erase, reordered writes, cache lies,
+concurrent saves or damage to the previously valid slot. Nor do they prove space
+for two images on either real frame. Measure the installed layout/free space and
+validate recovery before adopting this firmware design. Canonical HA originals
+remain necessary even with hashed local records. N05's design/host milestone is
+complete; physical durability remains blocked on layout and recovery access.
+See [validation](validation-2026-10-22.md#recoverable-cache-slot-design-n05).
+
 ## Three different kinds of system artwork
 
 ### Wake-up screen: embedded raw image installed to FAT
