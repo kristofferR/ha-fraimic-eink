@@ -332,6 +332,10 @@ Certificates, private keys and raw captures remain outside the repository.
   does not establish production durability or stock-firmware retry behavior.
 - Coordinate polling and scheduled content with voice so shared frame memory is
   not overwritten. Serving a download is not proof of a completed panel refresh.
+- Retain canonical artwork independently of the frame's single-file cache.
+  Its [save/load checks](storage-and-configuration.md#cache-success-and-failure-leave-different-state-behind)
+  do not establish integrity or durability, and mount recovery can format the
+  artwork partition. A successful cache or mount log is not a durable image receipt.
 - Test WAN loss, local time and cold boot separately. This experiment left public
   reachability probes and SNTP available and preserved existing pairing.
   The later [NTP receive trace](boot-and-scheduling.md#ntp-response-contract-and-clock-application)

@@ -578,6 +578,39 @@ The filesystem also holds a [diagnostic snapshot](diagnostics-and-logs.md#previo
 of up to 65,544 bytes. Include this and system artwork when estimating future
 playlist capacity; the actual free-space/partition measurement remains open.
 
+### Formatting permission is not proof that formatting happened
+
+The provisioning helper queries the legacy `device_key` string's required length
+without reading its contents. A successful nonzero length disables initial
+formatting; it is not a nonempty credential check. Namespace/query errors or
+zero length enable formatting. Environment-specific keys are not consulted.
+An already-ready filesystem-manager state bypasses these checks entirely, while
+an earlier failed state allows another initialization attempt.
+
+Each initialization allows three mount calls using that initial permission,
+with 100 ms delays after the first two failures. If all fail, a fourth call
+enables formatting. The matching SDK helper `0x420352a4` first attempts an ordinary
+FAT mount regardless of permission. It calls the formatter only for
+`FR_NO_FILESYSTEM` (13) or `FR_INT_ERR` (2) with permission enabled. Other FAT
+errors, and failures before reaching this helper, do not take that format branch.
+This agrees with the pinned
+[`s_f_mount_rw` source](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/fatfs/vfs/vfs_fat_spiflash.c).
+
+Formatting allocates a 4,096-byte work buffer. A successful format sets an SDK
+flag before remounting, so a subsequent remount error can return failure after
+the destructive step already succeeded. The application does not inspect that
+flag: its fourth-attempt success log says the partition was formatted even if
+that attempt simply mounted an intact filesystem. Conversely, repeated eligible
+failures can enter formatting on all four calls when permission starts enabled.
+This does not establish that formatting occurred on either owned frame.
+
+Twenty-four host case groups exercise the unchanged SDK helper plus reconstructed
+application retry/permission branches. They cover both eligible errors, rejected
+error classes, work-buffer/format/remount failures, retry counts, permission
+changes and misleading fourth-attempt logging. FAT calls are controlled stubs;
+no filesystem image, wear-leveling driver, flash, interruption or actual wait is
+simulated. N04 remains open for those layers and physical recovery.
+
 ## Last artwork
 
 `/imagedata/last_image.bin` is the recovered single-image persistence mechanism.
@@ -599,6 +632,37 @@ worker rejects the length. Its termination signal is not a success result.
 **Proposed:** atomic replacement, content hash metadata, distinct cache/display
 results, and backend restoration from canonical HA assets. Flash wear policy and
 filesystem support for the chosen atomicity strategy need validation.
+
+### Cache success and failure leave different state behind
+
+The complete writer confirms that `fflush` and `fclose` results are discarded;
+the `fileno` result is passed to `fsync` without a separate validity check.
+Even after a logged `fsync` error, an exact `fwrite` byte count yields success.
+A short write returns failure after closing, without unlinking the partial file
+or restoring the previous one. The direct `wb` open can already have truncated
+the old artwork. These are application return-value rules, not a claim that
+every reported-success write failed to reach flash.
+
+The loader makes separate existence and size `stat` calls, then opens the path
+and performs one `fread` for the sampled size. It does not verify file type,
+recheck size, test a content hash or check the close result. A short read returns
+failure with the destination's already-read prefix still modified and the output
+length untouched. If a file grows between size sampling and reading, a complete
+read of the earlier length can succeed without consuming the added bytes.
+Concurrent replacement, truncation and read failures were not induced.
+
+The “saved image exists” predicate checks initialized storage and successful
+`stat`, not a nonzero exact-size valid image. Thus a bad cache can pass that
+presence check and fail at load or rendering later. Preserve the backend's
+canonical artwork and track delivery separately from durable cache and display
+completion; stock cache/status success is not an integrity acknowledgment.
+
+Nine paired application/SDK bodies match across 796 GNU instructions, 84 branches
+and 29 contiguous ranges per image. Their model-specific save caps are
+2,566,144 bytes for Large and 1,048,576 bytes for Standard, both larger than their
+exact panel assets. The underlying stdio, FAT and wear-leveling implementations
+are not recursively validated by this comparison. No file fault or concurrent
+cache access was performed on a frame.
 
 ## Three different kinds of system artwork
 

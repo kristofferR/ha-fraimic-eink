@@ -1772,3 +1772,37 @@ Private artifacts: `reset-cache-pass1.txt` through `reset-cache-pass4.txt`,
 live HTTP request, network change, new host fault fixture or firmware write was
 performed. Standard comparison, recursive SDK cleanup, concurrent writes and
 final state after interrupted shutdown/reboot remain open.
+
+## Image-cache persistence and FAT recovery: N04/N05/E02
+
+Nine complete paired application/SDK bodies cover 796 instructions, 84 branches
+and 29 contiguous GNU ranges per image. Bytes, prologues, full reachable paths,
+24 direct-call pairs and 70 literal pairs are checked. The save-capacity literal
+is model-specific; selected control flow otherwise matches after relocation.
+Seven additional pairs bring the public map to 238 entries. External stdio, FAT
+and wear-leveling implementations are not recursively proved by this comparison.
+
+The [cache and recovery findings](storage-and-configuration.md#formatting-permission-is-not-proof-that-formatting-happened)
+separate permission, actual formatting, later mount success and the application's
+log. Twenty-four host case groups passed with C11, Wall/Wextra/Werror and
+AddressSanitizer/UndefinedBehaviorSanitizer. One unchanged function is extracted
+from ESP-IDF v5.4.1's pinned `vfs_fat_spiflash.c`; application provisioning/retry
+branches are reconstructed from the GNU trace. FAT calls and allocation outcomes
+are controlled stubs. The helper's allocation-unit clamp matches the recovered
+4,096–524,288-byte bounds. No actual filesystem image, wear-leveling driver,
+stdio write/read failure, interrupted flash operation or elapsed wait is tested.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `last-cache-vfs_fat_spiflash.c` | `d74685433df3f0c083668c66e17941f09321db97a668724357ef5d63149a6063` |
+| `last-cache-sdk-selected.inc` | `3f126b991e12d83bbbf9b86ec75a33599bfe2969d809a79ebcf2f732f40361ef` |
+| `last-cache-fixture.c` | `aa9767afab37dca849e109461a75454777fe4a0b3a9ee0d8d95b58e048e2983c` |
+| `last-cache-fixture-results.jsonl` | `0247daa01fdea72b730bfe288101ace26590164997ff4fb4b0f20f1a67ea43a0` |
+
+Other private artifacts: `last-cache-pass1.txt` through `last-cache-pass3.txt`,
+per-function `last-cache-*-cfg.json`/`.txt`,
+`compare-standard-last-cache.mjs`, `standard-last-cache-comparison.json`,
+`standard-last-cache-boundaries-gnu.txt` and `extract-last-cache.mjs`.
+No frame request, artwork change, reset, firmware write, network-policy change
+or HA deployment occurred. N04/N05 stay open for actual filesystem/storage
+faults, cleanup, concurrency and final recovery on the installed layout.

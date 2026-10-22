@@ -762,6 +762,31 @@
         "ranges": 20
       },
       "limitations": "Not an exhaustive runtime-write audit or recursive socket/select/allocator/TLS proof; no live IPv6, time measurements, connection-fault injection or application retry sequence test"
+    },
+    "image_cache_recovery": {
+      "evidence": "Nine complete paired GNU bodies; one unchanged pinned SDK helper and reconstructed application retry branches in 24 host case groups",
+      "compared_functions": 9,
+      "instructions_per_image": 796,
+      "branches_per_image": 84,
+      "gnu_ranges_per_image": 29,
+      "direct_call_pairs": 24,
+      "literal_pairs": 70,
+      "save_capacity_bytes": {
+        "large": 2566144,
+        "standard": 1048576
+      },
+      "initial_mount_attempts": 3,
+      "fourth_attempt_enables_format": true,
+      "format_eligible_fat_errors": [
+        2,
+        13
+      ],
+      "format_work_buffer_bytes": 4096,
+      "save_checks_flush_result": false,
+      "save_checks_close_result": false,
+      "load_checks_close_result": false,
+      "load_updates_length_only_on_complete_read": true,
+      "limitations": "No vendor machine-code execution, real FAT image, wear-leveling/stdio fault injection, physical corruption, concurrency, interruption or durable recovery experiment"
     }
   },
   "function_map": [
@@ -1919,6 +1944,41 @@
       "role": "esp_tls_low_level_conn",
       "large": "0x420c3748",
       "standard": "0x420c3a24"
+    },
+    {
+      "role": "cache_legacy_provisioning_check",
+      "large": "0x420282f8",
+      "standard": "0x42026c98"
+    },
+    {
+      "role": "cache_file_exists",
+      "large": "0x42028338",
+      "standard": "0x42026cd8"
+    },
+    {
+      "role": "cache_file_size",
+      "large": "0x42028350",
+      "standard": "0x42026cf0"
+    },
+    {
+      "role": "image_cache_load",
+      "large": "0x42028698",
+      "standard": "0x42027038"
+    },
+    {
+      "role": "image_cache_present",
+      "large": "0x4202881c",
+      "standard": "0x420271bc"
+    },
+    {
+      "role": "fat_mount_format_gate",
+      "large": "0x420352a4",
+      "standard": "0x42033d68"
+    },
+    {
+      "role": "fat_wear_level_mount_wrapper",
+      "large": "0x42035414",
+      "standard": "0x42033ed8"
     }
   ],
   "live_standard": {

@@ -81,6 +81,7 @@ per question, not a count of tool calls or decompiled functions.
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | C02/N02/E01/E02 | Both models skip identical-snapshot save retries and suppress per-key load errors at startup; Large's resolved NVS commit is a valid-handle check, with separate per-key writes and no rollback | Page/flash fault recovery, Standard SDK bodies and physical fault/reboot observations |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
+| N04/N05/E02 | Nine cache/mount functions match across models; 24 SDK/reconstructed host groups check formatting eligibility, repeated recovery and misleading success logs; partial-write/read state traced | Real FAT corruption, stdio and wear-leveling faults, concurrent replacement, interruption and durable artwork recovery |
 | N08/D01/D07 | Sixteen Large and eighteen Standard RLE host cases verify model geometry, partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; both show/restore paths write before DROP and change markers before completion | Physical rendering, overlap, storage faults, other releases and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
 | S03/S04/S05/S06 | Thirty-three host case groups cover deadline selection, missed-album retry and scheduling faults; timer/reason ordering, maintenance correction and conditional recursive fallback traced | Physical wake timing, actual persisted correction, clock changes, concurrency and real timer/NVS faults |
@@ -548,9 +549,17 @@ Source: [storage and configuration](storage-and-configuration.md).
 - [ ] **N04 · Host/Device:** Validate mount retries and format-on-failure decisions
   with missing legacy key, NVS read error and filesystem corruption in a disposable
   fixture. Establish which state/artwork survives recovery on the actual layout.
+  [Twenty-four isolated host groups](storage-and-configuration.md#formatting-permission-is-not-proof-that-formatting-happened)
+  now cover the matching SDK format gate and reconstructed application retries.
+  Actual FAT corruption, lower storage/resource cleanup and interruption remain
+  untested; the fixture supplies FAT results without a filesystem image.
 - [ ] **N05 · Host/Device:** Verify partial writes, flush/fsync errors, truncated
   last-image loads and save-failure-with-render behavior. Assess an atomic cache
   replacement/hash design against actual FAT support and available space.
+  [Complete cache paths](storage-and-configuration.md#cache-success-and-failure-leave-different-state-behind)
+  now match across models, including ignored flush/close errors, retained partial
+  files and partial-read destination changes. Real stdio/storage faults,
+  concurrent replacements and reboot durability remain open.
 - [ ] **N06 · Static/Host/Device:** Verify custom wake-up artwork feasibility and
   persistence across version changes, missing/truncated/same-size corrupt files,
   resets and cache recovery. Establish the true validation/palette contract.

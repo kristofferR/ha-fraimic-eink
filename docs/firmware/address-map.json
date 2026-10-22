@@ -2061,26 +2061,44 @@
     {
       "address": "0x420282f8",
       "kind": "function",
-      "role": "Provisioning check used for FAT format permission",
-      "evidence": "static"
+      "role": "Initial FAT format permission from legacy NVS string-length query; contents and environment-specific keys not inspected",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
+    },
+    {
+      "address": "0x42028338",
+      "kind": "function",
+      "role": "Path-exists predicate: stat success only, no file-type/content validation",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
+    },
+    {
+      "address": "0x42028350",
+      "kind": "function",
+      "role": "Separate stat-size read; returns zero on stat failure",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
     },
     {
       "address": "0x42028368",
       "kind": "function",
-      "role": "Mount imagedata FAT partition",
-      "evidence": "static"
+      "role": "Image filesystem manager: three initial-permission mounts, then one format-enabled retry; fourth success log does not inspect actual format flag",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
     },
     {
       "address": "0x42028524",
       "kind": "function",
-      "role": "Save last_image.bin directly",
-      "evidence": "static"
+      "role": "Direct last-image overwrite: discard flush/close results, log fsync error, success from fwrite count alone",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
     },
     {
       "address": "0x42028698",
       "kind": "function",
-      "role": "Load last_image.bin",
-      "evidence": "static"
+      "role": "Last-image load: sampled stat size, single fread, partial destination retained and output length unchanged on short read",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
+    },
+    {
+      "address": "0x4202881c",
+      "kind": "function",
+      "role": "Saved-image presence: manager-ready plus stat success, without size or integrity validation",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
     },
     {
       "address": "0x42028914",
@@ -2792,6 +2810,18 @@
       "kind": "function",
       "role": "Register ten integration API routes sequentially; return on first registration failure",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x420352a4",
+      "kind": "function",
+      "role": "SDK FAT mount/format gate: only errors 2/13 with permission; 4096-byte work buffer, successful format flag before remount",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
+    },
+    {
+      "address": "0x42035414",
+      "kind": "function",
+      "role": "SDK partition/wear-level/FAT registration and mount wrapper; invokes format gate and creates mounted-context record",
+      "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
     },
     {
       "address": "0x420383b0",

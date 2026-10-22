@@ -732,6 +732,28 @@ restore mode 1 and the first-time override. Production reset makes no such write
 These matching application bodies do not establish Standard's SDK erase internals,
 all caller behavior or physical recovery after faults. No reset was performed.
 
+### Cache recovery and persistence boundaries also match
+
+Nine complete functions cover legacy-key format permission, filesystem-manager
+initialization, file existence/size, last-image write/load/presence and the SDK
+mount/format wrappers. All 796 instructions, 84 branches and 29 contiguous ranges
+per model match after reviewing 24 direct-call pairs and 70 literal pairs.
+Seven new pairs bring the public function map to 238 entries.
+
+The substantive literal difference is the maximum save length: 2,566,144 bytes
+on Large versus 1,048,576 on Standard. Neither is exact panel-size validation.
+Both discard flush/close results, retain partial cache files after short writes,
+and can return load failure with a modified destination and unchanged output
+length. These are static application boundaries, not a tested flash failure.
+
+The shared [recovery policy](storage-and-configuration.md#formatting-permission-is-not-proof-that-formatting-happened)
+allows a fourth formatting-enabled mount attempt after three failures. Only two
+FAT error classes enter the formatter, and its successful format can precede a
+failed remount. Twenty-four isolated host groups check the SDK helper and
+reconstructed application decisions once, not once per model. Actual FAT
+corruption, wear-leveling/resource cleanup, interruption and frame recovery
+remain untested; no artwork or storage was changed.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering
