@@ -2537,3 +2537,38 @@ criteria remain open.
 | `renderer-start-large-cfg.json` | `2e4960db2bbb6300bc5fa3ba5fc9fbf1cec37431322ea38beea12ef569c365de` |
 | `renderer-worker-large-cfg.json` | `60a156d0382dc7c6f686a8eb0fb484e0e9f66ced1d0370795d784ad792204e8e` |
 | `renderer-recording-query-large-cfg.json` | `43ac86a47fddd27ff131df0c4d8c00ccef30b356a2c6b74305a597ba468a05f4` |
+
+## Byte-level buffer overlap: D02
+
+Eleven host memory-copy scenarios passed on Omarchy. The fixture checks both
+firmware image hashes, then instantiates the recovered Large shared 2,304,000-byte
+allocation and Standard's separate 1,048,576-byte image / 2,120,000-byte audio
+allocations. Its constants follow the existing SPI, capture, uploader and WAV
+traces; it does not execute those firmware routines or add new whole-function
+equivalence claims.
+
+The [result table](rendering-and-concurrency.md#byte-level-overlap-fixture-and-model-controls)
+records producer, consumer, exact changed half-open byte ranges, WAV structure
+and the Large DMA split. Nine overlap/control cases cover one Large staged-image
+transfer and four cases per model. Two additional counterfactual cases compare
+exclusive ownership and a completed full snapshot. Original/result SHA-256 values
+and per-controller output hashes are preserved in the private JSON; no real
+recording, artwork or credential is used.
+
+Large's selected DMA ordering retains thirteen 4,800-byte chunks and replaces
+all later bytes. Its recorded/uploaded PCM cases remain structurally valid WAVs
+despite changed audio. Standard's distinct audio allocation leaves those exact
+cross-type cases unchanged, while a second image still replaces its image bytes
+before a modeled DROP. No Large controller/DMA geometry is generalized to Standard.
+
+The fixture assumes simultaneous producer admission and fully completed copies
+at the selected event boundaries. It does not simulate intra-copy races, RTOS,
+TLS/kernel buffering, actual DMA, panel pixels or physical scheduling. The full
+snapshot succeeds on the workstation and is not a device memory-capacity test.
+D02's host milestone is checked; physical overlap and D03 memory/ownership design
+remain open.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `buffer-overlap-model.mjs` | `510c1682ed135d42231f39b626487b6849bdeb15c7039110ba228149787ba3cd` |
+| `buffer-overlap-results.json` | `1c68a8933e5c764a1ef4bbf2eb1aff45b52292928349adea5735c7360c5000ad` |

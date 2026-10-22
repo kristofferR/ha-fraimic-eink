@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 105 of 182 concrete milestones complete.**
+**9 of 67 original items complete; 106 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 9 | Original bounded question answered; evidence linked below |
-| Research | 15 | Concrete static, host or design work remains available |
-| Waiting for device | 18 | Remaining original criteria require physical validation |
+| Research | 14 | Concrete static, host or design work remains available |
+| Waiting for device | 19 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
@@ -65,10 +65,11 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with D02's byte-level
-ownership overlap or the remaining driver faults under D06 while A07's [feature proposal](voice-feature-proposal.md)
+For the owner's local-cloud/voice priorities, continue with the remaining driver
+faults under D06 or C12's album mutation fixture while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
-Its six API reuse checks and D04's bounded renderer fault model are complete. A06's compatibility
+Its six API reuse checks, D02's byte-level overlap and D04's bounded renderer fault
+model are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
 remain deferred. A02–A04 and A03's final integration check need implementation;
@@ -476,10 +477,10 @@ Commit and push validated research batches periodically as requested.
   overlapping operations. Record which bytes/operation are affected and when;
   static missing guards alone do not demonstrate a particular runtime failure.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static:** Identify overlapping producer writes before render arbitration and the Large audio/image alias. [Candidate interference](rendering-and-concurrency.md#readiness-is-not-ownership).
-  - [ ] **Next:** **Host:** Reproduce a bounded overlap with a byte-level record of which producer overwrites which data.
+  - [x] **Host:** Execute eleven synthetic memory-copy scenarios at recovered sizes/offsets, with exact changed ranges, DMA-stage behavior, WAV structure checks and separate Standard allocation controls. [Byte-level evidence and limits](rendering-and-concurrency.md#byte-level-overlap-fixture-and-model-controls).
   - [ ] **Deferred:** **Device:** Validate an approved overlap scenario physically; static missing guards alone are not an observed failure.
 
 - [ ] **D03 · Static/Host:** Verify SPI/DMA consumption and completion semantics to

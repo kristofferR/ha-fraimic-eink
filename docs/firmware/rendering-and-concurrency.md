@@ -240,6 +240,48 @@ acquiring ownership of the bytes.
 
 ## The render wait happens after HTTP reception
 
+### Byte-level overlap fixture and model controls
+
+Eleven isolated cases now perform real host memory copies at the recovered
+allocation sizes and offsets. They use synthetic constant image/PCM bytes and
+explicit operation order, with hashes and changed byte ranges recorded privately.
+This is a **memory-ownership model**, not firmware/driver execution or a reproduced
+frame race. It assumes the competing producers were admitted; stock scheduling
+frequency and higher-level exclusion are not measured.
+
+| Selected overlap | Large result | Standard control |
+| --- | --- | --- |
+| Complete second image copied before DROP rejects its render | All 2,304,000 image bytes already replaced | All 960,000 panel bytes already replaced |
+| One 4,096-byte capture append at WAV offset 44 | Image bytes `[44, 4140)` changed | Image unchanged; audio has separate storage |
+| Image receive writes 4,096 bytes over stored 8,192-byte PCM, then WAV header is finalized | 4,052 audio bytes `[44, 4096)` changed; resulting 8,236-byte WAV remains structurally valid | WAV unchanged |
+| Image replacement after the first 4,096 WAV bytes were sent | Remaining 4,140 bytes changed; captured header and total WAV length still valid | Uploaded WAV unchanged |
+
+The two image producers continue to share one image allocation on each model.
+Standard's separate audio storage protects the cross-type cases above, not two
+image producers or the global renderer/HTTP completion state. The synthetic WAV
+check validates the recovered PCM header/length contract; it does not transcribe
+or assess audio quality. A valid WAV alone is not an audio-integrity guarantee.
+
+The Large DMA case sends twelve 4,800-byte chunks, copies chunk index twelve
+into staging, then replaces the entire source image before continuing. The
+current staged chunk remains unchanged. The outgoing 2,304,000-byte stream has
+**62,400 original bytes followed by 2,241,600 replacement bytes**. Controller
+zero receives 62,400 original plus 225,600 replacement bytes; the other seven
+receive replacement bytes throughout. These are half-open buffer offsets in
+controller transfer order, not physical pixel coordinates. The fixture assumes
+the staging copy finished before the overwrite and does not model a write during
+that copy. Large's DMA geometry is not assigned to Standard.
+
+Two counterfactual controls retain all original bytes: deferring the producer
+under exclusive ownership, and completing a full snapshot before mutation.
+The latter allocates 2,304,000 extra payload bytes **on the host only**. It does
+not show that a second panel buffer fits the frame; the measured free-memory
+sample above still rules it out in that sample. D03 retains fragmentation/
+pressure and ownership-design work. D02's bounded host milestone is complete;
+physical overlap remains deferred. See [validation](validation-2026-10-22.md#byte-level-buffer-overlap-d02).
+
+### Raw upload ordering
+
 The raw upload sequence is:
 
 ```text

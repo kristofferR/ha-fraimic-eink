@@ -71,6 +71,13 @@ Standard 0.2.28 instead has [separate audio and image allocations](standard-mode
 Its selected presign/upload/finalize branches match the transport contract below,
 but Large's audio/image alias must not be generalized to it.
 
+The [byte-level overlap fixture](rendering-and-concurrency.md#byte-level-overlap-fixture-and-model-controls)
+shows that selected image writes can corrupt Large's stored or in-flight PCM
+while leaving an otherwise valid WAV header and byte length. Standard's separate
+audio allocation prevents those exact modeled writes. These are synthetic host
+copies, not a reproduced microphone fault; validate job/buffer ownership rather
+than treating WAV structure as proof of unchanged audio.
+
 ### Capture reads can lose audio without invalidating WAV structure
 
 The recovered Large capture-task entry is `0x4201fa24`. Its task pointer comes
