@@ -1190,7 +1190,7 @@ configuration/callbacks or external-helper equivalence on either model.
 Two additional complete function pairs cover cache cleanup and client cleanup:
 88 instructions, ten internal branches and two ranges per image. Six direct
 call pairs and the free-helper literal pair are mapped; external callees are
-not all recursively compared. The function map now contains **315 pairs**.
+not all recursively compared. The function map now contains **314 pairs**.
 
 Together with the already compared body/fetch callbacks, these establish the
 same lost-cache-ownership branch after failed `realloc` growth on both apps.

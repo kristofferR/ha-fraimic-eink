@@ -996,6 +996,25 @@
       "checks_abort_after_zero_header_result": false,
       "server_contract": "Store complete WAV, return one final 200 with Content-Length: 0",
       "limits": "Selected source parser/callbacks and reconstructed immediate application branch; no real socket/TLS, cancellation concurrency, full header storage/cleanup, outer worker or physical response test"
+    },
+    "http_response_cache_cleanup": {
+      "evidence": "Two complete GNU body comparisons and twelve isolated pinned-SDK/parser allocation cases; not live firmware execution",
+      "compared_functions": 2,
+      "new_function_map_entries": 1,
+      "instructions": 88,
+      "branches": 10,
+      "ranges_per_image": 2,
+      "mapped_direct_call_pairs": 6,
+      "mapped_free_helper_pairs": 1,
+      "failed_realloc_growth_loses_owner_pointer": true,
+      "cleanup_only_frees_orig_raw_data": true,
+      "chunked_fetch_can_return_zero_after_body_callback_error": true,
+      "host_cases": 12,
+      "host_retained_example_bytes": [
+        3,
+        6
+      ],
+      "limits": "One host run; full client teardown and actual ESP allocator not executed. External callees not all recursively compared. No cause established for live TLS allocation errors."
     }
   },
   "function_map": [
@@ -2563,6 +2582,11 @@
       "role": "esp_http_client_fetch_headers",
       "large": "0x4206d890",
       "standard": "0x4206ce88"
+    },
+    {
+      "role": "esp_http_client_cached_buf_cleanup",
+      "large": "0x4206ce3c",
+      "standard": "0x4206c434"
     }
   ],
   "live_standard": {

@@ -2465,7 +2465,8 @@ Two additional complete GNU control-flow comparisons match cache cleanup
 prologues, all reachable operations and ten internal branches were checked.
 Six direct-call pairs and one free-helper literal pair were reviewed as mapped
 dependencies; this does not prove every external body equivalent. The map now
-contains 315 selected pairs.
+contains 314 selected pairs; client cleanup was already mapped, and the cache
+cleanup helper adds one new entry.
 
 The private host fixture adds a tracked allocation wrapper to the unchanged
 SDK callbacks/header reader/cache cleanup used by the acknowledgment fixture.

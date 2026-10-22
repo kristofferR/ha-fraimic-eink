@@ -3676,6 +3676,12 @@
       "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
+      "address": "0x4206ce3c",
+      "kind": "function",
+      "role": "HTTP response-cache cleanup; frees and clears fields only when orig_raw_data is non-null",
+      "evidence": "Static; complete pinned GNU comparison with Standard 0x4206c434; twelve host cache-allocation cases (full client teardown not executed)"
+    },
+    {
       "address": "0x4206cee8",
       "kind": "function",
       "role": "http_on_headers_complete; upload acknowledgment framing analysis",
@@ -3756,8 +3762,8 @@
     {
       "address": "0x4206dbd8",
       "kind": "function",
-      "role": "HTTP client cleanup: close and release request/response, parser/configuration and client allocations",
-      "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
+      "role": "HTTP client cleanup; invokes cache cleanup before freeing response carrier, with no alternate raw_data free",
+      "evidence": "Static; complete pinned GNU comparison with Standard 0x4206d1d0; twelve host cache-allocation cases (full client teardown not executed)"
     },
     {
       "address": "0x4206dca4",
