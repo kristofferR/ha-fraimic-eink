@@ -49,7 +49,7 @@ generation test or proof of every upload status on Large.
 | Audio | PCM, signed 16-bit, mono, 16,000 Hz |
 | Throughput | 32,000 audio bytes/second |
 | Buffer capacity exposed to recorder | 2,120,000 bytes, including reserved header |
-| Outer recording deadline | 6,000 ticks at 10 ms, approximately 60 seconds |
+| Outer recording wait | 6,000 ticks at 10 ms, approximately 60 seconds; subsequent stop is not deadline-bounded |
 | Initial button suppression | 200 ticks, approximately two seconds |
 | Completion | Single tap after suppression |
 | Cancellation | More than two taps in the detected group |
@@ -70,6 +70,95 @@ header-generation function.
 Standard 0.2.28 instead has [separate audio and image allocations](standard-model-comparison.md#separate-recording-and-image-allocations).
 Its selected presign/upload/finalize branches match the transport contract below,
 but Large's audio/image alias must not be generalized to it.
+
+### Capture reads can lose audio without invalidating WAV structure
+
+The recovered Large capture-task entry is `0x4201fa24`. Its task pointer comes
+from recording start `0x4201fed0`; an independently checked GNU entry allowed
+recovery of this previously unnamed function. Ten application/SDK functions
+were checked across 1,326 instructions in 31 decoded ranges for this pass.
+
+The worker requests **4,096 bytes** per `i2s_channel_read` call, passing a
+**50 ms timeout**. It appends bytes only when the return status is `ESP_OK` and
+the byte count is positive. Capacity is checked for the whole returned block;
+if it does not fit, recording is stopped without copying a smaller remainder.
+An exact fit is accepted. Successful bytes are copied unchanged before the
+worker accumulates min/max, absolute-amplitude and sample-count statistics.
+Its `abs(sample) > 100` count is diagnostic: it does not remove silence or stop
+recording. There is no sample gain/normalization or software speech detector in
+this application worker; this says nothing about the microphone's physical DSP.
+
+The compiled SDK reader at `0x4204fbec` can copy bytes, advance its DMA position,
+then return `ESP_ERR_TIMEOUT` when a later queue receive fails. The app discards
+that entire partial result. Later reads continue from the advanced position,
+so the omitted samples are not replayed. The resulting WAV can describe its
+stored bytes correctly while lacking an interval of captured audio.
+
+Nine isolated host groups use the unchanged `i2s_channel_read` function from
+the pinned [IDF 5.4.1 implementation](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_driver_i2s/i2s_common.c),
+scripted queue/semaphore/state behavior and a reconstruction of the app's
+admission/copy branch. Synthetic DMA buffers contain recognizable byte patterns:
+
+| Host case | Result |
+| --- | --- |
+| Complete 4,096-byte read across nine scripted 480-byte buffers | All bytes admitted; nine 40 ms waits total 360 ms despite a 50 ms timeout argument |
+| Timeout before any bytes | Zero bytes; recording admission leaves stored data unchanged |
+| Two 480-byte buffers followed by timeout | SDK reports 960 consumed bytes and timeout; app admits zero |
+| Successful read after that partial timeout | Starts with the third buffer; the discarded 960 bytes are not recovered |
+| Read semaphore unavailable | Invalid-state result, zero bytes, no queue read |
+| Channel already stopped | Successful status with zero bytes |
+| Scripted channel-state change during a read | Short successful result of 480 bytes, admitted by the app branch |
+| Capacity one byte short of a complete block | No partial copy; active flag cleared |
+| Exact capacity | Complete block admitted |
+
+All nine passed with address/undefined-behavior sanitizers and warnings treated
+as errors. Queue timing is virtual; the 480-byte buffers and state changes are
+fixture inputs, not a measurement of physical DMA activity. No recording,
+dropout, microphone fault or hardware timing was tested. The SDK source SHA-256
+is `b39ebba9ea228bba21f9629ce54e4c6ffba628c0b7ec3b477a6960e094dc232c`.
+
+The SDK timeout applies separately to acquiring the read semaphore and each
+needed DMA-buffer wait. It is not an overall 50 ms deadline for a 4,096-byte
+read. The worker also does not abandon recording merely after 50 timeouts:
+unsuccessful/empty reads increment its local failure total, successful reads
+preserve that total, and the `> 50` abort check is reached only for a result other
+than `ESP_ERR_TIMEOUT`. Thus timeout-only sequences continue until another stop
+condition; a later non-timeout failure can trigger the accumulated threshold.
+These threshold branches are static findings, separate from the nine host groups.
+
+For a local voice job, retain the original WAV and derive **stored-audio
+duration** from its PCM byte count. Do not label that duration as time spent
+recording, or insert guessed silence for missing intervals. Presign/finalize
+carry no capture-gap count or recording timestamps. A firmware extension could
+report captured/stored/dropped bytes and stop reason alongside the job ID.
+
+### Recording stop and completion are separate signals
+
+Normal stop `0x42020090` clears the active byte under the recording mutex, then
+waits in **ten-tick / 100 ms intervals** until the capture-task handle becomes
+zero. There is no timeout in that loop. The worker can finish an already-started
+read and append its accepted result before it checks the flag again; it clears
+the handle after its final statistics update, immediately before self-deletion.
+Consequently stopping at a tap is not an exact audio-sample boundary.
+
+The outer 6,000-tick wait in `0x42010994` is followed by this same stop call and
+I2S disable. It therefore does not establish a hard 60-second operation limit.
+If stop sees the active byte already false, it returns invalid-state without
+performing the handle wait. A blocked mutex/task or an already-stopping worker
+was not reproduced on the frame.
+
+The button-control task `0x42011314` gives the outer completion semaphore after
+explicit stop/cancel/interruption paths. When its recording-state getter
+`0x42020150` instead returns false, it disables I2S and exits **without giving
+that semaphore**. The getter can return false because recording ended, the task
+handle is zero, or its ten-tick mutex acquisition failed. The outer wait can then
+reach its generic “user never stopped recording” timeout path even though the
+proximate cause was internal. That log is not proof of user inaction.
+
+These are Large static lifecycle findings, not new physical cancellation tests
+or an independently completed Standard capture-worker comparison. They reinforce
+why a missing presign request cannot identify whether the user cancelled,
+capture failed, or the recording was never started.
 
 ## Presign
 

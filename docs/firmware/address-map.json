@@ -714,8 +714,8 @@
     {
       "address": "0x42010994",
       "kind": "function",
-      "role": "Voice recording orchestration and deadline",
-      "evidence": "static"
+      "role": "Voice recording orchestration: 6000-tick completion wait followed by potentially unbounded stop",
+      "evidence": "static; microphone capture follow-up, GNU byte verification; isolated SDK reader host cases where stated"
     },
     {
       "address": "0x42010c4c",
@@ -738,8 +738,8 @@
     {
       "address": "0x42011314",
       "kind": "function",
-      "role": "Recording completion/cancellation button handling",
-      "evidence": "static"
+      "role": "Recording button-control task: explicit-stop completion signal; false recording-state getter exits without signaling",
+      "evidence": "static; microphone capture follow-up, GNU byte verification; isolated SDK reader host cases where stated"
     },
     {
       "address": "0x420115d8",
@@ -1471,6 +1471,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4201fa24",
+      "kind": "function",
+      "role": "Capture worker: accepts positive ESP_OK I2S blocks only, preserves cumulative failure count across successful reads and clears task handle on exit",
+      "evidence": "static; microphone capture follow-up, GNU byte verification; isolated SDK reader host cases where stated"
+    },
+    {
       "address": "0x4201fca4",
       "kind": "function",
       "role": "Factory microphone worker: read 4096-byte blocks and replace peak-to-peak/min/max statistics",
@@ -1487,6 +1493,12 @@
       "kind": "function",
       "role": "Start audio recording using shared buffer",
       "evidence": "static"
+    },
+    {
+      "address": "0x42020090",
+      "kind": "function",
+      "role": "Recording stop: clear active flag and wait without deadline for capture-task handle; already inactive returns invalid-state without wait",
+      "evidence": "static; microphone capture follow-up, GNU byte verification; isolated SDK reader host cases where stated"
     },
     {
       "address": "0x42020124",
@@ -3056,6 +3068,12 @@
       "kind": "function",
       "role": "SDK SPI bus initializer; DMA-enabled branch sets four-byte alignment",
       "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x4204fbec",
+      "kind": "function",
+      "role": "SDK I2S reader: per-semaphore/queue timeout, advances DMA state before returning partial timeout",
+      "evidence": "static; microphone capture follow-up, GNU byte verification; isolated SDK reader host cases where stated"
     },
     {
       "address": "0x420500e0",
