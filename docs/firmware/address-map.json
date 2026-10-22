@@ -2776,6 +2776,12 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x42030028",
+      "kind": "function",
+      "role": "Shared JSON error response constructor/sender",
+      "evidence": "static/host; complete GNU CFG and byte-checked local-control instruction cases"
+    },
+    {
       "address": "0x42030064",
       "kind": "function",
       "role": "Common authenticated album cloud proxy",

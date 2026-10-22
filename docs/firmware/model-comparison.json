@@ -1029,6 +1029,28 @@
       "physical_expired_leaf_tested": false,
       "evidence": "tls-durability.json",
       "limits": "Static and native host X.509 evidence; no independent bundle updater identified by exact-reference census, no claim about future firmware"
+    },
+    "local_control": {
+      "functions_per_build": 8,
+      "equivalent_normalized_pairs": 7,
+      "matching_instructions_per_build": 187,
+      "refresh_instructions": {
+        "large": 54,
+        "standard": 31
+      },
+      "refresh_early_recording_or_protection_guard": {
+        "large": true,
+        "standard": false
+      },
+      "json_serialization_failure_prevents_restart_or_refresh": false,
+      "sleep_pending_precedes_response_allocation": true,
+      "host_cases": 28,
+      "executed_distinct_instructions": {
+        "large": 233,
+        "standard": 210
+      },
+      "evidence": "local-control-cases.json",
+      "limits": "Selected byte-checked handlers/wrappers with modeled JSON/HTTP, state getters, RTOS delay, restart and lower maintenance. No physical action or concurrent rendering proof; external callees not recursively equated."
     }
   },
   "function_map": [
@@ -2641,6 +2663,46 @@
       "role": "mbedtls_ssl_verify_certificate",
       "large": "0x420732cc",
       "standard": "0x420728c4"
+    },
+    {
+      "role": "local_control_refresh",
+      "large": "0x42030aa0",
+      "standard": "0x4202f1cc"
+    },
+    {
+      "role": "local_control_sleep",
+      "large": "0x42030b38",
+      "standard": "0x4202f224"
+    },
+    {
+      "role": "local_control_restart",
+      "large": "0x42030ba0",
+      "standard": "0x4202f28c"
+    },
+    {
+      "role": "local_control_json",
+      "large": "0x4202ffd0",
+      "standard": "0x4202e6fc"
+    },
+    {
+      "role": "local_control_error",
+      "large": "0x42030028",
+      "standard": "0x4202e754"
+    },
+    {
+      "role": "local_control_sleep_request",
+      "large": "0x42017218",
+      "standard": "0x420171ec"
+    },
+    {
+      "role": "local_control_manual",
+      "large": "0x4201724c",
+      "standard": "0x42017220"
+    },
+    {
+      "role": "local_control_manual_perform",
+      "large": "0x420115d8",
+      "standard": "0x42011538"
     }
   ],
   "live_standard": {

@@ -732,6 +732,7 @@ control-flow boundary; physical timing and delivery remain deferred.
   - [x] **Static:** Inventory all 42 registrations; recover dev authentication, factory/action side effects, server capacity and diagnostic behavior. [Local API](local-api.md), [logs](diagnostics-and-logs.md).
   - [x] **Static/Host:** Check selected setup/Wi-Fi forms/scripts, mDNS lifecycle and LED arbitration. [Forms](local-api.md#wi-fi-field-matching-and-byte-limits), [LEDs](led-and-workflow-state.md).
   - [x] **Static/Host:** Reconcile 42 registrations/39 handlers to input/output/effect contracts; trace remaining battery/HTML/AP-selection branches and check 41 synthetic diagnostic instruction cases. [Contract ledger](route-contract-coverage.json), [allocation/write cases](diagnostics-and-logs.md#diagnostic-allocation-and-write-failure-cases), [validation](validation-2026-10-22.md#handler-contracts-and-diagnostic-instruction-cases-h05).
+    The local-control follow-up compares both models' restart/sleep/refresh paths: Standard lacks Large's early refresh guard, and JSON serialization failure can precede an accepted action. Fourteen instruction cases per build verify those boundaries. [Comparison](local-api.md#standard-refresh-lacks-the-early-busy-guard), [cases](local-control-cases.json).
   - [ ] **Deferred:** **Device:** Validate remaining boot-state availability, concurrent reads, LED/discovery timing and separately approved mutating controls. Keep destructive actions separate.
 
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery

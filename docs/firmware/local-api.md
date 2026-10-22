@@ -563,7 +563,7 @@ small responses describe different points in the operation:
 | POST `/api/refresh` | `{"status":"refresh_started"}` | Check recording/LED protection, allocate/send JSON, wait ten ticks, then invoke manual refresh |
 
 Restart and refresh do not check the JSON send result before acting. A lost
-response therefore does not mean nothing happened. Allocation failure produces
+response therefore does not mean nothing happened. Initial JSON-object allocation failure produces
 `500` / `out_of_memory` before either operation. Sleep differs: helper
 `0x42017218` has already set pending flag `0x3fca6b18` before JSON allocation,
 so the same error can follow a successfully queued sleep request. These are
@@ -590,6 +590,56 @@ it is not returned as a later render acknowledgment. GNU decoding confirmed the
 result preserved in the return register despite Ghidra initially inferring a
 `void` function. A raw image upload already starts its own render and should not
 be followed by this separate refresh.
+
+### Standard refresh lacks the early busy guard
+
+Standard 0.2.28's `/api/refresh` handler at `0x4202f1cc` contains **31 reachable
+instructions**, versus Large's 54 at `0x42030aa0`. It has no calls to either the
+recording-state getter or LED-protection getter and no `409 device_busy` branch.
+After response-object allocation it sends `refresh_started`, delays ten ticks
+and enters manual refresh. Its two immediate manual-refresh wrappers do not add
+those checks. This establishes entry into the lower maintenance path; it does
+not prove a simultaneous physical render or failure of every downstream guard.
+
+The restart and sleep handlers, JSON success/error senders, pending-sleep helper
+and two manual-refresh wrappers match across **seven complete function pairs /
+187 instructions per build**, after relocation and internal branch normalization.
+The three API handlers consume no job ID and do not parse a body. These scoped
+comparisons do not establish equivalence of all 42 routes or the model-specific
+maintenance/display implementation.
+
+### A JSON serialization error can follow an accepted command
+
+The shared JSON sender prints and deletes the response object before sending it.
+If printing fails, it attempts a `500` response containing
+`{"error":"json_serialization_failed"}` and returns failure. **Restart and
+refresh ignore that return and still perform their operation.** Sleep has already
+set its pending byte. This differs from failure to allocate the initial response
+object, which prevents restart/refresh but still follows the pending-sleep write.
+
+Fourteen instruction cases on each pinned build check those orders:
+
+| Scripted condition | Large | Standard |
+| --- | --- | --- |
+| Refresh while recording getter would be true | `409 device_busy`, no manual-refresh entry | No recording getter call; response and manual-refresh entry |
+| Refresh while LED-protection getter would be true | `409 device_busy`, no manual-refresh entry | No protection getter call; response and manual-refresh entry |
+| Initial response-object allocation fails | Restart/refresh skipped; allowed sleep already pending | Same |
+| JSON serialization fails | Error response attempted; restart/refresh still entered; allowed sleep remains pending | Same |
+| Success-response send fails | Restart/refresh still entered | Same |
+| Lower manual refresh returns an error | Earlier success response unchanged; handler returns zero | Same |
+| Charging getter returns true | Sleep conflict, no pending flag | Same |
+
+The cases execute the actual handler/sender/request/wrapper instructions, covering
+233 distinct instructions on Large and 210 on Standard. cJSON, HTTP, hardware
+state getters, RTOS delays, restart and the maintenance result are stubbed; no
+device request, concurrent recording, reset, sleep or panel refresh occurs.
+[Results and CFG hashes](local-control-cases.json) retain that boundary.
+
+For HA, distinguish transport/response failure from command outcome. A `500`
+alone does not make retrying restart, refresh or sleep safe. Standard's successful
+refresh acknowledgment also does not establish that recording was idle. A future
+firmware command path needs shared admission and job-aware outcomes, rather than
+depending on these per-route responses.
 
 ## Wi-Fi form submission
 

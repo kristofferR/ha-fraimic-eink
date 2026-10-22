@@ -1,0 +1,1047 @@
+{
+  "method": "Execute selected byte-checked Xtensa instructions on a bounded host interpreter",
+  "limits": "JSON allocation/printing, HTTP I/O, recording/protection/charging getters, RTOS delays, restart and maintenance outcomes are synthetic. No device request, real concurrency, physical sleep or rendering.",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "functions": [
+        {
+          "name": "refresh",
+          "entry": "0x42030aa0",
+          "instructions": 54,
+          "sha256": "25c7347be58a43524acb35c55621c35bbc3c484e040d3501f70a4e54b4d8af1f"
+        },
+        {
+          "name": "sleep",
+          "entry": "0x42030b38",
+          "instructions": 36,
+          "sha256": "bb506276fc1e2d224e1609c86c72ba08c4e2417b360c2eabeff60c344c69df5e"
+        },
+        {
+          "name": "restart",
+          "entry": "0x42030ba0",
+          "instructions": 31,
+          "sha256": "d16d24eff7849e68b6d23e1ab3915473e3a1d2b847c1c5657e8382f2bbaf63ec"
+        },
+        {
+          "name": "json",
+          "entry": "0x4202ffd0",
+          "instructions": 33,
+          "sha256": "ad95c4f5a841c49c1a6cbd955bc815ec7f889d314e263a01d755792c46a96c7d"
+        },
+        {
+          "name": "error",
+          "entry": "0x42030028",
+          "instructions": 22,
+          "sha256": "3ca7b2aeea5c741896fda59e106f6bfc58657e92765961fd644549e62726580a"
+        },
+        {
+          "name": "sleep-request",
+          "entry": "0x42017218",
+          "instructions": 19,
+          "sha256": "58b486dd5122267b0aaa408ea4503f553dc7476598124cd1618af5cd7010425d"
+        },
+        {
+          "name": "manual",
+          "entry": "0x4201724c",
+          "instructions": 18,
+          "sha256": "2211c5d7d2416a04bf9df2d45919ec287c7254ae29371637d4214bd62c3835e6"
+        },
+        {
+          "name": "manual-perform",
+          "entry": "0x420115d8",
+          "instructions": 28,
+          "sha256": "cdcfe42f06380c6652f66533574e0db33fa8227d34ce411f129f2ee2a9933d8c"
+        }
+      ],
+      "distinct_instructions": 233,
+      "cases": [
+        {
+          "name": "refresh-during-recording",
+          "response": {
+            "event": "response",
+            "status": "409 Conflict",
+            "body": {
+              "error": "device_busy"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "recording-check"
+            },
+            {
+              "event": "response",
+              "status": "409 Conflict",
+              "body": {
+                "error": "device_busy"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-during-protected-workflow",
+          "response": {
+            "event": "response",
+            "status": "409 Conflict",
+            "body": {
+              "error": "device_busy"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "recording-check"
+            },
+            {
+              "event": "protection-check"
+            },
+            {
+              "event": "response",
+              "status": "409 Conflict",
+              "body": {
+                "error": "device_busy"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-idle",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "recording-check"
+            },
+            {
+              "event": "protection-check"
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": false
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-root-allocation-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "recording-check"
+            },
+            {
+              "event": "protection-check"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-serialization-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "recording-check"
+            },
+            {
+              "event": "protection-check"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-send-fails",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": true
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "recording-check"
+            },
+            {
+              "event": "protection-check"
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": true
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-lower-operation-fails",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "recording-check"
+            },
+            {
+              "event": "protection-check"
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": false
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": true
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "restart-send-fails",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "restarting"
+            },
+            "send_failed": true
+          },
+          "action": "restart",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "restarting"
+              },
+              "send_failed": true
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "restart"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "restart-serialization-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "action": "restart",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "restart"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "restart-root-allocation-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "action": "restart",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-while-charging",
+          "response": {
+            "event": "response",
+            "status": "409 Conflict",
+            "body": {
+              "error": "charging_cable_connected"
+            },
+            "send_failed": false
+          },
+          "action": "pending_sleep",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "409 Conflict",
+              "body": {
+                "error": "charging_cable_connected"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-accepted",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "sleeping"
+            },
+            "send_failed": false
+          },
+          "action": "pending_sleep",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "sleeping"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-root-allocation-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "action": "pending_sleep",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-serialization-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "action": "pending_sleep",
+          "action_reached": true,
+          "handler_return": -1,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            }
+          ],
+          "passed": true
+        }
+      ]
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "functions": [
+        {
+          "name": "refresh",
+          "entry": "0x4202f1cc",
+          "instructions": 31,
+          "sha256": "3c98cbd554b5875e0112f3e3cb418056c545ef8108e281ef45104a274ca7135e"
+        },
+        {
+          "name": "sleep",
+          "entry": "0x4202f224",
+          "instructions": 36,
+          "sha256": "6dcdeb188657bb86adca61718ba9da64da552696b344e06fe687caa68b3c7162"
+        },
+        {
+          "name": "restart",
+          "entry": "0x4202f28c",
+          "instructions": 31,
+          "sha256": "6db5d30d5856ecbb2a856a950d558839ce3cb06be1b04291a96869150f46b2dd"
+        },
+        {
+          "name": "json",
+          "entry": "0x4202e6fc",
+          "instructions": 33,
+          "sha256": "58dd3bbd096b4cddf955af99198359a79a60f08ece985dbd2126e49b7b74fcf1"
+        },
+        {
+          "name": "error",
+          "entry": "0x4202e754",
+          "instructions": 22,
+          "sha256": "59cbcd44717c1b74d95b837bef5be9b25696d867216798f67526f313dace18e1"
+        },
+        {
+          "name": "sleep-request",
+          "entry": "0x420171ec",
+          "instructions": 19,
+          "sha256": "956612bb861ccb24d960b49f68197d2e62606f6c9cf7c91557a873f23a6a1222"
+        },
+        {
+          "name": "manual",
+          "entry": "0x42017220",
+          "instructions": 18,
+          "sha256": "0aa4df685c3827f1403a2d1d500900fb408b080dc16d55eefd4d831d6176999b"
+        },
+        {
+          "name": "manual-perform",
+          "entry": "0x42011538",
+          "instructions": 28,
+          "sha256": "88cefe0a60439f75578f0e90705b59e645c70318b7ebee890e8f89a1941f8501"
+        }
+      ],
+      "distinct_instructions": 210,
+      "cases": [
+        {
+          "name": "refresh-during-recording",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": false
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-during-protected-workflow",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": false
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-idle",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": false
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-root-allocation-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-serialization-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-send-fails",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": true
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": true
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "refresh-lower-operation-fails",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "refresh_started"
+            },
+            "send_failed": false
+          },
+          "action": "maintenance",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "refresh_started"
+              },
+              "send_failed": false
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "maintenance",
+              "returned_error": true
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "restart-send-fails",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "restarting"
+            },
+            "send_failed": true
+          },
+          "action": "restart",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "restarting"
+              },
+              "send_failed": true
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "restart"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "restart-serialization-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "action": "restart",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            },
+            {
+              "event": "restart"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "restart-root-allocation-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "action": "restart",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-while-charging",
+          "response": {
+            "event": "response",
+            "status": "409 Conflict",
+            "body": {
+              "error": "charging_cable_connected"
+            },
+            "send_failed": false
+          },
+          "action": "pending_sleep",
+          "action_reached": false,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "409 Conflict",
+              "body": {
+                "error": "charging_cable_connected"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-accepted",
+          "response": {
+            "event": "response",
+            "status": "200 OK",
+            "body": {
+              "status": "sleeping"
+            },
+            "send_failed": false
+          },
+          "action": "pending_sleep",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "200 OK",
+              "body": {
+                "status": "sleeping"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-root-allocation-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "out_of_memory"
+            },
+            "send_failed": false
+          },
+          "action": "pending_sleep",
+          "action_reached": true,
+          "handler_return": 0,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "out_of_memory"
+              },
+              "send_failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "sleep-serialization-fails",
+          "response": {
+            "event": "response",
+            "status": "500 Internal Server Error",
+            "body": {
+              "error": "json_serialization_failed"
+            }
+          },
+          "action": "pending_sleep",
+          "action_reached": true,
+          "handler_return": -1,
+          "events": [
+            {
+              "event": "charging-check"
+            },
+            {
+              "event": "response",
+              "status": "500 Internal Server Error",
+              "body": {
+                "error": "json_serialization_failed"
+              }
+            }
+          ],
+          "passed": true
+        }
+      ]
+    }
+  },
+  "comparison": {
+    "matching_functions": [
+      {
+        "name": "sleep",
+        "large": "0x42030b38",
+        "standard": "0x4202f224",
+        "instructions": 36,
+        "branches": 4,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "restart",
+        "large": "0x42030ba0",
+        "standard": "0x4202f28c",
+        "instructions": 31,
+        "branches": 1,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "json",
+        "large": "0x4202ffd0",
+        "standard": "0x4202e6fc",
+        "instructions": 33,
+        "branches": 1,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "error",
+        "large": "0x42030028",
+        "standard": "0x4202e754",
+        "instructions": 22,
+        "branches": 2,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "sleep-request",
+        "large": "0x42017218",
+        "standard": "0x420171ec",
+        "instructions": 19,
+        "branches": 1,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "manual",
+        "large": "0x4201724c",
+        "standard": "0x42017220",
+        "instructions": 18,
+        "branches": 0,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "manual-perform",
+        "large": "0x420115d8",
+        "standard": "0x42011538",
+        "instructions": 28,
+        "branches": 0,
+        "normalized_operations_match": true
+      }
+    ],
+    "refresh": {
+      "large": "0x42030aa0",
+      "standard": "0x4202f1cc",
+      "large_instructions": 54,
+      "standard_instructions": 31,
+      "large_checks_recording_and_led_protection": true,
+      "standard_checks_recording_and_led_protection": false
+    },
+    "limits": "Pinned image bytes and complete reachable GNU CFGs checked. Operations and branch indices match; external calls and relocated literals are listed separately, not recursively proven equivalent."
+  },
+  "fixture_sha256": "ec38e07a20a8c27ff8e73ed5fd1acb124fbda40d5de94bc91cb0fc72eca23720"
+}

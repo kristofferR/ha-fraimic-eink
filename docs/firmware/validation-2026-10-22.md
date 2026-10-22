@@ -3935,3 +3935,34 @@ preserve the source/fixture boundary. Private keys, certificates, firmware and
 decompiled bodies remain outside the repository. C03 gains one completed
 static/host/read milestone; counts are now **12/67 original items and 125/189
 milestones**. Its remaining physical criteria stay unchecked.
+
+## Local-control model differences and response failures: H05/E01/E02
+
+The [local-control follow-up](local-api.md#standard-refresh-lacks-the-early-busy-guard)
+recovers eight complete GNU functions per build. Seven pairs, totaling 187
+instructions each, match normalized operations and internal branch targets.
+The refresh handler differs: Large has 54 instructions, Standard 31. Standard
+has no recording/protection getter calls or early busy-conflict branch. The
+immediate manual wrappers do not restore that guard; downstream display code
+is a separate model-specific boundary.
+
+Fourteen cases per build execute the handlers, shared JSON/error senders,
+pending-sleep helper and manual wrappers. **All 28 pass**, covering 233 distinct
+instructions on Large and 210 on Standard. Initial response allocation failure
+prevents restart/refresh but follows allowed sleep's pending write. Serialization
+failure attempts an error response, yet restart/refresh continue and pending
+sleep remains set. Send failure also does not stop restart/refresh. Busy refresh
+inputs reject only on Large; charging rejects sleep on both. A lower maintenance
+error cannot revise the earlier success acknowledgment.
+
+The interpreter checks every loaded instruction byte against its pinned image.
+cJSON/HTTP operations, hardware-state getters, RTOS delays, restart and the lower
+maintenance result are modeled. The cases do not perform device requests or
+prove concurrent rendering, physical sleep or an actual reboot. This extends
+the existing H05/E02 milestones without closing physical criteria or changing
+the 12/67 item and 125/189 milestone totals.
+
+[Public results](local-control-cases.json) include the per-function CFG hashes
+and fixture SHA-256
+`ec38e07a20a8c27ff8e73ed5fd1acb124fbda40d5de94bc91cb0fc72eca23720`.
+No device, network, HA source or deployment change was made.

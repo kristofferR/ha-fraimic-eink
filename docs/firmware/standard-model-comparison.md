@@ -14,6 +14,12 @@ TLS acceptance. The later live capture supersedes those two statements:
 registration completed and persisted across restart, and the frame accepted the
 test chain for its normal API hostname. Neither frame has been flashed.
 
+The later [local-control comparison](local-api.md#standard-refresh-lacks-the-early-busy-guard)
+also identifies a consequential API difference: Standard's refresh handler lacks
+Large's early recording/LED-protection checks. Identical route names do not imply
+identical command admission. Both builds share the response-failure ordering
+documented there; 28 instruction cases cover the selected controls.
+
 ## Model and application identity
 
 | Property | Standard | Large |

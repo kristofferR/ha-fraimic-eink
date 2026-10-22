@@ -71,6 +71,13 @@ creating a WAV or entering normal upload. `mic_stop` stops that factory worker.
 These are not hidden start/finish/download endpoints for a normal voice job.
 Ordinary `/api/info` also lacks recording/busy/job state.
 
+Existing local controls do not uniformly protect this lifecycle. Standard
+0.2.28's refresh endpoint lacks Large's early recording/LED-protection guard;
+both builds can enter restart/refresh after a JSON-serialization error response.
+The [local-control comparison](local-api.md#standard-refresh-lacks-the-early-busy-guard)
+therefore belongs in HA admission/retry design. Withholding cloud image offers
+does not arbitrate an independent local refresh request.
+
 ## Finish is a workflow operation
 
 The wrapper drains its completion semaphore, launches recording control, then
