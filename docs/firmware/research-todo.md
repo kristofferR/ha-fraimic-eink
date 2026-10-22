@@ -167,6 +167,11 @@ Sources: [HA roadmap](home-assistant-roadmap.md), [voice integration](voice.md#l
 - [ ] **A03 · Static/Host:** Verify render-without-send reuse, model/orientation/cache
   keys, and integration with existing Cloud/Hybrid, wake-only albums and upload
   locks. Demonstrate that pull delivery does not also cause a local push/redraw.
+  [Six additional host checks](home-assistant-roadmap.md#render-only-reuse-and-cache-validation)
+  verify actual parameter resolution for both models and two mount rotations,
+  no runtime/delivery access and acceptance of damaged cached bytes. Overlay,
+  vendor-delivery and scheduler side effects are mapped; an actual pull adapter
+  and concurrent delivery coordination remain unimplemented/unvalidated.
 - [ ] **A04 · Design/Host:** Validate durable voice-job identity, ownership, retries,
   reload recovery, audio retention/deletion, original storage and edit lineage.
   Prove duplicate finalize requests do not create duplicate work or library items.

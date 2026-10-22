@@ -67,14 +67,95 @@ local equivalent with `next_image_utc`.
 
 A cloud-pull adapter should render an asset **without first pushing it** through
 the existing upload service. Otherwise one generation can cause two physical
-redraws. Extract only the small shared operation needed if existing helpers
-combine rendering with sending. Keep one conversion/cache implementation.
+redraws. The existing `async_render_for_entry` and `async_convert_for_entry`
+already provide that separation; no extraction is needed for plain artwork.
+Keep one conversion/cache implementation.
 
 A host experiment now verifies this primitive: the real library and converter
 retained the original, produced 2,304,000 panel bytes and a 720 × 1280 preview,
 and reused the cached result. All three delivery-mode option values were tested
 with delivery forbidden. This does not test a new pull scheduler or its locks;
 none has been implemented. See [validation and limits](validation-2026-10-21.md).
+
+### Render-only reuse and cache validation
+
+A follow-up at the same 2.5.0 source revision uses the real
+[`helpers.resolve_render_params`](../../custom_components/fraimic/helpers.py),
+library and converter, rather than supplying pre-resolved parameters. It verifies
+Standard and Large at mount rotations 0 and 90 degrees, exact packed lengths and
+valid panel nibbles. A runtime sentinel rejects any access to delivery, preview,
+power, lock or scheduler state. Cached results remain identical when switching
+the entry's Local/Cloud/Hybrid option, and no upload helper is called.
+
+| Model / mount rotation | Packed bytes | Preview dimensions |
+| --- | --- | --- |
+| Standard / 0° | 960,000 | 800 × 600 |
+| Standard / 90° | 960,000 | 450 × 600 |
+| Large / 0° | 2,304,000 | 720 × 1280 |
+| Large / 90° | 2,304,000 | 720 × 405 |
+
+The native width/height remain unchanged by mount rotation. The source rotates
+into that native buffer; preview rotation reverses the mount transform. Preview
+thumbnail bounds remain half the native width/height after rotation, explaining
+the smaller rotated previews. These are preview files, not full-size originals
+or panel assets. Stock voice's `portrait`/`landscape` label cannot identify all
+four mount rotations; retain the configured mount and make any disagreement an
+explicit adapter policy rather than silently swapping the model's dimensions.
+
+Library cache identity consists of image-ID directory plus resolved dimensions,
+rotation, preview rotation, fit, processing and crop parameters, with render-cache
+version 2. It is not a content-integrity check. `_read_render_sync` reads the
+`.bin`, `.png` and mode JSON when all exist; it does not validate panel length,
+palette or a stored content hash. Two isolated fault cases confirm that a
+17-byte truncation and a full-length buffer with invalid nibble `4` are both
+returned as cache hits with the old preview, without invoking conversion.
+Originals in the temporary library remained unchanged.
+
+For a pull job, validate the packed length and palette, regenerate a bad cached
+variant from its retained original, then freeze the accepted bytes under a
+content hash and model/conversion metadata. Repeated URL reads should return
+that immutable result even if crop, frame options or the library cache later
+change. Do not use the parameter-cache filename as a claimed SHA-256 or as
+evidence that the frame displayed the content. This validation/publication layer
+is proposed; no integration source was changed by the research.
+
+### Delivery helpers have additional side effects
+
+Plain library rendering does not include live overlays. The overlay composition,
+signature checks and acceptance bookkeeping occur in
+`services.async_render_and_upload`. A pull adapter that needs overlays must reuse
+the composition boundary deliberately; calling the entire helper to obtain its
+preview can also deliver the image. Likewise, `library.async_send_to_entry` and
+`async_upload_rendered` are sending paths, despite accepting cached bytes.
+
+The existing `cloud_delivery.async_deliver` is a **vendor-account** operation:
+it converts packed pixels back into a full PNG, uploads it, updates an art album,
+records its anchor, retires a previous upload and manages keep-awake/wake alignment.
+It is not a local asset-publishing primitive. The `async_plan_wake` method edits
+a distinct vendor album with `upload_ids: []`; a local adapter should reproduce
+the separation of wake planning and image availability through poll fields, not
+call those account methods as part of local serving.
+
+`runtime.upload_lock` serializes integration sends. Firmware microphone capture,
+frame-originated polling and download/render work do not acquire that Python lock.
+Hybrid's `async_use_cloud` additionally retains account transport while
+`runtime.cloud.has_image` is true; that property describes the managed vendor
+album, so it does not automatically see a local pull job. A pull backend needs
+its own frame delivery state tied into the same scheduling decisions before it
+can safely coexist with automatic or manual LAN sends.
+
+Scheduler `begin_external_upload` increments an in-memory count that blocks new
+ordinary rotation work; it neither cancels a render already underway nor persists
+a voice job. `finish_external_upload(uploaded=True)` clears pending retry/hash
+state and can start a playlist hold. `async_notify_external_upload` persists the
+same logical update. Asset generation or an issued URL must not call these as
+though a confirmed upload occurred. Define separate processing holds and delivery
+evidence, persist their job identity, and balance releases on failure/reload.
+The backend still cannot hold for stock recording before presign reveals it.
+
+These helper/lock statements are source traces. The six host checks cover asset
+preparation and cache faults, not a working pull scheduler, overlay flow or
+concurrent push/pull execution. See the [follow-up validation](validation-2026-10-22.md#ha-pull-asset-reuse-and-cache-boundaries-a03a05).
 
 ## Useful features before changing firmware
 
@@ -136,8 +217,8 @@ For an already-paired frame, implement the device-facing subset first:
 | `upload/audio/presign` | Create a device-scoped upload ticket and durable job record |
 | Multipart audio upload | Accept bounded WAV, validate format, retain according to owner policy |
 | `upload/audio/finalize` | Deduplicate work; transcribe, route/generate and render; synchronously return ready asset URL |
-| Panel asset GET | Serve the correct immutable 2,304,000-byte Large asset |
-| `upload/global/315/<key>` | Serve required account/get-started instruction images |
+| Panel asset GET | Serve an immutable 960,000-byte Standard or 2,304,000-byte Large asset |
+| `upload/global/<model>/<key>` | Serve required account/get-started images for model 133 or 315 |
 | Album proxy, later | Translate the supported vendor-shaped operations into HA-owned playlists where semantics match |
 
 The full wire contract is in [cloud](cloud-protocol.md) and [voice](voice.md).

@@ -623,3 +623,38 @@ Private artifacts: `small-frame/standard-voice-lifetime-pass1.txt`,
 `standard-voice-boundaries-gnu.txt`, `standard-voice-literals.jsonl` and earlier
 `standard-instruction-pass2.txt`. Model metadata now maps 54 function pairs.
 No frame request, recording, image change or firmware execution occurred.
+
+## HA pull-asset reuse and cache boundaries: A03/A05
+
+Six isolated checks passed on Omarchy against the real library, parameter
+resolver, model and converter. Integration source still matches
+[`e5450665`](https://github.com/kristofferR/ha-fraimic-eink/commit/e5450665ddbb57c2542c883375ba68c0aefbb1b1).
+The fixture supplies synthetic PNGs, temporary library storage and minimal HA
+imports/executor support. It loads the actual resolver from `helpers.py`, while
+the entry's runtime raises on any attribute access and the send helper raises
+if called. This extends the earlier experiment's pre-resolved parameters.
+
+Four cases cover Standard/Large at mount rotations 0/90, exact packed lengths,
+palette nibbles, original retention and preview dimensions. Each reuses its cache
+under all three delivery-mode option values with the converter forbidden.
+Two more cases damage only temporary cached panel files: 17-byte truncation and
+an invalid `0x44` byte in an otherwise full-length buffer. Both return unchanged
+as cache hits, retaining the previous preview and untouched original.
+
+The initial fixture expected larger/swapped preview bounds. Inspection of
+`_indices_to_png` showed rotation precedes a thumbnail into the unchanged half
+native-size box; corrected expectations match that implementation. The final
+result was **6 passed in 8.40 seconds**. No product change was needed for this
+expectation correction, and no cache validation fix was implemented.
+
+Separate source inspection traces the existing send helpers, overlay composition,
+Hybrid transport guard, vendor art/wake album methods and external-upload count/
+hold transitions. These are not executed concurrency, account or overlay tests.
+They identify the adapter's missing delivery-state integration and distinguish
+asset publication from confirmed display.
+
+Private artifacts: `test_pull_asset_reuse.py`, `pull-asset-reuse-results.txt` and
+`pull-asset-reuse-source-hashes.txt`. Reproduce with the repository's
+`test_library_manager` fixture on `PYTHONPATH`, using `uv run --with pillow
+--with numpy --with pytest --with voluptuous --with resvg_py pytest` and the
+research file. No live HA storage, device, vendor endpoint or paid model was used.
