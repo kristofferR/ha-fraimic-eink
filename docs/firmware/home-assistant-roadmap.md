@@ -272,6 +272,12 @@ and NTP dependencies addressed.
 
 ## Voice jobs and creations
 
+The [concrete feature proposal](voice-feature-proposal.md) recommends starting
+with new artwork and visible transcript/prompt/history; the owner's scope and
+provider choices remain open. Six isolated checks establish playlist snapshots,
+non-idempotent append and per-frame scene outcomes. Saved membership, play-next,
+queued delivery and physical display must remain separate operations/states.
+
 A small durable job record should connect:
 
 - Frame identity and device-scoped request/idempotency identity.

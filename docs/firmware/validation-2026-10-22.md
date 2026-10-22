@@ -2416,3 +2416,42 @@ this pass is an evidence reconciliation, not a new binary execution or fault tes
 
 C01's bounded inventory question is complete. No device/network operation, NVS
 read or OTA work was performed, and deferred R12 was not resumed.
+
+## Voice feature reuse: A07
+
+Six isolated scenarios passed on Omarchy against unchanged release
+[`e5450665`](https://github.com/kristofferR/ha-fraimic-eink/commit/e5450665ddbb57c2542c883375ba68c0aefbb1b1)
+playlist, playback-queue and scene managers. The fixture imports the repository's
+HA/storage test substitutes; image conversion and upload boundaries are stubbed.
+It is not a live HA, provider, durable disk or physical display test.
+
+1. Saved playlist append survives the stubbed store reload but leaves an existing
+   queue snapshot unchanged; explicit queue insertion places the new image first.
+2. Duplicate playlist names are allowed, and repeated image append creates
+   separate slide IDs. Stable target resolution and command deduplication are
+   adapter responsibilities.
+3. Playlist schema validation accepts a missing library reference. It does not
+   establish that the original exists.
+4. A two-frame scene prepares both mapped images before delivery. The actual
+   scene method returns `ok: true` for both immediate upload and accepted-but-
+   queued delivery, while releasing holds with the respective uploaded flag.
+5. A render failure for one frame allows another frame to upload, with separate
+   outcomes and all acquired holds released.
+6. Scene lookup tolerates case/whitespace; creation rejects duplicate names and
+   missing library sources.
+
+The private fixture uses Python 3.14 with `pytest`, `voluptuous`, `pillow`, `numpy`
+and `resvg_py` in a disposable `uv run --no-project` environment; the worktree's
+`tests` directory supplies the helper modules through `PYTHONPATH`. Result:
+**6 passed in 0.17 seconds**. No integration source changed.
+
+The [feature proposal](voice-feature-proposal.md) captures explicit target/current-
+image semantics and the remaining scope/provider decision. A07's host milestone
+is complete; the owner's feature choice is not inferred from these checks.
+
+| Source / private fixture | SHA-256 |
+| --- | --- |
+| `test_voice_feature_reuse.py` | `78cf6894b79d992c2c17266669f6c865bcb694d5b5f44fb943906d764772417c` |
+| `custom_components/fraimic/playlists.py` | `9e52cca63246e2b8bf4989a58cbd98d0a2901d7e9e6cd37b7099d6db88726e1d` |
+| `custom_components/fraimic/playback_queue.py` | `2ad3295fd3d392e92dcee4636ddc05aa31fe76ab2f478298c08da98989227171` |
+| `custom_components/fraimic/scenes.py` | `4cae6c6cc2c0fe26e8f778c63a40566bf4223dab26a91b9e8659d403c3320d2e` |

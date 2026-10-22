@@ -43,6 +43,7 @@ No transcription or AI generation was invoked.
 | [Local API](local-api.md) | All 42 registered routes, diagnostics and side effects |
 | [LED and workflow state](led-and-workflow-state.md) | 41-state table, priorities, protection latch and limits of visible status |
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
+| [Voice feature proposal](voice-feature-proposal.md) | Creation history, explicit image/target semantics and six playlist/scene API checks |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
 | [22 October validation](validation-2026-10-22.md) | HTTP/diagnostic/OTA traces; 25 poll and 19 album JSON host cases |
