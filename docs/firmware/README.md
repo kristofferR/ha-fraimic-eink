@@ -18,8 +18,10 @@ as [pass history](research-progress-2026-10-22.md); the checklist owns current s
 The [21 October validation](validation-2026-10-21.md) records owner gallery reads,
 installed HA capabilities, five library host checks and deeper firmware traces.
 The [22 October continuation](validation-2026-10-22.md) adds HTTP-server lifecycle,
-factory/log diagnostics, OTA failure boundaries, 25 host poll-parser cases and
-19 album-body cases without device tests.
+diagnostics, transport/parser and persistence boundaries, task ownership, input,
+boot/scheduling and model comparisons. Later instruction cases cover album retry,
+late poll publication, task admission and keep-awake across wake contexts. These
+static/host passes do not count as device tests.
 The [local-backend experiment](backend-emulation.md) then demonstrated locally
 generated poll and album responses on the physical frame, without firmware changes.
 It also captured the microphone locally, then completed successful finalize,
@@ -49,7 +51,7 @@ No transcription or AI generation was invoked.
 | [Album/playlist mapping](album-playlist-mapping.md) | Proposed stock-album subset, wake-only records and nineteen isolated mutation checks |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
-| [22 October validation](validation-2026-10-22.md) | HTTP/diagnostic/OTA traces; 25 poll and 19 album JSON host cases |
+| [22 October validation](validation-2026-10-22.md) | Transport/parser, storage, task ownership, input/wake and complete poll-body comparisons |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
 | [Backend deployment](backend-deployment.md) | HA views versus companion listener, actual deployment constraints and 24 isolated boundary checks |
 | [Protocol extensions](protocol-extensions.md) | Proposed negotiation, sleeping jobs, no-redraw commands, state events and streaming/VAD boundaries |
@@ -131,6 +133,15 @@ addresses across releases. Function names are analytical descriptions.
 13. Standard's blocked public reachability probe caused AP failover and an aborted
     image transfer. A temporary exception restored operation; that exception was
     removed. A custom API URL alone is insufficient for offline operation.
+14. The complete poll application bodies match across both models except fallback
+    version/model strings. One stock-protocol adapter can share that contract,
+    while retaining model-specific assets and external-helper limits.
+15. Poll retry is not a delivery receipt. A late result can be cleared while its
+    old task blocks retry creation; the starter's check/create guard is not atomic.
+    These are scripted instruction findings, not observed concurrent failures.
+16. Keep-awake can affect the next ordinary idle check without reboot. Album wake
+    follows a separate sleep path, so that setting alone does not establish an
+    interactive awake window.
 
 ## Current boundary
 

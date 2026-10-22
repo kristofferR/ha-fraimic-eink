@@ -100,6 +100,56 @@ early errors that exit application entry from tolerated cache/instruction
 failures. It also follows failed background-task creation and shows that an
 idle-entry checkpoint is not a service-readiness acknowledgment.
 
+### Keep-awake changes ordinary idle admission, not the album wake path
+
+The four-switch application function updates the RAM keep-awake byte before
+calling its saver. Getter Large `0x420158a8` / Standard `0x420158c8` reads that
+byte directly. Ordinary idle predicate `0x42010f4c` / `0x42010c90` returns false
+when keep-awake is enabled, before checking charging, elapsed activity or
+scheduled work. Thus a new snapshot can affect the **next ordinary idle check**
+without reboot; it does not necessarily wait for the next wake to take effect.
+
+The scope matters. The predicate checks factory-test mode first, so an expired
+factory test can return true before the keep-awake gate. Explicit sleep and
+other lifecycle branches also have their own admission. This switch is not a
+universal prohibition on sleep.
+
+Twenty instruction cases per build establish these selected outcomes:
+
+| State or transition | Bounded result |
+| --- | --- |
+| Paired/verified ordinary operation, ten minutes idle, keep-awake off | Idle predicate requests sleep |
+| Enable keep-awake, including when the settings saver returns an error | Next idle check declines sleep; RAM already contains the enabled value |
+| Disable it again with the old activity timestamp | Next check requests sleep; applying the switch does not refresh that timestamp in the tested path |
+| Charging or a poll task still running, keep-awake off | Idle check declines sleep in the selected state |
+| Expired factory-test state, keep-awake on | Factory branch returns true before consulting keep-awake |
+| Album phase with absent, overdue or future deadline, either switch value | Same ordinary pre-sleep or five-minute timer call; no keep-awake getter call |
+
+The album cases begin after result processing. For no deadline or a deadline
+31 seconds ahead, they reach the ordinary pre-sleep call. A positive deadline
+15 seconds ahead takes the separate five-minute retry timer path. None first
+calls the ordinary idle predicate. Consequently setting keep-awake in an album
+poll is not a reliable command to convert that wake into normal interactive
+operation. HA's existing restart-based awake-window approach addresses this
+wake-context distinction; merely sending the setting is not equivalent.
+
+With synchronized time and keep-awake off, the ordinary predicate has additional
+holds. It declines sleep during the fifteen minutes leading up to 03:00 local
+time, including 02:45 and 03:00, using its own hardcoded calendar calculation.
+Outside that window, a positive album timestamp from **29 seconds overdue
+through 120 seconds ahead** also holds it awake. The adjacent -30/+121-second
+cases allow the normal expired-idle decision. This is separate from the
+greater-than-30-second timer-selection rule. The cases supply calendar/epoch
+values directly; they do not measure wall-clock timing or exercise timezone
+conversion. Do not interpret these holds as a battery baseline or a guarantee
+that all other sleep paths are blocked.
+
+[Cases](keepawake-cases.json) and
+[validation](validation-2026-10-22.md#keep-awake-setting-and-wake-context-s06c02e01e02)
+record the real instruction boundaries and stubbed state/time inputs. The album
+checks stop at the first pre-sleep/timer call, without executing shutdown. No
+device setting, restart or sleep experiment occurred.
+
 ### Pre-sleep ordering and outstanding work
 
 The ordinary pre-sleep routine first checks for a pending OTA and its safety

@@ -3785,3 +3785,39 @@ and 124/188, with physical response criteria deferred.
 | `poll-full-comparison.public.json` (published mapping) | `3fbbe6b487fbc84b44278cacac09c8bc48065689f2020908c603601527d1faa4` |
 | `poll-request-large-cfg.json` | `e299a346ba8244456567d97c4edfa01bd971966bd762f33c2272d0277be556e4` |
 | `poll-request-standard-cfg.json` | `a69682a89fc4dbbeb18968b4fd78962047ebf32f2444e98cb1d4e05b611ec84f` |
+
+## Keep-awake setting and wake context: S06/C02/E01/E02
+
+The [wake-context audit](boot-and-scheduling.md#keep-awake-changes-ordinary-idle-admission-not-the-album-wake-path)
+recovers each model's 58-instruction settings applicator, four-instruction
+keep-awake getter and 102-instruction idle predicate. It also executes the
+existing byte-checked main CFG from the album deadline phase, Large `0x42012c7c`
+/ Standard `0x42012bdc`. All instruction bytes are checked against the pinned
+applications. Keep-awake resides at `0x3fca6b42` / `0x3fca6bb2`; the getter
+reads the actual synthetic RAM value written by the real applicator.
+
+All **twenty cases per build passed**, covering 253 distinct instructions each.
+Fourteen ordinary-idle/setting cases cover on/off, saver failure, charging,
+running poll, factory expiry, synchronized time, the 02:44/02:45 boundary,
+album -30/-29/+120/+121-second boundaries and disabling with an old activity
+timestamp. Six album cases combine both keep-awake values with absent, overdue
+and future deadlines. They take the same pre-sleep/timer calls and invoke no
+keep-awake getter. The [numeric ledger](keepawake-cases.json) records results,
+getter/save counts, activity timestamp and call boundary.
+
+Ordinary cases assume a paired/verified device, wake flag zero and ten minutes
+of elapsed activity time unless overridden. Time, calendar, factory/charging,
+registration, synchronization, running-poll and saver results are scripted.
+The album cases stop at ordinary pre-sleep or the first 300,000,000 µs timer
+request. Shutdown, real persistence, physical charging and sleep are not run.
+This proves selected admission branches, not an actual awake-window duration,
+battery baseline or complete lifecycle equivalence. No device/network/HA change
+occurred. Existing S06/C02/E01/E02 evidence is extended, with checklist counts
+unchanged at 12/67 and 124/188.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `keepawake-cases.mjs` | `dea01f366cea38c777325b7c2267eb77533e605f57d24f2973e1a17001d41ffb` |
+| `keepawake-results.json` (published as the numeric ledger) | `6ea57cc83d4ee964f36f7380f8bcf387d69ed02804df5fc04eaa8131bd8a5b98` |
+| `keepawake-idle-large-cfg.json` | `3154d32969804558fea429983aabcb6bc78b3f2479afdc8f25bc653da3de84b6` |
+| `keepawake-idle-standard-cfg.json` | `a974efdb999d73e691dae5748454ad67f4e41a8008c7b8c6ceb8ae98325636e4` |

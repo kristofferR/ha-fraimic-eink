@@ -157,6 +157,14 @@ on exit. Together these cases cover 87 distinct starter/worker/cooldown
 instructions per build with modeled task creation. Actual scheduling and
 concurrent HTTP remain untested.
 
+The [keep-awake audit](boot-and-scheduling.md#keep-awake-changes-ordinary-idle-admission-not-the-album-wake-path)
+adds twenty cases per build across the actual settings application, getter,
+ordinary idle predicate and bounded album deadline phase. Both respond to the
+RAM setting at the next ordinary idle check, retain the existing activity
+timestamp, bypass that gate for the tested album paths and share the selected
+03:00/near-album idle holds. Coverage is 253 distinct instructions per build;
+time, charging and persistence are synthetic, with no physical sleep test.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

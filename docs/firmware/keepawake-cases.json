@@ -1,0 +1,468 @@
+{
+  "evidence": "Byte-checked setting application, keep-awake getter, idle predicate and bounded album deadline branches",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        },
+        {
+          "name": "getter",
+          "entry": "0x420158a8",
+          "instructions": 4,
+          "sha256": "282216a8b4ca7877b7eae69476250a1d67abbe0ed25fb76412dc537f3a36e478"
+        },
+        {
+          "name": "apply",
+          "entry": "0x420158cc",
+          "instructions": 58,
+          "sha256": "89e24ff71d0e94dfcd1116ccd081812b935fcb4d758fe523daa8809c79953895"
+        },
+        {
+          "name": "idle",
+          "entry": "0x42010f4c",
+          "instructions": 102,
+          "sha256": "3154d32969804558fea429983aabcb6bc78b3f2479afdc8f25bc653da3de84b6"
+        }
+      ],
+      "album_start": "0x42012c7c",
+      "instructions_executed_unique": 253,
+      "scenarios": [
+        {
+          "name": "ordinary-expired-keep-off",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "ordinary-expired-keep-on",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 1,
+          "keep_getter_calls": 1,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "keep-on-despite-save-error",
+          "idle_sleep_requested": 0,
+          "settings_result": 257,
+          "keep_awake": 1,
+          "keep_getter_calls": 1,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "charging-with-keep-off",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "running-poll-with-keep-off",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "factory-expired-overrides-keep-on",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "ordinary-time-synced-no-near-schedule",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "within-fifteen-minutes-of-three",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "sixteen-minutes-before-three",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-120-seconds-ahead",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-121-seconds-ahead",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-29-seconds-late",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-30-seconds-late",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "disable-keep-does-not-reset-activity",
+          "idle_before": 0,
+          "idle_after": 1,
+          "keep_awake": 0,
+          "keep_getter_calls": 2,
+          "save_calls": 2,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-deadline-0-keep-0",
+          "deadline": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 0,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        },
+        {
+          "name": "album-deadline-0-keep-1",
+          "deadline": 0,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        },
+        {
+          "name": "album-deadline-100015-keep-0",
+          "deadline": 100015,
+          "keep_awake": 0,
+          "keep_getter_calls": 0,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": "five-minute-timer-call"
+        },
+        {
+          "name": "album-deadline-100015-keep-1",
+          "deadline": 100015,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": "five-minute-timer-call"
+        },
+        {
+          "name": "album-deadline-100031-keep-0",
+          "deadline": 100031,
+          "keep_awake": 0,
+          "keep_getter_calls": 0,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        },
+        {
+          "name": "album-deadline-100031-keep-1",
+          "deadline": 100031,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        },
+        {
+          "name": "getter",
+          "entry": "0x420158c8",
+          "instructions": 4,
+          "sha256": "09608ec95b0c2c77f0c69ae5878a9d19b9ac035950889d3bf0edc225fcefc1bf"
+        },
+        {
+          "name": "apply",
+          "entry": "0x420158ec",
+          "instructions": 58,
+          "sha256": "bd3905279c34caa9138328351ba20eaf836549cadf8615ec5f9a78fffdf8e93b"
+        },
+        {
+          "name": "idle",
+          "entry": "0x42010c90",
+          "instructions": 102,
+          "sha256": "a974efdb999d73e691dae5748454ad67f4e41a8008c7b8c6ceb8ae98325636e4"
+        }
+      ],
+      "album_start": "0x42012bdc",
+      "instructions_executed_unique": 253,
+      "scenarios": [
+        {
+          "name": "ordinary-expired-keep-off",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "ordinary-expired-keep-on",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 1,
+          "keep_getter_calls": 1,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "keep-on-despite-save-error",
+          "idle_sleep_requested": 0,
+          "settings_result": 257,
+          "keep_awake": 1,
+          "keep_getter_calls": 1,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "charging-with-keep-off",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "running-poll-with-keep-off",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "factory-expired-overrides-keep-on",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "ordinary-time-synced-no-near-schedule",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "within-fifteen-minutes-of-three",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "sixteen-minutes-before-three",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-120-seconds-ahead",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-121-seconds-ahead",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-29-seconds-late",
+          "idle_sleep_requested": 0,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-30-seconds-late",
+          "idle_sleep_requested": 1,
+          "settings_result": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 1,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "disable-keep-does-not-reset-activity",
+          "idle_before": 0,
+          "idle_after": 1,
+          "keep_awake": 0,
+          "keep_getter_calls": 2,
+          "save_calls": 2,
+          "activity_timestamp": 0,
+          "sleep_boundary": null
+        },
+        {
+          "name": "album-deadline-0-keep-0",
+          "deadline": 0,
+          "keep_awake": 0,
+          "keep_getter_calls": 0,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        },
+        {
+          "name": "album-deadline-0-keep-1",
+          "deadline": 0,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        },
+        {
+          "name": "album-deadline-100015-keep-0",
+          "deadline": 100015,
+          "keep_awake": 0,
+          "keep_getter_calls": 0,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": "five-minute-timer-call"
+        },
+        {
+          "name": "album-deadline-100015-keep-1",
+          "deadline": 100015,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": "five-minute-timer-call"
+        },
+        {
+          "name": "album-deadline-100031-keep-0",
+          "deadline": 100031,
+          "keep_awake": 0,
+          "keep_getter_calls": 0,
+          "save_calls": 0,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        },
+        {
+          "name": "album-deadline-100031-keep-1",
+          "deadline": 100031,
+          "keep_awake": 1,
+          "keep_getter_calls": 0,
+          "save_calls": 1,
+          "activity_timestamp": 0,
+          "sleep_boundary": "ordinary-presleep-call"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Settings saving, time/calendar values, factory/charging/registration/synchronization/running predicates and logging are stubbed. No persistence, actual clock or hardware is executed.",
+    "Ordinary idle cases assume ten minutes of elapsed activity time, paired/verified identity and wake flag zero, except explicit overrides.",
+    "Album cases begin after result processing and stop at the ordinary pre-sleep call or five-minute timer call; they do not execute shutdown or physical sleep.",
+    "No reboot is performed; immediate setting effects are bounded to direct subsequent idle checks in this instruction model.",
+    "No device, backend, network or HA change was made."
+  ]
+}

@@ -361,6 +361,12 @@ also shows that repeating the identical snapshot skips persistence again: RAM
 already matches, and there is no dirty flag. The poll logs the original save
 error and continues, so poll success does not acknowledge durable settings.
 
+Keep-awake's RAM update can affect the next ordinary idle check without a
+reboot, but album wake uses a separate path toward sleep. Disabling it also
+does not reset the existing activity timestamp in the tested setting path.
+See [wake-context behavior](boot-and-scheduling.md#keep-awake-changes-ordinary-idle-admission-not-the-album-wake-path)
+before using this field as an interactive-session command.
+
 `autoUpdateEnabled=false` does **not** locally block an otherwise accepted
 firmware offer in the recovered path. Withhold `firmware` unless deliberately
 offering an update. See [update policy](ota-and-recovery.md#update-policy).
