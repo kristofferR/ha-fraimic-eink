@@ -49,6 +49,7 @@ per question, not a count of tool calls or decompiled functions.
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C06/D01/A06/E02 | Recovered capture worker; nine matching-SDK host groups verify partial-timeout data loss and whole-block admission; nine Standard function pairs match capture, stop and completion-signal branches | Physical recording/dropout/stop timing, remaining external SDK/configuration paths and structured capture-result events |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
+| C05/C08/D01 | Eight SDK/sender host groups verify repeated per-write timeout budgets, zero/error returns after partial progress, exact framing length and footer failure after a complete audio body | Real TCP/TLS delivery, allocation faults, concurrent cancellation, Standard's complete multipart path and physical response variants |
 | C05/D01/E02 | Twenty-five host parser/field groups verify copy limits, duplicate/NUL/type handling, raw string-part projection and formatted-fields growth; ten Standard/Large function pairs match copying, printing and first-member lookup | Physical malformed-response/allocation controls, complete streaming/framing faults and remaining external parser/helper comparison |
 | S01/E02 | Both models distinguish immediate TCP refusal from post-selection error, ignore socket-error query failure and preserve manager cycles after recovery; thirteen function pairs compare probe/queue and recovery thresholds | Controlled backend/WAN outages, refusal/error timing, retained-cycle sequences and full external Wi-Fi/transport faults |
 | C07/C08/D01/D07 | Upload task creation passes a borrowed 220-byte caller context; timeout returns without joining, while every worker exit still accesses its status/semaphore pointers | Physical timing, expired-stack effects, late completion/two-job reproduction and complete cleanup design |
@@ -162,6 +163,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   truncation, first-duplicate lookup and serialization allocation failure.
   Complete incoming JSON can still become unusable copied fields; physical
   response variants and transport/framing failures remain open.
+  [Eight writer/framing host groups](voice.md#host-checked-write-failures-and-framing-length)
+  verify lost partial-progress reporting, exact body sizing and incomplete
+  multipart after full audio transmission; real socket/TLS and allocation faults remain.
   [Ten Standard function pairs](standard-model-comparison.md#presign-copying-and-member-lookup-also-match)
   confirm the same result layout, formatted serializer and ASCII first-match
   lookup; the earlier host groups are not counted as a second run.

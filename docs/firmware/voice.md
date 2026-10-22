@@ -289,6 +289,13 @@ count; a short/negative result closes and cleans up rather than resuming at a ne
 offset. SDK write `0x4206d930` can internally combine several positive transport
 writes, so application chunks are not TCP packet boundaries.
 
+If a later transport write returns zero or a negative value, the SDK returns
+**that last result**, discarding earlier positive progress from its return value.
+Thus a zero/error does not establish that no bytes left the client. The application
+increments its WAV offset only after a complete 4,096-byte-or-smaller chunk;
+its failure log can omit a transmitted prefix of the failing chunk. It does not
+resume that prefix or proceed to the footer/response path after the failure.
+
 The configuration sets **120,000 ms** network timeout and an **8,192-byte transmit
 buffer**; its receive buffer defaults to 512 bytes, as traced in the
 [client configuration audit](cloud-protocol.md#http-buffers-trust-precedence-and-url-scheme).
@@ -305,11 +312,56 @@ transmission therefore does not have this client's abort registration available,
 and already transmitted audio cannot be recalled. The physical cancellation test
 remains deferred; other network failures and outer-task lifetime are separate.
 
+### Host-checked write failures and framing length
+
+Eight host groups use the unchanged `esp_http_client_write` function from
+[ESP-IDF 5.4.1](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_http_client/esp_http_client.c),
+with scripted transport returns, a synthetic byte sink and virtual elapsed time.
+The application prefix/audio/footer sequence is reconstructed from Large's
+instructions, not executed Xtensa firmware. Nineteen bounded GNU ranges cover
+691 instructions, with bytes checked against the pinned app and complete range
+coverage, including the SDK writer and application checks/cleanup branches.
+
+| Host case | Result |
+| --- | --- |
+| Transport writes 1,024 + 1,024 + 2,048 bytes for one 4,096-byte call | SDK returns 4,096, advances offsets without duplication and reapplies 120,000 ms on every transport call; three simulated 90-second waits total 270 seconds |
+| Transport accepts 1,024 bytes, then returns zero | SDK returns zero, despite 1,024 bytes in the synthetic sink |
+| Transport accepts 1,024 bytes, then returns −1 | SDK returns −1 with the same earlier progress |
+| Client state below request-headers-complete | Returns −1 without calling transport |
+| Empty fields or one ticket, at shortest/longest generated boundary lengths | Calculated framing allocation and full body length equal the constructed bytes |
+| Successful 9,000-byte synthetic audio body | WAV writes are 4,096 + 4,096 + 808 bytes; footer follows; only then are abort registration and response-header fetching reached |
+| Second WAV chunk accepts 1,024 bytes, then fails | Application offset remains 4,096 while sink contains 5,120 audio bytes; no footer or response-header fetch |
+| Footer accepts three bytes, then returns zero | All 9,000 audio bytes are already in the sink, but the multipart body is incomplete and the application fails before response handling |
+
+For boundary length `B`, audio length `W` and emitted string fields with name/value
+byte lengths `Nᵢ` / `Vᵢ`, the recovered body calculation is:
+
+```text
+field_bytes = Σ(B + Nᵢ + Vᵢ + 49)
+body_bytes = field_bytes + W + 2B + 110
+framing_allocation = body_bytes − W + 1
+```
+
+The allocation's extra byte is for termination and is not sent. Generated
+boundaries are `----FormBoundary` plus a decimal unsigned 32-bit value; multipart
+encoding is byte-counted, not character-counted. This calculation does not make
+names/values escaped or validate an incoming presign response.
+
+All eight groups passed with compiler warnings treated as errors and
+address/undefined-behavior sanitizers. Source SHA-256 is
+`7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2`;
+the extracted writer body is
+`a2eb7832c2bff78b0a8e09cf9ae300d5d58d8574a58fede8eee448306c721453`.
+The sink proves only scripted transport acceptance, not delivery to a real peer.
+No socket/TLS traffic, recordings, real delay, allocation fault or physical
+upload failure was induced. The reconstructed sender is Large-specific; this
+pass does not compare Standard's whole multipart function.
+
 For the emulator, validate and retain a complete upload under its issued job key,
 start generation on finalize, and expire uploads that never finalize. Receipt of
 the WAV alone does not prove that the user completed the whole workflow or that
-the frame will accept a result. These streaming/fault details are static findings;
-the earlier successful local uploads remain the physical positive controls.
+the frame will accept a result. These static and host checks complement the
+earlier successful local uploads, which remain the physical positive controls.
 
 ### Upload acknowledgment must have an empty body
 
