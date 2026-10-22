@@ -790,10 +790,22 @@
       "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
     },
     {
+      "address": "0x4201064c",
+      "kind": "function",
+      "role": "Charging-indicator policy conjunction of two preferences and detected cable state",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42010674",
       "kind": "function",
       "role": "Storage sleep; button-only wake",
       "evidence": "static"
+    },
+    {
+      "address": "0x42010964",
+      "kind": "function",
+      "role": "Select missing-Wi-Fi or missing-time LED indication from readiness getters",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42010994",
@@ -934,6 +946,12 @@
       "evidence": "static; GNU cross-check"
     },
     {
+      "address": "0x4201515c",
+      "kind": "function",
+      "role": "Format connection, time synchronization or configuration-mode status text",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x420151dc",
       "kind": "function",
       "role": "Registered check: nonempty configured email",
@@ -988,6 +1006,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x420158c0",
+      "kind": "function",
+      "role": "Read charging-LED preference byte",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x420158cc",
       "kind": "function",
       "role": "Apply device-settings snapshot",
@@ -1004,6 +1028,12 @@
       "kind": "function",
       "role": "Wake-up image state persistence helper",
       "evidence": "static"
+    },
+    {
+      "address": "0x42015d10",
+      "kind": "function",
+      "role": "Create Wi-Fi recovery task without propagating creation result",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42015d30",
@@ -1034,6 +1064,12 @@
       "kind": "function",
       "role": "Append timestamp to five-entry maintenance history",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42015ec0",
+      "kind": "function",
+      "role": "Copy 32-byte scheduling snapshot and reject absent primary fields",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42015ef8",
@@ -1144,6 +1180,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x42017518",
+      "kind": "function",
+      "role": "Bounded string copy with explicit final NUL",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42017544",
       "kind": "function",
       "role": "Copy default identity configuration and mark cache initialized",
@@ -1193,6 +1235,12 @@
       "kind": "function",
       "role": "Select authentication base URL",
       "evidence": "static"
+    },
+    {
+      "address": "0x42017a94",
+      "kind": "function",
+      "role": "Select embedded environment-dependent authorization value; value intentionally omitted",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4201850c",
@@ -1276,6 +1324,12 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x420198dc",
+      "kind": "function",
+      "role": "Map Wi-Fi disconnect reason to diagnostic event category",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42019924",
       "kind": "function",
       "role": "Bounded HTML escape of SSID; ampersand, angle brackets and quotes",
@@ -1294,6 +1348,36 @@
       "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x42019bd8",
+      "kind": "function",
+      "role": "Compare candidate BSSID with active blacklist entries",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42019c0c",
+      "kind": "function",
+      "role": "Attempt selected BSSID/channel and wait for asynchronous connection flag",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42019ce8",
+      "kind": "function",
+      "role": "Priority/full AP scans, RSSI/channel ranking and shared five-attempt budget",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4201a508",
+      "kind": "function",
+      "role": "Invoke second-tier connection with ordinary saved-channel policy",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4201a51c",
+      "kind": "function",
+      "role": "Assemble Wi-Fi event record with optional current AP metadata",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4201a650",
       "kind": "function",
       "role": "Clear background Wi-Fi retry flag, notify task, reset attempt counter; no join",
@@ -1310,6 +1394,12 @@
       "kind": "function",
       "role": "Wi-Fi/IP event callback including fallback-AP and acquired-IP HTTP startup",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4201b274",
+      "kind": "function",
+      "role": "HTTP response-send wrapper choosing automatic string length for nonnull body",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4201b290",
@@ -1382,6 +1472,12 @@
       "routes": [
         "POST /dev"
       ]
+    },
+    {
+      "address": "0x4201b9f4",
+      "kind": "function",
+      "role": "In-place string replacement bounded by destination capacity",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4201ba58",
@@ -1486,6 +1582,18 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x4201d5f8",
+      "kind": "function",
+      "role": "First-tier connection using saved station configuration and bounded retry-progress wait",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4201d8b4",
+      "kind": "function",
+      "role": "Update cached internet-availability byte and log transitions",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4201d8f0",
       "kind": "function",
       "role": "Enable fallback AP+station mode and DNS task; also called when button wait finds unsynchronized time",
@@ -1498,10 +1606,22 @@
       "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x4201d9cc",
+      "kind": "function",
+      "role": "Clear AP blacklist and associated failover bookkeeping",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4201daa0",
       "kind": "function",
       "role": "No-internet AP failover: bounded blacklist/reconnection and same-SSID scan",
       "evidence": "static; called by startup SNTP failure as well as connectivity recovery"
+    },
+    {
+      "address": "0x4201dd0c",
+      "kind": "function",
+      "role": "Register Wi-Fi/IP events, initialize station network and select saved-connect or setup fallback",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4201e05c",
@@ -1522,10 +1642,22 @@
       ]
     },
     {
+      "address": "0x4201ea38",
+      "kind": "function",
+      "role": "Read configuration/AP mode flag",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4201ea44",
       "kind": "function",
       "role": "Read factory-test mode byte; LED setter applies its allowlist before urgency",
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x4201ea74",
+      "kind": "function",
+      "role": "Read portal retry bookkeeping word",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4201ea80",
@@ -1538,6 +1670,12 @@
       "kind": "function",
       "role": "Save Wi-Fi statistics and stop HTTP/network; HTTP stop result unchecked",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4201ebb0",
+      "kind": "function",
+      "role": "Return generated configuration AP name through its helper",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4201ebbc",
@@ -1675,10 +1813,22 @@
       "evidence": "static"
     },
     {
+      "address": "0x42020a68",
+      "kind": "function",
+      "role": "Set panel reset through communication GPIO abstraction",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42020a78",
       "kind": "function",
       "role": "Set all eight panel controller chip selects to the supplied level",
       "evidence": "static; 22 October conditioning follow-up"
+    },
+    {
+      "address": "0x42020a98",
+      "kind": "function",
+      "role": "Select one of eight controller-select GPIO mappings",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42020ab4",
@@ -1687,10 +1837,40 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42020b48",
+      "kind": "function",
+      "role": "Panel hardware reset sequence with low/high delay requests",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42020b7c",
       "kind": "function",
       "role": "Display GPIO cleanup",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42020bf0",
+      "kind": "function",
+      "role": "Forward command plus transmit payload to SPI helper",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42020c04",
+      "kind": "function",
+      "role": "Forward command plus receive payload to SPI helper",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42020c18",
+      "kind": "function",
+      "role": "Forward command-only SPI transaction",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42020c24",
+      "kind": "function",
+      "role": "Forward bulk payload to chunked SPI transmitter",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42020dd4",
@@ -1711,10 +1891,58 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42021188",
+      "kind": "function",
+      "role": "Initialize communication I2C for PMIC and latch local I2C-ready flag",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420211f4",
+      "kind": "function",
+      "role": "Transmit PMIC register buffer over I2C when PMIC-ready is set",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021264",
+      "kind": "function",
+      "role": "Latch PMIC-ready before initializing dependent TCA9534 expander",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420212dc",
+      "kind": "function",
+      "role": "Write seventeen PMIC configuration records, stop at first returned error",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202151c",
+      "kind": "function",
+      "role": "Convert requested voltage and conversion selector to PMIC register encoding",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021694",
+      "kind": "function",
+      "role": "Convert five panel-provided bytes into cached PMIC voltage records in RAM",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420217d0",
+      "kind": "function",
+      "role": "Convert PMIC configuration result to boolean error indication",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x420217e0",
       "kind": "function",
       "role": "Wait for PMIC power-good deassertion without local deadline",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021800",
+      "kind": "function",
+      "role": "Enable three power-switch output masks with intervening delays",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42021848",
@@ -1729,10 +1957,46 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x4202191c",
+      "kind": "function",
+      "role": "Write TCA9534 register/value through I2C with initialized guard",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021994",
+      "kind": "function",
+      "role": "Read TCA9534 register through I2C with initialized guard",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021a1c",
+      "kind": "function",
+      "role": "Initialize expander configuration/output registers and clear ready on write failure",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42021ad4",
       "kind": "function",
       "role": "Update cached TCA9534 output byte before I2C write; return write result without rolling back cache",
       "evidence": "static; complete GNU body and bounded D06 host reconstruction"
+    },
+    {
+      "address": "0x42021b14",
+      "kind": "function",
+      "role": "Translate validated pin number into expander output mask",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021b58",
+      "kind": "function",
+      "role": "Read expander input register zero",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021b6c",
+      "kind": "function",
+      "role": "Validate expander input pin and destination; return selected bit only on successful read",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42021ba8",
@@ -1747,10 +2011,28 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42021ca0",
+      "kind": "function",
+      "role": "Request TOGGLE_SEL1 output bit high",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42021cc8",
       "kind": "function",
       "role": "Millisecond-to-RTOS-delay wrapper",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021cdc",
+      "kind": "function",
+      "role": "Send SPI command using shared active handle and descriptor",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021d68",
+      "kind": "function",
+      "role": "Send payload in bounded SPI chunks; return last narrowed status",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42021e5c",
@@ -1759,10 +2041,34 @@
       "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x42021f30",
+      "kind": "function",
+      "role": "Send command and payload using shared SPI descriptor",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42021fac",
+      "kind": "function",
+      "role": "Read command response using shared SPI descriptor",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42022028",
+      "kind": "function",
+      "role": "Read SPI data into caller buffer using shared descriptor",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x420220a8",
       "kind": "function",
       "role": "Manual controller select and shared device-handle selection",
       "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42022118",
+      "kind": "function",
+      "role": "Dispatch virtual pins 100 through107 to expander, others to native GPIO",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42022140",
@@ -1795,10 +2101,22 @@
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
+      "address": "0x420227a4",
+      "kind": "function",
+      "role": "Calculate periodic floating-point LED intensity; zero period returns255",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42022860",
       "kind": "function",
       "role": "LED pattern/state worker",
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x42022ccc",
+      "kind": "function",
+      "role": "Suspend ordinary LED worker for RGB test sequence, resume and delete test task",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42022d48",
@@ -1835,6 +2153,18 @@
       "kind": "function",
       "role": "Start independent LED test task without checking creation result",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x42023254",
+      "kind": "function",
+      "role": "Temporarily suspend LED worker for bounded green-blink sequence",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420232e0",
+      "kind": "function",
+      "role": "Create red-blink task without propagating creation result",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42023300",
@@ -2059,6 +2389,12 @@
       "evidence": "static; voice response boundary follow-up, GNU cross-check"
     },
     {
+      "address": "0x420279f0",
+      "kind": "function",
+      "role": "Convert RTOS tick count to milliseconds by multiplying by10",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42027a00",
       "kind": "function",
       "role": "Set display-manager state under mutex; failure returns may be ignored by callers",
@@ -2093,6 +2429,12 @@
       "kind": "function",
       "role": "Display shutdown without renderer join; ignores BUSY/clear/state failures and inherits unconditional power-wrapper success",
       "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x42027d74",
+      "kind": "function",
+      "role": "Submit fixed display state request through common transition helper",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42027d88",
@@ -2161,6 +2503,12 @@
       "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
     },
     {
+      "address": "0x42028518",
+      "kind": "function",
+      "role": "Read flash-manager state word",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42028524",
       "kind": "function",
       "role": "Direct last-image overwrite: discard flush/close results, log fsync error, success from fwrite count alone",
@@ -2179,10 +2527,28 @@
       "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
     },
     {
+      "address": "0x4202883c",
+      "kind": "function",
+      "role": "Query last-image cache size only when flash is ready and file exists",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42028878",
+      "kind": "function",
+      "role": "Require flash ready, validate or create system-image directory",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42028914",
       "kind": "function",
       "role": "Load local system image",
       "evidence": "static"
+    },
+    {
+      "address": "0x42028ab4",
+      "kind": "function",
+      "role": "Construct system-image filename and query existence",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42028ae8",
@@ -2239,6 +2605,30 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42029024",
+      "kind": "function",
+      "role": "Read shared I2C-ready byte",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42029030",
+      "kind": "function",
+      "role": "Acquire shared I2C mutex with converted timeout; absent mutex fails",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42029064",
+      "kind": "function",
+      "role": "Release shared I2C mutex when nonnull",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202907c",
+      "kind": "function",
+      "role": "Diagnostic I2C scan across addresses8 through119 while holding shared mutex",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202915c",
       "kind": "function",
       "role": "Primary accelerometer register write at fixed I2C address 0x1e",
@@ -2251,10 +2641,22 @@
       "evidence": "static; 22 October orientation follow-up"
     },
     {
+      "address": "0x42029254",
+      "kind": "function",
+      "role": "Read one accelerometer register through common read helper",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42029264",
       "kind": "function",
       "role": "Read status and six acceleration bytes; status bits unused",
       "evidence": "static; 22 October orientation follow-up"
+    },
+    {
+      "address": "0x42029314",
+      "kind": "function",
+      "role": "Retry accelerometer register read up to three times under shared I2C mutex",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x420293e4",
@@ -2281,6 +2683,18 @@
       "evidence": "static; 22 October orientation follow-up"
     },
     {
+      "address": "0x420297dc",
+      "kind": "function",
+      "role": "Read accelerometer availability byte",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420297e8",
+      "kind": "function",
+      "role": "Forward accelerometer vector read only when marked available",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42029820",
       "kind": "function",
       "role": "Power down accelerometer; clear available flag only on successful write",
@@ -2299,16 +2713,64 @@
       "evidence": "static; 22 October orientation follow-up"
     },
     {
+      "address": "0x42029938",
+      "kind": "function",
+      "role": "Interpolate voltage lookup table and quantize fallback battery percentage",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420299f8",
+      "kind": "function",
+      "role": "Estimate voltage trend from stored samples with floating-point linear fit",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42029ab8",
+      "kind": "function",
+      "role": "Classify voltage-trend and voltage inputs into battery state codes",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42029be8",
+      "kind": "function",
+      "role": "Start battery monitor with mutex admission and rollback after task-creation failure",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42029ccc",
       "kind": "function",
       "role": "Battery-monitor enable clear under ten-tick mutex attempt; no worker join",
       "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x42029d24",
+      "kind": "function",
+      "role": "Read cached battery-monitor state under mutex, default zero on failure",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x42029d60",
       "kind": "function",
       "role": "Read doubled gauge/pack voltage",
       "evidence": "static"
+    },
+    {
+      "address": "0x42029dac",
+      "kind": "function",
+      "role": "Get gauge percentage when available, else use voltage-based fallback",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42029df0",
+      "kind": "function",
+      "role": "Read cached battery classification under mutex, default zero on failure",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42029e2c",
+      "kind": "function",
+      "role": "Compare gauge current with threshold; missing gauge takes default branch",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42029e64",
@@ -2323,6 +2785,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x42029fa4",
+      "kind": "function",
+      "role": "Assemble battery/cable/full/charging/LED summary with gauge or fallback policy",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a10c",
+      "kind": "function",
+      "role": "Build temporary battery summary without publishing a result",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202a154",
       "kind": "function",
       "role": "Local HTTP handler",
@@ -2330,6 +2804,54 @@
       "routes": [
         "GET /battery/status"
       ]
+    },
+    {
+      "address": "0x4202a280",
+      "kind": "function",
+      "role": "Select charging LED state through preferences and battery summary",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a2a8",
+      "kind": "function",
+      "role": "Battery monitor loop: gauge or voltage trend, cable transitions and LED requests",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a7d0",
+      "kind": "function",
+      "role": "Read gauge availability byte",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a7dc",
+      "kind": "function",
+      "role": "Temperature wrapper returning initialized zero when unavailable or unwritten",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a7fc",
+      "kind": "function",
+      "role": "Current wrapper returning initialized zero when unavailable or unwritten",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a820",
+      "kind": "function",
+      "role": "Cycle-count wrapper returning initialized zero when unavailable or unwritten",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a840",
+      "kind": "function",
+      "role": "State-of-health wrapper returning initialized zero when unavailable or unwritten",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202a860",
+      "kind": "function",
+      "role": "Request gauge sleep when available and log returned result",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202a8b8",
@@ -2380,6 +2902,12 @@
       "evidence": "static; development-mode follow-up"
     },
     {
+      "address": "0x4202b14c",
+      "kind": "function",
+      "role": "Read instruction-manager state word",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202b158",
       "kind": "function",
       "role": "Instruction wrapper with cache saving enabled",
@@ -2402,6 +2930,12 @@
       "kind": "function",
       "role": "Get Started pending getter: flag true and monotonic time strictly before deadline; expiry does not cancel task",
       "evidence": "static; 22 October instruction lifetime follow-up"
+    },
+    {
+      "address": "0x4202b3ac",
+      "kind": "function",
+      "role": "Return instruction description from validated index or unknown label",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202b3cc",
@@ -2432,6 +2966,24 @@
       "kind": "function",
       "role": "Save OTA update/rollback/boot counters and timestamp/version",
       "evidence": "static"
+    },
+    {
+      "address": "0x4202b6ac",
+      "kind": "function",
+      "role": "Increment OTA statistics counter and invoke persistence helper",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202b6c0",
+      "kind": "function",
+      "role": "Save OTA current-version text to NVS with logged errors and handle cleanup",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202b788",
+      "kind": "function",
+      "role": "Validate OTA metadata URL prefix, bounded size and64-character hexadecimal digest",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202b8a8",
@@ -2494,10 +3046,28 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202d1a4",
+      "kind": "function",
+      "role": "Copy64-byte OTA state snapshot after readiness and destination checks",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202d1d0",
       "kind": "function",
       "role": "Consume terminal OTA report before HTTP; compiled version, success clears state, failure clears state and error",
       "evidence": "static; poll request GNU and host reconstruction follow-up"
+    },
+    {
+      "address": "0x4202d2c4",
+      "kind": "function",
+      "role": "Parse three byte-sized dotted version components and preserve bounded source text",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202d330",
+      "kind": "function",
+      "role": "Load optional OTA version text from NVS; parser result is not propagated",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202d3a4",
@@ -2572,6 +3142,12 @@
       "evidence": "static; 22 October diagnostic follow-up"
     },
     {
+      "address": "0x4202de68",
+      "kind": "function",
+      "role": "Periodically refresh log timestamp text when system clock year is usable",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202ded8",
       "kind": "function",
       "role": "Recovered SDK log-capture hook; bounded format, redaction, serial output and nonblocking history mutex",
@@ -2594,6 +3170,12 @@
       "kind": "function",
       "role": "Best-effort current-log clear; no saved-file removal or returned result",
       "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x4202e25c",
+      "kind": "function",
+      "role": "Format redacted value suffix into rotating four-slot scratch storage",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202e308",
@@ -2620,6 +3202,12 @@
       "evidence": "static; 22 October diagnostic follow-up"
     },
     {
+      "address": "0x4202e7e0",
+      "kind": "function",
+      "role": "Increment16-bit Wi-Fi event counters by category",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202e8bc",
       "kind": "function",
       "role": "Wi-Fi statistics persistence",
@@ -2632,10 +3220,28 @@
       "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
+      "address": "0x4202ea78",
+      "kind": "function",
+      "role": "Append packed Wi-Fi event to20-entry ring and request persistence after five changes",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202eba4",
+      "kind": "function",
+      "role": "Summarize recent Wi-Fi event ratios into diagnostic severity and text",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202ed00",
       "kind": "function",
       "role": "Clear 906-byte Wi-Fi stats RAM record and attempt NVS erasure",
       "evidence": "static; Wi-Fi handler follow-up"
+    },
+    {
+      "address": "0x4202ed60",
+      "kind": "function",
+      "role": "Return pointer to Wi-Fi statistics structure",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202ed68",
@@ -2662,6 +3268,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202ef0c",
+      "kind": "function",
+      "role": "Persist changed connected channel with BSSID lock cleared",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202ef8c",
+      "kind": "function",
+      "role": "Record connectivity recovery event with current AP metadata",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202efdc",
       "kind": "function",
       "role": "Initialize connectivity mutex, wait semaphore, flags and counters",
@@ -2684,6 +3302,24 @@
       "kind": "function",
       "role": "Cached connectivity getter",
       "evidence": "static"
+    },
+    {
+      "address": "0x4202f198",
+      "kind": "function",
+      "role": "Copy cached BSSID only when valid and destination nonnull",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202f1bc",
+      "kind": "function",
+      "role": "Return textual name of cached connectivity-manager state",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4202f214",
+      "kind": "function",
+      "role": "Log and apply changed connectivity-manager state",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202f294",
@@ -2734,6 +3370,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202fa04",
+      "kind": "function",
+      "role": "Forward timer callback to pending system-image marker handler",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
       "address": "0x4202fa0c",
       "kind": "function",
       "role": "Decode row-bounded status RLE; unchecked colours/trailing pairs, partial writes on error",
@@ -2744,6 +3386,12 @@
       "kind": "function",
       "role": "Decode status image before DROP; acceptance updates marker without completion wait",
       "evidence": "static; status-image GNU and host reconstruction follow-up"
+    },
+    {
+      "address": "0x4202fd84",
+      "kind": "function",
+      "role": "Compare nonnull active HTTP request identity string with supplied value",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x4202fdac",
@@ -2894,6 +3542,138 @@
       "kind": "function",
       "role": "Register ten integration API routes sequentially; return on first registration failure",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x420313b4",
+      "kind": "function",
+      "role": "Reconstruct embedded32-byte authorization material by XOR; value intentionally omitted",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420313e0",
+      "kind": "function",
+      "role": "Sign-extend gauge raw16-bit current representation",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420313f0",
+      "kind": "function",
+      "role": "Write one CW2217 register using shared I2C port",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031458",
+      "kind": "function",
+      "role": "Request CW2217 sleep through two mode-register writes",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031488",
+      "kind": "function",
+      "role": "Request CW2217 active mode through two mode-register writes",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420314b8",
+      "kind": "function",
+      "role": "Write all80 cached gauge-profile bytes, stop at first write error",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4203154c",
+      "kind": "function",
+      "role": "Acquire shared I2C mutex with2000ms request; report timeout on failure",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4203157c",
+      "kind": "function",
+      "role": "Read one CW2217 register using repeated-start I2C transaction",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420315f4",
+      "kind": "function",
+      "role": "Configure gauge/profile and poll readiness up to100 times",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420316e0",
+      "kind": "function",
+      "role": "Check active mode, update flag and only first eight gauge-profile bytes",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420317b0",
+      "kind": "function",
+      "role": "Release shared I2C mutex through common helper",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420317b8",
+      "kind": "function",
+      "role": "Read variable-length CW2217 register block; reject zero length",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031850",
+      "kind": "function",
+      "role": "Read register pair twice, or return unverified third value after mismatch",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420318cc",
+      "kind": "function",
+      "role": "Probe gauge address/chip ID with up to three attempts",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x420319d0",
+      "kind": "function",
+      "role": "Copy gauge profile/sense parameter and initialize with up to three configuration cycles",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031c08",
+      "kind": "function",
+      "role": "Read gauge voltage pair and scale raw count by5/16",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031c44",
+      "kind": "function",
+      "role": "Read gauge charge estimate pair and scale/cap percentage",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031ca0",
+      "kind": "function",
+      "role": "Read and convert gauge temperature register",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031cec",
+      "kind": "function",
+      "role": "Read firmware-dependent signed current and apply configured sensing scale",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031dd8",
+      "kind": "function",
+      "role": "Read gauge cycle-count pair and shift right four bits",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031e10",
+      "kind": "function",
+      "role": "Read gauge state-of-health byte",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42031e48",
+      "kind": "function",
+      "role": "Acquire shared bus, request gauge sleep, release bus",
+      "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
       "address": "0x42033f4c",

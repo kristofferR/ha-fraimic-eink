@@ -1,0 +1,796 @@
+{
+  "model": "Large",
+  "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+  "method": "Navigation gaps selected by missing explicit address links; fresh decompilation reviewed alongside complete GNU CFGs checked against pinned bytes. Descriptions are analytical roles, not original symbols or whole-firmware verification.",
+  "functions": 130,
+  "instructions": 6366,
+  "entries": [
+    {
+      "address": "0x4201064c",
+      "role": "Charging-indicator policy conjunction of two preferences and detected cable state",
+      "instructions": 15,
+      "cfg_sha256": "e916f52fa55d62fa23a0f79c737a72d09c4ddaaf8fdec895000d5a5e957025c9"
+    },
+    {
+      "address": "0x42010964",
+      "role": "Select missing-Wi-Fi or missing-time LED indication from readiness getters",
+      "instructions": 17,
+      "cfg_sha256": "2cc63c215f75cbf38fc0e935633f8eb7051529a7bdfa7fd870f0304a2cd744d0"
+    },
+    {
+      "address": "0x4201515c",
+      "role": "Format connection, time synchronization or configuration-mode status text",
+      "instructions": 45,
+      "cfg_sha256": "54b2239a671d0d538c23e5a96635a64504ec3550c90cee741fb0a398b1924858"
+    },
+    {
+      "address": "0x420158c0",
+      "role": "Read charging-LED preference byte",
+      "instructions": 4,
+      "cfg_sha256": "1ffed68ac4c728cd8260fce845b9a575d334710ff09b4a61feeec61ab306a990"
+    },
+    {
+      "address": "0x42015d10",
+      "role": "Create Wi-Fi recovery task without propagating creation result",
+      "instructions": 12,
+      "cfg_sha256": "c27963853dd2bf6cf36115fb4ea4ab15ebc95240f716d07f18cdffaed15d09f1"
+    },
+    {
+      "address": "0x42015ec0",
+      "role": "Copy 32-byte scheduling snapshot and reject absent primary fields",
+      "instructions": 19,
+      "cfg_sha256": "fce028ea79736cffb6617823a3879d7545daf60e682437790dcd8119d10d35cb"
+    },
+    {
+      "address": "0x42017518",
+      "role": "Bounded string copy with explicit final NUL",
+      "instructions": 17,
+      "cfg_sha256": "ad51e9cee991f258e338b0aa166ef640d2c336e288569c61ba388765781e1fab"
+    },
+    {
+      "address": "0x42017a94",
+      "role": "Select embedded environment-dependent authorization value; value intentionally omitted",
+      "instructions": 7,
+      "cfg_sha256": "828035144ee45b1d444fdc10a354a04764155f8f0900a1f1582db045dc2df0cb"
+    },
+    {
+      "address": "0x420198dc",
+      "role": "Map Wi-Fi disconnect reason to diagnostic event category",
+      "instructions": 26,
+      "cfg_sha256": "2ec07a80d61da7ae3c08c3eb4d21b9eb0f3764ed31f22921c967ba555a8df0b9"
+    },
+    {
+      "address": "0x42019bd8",
+      "role": "Compare candidate BSSID with active blacklist entries",
+      "instructions": 19,
+      "cfg_sha256": "38c19e2aee005bf5220685667801900c46b53913543069bb3cf703560dea4815"
+    },
+    {
+      "address": "0x42019c0c",
+      "role": "Attempt selected BSSID/channel and wait for asynchronous connection flag",
+      "instructions": 81,
+      "cfg_sha256": "795e58c8cdf3f2112e716872c39a2a30f7ba257f5ca5c98b0c7425d19fb11322"
+    },
+    {
+      "address": "0x42019ce8",
+      "role": "Priority/full AP scans, RSSI/channel ranking and shared five-attempt budget",
+      "instructions": 764,
+      "cfg_sha256": "464403f9f937b9917fe109747f7c883b28c8ec09e5ee4188951cdada81c1bdb0"
+    },
+    {
+      "address": "0x4201a508",
+      "role": "Invoke second-tier connection with ordinary saved-channel policy",
+      "instructions": 6,
+      "cfg_sha256": "d5da81cb3854b00a5cd099137a9ebb8118c4093989a8b8153e188aea71760ad7"
+    },
+    {
+      "address": "0x4201a51c",
+      "role": "Assemble Wi-Fi event record with optional current AP metadata",
+      "instructions": 38,
+      "cfg_sha256": "caa2fef40235fb88f5a7f2636432dcbf3d50cf915d4d052e36538f4db752fbcd"
+    },
+    {
+      "address": "0x4201b274",
+      "role": "HTTP response-send wrapper choosing automatic string length for nonnull body",
+      "instructions": 10,
+      "cfg_sha256": "0d88ac48c7b73ed3ac08e96fcb191ed22362442d51def51cb847db1dab6f6d2e"
+    },
+    {
+      "address": "0x4201b9f4",
+      "role": "In-place string replacement bounded by destination capacity",
+      "instructions": 40,
+      "cfg_sha256": "d259219c9d93dc806d0cfee69b3225b9e1191b34d0d1f30a04079d7a078dee88"
+    },
+    {
+      "address": "0x4201d5f8",
+      "role": "First-tier connection using saved station configuration and bounded retry-progress wait",
+      "instructions": 254,
+      "cfg_sha256": "238eb8dd8e9206013c9f0e4abd2a716114123746cd63f5937914043a18c9dad1"
+    },
+    {
+      "address": "0x4201d8b4",
+      "role": "Update cached internet-availability byte and log transitions",
+      "instructions": 21,
+      "cfg_sha256": "c572360c1a3596ef0a92f5bac2fee781b116493ebdf67ceb7cb19ee67bebfe54"
+    },
+    {
+      "address": "0x4201d9cc",
+      "role": "Clear AP blacklist and associated failover bookkeeping",
+      "instructions": 20,
+      "cfg_sha256": "38a1811ce9fc970463cb403b32aa803c10461f4776cd7bb1c2e39ac9761ac6b7"
+    },
+    {
+      "address": "0x4201dd0c",
+      "role": "Register Wi-Fi/IP events, initialize station network and select saved-connect or setup fallback",
+      "instructions": 306,
+      "cfg_sha256": "311eef8c92d88bba1b730ba155ed4e5d58dd386b61a1650e768be0884df776ed"
+    },
+    {
+      "address": "0x4201ea38",
+      "role": "Read configuration/AP mode flag",
+      "instructions": 4,
+      "cfg_sha256": "a60f8084651cb5dacd168c98bd85717bba2228e860b8dc7a24f9550e0ab8d86d"
+    },
+    {
+      "address": "0x4201ea74",
+      "role": "Read portal retry bookkeeping word",
+      "instructions": 4,
+      "cfg_sha256": "ba0dfb848e29d3ce0196d22804c0b882ff494b6ce5ea665305c968a2fbbfe205"
+    },
+    {
+      "address": "0x4201ebb0",
+      "role": "Return generated configuration AP name through its helper",
+      "instructions": 4,
+      "cfg_sha256": "1ac79c0f082b50779d7a5d15a6cd74f0aee36ba8cf499d06e5c57d611aeeadaa"
+    },
+    {
+      "address": "0x42020a68",
+      "role": "Set panel reset through communication GPIO abstraction",
+      "instructions": 5,
+      "cfg_sha256": "c9137dbba7d27e3cb50ccf3988d82a12877fd763914ceb755d8218838d762835"
+    },
+    {
+      "address": "0x42020a98",
+      "role": "Select one of eight controller-select GPIO mappings",
+      "instructions": 10,
+      "cfg_sha256": "fd9ae0899a43a5586b7c3203e83ea6fa6f93bfd8c57923d9ca0ff6795b0f302d"
+    },
+    {
+      "address": "0x42020b48",
+      "role": "Panel hardware reset sequence with low/high delay requests",
+      "instructions": 19,
+      "cfg_sha256": "5b496d15a45acdaa0650c8f4ff2192abcce339c009eb1eb168081a19127e4e79"
+    },
+    {
+      "address": "0x42020bf0",
+      "role": "Forward command plus transmit payload to SPI helper",
+      "instructions": 6,
+      "cfg_sha256": "83d0968b521aa74f89d3e3fd34975b20d9284a4515cc1684037eede75022fb16"
+    },
+    {
+      "address": "0x42020c04",
+      "role": "Forward command plus receive payload to SPI helper",
+      "instructions": 6,
+      "cfg_sha256": "ceed5e4f7c059105004b9baf7e41e3a51aa598eccad3c22f72c3738940c5f98f"
+    },
+    {
+      "address": "0x42020c18",
+      "role": "Forward command-only SPI transaction",
+      "instructions": 4,
+      "cfg_sha256": "39e6f90857e813c88dd03d3ad1bb79d0ed98619949e0bc57b36b644ea72cd197"
+    },
+    {
+      "address": "0x42020c24",
+      "role": "Forward bulk payload to chunked SPI transmitter",
+      "instructions": 5,
+      "cfg_sha256": "d35b65e41441de1ab5d512cabb4cec4ca85c862bd9b091d2ef5f951bf76deafb"
+    },
+    {
+      "address": "0x42021188",
+      "role": "Initialize communication I2C for PMIC and latch local I2C-ready flag",
+      "instructions": 39,
+      "cfg_sha256": "0d5095128f274d11161b16579935c950c011fb74eb0c9656f055e833f0f41429"
+    },
+    {
+      "address": "0x420211f4",
+      "role": "Transmit PMIC register buffer over I2C when PMIC-ready is set",
+      "instructions": 42,
+      "cfg_sha256": "c21b99b8e7470fefa5a3eddb86ad7fe976838e1bbab40054a63d577a7843eabf"
+    },
+    {
+      "address": "0x42021264",
+      "role": "Latch PMIC-ready before initializing dependent TCA9534 expander",
+      "instructions": 44,
+      "cfg_sha256": "a24710e4477fbaada3dfb5585b54e2ed8ea3f7670a9d588a882c16b48d83f54c"
+    },
+    {
+      "address": "0x420212dc",
+      "role": "Write seventeen PMIC configuration records, stop at first returned error",
+      "instructions": 218,
+      "cfg_sha256": "9f257a515d1ecd07d718232177da2c7d7580006ca8095e2e79357c3236e2679e"
+    },
+    {
+      "address": "0x4202151c",
+      "role": "Convert requested voltage and conversion selector to PMIC register encoding",
+      "instructions": 130,
+      "cfg_sha256": "edd1fee8b946b98896df843d48ae24daeafb071d34ed8837e3052fb7990d037d"
+    },
+    {
+      "address": "0x42021694",
+      "role": "Convert five panel-provided bytes into cached PMIC voltage records in RAM",
+      "instructions": 110,
+      "cfg_sha256": "3378f2970b5e6b6aa5045c30142918f884c3a546949ff64234a95f7900d757a6"
+    },
+    {
+      "address": "0x420217d0",
+      "role": "Convert PMIC configuration result to boolean error indication",
+      "instructions": 5,
+      "cfg_sha256": "d0c9e8304e4b40c747d92ff6b76e8da4fc438fda5cbde0d00a2df9aa68114fd4"
+    },
+    {
+      "address": "0x42021800",
+      "role": "Enable three power-switch output masks with intervening delays",
+      "instructions": 26,
+      "cfg_sha256": "5a30a71e58ca8863634b72e69eddc7f37c5a4892634d71ca795ce54e5fe65eac"
+    },
+    {
+      "address": "0x4202191c",
+      "role": "Write TCA9534 register/value through I2C with initialized guard",
+      "instructions": 46,
+      "cfg_sha256": "d8fd71c7c30662000e18b544e202791e4b5ec5cd89f58a12d256400a2690f7b6"
+    },
+    {
+      "address": "0x42021994",
+      "role": "Read TCA9534 register through I2C with initialized guard",
+      "instructions": 53,
+      "cfg_sha256": "7f0479a34d2210169032a437c181328bcf2357be1c7fed67331dca09a2b8b399"
+    },
+    {
+      "address": "0x42021a1c",
+      "role": "Initialize expander configuration/output registers and clear ready on write failure",
+      "instructions": 70,
+      "cfg_sha256": "437defc6621f5be3a5003d92ea00099b6250973b293b48ab268449b94cf63149"
+    },
+    {
+      "address": "0x42021b14",
+      "role": "Translate validated pin number into expander output mask",
+      "instructions": 23,
+      "cfg_sha256": "271827c5fbe3a82c013002800077ad5db73f304a06be49fe9a09e5495969eee8"
+    },
+    {
+      "address": "0x42021b58",
+      "role": "Read expander input register zero",
+      "instructions": 6,
+      "cfg_sha256": "f004c976839269e07dd1a9e5ffbc208317549e4182ebe9f50f7c7e30d5a876cd"
+    },
+    {
+      "address": "0x42021b6c",
+      "role": "Validate expander input pin and destination; return selected bit only on successful read",
+      "instructions": 20,
+      "cfg_sha256": "05e742bc94aee8730d1a4884acf5c4b22cd6c198fd0052e02961513c044fa52d"
+    },
+    {
+      "address": "0x42021ca0",
+      "role": "Request TOGGLE_SEL1 output bit high",
+      "instructions": 15,
+      "cfg_sha256": "bf51afef99743059c2345ae81a3a155cc058b4b58cae8aa01e4f2176358da88d"
+    },
+    {
+      "address": "0x42021cdc",
+      "role": "Send SPI command using shared active handle and descriptor",
+      "instructions": 54,
+      "cfg_sha256": "2d886d86b1f81d52ad87b49025aeebebbb0bd8dde7727de8cbbbfb39d51ac632"
+    },
+    {
+      "address": "0x42021d68",
+      "role": "Send payload in bounded SPI chunks; return last narrowed status",
+      "instructions": 94,
+      "cfg_sha256": "b5e92336e4153dc8a7cf7c0da29baf441374118245795aee833463fe6e402ecc"
+    },
+    {
+      "address": "0x42021f30",
+      "role": "Send command and payload using shared SPI descriptor",
+      "instructions": 49,
+      "cfg_sha256": "e1c599b667093dce04864cfbe6ebaa54997a18f2b93f9ec74b1e02b30da4fcf6"
+    },
+    {
+      "address": "0x42021fac",
+      "role": "Read command response using shared SPI descriptor",
+      "instructions": 49,
+      "cfg_sha256": "948e28831df451ee676c70702dbb344d58b4015a55f069f32bbed25ffc90fb56"
+    },
+    {
+      "address": "0x42022028",
+      "role": "Read SPI data into caller buffer using shared descriptor",
+      "instructions": 50,
+      "cfg_sha256": "b53227c27cccaa69b13185f9d2a64e7f5def06df85f6bf92d55dc681d07541bd"
+    },
+    {
+      "address": "0x42022118",
+      "role": "Dispatch virtual pins 100 through107 to expander, others to native GPIO",
+      "instructions": 14,
+      "cfg_sha256": "96ca16b644c1d62764ead84d1584bd3e882d033f079d3c73b4b661ebf2d9d1d1"
+    },
+    {
+      "address": "0x420227a4",
+      "role": "Calculate periodic floating-point LED intensity; zero period returns255",
+      "instructions": 29,
+      "cfg_sha256": "28a9a8ac7d5b346a876a467d4644451935486cb9033f74757c3b1acc35b1ed99"
+    },
+    {
+      "address": "0x42022ccc",
+      "role": "Suspend ordinary LED worker for RGB test sequence, resume and delete test task",
+      "instructions": 45,
+      "cfg_sha256": "dd9f380738b069ae1aa2fe8cac281dc5badacabf4a461084c1468937f5caff02"
+    },
+    {
+      "address": "0x42023254",
+      "role": "Temporarily suspend LED worker for bounded green-blink sequence",
+      "instructions": 53,
+      "cfg_sha256": "d968995a3da5cdbce5b49be7fb4ddd393628a6aca2a94e52058106d37c2b08c4"
+    },
+    {
+      "address": "0x420232e0",
+      "role": "Create red-blink task without propagating creation result",
+      "instructions": 12,
+      "cfg_sha256": "0f8118c98d0b188e0f07c2f01c9c2a4ea6a9aa3d37b1854203fa6b9010d53601"
+    },
+    {
+      "address": "0x420279f0",
+      "role": "Convert RTOS tick count to milliseconds by multiplying by10",
+      "instructions": 6,
+      "cfg_sha256": "33eec9a51653e6271ca1d256653e1c8413b58b77b661b30252f935cdf41f6f9e"
+    },
+    {
+      "address": "0x42027d74",
+      "role": "Submit fixed display state request through common transition helper",
+      "instructions": 6,
+      "cfg_sha256": "5450120d175034d2a7b2d37356c87b3ff214b96cfe62e20e817b37d42badaf5a"
+    },
+    {
+      "address": "0x42028518",
+      "role": "Read flash-manager state word",
+      "instructions": 4,
+      "cfg_sha256": "3568675457589f189f9e9b75d2bb4c3a3bbee175dd9af9fdff1522b26576ff66"
+    },
+    {
+      "address": "0x4202883c",
+      "role": "Query last-image cache size only when flash is ready and file exists",
+      "instructions": 19,
+      "cfg_sha256": "93f4d996e3777ff4db2dd38ac9c9ae293e414c52fdbc3e1ece4064d3649a4d4a"
+    },
+    {
+      "address": "0x42028878",
+      "role": "Require flash ready, validate or create system-image directory",
+      "instructions": 54,
+      "cfg_sha256": "c56ddb25a88d4e5ddca1f364b64ded4be7913c0147b53735417d71fde8e4a8b9"
+    },
+    {
+      "address": "0x42028ab4",
+      "role": "Construct system-image filename and query existence",
+      "instructions": 20,
+      "cfg_sha256": "3c6fb02e10e17706f17a0f512090a58bbeeb07e56e231beb6666723e27ad99ad"
+    },
+    {
+      "address": "0x42029024",
+      "role": "Read shared I2C-ready byte",
+      "instructions": 4,
+      "cfg_sha256": "992b94c7cf51052313587a876f68346bbd5da7ca887e445a16221909f86e7ad0"
+    },
+    {
+      "address": "0x42029030",
+      "role": "Acquire shared I2C mutex with converted timeout; absent mutex fails",
+      "instructions": 18,
+      "cfg_sha256": "81aca50c3f860d1f7f6e38f51fd24000cebb07104e5e71c923fd2b0380f44500"
+    },
+    {
+      "address": "0x42029064",
+      "role": "Release shared I2C mutex when nonnull",
+      "instructions": 10,
+      "cfg_sha256": "28aa40021145f9b6d291ffe5d0f6695aaa2dd8b289992ad4c3a5d5f29de233e9"
+    },
+    {
+      "address": "0x4202907c",
+      "role": "Diagnostic I2C scan across addresses8 through119 while holding shared mutex",
+      "instructions": 85,
+      "cfg_sha256": "06df83622176c5980c278f127e2795f38a158b224b15c49ce5aa0afee339f610"
+    },
+    {
+      "address": "0x42029254",
+      "role": "Read one accelerometer register through common read helper",
+      "instructions": 7,
+      "cfg_sha256": "4ffe0354114138374be0c4e7edeff5f66904846e79ae0d214dd80bb332dbbd65"
+    },
+    {
+      "address": "0x42029314",
+      "role": "Retry accelerometer register read up to three times under shared I2C mutex",
+      "instructions": 78,
+      "cfg_sha256": "56095b94c91b17152399cc6bca8d733b1560d7f6b753b1b90b1d9d7f39914a50"
+    },
+    {
+      "address": "0x420297dc",
+      "role": "Read accelerometer availability byte",
+      "instructions": 4,
+      "cfg_sha256": "2db7cbae949105542162228369fb21b33d21318fcd4f5674d54dd9634ac9e88e"
+    },
+    {
+      "address": "0x420297e8",
+      "role": "Forward accelerometer vector read only when marked available",
+      "instructions": 21,
+      "cfg_sha256": "627677837a5022a9fa2ac2a70930206182ae67d455fe76b802e65887cb9dfdb9"
+    },
+    {
+      "address": "0x42029938",
+      "role": "Interpolate voltage lookup table and quantize fallback battery percentage",
+      "instructions": 66,
+      "cfg_sha256": "08932580beaa7f604065cf9743eace13c65afd29c17f08e1baeb5af13fdc7129"
+    },
+    {
+      "address": "0x420299f8",
+      "role": "Estimate voltage trend from stored samples with floating-point linear fit",
+      "instructions": 64,
+      "cfg_sha256": "58f6ea8b2e5ac76e2ca888c3249d67f794598b7d8eec79212ee3d58406ef2816"
+    },
+    {
+      "address": "0x42029ab8",
+      "role": "Classify voltage-trend and voltage inputs into battery state codes",
+      "instructions": 20,
+      "cfg_sha256": "3e5c3bc4fceca42de4873e5985a90d0aecb02ec238670830a4ddfb132682b486"
+    },
+    {
+      "address": "0x42029be8",
+      "role": "Start battery monitor with mutex admission and rollback after task-creation failure",
+      "instructions": 83,
+      "cfg_sha256": "4da6e3d49e1c9e7110784006ba31aea820c367d75560ef5e716992525357bd99"
+    },
+    {
+      "address": "0x42029d24",
+      "role": "Read cached battery-monitor state under mutex, default zero on failure",
+      "instructions": 21,
+      "cfg_sha256": "05338605d4e0014c7f4b064cbe5d9e5096115526049451ce6465da777b46799f"
+    },
+    {
+      "address": "0x42029dac",
+      "role": "Get gauge percentage when available, else use voltage-based fallback",
+      "instructions": 26,
+      "cfg_sha256": "dac3bc94cb7588724f3c981f7fb228cb90ed230dceb2ca9a307a1366b5bfbb85"
+    },
+    {
+      "address": "0x42029df0",
+      "role": "Read cached battery classification under mutex, default zero on failure",
+      "instructions": 21,
+      "cfg_sha256": "76c450967444c7933576749cc8a0431fecacf76cf8dde93b386ac6b2b22c9e11"
+    },
+    {
+      "address": "0x42029e2c",
+      "role": "Compare gauge current with threshold; missing gauge takes default branch",
+      "instructions": 19,
+      "cfg_sha256": "1fd783b0b8a368352484ecd5d1081e1d1156b36c5cac99813b3af6d1ca8bd1d6"
+    },
+    {
+      "address": "0x42029fa4",
+      "role": "Assemble battery/cable/full/charging/LED summary with gauge or fallback policy",
+      "instructions": 133,
+      "cfg_sha256": "4b5b48233beb0d1328be9444867f434f94142a1d62c8f1b2d05394adb4f2a4cb"
+    },
+    {
+      "address": "0x4202a10c",
+      "role": "Build temporary battery summary without publishing a result",
+      "instructions": 28,
+      "cfg_sha256": "bd3b0a99acb553f66503aecdee9bb87b55f8147c05455b29f9bb6c0d4552cb06"
+    },
+    {
+      "address": "0x4202a280",
+      "role": "Select charging LED state through preferences and battery summary",
+      "instructions": 13,
+      "cfg_sha256": "307afafd006555bba29a4031b868ca45758fb27374be8e7281bd87ac2cc54ea7"
+    },
+    {
+      "address": "0x4202a2a8",
+      "role": "Battery monitor loop: gauge or voltage trend, cable transitions and LED requests",
+      "instructions": 477,
+      "cfg_sha256": "ba65b9c1cd93b03fd6c8473201f270970451f4a86904fd27c453d73d4e734f60"
+    },
+    {
+      "address": "0x4202a7d0",
+      "role": "Read gauge availability byte",
+      "instructions": 4,
+      "cfg_sha256": "5070d41ed8247d20442e00cb06d1265ada718e1770393831ae20840a70415219"
+    },
+    {
+      "address": "0x4202a7dc",
+      "role": "Temperature wrapper returning initialized zero when unavailable or unwritten",
+      "instructions": 12,
+      "cfg_sha256": "4e4af1c823f3e789af2ba5d9528dd8fe4af63cae52a77324613abea84a929b64"
+    },
+    {
+      "address": "0x4202a7fc",
+      "role": "Current wrapper returning initialized zero when unavailable or unwritten",
+      "instructions": 12,
+      "cfg_sha256": "93ff334964c1f9451ab73b69735ce7e81177e4aea7a117b87775894578a82ee1"
+    },
+    {
+      "address": "0x4202a820",
+      "role": "Cycle-count wrapper returning initialized zero when unavailable or unwritten",
+      "instructions": 12,
+      "cfg_sha256": "d4277546f9a4be0cfe8886babf0407b58cce3ce5bbf216929daefe9ce627958e"
+    },
+    {
+      "address": "0x4202a840",
+      "role": "State-of-health wrapper returning initialized zero when unavailable or unwritten",
+      "instructions": 12,
+      "cfg_sha256": "430235a245cde34ab877bd9399823e814f86345358a7b5ccacfc0b7ec4e9673f"
+    },
+    {
+      "address": "0x4202a860",
+      "role": "Request gauge sleep when available and log returned result",
+      "instructions": 31,
+      "cfg_sha256": "8d7c567dda46877507cd3dc84b1170c22ed26b82698c4ca742b001cc913b2653"
+    },
+    {
+      "address": "0x4202b14c",
+      "role": "Read instruction-manager state word",
+      "instructions": 4,
+      "cfg_sha256": "e322a22e0b324c3234d5f5a20c2b7548bc08e478d9a60a2bb911ad5aab9c061d"
+    },
+    {
+      "address": "0x4202b3ac",
+      "role": "Return instruction description from validated index or unknown label",
+      "instructions": 11,
+      "cfg_sha256": "034cc8a150961be0f6ed40c525ab78e51f205c91e2db5d7cc57e3e7f9eda6115"
+    },
+    {
+      "address": "0x4202b6ac",
+      "role": "Increment OTA statistics counter and invoke persistence helper",
+      "instructions": 7,
+      "cfg_sha256": "8308b6d074a0ebe8f47ba5e59e9a7e93bef3212f4e2f49fedcabd110994a8ad4"
+    },
+    {
+      "address": "0x4202b6c0",
+      "role": "Save OTA current-version text to NVS with logged errors and handle cleanup",
+      "instructions": 76,
+      "cfg_sha256": "0acaab0f3d7a54f6c1a63139e2684ac45a3b91ac7bc936ee919dd0ad6345140d"
+    },
+    {
+      "address": "0x4202b788",
+      "role": "Validate OTA metadata URL prefix, bounded size and64-character hexadecimal digest",
+      "instructions": 106,
+      "cfg_sha256": "153539f1fae620183b645a5ba3c65d9c991406cda78eef122970d38886d97632"
+    },
+    {
+      "address": "0x4202d1a4",
+      "role": "Copy64-byte OTA state snapshot after readiness and destination checks",
+      "instructions": 16,
+      "cfg_sha256": "0c5c482aa4db9c6a011e2ac6c9b7b7fe39e9c7c63df0b22603866352bb71c5d3"
+    },
+    {
+      "address": "0x4202d2c4",
+      "role": "Parse three byte-sized dotted version components and preserve bounded source text",
+      "instructions": 38,
+      "cfg_sha256": "ffdb05e07aa3294722251f9651229654d3f69ffbbc5d80fe26305e4d1bd0e4fc"
+    },
+    {
+      "address": "0x4202d330",
+      "role": "Load optional OTA version text from NVS; parser result is not propagated",
+      "instructions": 41,
+      "cfg_sha256": "27b9eef1c196646c273a150d3c5e5d7e7fcb7b7ddda0ed640d100d9712e4bc1a"
+    },
+    {
+      "address": "0x4202de68",
+      "role": "Periodically refresh log timestamp text when system clock year is usable",
+      "instructions": 41,
+      "cfg_sha256": "ca2382f14513b4be824794f9576c19c7a91efe0007ffddc36233cd518f36c743"
+    },
+    {
+      "address": "0x4202e25c",
+      "role": "Format redacted value suffix into rotating four-slot scratch storage",
+      "instructions": 61,
+      "cfg_sha256": "082418ca6e16e1d015618d207dc64cec6886c066c66c9dccff3ad1611b3908c1"
+    },
+    {
+      "address": "0x4202e7e0",
+      "role": "Increment16-bit Wi-Fi event counters by category",
+      "instructions": 71,
+      "cfg_sha256": "6be27dcdc8c23621e33eea95174a65e4c249bbe8289061c86115c3bb0985e38c"
+    },
+    {
+      "address": "0x4202ea78",
+      "role": "Append packed Wi-Fi event to20-entry ring and request persistence after five changes",
+      "instructions": 108,
+      "cfg_sha256": "bb56eddcec0860c36718fc4a3a7dda306c9a9539884278e7f71b8450c68b916d"
+    },
+    {
+      "address": "0x4202eba4",
+      "role": "Summarize recent Wi-Fi event ratios into diagnostic severity and text",
+      "instructions": 128,
+      "cfg_sha256": "1c4b4cd8b8f7c047ff177e237361c0422e6a890efe5f6b3bd3bba592ac9a411b"
+    },
+    {
+      "address": "0x4202ed60",
+      "role": "Return pointer to Wi-Fi statistics structure",
+      "instructions": 3,
+      "cfg_sha256": "c2ce8c5cd496cb63a79736cdfd8638d5ba66561be8813c17bd9c11ec519a5bfc"
+    },
+    {
+      "address": "0x4202ef0c",
+      "role": "Persist changed connected channel with BSSID lock cleared",
+      "instructions": 45,
+      "cfg_sha256": "22f74a67c91ec536394b34a4bb16308e5224a5a3346f55b1e9e0bf256d9930d1"
+    },
+    {
+      "address": "0x4202ef8c",
+      "role": "Record connectivity recovery event with current AP metadata",
+      "instructions": 29,
+      "cfg_sha256": "3f1d5c88578950eceb4351ee2916a4a17a83c417eb117c48de88e34b389154fe"
+    },
+    {
+      "address": "0x4202f198",
+      "role": "Copy cached BSSID only when valid and destination nonnull",
+      "instructions": 13,
+      "cfg_sha256": "713ff5222355f0c673673b8edd3fd65b2e4baa5f442c4286593f0446f6614ce5"
+    },
+    {
+      "address": "0x4202f1bc",
+      "role": "Return textual name of cached connectivity-manager state",
+      "instructions": 26,
+      "cfg_sha256": "5905f2e909a04d88e8b548704f227340e6c069d05b25051fe9993127c78e3a4b"
+    },
+    {
+      "address": "0x4202f214",
+      "role": "Log and apply changed connectivity-manager state",
+      "instructions": 42,
+      "cfg_sha256": "7a271b027c7098ca5018b017bd1f3e4c22e183985ad810185ac8cb1a018df1a2"
+    },
+    {
+      "address": "0x4202fa04",
+      "role": "Forward timer callback to pending system-image marker handler",
+      "instructions": 3,
+      "cfg_sha256": "950e815f02aca8cfc3507c588e4bcd17f525ed3a6334816d820448d8ec0c6773"
+    },
+    {
+      "address": "0x4202fd84",
+      "role": "Compare nonnull active HTTP request identity string with supplied value",
+      "instructions": 15,
+      "cfg_sha256": "149b864cd0a2a1f98fb2a0fda3a710814b56b10c59899862eb85ddaa0e2b094a"
+    },
+    {
+      "address": "0x420313b4",
+      "role": "Reconstruct embedded32-byte authorization material by XOR; value intentionally omitted",
+      "instructions": 16,
+      "cfg_sha256": "f8cef9539f10dc650b1fc73d6cfff4e26781f8c0d4500de1fb72d9ec9f0dcdb2"
+    },
+    {
+      "address": "0x420313e0",
+      "role": "Sign-extend gauge raw16-bit current representation",
+      "instructions": 6,
+      "cfg_sha256": "06a78d5ad170481c0c46443d16f3b140c68cd6bd497b754b6f7920ebdf7d9d5c"
+    },
+    {
+      "address": "0x420313f0",
+      "role": "Write one CW2217 register using shared I2C port",
+      "instructions": 42,
+      "cfg_sha256": "e56971eadbc353a3b7b1a629f87b577b635653f58819f4c95eb21de4fb97863d"
+    },
+    {
+      "address": "0x42031458",
+      "role": "Request CW2217 sleep through two mode-register writes",
+      "instructions": 18,
+      "cfg_sha256": "5811cb4a2c6f672680f7de93bd12fc0a39316a86e2e790091ffbb2ded1df2730"
+    },
+    {
+      "address": "0x42031488",
+      "role": "Request CW2217 active mode through two mode-register writes",
+      "instructions": 18,
+      "cfg_sha256": "c6e562713b915ebef9249ce1fd7e84811d93a11cb4c458300818fd768e35bfc5"
+    },
+    {
+      "address": "0x420314b8",
+      "role": "Write all80 cached gauge-profile bytes, stop at first write error",
+      "instructions": 55,
+      "cfg_sha256": "3a71d07f7a9b6cfe295ca1689cfe0bebb52eb1ab9780d27df5f2b657e672c560"
+    },
+    {
+      "address": "0x4203154c",
+      "role": "Acquire shared I2C mutex with2000ms request; report timeout on failure",
+      "instructions": 17,
+      "cfg_sha256": "9ac5023c5af3a722bc6ea370c49896a45abf45ed2ca6ba5ca64e142375a7a5ad"
+    },
+    {
+      "address": "0x4203157c",
+      "role": "Read one CW2217 register using repeated-start I2C transaction",
+      "instructions": 48,
+      "cfg_sha256": "0d30b30da766b67f4fe020a2b421d03bbe307828dd24ca5488cdca06ea38734f"
+    },
+    {
+      "address": "0x420315f4",
+      "role": "Configure gauge/profile and poll readiness up to100 times",
+      "instructions": 85,
+      "cfg_sha256": "da1d4c58497563798b8d02ed0e4c39b320aecd361a207f4efb273e7765c3a812"
+    },
+    {
+      "address": "0x420316e0",
+      "role": "Check active mode, update flag and only first eight gauge-profile bytes",
+      "instructions": 74,
+      "cfg_sha256": "b10862b6a2b460ad77bb4f741348d42592d1ed8f0c04c2d794c37a92b77ae874"
+    },
+    {
+      "address": "0x420317b0",
+      "role": "Release shared I2C mutex through common helper",
+      "instructions": 3,
+      "cfg_sha256": "96b5c2e5f4d35392fc227bf8c9c6ae155b72a18d6e6a26d3be4fbd6052bbb431"
+    },
+    {
+      "address": "0x420317b8",
+      "role": "Read variable-length CW2217 register block; reject zero length",
+      "instructions": 59,
+      "cfg_sha256": "94228874e9a5524c8b28e22508cf754c8755202241ec6877c40bff84b0e21330"
+    },
+    {
+      "address": "0x42031850",
+      "role": "Read register pair twice, or return unverified third value after mismatch",
+      "instructions": 47,
+      "cfg_sha256": "e89262fea4b9584bd206e0560c89a69c57136b45d3bca1ca7ab368c2fc46db46"
+    },
+    {
+      "address": "0x420318cc",
+      "role": "Probe gauge address/chip ID with up to three attempts",
+      "instructions": 97,
+      "cfg_sha256": "769d12ae8b51b9a8ab698a8855fc3bb474346839abed274878bc354e7d9a38d1"
+    },
+    {
+      "address": "0x420319d0",
+      "role": "Copy gauge profile/sense parameter and initialize with up to three configuration cycles",
+      "instructions": 207,
+      "cfg_sha256": "eb8611af075581eeb47b3c1366f5f57d446772e710f4f0ddde771fd7adb5b4d5"
+    },
+    {
+      "address": "0x42031c08",
+      "role": "Read gauge voltage pair and scale raw count by5/16",
+      "instructions": 21,
+      "cfg_sha256": "467e1d0c8ab6189380dbb9b06625377f1814f13c58e1c1323025ffd8373cf226"
+    },
+    {
+      "address": "0x42031c44",
+      "role": "Read gauge charge estimate pair and scale/cap percentage",
+      "instructions": 32,
+      "cfg_sha256": "67775b827d59fd3203df71be9cdaa3f60f2a4cd3c54e0d757fb4eed2bba178a0"
+    },
+    {
+      "address": "0x42031ca0",
+      "role": "Read and convert gauge temperature register",
+      "instructions": 27,
+      "cfg_sha256": "de7394adfa0011ad3afa05a8a77e2755d841fe889eacec4461aaac2e165b687e"
+    },
+    {
+      "address": "0x42031cec",
+      "role": "Read firmware-dependent signed current and apply configured sensing scale",
+      "instructions": 80,
+      "cfg_sha256": "768e17c209699830bb87e9b9fb9da24bfe2fe9e039d8b20719099c22b46b0868"
+    },
+    {
+      "address": "0x42031dd8",
+      "role": "Read gauge cycle-count pair and shift right four bits",
+      "instructions": 20,
+      "cfg_sha256": "dbda35110c0455fbdce7d8ad8b375ac61f8ded082042c40ae81febe024a5fc12"
+    },
+    {
+      "address": "0x42031e10",
+      "role": "Read gauge state-of-health byte",
+      "instructions": 19,
+      "cfg_sha256": "233ff2aaee92774b471f5b63de64b0e972be024e27959543cd46cd39395b5d4b"
+    },
+    {
+      "address": "0x42031e48",
+      "role": "Acquire shared bus, request gauge sleep, release bus",
+      "instructions": 17,
+      "cfg_sha256": "8e5a1d33a95520960fb29cbef23adf1bb7fb9d0180bef4e1655739f9dccfc7e5"
+    }
+  ],
+  "limits": [
+    "Address-link absence is a navigation heuristic, not evidence that all130 were previously unexamined. Earlier SPI, logging, storage and other findings remain applicable.",
+    "Role classification does not imply every branch is instruction-fixture tested or external SDK/hardware effects are verified.",
+    "Selected new PMIC, expander, SPI, Wi-Fi and gauge policies have separately linked case evidence; simple wrappers/getters were inspected without redundant case suites.",
+    "Floating-point trend/calibration, simultaneous events and installed state are not validated by this role ledger.",
+    "No embedded authorization value, battery-profile payload, vendor code or binary is included."
+  ]
+}

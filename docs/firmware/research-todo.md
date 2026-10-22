@@ -89,6 +89,12 @@ to continue those investigations.
 The [initializer follow-up](initialization-helpers.md) adds 18 Large / 21
 Standard cases and ten-root reference audits; remaining driver dependencies
 and the broader census stay on the supplemental ledger.
+The [driver pass](initialization-helpers.md#large-pmic-readiness-precedes-expander-success)
+adds 32 Large / six Standard cases. [Wi-Fi selection](wifi-recovery.md) and
+[fuel-gauge policy](fuel-gauge.md) add 27 cases per build, while the
+[helper-role audit](application-helpers.md) reconciles 130 Large entries across
+6,366 instructions. The original milestone count remains separate from these
+newly requested static questions; the supplemental census is still active.
 
 The owner selected **voice and local-control hooks** for the next direction,
 superseding further shared-JSON buffer/race analysis. The
