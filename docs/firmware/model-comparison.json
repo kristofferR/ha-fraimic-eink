@@ -1069,6 +1069,24 @@
       "executed_distinct_instructions_per_build": 373,
       "evidence": "image-api-cases.json",
       "limits": "Byte-checked selected instructions with HTTP/cJSON/ROM, buffer getters, activity/LED, save/marker and render results modeled; no physical or durable-storage fault test."
+    },
+    "legacy_multipart_upload": {
+      "compared_function_pairs": 2,
+      "matching_instructions_per_build": 440,
+      "receive_buffer_bytes": 1024,
+      "closing_boundary_search_rejects_match_after_nul": true,
+      "boundary_suffix_carried_between_receives": false,
+      "complete_declared_body_required_before_save": false,
+      "closing_delimiter_required_before_save": false,
+      "non_size_render_error_http_status": 200,
+      "response_chunk_errors_ignored": true,
+      "host_cases": 30,
+      "executed_distinct_instructions": {
+        "large": 440,
+        "standard": 417
+      },
+      "evidence": "legacy-upload-cases.json",
+      "limits": "Selected byte-checked instructions with modeled I/O, allocator, lower ROM/byte-search/format, state and storage/render outcomes. No physical reproduction or cause established for the historical persistent upload failure."
     }
   },
   "function_map": [
@@ -2721,6 +2739,16 @@
       "role": "local_control_manual_perform",
       "large": "0x420115d8",
       "standard": "0x42011538"
+    },
+    {
+      "role": "legacy_multipart_upload",
+      "large": "0x4201cc0c",
+      "standard": "0x4201cbe0"
+    },
+    {
+      "role": "legacy_multipart_bounded_string_search",
+      "large": "0x420cf7bc",
+      "standard": "0x420cfaa0"
     }
   ],
   "live_standard": {

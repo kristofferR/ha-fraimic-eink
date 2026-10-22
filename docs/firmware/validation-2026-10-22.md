@@ -3992,3 +3992,29 @@ within existing milestones; counts remain **12/67 items and 125/189 milestones**
 [Public results](image-api-cases.json) contain per-function CFG hashes, the paired
 comparison hash and fixture SHA-256
 `ce1df16f9da23fce99049c02fadfd7a44da127b99121e698fec6604051352cd2`.
+
+## Legacy multipart upload semantics: H05/E01/E02
+
+Complete GNU traversal recovers the 413-instruction handler that Ghidra had
+truncated, plus the 27-instruction bounded string-search helper. Both pairs match
+operations and internal branches across the pinned builds. Selected relocated
+callees and literals are mapped separately; no recursive whole-library equality
+is inferred.
+
+**Thirty cases pass**, covering 440 distinct instructions on Large and 417 on
+Standard across the handler, search helper and existing save/start wrapper. They
+check normal and arbitrary-field upload, missing final delimiter, timeout/EOF at
+complete/short payload boundaries, NUL-before-footer and split-footer cases,
+capacity differences, render-start failure with HTTP 200, ignored chunk-send
+failure, missing boundary and allocation failure. All exercised temporary-buffer
+allocations are freed. Cached bytes are checked against the synthetic payload
+and, where mistakenly included, the exact 26-byte trailer.
+
+The cases model receives/sends, allocation, lower ROM/byte-search/format helpers,
+buffer getters, activity/LED, save/marker and render outcomes. They do not execute
+SDK request cleanup, real TCP segmentation, durable storage or physical display;
+the historical persistent upload failure's cause remains unproven. No frame,
+network or HA source change occurred. [Findings](multipart-uploads.md) and
+[case evidence](legacy-upload-cases.json) extend existing milestones; totals stay
+**12/67 items and 125/189 milestones**. Fixture SHA-256:
+`8fb898bf14480cff5e9e846a8a1bc2fdbc45b42513f6bb966c24f7f196f89899`.

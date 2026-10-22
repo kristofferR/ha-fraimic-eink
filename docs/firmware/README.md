@@ -48,6 +48,7 @@ No transcription or AI generation was invoked.
 | [Firmware downloader](downloader.md) | Standalone offer check and application download while frames stay blocked from the web |
 | [Diagnostics and logs](diagnostics-and-logs.md) | Visibility controls, retention/loss, previous-log storage and redaction limits |
 | [Local API](local-api.md) | All 42 registered routes, diagnostics and side effects |
+| [Legacy multipart uploads](multipart-uploads.md) | Binary footer parsing, interrupted-body acceptance and HTTP-200 failure pages on both models |
 | [LED and workflow state](led-and-workflow-state.md) | 41-state table, priorities, protection latch and limits of visible status |
 | [Home Assistant roadmap](home-assistant-roadmap.md) | Existing code to reuse, local cloud design, voice creations and staged experiments |
 | [Voice feature proposal](voice-feature-proposal.md) | Creation history, explicit image/target semantics and six playlist/scene API checks |

@@ -877,6 +877,14 @@ That is different from the cloud voice multipart field `file`, filename
 already handles version selection and recovery from interrupted local uploads;
 reuse it rather than replacing the integration's transport blindly.
 
+The [complete legacy multipart follow-up](multipart-uploads.md) adds important
+limits: receive chunk boundaries and NUL image bytes affect footer recognition;
+interrupted bodies can still reach render-start; and a render-start error can be
+reported in an HTTP 200 HTML page. Thirty instruction cases cover both builds.
+Those findings support the existing raw-endpoint preference on the pinned
+versions, but do not establish the cause of the historical persistent upload
+failure or justify automatically retrying an uncertain post-transfer failure.
+
 The [shared buffer](hardware-and-layout.md#one-psram-buffer-serves-audio-and-images)
 and [cache behavior](storage-and-configuration.md#last-artwork) matter when adding
 concurrent voice or cloud delivery.

@@ -1274,6 +1274,14 @@ early recording/protection guard. Forty-two instruction cases cover partial
 reception, short tails, cache/render failures and response failures after render
 acceptance. These are scoped host checks, not another physical display test.
 
+The [legacy multipart parser](multipart-uploads.md) also matches across a
+413-instruction handler and 27-instruction search helper. Standard's larger image
+allocation relative to its panel lets an unrecognized 26-byte footer be saved
+and passed to render-start; the same scripted failure exceeds Large's allocation
+and produces a capacity error. Both can render after incomplete reception and
+return HTTP 200 for a render-start failure. Thirty host cases establish those
+branches without identifying the historical persistent upload failure's cause.
+
 Static power differences also matter: the Standard voltage getter returns the
 gauge reading without Large's doubling and has an ADC fallback. Large's examined
 path doubles the gauge result and returns zero on gauge failure. Post-update

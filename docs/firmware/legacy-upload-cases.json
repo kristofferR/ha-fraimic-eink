@@ -1,0 +1,1221 @@
+{
+  "method": "Byte-checked legacy multipart handler, bounded string-search helper and image save/start wrapper instructions",
+  "limits": "Synthetic HTTP receives/chunks, allocator, ROM and memmem/format helpers, LED/activity, buffer getters, cache/marker and render outcomes. No actual TCP fragmentation, SDK purge, physical display, durable storage or reproduction of the historical persistent upload failure.",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "panel_bytes": 2304000,
+      "image_capacity_bytes": 2304000,
+      "functions": [
+        {
+          "name": "handler",
+          "entry": "0x4201cc0c",
+          "instructions": 413,
+          "sha256": "30030298f3a3dddea589ad82edd1496c227aa4e5b0ecb247923e352713db336c"
+        },
+        {
+          "name": "search",
+          "entry": "0x420cf7bc",
+          "instructions": 27,
+          "sha256": "cfd5fad83b2f42372c382ffddcb4da1990fdce06eaa77bed4255725ef6b82f7e"
+        },
+        {
+          "name": "wrapper",
+          "entry": "0x4201727c",
+          "instructions": 80,
+          "sha256": "d308b387ea14b3243c65e56614a79a1154c9cd2eb878bf021558d1966d3c188c"
+        }
+      ],
+      "distinct_instructions": 440,
+      "cases": [
+        {
+          "name": "ordinary-separated-footer",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 2304158,
+          "read_calls": 2252,
+          "saved_bytes": 2304000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2304000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "arbitrary-field-and-filename",
+          "declared_body_bytes": 2304162,
+          "received_body_bytes": 2304162,
+          "read_calls": 2252,
+          "saved_bytes": 2304000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2304000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "missing-footer-at-declared-end",
+          "declared_body_bytes": 2304132,
+          "received_body_bytes": 2304132,
+          "read_calls": 2251,
+          "saved_bytes": 2304000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2304000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "timeout-after-complete-payload",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 2304132,
+          "read_calls": 2252,
+          "saved_bytes": 2304000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2304000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "timeout-after-short-payload",
+          "declared_body_bytes": 2303646,
+          "received_body_bytes": 2303620,
+          "read_calls": 2252,
+          "saved_bytes": 2303488,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2303488
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2303488,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "eof-after-short-payload",
+          "declared_body_bytes": 2303646,
+          "received_body_bytes": 2303620,
+          "read_calls": 2252,
+          "saved_bytes": 2303488,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2303488
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2303488,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "early-timeout",
+          "declared_body_bytes": 414,
+          "received_body_bytes": 388,
+          "read_calls": 3,
+          "saved_bytes": null,
+          "status": "400 Bad Request",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "Invalid file size for E-ink display format",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "Invalid file size for E-ink display format",
+              "status": "400 Bad Request"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "footer-with-nonzero-tail",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 2304158,
+          "read_calls": 2252,
+          "saved_bytes": 2304000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2304000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "footer-after-nul-in-same-chunk",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 2304158,
+          "read_calls": 2252,
+          "saved_bytes": null,
+          "status": "413 Payload Too Large",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "File too large",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "File too large",
+              "status": "413 Payload Too Large"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "footer-split-across-chunks",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 2304135,
+          "read_calls": 2252,
+          "saved_bytes": null,
+          "status": "413 Payload Too Large",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "File too large",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "File too large",
+              "status": "413 Payload Too Large"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "extra-512-payload",
+          "declared_body_bytes": 2304670,
+          "received_body_bytes": 2304644,
+          "read_calls": 2252,
+          "saved_bytes": null,
+          "status": "413 Payload Too Large",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "File too large",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "File too large",
+              "status": "413 Payload Too Large"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "render-start-error-with-200",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 2304158,
+          "read_calls": 2252,
+          "saved_bytes": 2304000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": true,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2304000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 387,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-chunk-failure-ignored",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 2304158,
+          "read_calls": 2252,
+          "saved_bytes": 2304000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 2304000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 2304000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": true
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "missing-boundary",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 0,
+          "read_calls": 0,
+          "saved_bytes": null,
+          "status": "400 Bad Request",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "Invalid multipart request",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "Invalid multipart request",
+              "status": "400 Bad Request"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "chunk-allocation-fails",
+          "declared_body_bytes": 2304158,
+          "received_body_bytes": 0,
+          "read_calls": 0,
+          "saved_bytes": null,
+          "status": "500 Internal Server Error",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "Memory allocation failed",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "Memory allocation failed",
+              "status": "500 Internal Server Error"
+            }
+          ],
+          "passed": true
+        }
+      ]
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "panel_bytes": 960000,
+      "image_capacity_bytes": 1048576,
+      "functions": [
+        {
+          "name": "handler",
+          "entry": "0x4201cbe0",
+          "instructions": 413,
+          "sha256": "34d1eee7bd87b277e19cae73c80bc518ef45e405953aa186047e99584c125033"
+        },
+        {
+          "name": "search",
+          "entry": "0x420cfaa0",
+          "instructions": 27,
+          "sha256": "0817769385aefb6b78adc843911a2f1aee93b3a8af7c23d519412953e5d695e4"
+        },
+        {
+          "name": "wrapper",
+          "entry": "0x42017250",
+          "instructions": 80,
+          "sha256": "ded76be4a18fd5d31a268619a7736f459161619d84a33d268fcfbf692f4042d8"
+        }
+      ],
+      "distinct_instructions": 417,
+      "cases": [
+        {
+          "name": "ordinary-separated-footer",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 960158,
+          "read_calls": 940,
+          "saved_bytes": 960000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "arbitrary-field-and-filename",
+          "declared_body_bytes": 960162,
+          "received_body_bytes": 960162,
+          "read_calls": 940,
+          "saved_bytes": 960000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "missing-footer-at-declared-end",
+          "declared_body_bytes": 960132,
+          "received_body_bytes": 960132,
+          "read_calls": 939,
+          "saved_bytes": 960000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "timeout-after-complete-payload",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 960132,
+          "read_calls": 940,
+          "saved_bytes": 960000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "timeout-after-short-payload",
+          "declared_body_bytes": 959646,
+          "received_body_bytes": 959620,
+          "read_calls": 939,
+          "saved_bytes": 959488,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 959488
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 959488,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "eof-after-short-payload",
+          "declared_body_bytes": 959646,
+          "received_body_bytes": 959620,
+          "read_calls": 939,
+          "saved_bytes": 959488,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 959488
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 959488,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "early-timeout",
+          "declared_body_bytes": 414,
+          "received_body_bytes": 388,
+          "read_calls": 3,
+          "saved_bytes": null,
+          "status": "400 Bad Request",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "Invalid file size for E-ink display format",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "Invalid file size for E-ink display format",
+              "status": "400 Bad Request"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "footer-with-nonzero-tail",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 960158,
+          "read_calls": 940,
+          "saved_bytes": 960000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "footer-after-nul-in-same-chunk",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 960158,
+          "read_calls": 940,
+          "saved_bytes": 960026,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960026
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960026,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "footer-split-across-chunks",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 960158,
+          "read_calls": 941,
+          "saved_bytes": 960026,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960026
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960026,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "extra-512-payload",
+          "declared_body_bytes": 960670,
+          "received_body_bytes": 960670,
+          "read_calls": 940,
+          "saved_bytes": 960512,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960512
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960512,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "render-start-error-with-200",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 960158,
+          "read_calls": 940,
+          "saved_bytes": 960000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": true,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 387,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": false
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "response-chunk-failure-ignored",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 960158,
+          "read_calls": 940,
+          "saved_bytes": 960000,
+          "status": "200 OK",
+          "handler_return": 0,
+          "html_indicates_render_failure": false,
+          "error": null,
+          "events": [
+            {
+              "event": "save",
+              "bytes": 960000
+            },
+            {
+              "event": "clear-marker"
+            },
+            {
+              "event": "render-start",
+              "bytes": 960000,
+              "failed": false
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 1058,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 541,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 112,
+              "failed": true
+            },
+            {
+              "event": "response-chunk",
+              "bytes": 0,
+              "failed": true
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "missing-boundary",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 0,
+          "read_calls": 0,
+          "saved_bytes": null,
+          "status": "400 Bad Request",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "Invalid multipart request",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "Invalid multipart request",
+              "status": "400 Bad Request"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "chunk-allocation-fails",
+          "declared_body_bytes": 960158,
+          "received_body_bytes": 0,
+          "read_calls": 0,
+          "saved_bytes": null,
+          "status": "500 Internal Server Error",
+          "handler_return": -1,
+          "html_indicates_render_failure": false,
+          "error": "Memory allocation failed",
+          "events": [
+            {
+              "event": "response-error",
+              "message": "Memory allocation failed",
+              "status": "500 Internal Server Error"
+            }
+          ],
+          "passed": true
+        }
+      ]
+    }
+  },
+  "static_comparison": {
+    "sha256": "9b233a7a0105319448c3535b2be27a676431430c13cc4891b02f11abdbb9f770",
+    "functions": [
+      {
+        "name": "handler",
+        "large": "0x4201cc0c",
+        "standard": "0x4201cbe0",
+        "instructions": 413,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "search",
+        "large": "0x420cf7bc",
+        "standard": "0x420cfaa0",
+        "instructions": 27,
+        "normalized_operations_match": true
+      }
+    ],
+    "mapped_direct_call_pairs": 13,
+    "limits": "Pinned image bytes and complete reachable GNU CFGs checked. Operations and branch indices match; external calls and relocated literals are listed separately, not recursively proven equivalent."
+  },
+  "fixture_sha256": "8fb898bf14480cff5e9e846a8a1bc2fdbc45b42513f6bb966c24f7f196f89899"
+}
