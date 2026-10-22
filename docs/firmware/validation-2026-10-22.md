@@ -2973,3 +2973,39 @@ are not hardware-capability evidence. N04 remains deferred.
 | Standard `wifi-nvs-descriptors.json` | `dbb9dfdd266ba42d50816d7d728f761359d97537f4b464d3c4530fbdfd1736c2` |
 | SDK `wifi_os_adapter-v5.4.1.h` | `044faedb4c53f32a0d65b5d3f0d8d68bf0fd05e9a15ec7beeedd3758f3c88b63` |
 | SDK `esp_adapter-v5.4.1.c` | `2b122f43886082486423fbead6942437e5a00725b84c0ec485a69aff278bed2d` |
+
+## Wi-Fi normalization and persistence handoff: N02/E02
+
+Eleven additional complete paired CFGs cover all eight direct post-load helpers,
+the nested AP SSID initializer, shared typed setter and commit wrapper. Across
+330 instructions, 38 branches and 15 ranges per image, normalized operations
+and branch targets match. Eight direct-call and seventeen literal pairs are
+reviewed separately. The setter's bounded eight-entry dispatch table is checked
+before traversing its targets and comparing their instruction indices.
+
+| Selected role | Large | Standard |
+| --- | --- | --- |
+| Station password cleanup | `0x420970e8` | `0x4209678c` |
+| Listen-interval repair | `0x420971d8` | `0x4209687c` |
+| Country repair | `0x42097124` | `0x420967c8` |
+| AP SSID check / initializer | `0x42097094` / `0x42097054` | `0x42096738` / `0x420966f8` |
+| AP password cleanup | `0x420970b0` | `0x42096754` |
+| AP primary-channel repair | `0x42097174` | `0x42096818` |
+| AP-switch byte clamp | `0x420971c0` | `0x42096864` |
+| AP secondary-channel adjustment | `0x42096e84` | `0x42096528` |
+| Shared setter | `0x42096d38` | `0x420963dc` |
+| Conditional commit | `0x42096ce0` | `0x42096384` |
+
+The [storage trace](storage-and-configuration.md#wi-fi-normalization-changes-ram-before-optional-writeback)
+records the password sentinel cleanup, AP SSID length word, selected country
+repair bytes, optional writes after RAM changes and discarded setter/commit
+results. Literal reads resolve the four ROM memory/string operations against
+the pinned SDK's ROM export map. External channel-bound getters, real flags,
+full radio state and persistence faults are not executed by this comparison.
+No device or network configuration changed; N04 remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `recover-wifi-set-switch-cfg.mjs` | `5ab7137c7b75ed3d427ae1f633e0dc8d64cc6cc41afd7a5404b206db3539f66e` |
+| `compare-wifi-normalizers.mjs` | `89612b017cab69b588c628e3f950cfc99b9eeef4854f8876d1c5922e3133fce1` |
+| `standard-wifi-normalizers-comparison.json` | `5ec77f4cad558b37f8ca5288b7c74c404b76caa4ace879b2717627ba1f954796` |

@@ -757,8 +757,12 @@ defaults. Five complete bodies match across 1,233 instructions, 149 branches and
 17 ranges per image, with fourteen direct-call pairs and 165 literal pairs
 reviewed. The [storage findings](storage-and-configuration.md#wi-fi-registers-73-configuration-keys-outside-app_data)
 and [schema](wifi-nvs-schema.json) distinguish internal kinds from actual NVS
-types and initialized defaults from stored values. Post-load normalizers,
-writeback and physical cross-version restoration are not covered by this pass.
+types and initialized defaults from stored values. A subsequent eleven-body
+[normalizer/writeback comparison](storage-and-configuration.md#wi-fi-normalization-changes-ram-before-optional-writeback)
+adds 330 instructions, 38 branches and 15 ranges per model, with eight direct-call
+and seventeen literal pairs reviewed. Those selected paths also match, including
+RAM-first writes and ignored commit results. Physical restoration and complete
+Wi-Fi/regulatory state-machine equivalence remain untested.
 
 ### Device-key selection and regeneration also match
 

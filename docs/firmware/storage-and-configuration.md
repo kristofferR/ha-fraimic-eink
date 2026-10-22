@@ -261,8 +261,8 @@ reads that fail or fall outside the descriptor range select the declared scalar
 default. Blob reads use the declared capacity; a successful read is accepted
 without checking that the returned length equals that capacity. On failure, the
 selected path copies the capacity-sized `0xff` fallback before calling later
-normalization helpers. Their final credential/default transformations and writeback
-are separate follow-up work, so this table is not a manual restore recipe.
+normalization helpers. The following pass traces those transformations and
+writeback; the descriptor table alone is not a manual restore recipe.
 
 Five complete paired bodies cover registration, registry initialization,
 load/reset dispatch, namespace opening and cleanup: **1,233 instructions, 149
@@ -270,6 +270,51 @@ branches and 17 ranges per model**. The loader's bounded eight-entry jump table
 was resolved and compared explicitly. Fourteen direct-call pairs and 165 literal
 pairs were mapped separately. RAM values, downstream helpers and actual storage
 faults remain outside this comparison; no Wi-Fi settings or frame state changed.
+
+### Wi-Fi normalization changes RAM before optional writeback
+
+Eleven additional paired bodies establish the selected post-load transformations
+and the shared setter/commit wrappers: **330 instructions, 38 internal branches
+and 15 ranges per build**. The setter's eight-entry jump table is bounded and
+resolved explicitly. Eight direct-call and seventeen literal pairs are mapped;
+ROM `memset`, `memcpy`, `memcmp` and `strncpy` addresses agree with the
+[matching ROM exports](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_rom/esp32s3/ld/esp32s3.rom.newlib.ld).
+
+| Selected normalization | Recovered behavior |
+| --- | --- |
+| Station password | If its first 64 bytes are all `0xff`, clear them and the following terminator byte |
+| AP password | If its first 64 bytes are all `0xff`, clear those 64 bytes; this helper does not touch byte 65 |
+| Station listen interval | Replace zero with 3 |
+| First byte of `sta.apsw` | Clamp values above 5 to 5; the helper does not modify the second byte |
+| AP SSID | If the leading word is zero or `0xffffffff`, clear all 36 bytes, format `ESP_%02X%02X%02X` at offset 4 from three driver-state bytes, and set the leading word to 10 |
+| Country record | Validate selected channel/policy bytes; on failure write code bytes `01 `, start channel 1, count 11, power byte 20 and policy word zero. This helper does not initialize every padding byte |
+| AP primary/secondary channel | Consult external channel-bound helpers and adjust the selected values through the shared setter; the supplied persistence flag depends on driver state |
+
+The AP fallback confirms a length word followed by the SSID bytes in that
+36-byte record. It must not be replaced with the application's raw 32-byte
+backup. The formatted fallback's runtime bytes were not read; it does not
+establish the Fraimic portal's runtime SSID.
+
+The common setter (`0x42096d38` / `0x420963dc`) updates the selected RAM field
+before optionally calling its NVS setter. Scalar writes narrow to 8/16 bits;
+this helper does not enforce the descriptor min/max range. Internal kind 6 uses
+bounded string copy and forces the last byte to NUL; kind 7 copies the declared
+raw bytes. Both persist through the blob API. A failed NVS write is returned
+without restoring RAM. Disabling persistent storage forces the local-only path.
+
+The channel-normalization callers discard the shared setter result. The other
+listed cleanup helpers modify RAM directly and do not themselves persist those
+repairs. The loader then conditionally calls commit wrapper `0x42096ce0` /
+`0x42096384`, discards its result and returns success. The wrapper invokes the
+resolved NVS commit slot only when storage is enabled, a separate driver flag
+allows it, and the configuration/handle are nonzero; its missing-state sentinel
+is `0xff` in the GNU instructions, despite a misleading decompiler prototype.
+
+Thus successful Wi-Fi configuration loading is not an acknowledgment that every
+repair reached storage. This is static control-flow evidence, not an induced
+write failure, observed radio behavior or a complete Wi-Fi state-machine audit.
+The regulatory/channel-bound callees and actual runtime flags are not inferred
+from descriptor defaults, and no settings were changed.
 
 ## Identity layout and migration
 
