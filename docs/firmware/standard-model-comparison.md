@@ -749,6 +749,17 @@ complete NVS schema, measured durability or power-loss recovery. Page/partition
 callees, encryption, runtime RAM values and unselected SDK keys retain their
 explicit limits. No device storage was read or changed by this comparison.
 
+### SDK Wi-Fi configuration descriptors also match
+
+Both builds register the same 73 Wi-Fi NVS descriptors, including the thirteen
+blob capacities, scalar types/ranges/defaults and two conditional `opmode`
+defaults. Five complete bodies match across 1,233 instructions, 149 branches and
+17 ranges per image, with fourteen direct-call pairs and 165 literal pairs
+reviewed. The [storage findings](storage-and-configuration.md#wi-fi-registers-73-configuration-keys-outside-app_data)
+and [schema](wifi-nvs-schema.json) distinguish internal kinds from actual NVS
+types and initialized defaults from stored values. Post-load normalizers,
+writeback and physical cross-version restoration are not covered by this pass.
+
 ### Device-key selection and regeneration also match
 
 Five [identity-related bodies](storage-and-configuration.md#device-key-selection-and-regeneration)

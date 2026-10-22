@@ -222,6 +222,55 @@ radio calibration records, not microphone or battery calibration, and their
 presence in code does not recover this device's installed values. A future
 backup/migration scope must include SDK namespaces as well as application keys.
 
+### Wi-Fi registers 73 configuration keys outside app_data
+
+The [Wi-Fi NVS schema](wifi-nvs-schema.json) records all 73 descriptors from
+Large initializer `0x420964b0` and Standard `0x42095b54`. Both builds register
+the same names, internal kinds, sizes, scalar ranges and defaults. The registry
+uses 52 bytes per entry, totaling 3,796 bytes. A runtime flag can change the
+`opmode` default from 2 to 1; these are initializer values, not the frame's
+installed configuration or final post-normalization state.
+
+The resolved 476-byte Wi-Fi adapter tables at `0x3fca12c0` / `0x3fca1330` have
+version 8 and the expected magic. Their twelve NVS slots map the indirect calls
+to the already identified API functions. The layout agrees with the matching
+[adapter header](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_private/wifi_os_adapter.h)
+and [ESP32-S3 initializer](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/esp32s3/esp_adapter.c).
+The driver opens `nvs.net80211` read/write when its storage flag is enabled.
+
+Following the load/reset dispatch establishes **57 U8, one I8, two U16 and
+thirteen blob descriptors**. Internal kinds 6 and 7 both use the NVS blob API;
+the password entries are not NVS strings merely because they hold text.
+
+| Blob keys | Declared read/reset capacity |
+| --- | --- |
+| `sta.ssid`, `ap.ssid` | 36 bytes each |
+| `sta.pswd`, `ap.passwd` | 65 bytes each |
+| `sta.pmk`, `ap.pmk`, `sta.sae_h2e_id` | 32 bytes each |
+| `sta.bssid` / `sta.apsw` | 6 / 2 bytes |
+| `sta.apinfo` / `country` | 700 / 12 bytes |
+| `sta.owe_data` / `ap.pmk_info` | 44 / 132 bytes |
+
+The 36-byte driver SSID record is distinct from the application's 32-byte
+per-environment Wi-Fi backup. The schema includes ordinary scalar policy keys,
+AP fields and entries named for 5 GHz/HE features. Those compiled names alone
+do not establish radio capabilities or active feature use.
+
+The loader allocates a 1,024-byte scratch buffer filled with `0xff`. Scalar
+reads that fail or fall outside the descriptor range select the declared scalar
+default. Blob reads use the declared capacity; a successful read is accepted
+without checking that the returned length equals that capacity. On failure, the
+selected path copies the capacity-sized `0xff` fallback before calling later
+normalization helpers. Their final credential/default transformations and writeback
+are separate follow-up work, so this table is not a manual restore recipe.
+
+Five complete paired bodies cover registration, registry initialization,
+load/reset dispatch, namespace opening and cleanup: **1,233 instructions, 149
+branches and 17 ranges per model**. The loader's bounded eight-entry jump table
+was resolved and compared explicitly. Fourteen direct-call pairs and 165 literal
+pairs were mapped separately. RAM values, downstream helpers and actual storage
+faults remain outside this comparison; no Wi-Fi settings or frame state changed.
+
 ## Identity layout and migration
 
 `0x420189c0` loads an in-memory configuration with these capacities:

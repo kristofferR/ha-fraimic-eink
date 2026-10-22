@@ -2925,3 +2925,51 @@ open, and N04 remains deferred.
 | `legacy-migration-results.json` | `be8fbf9d3af8e2b7627096797820ad38c5043fd9da02025c7a5be916ee6904d7` |
 | `identity-migrate-large-cfg.json` | `f99f023584af9a4bf89c0672bee9036dcd829a69841c3c680a9677fe1807706d` |
 | `identity-migrate-standard-cfg.json` | `63639be03c43afb27f8c38068befc801c8bfc69bc65a7fd28d54b4e9ac14e873` |
+
+## Indirect Wi-Fi NVS schema: N02/E02
+
+The pinned images contain matching 73-entry Wi-Fi registry definitions. A
+restricted success-path interpreter extracts every registration's key, ID,
+internal kind, size, range, scalar default and destination from the byte-checked
+GNU initialization body. Successful allocation/registration and both explicit
+runtime-flag branches are fixture inputs. The resulting 73 descriptors match
+after excluding relocated addresses. The zero-flag branch registers `opmode`
+again with default 1 instead of the initial 2; all other entries match.
+
+The matching SDK header identifies the twelve NVS slots in each initialized
+476-byte OS adapter. Version 8 and terminal magic are checked in both binaries,
+and the commit slot anchors a unique table candidate. The load/reset switch
+then maps the internal descriptor kinds to U8/I8/U16/blob API calls. The
+[published schema](wifi-nvs-schema.json) contains names and static metadata only.
+
+| Role | Large | Standard |
+| --- | --- | --- |
+| Descriptor registration | `0x420961e4` | `0x42095888` |
+| Registry initializer | `0x420964b0` | `0x42095b54` |
+| Load/reset dispatch | `0x420971fc` | `0x420968a0` |
+| Cleanup | `0x42097514` | `0x42096bb8` |
+| Namespace open and load | `0x42097564` | `0x42096c08` |
+
+These five complete pairs contribute 1,233 instructions, 149 branches and 17
+ranges per build. Fourteen direct-call and 165 literal pairs are mapped
+separately. The loader includes an indirect jump: recovery asserts the preceding
+eight-way bound, table-base load and indexed access before traversing all eight
+targets. The comparison checks corresponding target instruction indices, rather
+than treating the jump as an ordinary return or omitting switch branches.
+
+The registry's scalar metadata and blob capacities are established. Final
+post-load normalization and writeback remain explicit N02 work. No SDK library,
+radio, installed NVS state or physical fault was executed. Feature-like names
+are not hardware-capability evidence. N04 remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `inventory-wifi-nvs.mjs` | `3d3b00cfa01ee6ddc51047ba7bfd9fc642b9780b94d79383e8fb7464fc63e9da` |
+| `extract-wifi-schema.mjs` | `2c4396c7a27cdd47bf8a7711046564c13ce3a9a5d4f55c699442e25d2d5dda6b` |
+| `recover-wifi-switch-cfg.mjs` | `937c5baa883202a726802d062707d7c52b4cda99c765072952a0bb3cbb01e59b` |
+| `compare-wifi-nvs.mjs` | `19f358ed6f05c507e5b1bc442530542c696c8fca32b09ec8db3e6fc355ffd8f0` |
+| `standard-wifi-nvs-comparison.json` | `eaf50b62ce2c8d349626d9217d2d096065b3837ff07d8aed89756dbdc30f71ed` |
+| Large `wifi-nvs-descriptors.json` | `170adea186d602bc1d6673a11a15654f5d1d8be8b8ebcdbbb9555b0af9c9213f` |
+| Standard `wifi-nvs-descriptors.json` | `dbb9dfdd266ba42d50816d7d728f761359d97537f4b464d3c4530fbdfd1736c2` |
+| SDK `wifi_os_adapter-v5.4.1.h` | `044faedb4c53f32a0d65b5d3f0d8d68bf0fd05e9a15ec7beeedd3758f3c88b63` |
+| SDK `esp_adapter-v5.4.1.c` | `2b122f43886082486423fbead6942437e5a00725b84c0ec485a69aff278bed2d` |

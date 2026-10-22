@@ -9,7 +9,7 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 115 of 185 concrete milestones complete.**
+**9 of 67 original items complete; 116 of 186 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
@@ -568,7 +568,8 @@ Commit and push validated research batches periodically as requested.
   - [x] **Static:** Compare selected settings/identity paths and establish non-atomic per-key writes. [Persistence](storage-and-configuration.md#nvs-commit-does-not-make-the-four-switches-atomic).
   - [x] **Static:** Compare seventeen selected SDK bodies and resolve both actual handle tables, extending per-key storage/commit semantics to Standard. This does not compare all page/flash helpers or establish downgrade safety. [SDK comparison](standard-model-comparison.md#nvs-handle-dispatch-and-storage-writes-also-match).
   - [x] **Host/Static:** Check legacy-field migration with 28 scenarios per build using recovered caller instructions and synthetic SDK results: missing versus erroneous destinations, unchecked copies/rereads, partial progress and misleading completion logs. [Migration boundaries](storage-and-configuration.md#legacy-field-migration-does-not-validate-a-whole-identity).
-  - [ ] **Next:** **Static/Host:** Audit remaining indirect/SDK key references and record compatibility; preserve credentials outside public artifacts. Separate application record migration from physical NVS page recovery; the bounded legacy-field migration cases are complete.
+  - [x] **Static:** Recover all 73 Wi-Fi descriptors, their storage types/capacities and twelve indirect NVS callback slots on both builds; compare five registry/load/open/cleanup bodies. [SDK schema](storage-and-configuration.md#wi-fi-registers-73-configuration-keys-outside-app_data), [machine-readable records](wifi-nvs-schema.json).
+  - [ ] **Next:** **Static/Host:** Finish Wi-Fi post-load normalization/writeback and remaining indirect/SDK key-reference coverage, then state record-compatibility limits. Preserve credentials outside public artifacts and separate application migration from physical NVS page recovery.
 
 - [ ] **N03 · Host/Device:** Verify production/development identity and Wi-Fi isolation,
   legacy-key migration, reset semantics, timezone sharing and interrupted/failed

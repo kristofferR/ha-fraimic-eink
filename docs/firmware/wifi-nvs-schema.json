@@ -1,0 +1,1317 @@
+{
+  "evidence": "Static descriptor extraction and paired GNU CFG comparison; initialized SDK defaults, not installed frame values or a supported restore format",
+  "namespace": "nvs.net80211",
+  "images": {
+    "large": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+    "standard": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7"
+  },
+  "descriptor_count": 73,
+  "descriptor_bytes": 52,
+  "descriptor_allocation_bytes": 3796,
+  "scratch_bytes": 1024,
+  "adapter_sources": [
+    "https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/include/esp_private/wifi_os_adapter.h",
+    "https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_wifi/esp32s3/esp_adapter.c"
+  ],
+  "adapter_tables": {
+    "large": {
+      "base": "0x3fca12c0",
+      "version": 8,
+      "magic": "0xdeadbeaf",
+      "bytes": 476,
+      "callbacks": [
+        {
+          "name": "_nvs_set_i8",
+          "offset": "0x10c",
+          "slot": "0x3fca13cc",
+          "target": "0x42049ea8"
+        },
+        {
+          "name": "_nvs_get_i8",
+          "offset": "0x110",
+          "slot": "0x3fca13d0",
+          "target": "0x4204a070"
+        },
+        {
+          "name": "_nvs_set_u8",
+          "offset": "0x114",
+          "slot": "0x3fca13d4",
+          "target": "0x42049ee8"
+        },
+        {
+          "name": "_nvs_get_u8",
+          "offset": "0x118",
+          "slot": "0x3fca13d8",
+          "target": "0x4204a0ac"
+        },
+        {
+          "name": "_nvs_set_u16",
+          "offset": "0x11c",
+          "slot": "0x3fca13dc",
+          "target": "0x42049f28"
+        },
+        {
+          "name": "_nvs_get_u16",
+          "offset": "0x120",
+          "slot": "0x3fca13e0",
+          "target": "0x4204a0e8"
+        },
+        {
+          "name": "_nvs_open",
+          "offset": "0x124",
+          "slot": "0x3fca13e4",
+          "target": "0x42049e60"
+        },
+        {
+          "name": "_nvs_close",
+          "offset": "0x128",
+          "slot": "0x3fca13e8",
+          "target": "0x42049d9c"
+        },
+        {
+          "name": "_nvs_commit",
+          "offset": "0x12c",
+          "slot": "0x3fca13ec",
+          "target": "0x42049974"
+        },
+        {
+          "name": "_nvs_set_blob",
+          "offset": "0x130",
+          "slot": "0x3fca13f0",
+          "target": "0x420499c8"
+        },
+        {
+          "name": "_nvs_get_blob",
+          "offset": "0x134",
+          "slot": "0x3fca13f4",
+          "target": "0x42049a08"
+        },
+        {
+          "name": "_nvs_erase_key",
+          "offset": "0x138",
+          "slot": "0x3fca13f8",
+          "target": "0x4204994c"
+        }
+      ]
+    },
+    "standard": {
+      "base": "0x3fca1330",
+      "version": 8,
+      "magic": "0xdeadbeaf",
+      "bytes": 476,
+      "callbacks": [
+        {
+          "name": "_nvs_set_i8",
+          "offset": "0x10c",
+          "slot": "0x3fca143c",
+          "target": "0x42048f80"
+        },
+        {
+          "name": "_nvs_get_i8",
+          "offset": "0x110",
+          "slot": "0x3fca1440",
+          "target": "0x42049148"
+        },
+        {
+          "name": "_nvs_set_u8",
+          "offset": "0x114",
+          "slot": "0x3fca1444",
+          "target": "0x42048fc0"
+        },
+        {
+          "name": "_nvs_get_u8",
+          "offset": "0x118",
+          "slot": "0x3fca1448",
+          "target": "0x42049184"
+        },
+        {
+          "name": "_nvs_set_u16",
+          "offset": "0x11c",
+          "slot": "0x3fca144c",
+          "target": "0x42049000"
+        },
+        {
+          "name": "_nvs_get_u16",
+          "offset": "0x120",
+          "slot": "0x3fca1450",
+          "target": "0x420491c0"
+        },
+        {
+          "name": "_nvs_open",
+          "offset": "0x124",
+          "slot": "0x3fca1454",
+          "target": "0x42048f38"
+        },
+        {
+          "name": "_nvs_close",
+          "offset": "0x128",
+          "slot": "0x3fca1458",
+          "target": "0x42048e74"
+        },
+        {
+          "name": "_nvs_commit",
+          "offset": "0x12c",
+          "slot": "0x3fca145c",
+          "target": "0x42048a4c"
+        },
+        {
+          "name": "_nvs_set_blob",
+          "offset": "0x130",
+          "slot": "0x3fca1460",
+          "target": "0x42048aa0"
+        },
+        {
+          "name": "_nvs_get_blob",
+          "offset": "0x134",
+          "slot": "0x3fca1464",
+          "target": "0x42048ae0"
+        },
+        {
+          "name": "_nvs_erase_key",
+          "offset": "0x138",
+          "slot": "0x3fca1468",
+          "target": "0x42048a24"
+        }
+      ]
+    }
+  },
+  "limits": [
+    "Type mappings follow the selected load/reset callback dispatch; internal kinds 6 and 7 both use NVS blob APIs.",
+    "Scalar defaults/ranges are descriptor values before later normalization. Blob capacity is not a validated exact stored length.",
+    "Blob read failure copies an all-0xff buffer before subsequent helpers; the descriptor scalar default is not a blob default.",
+    "Names for 5 GHz and HE features are compiled library entries, not hardware-capability evidence.",
+    "No installed NVS values, public credentials, full SDK compatibility, cross-flash support or downgrade guarantee."
+  ],
+  "entries": [
+    {
+      "id": 0,
+      "key": "opmode",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 4
+      },
+      "scalar_default": 2,
+      "default_condition": "runtime opmode flag zero selects 1; nonzero selects 2",
+      "registration_calls": {
+        "large": "0x42096522",
+        "standard": "0x42095bc6"
+      }
+    },
+    {
+      "id": 1,
+      "key": "sta.ssid",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 36,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096549",
+        "standard": "0x42095bed"
+      }
+    },
+    {
+      "id": 2,
+      "key": "sta.authmode",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 15
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096583",
+        "standard": "0x42095c27"
+      }
+    },
+    {
+      "id": 3,
+      "key": "sta.pswd",
+      "internal_kind": 6,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 65,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x4209659f",
+        "standard": "0x42095c43"
+      }
+    },
+    {
+      "id": 4,
+      "key": "sta.pmk",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 32,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x420965bb",
+        "standard": "0x42095c5f"
+      }
+    },
+    {
+      "id": 5,
+      "key": "sta.chan",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 14
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x420965d7",
+        "standard": "0x42095c7b"
+      }
+    },
+    {
+      "id": 6,
+      "key": "auto.conn",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x420965f3",
+        "standard": "0x42095c97"
+      }
+    },
+    {
+      "id": 7,
+      "key": "bssid.set",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x4209660d",
+        "standard": "0x42095cb1"
+      }
+    },
+    {
+      "id": 8,
+      "key": "sta.bssid",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 6,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096627",
+        "standard": "0x42095ccb"
+      }
+    },
+    {
+      "id": 9,
+      "key": "sta.lis_intval",
+      "internal_kind": 2,
+      "nvs_type": "u16",
+      "descriptor_size_bytes": 2,
+      "scalar_range": {
+        "min": 1,
+        "max": 65535
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x42096644",
+        "standard": "0x42095ce8"
+      }
+    },
+    {
+      "id": 10,
+      "key": "sta.phym",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 4
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x4209665e",
+        "standard": "0x42095d02"
+      }
+    },
+    {
+      "id": 11,
+      "key": "sta.phybw",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 3
+      },
+      "scalar_default": 2,
+      "registration_calls": {
+        "large": "0x4209667a",
+        "standard": "0x42095d1e"
+      }
+    },
+    {
+      "id": 12,
+      "key": "sta.apsw",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 2,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096694",
+        "standard": "0x42095d38"
+      }
+    },
+    {
+      "id": 13,
+      "key": "sta.apinfo",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 700,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x420966af",
+        "standard": "0x42095d53"
+      }
+    },
+    {
+      "id": 14,
+      "key": "sta.scan_method",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x420966c9",
+        "standard": "0x42095d6d"
+      }
+    },
+    {
+      "id": 15,
+      "key": "sta.sort_method",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x420966e3",
+        "standard": "0x42095d87"
+      }
+    },
+    {
+      "id": 16,
+      "key": "sta.minrssi",
+      "internal_kind": 1,
+      "nvs_type": "i8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": -127,
+        "max": 0
+      },
+      "scalar_default": -127,
+      "registration_calls": {
+        "large": "0x420966fe",
+        "standard": "0x42095da2"
+      }
+    },
+    {
+      "id": 17,
+      "key": "sta.minauth",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 15
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096718",
+        "standard": "0x42095dbc"
+      }
+    },
+    {
+      "id": 18,
+      "key": "sta.pmf_e",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x42096734",
+        "standard": "0x42095dd8"
+      }
+    },
+    {
+      "id": 19,
+      "key": "sta.pmf_r",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x4209674e",
+        "standard": "0x42095df2"
+      }
+    },
+    {
+      "id": 20,
+      "key": "sta.btm_e",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096768",
+        "standard": "0x42095e0c"
+      }
+    },
+    {
+      "id": 21,
+      "key": "sta.rrm_e",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096782",
+        "standard": "0x42095e26"
+      }
+    },
+    {
+      "id": 22,
+      "key": "sta.mbo_e",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x4209679c",
+        "standard": "0x42095e40"
+      }
+    },
+    {
+      "id": 23,
+      "key": "ap.ssid",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 36,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x420967ee",
+        "standard": "0x42095e92"
+      }
+    },
+    {
+      "id": 24,
+      "key": "ap.passwd",
+      "internal_kind": 6,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 65,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096808",
+        "standard": "0x42095eac"
+      }
+    },
+    {
+      "id": 25,
+      "key": "ap.pmk",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 32,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096822",
+        "standard": "0x42095ec6"
+      }
+    },
+    {
+      "id": 26,
+      "key": "ap.chan",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 14
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x4209683c",
+        "standard": "0x42095ee0"
+      }
+    },
+    {
+      "id": 27,
+      "key": "ap.authmode",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 15
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096856",
+        "standard": "0x42095efa"
+      }
+    },
+    {
+      "id": 28,
+      "key": "ap.hidden",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096870",
+        "standard": "0x42095f14"
+      }
+    },
+    {
+      "id": 29,
+      "key": "ap.max.conn",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 15
+      },
+      "scalar_default": 10,
+      "registration_calls": {
+        "large": "0x4209688c",
+        "standard": "0x42095f30"
+      }
+    },
+    {
+      "id": 30,
+      "key": "bcn.interval",
+      "internal_kind": 2,
+      "nvs_type": "u16",
+      "descriptor_size_bytes": 2,
+      "scalar_range": {
+        "min": 10,
+        "max": 65535
+      },
+      "scalar_default": 100,
+      "registration_calls": {
+        "large": "0x420968aa",
+        "standard": "0x42095f4e"
+      }
+    },
+    {
+      "id": 31,
+      "key": "ap.phym",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 4
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x420968c6",
+        "standard": "0x42095f6a"
+      }
+    },
+    {
+      "id": 32,
+      "key": "ap.phybw",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 3
+      },
+      "scalar_default": 2,
+      "registration_calls": {
+        "large": "0x420968e2",
+        "standard": "0x42095f86"
+      }
+    },
+    {
+      "id": 33,
+      "key": "ap.sndchan",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 2
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x420968fe",
+        "standard": "0x42095fa2"
+      }
+    },
+    {
+      "id": 34,
+      "key": "ap.pmf_e",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x42096918",
+        "standard": "0x42095fbc"
+      }
+    },
+    {
+      "id": 35,
+      "key": "ap.pmf_r",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096932",
+        "standard": "0x42095fd6"
+      }
+    },
+    {
+      "id": 36,
+      "key": "ap.p_cipher",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 11
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x4209694c",
+        "standard": "0x42095ff0"
+      }
+    },
+    {
+      "id": 37,
+      "key": "lorate",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 0,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096a55",
+        "standard": "0x420960f9"
+      }
+    },
+    {
+      "id": 38,
+      "key": "country",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 12,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096a6f",
+        "standard": "0x42096113"
+      }
+    },
+    {
+      "id": 39,
+      "key": "ap.ftm_r",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096ac0",
+        "standard": "0x42096164"
+      }
+    },
+    {
+      "id": 40,
+      "key": "sta.ft",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096ada",
+        "standard": "0x4209617e"
+      }
+    },
+    {
+      "id": 41,
+      "key": "sta.owe",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096af4",
+        "standard": "0x42096198"
+      }
+    },
+    {
+      "id": 42,
+      "key": "sta.trans_d",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096b0e",
+        "standard": "0x420961b2"
+      }
+    },
+    {
+      "id": 43,
+      "key": "sta.sae_h2e",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 4
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096b28",
+        "standard": "0x420961cc"
+      }
+    },
+    {
+      "id": 44,
+      "key": "sta.sae_pk_mode",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 2
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096b42",
+        "standard": "0x420961e6"
+      }
+    },
+    {
+      "id": 45,
+      "key": "sta.bss_retry",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 255
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096b5d",
+        "standard": "0x42096201"
+      }
+    },
+    {
+      "id": 46,
+      "key": "sta.owe_data",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 44,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096b77",
+        "standard": "0x4209621b"
+      }
+    },
+    {
+      "id": 47,
+      "key": "sta.he_dcm",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096b91",
+        "standard": "0x42096235"
+      }
+    },
+    {
+      "id": 48,
+      "key": "sta.he_dcm_c_tx",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 3
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x42096bad",
+        "standard": "0x42096251"
+      }
+    },
+    {
+      "id": 49,
+      "key": "sta.he_dcm_c_rx",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 3
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x42096bc7",
+        "standard": "0x4209626b"
+      }
+    },
+    {
+      "id": 50,
+      "key": "sta.he_mcs9_d",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096be1",
+        "standard": "0x42096285"
+      }
+    },
+    {
+      "id": 51,
+      "key": "sta.he_su_b_d",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096bfb",
+        "standard": "0x4209629f"
+      }
+    },
+    {
+      "id": 52,
+      "key": "sta.he_su_b_f_d",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096c15",
+        "standard": "0x420962b9"
+      }
+    },
+    {
+      "id": 53,
+      "key": "sta.he_mu_b_f_d",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096c2f",
+        "standard": "0x420962d3"
+      }
+    },
+    {
+      "id": 54,
+      "key": "sta.he_cqi_f_d",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096c49",
+        "standard": "0x420962ed"
+      }
+    },
+    {
+      "id": 55,
+      "key": "sta.sae_h2e_id",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 32,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096c7e",
+        "standard": "0x42096322"
+      }
+    },
+    {
+      "id": 56,
+      "key": "ap.sae_h2e",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 4
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096c63",
+        "standard": "0x42096307"
+      }
+    },
+    {
+      "id": 57,
+      "key": "ap.pmk_info",
+      "internal_kind": 7,
+      "nvs_type": "blob",
+      "descriptor_size_bytes": 132,
+      "scalar_range": null,
+      "scalar_default": null,
+      "registration_calls": {
+        "large": "0x42096c99",
+        "standard": "0x4209633d"
+      }
+    },
+    {
+      "id": 58,
+      "key": "nan.phym",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 4
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x42096cb4",
+        "standard": "0x42096358"
+      }
+    },
+    {
+      "id": 59,
+      "key": "sta.pwr_reset",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096ccd",
+        "standard": "0x42096371"
+      }
+    },
+    {
+      "id": 60,
+      "key": "band_mode",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 1
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x42096a89",
+        "standard": "0x4209612d"
+      }
+    },
+    {
+      "id": 61,
+      "key": "sta.phym5g",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 3,
+        "max": 7
+      },
+      "scalar_default": 7,
+      "registration_calls": {
+        "large": "0x420967b8",
+        "standard": "0x42095e5c"
+      }
+    },
+    {
+      "id": 62,
+      "key": "ap.phym5g",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 3,
+        "max": 7
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x42096966",
+        "standard": "0x4209600a"
+      }
+    },
+    {
+      "id": 63,
+      "key": "sta.phybw5g",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 3
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x420967d4",
+        "standard": "0x42095e78"
+      }
+    },
+    {
+      "id": 64,
+      "key": "ap.phybw5g",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 3
+      },
+      "scalar_default": 2,
+      "registration_calls": {
+        "large": "0x42096980",
+        "standard": "0x42096024"
+      }
+    },
+    {
+      "id": 65,
+      "key": "ap.sndchan5g",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 2
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x420969b7",
+        "standard": "0x4209605b"
+      }
+    },
+    {
+      "id": 66,
+      "key": "ap.chan5g",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 36,
+        "max": 177
+      },
+      "scalar_default": 36,
+      "registration_calls": {
+        "large": "0x4209699b",
+        "standard": "0x4209603f"
+      }
+    },
+    {
+      "id": 67,
+      "key": "ap.chanisset",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x420969d1",
+        "standard": "0x42096075"
+      }
+    },
+    {
+      "id": 68,
+      "key": "ap.chan5gisset",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x420969eb",
+        "standard": "0x4209608f"
+      }
+    },
+    {
+      "id": 69,
+      "key": "sta.rssi_5g_adj",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 255
+      },
+      "scalar_default": 10,
+      "registration_calls": {
+        "large": "0x42096aa6",
+        "standard": "0x4209614a"
+      }
+    },
+    {
+      "id": 70,
+      "key": "ap.csa_count",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 30
+      },
+      "scalar_default": 3,
+      "registration_calls": {
+        "large": "0x42096a07",
+        "standard": "0x420960ab"
+      }
+    },
+    {
+      "id": 71,
+      "key": "ap.dtim_period",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 1,
+        "max": 10
+      },
+      "scalar_default": 1,
+      "registration_calls": {
+        "large": "0x42096a21",
+        "standard": "0x420960c5"
+      }
+    },
+    {
+      "id": 72,
+      "key": "ap.trans_d",
+      "internal_kind": 0,
+      "nvs_type": "u8",
+      "descriptor_size_bytes": 1,
+      "scalar_range": {
+        "min": 0,
+        "max": 1
+      },
+      "scalar_default": 0,
+      "registration_calls": {
+        "large": "0x42096a3b",
+        "standard": "0x420960df"
+      }
+    }
+  ]
+}
