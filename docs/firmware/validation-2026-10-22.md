@@ -892,3 +892,33 @@ Private artifacts: `led-arbitration-pass1.txt`, `led-arbitration-pass2.txt`,
 `led-arbitration-results.jsonl`, `led-arbitration-evidence-hashes.txt`, and the
 Standard `standard-led-pass1.txt`, `standard-led-pass2.txt` and
 `standard-led-boundaries-gnu.txt` counterparts.
+
+## Enrollment JSON and event boundaries: C11/C01/D01
+
+Two reference/decompiler passes and 28 bounded GNU ranges revisit nine functions:
+the setup request, shared event callback, parse/lookup wrappers and boolean/string
+predicates. The 259-byte setup-result layout, 64/64/127-byte copies, boolean-success
+selection, case-insensitive lookup and permissive parse-end option match the
+host reconstruction. The existing Standard field-parser comparison is retained;
+this new accumulation fixture is based on the Large paths.
+
+**Thirty case groups passed** with C11 warnings-as-errors, AddressSanitizer and
+UndefinedBehaviorSanitizer. They use the same pinned cJSON source hashes as the
+[poll parser pass](#poll-parser-and-error-semantics-c02s03c08). Cases cover minimal
+parser success versus empty identity, types, case/duplicates, decoded NUL,
+byte truncation, a split UTF-8 character, extra JSON/text, one-byte event assembly,
+4,095/4,096-byte boundaries, skipped-middle content and retained redirect bodies.
+
+All modeled data events are at most 512 bytes. One constructed oversized valid
+response returns failure before accumulation, success after one event grouping
+silently removes a middle member, and parse failure after another grouping.
+This tests the recovered skip-and-continue rule with the real JSON library;
+it does not execute the SDK transport or establish those exact events on a frame.
+There was no account submission, credential use, identity save, NVS change,
+verification request or frame contact. C11 remains open for complete independent
+enrollment and the persistence/boot/verification portions.
+
+Private artifacts: `enrollment-parser-pass1.txt`, `enrollment-parser-pass2.txt`,
+`enrollment-parser-gnu.mjs`, `enrollment-parser-boundaries-gnu.txt`,
+`enrollment-json-fixture.c`, `enrollment-json-results.jsonl` and
+`enrollment-parser-evidence-hashes.txt`.

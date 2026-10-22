@@ -1533,8 +1533,8 @@
     {
       "address": "0x420234cc",
       "kind": "function",
-      "role": "Poll/setup/verification HTTP callback; bounded append without per-response reset",
-      "evidence": "static; enrollment and HTTP follow-up"
+      "role": "Shared JSON HTTP-event accumulator; drops whole overflowing events, retains later bytes and returns success",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x4202358c",
@@ -1575,8 +1575,8 @@
     {
       "address": "0x42023ed4",
       "kind": "function",
-      "role": "Account/device setup request",
-      "evidence": "static"
+      "role": "Account setup request/parser; boolean success can coexist with absent/truncated identity",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x42024628",
@@ -2548,16 +2548,22 @@
       "evidence": "static; enrollment and HTTP follow-up"
     },
     {
+      "address": "0x42039600",
+      "kind": "function",
+      "role": "cJSON ParseWithOpts-style wrapper; strlen plus terminator passed to length-aware parser",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
+    },
+    {
       "address": "0x4203961c",
       "kind": "function",
-      "role": "NUL-terminated JSON parse wrapper; trailing bytes permitted",
-      "evidence": "static; enrollment and HTTP follow-up"
+      "role": "cJSON Parse-style wrapper with no required end-of-input",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x4203962c",
       "kind": "function",
-      "role": "Explicit-length JSON parse wrapper; trailing bytes permitted",
-      "evidence": "static; enrollment and HTTP follow-up"
+      "role": "cJSON ParseWithLength-style wrapper with no required end-of-input",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x42039658",
@@ -2568,8 +2574,8 @@
     {
       "address": "0x4203966c",
       "kind": "function",
-      "role": "cJSON_GetObjectItem wrapper selecting case-insensitive lookup",
-      "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+      "role": "cJSON case-insensitive member lookup wrapper",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x4203967c",
@@ -3030,20 +3036,26 @@
     {
       "address": "0x420e2de0",
       "kind": "function",
-      "role": "cJSON_IsTrue predicate: literal boolean true, not numeric/string truthiness",
-      "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+      "role": "cJSON IsTrue predicate",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x420e2df8",
       "kind": "function",
-      "role": "cJSON_IsBool predicate used by pending-content and settings selection",
-      "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+      "role": "cJSON IsBool predicate",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x420e2e10",
       "kind": "function",
       "role": "cJSON_IsNumber predicate used before signed 64-bit deadline conversion",
       "evidence": "static; poll JSON follow-up and pinned-source host fixture"
+    },
+    {
+      "address": "0x420e2e28",
+      "kind": "function",
+      "role": "cJSON IsString predicate",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
     },
     {
       "address": "0x420e2e40",

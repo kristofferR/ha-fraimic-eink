@@ -39,6 +39,7 @@ per question, not a count of tool calls or decompiled functions.
 | IDs | Progress | Next evidence needed |
 | --- | --- | --- |
 | C01/C11/D01 | Setup/verification split and redirects traced; response backing memory, conditional verification/poll guard, duplicate-worker and stale-pointer branches mapped; verification JSON is unescaped | Independent enrollment, controlled response/concurrency faults and remaining boot dependencies |
+| C11/C01/D01 | Thirty enrollment host groups verify minimal parser acceptance, identity/type/duplicate/NUL boundaries and event-dependent overflow that can alter parsed JSON | Physical response variants, persistence, independent enrollment, actual transport event grouping and verification lifecycle |
 | C02/S03 | Five idle polls preserved state; 25 host cases cover parser/field precedence; suppressed error returns differ from parsed empty JSON; I64 zero sentinel can reload an old deadline after failed clear | Device response faults, reboot persistence, remaining snapshot cases and induced NVS failures |
 | C02/C08/D01/D07 | Settings copy consumers rechecked; shared poll result, completion byte, two-second post-result task lifetime and non-joining clear mapped | Controlled overlap/late-clear faults, Standard comparison, full indirect-reference audit and per-job acknowledgement |
 | C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
@@ -160,6 +161,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   seven host cases use extracted scripts without contacting the frame.
   [Form parsing](local-api.md#account-form-limits-apply-before-decoding) adds
   thirteen host cases for pre-decoding limits and single-receive prefixes.
+  [Thirty response/parser groups](cloud-protocol.md#host-checked-enrollment-response-boundaries)
+  now cover field acceptance, unusable identities and event-dependent content
+  loss; they do not establish complete enrollment or save/verification behavior.
 - [ ] **C12 · Static/Host/Account/Device:** Verify album proxy headers and authorization,
   create/delete/update payloads and device assignment support. Establish which
   vendor album semantics can map to HA playlists; registration alone is insufficient.

@@ -341,6 +341,34 @@ can therefore look registered/verified without a usable voice identity.
 The setup parser does not apply `device_info.settings`, `pending_settings` or
 telemetry; use the separate poll contract for device settings.
 
+### Host-checked enrollment response boundaries
+
+Thirty host case groups now exercise the recovered HTTP-200 field handling and
+shared data-event accumulator with the pinned cJSON 1.7.18 source. The fixture
+does not execute the firmware, save identity, enroll a frame or emulate the
+separate verification task. It confirms parser success for `{"success":true}`
+and for a stable `user_id` without a returned `device_key`; neither is proof of
+complete enrollment. Relevant edge cases are:
+
+| Input | Host result |
+| --- | --- |
+| Numeric/string `success` | Failure; the field must be a JSON boolean |
+| Case-variant field names | Accepted by case-insensitive lookup |
+| Duplicate `success` or `user_id` | First matching member wins |
+| Missing/null/array `device_info`, or non-string identity fields | Can still return success with empty identity strings |
+| Decoded NUL within `user_id` | Copy stops there; an initial NUL produces an empty saved-ID candidate |
+| Identity strings longer than 64 bytes | Truncated to 64 bytes with NUL termination; a multibyte UTF-8 character can be split |
+| Complete leading object followed by text or another JSON value | Leading object controls the result; trailing content is ignored |
+
+For an intentional local enrollment flow, validate identity before returning
+success: use one ordinary JSON object, unique canonical field names, a nonempty
+stable user ID within the 64-byte limit, and no embedded NUL. Short ASCII IDs
+avoid byte-truncation ambiguity. Bind the request's device key; do not use the
+response-key field as a rotation mechanism. Keep the entire response comfortably
+below 4,095 bytes and return it directly, without redirect bodies. The
+[accumulator host cases](#overflow-can-change-the-json-being-parsed) explain why
+response truncation cannot safely serve as validation.
+
 ### Sign-in and create-account take different paths
 
 The browser-to-frame form parser has a separate
@@ -582,8 +610,33 @@ require-end-of-input option. A complete leading JSON value can therefore be
 accepted while trailing bytes are ignored, or an HTML redirect body can prevent
 the final JSON from parsing. Overflow behavior also depends on event boundaries,
 not just total response size. Serve one direct, bounded response instead of
-depending on either behavior. These are static consequences, not reproduced
-device failures.
+depending on either behavior. These consequences are now reproduced in the
+bounded host fixture below, but remain untested as physical response variants.
+
+### Overflow can change the JSON being parsed
+
+The enrollment fixture models this callback with scripted data events of at most
+512 bytes, matching the setup client's default receive-buffer capacity:
+
+- A 4,095-byte padded success response fits. A 4,096-byte version delivered in
+  512-byte events drops its final event, retains only 3,584 bytes and still parses
+  the complete leading success object.
+- A constructed oversized, valid object initially has `success: false`. With
+  one event grouping, the callback discards a middle member and appends a smaller
+  final event, producing a different valid object with `success: true`. The same
+  original body with a different grouping instead fails JSON parsing. No write
+  exceeds the buffer: **silent content loss changes meaning**.
+- An accumulated leading redirect JSON object controls the final parse; leading
+  redirect HTML prevents the following JSON from parsing. Finish/redirect events
+  do not reset the accumulation state.
+
+These are reconstructed callback/parser results, not actual HTTP/TLS exchanges
+or a demonstration of a physical device accepting those event boundaries.
+They establish why the emulator should serialize, size-check and serve a compact
+final response rather than relying on the client's overflow handling. A later
+firmware fix should make overflow fail the request and reset response ownership
+for each exchange. [Validation](validation-2026-10-22.md#enrollment-json-and-event-boundaries-c11c01d01)
+records source hashes, scope and the thirty cases.
 
 ### Shared response ownership and verification guard
 
