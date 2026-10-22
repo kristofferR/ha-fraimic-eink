@@ -754,6 +754,15 @@ reconstructed application decisions once, not once per model. Actual FAT
 corruption, wear-leveling/resource cleanup, interruption and frame recovery
 remain untested; no artwork or storage was changed.
 
+Three further pairs verify wear-leveling mount and VFS/disk-registration cleanup:
+232 instructions, 24 branches and six ranges per model, with four direct-call
+and 26 literal pairs reviewed. The map now contains 241 pairs. These support the
+[late-failure handle-retention trace](storage-and-configuration.md#failed-mounts-can-retain-wear-leveling-handles):
+both allocators use eight slots and do not deduplicate a partition. The already
+compared SDK wrapper omits wear-leveling unmount on later error paths. Twelve new
+host groups check that wrapper with slot accounting, without executing the full
+driver or reproducing a physical memory/storage failure.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering

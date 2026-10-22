@@ -786,7 +786,21 @@
       "save_checks_close_result": false,
       "load_checks_close_result": false,
       "load_updates_length_only_on_complete_read": true,
-      "limitations": "No vendor machine-code execution, real FAT image, wear-leveling/stdio fault injection, physical corruption, concurrency, interruption or durable recovery experiment"
+      "limitations": "No vendor machine-code execution, real FAT image, wear-leveling/stdio fault injection, physical corruption, concurrency, interruption or durable recovery experiment",
+      "late_failure_cleanup": {
+        "evidence": "Three additional paired GNU functions; twelve host groups using unchanged SDK mount wrapper with modeled wear-level slots",
+        "compared_functions": 3,
+        "instructions_per_image": 232,
+        "branches_per_image": 24,
+        "gnu_ranges_per_image": 6,
+        "direct_call_pairs": 4,
+        "literal_pairs": 26,
+        "wear_level_handle_slots": 8,
+        "partition_deduplication_in_allocator": false,
+        "late_mount_error_releases_wear_level_handle": false,
+        "host_case_groups": 12,
+        "limits": "Conditional late-failure sequence; real wear-level driver, heap size, other cleanup paths, concurrency and physical effects not exercised"
+      }
     }
   },
   "function_map": [
@@ -1979,6 +1993,21 @@
       "role": "fat_wear_level_mount_wrapper",
       "large": "0x42035414",
       "standard": "0x42033ed8"
+    },
+    {
+      "role": "wear_level_mount",
+      "large": "0x42036c74",
+      "standard": "0x42035738"
+    },
+    {
+      "role": "diskio_registration_cleanup",
+      "large": "0x42035604",
+      "standard": "0x420340c8"
+    },
+    {
+      "role": "fat_vfs_registration_cleanup",
+      "large": "0x42036ba0",
+      "standard": "0x42035664"
     }
   ],
   "live_standard": {

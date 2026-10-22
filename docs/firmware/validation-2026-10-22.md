@@ -1806,3 +1806,40 @@ per-function `last-cache-*-cfg.json`/`.txt`,
 No frame request, artwork change, reset, firmware write, network-policy change
 or HA deployment occurred. N04/N05 stay open for actual filesystem/storage
 faults, cleanup, concurrency and final recovery on the installed layout.
+
+## Failed-mount resource ownership: N04/E01/E02
+
+Three additional complete paired GNU functions verify wear-level allocation,
+FAT VFS unregistration and disk I/O cleanup: 232 instructions, 24 branches and
+six ranges per model. Four direct-call pairs and 26 literal pairs are reviewed;
+the public map now has 241 pairs. The allocator has eight slots and publishes
+only after its own initialization succeeds, while the previously compared FAT
+wrapper has no wear-level release in its later error cleanup.
+
+Twelve host case groups passed with the same C11 warning/sanitizer settings as
+the recovery fixture. An unchanged SDK wrapper is extracted from the same
+SHA-pinned `vfs_fat_spiflash.c` and reuses the unchanged format helper. The
+wear-level dependency models the verified slot allocation, and the VFS/disk
+operations record registration state. Controlled failures show which exits
+retain a slot, a later successful retry with an earlier retained slot, and eight
+retained slots preventing a ninth FAT attempt. This is resource accounting, not
+execution of the driver, flash operations or a measurement of retained heap.
+Fixture contexts are freed explicitly after assertions; sanitizer success is
+not a claim that the firmware releases these resources.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `last-cache-sdk-wrapper.inc` | `2c61d84376dffe7a9545005bf841e3eb3b9b2890682cd481d67a3924f9724549` |
+| `last-cache-cleanup-fixture.c` | `08b9235a6042076bf97b6114480275ee8df849e5881eca9bb50856698f9e9cd1` |
+| `last-cache-cleanup-fixture-results.jsonl` | `c1bd2d8b9a6709d0b4a4aa4aa4d3c815864cb0dfcdaa6590a25e5f27c4c00d8b` |
+| `last-cache-wear_levelling.cpp` | `880e32476dd5ef0ed1319dac44b732685dc6ca87330e6aa804d95ba31278b740` |
+
+Other private artifacts: `last-cache-cleanup-pass1.txt`,
+`last-cache-{wl-mount,diskio-clean,vfs-clean}-*-cfg.json`/`.txt`,
+`compare-standard-last-cache-cleanup.mjs`,
+`standard-last-cache-cleanup-comparison.json`,
+`standard-last-cache-cleanup-boundaries-gnu.txt` and
+`extract-last-cache-cleanup.mjs`. No device, artwork, network or HA changes were
+made. Remaining cleanup callers, actual allocator/driver behavior, concurrency,
+interrupted storage and physical recovery remain untested. No causal connection
+to the earlier observed TLS allocation failure has been established.

@@ -460,6 +460,30 @@
       "evidence": "static; bounded GNU marker/restoration trace"
     },
     {
+      "address": "0x3fcacb08",
+      "kind": "data",
+      "role": "Disk I/O registration table for two FAT volumes",
+      "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
+      "address": "0x3fcacb14",
+      "kind": "data",
+      "role": "FAT VFS context pointer table for two volumes",
+      "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
+      "address": "0x3fcacb1c",
+      "kind": "data",
+      "role": "Global wear-level instance-table lock",
+      "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
+      "address": "0x3fcacb20",
+      "kind": "data",
+      "role": "Eight wear-level instance/lock records, eight bytes each",
+      "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
       "address": "0x3fcad4b4",
       "kind": "global",
       "role": "Task-watchdog runtime object pointer",
@@ -2822,6 +2846,24 @@
       "kind": "function",
       "role": "SDK partition/wear-level/FAT registration and mount wrapper; invokes format gate and creates mounted-context record",
       "evidence": "static; 22 October full Large/Standard cache and FAT recovery GNU comparison"
+    },
+    {
+      "address": "0x42035604",
+      "kind": "function",
+      "role": "Disk I/O registration helper; null implementation frees registration only, without wear-level unmount",
+      "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
+      "address": "0x42036ba0",
+      "kind": "function",
+      "role": "FAT VFS unregister: close/free VFS context and its associated allocation, without wear-level unmount",
+      "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
+      "address": "0x42036c74",
+      "kind": "function",
+      "role": "Wear-level mount: first free of eight slots, no partition deduplication; publish only after successful config/init, local cleanup on own failure",
+      "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
     },
     {
       "address": "0x420383b0",

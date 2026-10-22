@@ -611,6 +611,41 @@ changes and misleading fourth-attempt logging. FAT calls are controlled stubs;
 no filesystem image, wear-leveling driver, flash, interruption or actual wait is
 simulated. N04 remains open for those layers and physical recovery.
 
+### Failed mounts can retain wear-leveling handles
+
+The SDK wrapper acquires a wear-leveling handle before reserving a FAT drive,
+registering VFS or mounting FAT. Its later error exits do not release that
+handle. No available FAT drive returns `0x101` directly; disk/VFS registration,
+FAT mount/format and final context-allocation failures follow cleanup that
+unregisters VFS and disk I/O without calling wear-leveling unmount. Those two
+cleanup helpers free their own registrations, not the wear-leveling instance.
+The structure matches the pinned
+[SDK mount wrapper](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/fatfs/vfs/vfs_fat_spiflash.c).
+
+Large `0x42036c74` and Standard `0x42035738` allocate from an eight-slot table.
+They select the first empty slot without deduplicating the partition. A successful
+call publishes the instance; a later mount call overwrites the application's
+single output handle. Therefore a retry can succeed with a new handle while an
+earlier failed attempt's slot remains allocated. Failures *inside* wear-leveling
+mount have a separate local cleanup path and do not publish that slot.
+
+With an initially empty table, eight attempts that each acquire a handle and
+then fail can fill all slots. A ninth returns `0x101` before reaching FAT.
+Two complete four-attempt application initialization failures can reach that
+condition if every attempt follows the required late-failure path. Other mounts,
+earlier allocation errors and separate cleanup can alter the count. This is a
+conditional resource-retention mechanism, not evidence that either frame has
+experienced it or an explanation of the captured TLS allocation failure.
+
+Twelve host groups exercise the unchanged SDK wrapper with controlled dependencies,
+including registration, FAT and allocation failures, successful
+retry with an earlier retained slot, eight-slot exhaustion and an already-registered
+VFS result. Wear-leveling is an eight-slot accounting stub based on the verified
+allocator, not real flash or a measurement of leaked heap bytes. Host cleanup
+deliberately frees fixture contexts after assertions. Three additional paired
+GNU bodies verify the allocator and both cleanup helpers across 232 instructions,
+24 branches and six ranges per model. No storage failure was induced on a frame.
+
 ## Last artwork
 
 `/imagedata/last_image.bin` is the recovered single-image persistence mechanism.
