@@ -658,3 +658,37 @@ Private artifacts: `test_pull_asset_reuse.py`, `pull-asset-reuse-results.txt` an
 `test_library_manager` fixture on `PYTHONPATH`, using `uv run --with pillow
 --with numpy --with pytest --with voluptuous --with resvg_py pytest` and the
 research file. No live HA storage, device, vendor endpoint or paid model was used.
+
+## Status RLE and marker ordering: N08/D01/D07
+
+A new Ghidra/reference pass and 18 bounded GNU ranges across six functions trace
+the decoder, show/restore wrappers and NVS marker helpers. Literal reads confirm
+the 2,304,000-byte capacity threshold, 288,000-byte controller stride and marker
+global. The packing instructions use unsigned byte loads, a four-bit shift, OR
+and byte store, with no colour masking or validation.
+
+The reconstructed C decoder passed **16 cases** with AddressSanitizer and
+UndefinedBehaviorSanitizer, including exact output, unused trailing pairs, odd/
+empty/truncated input, zero/overlong runs, odd-run pairing, invalid colours,
+high-bit contamination, null arguments and insufficient capacity. The exhausted
+input case checks that earlier output remains modified while the length sentinel
+remains unchanged. Guard bytes after the output stayed intact in the cases run.
+
+The final case decodes the hash-pinned embedded vendor asset and reproduces the
+previous output SHA-256:
+`a1db1ecf37389628588baf3c2d44912318087759eb55558dfaa4b834236721be`.
+The compressed asset SHA-256 is
+`2ffaf8238d0bd202019be6318057d5812effaab440edf419b01b656bf0363278`.
+No artwork bytes are published. These host cases exercise the recovered algorithm,
+not native firmware execution or panel behavior.
+
+Static wrapper checks separately establish decoding/loading before DROP, drop
+converted to success, marker changes at render acceptance, clearing after failed
+cache load, and unreported NVS commit failure. Neither a marker nor the wrapper's
+success is a physical display acknowledgment. No frame request, battery-state
+change, asset installation or reset occurred.
+
+Private artifacts: `status-rle-pass1.txt`, `status-rle-gnu.mjs`,
+`status-rle-boundaries-gnu.txt`, `status-rle-literals.jsonl`,
+`status-rle-fixture.c`, `status-rle-fixture-results.txt`,
+`status-rle-fixture-hashes.txt` and `extract-status-rle.mjs`.

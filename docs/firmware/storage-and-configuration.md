@@ -402,8 +402,8 @@ The decoder at `0x4202fa0c` expects:
 
 It rejects exhausted input, zero runs and row overruns. This is the embedded
 status-asset format, not an additional network format accepted by `/api/image`.
-Use valid Spectra 6 color indices in any generated asset; decoder mechanics alone
-do not establish a complete palette-validation contract.
+The follow-up below establishes that the decoder does **not** validate the palette
+or require all supplied pairs to be consumed.
 
 A host-side decoder reconstructed from these rules consumed all **216,382 input
 bytes** and produced exactly **2,304,000 bytes**, with no invalid runs or leftover
@@ -411,3 +411,62 @@ input. The asset uses only palette values `0, 1, 2, 3, 5, 6`. Output SHA-256:
 `a1db1ecf37389628588baf3c2d44912318087759eb55558dfaa4b834236721be`.
 This validates the recovered format against the embedded asset, not a new panel
 render. Neither the embedded nor decoded vendor artwork is included here.
+
+### Status decoder validation and partial writes
+
+GNU instruction checks and a reconstructed C fixture refine the contract:
+
+| Input condition | Recovered result |
+| --- | --- |
+| Null input, output or length pointer; output capacity below 2,304,000 | `0x102`, before decoding |
+| Input shorter than two bytes or odd byte count | `0x104`, before decoding |
+| Input ends before all rows are full | `0x10c`; earlier output bytes remain written |
+| A consumed run has length zero or crosses its 800-pixel row | `0x108`; earlier output bytes remain written |
+| Extra even-length data after all eight controller blocks | Success; trailing pairs are not inspected, even a zero run |
+| Colour outside `0, 1, 2, 3, 5, 6` | No rejection or palette normalization |
+
+Packing at `0x4202fb92`–`0x4202fba0` loads two unsigned colour bytes, shifts the
+first by four, ORs the full second byte, and stores the low byte. Neither input
+is masked to a valid panel colour. Repeated colour `4` therefore produces `0x44`;
+the pair `0x00, 0x10` produces `0x10`, changing the high nibble as well. Odd-length
+runs can legitimately pair across run boundaries within a row. Every completed
+row has an even 800 pixels, so no pixel remains pending across rows.
+
+The output-length pointer is written only on success. An error does not zero it
+or roll back partially decoded bytes. The current wrapper initializes its local
+length to zero and skips render-start on decode failure, but decoding has already
+modified the shared image allocation. The 16 host cases reproduce these rules
+under AddressSanitizer/UndefinedBehaviorSanitizer and reproduce the preserved
+vendor asset's earlier output hash. They execute a reconstruction, not the ESP32
+application. No malformed asset was supplied to a physical frame.
+
+Generated firmware assets should be checked for exact completion, row bounds and
+palette before publication. If decoding can overlap another consumer, ownership
+must cover decoding itself; a render-start guard comes too late.
+
+### Status markers and restoration are not display acknowledgments
+
+`0x4202fc34` expands the status image into the ordinary shared image buffer
+**before** calling render-start with DROP policy. It converts `0x103` (busy/drop)
+to success without updating the status marker. The earlier decoded bytes are
+not restored on that branch. This is another statically identified writer-before-
+arbitration path, not an observed collision.
+
+On accepted render-start, it updates the in-memory marker at `0x3fcaca94` and
+calls `0x4202f904` to persist `app_data/sys_img`. It does not wait for render
+completion. The marker and “displayed” log thus indicate acceptance, even if the
+worker subsequently fails. The helper does not replace `last_image.bin`.
+
+Restore helper `0x4202fde0` loads the saved artwork into the same allocation
+before its own DROP call. A drop again returns success while retaining the
+status marker. Accepted render-start clears the marker before completion;
+failed cache load also clears it, despite not restoring any artwork. An actual
+render-start error leaves it set. These branches must not be interpreted as
+proof that either the status image or restored artwork reached the glass.
+
+Marker persistence is best effort: `0x4202f904` logs an NVS-open failure, checks
+set/erase only to decide whether to attempt commit, discards commit failure and
+returns no result to its caller. In-memory and persisted markers can therefore
+diverge on storage failure. `0x4202fdac` likewise clears memory before requesting
+NVS deletion. Physical overlap, storage faults and next-boot restoration remain
+open; no battery-state or reset experiment was performed.

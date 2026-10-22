@@ -340,6 +340,12 @@
       "evidence": "static; fallback lifecycle follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x3fcaca94",
+      "kind": "state",
+      "role": "In-memory system-image name marker; not render completion",
+      "evidence": "static; bounded GNU marker/restoration trace"
+    },
+    {
       "address": "0x3fcad4b4",
       "kind": "global",
       "role": "Task-watchdog runtime object pointer",
@@ -2214,8 +2220,8 @@
     {
       "address": "0x4202f904",
       "kind": "function",
-      "role": "Persist system-image marker",
-      "evidence": "static"
+      "role": "Best-effort system-image marker persistence; commit result discarded",
+      "evidence": "static; status-image GNU and host reconstruction follow-up"
     },
     {
       "address": "0x4202f970",
@@ -2226,14 +2232,26 @@
     {
       "address": "0x4202fa0c",
       "kind": "function",
-      "role": "Decode status-image row-bounded RLE",
-      "evidence": "static"
+      "role": "Decode row-bounded status RLE; unchecked colours/trailing pairs, partial writes on error",
+      "evidence": "static; status-image GNU and host reconstruction follow-up"
     },
     {
       "address": "0x4202fc34",
       "kind": "function",
-      "role": "Render compressed system image without replacing last artwork",
-      "evidence": "static"
+      "role": "Decode status image before DROP; acceptance updates marker without completion wait",
+      "evidence": "static; status-image GNU and host reconstruction follow-up"
+    },
+    {
+      "address": "0x4202fdac",
+      "kind": "function",
+      "role": "Clear in-memory system-image marker before best-effort NVS erase",
+      "evidence": "static; bounded GNU marker/restoration trace"
+    },
+    {
+      "address": "0x4202fde0",
+      "kind": "function",
+      "role": "Load saved artwork before DROP; clear marker on acceptance or cache-load failure",
+      "evidence": "static; bounded GNU marker/restoration trace"
     },
     {
       "address": "0x4202ff14",

@@ -64,6 +64,7 @@ per question, not a count of tool calls or decompiled functions.
 | D04/D07/D08/S05 | Maintenance helpers drain the semaphore but treat DROP as success; Standard waits 60 seconds, Large 90; Large blank path can wait on its own busy state, and scheduled history ignores refresh results | Physical maintenance/failure tests, other shutdown callers, concurrent state changes and persisted history errors |
 | N02/N03 | Application scalar/blob types and sizes mapped; SDK Wi-Fi/PHY namespaces, mode order and unchecked backup/restore operations traced | Remaining SDK/indirect keys, other-build schema, interrupted switching and migration faults |
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
+| N08/D01/D07 | Sixteen RLE host cases verify partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; status/restore helpers write before DROP and change markers before completion | Physical rendering, overlap, storage faults, Standard comparison and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
@@ -353,7 +354,9 @@ Source: [storage and configuration](storage-and-configuration.md).
   for system artwork, temporary files and wear before promising multiple images.
 - [ ] **N08 · Host/Device:** Test generated low-battery/status RLE artwork, invalid
   palette values and malformed runs; verify actual rendering and preservation of
-  last artwork/sys_img state. The existing host decode closes only format recovery.
+  last artwork/sys_img state. [Sixteen host cases and marker tracing](storage-and-configuration.md#status-decoder-validation-and-partial-writes)
+  now cover malformed run/size, palette and partial-write behavior. They do not
+  close physical rendering, overlap, NVS-failure or next-boot restoration checks.
 
 ## Hardware and remaining local interfaces
 

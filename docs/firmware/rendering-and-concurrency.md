@@ -16,6 +16,10 @@ The [timeout and two-job follow-up](voice.md#timeout-and-error-boundaries-still-
 also traces unchecked task creation, a WAV cleanup helper that does not release
 ownership, and a candidate cancellation flag left over for the next recording.
 
+The [status-image path](storage-and-configuration.md#status-markers-and-restoration-are-not-display-acknowledgments)
+also decodes/loads into the image allocation before DROP arbitration. Its status
+marker follows render acceptance or cache-load failure, not physical completion.
+
 ## The display pointer is another alias
 
 This allocation map is for **Large**. Standard has [separate audio/image backing
