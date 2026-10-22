@@ -57,6 +57,7 @@ per question, not a count of tool calls or decompiled functions.
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
 | C05/C08/D01/E02 | Eight SDK/sender host groups verify framing and partial-progress failures; complete reachable uploaders and SDK writers match across both builds in 771 instructions and 67 branches | Real TCP/TLS delivery, allocation faults, concurrent cancellation, remaining external helpers and physical response variants |
 | C05/D01/E02 | Twenty-five host parser/field groups verify copy limits, duplicate/NUL/type handling, raw string-part projection and formatted-fields growth; ten Standard/Large function pairs match copying, printing and first-member lookup | Physical malformed-response/allocation controls, complete streaming/framing faults and remaining external parser/helper comparison |
+| C05/C08/E02 | Twenty-four HTTP-parser acknowledgment cases verify status/length ordering, early acceptance, informational-response read boundaries and the immediate abort branch; five SDK callback/fetch bodies match | Physical response/cancellation controls, full header storage/allocation cleanup, transport delivery and outer-worker behavior |
 | S01/E02 | Both models distinguish immediate TCP refusal from post-selection error, ignore socket-error query failure and preserve manager cycles after recovery; thirteen function pairs compare probe/queue and recovery thresholds | Controlled backend/WAN outages, refusal/error timing, retained-cycle sequences and full external Wi-Fi/transport faults |
 | C07/C08/D01/D07 | Upload task creation passes a borrowed 220-byte caller context; timeout returns without joining, while every worker exit still accesses its status/semaphore pointers | Physical timing, expired-stack effects, late completion/two-job reproduction and complete cleanup design |
 | C08/D01/D07 | Download context/handle and 300-second wait plus five-second grace mapped; late success stays failed; forced deletion can skip HTTP cleanup and race self-deletion | Actual scheduler/transport ordering, runtime callback ownership, retained-resource measurements and Standard equivalence |
@@ -222,6 +223,10 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   The [complete reachable uploaders and SDK writers](standard-model-comparison.md#complete-multipart-upload-paths-also-match)
   now also match across builds; remaining external helpers and physical faults
   are still separate from this static comparison.
+  [Twenty-four acknowledgment parser cases](voice.md#upload-acknowledgment-parser-and-early-success-boundaries)
+  now cover status/framing, malformed chunk suffixes, interim responses and
+  narrowed lengths. The immediate cancellation branch is host-checked, not a
+  reproduction of a real cancel race. Keep the local sink's empty final 200.
 - [ ] **C06 · Device:** Verify actual WAV format, duration/size limits, initial tap
   suppression, completion taps, cancellation and deadline behavior with a short
   owner-directed recording. Check the near-60-second boundary separately.
@@ -385,6 +390,9 @@ Sources: [OTA and recovery](ota-and-recovery.md),
   cover begin/write/end/abort failures and the conditional encrypted-sector gap.
   The outer HTTP/length and busy/safety branches still need host fixtures;
   actual encryption, partition contents and physical recovery remain unknown.
+  **Deferred at the owner's request on 22 October.** The completed SDK write
+  findings remain published; unfinished outer-download fault fixtures are
+  preserved privately and are not counted as validated results.
 
 ## Offline boot, sleep and scheduling
 

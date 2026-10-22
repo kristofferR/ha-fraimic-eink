@@ -972,6 +972,24 @@
         "evidence": "Static and host operation ordering; real flash encryption/partition state unknown"
       },
       "limits": "RAM storage, native host layout and injected allocator/partition/image-verifier outcomes; no physical flash, encryption, image verification, boot selection or whole outer-updater validation"
+    },
+    "voice_upload_acknowledgment": {
+      "evidence": "Five complete paired SDK bodies plus prior multipart comparison; 24 isolated real-parser host cases",
+      "compared_functions": 5,
+      "instructions_per_image": 194,
+      "branches_per_image": 22,
+      "gnu_ranges_per_image": 7,
+      "direct_call_pairs": 4,
+      "literal_pairs": 15,
+      "host_case_groups": 24,
+      "header_result_bits_used": 32,
+      "requires_zero_narrowed_header_result": true,
+      "accepted_status_min": 200,
+      "accepted_status_max": 299,
+      "reads_ack_body_after_headers": false,
+      "checks_abort_after_zero_header_result": false,
+      "server_contract": "Store complete WAV, return one final 200 with Content-Length: 0",
+      "limits": "Selected source parser/callbacks and reconstructed immediate application branch; no real socket/TLS, cancellation concurrency, full header storage/cleanup, outer worker or physical response test"
     }
   },
   "function_map": [
@@ -2514,6 +2532,31 @@
       "role": "is_ota_partition",
       "large": "0x420e3080",
       "standard": "0x420e3364"
+    },
+    {
+      "role": "http_on_headers_complete",
+      "large": "0x4206cee8",
+      "standard": "0x4206c4e0"
+    },
+    {
+      "role": "http_on_body",
+      "large": "0x4206cff8",
+      "standard": "0x4206c5f0"
+    },
+    {
+      "role": "http_on_message_begin",
+      "large": "0x420e41a0",
+      "standard": "0x420e4484"
+    },
+    {
+      "role": "http_on_message_complete",
+      "large": "0x420e41c4",
+      "standard": "0x420e44a8"
+    },
+    {
+      "role": "esp_http_client_fetch_headers",
+      "large": "0x4206d890",
+      "standard": "0x4206ce88"
     }
   ],
   "live_standard": {

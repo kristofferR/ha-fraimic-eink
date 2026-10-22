@@ -1165,6 +1165,20 @@ neither unit's flash encryption, partition contents, custom-image acceptance or
 physical rollback is established. External partition/verification callees are
 mapped, not recursively proved equivalent by these six pairs.
 
+## Upload acknowledgment SDK callbacks also match
+
+Five complete function pairs cover header fetching, headers-complete, body
+caching and message-begin/end callbacks. Their 194 instructions, 22 branches
+and seven ranges per image match, with four direct-call and fifteen literal
+pairs mapped. The public function map now contains 313 pairs. The previously
+compared complete multipart bodies supply the caller's return/status branch.
+
+The [24 acknowledgment cases](voice.md#upload-acknowledgment-parser-and-early-success-boundaries)
+are one host run with the matching SDK parser source and callback functions,
+scripted transport and a reconstruction of that immediate caller branch.
+They do not prove live response segmentation, cancellation races, all parser
+configuration/callbacks or external-helper equivalence on either model.
+
 ## Coverage and cleanup
 
 The 24 decoded origin-API exchanges were complete and all HTTP 200: one

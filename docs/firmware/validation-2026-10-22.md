@@ -2130,3 +2130,54 @@ outer updater faults, safety gates and deferred physical validation.
 | `ota-write-selected.inc` | `69118251a0be1812a50822ec40ffc58b430c7bc47b9cd53a9e32bf2ccc11f4a6` |
 | `ota-write-fixture.c` | `3056628571b2e95ff7d871d07a339397f6ae0c9636f00ea56095b3d9d1a6a5ac` |
 | `ota-write-fixture-results.jsonl` | `7e473d09573eeb73d70928fb035604b438deb7b36cb11ec4e13a0cef8f42f887` |
+
+## Upload acknowledgment framing and early success: C05/C08
+
+Twenty-four isolated cases use the matching SDK HTTP parser source, unchanged
+header-fetch/read/cache-cleanup/completion helpers and selected unchanged
+message/headers/body callbacks. Only header fetching is called by the exercised
+uploader branch; the fixture does not read the acknowledgment body afterward.
+The application return/status/abort decision is a bounded reconstruction of
+`0x420271fb` through `0x420272b8`, covered by the earlier complete multipart
+comparison. It narrows the 64-bit SDK return with an explicit 32-bit bit-pattern
+copy rather than relying on host signed-conversion behavior.
+
+Five additional complete GNU pairs validate headers-complete, body caching,
+message-begin/end and fetch: 194 instructions, 22 branches, seven ranges per
+model, four direct-call and fifteen literal pairs. Instruction bytes and entry
+prologues match the pinned images. External HTTP event/header handling, parser
+internals, allocator and transport helpers are not recursively compared here.
+
+The fixture uses a 4,096-byte receive buffer, the uploader's 120-second per-read
+timeout argument, scripted byte groups and the real parser for HTTP framing.
+Message-begin resets chunk flags as in the app. Header-storage/event callbacks
+are stubbed; unused chunk notifications are omitted. Shared-client registration,
+unregistration, socket close, full HTTP cleanup and outer-worker cancellation
+are not executed. Cached-body allocations are released explicitly by the SDK
+cache cleanup after each assertion; this is not a complete cleanup/leak audit.
+
+Cases cover nine explicit-zero status variants, ordinary positive JSON length,
+three chunked-body boundaries, two close-delimited bodies, invalid chunk syntax
+after headers, separated/coalesced 100/200 responses, two abort-flag combinations,
+two header timeouts and two oversized length values. All 24 pass with warnings
+treated as errors and Clang address/undefined-behavior sanitizers. The
+[voice contract](voice.md#upload-acknowledgment-parser-and-early-success-boundaries)
+records acceptance separately from HTTP completion and recommends one final
+200/zero-length response after complete WAV storage.
+
+Private artifacts: `voice-ack-*-cfg.json`/`.txt`,
+`compare-standard-voice-ack.mjs`, `standard-voice-ack-comparison.json`,
+`voice-ack-prefix.c`, `voice-ack-cases.c`, assembled fixture and hashes below.
+R12 remains deferred at the owner's request; no unfinished OTA fixture results
+are included in this C05 pass. No frame, router, recording, artwork or HA state
+was changed.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `voice-http-fixture/esp_http_client.c` | `7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2` |
+| `voice-http-fixture/http_parser.c` | `c164edcb06099b026e7ed853ed4d25536e83b4463d5e79921b28621e16588455` |
+| `voice-http-fixture/http_parser.h` | `21fcfe834198349472a878e0334dd74b8571fafc70c6dd701169f525dd463041` |
+| `voice-http-fixture/selected-sdk-functions.inc` | `965c4cf08b3eec4b2cfea18f69b72b189ec007dd60b55af663de55e55aac0e24` |
+| `voice-ack-message-begin.inc` | `7a7c4827a4e12a0c5287e87947e2fb654de4741e9a2270f3164cabb9c67009a2` |
+| `voice-ack-fixture.c` | `20c66a33c0cdcc6764226c0567e2081ea58c253f7b57b8491ffe6183a5ba42a0` |
+| `voice-ack-fixture-results.jsonl` | `e373113189033e8d53550dbf13e1750be180f88cf7c0e78c7c3f15813cbd784c` |

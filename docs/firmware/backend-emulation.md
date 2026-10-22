@@ -141,6 +141,13 @@ below. Other upload status variants, malformed presign handling, long recordings
 cancellation and retries remain open. Host duplicate handling is not evidence of
 actual frame retry.
 
+A later [24-case host acknowledgment pass](voice.md#upload-acknowledgment-parser-and-early-success-boundaries)
+keeps the emulator contract narrow: store the complete multipart WAV, then send
+one final 200 with explicit zero length. Separate informational responses can
+fail before the final status, while chunked/close-delimited acknowledgments can
+return success without body completion. These are isolated parser results,
+not additional physical recordings or a change to the deployed fixture.
+
 ## One-shot panel delivery: C03/C09/D06
 
 The owner approved replacing the current artwork once with a prepared six-colour

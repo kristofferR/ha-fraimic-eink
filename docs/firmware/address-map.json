@@ -3676,6 +3676,18 @@
       "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
+      "address": "0x4206cee8",
+      "kind": "function",
+      "role": "http_on_headers_complete; upload acknowledgment framing analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x4206cff8",
+      "kind": "function",
+      "role": "http_on_body; upload acknowledgment framing analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
       "address": "0x4206d16c",
       "kind": "function",
       "role": "HTTP common transport options: keep-alive/interface configuration",
@@ -4238,6 +4250,18 @@
       "kind": "function",
       "role": "Select eligible OTA record by sequence; ties select first",
       "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420e41a0",
+      "kind": "function",
+      "role": "http_on_message_begin; upload acknowledgment framing analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e41c4",
+      "kind": "function",
+      "role": "http_on_message_complete; upload acknowledgment framing analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
     },
     {
       "address": "0x420e442c",

@@ -378,7 +378,9 @@ However, the SDK's
 [`esp_http_client_fetch_headers`](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/include/esp_http_client.h)
 returns a body length or a negative error, not an `esp_err_t` success code.
 The HTTP status getter at `0x42027276` and 200–299 comparison at `0x420272b0`
-come afterward. Thus a valid positive response length is misclassified as failure.
+come afterward. Thus an ordinary positive response length is misclassified as
+failure. The low-word-only comparison has an oversized-length exception covered
+by the host cases below; it is not a sound response-length validator.
 
 For the local upload sink use HTTP 200 with `Content-Length: 0` and no body.
 The follow-up physical recording accepted exactly that response and reached
@@ -391,6 +393,54 @@ are unnecessary for the simple empty acknowledgment.
 This corrects the earlier claim that any 2xx response suffices. The first Ghidra
 export truncated the upload function before this check; live validation exposed
 the missing condition.
+
+### Upload acknowledgment parser and early-success boundaries
+
+Twenty-four isolated cases now exercise the original SDK header reader and HTTP
+parser, selected unchanged callbacks, and the recovered uploader's immediate
+return/status branch. Five complete SDK bodies also match across both apps:
+header fetching, headers-complete, body caching, message-begin and message-end.
+The complete multipart application comparison already covers the caller.
+
+| Response supplied by the host fixture | Immediate upload result |
+| --- | --- |
+| Explicit zero length, status 200, 201, 202, 204 or 299 | Success |
+| Explicit zero length, status 199, 300, 403 or 500 | Failure, with no redirect/retry in this branch |
+| Status 200 and the complete 15-byte JSON acknowledgment | Return 15 as an error before checking HTTP status |
+| Status 200, chunked headers, body in a later scripted read | Success after headers; body remains unread |
+| Status 200, a chunk already cached, no terminating chunk | Success while HTTP completion is false; cached body is discarded during cleanup |
+| Status 200, close-delimited body | Success without waiting for the remaining body or FIN |
+| Status 200, invalid chunk-size text in the same read as complete headers | Success despite the parser's recorded chunk error |
+| Separate `100 Continue`, then final `200` in a later read | Treat the interim 100 as the response and fail without reading the 200 |
+| `100 Continue` and final `200` together in one read | Parse through to the 200 and succeed |
+
+These results distinguish **the application's acceptance branch** from a valid,
+fully consumed HTTP response. Header fetching stops when the client state says
+headers are complete; it does not check the parser's returned byte count or
+error before returning the stored length. The uploader does not read or validate
+an acknowledgment body afterward. Test-read boundaries represent possible
+transport delivery, not a prediction of actual TCP segmentation or TLS records.
+
+The application keeps only the low 32 bits of the SDK's 64-bit length. An isolated
+header declaring 4,294,967,296 bytes therefore passes the zero-word check; the
+same header plus one byte returns error one. Neither fixture sends that body.
+This is an additional acceptance defect, not a usable upload-response design.
+
+There is also a narrow cancellation distinction: this return branch reads the
+abort flag only when the narrowed header result is nonzero. A supplied abort
+flag plus zero-length 2xx still returns success here; a nonzero result plus the
+flag becomes INVALID_STATE and clears it. The fixture does not execute the
+shared-client registration/unregistration helpers, concurrent cancellation or
+the outer worker's later checks, so it does not establish that a complete
+cancelled voice job will continue.
+
+For a local sink, finish validating/storing the complete multipart WAV before
+returning one final **200 with `Content-Length: 0`**. Avoid an acknowledgment body,
+chunked/close-delimited framing and unsolicited informational responses on this
+route. A 202 is accepted as an upload status, but it adds no stock job-polling
+semantics. Generation remains a separate finalize operation. The earlier Large
+200/empty and Standard 204 observations are the physical positive controls;
+the new variants are host-only. See [validation scope](validation-2026-10-22.md#upload-acknowledgment-framing-and-early-success-c05c08).
 
 ### JSON request allocation failures can lose ownership or fields
 
