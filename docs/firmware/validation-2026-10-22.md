@@ -2235,3 +2235,48 @@ source/header hashes are recorded in the
 | --- | --- |
 | `finalize-http-fixture.c` | `41dd9717b4973b65209576ce069e6ee63115423b4615d4c29c21251c29e21ef4` |
 | `finalize-http-results.jsonl` | `f7ecae23a1cf6bca0852eb68952cb014a993b451aab8c13e9fc2440704d0dda3` |
+
+## Backend deployment boundaries: A05
+
+Read-only HA-MCP overview, Supervisor app inventory, the `http` YAML fragment
+lookup and version-pinned `http/config` WebSocket read establish HA 2026.10.2,
+available app management and the active plain-HTTP 8123 configuration. No
+configuration write, integration reload, app installation, device request or
+network rule change was performed. Integration source is still release
+`e5450665ddbb57c2542c883375ba68c0aefbb1b1`.
+
+The [deployment comparison](backend-deployment.md) combines those observations
+with HA 2026.10.2's HTTP server, request wrapper, config API, authentication and
+SSL utilities. It recommends a companion listener and narrow HA bridge, while
+retaining job/artwork ownership in the integration. TLS 1.2 support is verified
+in HA's actual context builder; stock-origin certificate trust is a separate
+unresolved deployment constraint.
+
+**24 isolated checks passed** on Omarchy with Python 3.14.8 and aiohttp 3.14.5,
+the dependency pinned by this HA release. They execute the extracted, unchanged
+`request_handler_factory` and `server_context_modern`, with minimal substitutes
+for HA application state, token recognition and URL discovery. A synthetic
+standalone listener tests credential separation, limits, finite error framing
+and sanitized events. The actual wrapper logs a synthetic poll key at debug
+level; its waiting handler is cancelled after a loopback TLS client disconnects.
+
+Listeners bound only loopback ephemeral ports and were stopped in `finally`
+blocks. The temporary self-signed certificate/key were deleted with their
+temporary directory. No real device/HA credentials, audio, artwork, STT or paid
+generation were used. Synthetic bridge availability and a frozen byte string
+are not a running HA integration, durable job store or model renderer. Existing
+WAV and physical protocol evidence is linked separately in the comparison.
+
+A05's original design/host question is now complete. Production implementation,
+reload recovery, deployment and physical acceptance retain their own unchecked
+criteria; this does not convert those requirements into verified behavior.
+
+Private artifacts reside under `ha-backend-boundary/`:
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `check_boundary.py` | `59e5799eead5fc2e0e1dbd47a845c60ac11cb461683f0b706d7822afdb8840e2` |
+| `results.json` | `fa0f903c379aad6ad564e6da8ff6d8d9b32b0f71e15b4a204ab4f55b465329dc` |
+| HA `helpers/http.py` | `17a4c4532b043ea0497fb144c6ac233a8a3546afc819d6df33926eb44d9c6385` |
+| HA `components/http/server.py` | `1589da6f3330f52b6d9cc9c6a372a43ede2633b0050fd905839b98363de22e28` |
+| HA `util/ssl.py` | `a01e13013955397e13a11aa52b2ed51d3587a5f8b1c2670a2b283ad5e739fe40` |

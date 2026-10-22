@@ -12,6 +12,9 @@ does not lose the original or create a second generation on retry.
 The practical direction is to let **ha-fraimic-eink own artwork, rendering,
 playlists and voice-job history**, with a small adapter for the recovered frame
 protocol. Retain the vendor display, power and microphone drivers initially.
+The [deployment comparison](backend-deployment.md) recommends a companion
+listener with a narrow HA bridge, preserving the existing management auth and
+separating stock TLS, private uploads and finalize waits from HA's request lifecycle.
 The HA integration is a proposed design. Bounded, standalone
 [backend fixtures](backend-emulation.md) have served the physical frame's poll
 and album reads, captured its microphone and delivered one owner-confirmed test

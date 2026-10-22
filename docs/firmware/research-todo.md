@@ -9,23 +9,25 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**7 of 67 original items complete; 96 of 182 concrete milestones complete.**
+**8 of 67 original items complete; 98 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
-| Complete | 7 | Original bounded question answered; evidence linked below |
-| Research | 22 | Concrete static, host or design work remains available |
+| Complete | 8 | Original bounded question answered; evidence linked below |
+| Research | 21 | Concrete static, host or design work remains available |
 | Waiting for device | 13 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
 | Ongoing | 2 | Evidence discipline applied to relevant findings/builds, not a finite feature |
 
-Completed original items: **C05, C09, C10, A01, R11, H07, E03**. This reconciliation closes
+Completed original items: **C05, C09, C10, A01, A05, R11, H07, E03**. The reconciliation closed
 C05, C10, R11 and E03 from evidence already gathered; it adds no new device tests.
 The latest 31 finalize cases are recorded under C07, whose end-to-end physical
 timeout criterion remains unchecked.
+A05 subsequently closed with the deployment comparison and 24 isolated boundary
+checks; production bridge/job implementation remains A02–A04.
 
 ## How to use this list
 
@@ -61,8 +63,8 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, start with A05's deployment
-comparison, C11's synthetic enrollment fixture, or C08/D05's shared two-job
+For the owner's local-cloud/voice priorities, continue with C11's synthetic
+enrollment fixture or C08/D05's shared two-job
 interleaving work. A02–A04 and A03's final integration check need implementation;
 report that dependency rather than substituting more library decompilation.
 Preserve the remaining lower-priority static work under its original ID.
@@ -237,15 +239,15 @@ Commit and push validated research batches periodically as requested.
   - [ ] **Implementation:** Validate durable job ownership, generation deduplication and library identity across HA/service reload, retries and concurrent requests.
   - [ ] **Implementation:** Specify and test audio deletion, original retention and edit lineage; include transcript/prompt/model under the same job ID.
 
-- [ ] **A05 · Design/Host:** Compare HA-hosted protocol views with a companion service
+- [x] **A05 · Design/Host:** Compare HA-hosted protocol views with a companion service
   using actual TLS/deployment constraints. Check device-scoped authentication,
   upload/download tickets, bounds and log redaction while preserving admin auth.
 
-  Status: **Research**.
+  Status: **Complete**.
 
   - [x] **Host/Device:** Demonstrate standalone local HTTPS/API/upload/assets with frame-scoped tickets and bounded bodies; preserve separate admin credentials. [Backend evidence](backend-emulation.md).
-  - [ ] **Next:** **Design:** Compare HA-hosted views with a companion service using certificate renewal, startup/reload, long-finalize timeouts and deployment ownership; record a concrete recommendation.
-  - [ ] **Next:** **Host:** Validate the selected deployment/authentication boundary with synthetic credentials, size/job limits and log redaction.
+  - [x] **Design/Read:** Compare HA views and a companion against active HTTP configuration, certificate maintenance, request lifetimes and deployment ownership; recommend a companion with a narrow HA bridge. [Comparison](backend-deployment.md).
+  - [x] **Host:** Run 24 isolated checks using the pinned HA wrapper/TLS builder plus synthetic credential, size/job-limit and logging boundaries. Production integration and restart recovery are not claimed. [Evidence](backend-deployment.md#isolated-host-evidence).
 
 - [ ] **A06 · Design/Host/Device:** Evaluate recording/busy/cancel/render-result events,
   async jobs that sleep while processing, no-redraw command success, streaming STT

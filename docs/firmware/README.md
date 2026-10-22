@@ -47,6 +47,7 @@ No transcription or AI generation was invoked.
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
 | [22 October validation](validation-2026-10-22.md) | HTTP/diagnostic/OTA traces; 25 poll and 19 album JSON host cases |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
+| [Backend deployment](backend-deployment.md) | HA views versus companion listener, actual deployment constraints and 24 isolated boundary checks |
 | [Standard-model comparison](standard-model-comparison.md) | Model-specific firmware/panel differences, live setup, vendor voice flow and reachability failure |
 
 Machine-readable references: [firmware identity](firmware-identity.json),
