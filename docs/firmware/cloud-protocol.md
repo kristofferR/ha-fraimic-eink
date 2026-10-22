@@ -757,6 +757,12 @@ albums include `device_assignments` containing `device_id`, interval schedules,
 image counts and images. Create/update/delete remain untested; see the
 [recovered proxy contract](local-api.md#album-proxy-contract).
 
+The [local album/playlist proposal](album-playlist-mapping.md) now defines a
+bounded compatibility subset and tests real HA mutation payloads against an
+isolated server. It separates saved content, wake-only records, assignments and
+active playback. Those host results do not establish vendor mutation permissions
+or physical proxy behavior.
+
 ## HTTP and TLS requirements
 
 - Use explicit `Content-Length`, compact JSON and short URLs. The voice JSON

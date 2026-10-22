@@ -278,6 +278,10 @@ and HA/playlist commands. Provider choices remain open. Six isolated checks esta
 non-idempotent append and per-frame scene outcomes. Saved membership, play-next,
 queued delivery and physical display must remain separate operations/states.
 
+The [album compatibility subset](album-playlist-mapping.md) checks actual art/wake
+mutation payloads against a local fixture. It maps originals and saved playlist
+options while retaining separate assignment/wake metadata and active queue state.
+
 A small durable job record should connect:
 
 - Frame identity and device-scoped request/idempotency identity.

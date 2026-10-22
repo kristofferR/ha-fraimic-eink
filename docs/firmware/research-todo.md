@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 106 of 182 concrete milestones complete.**
+**9 of 67 original items complete; 107 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 9 | Original bounded question answered; evidence linked below |
-| Research | 14 | Concrete static, host or design work remains available |
-| Waiting for device | 19 | Remaining original criteria require physical validation |
+| Research | 13 | Concrete static, host or design work remains available |
+| Waiting for device | 20 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
@@ -66,10 +66,10 @@ implementation is authorized merely by an unchecked box.
 ## Available next work
 
 For the owner's local-cloud/voice priorities, continue with the remaining driver
-faults under D06 or C12's album mutation fixture while A07's [feature proposal](voice-feature-proposal.md)
+faults under D06 or N05's cache fault cases while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
-Its six API reuse checks, D02's byte-level overlap and D04's bounded renderer fault
-model are complete. A06's compatibility
+Its six API reuse checks, C12's local album mutation contract, D02's byte-level
+overlap and D04's bounded renderer fault model are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
 remain deferred. A02–A04 and A03's final integration check need implementation;
@@ -198,11 +198,11 @@ Commit and push validated research batches periodically as requested.
   create/delete/update payloads and device assignment support. Establish which
   vendor album semantics can map to HA playlists; registration alone is insufficient.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static/Host:** Map proxy headers/body/ID/query/error translation and nineteen JSON cases. [Album contract](local-api.md#album-proxy-contract).
   - [x] **Account/Device:** Read owner/device-key album lists and return a matching local album snapshot. [Account evidence](cloud-protocol.md#albums-and-gallery), [local experiment](backend-emulation.md#idle-experiment-c02c03c12).
-  - [ ] **Next:** **Design/Host:** Specify the supported vendor-album-to-HA-playlist mapping and validate mutation payloads against a disposable local fixture.
+  - [x] **Design/Host:** Specify the interval/picture/wake-only subset and check nineteen mutation/API properties using actual HA payload builders/client and a loopback fixture. Production identity/atomicity, scheduling and real permissions remain separate. [Mapping and limits](album-playlist-mapping.md).
   - [ ] **Deferred:** **Account/Device:** Exercise create/update/delete and assignments with an approved disposable album; verify persistence and authorization.
 
 ## Home Assistant reuse and proposed capabilities

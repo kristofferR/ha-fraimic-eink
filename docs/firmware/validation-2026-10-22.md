@@ -2572,3 +2572,46 @@ remain open.
 | --- | --- |
 | `buffer-overlap-model.mjs` | `510c1682ed135d42231f39b626487b6849bdeb15c7039110ba228149787ba3cd` |
 | `buffer-overlap-results.json` | `1c68a8933e5c764a1ef4bbf2eb1aff45b52292928349adea5735c7360c5000ad` |
+
+## Local album mutation contract: C12
+
+The [album/playlist proposal](album-playlist-mapping.md) defines a local
+compatibility subset separately from the captured vendor schema. Nineteen
+assertions passed in one isolated pytest scenario on Omarchy, using real
+`FraimicCloudClient`, the art/wake payload builders and playlist/queue APIs from
+unchanged release
+[`e5450665`](https://github.com/kristofferR/ha-fraimic-eink/commit/e5450665ddbb57c2542c883375ba68c0aefbb1b1).
+HA storage was stubbed with repository test helpers.
+
+A disposable aiohttp server bound to `127.0.0.1` on an ephemeral port; a client
+request guard rejected every other host/port, and account login was disabled.
+Eighteen authorized decoded requests exercised create, list, update and delete
+plus rejected schedule/reference/scope cases; duplicate JSON and missing-auth
+requests were rejected before that decoded-request log. All identities and
+credentials were synthetic. Nothing contacted a frame, HA or vendor service.
+
+Both request/response shapes were checked against the saved OpenAPI components
+with `jsonschema`, followed by explicit stricter fixture rules. In particular,
+schema-valid incomplete intervals, `specific_days`, nullable active state,
+unknown frame assignments and unresolved upload IDs are insufficient for the
+local subset. Failed checks leave its album record unchanged. Random mode maps
+to saved shuffle; owner multi-frame assignment stays metadata. Actual wake
+payloads have no images and do not create an art playlist. Existing active queues
+and reusable originals survive catalog updates/deletion in these scenarios.
+
+Result: **19 checks, 1 pytest scenario passed in 0.17 seconds**, under Python
+3.14 with the prior HA-free dependency set plus aiohttp/jsonschema via `uv`.
+The test's temporary saved-playlist rebuilding is intentionally nontransactional
+and replaces playlist/slide IDs; no durable/idempotent production mapping is
+claimed. It does not execute scheduler activation, wake calculations, the physical
+proxy, vendor mutations or production authorization. C12 now waits for its
+deferred account/device criterion.
+
+| Source / private artifact | SHA-256 |
+| --- | --- |
+| `test_local_album_contract.py` | `528b724646aa73e73518c256ab157a7ba47c0aeea34b85a53932c41f0cdb0f5f` |
+| `local-album-contract-results.json` | `accc4e774b979802806083f8245435f3437c7260f8588dbb34a9844579806424` |
+| Saved `openapi-current.json` | `3310e003e65e7d2236beab3714507533f69d86fb4917526039d1d8cfb3f5ed33` |
+| `custom_components/fraimic/cloud.py` | `30b9fa1e9d206204505689c5b8b913bb0f41d1d605942d92e85d132f0bfaaaf1` |
+| `custom_components/fraimic/cloud_delivery.py` | `c9f936f6ffc77f6067fb9b4e462586ff74ed1769332c444a0ae25aa1de4848a0` |
+| `custom_components/fraimic/playlists.py` | `9e52cca63246e2b8bf4989a58cbd98d0a2901d7e9e6cd37b7099d6db88726e1d` |
