@@ -367,6 +367,12 @@ The cleanup helper `0x4202d750` erases `ota_ver` and `ota_sha256`, rather than
 clearing every manifest key. An old saved manifest must not be confused with a
 new poll offer.
 
+The [URL inventory](cloud-protocol.md#outbound-client-and-url-inventory) also found
+a private-LAN HTTP origin and manifest-path literal beside older OTA strings.
+Neither has a recovered reference or exact pointer occurrence. They do not prove
+that the current updater fetches a manifest from that host; the traced legacy
+action still loads the saved URL described above.
+
 Direct references to `pend_force` lead to initialization `0x4202d484` and
 health confirmation `0x4202ce1c`: loading/clearing it and, when appropriate,
 writing `force_ver`. No current `pend_force` writer was recovered. The offered

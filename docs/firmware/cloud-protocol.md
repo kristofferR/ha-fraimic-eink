@@ -60,6 +60,50 @@ no direct browser Supabase fetch; create-account's separate authentication worke
 still runs on the frame. Dashboard and policy links are user navigation. This
 distinction matters when replacing enrollment without forwarding owner passwords.
 
+### Outbound-client and URL inventory
+
+The follow-up [machine-readable inventory](outbound-dependencies.json) records
+**eleven HTTP-client constructor call sites**: the ten current configurations
+listed below plus older updater `0x4202bb88`. A raw Xtensa call-encoding scan,
+reference tracing and bounded GNU checks agree on those sites. This catches
+multipart construction at `0x42026fdd`, omitted from Ghidra's constructor-reference
+list because its enclosing function was incompletely analyzed.
+
+The same audit finds ten direct API-selector calls. Eight construct requests in
+the six consumers already listed above; the other two only log the selected base
+during background startup (`0x420169af`) or a poll connection error
+(`0x42024ccf`). The two web-selector calls produce dashboard links, and the one
+authentication-selector call belongs to email verification. No serialized exact
+pointers to those three selectors or the client constructor were found in the
+application segments. This strengthens the recovered consumer inventory without
+proving that every possible computed/indirect call has been excluded.
+
+A separate scan finds 43 printable HTTP(S) URL occurrences across eleven distinct
+hosts. Their roles matter more than the raw count:
+
+| Literal category | Role in this build |
+| --- | --- |
+| Production/development API and authentication origins | Frame-side requests through the selectors above |
+| Production/development dashboard origins | Browser navigation links |
+| `fraimic.com` links | Three navigation links, including account/policy pages; not additional frame-side clients |
+| `fraimic.local` / `192.168.4.1` | Local portal addresses, links and instructions |
+| 29 `www.w3.org` occurrences | SVG namespace declarations; no remote fetch follows from the namespace URI |
+| `http://192.168.1.145` at `0x3c1242f0` | Legacy literal beside a manifest-path string; no recovered reference or exact pointer to either literal |
+
+The nearby legacy path is `%s/shared_files/firmware/firmware_manifest.json` at
+`0x3c124308`. Its presence does **not establish an active manifest server**. The
+recovered older updater receives a URL from the saved manifest, and the current
+poll queue supplies its own URL to the direct updater. Neither observed data flow
+uses that LAN literal. No request to that address was made.
+
+Returned image/upload/firmware URLs are dynamic and therefore cannot be enumerated
+from literal hostnames. The URL scan also excludes non-HTTP services: the four
+bare time-server names, DNS fallback and public TCP probe remain separate
+dependencies. For already-paired backend work, cover the central API and returned
+storage URLs, preserve deliberate OTA withholding, and validate local DNS/time
+and connectivity independently. This is a Large static inventory, not an
+air-gap test, a Standard-wide consumer comparison or an independent enrollment.
+
 ## Poll
 
 ```http

@@ -112,6 +112,12 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   [Poll request construction](cloud-protocol.md#poll-request-encoding-and-url-limits)
   adds 27 combined host cases for SSID escaping, URL length and one-shot OTA
   reports. No network response or update outcome is implied by those cases.
+  The [outbound-client inventory](cloud-protocol.md#outbound-client-and-url-inventory)
+  accounts for eleven constructor sites, thirteen selector calls and 43 literal
+  HTTP(S) URL occurrences. Startup/error-log selector calls, SVG namespaces and
+  an unreferenced legacy LAN literal are distinguished from request destinations.
+  Standard-wide consumer equivalence, remaining indirect/non-HTTP paths and
+  complete state-dependent offline validation remain open.
 - [ ] **C02 · Host/Device:** Validate poll parser behavior for settings snapshots,
   missing/invalid fields, schedule clearing and persistence failures. Trace which
   `user_settings` members are actually applied locally rather than merely copied.

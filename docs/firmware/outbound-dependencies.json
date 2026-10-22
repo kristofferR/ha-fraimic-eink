@@ -1,0 +1,172 @@
+{
+  "firmware_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+  "model": "315",
+  "version": "0.2.29",
+  "evidence": "Static literal/call-encoding scan, reference tracing and bounded GNU disassembly; not live traffic or an offline-completeness test",
+  "selectors": [
+    {
+      "role": "api_selector",
+      "address": "0x42017a4c",
+      "production": "https://origin.fraimic.com",
+      "development": "https://dev-api.fraimic.com",
+      "direct_calls": 10,
+      "request_construction_calls": 8,
+      "logging_only_calls": [
+        "0x420169af",
+        "0x42024ccf"
+      ]
+    },
+    {
+      "role": "web_selector",
+      "address": "0x42017a64",
+      "production": "https://app.fraimic.com",
+      "development": "https://d2fz2sijx5cx76.cloudfront.net",
+      "direct_calls": 2,
+      "use": "dashboard navigation links"
+    },
+    {
+      "role": "auth_selector",
+      "address": "0x42017a7c",
+      "production": "https://sclpedxwezoiwzesfdps.supabase.co",
+      "development": "https://mhabnmforgicbwlyudxa.supabase.co",
+      "direct_calls": 1,
+      "use": "email verification task"
+    }
+  ],
+  "http_client_constructor": "0x4206df98",
+  "clients": [
+    {
+      "role": "email_verification",
+      "function": "0x42023674",
+      "constructor_call": "0x42023714",
+      "url_source": "auth_selector"
+    },
+    {
+      "role": "system_image_metadata",
+      "function": "0x42023bcc",
+      "constructor_call": "0x42023ca3",
+      "url_source": "api_selector"
+    },
+    {
+      "role": "account_setup",
+      "function": "0x42023ed4",
+      "constructor_call": "0x42024065",
+      "url_source": "api_selector"
+    },
+    {
+      "role": "poll",
+      "function": "0x4202475c",
+      "constructor_call": "0x42024bea",
+      "url_source": "api_selector"
+    },
+    {
+      "role": "image_download",
+      "function": "0x4202606c",
+      "constructor_call": "0x420260e3",
+      "url_source": "server_returned_image_url"
+    },
+    {
+      "role": "audio_presign",
+      "function": "0x420266d8",
+      "constructor_call": "0x420267d3",
+      "url_source": "api_selector"
+    },
+    {
+      "role": "audio_upload",
+      "function": "0x42026b9c",
+      "constructor_call": "0x42026fdd",
+      "url_source": "presign_response_url"
+    },
+    {
+      "role": "audio_finalize",
+      "function": "0x42027380",
+      "constructor_call": "0x420274d3",
+      "url_source": "api_selector"
+    },
+    {
+      "role": "legacy_firmware_update",
+      "function": "0x4202bb88",
+      "constructor_call": "0x4202bc0f",
+      "url_source": "saved_manifest_url"
+    },
+    {
+      "role": "direct_firmware_update",
+      "function": "0x4202c514",
+      "constructor_call": "0x4202c640",
+      "url_source": "queued_poll_firmware_url"
+    },
+    {
+      "role": "album_proxy",
+      "function": "0x42030064",
+      "constructor_call": "0x42030181",
+      "url_source": "api_selector"
+    }
+  ],
+  "literal_scan": {
+    "http_url_occurrences": 43,
+    "distinct_hosts": 11,
+    "svg_namespace_occurrences": 29,
+    "explicit_html_navigation_occurrences": 4,
+    "non_request_categories": [
+      {
+        "hosts": [
+          "www.w3.org"
+        ],
+        "role": "SVG namespace attributes"
+      },
+      {
+        "hosts": [
+          "fraimic.com"
+        ],
+        "role": "account/policy navigation links"
+      },
+      {
+        "hosts": [
+          "fraimic.local",
+          "192.168.4.1"
+        ],
+        "role": "local portal links and instructions"
+      }
+    ],
+    "legacy_unreferenced_literals": [
+      {
+        "address": "0x3c1242f0",
+        "value": "http://192.168.1.145",
+        "exact_pointer_occurrences": 0
+      },
+      {
+        "address": "0x3c124308",
+        "value": "%s/shared_files/firmware/firmware_manifest.json",
+        "exact_pointer_occurrences": 0
+      }
+    ],
+    "limitations": [
+      "Exact-pointer/reference absence does not exclude computed addressing.",
+      "Dynamic returned URLs and bare non-HTTP names are not enumerated by HTTP URL scanning."
+    ]
+  },
+  "separately_traced_services": {
+    "tcp_reachability": {
+      "address": "8.8.8.8",
+      "port": 53
+    },
+    "dns_fallback": {
+      "address": "8.8.8.8",
+      "slot": 2
+    },
+    "ntp": {
+      "names": [
+        "time.google.com",
+        "pool.ntp.org",
+        "time.cloudflare.com",
+        "time.nist.gov"
+      ],
+      "udp_destination_port": 123
+    }
+  },
+  "scope_limits": [
+    "No live requests or network changes.",
+    "No Standard-wide consumer inventory in this pass.",
+    "Does not prove complete absence of indirect clients or every boot-state dependency."
+  ]
+}

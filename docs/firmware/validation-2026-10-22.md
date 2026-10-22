@@ -1308,3 +1308,43 @@ Private Standard artifacts: `standard-ntp-pass1.txt`,
 `compare-standard-ntp.mjs`, `standard-ntp-boundaries-gnu.txt`,
 `standard-ntp-comparison.json`, `standard-ntp-literals.jsonl` and
 `standard-ntp-evidence-hashes.txt`.
+
+## Outbound clients and literal-host inventory: C01
+
+Three reference passes and 28 bounded GNU ranges cross-check 24 direct call
+sites: ten to the API selector, two to the web selector, one to authentication
+selection and eleven to the HTTP-client constructor. A separate raw Xtensa
+call-encoding scan examines every possible byte offset in executable segments;
+its candidates are checked against GNU and recovered call context. A scan for
+exact pointer words finds no additional serialized pointers to the four target
+functions. This is not a proof against arbitrary computed indirect calls.
+
+Ghidra's constructor-reference list omits the multipart call at `0x42026fdd`.
+The raw scan and its already-traced configuration block recover that call; it
+is not an additional previously unknown transport. Two API-selector calls were
+confirmed as logging only by following return values into their format calls.
+The other eight calls belong to the six request-building consumers already
+documented. The eleven constructors include the separate older updater.
+
+A hash-checked printable-string scan records 43 HTTP(S) URL occurrences across
+eleven hosts. All 29 W3C occurrences are explicitly SVG namespace attributes;
+four other occurrences are direct HTML navigation links. Portal handlers and
+selector data flow establish the remaining categories. The older LAN origin and
+adjacent manifest path have neither recovered references nor exact pointer words
+in the application image. This bounded negative result does not prove a literal
+could never be addressed through computed arithmetic. Their presence is not a
+reason to add that host to the backend configuration.
+
+The new public JSON includes only static call-site/role/host metadata, with no
+credentials, private captures or firmware bytes. Dynamic server-returned URLs,
+bare non-HTTP names, runtime endpoint selection and full Standard comparison are
+outside the literal scan. No address was contacted, resolved or routed, no live
+device state changed, and no fixture was needed for these reference/byte checks.
+C01 remains open for its broader dependency and state-dependent validation scope.
+
+Private artifacts: `inventory-url-hosts.mjs`, `url-host-inventory.json`,
+`url-host-pointer-counts.json`, `scan-client-calls.mjs`,
+`client-call-candidates.json`, `dependency-audit-pass1.txt` through
+`dependency-audit-pass3.txt`, `dependency-audit-gnu.mjs`,
+`dependency-audit-boundaries-gnu.txt`, `dependency-audit-log-literals.jsonl`
+and `dependency-audit-evidence-hashes.txt`.
