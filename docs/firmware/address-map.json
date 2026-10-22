@@ -1966,6 +1966,24 @@
       "evidence": "static; 22 October instruction lifetime follow-up"
     },
     {
+      "address": "0x4202b550",
+      "kind": "function",
+      "role": "Load OTA failure blob with 56-byte capacity; no returned-length validation",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
+    },
+    {
+      "address": "0x4202b588",
+      "kind": "function",
+      "role": "Save 56-byte OTA failure blob and return set/commit result",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
+    },
+    {
+      "address": "0x4202b5f0",
+      "kind": "function",
+      "role": "Clear OTA failure key; discard erase/commit results",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
+    },
+    {
       "address": "0x4202b62c",
       "kind": "function",
       "role": "Save OTA update/rollback/boot counters and timestamp/version",
@@ -1974,8 +1992,8 @@
     {
       "address": "0x4202b8a8",
       "kind": "function",
-      "role": "Record OTA failure details",
-      "evidence": "static"
+      "role": "Record truncated OTA failure identity, U8 count and low-32-bit epoch; discard save result",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
     },
     {
       "address": "0x4202b954",
@@ -1990,10 +2008,28 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202b990",
+      "kind": "function",
+      "role": "Clear OTA pending flags and RAM version/URL buffers",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
+    },
+    {
+      "address": "0x4202b9d8",
+      "kind": "function",
+      "role": "Return borrowed pending OTA version pointer when available",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
+    },
+    {
+      "address": "0x4202b9fc",
+      "kind": "function",
+      "role": "Return borrowed pending OTA URL pointer when available",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
+    },
+    {
       "address": "0x4202ba20",
       "kind": "function",
-      "role": "Queue firmware offer subject to failure cooldown",
-      "evidence": "static"
+      "role": "Queue or replace OTA offer; full-version cooldown check precedes truncation",
+      "evidence": "static GNU validation; 22 October OTA queue host reconstruction"
     },
     {
       "address": "0x4202bb88",

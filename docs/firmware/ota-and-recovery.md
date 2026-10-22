@@ -241,13 +241,76 @@ downgrade/custom image. R02/R03/R05/R09 remain open.
 
 ## Failure tracking and reporting
 
-`0x4202b8a8` records failed offered version, count, timestamp and reason in NVS.
-`0x4202ba20` blocks the same version after three failures for up to 24 hours based
-on wall-clock time. Missing/unusable time bypasses that timed block and clears
-tracking in the corresponding branch. This is not an immutable recovery lock.
+The Large application's cooldown is a best-effort wall-clock mechanism, not a
+durable rollout lock. `0x4202b8a8` writes `ota_data/ota_fail` as a 56-byte blob:
 
-The pending version buffer holds 15 characters plus NUL; the URL holds 2,047 plus
-NUL. Avoid truncation-driven version collisions in any update naming scheme.
+| Offset | Stored field |
+| --- | --- |
+| 0 | Version, 16-byte field; ordinary writes copy at most 15 bytes |
+| 16 | Unsigned one-byte failure count |
+| 17–19 | Padding |
+| 20 | Low 32 bits of the failure's epoch time |
+| 24 | Reason, 32-byte field; ordinary writes copy at most 31 bytes |
+
+The writer increments the count when the loaded version matches its argument;
+otherwise it starts at one. Increment is not saturated: a synthetic count of 255
+wraps to zero. This does not establish that ordinary operation reaches 255, since
+the cooldown usually blocks earlier. The save helper checks set/commit results,
+but the writer discards its returned error and logs the attempted count anyway.
+
+### Cooldown clock and version boundaries
+
+Queue helper `0x4202ba20` zeroes the record, calls loader `0x4202b550` and ignores
+its result. The loader supplies a 56-byte capacity but does not validate the
+returned length. A failed read that leaves the destination untouched therefore
+leaves zero failures; other partial-read/malformed-record behavior was not tested.
+
+For count at least three and an exact version match, it tests positive current
+time and a nonzero saved timestamp, then computes signed whole hours
+`(now - saved_timestamp) / 3600`. GNU instructions confirm signed ROM division
+`0x4000225c`, identified as `__divdi3` in the
+[ESP32-S3 ROM map](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_rom/esp32s3/ld/esp32s3.rom.libgcc.ld).
+The comparison uses the quotient's low 32 bits as unsigned, blocking values 0–23.
+
+| Time relative to the saved failure | Queue result for a matching version with at least three failures |
+| --- | --- |
+| Same time through 23 h 59 m 59 s later | Reject with `0x103`; leave previous pending contents intact |
+| Exactly 24 hours later | Attempt to clear failure tracking, then accept |
+| Saved failure 1–3,599 seconds in the future | Signed division truncates to zero; still reject |
+| Saved failure 3,600 seconds or more in the future | Negative hours become a large unsigned value; attempt clear, then accept |
+| Current time zero/negative, or saved timestamp zero | Attempt clear, then accept |
+
+Clear helper `0x4202b5f0` ignores erase and commit results. Its “cleared” log is
+not storage confirmation, and a failed clear does not stop the current acceptance.
+These clock cases were reproduced in a host reconstruction, without changing a
+device clock or NVS record.
+
+The poll passes the complete parsed version string into the queue helper. The
+helper compares that string **before** truncating it into a 15-byte pending value.
+Main-loop and pre-sleep failures pass that truncated pending value to the failure
+writer. Consequently, an offer longer than 15 bytes does not match its own saved
+failure version on the next poll and can evade the three-failure cooldown. Two
+different long versions with the same 15-byte prefix also share the stored identity.
+The pending URL is independently truncated to 2,047 bytes, without a length error.
+
+### Pending offers are replaced, not revoked by an empty poll
+
+An accepted offer overwrites the shared version/URL buffers and sets the pending
+flag, even if another offer was already queued. An invalid or cooldown-blocked
+offer returns before those writes, retaining the previous offer. A poll with an
+absent, null or unusable `firmware` object simply skips queuing; it does not clear
+an already pending offer. Withholding offers prevents new installations from being
+queued, but is not a revocation protocol for one already accepted.
+
+Getters `0x4202b9d8` and `0x4202b9fc` return pointers into these RAM buffers, not
+copies. Clear helper `0x4202b990` resets the pending flags and zeroes both buffers;
+it does not erase the failure record. Both direct-install callers record a failed
+attempt before clearing this pending state. No concurrent replacement, restart
+persistence or update was exercised. A future adapter should use explicit rollout
+state, short unambiguous wire versions and immutable artifact identities, while
+keeping offers disabled until deliberate update support exists.
+
+### Result reporting
 
 `0x4202d1d0` consumes result state while the poll URL is being assembled, before
 the HTTP transaction succeeds. A failed request can lose the report. It reports

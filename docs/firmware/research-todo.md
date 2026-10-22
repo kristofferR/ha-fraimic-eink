@@ -51,6 +51,7 @@ per question, not a count of tool calls or decompiled functions.
 | A01 | Installed STT/Assist/AI Task inventory and WAV helper fixture completed | Provider choice/setup belongs to implementation; no image-capable entity currently configured |
 | A02/A03 | Five real-library host checks passed; duplicate insertion demonstrated | Persisted import mapping; pull scheduling/locks and no-double-delivery integration |
 | R11 | Current/legacy call sites, manifest and forced-version/counter references traced; mode switch's one-poll `0.0.0` override is normally restored before HTTP, but NVS persistence can fail | Host fault fixtures and remaining indirect-reference audit |
+| R10/R11/N02 | Twenty-two host case groups cover OTA queue/cooldown branches; long-version mismatch, backward-clock boundary, failed persistence and replacement/retention traced | Physical offer/reporting faults, Standard comparison, full NVS failure semantics and artifact identity |
 | R12 | Direct updater framing/timeouts and OTA SDK ordering traced; apparent response-MIME guard reads request headers; sequential erase precedes first-byte validation | Host fault fixtures, busy/safety cases and deferred controlled update/recovery tests |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
 | S01/C01/C11 | Cached reachability survives station disconnect; fallback AP request ordering and persistent wildcard captive-DNS worker traced | Physical recovery, actual AP configuration, DNS reachability/lifetime and setup/bind failure tests |
@@ -226,6 +227,10 @@ Sources: [OTA and recovery](ota-and-recovery.md),
 - [ ] **R10 · Host/Device:** Validate update offers against the disabled auto-update
   preference, repeated/same-version offers, truncation, the three-failure cooldown,
   missing clock, result-report loss and compiled-version/artifact identity mismatch.
+  [Queue/cooldown evidence](ota-and-recovery.md#cooldown-clock-and-version-boundaries)
+  now includes 22 host case groups. Long versions miss their truncated failure
+  identity, a future failure timestamp has a one-hour boundary, and an empty poll
+  does not revoke a pending offer. Physical update tests remain deferred.
 - [ ] **R11 · Static/Host:** Trace forced-version bookkeeping and every active OTA
   entry point, including factory controls; establish which newer paths still use
   the older manifest/hash, force-version and statistics mechanisms.

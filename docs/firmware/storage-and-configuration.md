@@ -79,7 +79,7 @@ Capacities below are observed application read/write sizes, not global NVS limit
 | `app_data/img_version` | String, 16-byte read capacity | `0x4202a968` / `0x4202aa48`; missing/read error differs from a readable different version |
 | `app_data/sys_img` | String, 32-byte read capacity | `0x4202f970`; recognizes `low_battery`, removes an unrecognized successfully read marker |
 | `app_data/wifi_stats` | Blob, 906-byte write/read capacity | `0x4202e8bc` / `0x4202e9b0`; reset path zeroes it and sets byte zero to 2 |
-| `ota_data/ota_fail` | Blob, 56-byte write/read capacity | `0x4202b550` / `0x4202b588`; not a scalar failure counter |
+| `ota_data/ota_fail` | Blob, 56-byte write/read capacity | `0x4202b550` / `0x4202b588`; version[16], U8 count at 16, U32 epoch at 20, reason[32] at 24; no returned-length check |
 | `ota_data/upd_cnt`, `rb_cnt`, `boot_cnt` | U32 | `0x4202d3a4` / `0x4202b62c` |
 | `ota_data/last_ts` | **U64** | Same statistics helpers; distinct from signed album deadlines |
 | `ota_data/ota_size` | U32 | Legacy manifest loader `0x4202d780` |

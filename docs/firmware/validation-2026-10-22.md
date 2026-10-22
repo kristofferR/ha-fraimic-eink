@@ -723,3 +723,38 @@ Private artifacts: `wifi-form-pass1.txt`, `wifi-form-pass2.txt`,
 `wifi-form-fixture.c`, `wifi-form-fixture-results.txt`,
 `wifi-scan-json-fixture.mjs`, `wifi-scan-escaped.hex` and
 `wifi-scan-json-results.json`.
+
+## OTA offer queue and failure bookkeeping: R10/R11/N02
+
+Two Ghidra passes and 21 bounded GNU ranges cover nine helpers and selected
+branches in three callers. Instructions, pinned literals and the matching ROM
+symbol map distinguish signed 64-bit division from the unsigned comparison of
+its low result word. In particular, the valid zero-time branch at `0x4202bac2`
+must not be discarded based on Ghidra's unreachable-block warning.
+
+A C reconstruction passed **22 case groups** with AddressSanitizer and
+UndefinedBehaviorSanitizer. It fixes the 56-byte blob layout with compile-time
+offset assertions and checks the 24-hour boundary, future timestamps on both
+sides of one hour, zero/negative clocks, two-versus-three failures, null/empty
+inputs, pending replacement/retention, long versions and URL truncation. A
+long-version case models the actual callers passing the truncated pending
+version to the failure writer, then receiving the full version again.
+
+Additional cases exercise an injected read failure leaving a zeroed destination,
+a failed clear, an ignored save failure, low-32-bit timestamp storage, reason
+truncation and a synthetic 255-count wrap. These are supplied persistence outcomes
+in a host model, not a complete NVS emulator or executed ESP error paths. The
+count-wrap case does not claim ordinary operation reaches that starting state.
+
+Static poll inspection separately shows that omitted/null/unusable firmware
+does not clear a prior pending offer. Queue getters return RAM pointers; the
+failed-install callers record their failure before clearing those buffers.
+The [OTA contract](ota-and-recovery.md#failure-tracking-and-reporting) records
+the boundaries and implications. No device poll offer, update, clock change,
+reboot, NVS mutation or flash write was performed. R10/R11 remain open for their
+remaining reporting, persistence, other-build and physical questions.
+
+Private artifacts: `ota-queue-pass1.txt`, `ota-queue-pass2.txt`,
+`ota-queue-gnu.mjs`, `ota-queue-boundaries-gnu.txt`, `ota-queue-literals.jsonl`,
+`ota-queue-fixture.c`, `ota-queue-fixture-results.txt` and
+`ota-queue-evidence-hashes.txt`.
