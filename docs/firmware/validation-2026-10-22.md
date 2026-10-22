@@ -2364,3 +2364,36 @@ frame cancellation still require their stated validation.
 | --- | --- |
 | `two-job-interleavings.mjs` | `b890396fdbe3854f9f5f4dcb22d5eb1e9a3dd8bcac91625cbaa90293ae92456d` |
 | `two-job-interleavings.results.json` | `73b628acaf37832b853360a1f042823ba5643617bc8801d3a94316913c7d113e` |
+
+## Extension negotiation and stock compatibility: A06
+
+The [proposed extension contract](protocol-extensions.md) and public
+[message examples](extension-examples.json) separate future capabilities from
+the stock `/api/v1/` behavior. This is design research, not an implemented
+protocol, backend route or firmware feature.
+
+**26 checks passed** on Omarchy. Eight example bodies run through a C CLI that
+reuses the unchanged recovered finalize parser model with pinned cJSON 1.7.18.
+It was built with C11 warnings-as-errors, AddressSanitizer and
+UndefinedBehaviorSanitizer. No sanitizer finding occurred. The checks distinguish
+accepted legacy URLs, ignored capability/status semantics and rejected v2-only
+shapes. HTTP status/framing and actual firmware execution are outside this CLI;
+the earlier combined finalize pass covers the recovered HTTP layer.
+
+Eighteen additional assertions check the proposed negotiation intersection,
+sleep prerequisites, no-image result shape, duplicate/stale/wrong-job events,
+cancel ownership declarations, separate render/power outcomes and PCM sequence/
+size examples. They evaluate the proposal's consistency, not its implementation.
+No STT, VAD, provider, command, generation or display action ran. No network
+access or device changes were needed for this fixture.
+
+A06's design/host milestone is complete. Its physical criterion remains deferred
+until a selected extension exists and recovery prerequisites are established.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| Public `extension-examples.json` | `522e965bf67779804efc7e265373ed206b58631a43adfceb795ce307bfc6476f` |
+| Private `check-extension-examples.mjs` | `c108eeebbcdcd4b821bdefeab5f4de1508eb7c732c33c2a8798fd38544f77c58` |
+| Private `finalize-parser-cli.c` | `9a7958f2eb8a1e883f1849fd27f5a9dcc56187de8cd8213ff49ff889ef71f8fa` |
+| Extracted `finalize-parser-core.inc` | `a299027797968f1e21392446616351c225251595d587b42798b996d19d66dfc4` |
+| Private `extension-examples.results.json` | `ae6cde5c4f1f433a99f8c7ce0c013ea5ae453148c8bdcf11a0d0bc8a506f1a92` |

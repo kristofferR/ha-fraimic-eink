@@ -48,6 +48,7 @@ No transcription or AI generation was invoked.
 | [22 October validation](validation-2026-10-22.md) | HTTP/diagnostic/OTA traces; 25 poll and 19 album JSON host cases |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
 | [Backend deployment](backend-deployment.md) | HA views versus companion listener, actual deployment constraints and 24 isolated boundary checks |
+| [Protocol extensions](protocol-extensions.md) | Proposed negotiation, sleeping jobs, no-redraw commands, state events and streaming/VAD boundaries |
 | [Standard-model comparison](standard-model-comparison.md) | Model-specific firmware/panel differences, live setup, vendor voice flow and reachability failure |
 
 Machine-readable references: [firmware identity](firmware-identity.json),

@@ -337,7 +337,10 @@ Actual user interaction and provider choices should be agreed before implementat
 Advertise a protocol/capability version before using extensions. Keep stock
 responses for stock clients; a settings field the stock firmware ignores is not
 capability negotiation. These boundaries are grounded in the recovered flow;
-backward-compatibility fixtures and physical transitions remain A06 work.
+the [extension proposal and examples](protocol-extensions.md) now define a
+separate negotiated namespace and legacy behavior for all six capabilities.
+Eight stock-parser cases and eighteen design checks passed; physical transitions
+remain deferred until an implementation and recovery path exist.
 
 ## Delivery state and scheduling
 

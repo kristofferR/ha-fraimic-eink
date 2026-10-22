@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**8 of 67 original items complete; 101 of 182 concrete milestones complete.**
+**8 of 67 original items complete; 102 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 8 | Original bounded question answered; evidence linked below |
-| Research | 18 | Concrete static, host or design work remains available |
-| Waiting for device | 16 | Remaining original criteria require physical validation |
+| Research | 17 | Concrete static, host or design work remains available |
+| Waiting for device | 17 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 10 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
@@ -63,8 +63,9 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with A06's compatibility
-fixtures or C01's remaining destination coverage. C08/D05's bounded interleaving
+For the owner's local-cloud/voice priorities, continue with C01's remaining
+destination coverage or A07's concrete feature proposal. A06's compatibility
+examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
 remain deferred. A02–A04 and A03's final integration check need implementation;
 report that dependency rather than substituting more library decompilation.
@@ -255,10 +256,10 @@ Commit and push validated research batches periodically as requested.
   and automatic end-of-speech. Identify required firmware/protocol changes and
   backward compatibility for each; a feature decision does not require building it.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static/Design:** Identify stock limitations and required firmware/protocol changes for events, sleeping jobs, no-redraw success, streaming STT and end-of-speech. [Capability map](home-assistant-roadmap.md#extension-boundaries).
-  - [ ] **Next:** **Design/Host:** Define version negotiation and backward-compatible message/state examples for each extension. Evaluate the design without requiring its implementation.
+  - [x] **Design/Host:** Define a separate negotiated protocol and legacy behavior for all six extensions; check eight examples against the stock parser and eighteen proposed-policy/message properties. [Proposal and limits](protocol-extensions.md), [messages](extension-examples.json).
   - [ ] **Deferred:** **Device:** Validate selected transitions only after an extension is implemented and a recovery path exists.
 
 - [ ] **A07 · Design/Host:** Check that proposed voice creations, image edits,

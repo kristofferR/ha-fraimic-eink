@@ -1,0 +1,56 @@
+{
+  "status": "proposal; not supported by stock firmware or deployed backend",
+  "example_clock_utc": 1800000000,
+  "endpoint_prefix": "/local/v2/",
+  "hello": {
+    "protocol_versions": [2],
+    "boot_id": "boot-example-01",
+    "capabilities": ["state_events", "render_result", "async_jobs", "no_image_result", "pcm_stream", "vad_stop"],
+    "pending_jobs": ["job-example-01"]
+  },
+  "selected": {
+    "protocol_version": 2,
+    "session_id": "session-example-01",
+    "capabilities": ["state_events", "render_result", "async_jobs", "no_image_result", "pcm_stream", "vad_stop"]
+  },
+  "state_events": [
+    {"boot_id": "boot-example-01", "seq": 1, "job_id": "job-example-01", "state": "recording_started"},
+    {"boot_id": "boot-example-01", "seq": 2, "job_id": "job-example-01", "state": "recording_stopped", "reason": "tap"},
+    {"boot_id": "boot-example-01", "seq": 3, "job_id": "job-example-01", "state": "processing"},
+    {"boot_id": "boot-example-01", "seq": 4, "job_id": "job-example-01", "state": "cancel_requested"},
+    {"boot_id": "boot-example-01", "seq": 5, "job_id": "job-example-01", "state": "cancelled", "workers_joined": true, "buffer_released": true}
+  ],
+  "async_pending": {
+    "http_status": 202,
+    "body": {"protocol_version": 2, "job_id": "job-example-01", "state": "queued", "resume_at_utc": 1800000120, "expires_at_utc": 1800003600}
+  },
+  "image_ready": {
+    "http_status": 200,
+    "body": {"protocol_version": 2, "job_id": "job-example-01", "state": "image_ready", "result": {"kind": "image", "content_id": "content-example-01", "model": "315", "bytes": 2304000, "url": "https://backend.invalid/panel/example"}}
+  },
+  "command_complete": {
+    "http_status": 200,
+    "body": {"protocol_version": 2, "job_id": "command-example-01", "state": "command_complete", "result": {"kind": "none"}}
+  },
+  "render_results": [
+    {"boot_id": "boot-example-01", "seq": 6, "job_id": "image-job-example", "content_id": "content-example-01", "outcome": "driver_completed", "power_safe": true},
+    {"boot_id": "boot-example-01", "seq": 7, "job_id": "image-job-example", "content_id": "content-example-01", "outcome": "failed", "error": "controller_timeout", "power_safe": false}
+  ],
+  "pcm_stream": {
+    "job_id": "stream-example-01",
+    "format": {"encoding": "pcm_s16le", "sample_rate": 16000, "channels": 1},
+    "limits": {"chunk_bytes": 32000, "total_bytes": 1920000},
+    "chunks": [{"seq": 0, "bytes": 32000}, {"seq": 1, "bytes": 32000}],
+    "finish": {"last_seq": 1, "total_bytes": 64000, "reason": "vad_silence"}
+  },
+  "stock_cases": [
+    {"name": "legacy-image", "body": {"presigned_url": "https://backend.invalid/panel/example"}, "parse_status": 0, "parsed_status": "completed"},
+    {"name": "legacy-processing-with-url-is-still-an-image", "body": {"status": "processing", "job_id": "job-example-01", "presigned_url": "https://backend.invalid/panel/example"}, "parse_status": 0, "parsed_status": "processing"},
+    {"name": "legacy-failed-with-url-is-still-an-image", "body": {"status": "failed", "presigned_url": "https://backend.invalid/panel/example"}, "parse_status": 0, "parsed_status": "failed"},
+    {"name": "legacy-empty-url-is-not-no-redraw", "body": {"presigned_url": "", "status": "command_complete"}, "parse_status": 0, "parsed_status": "command_complete"},
+    {"name": "v2-pending-not-a-stock-result", "body": {"protocol_version": 2, "job_id": "job-example-01", "state": "queued"}, "parse_status": -1},
+    {"name": "v2-command-not-a-stock-result", "body": {"protocol_version": 2, "state": "command_complete", "result": {"kind": "none"}}, "parse_status": -1},
+    {"name": "v2-nested-image-not-a-stock-result", "body": {"protocol_version": 2, "state": "image_ready", "result": {"kind": "image", "url": "https://backend.invalid/panel/example"}}, "parse_status": -1},
+    {"name": "capability-field-does-not-negotiate-stock", "body": {"capabilities": ["async_jobs"], "presigned_url": "https://backend.invalid/panel/example"}, "parse_status": 0, "parsed_status": "completed"}
+  ]
+}
