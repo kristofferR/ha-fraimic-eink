@@ -106,7 +106,52 @@ optional hook order/yield and a synthetic queue-send failure. Queue operations,
 allocation outcomes, hardware registers and DMA writes are modeled. No device,
 network, artwork or firmware was changed.
 
-The interrupt controller/GDMA dispatch internals, actual ISR latency, hardware
-error recovery and physical sample quality remain outside these cases. The
-[static coverage ledger](static-coverage.md) tracks further producer/initialization
-work separately from physical tests.
+## Interrupt flags do not reach the saved recording
+
+The follow-up traces GDMA RX registration, interrupt installation and dispatch,
+plus I2S hardware start/stop. Five more paired bodies contain 324 instructions
+per build. The ISR is Large `0x4037d600` / Standard `0x4037d620`; registration is
+`0x420ea5f4` / `0x420ea914`, and interrupt installation is
+`0x420ea07c` / `0x420ea39c`.
+
+The installed callback set enables mask `6` (successful and abnormal EOF),
+disables mask `8` (descriptor error) and disables mask `1` (receive done).
+The [SDK event definitions](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_hw_support/dma/include/esp_private/gdma.h)
+distinguish abnormal EOF from a descriptor error; they must not be treated as
+the same fault.
+
+On entry the ISR reads and clears raw interrupt status. Successful EOF selects
+the successful descriptor; abnormal EOF selects the abnormal descriptor. If
+both bits are set, the latter address wins while both flags are retained. The
+I2S callback reads only the descriptor address and ignores these flags, so both
+synthetic event types reach the ordinary pointer queue. A valid queue read or
+WAV header therefore does not certify an entirely normal capture history.
+Whether this PDM hardware produces abnormal EOF in practice remains unknown.
+
+Descriptor-error-only, done-only and unrelated raw status cases clear status
+without queuing samples under the installed null callbacks. Those are tests of
+an already-entered ISR: disabled bits alone need not generate a physical interrupt.
+The recovered ISR supplies no missing descriptor-error recovery callback for the
+application. Actual hardware recovery is not established by this analysis.
+
+## Hardware start contains a separate unbounded wait
+
+RX start is Large `0x4204eb40` / Standard `0x4204dc18`; stop is
+`0x4204eaf0` / `0x4204dbc8`. Start resets I2S, calls GDMA reset/start and does not
+test those helpers' return values. In the ordinary non-ETM branch it sets RX
+update bit 8, repeatedly reads it until it clears, then sets RX start bit 2.
+There is no delay, timeout or software cancellation check inside that loop.
+This matches the pinned [ESP32-S3 I2S low-level start](https://github.com/espressif/esp-idf/blob/v5.4.1/components/hal/esp32s3/include/hal/i2s_ll.h).
+
+The fixture separately models a clearing bit and a permanently set bit. The
+latter stops after four reads at the same wait boundary, before RX start is set.
+It does not emulate a watchdog or demonstrate a physical hang. Stop clears the
+RX start bit in its ordinary branch, invokes GDMA stop and does not test its
+return. An application completion log is not a measurement of these hardware
+outcomes.
+
+[Interrupt cases](microphone-interrupt-cases.json) record thirteen cases per
+build, executing 232 distinct instruction sites. Interrupt latency, physical
+DMA faults, signal quality and recovery remain device questions. The
+[static coverage ledger](static-coverage.md) keeps them separate from the
+completed producer and dispatch traces.

@@ -1,0 +1,457 @@
+{
+  "method": "Complete paired GNU CFGs plus original-instruction interpretation with synthetic raw interrupt statuses, register changes and SDK results.",
+  "comparison": {
+    "functions": [
+      {
+        "name": "dispatch",
+        "large": "0x4037d600",
+        "standard": "0x4037d620",
+        "instructions": 82,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "install",
+        "large": "0x420ea07c",
+        "standard": "0x420ea39c",
+        "instructions": 68,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "register",
+        "large": "0x420ea5f4",
+        "standard": "0x420ea914",
+        "instructions": 102,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "start",
+        "large": "0x4204eb40",
+        "standard": "0x4204dc18",
+        "instructions": 57,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "stop",
+        "large": "0x4204eaf0",
+        "standard": "0x4204dbc8",
+        "instructions": 15,
+        "normalized_operations_match": true
+      }
+    ],
+    "instructions_per_build": 324,
+    "mapped_direct_call_pairs": 7,
+    "sha256": "1e3c16d8fdbe406447f358405f137d3a529627fe2a74254076eef174799e3994"
+  },
+  "instruction_cases": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "dispatch",
+          "entry": "0x4037d600",
+          "instructions": 82,
+          "sha256": "1aee612f540e1b7bf7bce8ca19f30de232e6c3b99f134ff3fde51908c76e9e1c"
+        },
+        {
+          "name": "register",
+          "entry": "0x420ea5f4",
+          "instructions": 102,
+          "sha256": "49be26365b246732e0f1166c29eb60adfdcb02a1e55d0b0e84bace2c7aff1676"
+        },
+        {
+          "name": "start",
+          "entry": "0x4204eb40",
+          "instructions": 57,
+          "sha256": "8b72fea1fa5de4ec1c770c9fb98e2b3eb2432a4abb97f2655e1787b0bf871f20"
+        },
+        {
+          "name": "stop",
+          "entry": "0x4204eaf0",
+          "instructions": 15,
+          "sha256": "38340f930e45795e85379a36de2e98f82fe683b4e27dda1d034896a395a896af"
+        },
+        {
+          "name": "callback",
+          "entry": "0x4037afb8",
+          "instructions": 48,
+          "sha256": "346a4ce230edb3b931e5de90c979cfd4d286a309ef4b7fd94bd3e1cf82b3f6bb"
+        },
+        {
+          "name": "buffer-size",
+          "entry": "0x4204edd4",
+          "instructions": 21,
+          "sha256": "58be0adce4336d0d3e5d75d11e7c01e3745dc3a90e77a5896dc34177f6827ff4"
+        },
+        {
+          "name": "reader",
+          "entry": "0x4204fbec",
+          "instructions": 110,
+          "sha256": "de43918f1ce4b2a7d58b37e1ddbaec9161ebcd147cf21694a8b380a7a547421c"
+        },
+        {
+          "name": "register-channel",
+          "entry": "0x4204f5b4",
+          "instructions": 150,
+          "sha256": "4318f3b7172f714e56c919e7c3cdcc809c344b69ea34221b65981541406fcb4c"
+        },
+        {
+          "name": "allocate-ring",
+          "entry": "0x4204eeac",
+          "instructions": 215,
+          "sha256": "5c2530a04ed208ed2f5598acaed4b49389cf0cf3c1a00c6d26f45933613d6d78"
+        },
+        {
+          "name": "pdm-slot",
+          "entry": "0x4204ff48",
+          "instructions": 95,
+          "sha256": "d8ba5e147c179e6f8822ebe78044cd65e1a669960d2320a0178e8b187cc5a706"
+        },
+        {
+          "name": "dma-init",
+          "entry": "0x4204f0f8",
+          "instructions": 199,
+          "sha256": "afe5d35df3b21422fb8f489c83c8cffaf4bf1027e5052095f627ec38fedaf10b"
+        }
+      ],
+      "executed_instruction_sites": 232,
+      "results": [
+        {
+          "name": "raw-interrupt-status-0",
+          "passed": true,
+          "status": 0,
+          "cleared_status": 0,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-1",
+          "passed": true,
+          "status": 1,
+          "cleared_status": 1,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-2",
+          "passed": true,
+          "status": 2,
+          "cleared_status": 2,
+          "queued": 1,
+          "eof_flags": 2,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-4",
+          "passed": true,
+          "status": 4,
+          "cleared_status": 4,
+          "queued": 1,
+          "eof_flags": 1,
+          "abnormal_descriptor_selected": true
+        },
+        {
+          "name": "raw-interrupt-status-6",
+          "passed": true,
+          "status": 6,
+          "cleared_status": 6,
+          "queued": 1,
+          "eof_flags": 3,
+          "abnormal_descriptor_selected": true
+        },
+        {
+          "name": "raw-interrupt-status-8",
+          "passed": true,
+          "status": 8,
+          "cleared_status": 8,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-a",
+          "passed": true,
+          "status": 10,
+          "cleared_status": 10,
+          "queued": 1,
+          "eof_flags": 2,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-100",
+          "passed": true,
+          "status": 256,
+          "cleared_status": 256,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-106",
+          "passed": true,
+          "status": 262,
+          "cleared_status": 262,
+          "queued": 1,
+          "eof_flags": 3,
+          "abnormal_descriptor_selected": true
+        },
+        {
+          "name": "registration-enables-eof-but-disables-descriptor-error-and-done",
+          "passed": true,
+          "mask_calls": [
+            [
+              6,
+              1
+            ],
+            [
+              8,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "name": "start-ignores-dma-helper-errors-and-waits-for-update-clear",
+          "passed": true,
+          "dma_reset_calls": 1,
+          "dma_start_calls": 1,
+          "injected_helper_status": 259,
+          "update_reads": 2,
+          "start_bit_set": true
+        },
+        {
+          "name": "hardware-update-still-set-revisits-unbounded-loop",
+          "passed": true,
+          "update_reads": 4,
+          "start_bit_set": false
+        },
+        {
+          "name": "stop-clears-start-bit-and-does-not-test-dma-return",
+          "passed": true,
+          "dma_stop_calls": 1,
+          "injected_helper_status": 259
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "dispatch",
+          "entry": "0x4037d620",
+          "instructions": 82,
+          "sha256": "b77c5c2b6839b0ca9d1b5a16b34a2c052de80deeee0c67b6b70dfefb8024af15"
+        },
+        {
+          "name": "register",
+          "entry": "0x420ea914",
+          "instructions": 102,
+          "sha256": "7d23d33d9951bb70963d3ece16a7b7fd8f7f0a06b8a23163af72d2ba8703fbf4"
+        },
+        {
+          "name": "start",
+          "entry": "0x4204dc18",
+          "instructions": 57,
+          "sha256": "f1ba2c26e93ca9c9747271c50afc2be1dd184f0c3557869c6087b79944d1e5f2"
+        },
+        {
+          "name": "stop",
+          "entry": "0x4204dbc8",
+          "instructions": 15,
+          "sha256": "4e5dc865873d9ba5fd1a574178505c78fda7a993c3c9af669b80b5e380277b6a"
+        },
+        {
+          "name": "callback",
+          "entry": "0x4037afd8",
+          "instructions": 48,
+          "sha256": "ab3457a379a94491803b9f23a4a6eee42193e5e7afc728fb25e2dd9d43d3cc68"
+        },
+        {
+          "name": "buffer-size",
+          "entry": "0x4204deac",
+          "instructions": 21,
+          "sha256": "c5a98e90766da2a99583fb20300f1fc602f47473457c180b7475869961b6b22e"
+        },
+        {
+          "name": "reader",
+          "entry": "0x4204ecc4",
+          "instructions": 110,
+          "sha256": "e0810a4a211d760606db8c5257cb5249fea88c7923eac6747dd689cf61010687"
+        },
+        {
+          "name": "register-channel",
+          "entry": "0x4204e68c",
+          "instructions": 150,
+          "sha256": "7827e2a485ef178931b061df20abe51e9ce4692d1cd88efce8fb99a0097bca37"
+        },
+        {
+          "name": "allocate-ring",
+          "entry": "0x4204df84",
+          "instructions": 215,
+          "sha256": "d09ea9e9cc716d1c71625372f0eaebcbd017a13d2ac86eced6506b764b86d5a7"
+        },
+        {
+          "name": "pdm-slot",
+          "entry": "0x4204f020",
+          "instructions": 95,
+          "sha256": "4dc77ed059426fef2bfa6836e6d3b8bd1b48bf097a7fe67c700d1c5fc1c87e4c"
+        },
+        {
+          "name": "dma-init",
+          "entry": "0x4204e1d0",
+          "instructions": 199,
+          "sha256": "9e5234771c2bd82135f0ec533ce555d010a97ef5cda1227348ca79b216b9d607"
+        }
+      ],
+      "executed_instruction_sites": 232,
+      "results": [
+        {
+          "name": "raw-interrupt-status-0",
+          "passed": true,
+          "status": 0,
+          "cleared_status": 0,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-1",
+          "passed": true,
+          "status": 1,
+          "cleared_status": 1,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-2",
+          "passed": true,
+          "status": 2,
+          "cleared_status": 2,
+          "queued": 1,
+          "eof_flags": 2,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-4",
+          "passed": true,
+          "status": 4,
+          "cleared_status": 4,
+          "queued": 1,
+          "eof_flags": 1,
+          "abnormal_descriptor_selected": true
+        },
+        {
+          "name": "raw-interrupt-status-6",
+          "passed": true,
+          "status": 6,
+          "cleared_status": 6,
+          "queued": 1,
+          "eof_flags": 3,
+          "abnormal_descriptor_selected": true
+        },
+        {
+          "name": "raw-interrupt-status-8",
+          "passed": true,
+          "status": 8,
+          "cleared_status": 8,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-a",
+          "passed": true,
+          "status": 10,
+          "cleared_status": 10,
+          "queued": 1,
+          "eof_flags": 2,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-100",
+          "passed": true,
+          "status": 256,
+          "cleared_status": 256,
+          "queued": 0,
+          "eof_flags": null,
+          "abnormal_descriptor_selected": false
+        },
+        {
+          "name": "raw-interrupt-status-106",
+          "passed": true,
+          "status": 262,
+          "cleared_status": 262,
+          "queued": 1,
+          "eof_flags": 3,
+          "abnormal_descriptor_selected": true
+        },
+        {
+          "name": "registration-enables-eof-but-disables-descriptor-error-and-done",
+          "passed": true,
+          "mask_calls": [
+            [
+              6,
+              1
+            ],
+            [
+              8,
+              0
+            ],
+            [
+              1,
+              0
+            ]
+          ]
+        },
+        {
+          "name": "start-ignores-dma-helper-errors-and-waits-for-update-clear",
+          "passed": true,
+          "dma_reset_calls": 1,
+          "dma_start_calls": 1,
+          "injected_helper_status": 259,
+          "update_reads": 2,
+          "start_bit_set": true
+        },
+        {
+          "name": "hardware-update-still-set-revisits-unbounded-loop",
+          "passed": true,
+          "update_reads": 4,
+          "start_bit_set": false
+        },
+        {
+          "name": "stop-clears-start-bit-and-does-not-test-dma-return",
+          "passed": true,
+          "dma_stop_calls": 1,
+          "injected_helper_status": 259
+        }
+      ]
+    }
+  ],
+  "fixture_sha256": "ad44cfd18c713c0cbf62dfed69ff29dcc9319753e171d5fd9266f8813e30cac1",
+  "sources": [
+    {
+      "url": "https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_hw_support/dma/gdma.c",
+      "sha256": "421eb1e4f961e0c8df1d4471f1ec514f5edb4da77a3a354c24d26df40d4ef41b"
+    },
+    {
+      "url": "https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_hw_support/dma/include/esp_private/gdma.h",
+      "sha256": "7d926da173b0e46f8fafa95b25e97a5b0af1cd86c51d76e71b90fab648c29b21"
+    },
+    {
+      "url": "https://github.com/espressif/esp-idf/blob/v5.4.1/components/hal/esp32s3/include/hal/i2s_ll.h",
+      "sha256": "5918de88142ccbaf321d1db85b1d3bef891348c8a28205c70969e033ce385cdf"
+    }
+  ],
+  "limits": [
+    "Raw-status cases assume the ISR has been entered. Disabled descriptor-error or done bits alone need not trigger a physical interrupt.",
+    "Abnormal EOF is a GDMA event flag; this research does not establish which I2S/PDM hardware condition can produce it.",
+    "The persistent-update-bit case stops after four synthetic reads of the same set bit. It establishes no timeout in that loop, not a measured hang or a bypass of watchdog behavior.",
+    "GDMA reset/start/stop errors are injected at helper boundaries. Their physical reachability and peripheral outcome are unproven.",
+    "Interrupt latency, scheduling, signal quality, eFuse configuration and actual frame recovery are not simulated."
+  ]
+}

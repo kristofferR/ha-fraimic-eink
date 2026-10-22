@@ -82,7 +82,8 @@ implementation is authorized merely by an unchecked box.
 **23 October:** continue the [static coverage pass](static-coverage.md).
 The first [microphone producer batch](microphone-dma.md) adds ring sizing,
 queue-overflow/lifetime and allocation-failure evidence on both builds, with
-15 instruction cases per build. GDMA dispatch, excluded initialization helpers
+15 instruction cases per build. The follow-up adds GDMA dispatch, EOF flags and
+the hardware-start wait with 13 cases per build. Excluded initialization helpers
 and the application census remain active research. No implementation is needed
 to continue those investigations.
 
