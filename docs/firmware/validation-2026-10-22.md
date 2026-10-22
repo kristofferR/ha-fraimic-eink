@@ -4146,3 +4146,23 @@ absence is still established by the complete handler comparison, but no current
 Large response was obtained. A wake was requested for the next read-only check.
 Raw Standard responses remain private; published values above exclude identity
 and network fields. Existing task counts remain unchanged.
+
+### Large status after the owner-directed wake
+
+At **2026-10-22 21:32:36 UTC**, Large GET `/api/info` returned HTTP 200 on
+0.2.29 / f1555ee5. Both `render_attempts` and `render_failures` were absent from
+`display`, matching the pinned handler. Its maintenance fields were
+`last_refresh: 2026-09-15T02:59:59`, `next_refresh: 2026-10-23T03:00:00`, interval
+four days and hour 3. These strings have no UTC offset; the observation timestamp
+above is UTC, not an interpretation of the device's calendar fields.
+
+This supersedes the immediately preceding reachability limit for this read.
+It verifies model-specific field presence, not physical render completion or
+all boot-state availability. No recording, image, settings or routing change
+was made. The raw response is private.
+
+The locally archived vendor downloads from 20:53 UTC (Large) and 20:58 UTC
+(Standard) on the same date have the same two pinned application hashes. No
+additional build was present in that archive to extend the comparison. This
+is an archive observation, not proof that the vendor has no other releases;
+no additional cloud poll or download was performed in this pass.

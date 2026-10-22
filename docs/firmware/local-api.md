@@ -671,8 +671,12 @@ Two read-only Standard `/api/info` requests on 22 October returned the same
 `render_attempts: 3`, `render_failures: 0` and `last_refresh: null`, on the pinned
 0.2.28 / 4654a1d8 build. The later read completed at 21:28:54 UTC. This confirms
 the live field shape and unchanged values across those reads; no image, recording
-or failure was induced. Large timed out, so its current response shape was not
-rechecked in this pass.
+or failure was induced. After the owner woke Large, its `/api/info` returned
+HTTP 200 at 21:32:36 UTC on 0.2.29 / f1555ee5, omitting both counters exactly as
+the complete handler predicts. Its `last_refresh` was `2026-09-15T02:59:59`,
+with `next_refresh: 2026-10-23T03:00:00`, interval four days and hour 3. Those
+offset-free values describe maintenance state, not the October voice/image
+workflows. Neither status read establishes a new render outcome.
 
 ## Restart, sleep and refresh acknowledgments
 
