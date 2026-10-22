@@ -122,6 +122,11 @@ not prove every consumer body, TLS configuration or indirect path equivalent.
 
 ## Poll
 
+The [saved-schema comparison](schema-and-client-contract.md) distinguishes
+advertised fields from these client behaviors. The October schema omits
+`display_type` and `is_periodic_poll` from its poll parameters, although all
+18 captured Standard polls sent both and received HTTP 200.
+
 ```http
 GET /api/v1/upload/check/<device_key>?display_type=315&orientation=portrait&is_periodic_poll=false&current_version=0.2.29
 ```

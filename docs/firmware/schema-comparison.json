@@ -1,0 +1,166 @@
+{
+  "evidence": "Offline comparison of preserved public schemas and previously captured redacted type shapes; no new network requests",
+  "snapshots": {
+    "july": {
+      "sha256": "533b080538a8a0ba995208bfcab408069f57a6e5395dc46b74117c539f267785",
+      "bytes": 32023,
+      "paths": 23,
+      "operations": 25,
+      "schemas": 33,
+      "captured_on_as_documented": "2026-07-07",
+      "repository_path": "docs/fraimic-cloud-api/openapi.json",
+      "introduced_commit": "7eed22e58c0d5666728c2ef5362bb412ef3ad017"
+    },
+    "october": {
+      "sha256": "3310e003e65e7d2236beab3714507533f69d86fb4917526039d1d8cfb3f5ed33",
+      "bytes": 32376,
+      "paths": 23,
+      "operations": 25,
+      "schemas": 34,
+      "retrieved_on": "2026-10-21",
+      "source": "https://origin.fraimic.com/openapi.json"
+    }
+  },
+  "operation_sets_identical": true,
+  "changes": [
+    {
+      "path": [
+        "components",
+        "schemas",
+        "AccountInfo"
+      ],
+      "change": "added"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "CheckUploadResponse",
+        "properties",
+        "account"
+      ],
+      "change": "added"
+    },
+    {
+      "path": [
+        "components",
+        "schemas",
+        "RefreshImageRequest",
+        "properties",
+        "device_id"
+      ],
+      "change": "added"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/upload/check/{device_key}",
+        "get",
+        "parameters"
+      ],
+      "change": "changed"
+    },
+    {
+      "path": [
+        "paths",
+        "/api/v1/upload/image/refresh",
+        "put",
+        "description"
+      ],
+      "change": "changed"
+    }
+  ],
+  "poll_query_parameter_change": {
+    "removed_from_document": [
+      "is_periodic_poll"
+    ],
+    "added_to_document": [
+      "include_account"
+    ],
+    "stock_parameter_missing_from_both": [
+      "display_type"
+    ]
+  },
+  "capture_shape_audit": {
+    "trace_sha256": "d549b7a404c28037763a9005a298e206a47b992d210724eac4cd00b5f3c7c587",
+    "decoded_exchanges": 24,
+    "groups": [
+      {
+        "method": "GET",
+        "path": "/api/v1/upload/global/{display_type}/{key}",
+        "status": 200,
+        "findings": [],
+        "exchanges": 2
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/account/setup",
+        "status": 200,
+        "findings": [],
+        "exchanges": 2
+      },
+      {
+        "method": "GET",
+        "path": "/api/v1/upload/check/{device_key}",
+        "status": 200,
+        "findings": [
+          {
+            "path": [
+              "query",
+              "display_type"
+            ],
+            "kind": "undeclared_parameter"
+          },
+          {
+            "path": [
+              "query",
+              "is_periodic_poll"
+            ],
+            "kind": "undeclared_parameter"
+          }
+        ],
+        "exchanges": 18
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/upload/audio/presign",
+        "status": 200,
+        "findings": [
+          {
+            "path": [
+              "request",
+              "user_id"
+            ],
+            "kind": "undeclared_property",
+            "forbidden": false
+          }
+        ],
+        "exchanges": 1
+      },
+      {
+        "method": "POST",
+        "path": "/api/v1/upload/audio/finalize",
+        "status": 200,
+        "findings": [
+          {
+            "path": [
+              "request",
+              "user_id"
+            ],
+            "kind": "undeclared_property",
+            "forbidden": false
+          }
+        ],
+        "exchanges": 1
+      }
+    ],
+    "scope": "Type/field-name audit of existing redacted shapes only. Does not test scalar values/enums, runtime coercion, server implementation, permission rules or new network transactions."
+  },
+  "authorization_scope": "No OpenAPI security schemes in either copy; prior gallery 401/owner-session observations establish only their exercised authorization cases",
+  "limitations": [
+    "Schema comparison does not establish server implementation or current deployment.",
+    "Type-only audit cannot validate enums, scalar constraints, values, coercion or permissions.",
+    "Unconstrained dictionaries do not enumerate settings or device identity behavior.",
+    "No account mutation, new device test or independent enrollment was performed."
+  ]
+}

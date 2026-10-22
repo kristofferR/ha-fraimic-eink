@@ -45,6 +45,7 @@ per question, not a count of tool calls or decompiled functions.
 | C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C01/E01/E02 | Both models have eleven recovered constructor sites, thirteen selector calls and the same eleven HTTP literal hosts; GNU continuation recovers missing multipart calls and rejects Standard's misaligned raw match | Dynamic destinations, indirect/non-HTTP paths, recursive consumer/TLS equivalence and complete offline operation |
+| E03/C01/C05/C07/C11 | July/October saved schemas retain the same 25 operations; five structural differences mapped; offline audit of 24 captured exchanges finds undeclared stock query/voice fields | Server implementation, unobserved values/coercion, other authorization cases, mutations and independent enrollment |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
 | C06/D01/A06/E02 | Recovered capture worker; nine matching-SDK host groups verify partial-timeout data loss and whole-block admission; nine Standard function pairs match capture, stop and completion-signal branches | Physical recording/dropout/stop timing, remaining external SDK/configuration paths and structured capture-result events |
 | C05/C08/D01 | Multipart framing uses a separate PSRAM allocation and streams the shared WAV in 4 KiB writes; 120-second transport timeout, exact-write checks and post-body abort registration traced | Malformed fields, allocation/write faults, physical upload cancellation and complete outer-worker cleanup |
@@ -571,6 +572,10 @@ Source: [research method](evidence-and-open-questions.md).
 - [ ] **E03 · Static/Account:** Reconcile the older repository OpenAPI snapshot,
   the October capture and observed client behavior. Distinguish advertised schema,
   client consumption, account authorization and actually exercised responses.
+  The [snapshot/client reconciliation](schema-and-client-contract.md) pins both
+  schema hashes and audits all 24 captured origin exchanges by field/type shape.
+  Remaining authorization/mutation cases and unconstrained schema fields still
+  need evidence; advertised optional headers do not establish anonymous access.
 
 ## Coverage of the existing documentation
 
@@ -581,6 +586,7 @@ This table records the audit scope, not completion of its checks.
 | [Index/current boundary](README.md) | C01–C12, R01–R09, E01–E03 |
 | [Hardware and layout](hardware-and-layout.md) | R01–R07, D01–D03, H01–H07, E02 |
 | [Cloud protocol](cloud-protocol.md) | C01–C05, C10–C12, R08, S01–S04 |
+| [Schema/client reconciliation](schema-and-client-contract.md) / [metadata](schema-comparison.json) | E03, C01/C02/C05/C07/C10–C12 |
 | [Voice](voice.md) | C05–C09, A01/A04/A06, D01–D05 |
 | [Image downloads](image-downloads.md) | C03/C04/C07/C08, D03/D05–D07, N05 |
 | [Boot and scheduling](boot-and-scheduling.md) | S01–S07, C04/C11, R10/R12 |

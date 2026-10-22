@@ -29,6 +29,7 @@ No transcription or AI generation was invoked.
 | --- | --- |
 | [Identity and hardware](hardware-and-layout.md) | Exact image fingerprint, memory segments, panel format, wiring and shared buffers |
 | [Cloud protocol](cloud-protocol.md) | API selectors, poll response semantics, system screens, transport requirements |
+| [Schema versus client contract](schema-and-client-contract.md) | July/October schema differences, captured extra fields and limits of generated API models |
 | [Image downloads](image-downloads.md) | Length/framing checks, restart-from-zero retries, incomplete images and cache consequences |
 | [Voice](voice.md) | Recording, WAV upload, synchronous generation, cancellation, concurrency |
 | [Rendering and concurrency](rendering-and-concurrency.md) | Buffer aliases, upload ordering, render policies, error propagation and completion signals |
