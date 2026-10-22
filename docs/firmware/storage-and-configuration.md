@@ -265,6 +265,52 @@ The saved key comes from the local request, not the setup response's key. Email
 nonempty and verified=true are insufficient to prove a nonempty user ID for
 voice. See the [enrollment parser and callers](cloud-protocol.md#enrollment-boundary).
 
+### Legacy-field migration does not validate a whole identity
+
+Large `0x42017350` and Standard `0x42017324` copy three legacy fields into
+`user_id_p`, `email_p` and `email_vp`. A restricted host interpreter followed
+each build's complete, byte-checked 169-instruction caller with synthetic NVS
+API responses. **Twenty-eight scenarios passed on both builds**; their combined
+paths visit all instructions in each selected body. This executes the recovered
+caller operations, not SDK storage code, an ESP32 emulator or a physical migration.
+
+| Condition | Recovered behavior and host result |
+| --- | --- |
+| Legacy user ID reads successfully but is empty | Skip user migration; this differs from an empty legacy email, which can be copied |
+| Production destination reads successfully, including an empty string or verification zero | Preserve it; no replacement or consistency check |
+| Destination returns exactly not-found (`0x1102`) | Attempt to copy the corresponding legacy field |
+| Destination returns a type, capacity or other read error | Skip that field's copy; errors are not treated as absence |
+| Legacy user/email fit within 64/99 bytes plus NUL | Eligible for migration; longer synthetic records fail the caller's 65/100-byte capacities |
+| An individual copy setter fails | Its result is ignored; the per-field migrated message still executes, and a successful commit can produce the overall completion message |
+| All destinations already exist | No setters are needed, yet readable legacy fields can still lead to commit and completion logging |
+| Commit fails after successful setters | Earlier mutations remain in the fixture; log the commit error and close |
+| Execution stops after zero through three successful setters | Preserve that prefix in the fixture; a later run fills still-missing fields independently |
+
+The user/email branches read the legacy string, probe the destination using the
+same buffer, then reread the legacy string before copying. Neither reread result
+is checked. With the fixture's explicit assumption that an error leaves output
+unchanged, a failed second read copies the earlier buffered string. A separate
+scripted case changes the legacy user to empty between reads; the copy uses that
+empty value without repeating the initial nonempty check. These are API-boundary
+counterexamples, not evidence of concurrent mutation or partial read corruption
+on the frame.
+
+The helper has no account-wide version marker, identity-consistency check or
+rollback. It can preserve an existing production user ID while filling email
+and verification from legacy records. The verification integer is copied as-is;
+the fixture checks a value of 7 rather than assuming boolean normalization here.
+Device keys, timezone, development fields and source aliases are untouched by
+this helper. It uses the production destination names without consulting the
+stored environment selector; other identity/key initialization paths remain
+separate.
+
+Consequently, neither migrated messages nor the overall completion message
+acknowledges a complete coherent account. A future firmware migration should
+validate the required fields together, retain source records until verified, and
+record explicit migration success only after checking every required operation.
+These cases do not establish installed NVS contents, cross-version downgrade
+safety, torn-write recovery or other SDK record compatibility.
+
 ### Device-key selection and regeneration
 
 Large `0x420176a8` and Standard `0x4201767c` load or generate the key used by

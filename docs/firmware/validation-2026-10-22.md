@@ -2890,3 +2890,38 @@ remaining schema/migration work is still explicit and unchecked. N04 stays defer
 | --- | --- |
 | `compare-nvs-storage.mjs` | `7c5df57080e23d135732f8775ea36cc4b45af39bcca64b073bf15c8266a48c21` |
 | `standard-nvs-storage-comparison.json` | `1bf75ca6dd8fcf2bfeb50a95614a13739fcd33fe56dfee93e3454fbf1fb036b7` |
+
+## Legacy-field migration error boundaries: N02/N03
+
+The host fixture interprets the supported arithmetic, load/store, branch and
+call operations in the complete Large `0x42017350` and Standard `0x42017324`
+GNU CFGs. It asserts both pinned image hashes and every instruction's bytes,
+reads literals from the matching image, rejects unsupported operations or
+uninitialized synthetic-stack reads, and enforces an instruction budget.
+External calls are explicit hooks for NVS operations, time and logging; register
+windows, the SDK, flash, scheduling and real elapsed time are not executed.
+
+**Twenty-eight scenarios, 56 runs, passed.** Both builds produce equal synthetic
+record maps and operation traces, and the union visits all 169 instructions in
+each selected body. Instruction coverage is not proof of every input/interleaving.
+Cases include type/capacity errors, empty and existing destinations, each of
+three failed setters, two failed string rereads, one scripted between-read
+change, four successful-setter cut points, resumption and commit/open errors.
+The [migration table](storage-and-configuration.md#legacy-field-migration-does-not-validate-a-whole-identity)
+records the resulting application contract.
+
+Successful fixture setters mutate a typed in-memory map wholly and immediately.
+Injected errors occur before output/mutation unless a case explicitly scripts
+a changed source record. String capacities include NUL; failed reads leave the
+destination buffer unchanged in this model. These assumptions establish bounded
+caller consequences, not physical NVS error effects or replay of a device fault.
+No personal identity, frame traffic or installed storage was used. N02's bounded
+legacy-migration milestone is checked; SDK schema/record compatibility remains
+open, and N04 remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `legacy-migration-cases.ts` | `11d0e65c41a12886c756454cd8a4389b37ab4aef6b8f0e6333ec511907569e46` |
+| `legacy-migration-results.json` | `be8fbf9d3af8e2b7627096797820ad38c5043fd9da02025c7a5be916ee6904d7` |
+| `identity-migrate-large-cfg.json` | `f99f023584af9a4bf89c0672bee9036dcd829a69841c3c680a9677fe1807706d` |
+| `identity-migrate-standard-cfg.json` | `63639be03c43afb27f8c38068befc801c8bfc69bc65a7fd28d54b4e9ac14e873` |
