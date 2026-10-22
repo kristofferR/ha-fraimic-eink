@@ -46,9 +46,9 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 100 corresponding functions, including the subsequent
+The preserved metadata maps 150 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
-maintenance, LED, status-image and SNTP/DHCP/DNS comparisons. The poll paths share 86
+maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -97,6 +97,25 @@ US rules and IANA-name parse-error path. The [Large-supported host fixtures](boo
 therefore have matching relevant static paths in Standard too. No physical
 timezone/DST experiment was performed on either frame.
 
+### Fixed maintenance callers also match
+
+A separate full-image Standard scan finds eight direct calls to maintenance
+setter `0x42015f4c`. All load `(4, 3, 0)` immediately before calling: four days,
+03:00. The sites are `0x420126f0`, `0x42016238`, `0x420162d4`, `0x420166f6`,
+`0x42016d7d`, `0x42016e02`, `0x42016f32` and `0x42016f79`.
+Record writer `0x42014d68` has one direct caller, `0x420160d4` inside that setter.
+The sole terminated `refresh_sched` key is at `0x3c0fd0a8`; recovered references
+belong to loader `0x42014af4` and the writer. No exact setter/writer pointer words
+occur in the application image; analysis-ELF symbols are not firmware pointers.
+
+Three functions and the eight argument/call regions were independently decoded
+in 19 GNU ranges; all 324 instruction byte sequences match the Standard app.
+This supports the same [bounded interface conclusion as Large](boot-and-scheduling.md#maintenance-parameters-have-only-fixed-default-callers):
+the discovered stock callers expose no custom interval or hour/minute selection.
+It does not exclude computed indirect calls or assembled NVS keys, read installed
+correction values, or validate physical timing. Album `next_image_utc` deadlines
+remain a separate backend-controlled mechanism.
+
 ### Stock time service also matches
 
 Standard `0x42014eb0` uses the same four time-server names from `0x3c13be18`.
@@ -124,6 +143,40 @@ not full SDK equivalence or a physical packet test. Both stock models need the
 same candidate local DNS/NTP compatibility plan; DHCP option 42 alone will not
 configure their time source. Cold boot, retained RTC behavior, actual retry
 timing and WAN-free operation remain open.
+
+### SNTP control queue and failure paths also match
+
+Standard mode/init/stop wrappers `0x42052128` / `0x42052138` / `0x42052148`
+use callback enqueue `0x42054f50`, discarding its allocation result. Hostname
+wrapper `0x42052158` instead calls synchronous API helper `0x4205503c` and waits
+for completion. The [Large ordering and failure analysis](boot-and-scheduling.md#sntp-control-queue-ordering-and-allocation-failures)
+therefore applies to these checked Standard paths too: the hostname operation
+orders earlier successfully posted controls, but does not cancel pending DNS
+callbacks or make stop/configure/start atomic.
+
+Initialization `0x42055080` creates the same 32-entry pointer mailbox, with its
+handle at `0x3fcad9ec`. Pool table `0x3c24d60c` contains 18 descriptors with sizes
+matching Large; index 8 selects the 16-byte API callback descriptor `0x3c24d678`.
+Posting `0x42066698` waits for queue space, and the synchronous call waits for
+its per-thread semaphore. The compared RTOS timeout helper `0x403847d4` has the
+same maximum-ticks and explicit-delay-abort branches. The application response
+waits again do not bound the whole operation.
+
+Mode setter `0x42055410` asserts if a client remains active, including after a
+lost stop message followed by a successfully queued mode request. Semaphore
+initializer `0x4206686c` can return null; getter `0x420668e0` and the API caller
+do not add a guard before the wait/signal dereferences. These are conditional
+static paths, not observed Standard crashes or a diagnosis of the captured TLS
+allocation error.
+
+The comparison covers 34 functions, 944 instructions and 145 internal branches
+in 57 GNU ranges per image, including queue send/copy, semaphore take and the
+RTOS timeout check. Non-literal/non-call instruction bytes and their offsets
+match. The 52 direct-call pairs and 95 literal pairs are checked or mapped
+separately; equal pool sizes and diagnostic strings are verified rather than
+assuming relocated data is identical. External helpers are not all recursively
+compared. There is no new host behavioral execution, queue/heap fault injection
+or device test, and this does not establish WAN-free boot.
 
 ### DNS fallback, cache and late callbacks also match
 

@@ -180,6 +180,28 @@
         "application_min_local_year": 2020,
         "large_update_interval": "0x3fca12b0",
         "standard_update_interval": "0x3fca1320"
+      },
+      "control_queue": {
+        "evidence": "34-function static GNU byte/branch comparison; no host behavioral or physical queue/heap fault injection",
+        "compared_function_pairs": 34,
+        "compared_instruction_sequences_per_image": 944,
+        "compared_internal_branches": 145,
+        "gnu_ranges_per_image": 57,
+        "mailbox_entries": 32,
+        "mailbox_item_bytes": 4,
+        "callback_allocation_bytes": 16,
+        "callback_pool_index": 8,
+        "large_mailbox_handle": "0x3fcad95c",
+        "standard_mailbox_handle": "0x3fcad9ec",
+        "large_callback_descriptor": "0x3c3c46d0",
+        "standard_callback_descriptor": "0x3c24d678",
+        "hostname_waits_for_completion": true,
+        "stop_mode_init_wait_for_completion": false,
+        "stop_mode_init_check_allocation_result": false,
+        "api_call_checks_null_thread_semaphore": false,
+        "mode_setter_asserts_stopped_client": true,
+        "application_response_waits_are_total_deadline": false,
+        "limitations": "Other producers/timers can interleave; pending DNS callbacks remain; external helpers are not all recursively compared"
       }
     },
     "dns_resolver": {
@@ -225,6 +247,22 @@
       "large_voice_render_wait_ticks": 18000,
       "standard_voice_render_wait_ticks": 9000,
       "limitations": "External helper identities are mapped separately; runtime thread-local cleanup, lock/allocator timing and physical faults remain unverified"
+    },
+    "maintenance_callers": {
+      "evidence": "Independent raw direct-call scans, recovered key references and GNU checks in each pinned app",
+      "direct_setter_calls_each": 8,
+      "setter_arguments": {
+        "days": 4,
+        "hour": 3,
+        "minute": 0
+      },
+      "direct_record_writer_calls_each": 1,
+      "exact_setter_writer_pointer_words_each": 0,
+      "terminated_key_occurrences_each": 1,
+      "large_key": "0x3c0fcec8",
+      "standard_key": "0x3c0fd0a8",
+      "configurable_stock_entry_point_established": false,
+      "limitations": "Computed indirect calls and assembled keys are not excluded; installed correction and physical persistence/timing not read or tested"
     }
   },
   "function_map": [
@@ -802,6 +840,181 @@
       "role": "common_image_downloader",
       "large": "0x4202606c",
       "standard": "0x42024ab8"
+    },
+    {
+      "role": "rtos_queue_copy",
+      "large": "0x40381ddc",
+      "standard": "0x40381dfc"
+    },
+    {
+      "role": "rtos_queue_send",
+      "large": "0x403821d8",
+      "standard": "0x403821f8"
+    },
+    {
+      "role": "rtos_semaphore_take",
+      "large": "0x40382648",
+      "standard": "0x40382668"
+    },
+    {
+      "role": "rtos_timeout_check",
+      "large": "0x403847b4",
+      "standard": "0x403847d4"
+    },
+    {
+      "role": "sntp_stop_callback",
+      "large": "0x42052fbc",
+      "standard": "0x42051fe8"
+    },
+    {
+      "role": "sntp_init_callback",
+      "large": "0x42052fc4",
+      "standard": "0x42051ff0"
+    },
+    {
+      "role": "sntp_mode_callback",
+      "large": "0x42052fcc",
+      "standard": "0x42051ff8"
+    },
+    {
+      "role": "sntp_name_api_callback",
+      "large": "0x42052fd8",
+      "standard": "0x42052004"
+    },
+    {
+      "role": "sntp_mode_async_wrapper",
+      "large": "0x420530fc",
+      "standard": "0x42052128"
+    },
+    {
+      "role": "sntp_init_async_wrapper",
+      "large": "0x4205310c",
+      "standard": "0x42052138"
+    },
+    {
+      "role": "sntp_stop_async_wrapper",
+      "large": "0x4205311c",
+      "standard": "0x42052148"
+    },
+    {
+      "role": "sntp_name_sync_wrapper",
+      "large": "0x4205312c",
+      "standard": "0x42052158"
+    },
+    {
+      "role": "tcpip_timer_mailbox_fetch",
+      "large": "0x42055d88",
+      "standard": "0x42054db4"
+    },
+    {
+      "role": "tcpip_message_dispatch",
+      "large": "0x42055dc0",
+      "standard": "0x42054dec"
+    },
+    {
+      "role": "tcpip_thread",
+      "large": "0x42055e68",
+      "standard": "0x42054e94"
+    },
+    {
+      "role": "tcpip_callback_enqueue",
+      "large": "0x42055f24",
+      "standard": "0x42054f50"
+    },
+    {
+      "role": "tcpip_synchronous_api_call",
+      "large": "0x42056010",
+      "standard": "0x4205503c"
+    },
+    {
+      "role": "tcpip_initialize",
+      "large": "0x42056054",
+      "standard": "0x42055080"
+    },
+    {
+      "role": "sntp_mode_setter",
+      "large": "0x420563e4",
+      "standard": "0x42055410"
+    },
+    {
+      "role": "lwip_heap_allocate",
+      "large": "0x42057a3c",
+      "standard": "0x42056a68"
+    },
+    {
+      "role": "lwip_heap_free",
+      "large": "0x42057a74",
+      "standard": "0x42056aa0"
+    },
+    {
+      "role": "lwip_pool_allocate",
+      "large": "0x42057ac8",
+      "standard": "0x42056af4"
+    },
+    {
+      "role": "lwip_pool_free",
+      "large": "0x42057b30",
+      "standard": "0x42056b5c"
+    },
+    {
+      "role": "lwip_pool_select_allocate",
+      "large": "0x42057b68",
+      "standard": "0x42056b94"
+    },
+    {
+      "role": "lwip_pool_select_free",
+      "large": "0x42057b88",
+      "standard": "0x42056bb4"
+    },
+    {
+      "role": "lwip_semaphore_signal",
+      "large": "0x42067574",
+      "standard": "0x420665a0"
+    },
+    {
+      "role": "lwip_semaphore_wait",
+      "large": "0x420675bc",
+      "standard": "0x420665e8"
+    },
+    {
+      "role": "lwip_mailbox_create",
+      "large": "0x42067630",
+      "standard": "0x4206665c"
+    },
+    {
+      "role": "lwip_mailbox_post",
+      "large": "0x4206766c",
+      "standard": "0x42066698"
+    },
+    {
+      "role": "lwip_mailbox_fetch",
+      "large": "0x420676bc",
+      "standard": "0x420666e8"
+    },
+    {
+      "role": "lwip_thread_semaphore_create",
+      "large": "0x42067840",
+      "standard": "0x4206686c"
+    },
+    {
+      "role": "lwip_thread_semaphore_get",
+      "large": "0x420678b4",
+      "standard": "0x420668e0"
+    },
+    {
+      "role": "maintenance_setter",
+      "large": "0x42015f2c",
+      "standard": "0x42015f4c"
+    },
+    {
+      "role": "maintenance_record_load",
+      "large": "0x42014ad4",
+      "standard": "0x42014af4"
+    },
+    {
+      "role": "maintenance_record_save",
+      "large": "0x42014d48",
+      "standard": "0x42014d68"
     }
   ],
   "live_standard": {

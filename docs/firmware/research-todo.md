@@ -60,7 +60,7 @@ per question, not a count of tool calls or decompiled functions.
 | R10/R11/N02 | Twenty-two host case groups cover OTA queue/cooldown branches; long-version mismatch, backward-clock boundary, failed persistence and replacement/retention traced | Physical offer/reporting faults, Standard comparison, full NVS failure semantics and artifact identity |
 | R12 | Direct updater framing/timeouts and OTA SDK ordering traced; apparent response-MIME guard reads request headers; sequential erase precedes first-byte validation | Host fault fixtures, busy/safety cases and deferred controlled update/recovery tests |
 | S01/S02 | Large startup retries SNTP five times and can invoke AP failover before the public monitor; callback/RTC flag distinction and allocation-failure path traced; Standard public-probe failure separately observed | Local NTP, cold boot/RTC retention, overlapping synchronization, outage timing and fully offline operation |
-| S02 | Large's 32-entry TCP/IP mailbox, blocking hostname barrier and ignored asynchronous control-allocation failures traced; lost-stop mode assertion and unchecked per-thread semaphore failure mapped | Standard queue comparison, injected allocation/queue faults, physical timing and actual offline boot |
+| S02/E02 | Both models' 32-entry TCP/IP mailbox, blocking hostname barrier and ignored asynchronous control-allocation failures traced; 34-function Standard comparison confirms the relevant queue/failure paths | Injected allocation/queue faults, physical timing, complete external-helper equivalence and actual offline boot |
 | S01/C01/C11 | Cached reachability survives station disconnect; fallback AP request ordering and persistent wildcard captive-DNS worker traced | Physical recovery, actual AP configuration, DNS reachability/lifetime and setup/bind failure tests |
 | D03/D06/D07 | Normal completion observed; short assets can reach stale-tail rendering or cache save after worker rejection; 1.347 MB free PSRAM cannot hold another full panel buffer | Memory lifetime/fragmentation, induced transfer/size faults and per-image acknowledgment |
 | D01/D03/D06 | DMA staging copies one 4,800-byte PSRAM chunk at a time; completion frees it; shared descriptors/manual select state and truncated/overwritten errors traced | Measured DMA-memory fragmentation, controlled transfer/overlap faults and complete higher-level driver exclusion audit |
@@ -75,7 +75,7 @@ per question, not a count of tool calls or decompiled functions.
 | N08/D01/D07 | Sixteen Large and eighteen Standard RLE host cases verify model geometry, partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; both show/restore paths write before DROP and change markers before completion | Physical rendering, overlap, storage faults, other releases and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
 | S03/S04/S05/S06 | Thirty-three host case groups cover deadline selection, missed-album retry and scheduling faults; timer/reason ordering, maintenance correction and conditional recursive fallback traced | Physical wake timing, actual persisted correction, clock changes, concurrency and real timer/NVS faults |
-| S05/S02 | Eight direct maintenance-setter calls all pass four days/03:00; only that setter directly writes the record; key references map to load/save | Standard caller comparison, installed correction, persistence/clock changes and physical timing; computed indirect references remain outside the negative result |
+| S05/S02/E02 | Both models have eight direct maintenance-setter calls, all passing four days/03:00; only the setter directly writes the record; key references map to load/save | Installed correction, persistence/clock changes and physical timing; computed indirect references remain outside the negative result |
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
 | H05/N03/C11 | Onboarding GET/cache semantics and eight embedded page selections mapped; seven script host checks establish local submissions, recurring checks and error-body behavior | Initialization/read faults, remaining pages, real browser behavior, cache refresh and independent enrollment |
@@ -322,8 +322,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   branches too. The [control-queue trace](boot-and-scheduling.md#sntp-control-queue-ordering-and-allocation-failures)
   now distinguishes Large's blocking hostname barrier from three allocation-dependent
   asynchronous controls, and maps lost-stop assertions and unchecked semaphore
-  creation failure. Check Standard queue equivalence, injected allocation/queue
-  faults and physical startup timing; these static branches do not establish
+  creation failure. The [Standard queue comparison](standard-model-comparison.md#sntp-control-queue-and-failure-paths-also-match)
+  confirms the relevant paths there too. Check injected allocation/queue faults
+  and physical startup timing; these static branches do not establish
   observed failure or fully offline operation.
   Large's [DNS fallback/cache trace](boot-and-scheduling.md#dns-fallback-and-cached-destinations)
   identifies a separate public resolver in slot 2, preserved across DHCP setup,
@@ -354,7 +355,8 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   [Setter caller audit](boot-and-scheduling.md#maintenance-parameters-have-only-fixed-default-callers)
   finds eight fixed `(4,3,0)` calls and no configurable public entry point in the
   bounded direct-call/pointer/key search. The internal accepted parameter range
-  does not establish a backend setting; Standard caller equivalence remains open.
+  does not establish a backend setting. The [Standard caller audit](standard-model-comparison.md#fixed-maintenance-callers-also-match)
+  confirms eight fixed calls there too; persistence and physical timing remain open.
 - [ ] **S06 · Device:** Map actual wake sources and transitions for normal, button,
   charger, maintenance, album, first-setup/storage and factory-test modes. Verify
   HTTP reachability and timeout behavior in each, without treating test-mode sleep

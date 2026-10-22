@@ -1556,3 +1556,42 @@ S02 is not closed.
 Private artifacts: `sntp-queue-pass1.txt` through `sntp-queue-pass7.txt`,
 `sntp-queue-gnu.mjs`, `sntp-queue-boundaries-gnu.txt`,
 `sntp-queue-literals.jsonl` and `sntp-queue-evidence-hashes.txt`.
+
+## Standard time-control queue and fixed maintenance callers: E02/S02/S05
+
+The [Standard queue comparison](standard-model-comparison.md#sntp-control-queue-and-failure-paths-also-match)
+checks 34 paired functions in 57 GNU ranges: 944 instructions and 145 internal
+branches per app. All decoded bytes match their respective pinned images.
+Instruction offsets and non-literal/non-call bytes agree; paired callees and
+95 literal pairs are handled separately. The 18 pool descriptors have matching
+sizes, including the 16-byte API message. Four compared RTOS helpers cover send,
+copy, semaphore take and timeout checks rather than assuming wrapper arguments
+alone establish their behavior.
+
+The checked paths preserve the synchronous hostname barrier, 32-entry pointer
+mailbox, ignored asynchronous allocation errors, active-client mode assertion
+and unchecked null per-thread semaphore. External helpers are mapped but not
+all recursively compared. There are no additional host behavioral executions,
+queue/heap fault injections or physical observations.
+
+Separately, two Standard reference passes and a raw direct-call scan find eight
+maintenance-setter calls with fixed `(4,3,0)` arguments, plus the sole direct
+record-writer call. All nine sites and the three setter/load/save functions are
+checked in 19 GNU ranges against 324 application instruction byte sequences.
+The sole terminated key's recovered references belong to load/save. No exact
+setter/writer pointers occur in the app; Ghidra's analysis-ELF symbol entries are
+excluded from that result.
+
+This extends the [fixed maintenance interface finding](standard-model-comparison.md#fixed-maintenance-callers-also-match)
+to Standard without claiming an exhaustive computed-call/key search. Installed
+correction, persistence under faults/clock changes, physical startup and wake
+timing remain open. No frame, backend, routing policy or HA source changed.
+E02/S02/S05 remain open.
+
+Private artifacts: `compare-standard-sntp-queue.mjs`,
+`standard-sntp-queue-boundaries-gnu.txt`, `standard-sntp-queue-comparison.json`,
+`standard-sntp-queue-evidence-hashes.txt`, `standard-schedule-api-pass1.txt`,
+`standard-schedule-api-pass2.txt`, `scan-standard-schedule-api-calls.mjs`,
+`standard-schedule-api-call-candidates.json`, `standard-schedule-api-gnu.mjs`,
+`standard-schedule-api-boundaries-gnu.txt`, `standard-schedule-api-string-hits.json`
+and `standard-schedule-api-evidence-hashes.txt`.

@@ -250,7 +250,9 @@ For stock emulation, use `next_image_utc` for album deadlines and retain mainten
 as a separate firmware-owned schedule. Custom maintenance timing, an explicit
 disable switch and timezone-change recalculation need a verified firmware setting
 and persistence design. No schedule, timezone or NVS contents were changed in
-this audit; Standard call-site equivalence and physical timing remain separate.
+this audit. The [Standard caller audit](standard-model-comparison.md#fixed-maintenance-callers-also-match)
+now confirms eight corresponding fixed-argument calls there too; physical timing
+and persistence remain unverified.
 
 ### Timezone format and default rules
 
@@ -737,8 +739,9 @@ that dereference the storage pointer. This is a separate conditional allocation
 failure, not a cleanly reported synchronization timeout.
 
 These findings are static, with no injected allocation failure, queue saturation,
-new host behavioral test or observed crash. Standard queue equivalence remains
-unchecked. The earlier TLS memory-allocation error is not evidence that any of
+new host behavioral test or observed crash. The [Standard queue comparison](standard-model-comparison.md#sntp-control-queue-and-failure-paths-also-match)
+now confirms these relevant static paths there too. The earlier TLS
+memory-allocation error is not evidence that any of
 these paths occurred. A future implementation should report control-request
 failure, use an acknowledged stop/configure/start operation with an overall
 deadline, and retain safe message ownership if that deadline expires. A local
