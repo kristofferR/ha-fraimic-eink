@@ -1105,6 +1105,21 @@ They do not execute Xtensa code, establish heap fragmentation, perform a TLS
 handshake or reproduce the observed Standard failure. That failure's exact
 allocation and runtime cause remain unknown.
 
+## Compiled TLS cipher and name capabilities also match
+
+Six additional complete function pairs cover cipher lookup/list filtering,
+the removal predicate, hostname/ALPN setters and ESP-TLS client configuration.
+They match across 425 instructions, 69 branches and 21 GNU ranges per image,
+with sixteen direct-call and 37 literal pairs mapped. The public function map
+now contains 272 pairs.
+
+All 58 cipher-definition records match after their names are dereferenced, and
+all 185 preference IDs plus the terminator match byte-for-byte. The resulting
+[compiled inventory](tls-capabilities.json) and [hostname/configuration limits](cloud-protocol.md#compiled-cipher-suites-and-hostname-configuration)
+are shared by these builds. No new host fault fixture or device handshake was
+run. Runtime cipher filtering, SNI bytes, configured ALPN, negotiated choice and
+trust/credential interoperability are not established by this comparison.
+
 ## Coverage and cleanup
 
 The 24 decoded origin-API exchanges were complete and all HTTP 200: one

@@ -882,6 +882,25 @@
       "checksum_allocation_failure_return": -20864,
       "host_case_groups": 8,
       "limits": "Initial dispatch configuration and selected function bodies; not total connection memory, actual heap placement/fragmentation, complete external cleanup, TLS negotiation or cause of the observed Standard failure"
+    },
+    "tls_compiled_capabilities": {
+      "evidence": "Six complete paired GNU bodies and complete decoded cipher definitions/preference arrays; no new host or device fault test",
+      "compared_functions": 6,
+      "instructions_per_image": 425,
+      "branches_per_image": 69,
+      "gnu_ranges_per_image": 21,
+      "direct_call_pairs": 16,
+      "literal_pairs": 37,
+      "compiled_cipher_definitions": 58,
+      "preference_ids": 185,
+      "filtered_preference_entries": 58,
+      "all_definitions_min_max_tls": "0x0303",
+      "chacha20_definition_present": false,
+      "hostname_max_bytes": 255,
+      "alpn_protocol_name_min_bytes": 1,
+      "alpn_protocol_name_max_bytes": 255,
+      "alpn_name_bytes_sum_max": 65535,
+      "limits": "Compiled/preference-filtered inventory is not a captured ClientHello or final negotiated set; runtime handshake filtering, SNI wire bytes, ALPN configuration, trust and certificate compatibility need separate evidence"
     }
   },
   "function_map": [
@@ -2214,6 +2233,36 @@
       "role": "mbedtls_ssl_free",
       "large": "0x420726c0",
       "standard": "0x42071cb8"
+    },
+    {
+      "role": "mbedtls_ssl_ciphersuite_from_id",
+      "large": "0x42075f3c",
+      "standard": "0x42075568"
+    },
+    {
+      "role": "mbedtls_ssl_list_ciphersuites",
+      "large": "0x42075f58",
+      "standard": "0x42075584"
+    },
+    {
+      "role": "ciphersuite_is_removed",
+      "large": "0x420e47a0",
+      "standard": "0x420e4a84"
+    },
+    {
+      "role": "mbedtls_ssl_set_hostname",
+      "large": "0x420722b0",
+      "standard": "0x420718a8"
+    },
+    {
+      "role": "mbedtls_ssl_conf_alpn_protocols",
+      "large": "0x42072320",
+      "standard": "0x42071918"
+    },
+    {
+      "role": "esp_tls_set_client_config",
+      "large": "0x420c4174",
+      "standard": "0x420c4450"
     }
   ],
   "live_standard": {

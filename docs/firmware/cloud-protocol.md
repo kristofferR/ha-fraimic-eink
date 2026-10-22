@@ -794,6 +794,49 @@ JSON size or shortening a certificate chain cannot reduce these initial fixed
 allocations. Serializing client work and measuring internal largest-free-block
 are candidates for a future firmware change; neither is implemented here.
 
+### Compiled cipher suites and hostname configuration
+
+Both images contain the same **58 cipher definitions**, each restricted to
+TLS 1.2, and the same 185-entry preference array. Getter `0x42075f58` filters
+that array through lookup `0x42075f3c`; the removal predicate `0x420e47a0`
+always returns zero. All 58 definitions survive that filter, in the order
+preserved in [the cipher inventory](tls-capabilities.json). Names and scalar
+fields were decoded and compared across both images; relocated string pointers
+were not mistaken for different cipher definitions.
+
+Useful AES-GCM candidates for a local server are present:
+
+| Certificate authentication | Cipher suite | ID |
+| --- | --- | --- |
+| RSA | `TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256` | `0xc02f` |
+| RSA | `TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384` | `0xc030` |
+| ECDSA | `TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256` | `0xc02b` |
+| ECDSA | `TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384` | `0xc02c` |
+
+There is no ChaCha20 definition. A server restricted to ChaCha20 therefore has
+no match in this compiled list. The inventory is not a captured ClientHello or
+proof that every listed suite is usable with current credentials, key exchange,
+curve and signature settings. Later handshake filtering and actual negotiation
+remain distinct checks; certificate name/trust validation still applies.
+
+Client configuration `0x420c4174` sets the certificate hostname before SSL setup.
+With name checking enabled, it duplicates an explicit `common_name` override
+when supplied, otherwise the supplied URL hostname. Hostname setter `0x420722b0`
+accepts up to **255 bytes**, not Unicode characters. An overlong value returns
+`-0x7100` before replacing the previous name. An accepted-length replacement
+first frees the old name; failure to allocate the new copy leaves no stored name
+and returns `-0x7f00`, which the caller propagates as hostname-setup failure.
+Empty and null inputs have different storage behavior: empty allocates a
+one-byte string, while null clears the pointer. These are helper semantics, not
+evidence that malformed URL hosts reach a completed connection or bypass checks.
+
+The ALPN setter `0x42072320` is compiled and is called when a protocol list is
+provided. It requires each name to contain 1–255 bytes and the sum of name bytes
+to be at most 65,535, then stores the caller's list pointer without copying it.
+This does not establish that current application requests configure ALPN or
+that HTTP/2 is supported. SNI serialization and actual ClientHello contents are
+separate from storing a hostname and remain to be traced.
+
 ### Address selection does not recover from a bad IPv4 destination
 
 The recovered HTTP transports start with an unspecified address family. Transport

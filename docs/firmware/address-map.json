@@ -3862,6 +3862,18 @@
       "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
     },
     {
+      "address": "0x420722b0",
+      "kind": "function",
+      "role": "mbedtls_ssl_set_hostname; TLS cipher/name configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
+    },
+    {
+      "address": "0x42072320",
+      "kind": "function",
+      "role": "mbedtls_ssl_conf_alpn_protocols; TLS cipher/name configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
+    },
+    {
       "address": "0x420724f4",
       "kind": "function",
       "role": "ssl_handshake_init; TLS setup allocation/configuration analysis",
@@ -3884,6 +3896,18 @@
       "kind": "function",
       "role": "mbedtls_ssl_config_defaults; TLS setup allocation/configuration analysis",
       "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
+    },
+    {
+      "address": "0x42075f3c",
+      "kind": "function",
+      "role": "mbedtls_ssl_ciphersuite_from_id; TLS cipher/name configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
+    },
+    {
+      "address": "0x42075f58",
+      "kind": "function",
+      "role": "mbedtls_ssl_list_ciphersuites; TLS cipher/name configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
     },
     {
       "address": "0x4207da28",
@@ -4036,6 +4060,12 @@
       "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS follow-up"
     },
     {
+      "address": "0x420c4174",
+      "kind": "function",
+      "role": "esp_tls_set_client_config; TLS cipher/name configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
+    },
+    {
       "address": "0x420c44c8",
       "kind": "function",
       "role": "esp_create_mbedtls_handle; TLS setup allocation/configuration analysis",
@@ -4142,6 +4172,12 @@
       "kind": "function",
       "role": "Select eligible OTA record by sequence; ties select first",
       "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
+    },
+    {
+      "address": "0x420e47a0",
+      "kind": "function",
+      "role": "ciphersuite_is_removed; TLS cipher/name configuration analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison, 22 October TLS capability follow-up"
     },
     {
       "address": "0x420e6b44",

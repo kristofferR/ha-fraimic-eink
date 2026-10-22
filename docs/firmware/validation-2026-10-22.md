@@ -1983,3 +1983,27 @@ full external cleanup and negotiated TLS behavior remain open.
 | `tls-allocation-selected.inc` | `b3f3f1e90b55d35bb8c358b83abf06d49e720c664395ea54bb307b8510b65056` |
 | `tls-allocation-fixture.c` | `0eeac85c3ca86a09146425856068fa39a18fe177aecf29546e89e8bc5c67af8e` |
 | `tls-allocation-fixture-results.jsonl` | `ff5ac7b37c19562bf0f32cfac18a9085001f1e1b62db2b9245accddda3e5dd85` |
+
+## Compiled TLS cipher inventory and name handling: C03/E02
+
+Six complete paired GNU bodies add 425 instructions, 69 branches and 21 ranges
+per image. Sixteen direct-call and 37 literal pairs are mapped. Definition
+records are sixteen bytes each: ID, name pointer, cipher/hash/key-exchange/flags
+bytes and two version fields. All 58 records were compared after dereferencing
+the names; all 185 preference IDs and their zero terminator were independently
+byte-compared. The list's 58-entry capacity and zero-return removal predicate
+retain all definitions in the reconstructed filtered preference order.
+
+The sanitized [cipher inventory](tls-capabilities.json) contains only cipher IDs
+and names, model hashes and evidence limits. It does not export arbitrary binary
+data. No new source fault fixture or live TLS test was run. Static hostname and
+ALPN setter boundaries are distinguished from current application configuration,
+ClientHello serialization, later filtering and negotiated interoperability.
+
+Private artifacts: `tls-ciphers-pass1.txt`/`tls-ciphers-pass2.txt`,
+`tls-ciphers-standard-pass1.txt`, `run-tls-ciphers-cfg.mjs`, per-function
+`tls-ciphers-*-cfg.json`/`.txt`, `read-tls-ciphers.mjs`,
+`tls-ciphers-decoded.json`, `compare-standard-tls-ciphers.mjs` and
+`standard-tls-ciphers-comparison.json`. The reference structures and selection
+algorithm are from [pinned Mbed TLS](https://raw.githubusercontent.com/espressif/mbedtls/98fcfd6d2cea90d306e8fde8e5bffd6087c9cda8/library/ssl_ciphersuites.c).
+No frame, network, artwork or HA change was made.
