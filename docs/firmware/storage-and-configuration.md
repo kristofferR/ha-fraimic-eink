@@ -9,8 +9,9 @@ encryption, secure boot, or the ability to restore NVS from an app download.
 The image cache uses a separate FAT partition labeled `imagedata`.
 
 These are recovered key names, not key values or instructions to edit live NVS.
-The table is useful for a future migration/backup tool; it is not an exhaustive
-schema or a guarantee of compatibility between releases.
+The tables and later coverage ledger map identified consumers in the two pinned
+builds. They are useful for a future migration/backup tool, not a complete backup
+format or a guarantee of compatibility with unexamined releases/computed keys.
 
 | Namespace | Keys | Purpose / evidence |
 | --- | --- | --- |
@@ -36,13 +37,15 @@ schema or a guarantee of compatibility between releases.
 | `ota_data` | `ota_fail` | Failed version, count, timestamp and reason |
 | `ota_data` | `pend_force`, `force_ver` | Pending/confirmed forced-version bookkeeping |
 | `ota_data` | `upd_cnt`, `rb_cnt`, `boot_cnt`, `last_ts` | OTA statistics |
+| `disphealth` (Standard only in this audit) | `tag`, `att`, `fail` | Per-build render-health tag and aggregate attempt/failure counters |
 
 Additional tracing identified legacy manifest string capacities (URL 2,048 bytes,
 SHA-256 text 65 bytes), a 32-bit size and 64-bit OTA/sleep timestamp accessors.
 The four switch accessors use signed 32-bit storage despite their boolean meaning;
 do not infer NVS types from JSON types. The following pass narrows the type/default
-map; SDK-owned state, other releases and migration fault cases remain incomplete
-(N02/N03).
+map. The later Wi-Fi/PHY and reference-coverage passes complete N02's bounded
+schema investigation; physical migration/reset behavior remains N03 and other
+releases remain unexamined.
 
 Initialization at `0x420153b0` can erase and reinitialize NVS on the SDK's
 no-free-pages/new-version errors. A recovery plan must cover provisioning and
@@ -221,6 +224,9 @@ the chip's default station MAC, and the exact calibration length. These are
 radio calibration records, not microphone or battery calibration, and their
 presence in code does not recover this device's installed values. A future
 backup/migration scope must include SDK namespaces as well as application keys.
+The selected PHY read/write/open wrappers now also match Standard across 236
+instructions, 27 branches and nine ranges per build. Matching validation code
+does not make device-specific calibration values transferable.
 
 ### Wi-Fi registers 73 configuration keys outside app_data
 
@@ -315,6 +321,70 @@ repair reached storage. This is static control-flow evidence, not an induced
 write failure, observed radio behavior or a complete Wi-Fi state-machine audit.
 The regulatory/channel-bound callees and actual runtime flags are not inferred
 from descriptor defaults, and no settings were changed.
+
+### Standard also stores per-build display-health counters
+
+Standard initializer `0x4202fb0c` opens `disphealth` read/write and reads string
+`tag` into a zero-filled 16-byte buffer, plus U32 keys `att` and `fail` into its
+RAM counters. Those read results are not checked. If the tag differs from build
+`4654a1d8`, it clears both RAM counters, independently writes zero to the two
+counter keys, writes the current tag and calls commit. All three writes and the
+commit are unchecked. A failed/missing tag read can therefore take the reset
+branch; the reset log does not acknowledge persistent success.
+
+Updater `0x4202fc40` increments the attempt counter on each invocation and the
+failure counter when its result argument is zero. It updates RAM before opening
+NVS, then independently writes both counters and commits without checking those
+results. A failed write does not undo RAM increments. The two complete GNU
+bodies contain 166 byte-checked instructions and four ranges. No stored counter
+was read or altered in this pass.
+
+The reset is not atomic. For example, if a counter reset fails but the new tag
+persists, a later initializer can accept that tag and retain an old counter.
+This is an inferred per-key failure consequence, not an induced device fault.
+The tally has no artwork ID, job ID or timestamp; its presence in logs is useful
+aggregate evidence, not a durable acknowledgment for a local-backend job.
+
+The pinned Large app has no terminated `disphealth` literal and no counterpart
+among its identified NVS API callers. This is a build-scoped difference, not a
+claim about every Large release or every computed namespace.
+
+### NVS consumer coverage and compatibility boundary
+
+The [reference ledger](nvs-reference-coverage.json) audits 23 identified NVS
+namespace/key API entry points. Each recovered direct call was decoded with GNU
+and checked against the pinned app bytes; every API entry was checked for its
+function prologue. An independent scan of all initialized image segments checked
+every exact API-address word, including read-only data. Synthetic ELF symbol-table
+references were excluded because they are not firmware bytes.
+
+| Audited evidence | Large 0.2.29 | Standard 0.2.28 |
+| --- | --- | --- |
+| Decoded direct API call sites | 316 | 330 |
+| Application caller functions | 50 | 52 |
+| PHY calibration caller functions | 4 | 4 |
+| Internal default-open wrapper | 1 | 1 |
+| Exact API-pointer words | 12 | 12 |
+
+All twelve pointer words belong to the resolved Wi-Fi OS adapter. The direct
+callers reconcile to the documented application/OTA records and PHY calibration;
+Standard's two additional callers account for its fourteen extra calls and the
+three display-health keys. No unclassified direct caller or exact API-pointer
+word remains in this audit. The named-partition open API has only the default-open
+wrapper as a recovered direct caller in each image.
+
+The shared application record definitions, selected persistence/migration paths,
+73 Wi-Fi descriptors and PHY validation wrappers support the documented two-build
+record contract. They do **not** authorize copying identity or calibration between
+devices, prove whole-partition downgrade compatibility, or make panel-specific
+artwork/version state interchangeable. Device keys and account fields must stay
+coherent; the tested legacy migrator does not enforce that coherence.
+
+Computed calls/names, unreachable code versus runtime usage, unlinked API variants
+and unexamined releases remain explicit search limits. Actual NVS contents,
+encryption/key provisioning, flash-page recovery and physical reset outcomes are
+outside this key-schema audit. N02's bounded static/host question is complete;
+those separate recovery/device criteria remain open under their owning items.
 
 ## Identity layout and migration
 

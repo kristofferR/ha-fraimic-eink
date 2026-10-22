@@ -9,20 +9,20 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 117 of 187 concrete milestones complete.**
+**10 of 67 original items complete; 118 of 187 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
-| Complete | 9 | Original bounded question answered; evidence linked below |
-| Research | 7 | Concrete static, host or design work remains available |
+| Complete | 10 | Original bounded question answered; evidence linked below |
+| Research | 6 | Concrete static, host or design work remains available |
 | Waiting for device | 24 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 9 | Owner-postponed work; do not resume automatically |
 | Ongoing | 2 | Evidence discipline applied to relevant findings/builds, not a finite feature |
 
-Completed original items: **C01, C05, C09, C10, A01, A05, R11, H07, E03**. The reconciliation closed
+Completed original items: **C01, C05, C09, C10, A01, A05, R11, N02, H07, E03**. The reconciliation closed
 C05, C10, R11 and E03 from evidence already gathered; it adds no new device tests.
 The latest 31 finalize cases are recorded under C07, whose end-to-end physical
 timeout criterion remains unchecked.
@@ -30,6 +30,9 @@ A05 subsequently closed with the deployment comparison and 24 isolated boundary
 checks; production bridge/job implementation remains A02–A04.
 C01 subsequently closed with all identified constructor destinations classified
 and explicit remaining indirect-search limits; offline operation is not claimed.
+N02 subsequently closed with the pinned-build key inventory, Wi-Fi/PHY and
+Standard display-health records, migration cases and explicit reference-search
+limits. Installed NVS and physical recovery remain separate criteria.
 
 ## How to use this list
 
@@ -65,10 +68,8 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with N02's remaining
-SDK/indirect NVS key references and record compatibility; selected Standard
-storage-writer/vtable coverage and legacy-field migration fault cases are complete,
-while A07's [feature proposal](voice-feature-proposal.md)
+For the owner's local-cloud/voice priorities, continue with D01's remaining
+worker/transport ownership references, while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
 overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
@@ -558,11 +559,14 @@ Commit and push validated research batches periodically as requested.
   - [x] **Static:** Distinguish image FAT storage from NVS and recover selected mount/allocation behavior. [Storage](storage-and-configuration.md#nvs-is-not-the-image-filesystem).
   - [ ] **Blocked:** **Recovery/Device:** Obtain actual imagedata geometry/free space, then measure overhead and derive a wear/write budget. Do not infer capacity from app or buffer size.
 
-- [ ] **N02 · Static/Host:** Complete the NVS schema, including value types, defaults,
+- [x] **N02 · Static/Host:** Complete the NVS schema, including value types, defaults,
   namespaces and references omitted from the current table. Map compatibility and
   migration across versions without publishing identity/password values.
 
-  Status: **Research**.
+  Status: **Complete**.
+
+  Scope: the two pinned builds and identified consumers. Installed storage,
+  physical recovery and unexamined releases are outside this static/host criterion.
 
   - [x] **Static:** Map application key types, blob layouts, defaults and SDK Wi-Fi/PHY namespaces. [Schema](storage-and-configuration.md#recovered-nvs-types-and-record-sizes).
   - [x] **Static:** Compare selected settings/identity paths and establish non-atomic per-key writes. [Persistence](storage-and-configuration.md#nvs-commit-does-not-make-the-four-switches-atomic).
@@ -570,7 +574,7 @@ Commit and push validated research batches periodically as requested.
   - [x] **Host/Static:** Check legacy-field migration with 28 scenarios per build using recovered caller instructions and synthetic SDK results: missing versus erroneous destinations, unchecked copies/rereads, partial progress and misleading completion logs. [Migration boundaries](storage-and-configuration.md#legacy-field-migration-does-not-validate-a-whole-identity).
   - [x] **Static:** Recover all 73 Wi-Fi descriptors, their storage types/capacities and twelve indirect NVS callback slots on both builds; compare five registry/load/open/cleanup bodies. [SDK schema](storage-and-configuration.md#wi-fi-registers-73-configuration-keys-outside-app_data), [machine-readable records](wifi-nvs-schema.json).
   - [x] **Static:** Compare eleven Wi-Fi post-load/default/set/commit helpers, distinguish RAM cleanup from optional writeback, and confirm the AP SSID length-word layout. [Normalization](storage-and-configuration.md#wi-fi-normalization-changes-ram-before-optional-writeback).
-  - [ ] **Next:** **Static/Host:** Reconcile remaining direct/indirect NVS API consumers against the application/Wi-Fi/PHY inventory and state the bounded record-compatibility result. Preserve credentials outside public artifacts; physical NVS page recovery is separate.
+  - [x] **Static:** Reconcile 23 namespace/key API roots: 316/330 decoded direct calls, twelve exact function-pointer words per build, four paired PHY wrappers and Standard's separate display-health records. No identified consumer remains unclassified; computed references and physical compatibility retain explicit limits. [Coverage](storage-and-configuration.md#nvs-consumer-coverage-and-compatibility-boundary), [Standard counters](storage-and-configuration.md#standard-also-stores-per-build-display-health-counters).
 
 - [ ] **N03 · Host/Device:** Verify production/development identity and Wi-Fi isolation,
   legacy-key migration, reset semantics, timezone sharing and interrupted/failed

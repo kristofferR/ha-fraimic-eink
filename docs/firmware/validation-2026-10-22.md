@@ -3009,3 +3009,51 @@ No device or network configuration changed; N04 remains deferred.
 | `recover-wifi-set-switch-cfg.mjs` | `5ab7137c7b75ed3d427ae1f633e0dc8d64cc6cc41afd7a5404b206db3539f66e` |
 | `compare-wifi-normalizers.mjs` | `89612b017cab69b588c628e3f950cfc99b9eeef4854f8876d1c5922e3133fce1` |
 | `standard-wifi-normalizers-comparison.json` | `5ec77f4cad558b37f8ca5288b7c74c404b76caa4ace879b2717627ba1f954796` |
+
+## NVS consumer reconciliation and Standard display health: N02
+
+The final bounded reference audit covers 23 identified namespace/key API roots
+in each pinned image. Recovered direct references are independently decoded
+with GNU and checked against the original application bytes. A separate scan
+of all initialized application segments checks exact four-byte API pointers;
+synthetic ELF symbol-table records are excluded.
+
+| Coverage | Large | Standard |
+| --- | --- | --- |
+| Decoded direct call sites | 316 | 330 |
+| Application caller functions | 50 | 52 |
+| PHY caller functions | 4 | 4 |
+| Internal default-open wrapper callers | 1 | 1 |
+| Exact API pointer words | 12 | 12 |
+
+All twelve pointer words per image belong to the previously mapped Wi-Fi OS
+adapter. The additional Standard application callers initialize and update
+`disphealth`: string `tag` and U32 `att`/`fail`. Their complete byte-checked CFGs
+contain 166 instructions in four ranges. Reads and writes are unchecked; a
+matching build tag is not proof that the aggregate counters were saved. These
+records do not identify an image or provide a durable render acknowledgement.
+
+Four complete paired PHY bodies add 236 instructions, 27 branches and nine
+ranges per image, with eleven direct-call and 23 literal pairs checked
+separately. They establish matching `phy` record shapes and validation of the
+version, six-byte MAC and 1,904-byte calibration payload. Matching layouts do
+not establish calibration portability between devices.
+
+The [coverage record](nvs-reference-coverage.json) and
+[compatibility boundary](storage-and-configuration.md#nvs-consumer-coverage-and-compatibility-boundary)
+close N02 for the two pinned builds and identified consumers. Computed targets,
+dynamically assembled names, unlinked API variants and other releases remain
+explicit search limits. Installed storage, erase/init/key-provisioning internals
+and physical recovery are outside this key-consumer audit. No device was read or
+changed; N04 remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `AuditNvsReferences.java` | `2afb74d4ac43d15dbbf8786b8dde7424d1f4ad3604b818750597f7cc84d56d91` |
+| `verify-nvs-reference-audit.mjs` | `1655239f803f4b0ce6b05bad519d58ddef805f1beef144eb903b1cd71a312ade` |
+| Large `nvs-api-reference-audit.json` | `d71287d57580520084d1089f311b2f6e5829d5ae051222e988fad3a39aebd86d` |
+| Standard `nvs-api-reference-audit.json` | `b77977727500e0533830332c1f8f89a9a4b82fd96f9725b4d399d4eb6ff4ce4e` |
+| `display-health-init-standard-cfg.json` | `d4270c70e77d28d5ec5b52132df78394f0e01cf6191902d984758b373f6aef41` |
+| `display-health-save-standard-cfg.json` | `06046bb6cc733633549e4bfc4f8c1e15171b5a60a94bb63664f3972b6e7b0ef3` |
+| `compare-phy-nvs.mjs` | `c47d502229419d5ce5d730e267ec0e215a06559f8b861ae97e74074be400a18e` |
+| `standard-phy-nvs-comparison.json` | `1b89cfe5968ee99ee2404e31f47932bc584338914b252c61e68eb4b4cc32a59d` |

@@ -764,6 +764,20 @@ and seventeen literal pairs reviewed. Those selected paths also match, including
 RAM-first writes and ignored commit results. Physical restoration and complete
 Wi-Fi/regulatory state-machine equivalence remain untested.
 
+### Standard has an additional display-health namespace
+
+The [NVS reference audit](storage-and-configuration.md#nvs-consumer-coverage-and-compatibility-boundary)
+finds 316 direct API calls on Large and 330 on Standard, with the same twelve
+Wi-Fi API-pointer words. Standard's fourteen additional calls are in two
+`disphealth` helpers storing string `tag` and U32 counters `att`/`fail`. Their
+166 instructions establish per-build reset, RAM-first tally updates and unchecked
+persistence. These counters are aggregate diagnostics, not image/job receipts.
+
+Four PHY NVS read/write/open helpers separately match across 236 instructions,
+27 branches and nine ranges per model, with eleven direct-call and 23 literal
+pairs reviewed. Both validate selected calibration records against the current
+PHY version and chip MAC; no cross-device calibration transfer is implied.
+
 ### Device-key selection and regeneration also match
 
 Five [identity-related bodies](storage-and-configuration.md#device-key-selection-and-regeneration)

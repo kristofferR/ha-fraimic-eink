@@ -1,0 +1,410 @@
+{
+  "evidence": "Static recovered references, GNU instruction/image-byte checks, and independent complete initialized-segment pointer-word scans; no installed NVS or device execution",
+  "scope": "23 identified namespace/key API entry points in Large 0.2.29 and Standard 0.2.28; erase/init/key-generation internals are outside the key-consumer inventory",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "decoded_direct_call_sites": 316,
+      "application_callers": 50,
+      "phy_callers": 4,
+      "internal_open_wrapper_callers": 1,
+      "exact_api_pointer_words": 12
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "decoded_direct_call_sites": 330,
+      "application_callers": 52,
+      "phy_callers": 4,
+      "internal_open_wrapper_callers": 1,
+      "exact_api_pointer_words": 12
+    }
+  },
+  "namespaces": {
+    "shared": [
+      "app_data",
+      "ota_data",
+      "nvs.net80211",
+      "phy"
+    ],
+    "standard_only_identified": [
+      "disphealth"
+    ]
+  },
+  "exclusions": [
+    "Synthetic ELF symbol-table references are not app pointers.",
+    "Computed targets, dynamically assembled names, unlinked API variants and other releases are not excluded by this bounded search.",
+    "Call sites are compiled references, not proof that every branch executes.",
+    "Matching record shapes do not permit cross-flashing or copying device-specific identity/calibration."
+  ],
+  "api_roots": [
+    {
+      "operation": "open",
+      "large": {
+        "entry": "0x42049e60",
+        "direct_call_sites": 63,
+        "pointer_words": [
+          "0x3fca13e4"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048f38",
+        "direct_call_sites": 65,
+        "pointer_words": [
+          "0x3fca1454"
+        ]
+      }
+    },
+    {
+      "operation": "open_from_partition",
+      "large": {
+        "entry": "0x42049de8",
+        "direct_call_sites": 1,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x42048ec0",
+        "direct_call_sites": 1,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "close",
+      "large": {
+        "entry": "0x42049d9c",
+        "direct_call_sites": 76,
+        "pointer_words": [
+          "0x3fca13e8"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048e74",
+        "direct_call_sites": 78,
+        "pointer_words": [
+          "0x3fca1458"
+        ]
+      }
+    },
+    {
+      "operation": "commit",
+      "large": {
+        "entry": "0x42049974",
+        "direct_call_sites": 37,
+        "pointer_words": [
+          "0x3fca13ec"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048a4c",
+        "direct_call_sites": 39,
+        "pointer_words": [
+          "0x3fca145c"
+        ]
+      }
+    },
+    {
+      "operation": "erase_key",
+      "large": {
+        "entry": "0x4204994c",
+        "direct_call_sites": 10,
+        "pointer_words": [
+          "0x3fca13f8"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048a24",
+        "direct_call_sites": 10,
+        "pointer_words": [
+          "0x3fca1468"
+        ]
+      }
+    },
+    {
+      "operation": "set_str",
+      "large": {
+        "entry": "0x4204999c",
+        "direct_call_sites": 24,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x42048a74",
+        "direct_call_sites": 25,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "get_str",
+      "large": {
+        "entry": "0x420499f4",
+        "direct_call_sites": 31,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x42048acc",
+        "direct_call_sites": 32,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "set_blob",
+      "large": {
+        "entry": "0x420499c8",
+        "direct_call_sites": 16,
+        "pointer_words": [
+          "0x3fca13f0"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048aa0",
+        "direct_call_sites": 16,
+        "pointer_words": [
+          "0x3fca1460"
+        ]
+      }
+    },
+    {
+      "operation": "get_blob",
+      "large": {
+        "entry": "0x42049a08",
+        "direct_call_sites": 14,
+        "pointer_words": [
+          "0x3fca13f4"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048ae0",
+        "direct_call_sites": 14,
+        "pointer_words": [
+          "0x3fca1464"
+        ]
+      }
+    },
+    {
+      "operation": "set_i8",
+      "large": {
+        "entry": "0x42049ea8",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca13cc"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048f80",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca143c"
+        ]
+      }
+    },
+    {
+      "operation": "set_u8",
+      "large": {
+        "entry": "0x42049ee8",
+        "direct_call_sites": 7,
+        "pointer_words": [
+          "0x3fca13d4"
+        ]
+      },
+      "standard": {
+        "entry": "0x42048fc0",
+        "direct_call_sites": 7,
+        "pointer_words": [
+          "0x3fca1444"
+        ]
+      }
+    },
+    {
+      "operation": "set_u16",
+      "large": {
+        "entry": "0x42049f28",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca13dc"
+        ]
+      },
+      "standard": {
+        "entry": "0x42049000",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca144c"
+        ]
+      }
+    },
+    {
+      "operation": "set_i32",
+      "large": {
+        "entry": "0x42049f68",
+        "direct_call_sites": 9,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x42049040",
+        "direct_call_sites": 9,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "set_u32",
+      "large": {
+        "entry": "0x42049fa4",
+        "direct_call_sites": 4,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x4204907c",
+        "direct_call_sites": 8,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "set_i64",
+      "large": {
+        "entry": "0x42049fe4",
+        "direct_call_sites": 1,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x420490bc",
+        "direct_call_sites": 1,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "set_u64",
+      "large": {
+        "entry": "0x4204a02c",
+        "direct_call_sites": 2,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x42049104",
+        "direct_call_sites": 2,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "get_i8",
+      "large": {
+        "entry": "0x4204a070",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca13d0"
+        ]
+      },
+      "standard": {
+        "entry": "0x42049148",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca1440"
+        ]
+      }
+    },
+    {
+      "operation": "get_u8",
+      "large": {
+        "entry": "0x4204a0ac",
+        "direct_call_sites": 4,
+        "pointer_words": [
+          "0x3fca13d8"
+        ]
+      },
+      "standard": {
+        "entry": "0x42049184",
+        "direct_call_sites": 4,
+        "pointer_words": [
+          "0x3fca1448"
+        ]
+      }
+    },
+    {
+      "operation": "get_u16",
+      "large": {
+        "entry": "0x4204a0e8",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca13e0"
+        ]
+      },
+      "standard": {
+        "entry": "0x420491c0",
+        "direct_call_sites": 0,
+        "pointer_words": [
+          "0x3fca1450"
+        ]
+      }
+    },
+    {
+      "operation": "get_i32",
+      "large": {
+        "entry": "0x4204a124",
+        "direct_call_sites": 9,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x420491fc",
+        "direct_call_sites": 9,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "get_u32",
+      "large": {
+        "entry": "0x4204a160",
+        "direct_call_sites": 5,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x42049238",
+        "direct_call_sites": 7,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "get_i64",
+      "large": {
+        "entry": "0x4204a19c",
+        "direct_call_sites": 1,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x42049274",
+        "direct_call_sites": 1,
+        "pointer_words": []
+      }
+    },
+    {
+      "operation": "get_u64",
+      "large": {
+        "entry": "0x4204a1d8",
+        "direct_call_sites": 2,
+        "pointer_words": []
+      },
+      "standard": {
+        "entry": "0x420492b0",
+        "direct_call_sites": 2,
+        "pointer_words": []
+      }
+    }
+  ],
+  "standard_display_health": {
+    "namespace": "disphealth",
+    "initializer": "0x4202fb0c",
+    "updater": "0x4202fc40",
+    "keys": [
+      {
+        "key": "tag",
+        "type": "string",
+        "read_capacity_bytes": 16,
+        "build": "4654a1d8"
+      },
+      {
+        "key": "att",
+        "type": "u32"
+      },
+      {
+        "key": "fail",
+        "type": "u32"
+      }
+    ],
+    "limits": "Per-build aggregate counters with unchecked persistence; not an image/job acknowledgement."
+  }
+}
