@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**11 of 67 original items complete; 119 of 187 concrete milestones complete.**
+**11 of 67 original items complete; 120 of 187 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 11 | Original bounded question answered; evidence linked below |
-| Research | 5 | Concrete static, host or design work remains available |
-| Waiting for device | 24 | Remaining original criteria require physical validation |
+| Research | 4 | Concrete static, host or design work remains available |
+| Waiting for device | 25 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 9 | Owner-postponed work; do not resume automatically |
@@ -71,8 +71,9 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-Continue with H03's audio-output initialization/call-path audit, then the remaining
-H05 handler/diagnostic contracts. A07's [feature proposal](voice-feature-proposal.md)
+Continue with the remaining H05 handler/diagnostic contracts, then H04's controller
+command audit. H03's static audio-path audit is complete; physical output hardware
+remains deferred. A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
 overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
@@ -662,9 +663,9 @@ Commit and push validated research batches periodically as requested.
 - [ ] **H03 · Static/Hardware:** Determine whether speech/audio output hardware
   exists and is usable; microphone input does not establish speaker capability.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
-  - [ ] **Next:** **Static:** Audit possible audio-output initialization/call paths independently of the known PDM input.
+  - [x] **Static:** Audit I2S channel creation and LED PWM references on both builds; establish RX-only microphone configuration and model-specific pins, with no identified speech-output path and explicit indirect-search limits. [Audio audit](hardware-and-layout.md#audio-output-audit-across-both-models), [coverage](audio-output-coverage.json).
   - [ ] **Deferred:** **Hardware:** Establish whether usable output hardware exists. Do not infer a speaker from microphone support; keep the enclosure closed.
 
 - [ ] **H04 · Static/Host/Hardware:** Determine supported partial-refresh/custom

@@ -71,6 +71,7 @@ identified builds; shared routes and SDK version do not establish full equivalen
 | Wi-Fi NVS descriptor/dispatch comparison | Same 73 descriptors, twelve resolved API callback slots, five registry/load/open/cleanup bodies and eleven normalization/set/commit bodies | Actual runtime flags, complete radio/regulatory behavior, installed credentials, writeback success or a complete restore format |
 | NVS consumer reconciliation | 23 API roots, 316/330 byte-checked direct calls, twelve exact pointer words per build, paired PHY wrappers and Standard display-health records | Computed names/targets, installed storage, key provisioning, whole-partition downgrade compatibility or physical recovery |
 | Buffer and external-cleanup ownership census | Sixteen buffer-reference functions per build, seventeen paired transport bodies, thirteen paired task-local bodies and resolved constant registrations | Computed aliases/registrations, live task values, concurrent TLS safety, measured leaked bytes or physical cleanup/recovery |
+| Audio-output and LED configuration audit | RX-only microphone initialization, distinct model GPIOs, three compared LED bodies and nine-root/seventeen-call I2S/LEDC census per build | Physical speaker/amplifier presence, playback, computed/bit-banged output or absence of every possible output path |
 
 Temporary DNS/DNAT and interception were removed after each bounded experiment.
 No custom app was flashed. The Large [backend passes](backend-emulation.md) used

@@ -1,0 +1,353 @@
+{
+  "evidence": "Static pinned-image configuration and reference audit; no audio playback or physical hardware test",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "microphone": {
+        "initializer": "0x4201fd90",
+        "checked_instructions": 100,
+        "control_flow_ranges": 3,
+        "mode": "I2S0 PDM RX",
+        "sample_rate_hz": 16000,
+        "sample_bits": 16,
+        "channels": 1,
+        "clock_gpio": 41,
+        "data_gpio": 42,
+        "tx_channel_requested": false,
+        "dma_descriptors": 6,
+        "dma_frames_per_descriptor": 240
+      },
+      "rgb_led": {
+        "initializer": "0x42022d6c",
+        "channel_gpios": [
+          38,
+          47,
+          13
+        ],
+        "timer": 0,
+        "channels": [
+          0,
+          1,
+          2
+        ],
+        "frequency_hz": 5000,
+        "resolution_bits": 8,
+        "inverted_duty": true
+      },
+      "reference_census": {
+        "api_roots": 9,
+        "direct_call_sites": 17,
+        "owner_functions": 7,
+        "exact_api_pointer_words": 0,
+        "roots": [
+          {
+            "name": "i2s_new_channel",
+            "address": "0x4204f758",
+            "direct_call_sites": [
+              "0x4201fdde"
+            ]
+          },
+          {
+            "name": "pdm_rx_init",
+            "address": "0x420500e0",
+            "direct_call_sites": [
+              "0x4201fe4c"
+            ]
+          },
+          {
+            "name": "i2s_read",
+            "address": "0x4204fbec",
+            "direct_call_sites": [
+              "0x4201fa84",
+              "0x4201fcd9"
+            ]
+          },
+          {
+            "name": "led_timer",
+            "address": "0x42051034",
+            "direct_call_sites": [
+              "0x42022db2"
+            ]
+          },
+          {
+            "name": "led_channel",
+            "address": "0x420514fc",
+            "direct_call_sites": [
+              "0x42022e4a"
+            ]
+          },
+          {
+            "name": "led_duty",
+            "address": "0x420517e4",
+            "direct_call_sites": [
+              "0x42022809",
+              "0x4202281c",
+              "0x4202282e"
+            ]
+          },
+          {
+            "name": "led_update",
+            "address": "0x420511d4",
+            "direct_call_sites": [
+              "0x42022811",
+              "0x42022824",
+              "0x42022835",
+              "0x42051711"
+            ]
+          },
+          {
+            "name": "led_stop",
+            "address": "0x420512b4",
+            "direct_call_sites": [
+              "0x42022847",
+              "0x42022850",
+              "0x42022859"
+            ]
+          },
+          {
+            "name": "led_fade",
+            "address": "0x420518b4",
+            "direct_call_sites": [
+              "0x42022e70"
+            ]
+          }
+        ]
+      },
+      "api_name_bytes": {
+        "i2s_channel_write": false,
+        "i2s_channel_preload_data": false,
+        "i2s_channel_init_std_mode": false,
+        "i2s_channel_init_tdm_mode": false,
+        "i2s_channel_init_pdm_tx_mode": false,
+        "i2s_driver_install": false,
+        "i2s_write": false,
+        "dac_continuous_new_channels": false,
+        "dac_continuous_write": false,
+        "dac_oneshot_new_channel": false,
+        "dac_oneshot_output_voltage": false,
+        "esp_codec_dev_write": false,
+        "i2s_channel_init_pdm_rx_mode": true,
+        "i2s_channel_read": true,
+        "ledc_timer_config": true
+      }
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "microphone": {
+        "initializer": "0x4201fd64",
+        "checked_instructions": 99,
+        "control_flow_ranges": 3,
+        "mode": "I2S0 PDM RX",
+        "sample_rate_hz": 16000,
+        "sample_bits": 16,
+        "channels": 1,
+        "clock_gpio": 4,
+        "data_gpio": 8,
+        "tx_channel_requested": false,
+        "dma_descriptors": 6,
+        "dma_frames_per_descriptor": 240
+      },
+      "rgb_led": {
+        "initializer": "0x4202181c",
+        "channel_gpios": [
+          38,
+          13,
+          12
+        ],
+        "timer": 0,
+        "channels": [
+          0,
+          1,
+          2
+        ],
+        "frequency_hz": 5000,
+        "resolution_bits": 8,
+        "inverted_duty": true
+      },
+      "reference_census": {
+        "api_roots": 9,
+        "direct_call_sites": 17,
+        "owner_functions": 7,
+        "exact_api_pointer_words": 0,
+        "roots": [
+          {
+            "name": "i2s_new_channel",
+            "address": "0x4204e830",
+            "direct_call_sites": [
+              "0x4201fdb2"
+            ]
+          },
+          {
+            "name": "pdm_rx_init",
+            "address": "0x4204f1b8",
+            "direct_call_sites": [
+              "0x4201fe1c"
+            ]
+          },
+          {
+            "name": "i2s_read",
+            "address": "0x4204ecc4",
+            "direct_call_sites": [
+              "0x4201fa58",
+              "0x4201fcad"
+            ]
+          },
+          {
+            "name": "led_timer",
+            "address": "0x4205010c",
+            "direct_call_sites": [
+              "0x42021862"
+            ]
+          },
+          {
+            "name": "led_channel",
+            "address": "0x420505d4",
+            "direct_call_sites": [
+              "0x420218fa"
+            ]
+          },
+          {
+            "name": "led_duty",
+            "address": "0x420508bc",
+            "direct_call_sites": [
+              "0x420212b9",
+              "0x420212cc",
+              "0x420212de"
+            ]
+          },
+          {
+            "name": "led_update",
+            "address": "0x420502ac",
+            "direct_call_sites": [
+              "0x420507e9",
+              "0x420212c1",
+              "0x420212d4",
+              "0x420212e5"
+            ]
+          },
+          {
+            "name": "led_stop",
+            "address": "0x4205038c",
+            "direct_call_sites": [
+              "0x420212f7",
+              "0x42021300",
+              "0x42021309"
+            ]
+          },
+          {
+            "name": "led_fade",
+            "address": "0x4205098c",
+            "direct_call_sites": [
+              "0x42021920"
+            ]
+          }
+        ]
+      },
+      "api_name_bytes": {
+        "i2s_channel_write": false,
+        "i2s_channel_preload_data": false,
+        "i2s_channel_init_std_mode": false,
+        "i2s_channel_init_tdm_mode": false,
+        "i2s_channel_init_pdm_tx_mode": false,
+        "i2s_driver_install": false,
+        "i2s_write": false,
+        "dac_continuous_new_channels": false,
+        "dac_continuous_write": false,
+        "dac_oneshot_new_channel": false,
+        "dac_oneshot_output_voltage": false,
+        "esp_codec_dev_write": false,
+        "i2s_channel_init_pdm_rx_mode": true,
+        "i2s_channel_read": true,
+        "ledc_timer_config": true
+      }
+    }
+  ],
+  "led_comparison": {
+    "function_pairs": [
+      {
+        "large": "0x42022d6c",
+        "standard": "0x4202181c",
+        "instructions": 179,
+        "branches": 16,
+        "ranges": 4
+      },
+      {
+        "large": "0x420227fc",
+        "standard": "0x420212ac",
+        "instructions": 24,
+        "branches": 0,
+        "ranges": 1
+      },
+      {
+        "large": "0x4202283c",
+        "standard": "0x420212ec",
+        "instructions": 14,
+        "branches": 0,
+        "ranges": 1
+      }
+    ],
+    "instructions_per_model": 217,
+    "branches_per_model": 16,
+    "ranges_per_model": 6,
+    "direct_call_pairs": 11,
+    "literal_pairs": 25,
+    "reviewed_gpio_changes": [
+      {
+        "large_site": "0x42022de2",
+        "standard_site": "0x42021892",
+        "large_gpio": 47,
+        "standard_gpio": 13
+      },
+      {
+        "large_site": "0x42022de9",
+        "standard_site": "0x42021899",
+        "large_gpio": 47,
+        "standard_gpio": 13
+      },
+      {
+        "large_site": "0x42022df0",
+        "standard_site": "0x420218a0",
+        "large_gpio": 47,
+        "standard_gpio": 13
+      },
+      {
+        "large_site": "0x42022df5",
+        "standard_site": "0x420218a5",
+        "large_gpio": 13,
+        "standard_gpio": 12
+      },
+      {
+        "large_site": "0x42022dfc",
+        "standard_site": "0x420218ac",
+        "large_gpio": 13,
+        "standard_gpio": 12
+      },
+      {
+        "large_site": "0x42022e03",
+        "standard_site": "0x420218b3",
+        "large_gpio": 13,
+        "standard_gpio": 12
+      },
+      {
+        "large_site": "0x42022e24",
+        "standard_site": "0x420218d4",
+        "large_gpio": 47,
+        "standard_gpio": 13
+      },
+      {
+        "large_site": "0x42022e31",
+        "standard_site": "0x420218e1",
+        "large_gpio": 13,
+        "standard_gpio": 12
+      }
+    ]
+  },
+  "limits": [
+    "Nine identified I2S/LEDC roots; exact initialized-segment API pointers exclude synthetic ELF symbols.",
+    "Reference census and selected initialization paths do not exclude computed targets, bit-banged output or unexamined code.",
+    "API-name byte absence is corroboration only, not proof that code or physical components are absent.",
+    "No output hardware, codec, amplifier, speaker, playback or cross-flash compatibility established."
+  ]
+}

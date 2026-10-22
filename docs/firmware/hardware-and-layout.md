@@ -98,6 +98,47 @@ the config layout was checked against the matching
 [ESP-IDF PDM header](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_driver_i2s/include/driver/i2s_pdm.h).
 The microphone's physical part number is unknown.
 
+### Audio-output audit across both models
+
+The identified I2S paths configure **microphone input only**. Large initializer
+`0x4201fd90` and Standard initializer `0x4201fd64` each pass a null TX-result
+pointer and a non-null RX-result pointer to `i2s_new_channel`. This selects RX
+simplex operation under the matching [SDK contract](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_driver_i2s/include/driver/i2s_common.h).
+Their 24-byte channel templates are identical: I2S0, master, six DMA descriptors,
+240 frames per descriptor, zero auto-clear/power-down flags and default interrupt
+priority. Both construct a 16 kHz, 16-bit mono PDM receive configuration.
+
+| Configuration | Large 0.2.29 | Standard 0.2.28 |
+| --- | --- | --- |
+| PDM clock / data GPIO | 41 / 42 | 4 / 8 |
+| RGB LED channel 0 / 1 / 2 GPIO | 38 / 47 / 13 | 38 / 13 / 12 |
+| LED initializer | `0x42022d6c` | `0x4202181c` |
+| RGB duty setter | `0x420227fc` | `0x420212ac` |
+| RGB off helper | `0x4202283c` | `0x420212ec` |
+
+The LED initialization uses low-speed timer 0, **5,000 Hz**, eight-bit resolution
+and three channels. The RGB setter writes `255 - component` to each channel and
+updates its duty; off stops all three with idle level 1. These PWM references
+belong to the LED manager, not an identified speaker driver. The three complete
+LED bodies match after reviewed GPIO substitutions and address relocation:
+217 instructions, sixteen branches and six ranges per build. External callees
+are mapped, not all recursively compared.
+
+A separate nine-root I2S/LEDC census resolves seventeen direct call sites and
+seven owning functions per build, with no exact API-address pointer words in
+initialized image segments. The I2S reads are ordinary capture and factory
+microphone capture. The [coverage ledger](audio-output-coverage.json) records the
+roots, configuration and bounded API-name search. Selected TX, legacy I2S, DAC
+and codec-write names are absent; RX and LED names are present. String absence
+only corroborates the traced paths.
+
+No usable speech-output path was identified in this audit. Computed calls,
+bit-banged output, unexamined code and physical components remain outside its
+proof. This does **not** establish that either board lacks a speaker or amplifier.
+Keep speech playback on a separately configured HA output device unless output
+hardware is independently established. H03's static milestone is complete;
+physical capability remains deferred with the enclosure closed.
+
 Modules include the panel power/conditioning driver, PMIC, TCA9534 GPIO expander,
 CW2217 fuel gauge, accelerometer, touch/button handling, I2S microphone and LED
 state manager. Probe code names LIS3DH, BMA255 and MSA311/MSA321; this is not proof

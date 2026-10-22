@@ -18,6 +18,11 @@ configuration, not a photometric measurement or physical timing test.
 
 ## Useful state associations
 
+The [hardware audit](hardware-and-layout.md#audio-output-audit-across-both-models)
+traces the actual three-channel LED PWM configuration on both builds, including
+their different GPIOs, 5 kHz timer and inverted eight-bit duty. These references
+do not identify an audio-output driver.
+
 These meanings come from recovered call sites, not original enum names. A state
 can be used by more than one workflow:
 

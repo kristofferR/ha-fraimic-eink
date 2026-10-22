@@ -1339,6 +1339,18 @@ The [twelve isolated allocation cases](voice.md#http-response-cache-growth-can-l
 are one host fixture with pinned SDK/parser code and a tracked allocator, not
 two device tests. No live heap-pressure, fragmentation or TLS-cause claim follows.
 
+## Microphone and LED configuration
+
+The subsequent [audio-output audit](hardware-and-layout.md#audio-output-audit-across-both-models)
+checks both microphone initializers and three LED bodies. Both microphones use
+RX-only I2S0 PDM at 16 kHz/16-bit mono; clock/data GPIOs are **41/42 on Large** and
+**4/8 on Standard**. LED channel GPIOs are **38/47/13** and **38/13/12** respectively.
+The LED bodies share 5 kHz/eight-bit inverted RGB duty behavior after these pin
+substitutions. This adds no physical output-hardware or cross-flash evidence.
+The separate [coverage record](audio-output-coverage.json) retains this bounded
+comparison without treating the different microphone initializer bodies as
+instruction-for-instruction equivalents.
+
 ## Coverage and cleanup
 
 The 24 decoded origin-API exchanges were complete and all HTTP 200: one

@@ -3111,3 +3111,40 @@ network or HA configuration changed; N04 remains deferred.
 | `standard-thread-ownership-comparison.json` | `35a996b5c0433280d80ff20bff5372f27ba059d2b1c67e1009bb6b484bc99f06` |
 | `verify-thread-references.mjs` | `b08176519b2291c3d40eb0d12245a1ea06af357e2a18558c87de319f7a9ce9b0` |
 | `thread-reference-audit.combined.json` | `c8a126cd0e739409435d2f2cf9403a5e601447f95923e2e5da7dc057dcd313b6` |
+
+## Audio-output initialization and references: H03
+
+Complete GNU CFG recovery covers the microphone initializers: 100 instructions
+and three ranges on Large, 99 instructions and three ranges on Standard. Every
+decoded instruction is checked against the pinned application bytes. A bounded
+straight-line interpreter reconstructs the 60-byte PDM configuration after its
+checked zero-fill and verifies the selected initialization-call arguments. Both
+24-byte channel templates match. The microphone GPIOs differ; the result is not
+a claim of whole-function instruction equivalence or execution on the frame.
+
+Three complete LED function pairs contain 217 instructions, sixteen branches
+and six ranges per build. Eleven direct-call and 25 literal pairs are mapped;
+eight GPIO-immediate substitutions are checked explicitly. Remaining normalized
+instructions agree. External SDK callees are not recursively compared here.
+
+The independent nine-root reference audit checks seventeen direct call sites,
+seven owner functions and zero exact initialized-segment API-address words per
+build. A missing Large Ghidra owner for the ordinary I2S read is reconciled to
+the existing byte-checked capture CFG at `0x4201fa24`. Synthetic ELF symbols are
+excluded. Fifteen exact NUL-terminated API-name byte searches are recorded in
+[the sanitized ledger](audio-output-coverage.json); absence is only supporting
+evidence, not proof of absent code or hardware.
+
+The static H03 milestone closes with RX-only microphone and RGB LED paths
+identified. Physical output capability, arbitrary computed/bit-banged paths and
+unexamined code remain unproven. No playback, frame read, enclosure access,
+network change or HA deployment occurred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `check-audio-configuration.mjs` | `8645454a856ab69df422472458f0ad6ede1958abcbf63bacaba24a5d2803fcfd` |
+| `audio-configuration-audit.json` | `84ec09af3a5297384fd2849310902451d728e31f0c870d33635cdcbadda84f0e` |
+| `verify-audio-references.mjs` | `cb18e8edf39bac65bca42a6accd8206dddab51b133d43728e69cec4f197b8f31` |
+| `audio-reference-audit.combined.json` | `4a0b6cc4c0d9ba8c1a4b618ca3ed0010a488d6879fe78f5bbea3b90194efc55c` |
+| `compare-audio-output.mjs` | `6b1e245453635b02592ce42610966441e1258d81a5a5428470bae3fc07415219` |
+| `standard-audio-output-comparison.json` | `17cc87775e6d0624de293c15c6664bed090ee82bc9f6340066f97102d4d15f1b` |
