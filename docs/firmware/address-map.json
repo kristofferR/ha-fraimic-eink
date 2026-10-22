@@ -4246,6 +4246,12 @@
       "evidence": "Static; complete GNU CFG byte verification and Standard comparison; selected lwIP source host cases"
     },
     {
+      "address": "0x420cf7bc",
+      "kind": "function",
+      "role": "Bounded string search; rejects a byte-search match if NUL precedes it, used on multipart binary chunks",
+      "evidence": "static/host; paired GNU body and legacy multipart cases"
+    },
+    {
       "address": "0x420cfe14",
       "kind": "function",
       "role": "Library mktime; supplied DST flag can shift normalized maintenance targets",

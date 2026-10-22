@@ -176,11 +176,11 @@
       "method": "POST",
       "handler": "0x4201cc0c",
       "record_offset": "0x4be80",
-      "input": "Multipart image body; field image, filename image.bin",
-      "output": "HTML upload result/error",
-      "effect": "Receives into shared image memory, saves artwork and starts rendering",
+      "input": "Multipart body; conventional image/image.bin, but field/filename not validated; chunk-local string-based closing-boundary search",
+      "output": "HTML; non-size render-start error retains HTTP 200; other selected input/capacity errors use 400/413/500",
+      "effect": "Writes image allocation, can save/render after incomplete receive; save/start precedes response and chunk-send failures are ignored",
       "access": "No handler-level access check identified",
-      "evidence": "local-api.md#image-delivery"
+      "evidence": "multipart-uploads.md"
     },
     {
       "route": "/action",
