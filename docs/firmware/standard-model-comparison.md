@@ -1117,8 +1117,9 @@ All 58 cipher-definition records match after their names are dereferenced, and
 all 185 preference IDs plus the terminator match byte-for-byte. The resulting
 [compiled inventory](tls-capabilities.json) and [hostname/configuration limits](cloud-protocol.md#compiled-cipher-suites-and-hostname-configuration)
 are shared by these builds. No new host fault fixture or device handshake was
-run. The follow-up below checks selected cipher/SNI/ALPN writers. Configured
-ALPN, negotiated choice and trust/credential interoperability remain separate.
+run. Follow-ups below check selected cipher/SNI/ALPN writers and HTTP
+construction. Negotiated choice and trust/credential interoperability remain
+separate.
 
 ## ClientHello field serialization also matches
 
@@ -1132,8 +1133,23 @@ The [fourteen source host groups](validation-2026-10-22.md#clienthello-field-ser
 are one shared run using the compared cipher definitions and selected unchanged
 Mbed TLS functions. They confirm the default 58-suite field plus initial SCSV,
 SNI name copying, null/empty extension distinctions and short-buffer results.
-They do not send a ClientHello, negotiate TLS, exercise all extensions or prove
-that the application configures an ALPN list.
+They do not send a ClientHello, negotiate TLS or exercise all extensions. The
+following static pass checks how the HTTP client configures ALPN.
+
+## HTTP construction and ClientHello submission also match
+
+Twenty-four complete function pairs cover the HTTP constructor/common options,
+two wrapper helpers, fifteen TLS/context setters, the separate port setter,
+and four ClientHello submission/header helpers. They match across 727
+instructions, 121 branches and 42 ranges per model, with 21 direct-call and
+53 literal pairs mapped. The public function map now contains 302 pairs.
+
+The [construction/submission findings](cloud-protocol.md#stock-http-construction-leaves-alpn-unset)
+establish null ALPN through this stock HTTP path, a 4,092-byte body buffer and
+failure-before-finish behavior. This is static evidence with no new host fault
+fixture or device request. It does not cover complete record/socket retries,
+all extension helpers, arbitrary external configuration writes or physical
+no-ALPN interoperability.
 
 ## Coverage and cleanup
 

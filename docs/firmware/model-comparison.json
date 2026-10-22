@@ -900,7 +900,7 @@
       "alpn_protocol_name_min_bytes": 1,
       "alpn_protocol_name_max_bytes": 255,
       "alpn_name_bytes_sum_max": 65535,
-      "limits": "Compiled/preference-filtered inventory is not a captured ClientHello or negotiated set; selected writer/validator behavior is described in tls_client_hello. Application ALPN configuration, remaining extensions and actual trust/certificate interoperability remain open."
+      "limits": "Compiled/preference inventory and selected ClientHello/HTTP construction paths are traced separately. No captured ClientHello, negotiated set, complete extension/record behavior or physical trust/certificate interoperability."
     },
     "tls_client_hello": {
       "evidence": "Six complete paired GNU bodies and fourteen selected-source host case groups",
@@ -928,7 +928,23 @@
         "ALPN",
         "cipher field"
       ],
-      "limits": "Selected field serialization with host structures and compatibility macros; not complete ClientHello, TLS record encryption, socket transmission, all extension helpers, application ALPN configuration or negotiated interoperability"
+      "limits": "Selected field serialization with host structures and compatibility macros; immediate HTTP/ClientHello construction is separately traced in tls_http_construction. No complete live handshake, TLS encryption, socket delivery, all extension helpers or negotiated interoperability."
+    },
+    "tls_http_construction": {
+      "evidence": "Twenty-four complete paired GNU bodies; no new host or device fault test",
+      "compared_functions": 24,
+      "instructions_per_image": 727,
+      "branches_per_image": 121,
+      "gnu_ranges_per_image": 42,
+      "direct_call_pairs": 21,
+      "literal_pairs": 53,
+      "http_construction_sets_alpn": false,
+      "alpn_transport_context_offset": 4,
+      "hello_body_capacity_bytes": 4092,
+      "handshake_header_bytes": 4,
+      "hello_body_failure_calls_finish": false,
+      "server_hello_state_requires_finish_success": true,
+      "limits": "Recovered constructor and resolved option/submission helpers; not all TLS consumers, arbitrary memory writes, complete extension/record/socket behavior or physical interoperability"
     }
   },
   "function_map": [
@@ -2321,6 +2337,126 @@
       "role": "mbedtls_ssl_ciphersuite_uses_ec",
       "large": "0x420e4810",
       "standard": "0x420e4af4"
+    },
+    {
+      "role": "mbedtls_ssl_write_client_hello",
+      "large": "0x420765ac",
+      "standard": "0x42075bd8"
+    },
+    {
+      "role": "mbedtls_ssl_start_handshake_msg",
+      "large": "0x42077118",
+      "standard": "0x42076744"
+    },
+    {
+      "role": "mbedtls_ssl_add_hs_hdr_to_checksum",
+      "large": "0x420e442c",
+      "standard": "0x420e4710"
+    },
+    {
+      "role": "mbedtls_ssl_finish_handshake_msg",
+      "large": "0x420774a0",
+      "standard": "0x42076acc"
+    },
+    {
+      "role": "esp_http_client_init",
+      "large": "0x4206df98",
+      "standard": "0x4206d590"
+    },
+    {
+      "role": "http_init_common_tcp_transport",
+      "large": "0x4206d16c",
+      "standard": "0x4206c764"
+    },
+    {
+      "role": "transport_keepalive_wrapper",
+      "large": "0x420c2eb4",
+      "standard": "0x420c318c"
+    },
+    {
+      "role": "transport_interface_wrapper",
+      "large": "0x420c2ec4",
+      "standard": "0x420c319c"
+    },
+    {
+      "role": "transport_default_port_setter",
+      "large": "0x420e6b64",
+      "standard": "0x420e6e70"
+    },
+    {
+      "role": "transport_keepalive_pointer_setter",
+      "large": "0x420e6cc8",
+      "standard": "0x420e6fd4"
+    },
+    {
+      "role": "transport_interface_pointer_setter",
+      "large": "0x420e6cd8",
+      "standard": "0x420e6fe4"
+    },
+    {
+      "role": "transport_enable_global_ca_store",
+      "large": "0x420e6bec",
+      "standard": "0x420e6ef8"
+    },
+    {
+      "role": "transport_tls_version_setter",
+      "large": "0x420e6bfc",
+      "standard": "0x420e6f08"
+    },
+    {
+      "role": "transport_ca_pem_setter",
+      "large": "0x420e6c0c",
+      "standard": "0x420e6f18"
+    },
+    {
+      "role": "transport_ca_der_setter",
+      "large": "0x420e6c20",
+      "standard": "0x420e6f2c"
+    },
+    {
+      "role": "transport_client_cert_pem_setter",
+      "large": "0x420e6c30",
+      "standard": "0x420e6f3c"
+    },
+    {
+      "role": "transport_client_cert_der_setter",
+      "large": "0x420e6c44",
+      "standard": "0x420e6f50"
+    },
+    {
+      "role": "transport_client_key_pem_setter",
+      "large": "0x420e6c54",
+      "standard": "0x420e6f60"
+    },
+    {
+      "role": "transport_client_key_password_setter",
+      "large": "0x420e6c68",
+      "standard": "0x420e6f74"
+    },
+    {
+      "role": "transport_client_key_der_setter",
+      "large": "0x420e6c78",
+      "standard": "0x420e6f84"
+    },
+    {
+      "role": "transport_skip_common_name_setter",
+      "large": "0x420e6c88",
+      "standard": "0x420e6f94"
+    },
+    {
+      "role": "transport_common_name_setter",
+      "large": "0x420e6c98",
+      "standard": "0x420e6fa4"
+    },
+    {
+      "role": "transport_certificate_bundle_setter",
+      "large": "0x420e6ca8",
+      "standard": "0x420e6fb4"
+    },
+    {
+      "role": "transport_ds_data_setter",
+      "large": "0x420e6cb8",
+      "standard": "0x420e6fc4"
     }
   ],
   "live_standard": {

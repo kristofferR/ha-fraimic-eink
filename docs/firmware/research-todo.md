@@ -45,8 +45,9 @@ per question, not a count of tool calls or decompiled functions.
 | C03 | Local panel/TLS controls retained; 19 matching-SDK host cases cover download framing/timeouts, including real Large-capacity acceptance before chunk termination | Device response faults, retry expiry/cancellation, other TLS consumers and Standard negative controls |
 | C01/C03/D01/R11 | Ten current HTTP configurations and the older updater compared; RX/TX defaults, bundle-over-global-CA precedence and URL scheme override traced | Per-consumer TLS/device controls, allocation/transport faults and complete indirect-client audit |
 | C03/E01/E02 | Fourteen TLS allocation/configuration/cleanup bodies match; internal-only allocator, TLS 1.2 restriction and fixed setup allocations mapped; eight source fault groups passed | Actual allocation failure identity, internal fragmentation/concurrency, complete handshake/cleanup coverage and physical TLS variants |
-| C03/E02 | Six cipher/name configuration bodies match; all 58 cipher definitions and 185 preference IDs compared; hostname and ALPN helper limits mapped | Application ALPN configuration, negotiated suite, certificate compatibility and other builds |
-| C03/E01/E02 | Six ClientHello bodies match; default TLS 1.2 list serializes 58 suites plus initial SCSV; fourteen source groups verify SNI/ALPN bytes and partial-buffer errors | Physical ClientHello/negotiation, remaining extensions, application ALPN configuration and outer send/error handling |
+| C03/E02 | Six cipher/name configuration bodies match; all 58 cipher definitions and 185 preference IDs compared; hostname and ALPN helper limits mapped | Negotiated suite, certificate compatibility and other builds |
+| C03/E01/E02 | Six ClientHello bodies match; default TLS 1.2 list serializes 58 suites plus initial SCSV; fourteen source groups verify SNI/ALPN bytes and partial-buffer errors | Physical ClientHello/negotiation, remaining extensions and complete record/socket error handling |
+| C03/E01/E02 | Twenty-four HTTP/option/submission bodies match; stock construction leaves ALPN null and body failure skips ClientHello finish; 4,092-byte body capacity traced | Physical no-ALPN interoperability, record/socket retry, remaining extensions and other TLS construction paths |
 | C01/E01/E02 | Both models have eleven recovered constructor sites, thirteen selector calls and the same eleven HTTP literal hosts; GNU continuation recovers missing multipart calls and rejects Standard's misaligned raw match | Dynamic destinations, indirect/non-HTTP paths, recursive consumer/TLS equivalence and complete offline operation |
 | E03/C01/C05/C07/C11 | July/October saved schemas retain the same 25 operations; five structural differences mapped; offline audit of 24 captured exchanges finds undeclared stock query/voice fields | Server implementation, unobserved values/coercion, other authorization cases, mutations and independent enrollment |
 | C05/C06/C07 | Large local and Standard vendor success retained; 12 host reader/parser cases establish partial-prefix acceptance, read-cap behavior and per-transport timeout scope | Device response faults, capture limits, worker lifetime, watchdog behavior and cancellation |
@@ -188,7 +189,9 @@ Sources: [cloud protocol](cloud-protocol.md), [voice](voice.md),
   [Compiled cipher/name capabilities](cloud-protocol.md#compiled-cipher-suites-and-hostname-configuration)
   now narrow server configuration choices. The [ClientHello serialization follow-up](cloud-protocol.md#clienthello-serialization-and-extension-boundaries)
   establishes the selected SNI/ALPN/cipher field writers and fourteen source
-  cases. Remaining extensions, physical wire/negotiation checks and outer send
+  cases. [HTTP construction and immediate submission](cloud-protocol.md#stock-http-construction-leaves-alpn-unset)
+  now establish null ALPN and failure-before-finish behavior. Remaining
+  extensions, physical wire/negotiation checks and complete record/socket
   handling remain open.
 - [ ] **C04 · Host/Device:** Supply local `create_account` and `get_started` assets;
   verify IP-query handling, format, fetch failures and actual setup-screen behavior.

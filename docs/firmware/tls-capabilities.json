@@ -246,5 +246,11 @@
     "initial_scsv": "0x00ff",
     "cipher_field_bytes": 120,
     "evidence_document": "cloud-protocol.md#clienthello-serialization-and-extension-boundaries"
+  },
+  "stock_http_construction": {
+    "alpn_list": null,
+    "alpn_extension": "omitted by traced null-list writer",
+    "required_server_behavior": "Accept HTTP/1.1 without requiring an ALPN offer",
+    "evidence": "Static constructor, allocator and option-setter trace; not a live wire capture"
   }
 }

@@ -3934,6 +3934,24 @@
       "evidence": "static; complete GNU CFG, paired Standard comparison and selected source host cases"
     },
     {
+      "address": "0x420765ac",
+      "kind": "function",
+      "role": "mbedtls_ssl_write_client_hello; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x42077118",
+      "kind": "function",
+      "role": "mbedtls_ssl_start_handshake_msg; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420774a0",
+      "kind": "function",
+      "role": "mbedtls_ssl_finish_handshake_msg; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
       "address": "0x4207da28",
       "kind": "function",
       "role": "mbedtls_md_setup; TLS setup allocation/configuration analysis",
@@ -4052,6 +4070,18 @@
       "kind": "function",
       "role": "transport_tcp_init; address-family selection and connection failure boundary",
       "evidence": "Static; full GNU CFG bytes/branches and Standard comparison, with one verified direct/indirect socket-call normalization"
+    },
+    {
+      "address": "0x420c2eb4",
+      "kind": "function",
+      "role": "transport_keepalive_wrapper; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420c2ec4",
+      "kind": "function",
+      "role": "transport_interface_wrapper; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
     },
     {
       "address": "0x420c314c",
@@ -4198,6 +4228,12 @@
       "evidence": "static; app-side rollback follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x420e442c",
+      "kind": "function",
+      "role": "mbedtls_ssl_add_hs_hdr_to_checksum; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
       "address": "0x420e45e0",
       "kind": "function",
       "role": "mbedtls_ssl_validate_ciphersuite; ClientHello field serialization analysis",
@@ -4220,6 +4256,102 @@
       "kind": "function",
       "role": "Transport close dispatcher; no HTTP client-state reset at this layer",
       "evidence": "static and bounded GNU cross-check; 22 October HTTP cancellation state follow-up"
+    },
+    {
+      "address": "0x420e6b64",
+      "kind": "function",
+      "role": "transport_default_port_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6bec",
+      "kind": "function",
+      "role": "transport_enable_global_ca_store; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6bfc",
+      "kind": "function",
+      "role": "transport_tls_version_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c0c",
+      "kind": "function",
+      "role": "transport_ca_pem_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c20",
+      "kind": "function",
+      "role": "transport_ca_der_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c30",
+      "kind": "function",
+      "role": "transport_client_cert_pem_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c44",
+      "kind": "function",
+      "role": "transport_client_cert_der_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c54",
+      "kind": "function",
+      "role": "transport_client_key_pem_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c68",
+      "kind": "function",
+      "role": "transport_client_key_password_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c78",
+      "kind": "function",
+      "role": "transport_client_key_der_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c88",
+      "kind": "function",
+      "role": "transport_skip_common_name_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6c98",
+      "kind": "function",
+      "role": "transport_common_name_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6ca8",
+      "kind": "function",
+      "role": "transport_certificate_bundle_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6cb8",
+      "kind": "function",
+      "role": "transport_ds_data_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6cc8",
+      "kind": "function",
+      "role": "transport_keepalive_pointer_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
+    },
+    {
+      "address": "0x420e6cd8",
+      "kind": "function",
+      "role": "transport_interface_pointer_setter; HTTP ALPN and ClientHello submission analysis",
+      "evidence": "static; complete GNU CFG and paired Standard comparison"
     },
     {
       "address": "0x420ebdec",

@@ -834,9 +834,10 @@ evidence that malformed URL hosts reach a completed connection or bypass checks.
 The ALPN setter `0x42072320` is compiled and is called when a protocol list is
 provided. It requires each name to contain 1–255 bytes and the sum of name bytes
 to be at most 65,535, then stores the caller's list pointer without copying it.
-This does not establish that current application requests configure ALPN or
-that HTTP/2 is supported. The following section traces the extension writers;
-actual wire contents and negotiated results remain unobserved in this pass.
+This helper alone does not establish application configuration or HTTP/2 support.
+The [HTTP-constructor follow-up](#stock-http-construction-leaves-alpn-unset)
+below traces the current construction path. Actual wire contents and negotiated
+results remain unobserved in this pass.
 
 ### ClientHello serialization and extension boundaries
 
@@ -866,16 +867,49 @@ not evidence that an empty or invalid name reaches an accepted server connection
 
 ALPN likewise omits its extension for a null list, but a non-null list containing
 only its terminator emits a six-byte empty extension. A configured list is copied
-in order with one-byte name lengths. This proves the writer exists, not that
-the application's HTTP clients configure a list or implement HTTP/2.
+in order with one-byte name lengths. The HTTP-construction follow-up below
+distinguishes these available helpers from the application's configuration.
 
 Fourteen [pinned-source host groups](validation-2026-10-22.md#clienthello-field-serialization-c03e01e02)
 verify these bytes and buffer boundaries. SNI's short-buffer check occurs before
 it writes. ALPN and cipher-list writers can leave a partially written prefix
 while returning `-0x6a00` and zero reported output length. The body writer
 propagates those errors. No failing prefix was sent to a frame or server, and the
-fixture does not build, encrypt or transmit a complete TLS handshake. Physical
-ClientHello/negotiation checks and the outer send path remain open.
+fixture does not build, encrypt or transmit a complete TLS handshake. The next
+section traces the immediate submission boundary; physical negotiation and
+complete record/socket retry behavior remain open.
+
+### Stock HTTP construction leaves ALPN unset
+
+The complete HTTP constructor `0x4206df98` and common-options helper
+`0x4206d16c` now match Standard. Combined with the earlier paired zero-initialized
+transport allocator, the resolved option setters establish that this path leaves
+the TLS configuration's ALPN pointer **null**. The fifteen TLS/context option
+setters write certificate/key, name, trust, version, peripheral, keep-alive or
+interface fields, without assigning the ALPN field at transport-context offset
+4. The separate default-port setter modifies the transport object itself.
+
+Consequently the recovered stock HTTP construction omits ALPN through the
+already-traced null-list writer. A local backend should serve HTTP/1.1 without
+requiring an ALPN offer. This is a static conclusion for the recovered
+construction path, not a capture of all requests or a claim about arbitrary
+external configuration writes. The [matching HTTP client source](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_http_client/esp_http_client.c)
+provides a reference for these configuration operations.
+
+ClientHello caller `0x420765ac` also establishes what follows a field-writer
+failure. It prepares state, obtains the message buffer, builds the body, updates
+the transcript with the handshake header and body, then calls finish helper
+`0x420774a0`. Any earlier nonzero result returns before finish; in particular,
+a failed body is not submitted through this caller. The earlier host fixture's
+partial prefix in memory therefore does not by itself establish a malformed
+ClientHello transmission.
+
+Buffer helper `0x42077118` supplies **4,092 bytes** for the body after the
+four-byte handshake header. Finish records body length plus four and calls the
+record helper with its second argument zero; only success advances the caller
+to the ServerHello state. This is not a peer receipt, completed TCP write or
+end-to-end handshake acknowledgment. Complete record buffering, socket retry,
+concurrent cancellation and other extension paths remain outside this pass.
 
 ### Address selection does not recover from a bad IPv4 destination
 

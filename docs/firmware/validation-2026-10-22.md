@@ -2049,3 +2049,33 @@ extensions, application ALPN settings and outer send handling remain open.
 | `tls-hello-ciphers.inc` | `f5560c9a3fe35bf7b5d4c7ea0b0d6643a823b18369db54d3e27d524df3cddd69` |
 | `tls-hello-fixture.c` | `f0d307422c330766a9d1994f65904852354f32a99a7dfdc047defcbff1df7247` |
 | `tls-hello-fixture-results.jsonl` | `0ce86837c4bc990cace5df7b01723101e7d1ec2ad9d17240e7b2bdcfb956ec7c` |
+
+## Stock HTTP ALPN configuration and submission boundary: C03/E01/E02
+
+Twenty-four complete paired GNU bodies add 727 instructions, 121 branches and
+42 ranges per image. Twenty-one direct-call and 53 literal pairs are mapped;
+code-pointer literals either name compared setters or separately identified
+runtime/HTTP callbacks. This extends the earlier Large-only HTTP constructor
+and common-options analysis to Standard and audits their relevant option writes.
+
+The earlier paired zero-initialized transport allocation leaves its config's
+first pointer, ALPN, null. Fifteen resolved TLS/context setters modify other
+fields; two keep-alive/interface wrappers call the compared setters, and the
+default-port setter writes the separate transport object. The recovered HTTP
+construction therefore does not set ALPN. This bounded negative finding is not
+an audit of every computed memory write or every possible TLS consumer.
+
+Four ClientHello helpers establish 4,092 bytes available after the four-byte
+header, checked body/transcript construction before finish, and advancement to
+ServerHello only after finish success. No new host fixture was run. The previous
+field fixture's partial memory output is not evidence of transmission: this
+caller skips finish after a body error. Full record buffering/retry and socket
+delivery were not recursively validated.
+
+Private artifacts: `tls-hello-send-pass1.txt`/`tls-hello-send-pass2.txt`, Standard
+reference passes, `tls-http-options-pass1.txt`/`tls-http-options-pass2.txt`,
+`tls-http-port-pass1.txt`, `run-tls-http-cfg.mjs`, per-function
+`tls-http-*-cfg.json`/`.txt`, `compare-standard-tls-http.mjs` and
+`standard-tls-http-comparison.json`. No frame, network, artwork or HA change
+was made. Physical interoperability, complete record/socket faults, other
+extensions and other TLS construction paths remain open.
