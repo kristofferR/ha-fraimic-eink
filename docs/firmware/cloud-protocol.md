@@ -296,6 +296,10 @@ an object invokes `0x420158cc` with defaults for absent/non-boolean members:
 preferences where available and send a complete intended snapshot. Unchanged
 snapshots avoid the settings-save path. RAM changes precede NVS persistence;
 an NVS failure can leave session state different from the next boot's state.
+The [save-failure trace](storage-and-configuration.md#failed-settings-saves-are-not-retried-by-an-identical-snapshot)
+also shows that repeating the identical snapshot skips persistence again: RAM
+already matches, and there is no dirty flag. The poll logs the original save
+error and continues, so poll success does not acknowledge durable settings.
 
 `autoUpdateEnabled=false` does **not** locally block an otherwise accepted
 firmware offer in the recovered path. Withhold `firmware` unless deliberately

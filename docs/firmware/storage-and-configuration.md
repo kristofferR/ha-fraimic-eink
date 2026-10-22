@@ -100,6 +100,50 @@ length or reject another stored version after a successful read. No malformed
 NVS records were injected. A future migration should validate version and exact
 record size rather than depend on these permissive readers.
 
+### Failed settings saves are not retried by an identical snapshot
+
+Large setter `0x420158cc` compares the four incoming switches with their RAM
+bytes. An exact match returns success without opening NVS. Otherwise it replaces
+all four RAM bytes **before** calling saver `0x42014968`. There is no dirty flag
+or rollback in this path.
+
+The saver opens `app_data` read/write, then calls the I32 setter separately for
+`voice_rec`, `keep_awake`, `auto_update` and `chg_led`, in that order. It stops at
+the first failed write, closes the handle and returns that error. Only after all
+four writes succeed does it call `nvs_commit`, close and return the commit result.
+An open failure returns immediately without writes. Ghidra incorrectly labels
+the saver `void`; GNU instructions preserve the selected error in return register
+`a2`, and the settings setter returns it to the poll caller.
+
+**Inferred persistence failure:** if saving a changed snapshot fails, RAM still
+contains every requested switch. The next identical snapshot returns success
+without another save attempt, even if the storage fault has cleared. A snapshot
+that differs from RAM enters the save path again. Repeating the same desired
+settings is therefore insufficient evidence that they reached persistent storage.
+
+The poll call at `0x4202513a` logs a nonzero setter result, then rejoins normal
+response processing at `0x420251f6`, beginning with the `firmware` member. It does
+not turn this settings error into a failed poll or request a persistence retry.
+A successful poll result and the current RAM switches do not acknowledge a
+durable settings update.
+
+Startup has a separate boundary. Loader `0x42014780` returns its **namespace-open
+result**, not the individual key-read results. After a successful open, each
+successful I32 read sets its RAM flag to `value != 0`; each failed read leaves
+that flag unchanged. Missing keys (`0x1102`) suppress the per-key warning; other
+read failures log one. Even if all four key reads fail, the loader returns zero.
+Startup `0x420167b4` calls the default saver only when the loader returns nonzero,
+and does not check that save's result. Individual missing or unreadable keys thus
+do not trigger this default-persistence attempt.
+
+These findings were checked against the pinned app with nine bounded function
+bodies and two caller regions: 29 GNU ranges and 522 byte-matched instructions,
+with contiguous coverage enforced for each range. They are static paths and
+inferred failure consequences, not induced NVS faults or reboot observations.
+The lower-level storage behavior and the Standard build remain separate checks.
+For custom firmware, track pending persistence independently of RAM equality,
+retry failed saves, and distinguish applied settings from durable settings.
+
 ### A failed schedule clear can reload the old deadline
 
 `0x42015d30` updates the two-word RAM deadline first, then attempts the I64 NVS
