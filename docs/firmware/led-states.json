@@ -3,7 +3,7 @@
   "table_address": "0x3c13ff68",
   "record_bytes": 24,
   "method": "Static extraction from the pinned Large app; field roles checked against lookup and worker consumers",
-  "limitations": "Numeric state IDs are vendor data; meanings and patterns are analytical. Standard 0.2.28 has identical table bytes; physical timing and complete arbitration equivalence remain unverified.",
+  "limitations": "Numeric state IDs are vendor data; meanings and patterns are analytical. Standard 0.2.28 has identical table bytes and thirteen matching arbitration-related functions after relocation. Physical timing, all callers and SDK/output-driver equivalence remain unverified.",
   "states": [
     {
       "id": 0,

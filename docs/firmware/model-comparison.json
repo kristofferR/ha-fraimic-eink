@@ -384,6 +384,66 @@
       "role": "voice_multipart_upload",
       "large": "0x42026b9c",
       "standard": "0x420255ec"
+    },
+    {
+      "role": "led_background_classifier",
+      "large": "0x42022674",
+      "standard": "0x42021124"
+    },
+    {
+      "role": "led_protection_update",
+      "large": "0x42022690",
+      "standard": "0x42021140"
+    },
+    {
+      "role": "led_duration_expired",
+      "large": "0x4202276c",
+      "standard": "0x4202121c"
+    },
+    {
+      "role": "led_worker",
+      "large": "0x42022860",
+      "standard": "0x42021310"
+    },
+    {
+      "role": "led_request_state",
+      "large": "0x42022f48",
+      "standard": "0x420219f8"
+    },
+    {
+      "role": "led_get_current_state",
+      "large": "0x42023194",
+      "standard": "0x42021c44"
+    },
+    {
+      "role": "led_get_workflow_protection",
+      "large": "0x420231d0",
+      "standard": "0x42021c80"
+    },
+    {
+      "role": "led_workflow_classifier",
+      "large": "0x420e2ac0",
+      "standard": "0x420e2da4"
+    },
+    {
+      "role": "led_urgent_classifier",
+      "large": "0x420e2aec",
+      "standard": "0x420e2dd0"
+    },
+    {
+      "role": "led_emergency_off_wrapper",
+      "large": "0x42023210",
+      "standard": "0x42021cc0"
+    },
+    {
+      "role": "led_off_notification",
+      "large": "0x42022d48",
+      "standard": "0x420217f8"
+    },
+    {
+      "role": "factory_mode_getter",
+      "large": "0x4201ea44",
+      "standard": "0x4201ea18"
     }
   ],
   "live_standard": {

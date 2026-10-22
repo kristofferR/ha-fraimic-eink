@@ -77,7 +77,8 @@ per question, not a count of tool calls or decompiled functions.
 | H07 | Separate build-log timestamp has −0400; descriptor still has no zone provenance | Retain descriptor null; do not transfer another timestamp's zone |
 | H02/C07 | Both builds share sensor candidates, ineffective alternative-probe return, two-way orientation/fallback and post-upload voice sampling | Fitted-part confirmation, physical orientation/failure tests and sample coherence |
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema recorded | Remaining incomplete flow and full schema-version comparison |
-| E02/H04/D01 | Both app hashes pinned; 42 routes and 54 function pairs compared; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/LED/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
+| E02/H04/D01 | Both app hashes pinned; 42 routes and 66 function pairs compared; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/driver/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
+| E02/H05/D01/D07 | Thirteen LED-related function pairs match across 826 relocated GNU instructions; 22 host groups cover pending replacement, latch timing, factory gates and conditional stale completion | Physical indications/interleavings, complete caller meanings, SDK/output-driver comparison and other releases |
 | E02/C05/C07 | Standard's selected upload/finalize branches match empty upload acknowledgment, 4 KiB WAV chunks, 4,095-byte JSON reads and synchronous finalize; its voice image limit remains 960,000 bytes | Full error/SDK comparison, device response faults, cancellation and late-worker/two-job behavior |
 
 After the earlier unreachable read, the owner woke the frame on USB. Status/logs,
@@ -408,8 +409,10 @@ Sources: [hardware](hardware-and-layout.md), [local API](local-api.md),
   [Local action ordering](local-api.md#restart-sleep-and-refresh-acknowledgments)
   and the [LED protection latch](led-and-workflow-state.md) are now mapped;
   physical LED timing, remaining state meanings, contended guards and Wi-Fi
-  form boundary behavior are untested. Standard table bytes now match; its full
-  LED arbitration comparison remains in E02. Wi-Fi scan/escape, AP-switch fault,
+  form boundary behavior are untested. Standard table bytes and thirteen
+  [LED arbitration helpers](led-and-workflow-state.md#standard-comparison-and-host-scope)
+  now match; physical interleavings, full caller/SDK/output-driver comparison and
+  other releases remain in E02. Wi-Fi scan/escape, AP-switch fault,
   separate reachability and stats-erasure behaviors still need physical checks.
   [Wi-Fi parsing and scan escaping](local-api.md#wi-fi-field-matching-and-byte-limits)
   now have isolated host cases for truncation, substring fields and invalid JSON;

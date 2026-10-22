@@ -46,8 +46,9 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 54 corresponding functions, including the subsequent
-account-setup, `/dev`, calendar, orientation, album-body, task/conditioning and maintenance comparisons. The poll paths share 86
+The preserved metadata maps 66 corresponding functions, including the subsequent
+account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
+maintenance and LED comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
 finalize paths share 32 and 44 strings respectively. Control-flow inspection
 supports a shared cloud contract. Identical routes/strings alone do not prove
@@ -76,6 +77,15 @@ Its create-account page handler `0x420191f8` serves the corresponding HTML.
 Thus the table values and timezone dropdown choices are shared in these builds;
 physical colors/timing and the whole LED arbitration state machine are not
 established by byte equality alone.
+
+A separate [LED arbitration comparison](led-and-workflow-state.md#standard-comparison-and-host-scope)
+now checks thirteen corresponding functions and 826 GNU-decoded instructions,
+with relocated addresses accounted for. Setter gates, the single pending slot,
+protection latch, worker completion/duration branches and getter defaults match.
+Twenty-two reconstructed host case groups exercise those branches, including
+same-state timer reuse and stale completion after a failed mutex acquisition.
+This does not prove identical physical timing, all caller behavior or recursively
+equivalent SDK/output-driver implementations.
 
 Standard calendar routine `0x42014dec` also copies the current 36-byte `struct tm`,
 replaces only time of day, and adds the day interval after a target falls inside

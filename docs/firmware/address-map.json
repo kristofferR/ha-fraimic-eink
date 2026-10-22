@@ -166,6 +166,12 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x3fca747c",
+      "kind": "data",
+      "role": "Factory-test mode byte, read before LED setter urgency checks",
+      "evidence": "static; LED arbitration comparison and GNU cross-check"
+    },
+    {
       "address": "0x3fca7590",
       "kind": "data",
       "role": "Factory microphone active flag, distinct from ordinary voice recording",
@@ -226,6 +232,12 @@
       "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x3fca765c",
+      "kind": "data",
+      "role": "LED worker task handle used by emergency-off notification",
+      "evidence": "static; LED arbitration comparison and GNU cross-check"
+    },
+    {
       "address": "0x3fca7660",
       "kind": "data",
       "role": "LED manager mutex handle",
@@ -234,7 +246,7 @@
     {
       "address": "0x3fca7664",
       "kind": "data",
-      "role": "LED manager state; protection at offset 0x14",
+      "role": "LED manager: current 0, pending 4, start-ms 8, dirty 0x12, completion 0x13, protection 0x14",
       "evidence": "static"
     },
     {
@@ -1216,6 +1228,12 @@
       ]
     },
     {
+      "address": "0x4201ea44",
+      "kind": "function",
+      "role": "Read factory-test mode byte; LED setter applies its allowlist before urgency",
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
       "address": "0x4201eae0",
       "kind": "function",
       "role": "Save Wi-Fi statistics and stop HTTP/network; HTTP stop result unchecked",
@@ -1441,46 +1459,58 @@
       "evidence": "static; local-control and LED follow-up"
     },
     {
+      "address": "0x42022674",
+      "kind": "function",
+      "role": "LED background-state classifier; mask 0x18f080",
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
       "address": "0x42022690",
       "kind": "function",
       "role": "LED workflow protection latch and clearing logic",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x4202276c",
       "kind": "function",
       "role": "LED duration expiry check",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x42022860",
       "kind": "function",
       "role": "LED pattern/state worker",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x42022d48",
+      "kind": "function",
+      "role": "Request LED off through task notification; checks handle, does not await worker",
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x42022f48",
       "kind": "function",
       "role": "LED state setter with priority, protection and urgent-state policy",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x42023194",
       "kind": "function",
       "role": "Current LED state getter",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x420231d0",
       "kind": "function",
       "role": "LED workflow-protection getter; false when mutex unavailable",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x42023210",
       "kind": "function",
       "role": "Emergency LED off wrapper used on factory-page entry and microphone stop",
-      "evidence": "static; 22 October HTTP/factory follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x42023234",
@@ -2983,13 +3013,13 @@
       "address": "0x420e2ac0",
       "kind": "function",
       "role": "LED protected-workflow classifier: states 22–27, 29, 30",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x420e2aec",
       "kind": "function",
       "role": "LED urgent-state classifier: state 25 and states 31–39",
-      "evidence": "static; local-control and LED follow-up"
+      "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
     },
     {
       "address": "0x420e2b70",

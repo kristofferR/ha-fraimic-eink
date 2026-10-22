@@ -858,3 +858,37 @@ Parser and selected-SDK hashes match the earlier pinned values. Private artifact
 `image-http-pass1.txt`, `image-http-gnu.mjs`, `image-http-boundaries-gnu.txt`,
 `image-http-fixture.c`, `image-http-results.jsonl`, `image-http-source-hashes.txt`
 and the isolated `image-http-fixture/` source/build directory on Omarchy.
+
+## LED arbitration and Standard comparison: E02/H05/D01/D07
+
+Two reference/decompiler passes per build and 39 bounded GNU ranges per build
+cover thirteen corresponding functions. A reproducible comparison checks 826
+instructions, preserving relative offsets, registers, constants and branch
+destinations. Direct helper/global addresses are mapped by their inspected role;
+IRAM targets use the build relocation offset, and referenced string bytes are
+compared. All thirteen pairs match. This does not recursively compare SDK bodies,
+PWM/output helpers or every caller. The 41-record table remains byte-identical.
+
+A C fixture reconstructs setter, latch and worker completion transitions with
+that extracted table. **Twenty-two case groups passed** with C11 warnings-as-errors,
+AddressSanitizer and UndefinedBehaviorSanitizer. Mutex outcomes and milliseconds
+are scripted. Checks include factory suppression before urgency, ignored-success
+requests, pending replacement, latch changes before state application, same-state
+timer reuse, different pattern/duration completion, error-latch retention,
+Wi-Fi-diagnostic fallback, delayed/stale completion and unsigned clock wrap.
+
+The stale-completion case establishes a conditional control-flow consequence:
+a failed completion mutex leaves the byte set, and a later applied state can be
+cleared by that byte. It does not show that a physical frame has experienced this
+interleaving. Neither host code nor instruction comparison measures light,
+executes FreeRTOS scheduling or proves physical task-notification delivery.
+No frame request, factory mode, recording, display or network change was made.
+E02/H05/D01/D07 retain their outstanding physical and broader comparison scope.
+
+Private artifacts: `led-arbitration-pass1.txt`, `led-arbitration-pass2.txt`,
+`led-arbitration-gnu.mjs`, `led-arbitration-boundaries-gnu.txt`,
+`compare-led-instructions.mjs`, `led-instruction-comparison.json`,
+`prepare-led-fixture.mjs`, `led-fixture-records.inc`, `led-arbitration-fixture.c`,
+`led-arbitration-results.jsonl`, `led-arbitration-evidence-hashes.txt`, and the
+Standard `standard-led-pass1.txt`, `standard-led-pass2.txt` and
+`standard-led-boundaries-gnu.txt` counterparts.
