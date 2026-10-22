@@ -1,0 +1,895 @@
+{
+  "method": "Paired byte-checked microphone lifecycle and SDK enable instructions with scripted task/mutex outcomes",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "functions": [
+        {
+          "name": "normal-start",
+          "entry": "0x4201fed0",
+          "instructions": 164,
+          "sha256": "ec643a0baa84694df34e1a4c6364f9cf6eb8aaa040ec0daa608b7eab0511c01b"
+        },
+        {
+          "name": "factory-start",
+          "entry": "0x420202bc",
+          "instructions": 124,
+          "sha256": "063e8276fa2b130f4887afa53d8f0ec4952619bd8101d48af7be537472a2c699"
+        },
+        {
+          "name": "factory-stop",
+          "entry": "0x42020418",
+          "instructions": 34,
+          "sha256": "5fce90075f89dee39968c9457c0e0677b3b833f1ac3021cf06bfa27c51ce2cbb"
+        },
+        {
+          "name": "factory-worker",
+          "entry": "0x4201fca4",
+          "instructions": 86,
+          "sha256": "6cc766f799a92bc625fc2576a77fc06440d9568cba862464c68981f92aa526b3"
+        },
+        {
+          "name": "normal-worker",
+          "entry": "0x4201fa24",
+          "instructions": 239,
+          "sha256": "92d47aa2213f6f030e188f231b0242463fb009f7c78f30533b73f25909681e30"
+        },
+        {
+          "name": "normal-state",
+          "entry": "0x42020150",
+          "instructions": 50,
+          "sha256": "43ac86a47fddd27ff131df0c4d8c00ccef30b356a2c6b74305a597ba468a05f4"
+        },
+        {
+          "name": "normal-stop",
+          "entry": "0x42020090",
+          "instructions": 56,
+          "sha256": "8a6c6229665f1d1cd5e0b7d9e4d8b4e817d210c0f439c81549c2aab09d83165d"
+        },
+        {
+          "name": "channel-enable",
+          "entry": "0x4204fa94",
+          "instructions": 65,
+          "sha256": "bd9d00454c1b4951da054e87046b5fd84523d26f92dc5cb6a7983a1370c78809"
+        }
+      ],
+      "distinct_instructions": 421,
+      "cases": [
+        {
+          "name": "factory-then-normal",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": true,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "normal-then-factory",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": true,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "normal-query-mutex-timeout",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": true,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-stop-retains-live-handle",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-stop-then-restart-before-old-exit",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-task-create-fails-channel-remains-enabled",
+          "created_tasks": 0,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "normal-stop-leaves-factory-active",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-worker-partial-timeout-stats",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 1,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-delete"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-worker-error-retries-without-delay",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 2,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-delete"
+            }
+          ],
+          "passed": true
+        }
+      ]
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "functions": [
+        {
+          "name": "normal-start",
+          "entry": "0x4201fea0",
+          "instructions": 164,
+          "sha256": "95d18a60f4a9e2360b7d90fd0cfc0959421a86697fd9efa3e62b43eed5d364ea"
+        },
+        {
+          "name": "factory-start",
+          "entry": "0x4202028c",
+          "instructions": 124,
+          "sha256": "732111b7e2bcfb01079e43d65b4f560f3784857d8ac5e0d0f2e9f4eb13ec1b0b"
+        },
+        {
+          "name": "factory-stop",
+          "entry": "0x420203e8",
+          "instructions": 34,
+          "sha256": "65ad7bfa9a5f291cead5dcfb6435bc9c62484a9c8723b7e181feca4e4a828979"
+        },
+        {
+          "name": "factory-worker",
+          "entry": "0x4201fc78",
+          "instructions": 86,
+          "sha256": "29663e87704d746fe372e5030da6dde46f8e78152019931fe399bb1ee88cfd9a"
+        },
+        {
+          "name": "normal-worker",
+          "entry": "0x4201f9f8",
+          "instructions": 239,
+          "sha256": "344e7829937edf72753c1c3e7cbba6647489df5bc6c5c4e898fc773bf299385d"
+        },
+        {
+          "name": "normal-state",
+          "entry": "0x42020120",
+          "instructions": 50,
+          "sha256": "a4e3404a34da913664aece859d961cc582f2c7d7a29ffd67eb0defb7e5bab3e7"
+        },
+        {
+          "name": "normal-stop",
+          "entry": "0x42020060",
+          "instructions": 56,
+          "sha256": "055091ac0ff4e7ba1f8182678058d7dc45999077649c232c6385cf5d319ca10a"
+        },
+        {
+          "name": "channel-enable",
+          "entry": "0x4204eb6c",
+          "instructions": 65,
+          "sha256": "51ef9e7634f30a96e94419c7164785215d5433c4f32dca0a9e273a24d5fc5e06"
+        }
+      ],
+      "distinct_instructions": 421,
+      "cases": [
+        {
+          "name": "factory-then-normal",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": true,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "normal-then-factory",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": true,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "normal-query-mutex-timeout",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": true,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-stop-retains-live-handle",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-stop-then-restart-before-old-exit",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "delay",
+              "ticks": 5
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-task-create-fails-channel-remains-enabled",
+          "created_tasks": 0,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "normal-stop-leaves-factory-active",
+          "created_tasks": 2,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": true,
+          "factory_handle_present": true,
+          "read_calls": 0,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-create",
+              "kind": "recording_task"
+            },
+            {
+              "event": "delay",
+              "ticks": 10
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-worker-partial-timeout-stats",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 1,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-delete"
+            }
+          ],
+          "passed": true
+        },
+        {
+          "name": "factory-worker-error-retries-without-delay",
+          "created_tasks": 1,
+          "channel_enabled": true,
+          "normal_active": false,
+          "factory_active": false,
+          "factory_handle_present": false,
+          "read_calls": 2,
+          "events": [
+            {
+              "event": "channel-start"
+            },
+            {
+              "event": "task-create",
+              "kind": "factory_mic"
+            },
+            {
+              "event": "task-delete"
+            }
+          ],
+          "passed": true
+        }
+      ]
+    }
+  },
+  "static_comparison": {
+    "sha256": "43ddfcf296951d964083d84ad9baddcce9b9cb7e67a91cb6aa21bc49dff66d36",
+    "functions": [
+      {
+        "name": "normal-start",
+        "large": "0x4201fed0",
+        "standard": "0x4201fea0",
+        "instructions": 164,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "factory-start",
+        "large": "0x420202bc",
+        "standard": "0x4202028c",
+        "instructions": 124,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "factory-stop",
+        "large": "0x42020418",
+        "standard": "0x420203e8",
+        "instructions": 34,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "factory-worker",
+        "large": "0x4201fca4",
+        "standard": "0x4201fc78",
+        "instructions": 86,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "normal-worker",
+        "large": "0x4201fa24",
+        "standard": "0x4201f9f8",
+        "instructions": 239,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "normal-state",
+        "large": "0x42020150",
+        "standard": "0x42020120",
+        "instructions": 50,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "normal-stop",
+        "large": "0x42020090",
+        "standard": "0x42020060",
+        "instructions": 56,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "channel-enable",
+        "large": "0x4204fa94",
+        "standard": "0x4204eb6c",
+        "instructions": 65,
+        "normalized_operations_match": true
+      }
+    ],
+    "mapped_direct_call_pairs": 9
+  },
+  "limits": "No live requests, microphone audio, physical concurrency or battery measurement. Task scheduling, mutex results, I2S start callback, read buffers/status, logging and allocation getters are modeled. SDK channel-enable and application admission/stop/query/factory-worker instructions execute. Normal capture worker is statically compared but not executed in this fixture; earlier SDK reader cases cover shared read-position consumption separately.",
+  "fixture_sha256": "a9aad8f7521f78ebecc9f0731662b3c5037fb19f1a6fb14c0e112744efa8d223"
+}

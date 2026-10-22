@@ -476,6 +476,50 @@ local control. [Comparison evidence](local-handler-comparison.json).
 `/dev` selects the vendor development environment, not a root shell or configurable
 URL. See [the complete mode-switch sequence](storage-and-configuration.md#vendor-environment-switch).
 
+### Factory and normal microphone capture can both be admitted
+
+The factory starter checks the normal recording-state getter, but normal
+recording start does not check factory activity. Both use the same I2S channel
+handle and accept `ESP_ERR_INVALID_STATE` (`0x103`) from channel-enable as well
+as success. The recovered SDK enable helper returns that error when the channel
+is already running; it does not grant a second owner or reserve samples.
+
+Eight complete function pairs match across **818 instructions per build**:
+normal/factory workers, both starters, both stop helpers, normal-state getter and
+SDK channel-enable. The actual Standard worker entries were resolved from their
+task-pointer literals, not inferred by a constant address offset.
+
+Eighteen instruction cases, nine per build, establish these bounded outcomes:
+
+| Sequence / injected condition | Result |
+| --- | --- |
+| Factory start, then normal start | Both succeed; two task handles and active flags coexist on the same channel. |
+| Normal start, then factory start | Factory start returns `0x103` when normal-state query succeeds. |
+| Normal running, query mutex times out | The getter reports false and factory start proceeds; the normal task remains admitted. |
+| Factory stop, old worker has not exited | Twenty five-tick waits, then success with the old handle still present. A second stop returns inactive without waiting. |
+| Restart after that stop, before old exit | Starter accepts the cleared flag, creates another task and replaces the shared handle. The fixture does not schedule the older task. |
+| Factory task creation fails | Active flag clears, but the already-enabled channel is not disabled by this failure branch. |
+| Normal stop helper while both are admitted | Normal active/task state clears; factory active/task state remains. This is the helper boundary, not the outer voice cleanup sequence. |
+| Factory worker receives partial bytes with timeout | It computes statistics from those bytes; normal capture instead discards timeout-returned bytes. |
+| Factory worker receives immediate errors | It retries/logs without an application delay. Its eventual exit clears the task handle but does not disable the channel. |
+
+The [SDK reader evidence](voice.md#capture-reads-can-lose-audio-without-invalidating-wav-structure)
+shows that reads advance the channel's shared DMA position. Two admitted
+workers are therefore not independent copies of microphone audio. Which worker
+actually consumes samples depends on scheduling and SDK locking; no physical
+audio loss, CPU load or battery effect was measured here.
+
+The fixture executes application lifecycle/query/factory-worker and SDK-enable
+instructions, with task, mutex, read/status, lower enable callback and timing
+outcomes modeled. It covers 421 distinct instructions per build; the normal
+capture worker is compared statically, not executed again. External callees are
+mapped separately. [Cases and hashes](factory-mic-cases.json).
+
+Do not reuse `mic_start`/`mic_stop` as normal voice controls or run diagnostics
+alongside voice. A firmware implementation needs one microphone owner spanning
+admission, capture, stop and confirmed worker exit. A cleared factory flag or
+successful stop response is insufficient to establish that boundary.
+
 ### Developer page and authentication
 
 Large GET handler `0x4201ebbc` renders the form for the current environment and

@@ -4100,3 +4100,32 @@ changing **12/67 original items or 125/189 milestones**.
 Fixture SHA-256:
 `8227ba83bdf213405c38349de05747c97b2a12fc957ceeda532f53e1cbe47d8b`.
 No device, network, HA source or deployment change occurred.
+
+## Factory microphone ownership: H05/A06/E01/E02
+
+Eight complete microphone lifecycle/SDK-enable function pairs match across
+**818 instructions per build**, with nine relocated direct-call pairs mapped
+separately. Every instruction is checked against its pinned app bytes. Standard
+worker entries come from actual task-pointer loads (`0x4201f9f8` normal,
+`0x4201fc78` factory); neighboring functions do not share one relocation offset.
+
+**Eighteen instruction cases pass**, nine per build, executing 421 distinct
+instructions each. Cases cover factory-then-normal admission, reverse-order
+rejection, query-mutex timeout admitting factory capture, bounded factory stop
+retaining a handle, immediate restart, task-creation failure retaining enabled
+I2S, normal-stop isolation, partial-timeout factory statistics and immediate
+factory read-error retries without an application delay.
+
+The fixture executes both starters, both stop helpers, normal-state query,
+factory worker and SDK channel-enable. The normal capture worker is statically
+compared, not run again. Synthetic tasks are created but not concurrently
+scheduled; mutex results, read/status buffers, lower channel callback, time and
+logging are modeled. The restart case establishes acceptance with an old task
+not yet exited, not a measured real-world schedule. Actual audio distribution,
+CPU load, battery effects, hardware capture and outer voice cleanup are excluded.
+
+[Findings](local-api.md#factory-and-normal-microphone-capture-can-both-be-admitted)
+and [case metadata](factory-mic-cases.json) extend existing milestones; totals
+remain **12/67 original items and 125/189 milestones**. No device, network or HA
+changes were made. Fixture SHA-256:
+`a9aad8f7521f78ebecc9f0731662b3c5037fb19f1a6fb14c0e112744efa8d223`.

@@ -99,6 +99,17 @@ Adjacent asset-length words were read as binary sizes rather than inferred
 strings. This closes the handler-body comparison, not all external callees,
 binary assets, live boot-state availability or whole-device behavior.
 
+### Factory microphone ownership has the same limitations
+
+The [microphone ownership comparison](local-api.md#factory-and-normal-microphone-capture-can-both-be-admitted)
+matches eight full function pairs across 818 instructions per build. Nine
+instruction cases each demonstrate asymmetric normal/factory admission, false
+inactive state on query-mutex timeout, factory stop returning with a live handle,
+restart before worker exit and the factory reader's partial-timeout handling.
+Standard's separate recording/image allocations do not separate these two
+microphone readers: both still use one I2S channel handle. No physical overlap
+or battery effect was tested. [Evidence](factory-mic-cases.json).
+
 ### Physical input paths match within the audited scope
 
 The [physical-input comparison](input-and-gestures.md) covers seven complete

@@ -9,6 +9,13 @@
     "normalized_matching_pairs": 37,
     "limits": "Complete handler bodies; mapped external callees and data are not recursively equivalent"
   },
+  "factory_microphone_ownership": {
+    "evidence": "factory-mic-cases.json",
+    "function_pairs": 8,
+    "instructions_per_model": 818,
+    "instruction_cases_per_model": 9,
+    "limits": "Asymmetric admission and shared channel established with synthetic task/mutex/read outcomes; physical overlap, sample loss and power effects untested"
+  },
   "models": {
     "standard": {
       "version": "0.2.28",

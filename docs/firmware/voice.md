@@ -128,6 +128,13 @@ fixture inputs, not a measurement of physical DMA activity. No recording,
 dropout, microphone fault or hardware timing was tested. The SDK source SHA-256
 is `b39ebba9ea228bba21f9629ce54e4c6ffba628c0b7ec3b477a6960e094dc232c`.
 
+Factory microphone statistics use this same channel, with a different rule:
+positive partial bytes are processed even when the read returns timeout.
+The [paired lifecycle audit](local-api.md#factory-and-normal-microphone-capture-can-both-be-admitted)
+also establishes that factory then normal start can admit both workers. A
+factory amplitude reading is neither a WAV-quality check nor independent audio
+monitoring; actual sample distribution under overlap remains unmeasured.
+
 The SDK timeout applies separately to acquiring the read semaphore and each
 needed DMA-buffer wait. It is not an overall 50 ms deadline for a 4,096-byte
 read. The worker also does not abandon recording merely after 50 timeouts:

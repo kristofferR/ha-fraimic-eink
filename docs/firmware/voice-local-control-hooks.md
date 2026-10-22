@@ -74,6 +74,10 @@ min/max/amplitude and a factory-active flag. It reuses its sample buffer without
 creating a WAV or entering normal upload. `mic_stop` stops that factory worker.
 These are not hidden start/finish/download endpoints for a normal voice job.
 Ordinary `/api/info` also lacks recording/busy/job state.
+The later [microphone ownership audit](local-api.md#factory-and-normal-microphone-capture-can-both-be-admitted)
+finds asymmetric admission: factory then normal capture can create two readers
+of one I2S channel, and factory stop can return before its worker exits. Keep
+factory diagnostics outside the normal voice-command path.
 
 Existing local controls do not uniformly protect this lifecycle. Standard
 0.2.28's refresh endpoint lacks Large's early recording/LED-protection guard;
