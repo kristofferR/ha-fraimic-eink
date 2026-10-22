@@ -45,6 +45,7 @@ No transcription or AI generation was invoked.
 | [Startup and readiness](startup-and-readiness.md) | Early errors, wake-dependent waits, normal/setup worker failures and completion-token limits |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
+| [Firmware downloader](downloader.md) | Standalone offer check and application download while frames stay blocked from the web |
 | [Diagnostics and logs](diagnostics-and-logs.md) | Visibility controls, retention/loss, previous-log storage and redaction limits |
 | [Local API](local-api.md) | All 42 registered routes, diagnostics and side effects |
 | [LED and workflow state](led-and-workflow-state.md) | 41-state table, priorities, protection latch and limits of visible status |

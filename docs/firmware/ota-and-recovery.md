@@ -6,6 +6,9 @@ Custom-image boot acceptance and physical recovery are **unknown**. No custom
 app, rollback, eFuse change or flash write was attempted during this research.
 The downloaded stock app is not a full-device backup.
 
+For host-side downloads without updating the frame, use the
+[standalone firmware downloader](downloader.md).
+
 ## Two update paths
 
 | Entry | Input | Verification behavior |

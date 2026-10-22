@@ -16,12 +16,15 @@ Description (from the spec): *"Also checks for firmware updates if current_versi
 
 The `CheckUploadResponse` carries a `firmware` object → **`FirmwareInfo { version, presigned_url }`**. The `presigned_url` is a short-lived S3 URL to the `.bin` in the private bucket **`fraimic-prod-firmware`** (sibling of `fraimic-prod-user-files`; both `403` on anonymous access — no public listing/download).
 
-To pull a specific firmware you only need one call:
+The [standalone downloader](../firmware/downloader.md) performs the check and
+download without installing firmware. The underlying check is:
 ```
 curl "https://origin.fraimic.com/api/v1/upload/check/<DEVICE_KEY>?current_version=0.0.1&display_type=133"
 # → .firmware.presigned_url  → curl that URL -o firmware.bin
 ```
-Pass a low `current_version` (e.g. `0.0.1`) to force the latest to be offered.
+Pass an older `current_version` (e.g. `0.0.1`) to request an offer. The server
+chooses the eligible release for that device; this cannot select an arbitrary
+historical version or guarantee an offer.
 
 **Blocker:** `{device_key}` is the device's provisioned secret. It is **masked** (`...<tail>`) on every accessible surface — local `/api/info`, the web app bundle (0 references; app targets frames by `device_id`), and the account API. `device_id` is rejected (`{"detail":"Device not found"}`). The full key is only in the frame's password-gated **Info** logs, on a physical sticker/QR, or from Fraimic support.
 
