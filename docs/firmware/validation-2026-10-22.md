@@ -1595,3 +1595,45 @@ Private artifacts: `compare-standard-sntp-queue.mjs`,
 `standard-schedule-api-call-candidates.json`, `standard-schedule-api-gnu.mjs`,
 `standard-schedule-api-boundaries-gnu.txt`, `standard-schedule-api-string-hits.json`
 and `standard-schedule-api-evidence-hashes.txt`.
+
+## Presign field copying, reserialization and multipart projection: C05/D01
+
+Three reference passes trace Large presign parsing through formatted cJSON
+serialization and the upload's second parse. Eight functions and five multipart
+prefix regions span 34 GNU ranges; all 1,076 decoded instruction byte sequences
+match the pinned app. Result offsets, copy capacities, format flag, object
+indentation/newlines and raw form-field format strings are checked explicitly.
+
+Twenty-five host case groups passed with `clang -std=c11 -O1 -g -Wall -Wextra
+-Werror -fsanitize=address,undefined -fno-omit-frame-pointer`, using the same
+hash-pinned cJSON 1.7.18 source as earlier parser fixtures. The surrounding
+positive-read HTTP-200 parser and string-part projection are reconstructed from
+the checked branches, not executed vendor machine code. The fixture checks the
+5,888-byte result layout and destination guards; no undefined empty-response
+read is invoked.
+
+The [contract findings](voice.md#presign-copying-and-field-reserialization)
+include formatted fields growing beyond their 4,095-byte copy limit even when
+the complete wire response fits the reader. A 3,249-byte response produces
+exactly 4,095 field bytes and succeeds; a one-byte-longer variant produces 4,096,
+is silently truncated and fails the subsequent fields parse. A separate 293-field
+case grows from a 3,255-byte response to 4,104 field bytes with the same result.
+Presign's parse return alone does not establish an upload-ready result.
+
+Other groups verify required types, ignored `success:false`, empty URL/key
+acceptance, case/duplicate selection, missing/non-object fields, decoded-NUL
+shortening, UTF-8 splitting and collisions after URL/key truncation. Projection
+retains duplicate string fields, reserved `file`, quotes and CRLF while skipping
+non-strings. A custom cJSON allocation hook fails only the fields-print stage;
+presign still succeeds with an empty fields string, which the later parse rejects.
+
+No HTTP socket, TLS session, WAV body, frame, backend or network policy was
+involved. The projection omits full multipart allocation/append/write behavior;
+the host allocator is not the frame's PSRAM allocator. Physical response faults,
+Standard parser equivalence and complete transport/cleanup behavior remain open.
+C05/D01 are not closed.
+
+Private artifacts: `voice-presign-pass1.txt` through `voice-presign-pass3.txt`,
+`voice-presign-gnu.mjs`, `voice-presign-boundaries-gnu.txt`,
+`voice-presign-literals.jsonl`, `voice-presign-fixture.c`,
+`voice-presign-results.jsonl` and `voice-presign-evidence-hashes.txt`.

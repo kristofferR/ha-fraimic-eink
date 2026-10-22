@@ -1863,8 +1863,8 @@
     {
       "address": "0x420266d8",
       "kind": "function",
-      "role": "Audio presign request/parser",
-      "evidence": "static"
+      "role": "Voice presign: HTTP-200 parser; URL/key byte truncation and formatted-fields copy capped at 4095 bytes; serialization failure still leaves parse success",
+      "evidence": "static and bounded GNU byte cross-check; 25 reconstructed host presign/field groups with pinned cJSON"
     },
     {
       "address": "0x42026969",
@@ -2740,6 +2740,18 @@
       "evidence": "static; poll JSON follow-up and pinned-source host fixture"
     },
     {
+      "address": "0x42038e3c",
+      "kind": "function",
+      "role": "cJSON print allocation and formatting context; invoked with format flag one by presign",
+      "evidence": "static and bounded GNU byte cross-check; 25 reconstructed host presign/field groups with pinned cJSON"
+    },
+    {
+      "address": "0x42038f90",
+      "kind": "function",
+      "role": "cJSON object printer; formatted mode adds tabs and newlines before presign field-copy truncation",
+      "evidence": "static and bounded GNU byte cross-check; 25 reconstructed host presign/field groups with pinned cJSON"
+    },
+    {
       "address": "0x42039100",
       "kind": "function",
       "role": "cJSON child lookup: first matching key; case-sensitive flag selected by wrapper",
@@ -2768,6 +2780,12 @@
       "kind": "function",
       "role": "cJSON ParseWithLength-style wrapper with no required end-of-input",
       "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
+    },
+    {
+      "address": "0x42039644",
+      "kind": "function",
+      "role": "cJSON_Print wrapper with formatting enabled; used to serialize presign form fields",
+      "evidence": "static and bounded GNU byte cross-check; 25 reconstructed host presign/field groups with pinned cJSON"
     },
     {
       "address": "0x42039658",

@@ -106,6 +106,57 @@ frame, which uploaded a valid WAV to an ordinary local HTTP service. No S3 serve
 or S3-specific form fields were needed. A scoped upload ticket gives the adapter
 a useful authorization boundary.
 
+### Presign copying and field reserialization
+
+The Large presign result is a 5,888-byte record with three independently bounded
+strings. These are byte limits, not character counts:
+
+| Member | Offset | Storage | Maximum copied content |
+| --- | --- | --- | --- |
+| Upload URL | `0x000` | 1,536 bytes | 1,535 bytes plus NUL |
+| Finalize object key | `0x600` | 256 bytes | 255 bytes plus NUL |
+| Serialized form fields | `0x700` | 4,096 bytes | 4,095 bytes plus NUL |
+
+The fields limit applies **after reserialization**, independently of the
+4,095-byte HTTP read cap. Presign calls `0x42039644`, the formatted `cJSON_Print`
+wrapper, then silently truncates its result. Object printer `0x42038f90` inserts
+newlines and tabs. A compact response that fits the HTTP buffer can therefore
+produce fields JSON that no longer fits. Presign still returns success; the
+upload routine subsequently reparses the truncated string and fails before
+opening its HTTP client.
+
+Twenty-five isolated host groups use the pinned
+[cJSON 1.7.18 implementation](https://github.com/DaveGamble/cJSON/blob/v1.7.18/cJSON.c)
+with reconstructed positive-read HTTP-200 field handling and string-part
+projection. Concrete boundary cases use synthetic short field names and values:
+
+| Complete incoming response | Formatted fields | Copied fields | Result |
+| --- | --- | --- | --- |
+| 3,249 bytes | 4,095 bytes | 4,095 bytes | All 292 string fields reparse/project |
+| 3,250 bytes | 4,096 bytes | 4,095 bytes | Presign succeeds; upload fields fail to parse |
+| 3,255 bytes | 4,104 bytes | 4,095 bytes | Same delayed failure with 293 fields |
+
+The same fixture verifies that exact URL/key limits fit, whereas distinct values
+differing only beyond those limits copy to identical strings. Key truncation can
+split UTF-8. Decoded `\u0000` shortens URL, key, field names and values at their
+first NUL. None of those results establishes that the resulting URL is usable.
+
+Required-member lookup is case-insensitive and selects the first duplicate.
+An invalid first `url` blocks a later valid one; a first non-object `fields`
+produces the empty fields string even if a later duplicate is an object.
+Missing/non-object fields and an injected `cJSON_Print` allocation failure all
+leave that empty string while presign reports success. The upload's later parse
+rejects it. Within a valid fields object, duplicate string members retain their
+order, non-string members are skipped, and a supplied `file` name is not filtered.
+Quotes and CRLF survive into the projected form bytes without escaping.
+
+All groups passed address/undefined-behavior sanitizers with warnings treated as
+errors. The fixture omits transport, WAV streaming, PSRAM allocation and physical
+storage; it deliberately does not execute the uninitialized empty-response path
+discussed below. For the local adapter, issue one short ASCII upload-ticket field
+with a unique name, keep the job key within 255 bytes, and validate issued fields
+before returning them. Wire JSON size alone is not a sufficient fields bound.
+
 ### Multipart construction and streaming
 
 Presign accepts string-valued `url` and `key`, copies them with the limits below,
@@ -261,6 +312,7 @@ presigned URL” describe its fixed workflow labels, not services used by this t
 | Presign/finalize JSON body read | At most 4,095 bytes |
 | Copied URL | At most 1,535 bytes plus NUL |
 | Copied object key | At most 255 bytes plus NUL |
+| Copied form fields | At most 4,095 bytes plus NUL **after formatted reserialization** |
 | Body framing | Explicit positive `Content-Length`; avoid chunked JSON |
 
 Hold finalize until the panel asset is ready. Align reverse-proxy timeouts with
