@@ -9,7 +9,7 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 113 of 183 concrete milestones complete.**
+**9 of 67 original items complete; 114 of 184 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
@@ -66,7 +66,8 @@ implementation is authorized merely by an unchecked box.
 ## Available next work
 
 For the owner's local-cloud/voice priorities, continue with N02's remaining
-SDK/indirect NVS references, including Standard storage-writer/vtable coverage,
+SDK/indirect NVS key references and migration faults; selected Standard
+storage-writer/vtable coverage is complete,
 while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
@@ -565,7 +566,8 @@ Commit and push validated research batches periodically as requested.
 
   - [x] **Static:** Map application key types, blob layouts, defaults and SDK Wi-Fi/PHY namespaces. [Schema](storage-and-configuration.md#recovered-nvs-types-and-record-sizes).
   - [x] **Static:** Compare selected settings/identity paths and establish non-atomic per-key writes. [Persistence](storage-and-configuration.md#nvs-commit-does-not-make-the-four-switches-atomic).
-  - [ ] **Next:** **Static/Host:** Audit remaining indirect/SDK key references, Standard storage-writer/vtable coverage, version compatibility and migration faults; preserve credentials outside public artifacts.
+  - [x] **Static:** Compare seventeen selected SDK bodies and resolve both actual handle tables, extending per-key storage/commit semantics to Standard. This does not compare all page/flash helpers or establish downgrade safety. [SDK comparison](standard-model-comparison.md#nvs-handle-dispatch-and-storage-writes-also-match).
+  - [ ] **Next:** **Static/Host:** Audit remaining indirect/SDK key references, version compatibility and migration faults; preserve credentials outside public artifacts. Separate application record migration from physical NVS page recovery.
 
 - [ ] **N03 · Host/Device:** Verify production/development identity and Wi-Fi isolation,
   legacy-key migration, reset semantics, timezone sharing and interrupted/failed

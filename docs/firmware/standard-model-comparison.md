@@ -707,8 +707,47 @@ the default-save branch, whose result is ignored. See the
 [full persistence trace](storage-and-configuration.md#failed-settings-saves-are-not-retried-by-an-identical-snapshot).
 
 This extends static support to Standard; it is not a fault-injection or reboot
-test. The separate resolved NVS vtable/storage-writer investigation is Large-only
-until those external SDK bodies are also compared.
+test. The following pass separately compares selected SDK dispatch/storage bodies.
+
+### NVS handle dispatch and storage writes also match
+
+Seventeen complete paired bodies cover namespace opening, handle construction and
+lookup, I32 setter dispatch, the typed setter/storage writer, commit, close,
+destruction and manager-list removal. All **507 instructions, 95 internal branches
+and 33 ranges per image** match after normalization. Twenty-three direct-call
+pairs and 23 literal pairs are recorded separately; called functions outside the
+selected bodies are not recursively compared.
+
+| Selected role | Large | Standard |
+| --- | --- | --- |
+| Default open / named-partition open | `0x42049e60` / `0x42049de8` | `0x42048f38` / `0x42048ec0` |
+| Handle construction / lookup | `0x4204b840` / `0x4204981c` | `0x4204a918` / `0x420488f4` |
+| I32 API / locked wrapper / virtual dispatch | `0x42049f68` / `0x42049f3c` / `0x420e34a4` | `0x42049040` / `0x42049014` / `0x420e3788` |
+| Typed setter / storage writer | `0x4204b29c` / `0x4204af28` | `0x4204a374` / `0x4204a000` |
+| Commit API / virtual method | `0x42049974` / `0x4204b258` | `0x42048a4c` / `0x4204a330` |
+| Close / API-entry destructor | `0x42049d9c` / `0x420e3390` | `0x42048e74` / `0x420e3674` |
+| Handle destructor / deleting destructor | `0x4204b26c` / `0x4204b288` | `0x4204a344` / `0x4204a360` |
+| Manager removal / list unlink | `0x4204b788` / `0x420e377c` | `0x4204a860` / `0x420e3a60` |
+
+The constructors store actual vtable addresses `0x3c3c3cc4` and `0x3c24cc80`.
+Reading those tables from the pinned images confirms destructor slot `+0`,
+deleting-destructor slot `+4`, commit slot `+0x28` and typed-setter slot `+0x30`
+point to the compared methods. The temporary base-table stores also correspond;
+their remaining methods are not claimed equivalent.
+
+Both commit methods only inspect the handle's valid byte and return success or
+`0x1107`; they contain no flush or rollback. I32 dispatch supplies type `0x14`
+and four bytes to the typed setter, which calls storage immediately for a valid
+writable handle. The storage writer has the same existing-value comparison,
+page-write retry and old-item-removal branches. A replacement can be written
+before old-item removal fails with `0x1108`. Closing the handle does not undo the
+earlier setters. Thus the [per-key persistence consequences](storage-and-configuration.md#nvs-commit-does-not-make-the-four-switches-atomic)
+also apply to these selected Standard paths.
+
+This is static support for the save contract, not a downgrade/cross-flash test,
+complete NVS schema, measured durability or power-loss recovery. Page/partition
+callees, encryption, runtime RAM values and unselected SDK keys retain their
+explicit limits. No device storage was read or changed by this comparison.
 
 ### Device-key selection and regeneration also match
 
@@ -764,8 +803,9 @@ This supports the same selected save order, unchecked legacy aliases, reset
 error handoff, cached-account behavior, credential fallback after deinitialization
 and later statistics/timestamp writes. The API-boundary host fixture remains a
 reconstruction; matching helpers do not execute Standard NVS or prove power-loss
-behavior. Lower storage-writer/vtable coverage and other indirect key consumers
-remain N02, rather than being silently included in this comparison.
+behavior. The [separate N02 SDK pass](#nvs-handle-dispatch-and-storage-writes-also-match)
+now covers selected storage-writer/vtable bodies; other indirect key consumers
+remain outside this reset comparison.
 
 The main-loop reset handoff **does differ**. Large's bounded region
 `0x42014079`–`0x4201421a` has 152 instructions in four ranges; Standard's

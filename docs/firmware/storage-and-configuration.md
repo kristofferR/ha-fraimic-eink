@@ -142,7 +142,9 @@ with contiguous coverage enforced for each range. They are static paths and
 inferred failure consequences, not induced NVS faults or reboot observations.
 The [Standard comparison](standard-model-comparison.md#settings-persistence-also-matches)
 now confirms the selected application paths on that build; the following section
-resolves the Large build's lower-level transaction boundary.
+resolves the Large build's lower-level transaction boundary; a later
+[paired SDK pass](standard-model-comparison.md#nvs-handle-dispatch-and-storage-writes-also-match)
+checks the selected Standard equivalents.
 For custom firmware, track pending persistence independently of RAM equality,
 retry failed saves, and distinguish applied settings from durable settings.
 
@@ -180,8 +182,10 @@ The post-reboot resolution of such duplicate/error states was not exercised.
 
 The follow-up checked eleven additional functions over 26 GNU ranges and 416
 byte-matched instructions. This resolves the selected Large SDK dispatch and
-transaction semantics, not every page/flash fault, power-loss recovery, encryption
-or Standard SDK implementation. An emulator should keep its desired settings as
+transaction semantics, not every page/flash fault, power-loss recovery or encryption.
+A subsequent seventeen-body comparison resolves the Standard handle table and
+matches these selected storage/commit paths. It does not execute flash faults or
+recursively compare every page/partition helper. An emulator should keep its desired settings as
 authoritative state and avoid interpreting successful polls as durable receipts.
 A firmware change needs explicit persistence status and recovery, rather than
 relying on the final `nvs_commit` call to make these four writes atomic.

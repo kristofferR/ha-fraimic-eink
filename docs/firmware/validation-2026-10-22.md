@@ -2860,3 +2860,33 @@ checked; its physical reset/isolation criterion remains deferred.
 | `reset-handoff-summary.json` | `5b8fd7ab729242482cd591e46e3104c9958bd44fe977ac685c6ff1ce0658c52c` |
 | `reset-handoff-large-cfg.json` | `0c73bc1c0976be0af188d8b26aba9ade5e6cbcdb6f9abe5ace55faac8318509f` |
 | `reset-handoff-standard-cfg.json` | `4bf407bd4d1d5fc0ea081861b7d1be84b16b8928db0b9120b1cc2bc7c0631bad` |
+
+## Standard NVS dispatch and per-key storage: N02/E02
+
+Seventeen complete functions per image were recovered with GNU control-flow
+traversal and checked against the pinned image bytes: **507 instructions, 95
+internal branches and 33 ranges per build**. Prologues, normalized operations,
+register operands and branch destinations match. Twenty-three direct-call pairs
+and 23 literal pairs were reviewed separately. The private comparison JSON
+fingerprints every complete body; the [public table](standard-model-comparison.md#nvs-handle-dispatch-and-storage-writes-also-match)
+gives all seventeen entry pairs.
+
+Constructor stores resolve to Large vtable `0x3c3c3cc4` and Standard
+`0x3c24cc80`. Pinned-byte reads assert slots `+0`, `+4`, `+0x28` and `+0x30`
+target the compared destructor, deleting destructor, commit and typed setter.
+The base-table addresses are classified only as corresponding constructor/
+destructor stores. External code pointers and RAM accesses are mapped roles,
+not evidence that all callees or runtime contents match.
+
+Both builds' selected paths apply setters individually, omit a storage flush in
+the commit method and provide no rollback on close. The storage writer can return
+remove-failed after writing a replacement. Actual page-write/erase outcomes,
+encryption, reboot selection of duplicate items, other SDK keys and compatibility
+with unexamined firmware remain untested. No NVS fault, frame request, reset or
+storage change was performed. N02's Standard comparison is now a checked milestone;
+remaining schema/migration work is still explicit and unchecked. N04 stays deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `compare-nvs-storage.mjs` | `7c5df57080e23d135732f8775ea36cc4b45af39bcca64b073bf15c8266a48c21` |
+| `standard-nvs-storage-comparison.json` | `1bf75ca6dd8fcf2bfeb50a95614a13739fcd33fe56dfee93e3454fbf1fb036b7` |
