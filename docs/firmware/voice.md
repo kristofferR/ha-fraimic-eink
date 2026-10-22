@@ -179,6 +179,51 @@ second host-fixture run or physical cancellation test. A missing presign request
 cannot identify whether the user cancelled, capture failed, or the recording
 was never started.
 
+### Channel disable is not worker termination
+
+Microphone cleanup `0x4201fe94` (Standard `0x4201fe64`) checks only whether the
+shared channel handle exists, then calls SDK disable. It does not inspect or
+clear factory activity, join that worker or invalidate the channel handle.
+Five identified direct callers per model are in recording control and the outer
+recording wrapper; none branches on the cleanup result. All five call sites
+were reconciled to their complete, byte-checked caller bodies.
+
+SDK disable `0x4204fb44` (Standard `0x4204ec1c`) acquires the channel mutex,
+changes its state from running to ready, then acquires the read/write binary
+semaphore using `portMAX_DELAY`. Only after that acquisition does it clear the
+DMA pointer/descriptor/position and invoke the hardware stop callback. It
+releases the channel mutex but **retains the binary semaphore**. Thus a ready
+state observed during disable is not evidence that hardware stop or cleanup
+has finished. There is no local deadline on either semaphore acquisition.
+
+The paired cleanup, disable and reader bodies match across 196 instructions.
+Seven isolated host cases execute the unchanged enable/disable/read functions
+from the pinned [IDF source](https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_driver_i2s/i2s_common.c):
+
+| Boundary | Result under the synthetic semaphore model |
+| --- | --- |
+| Disable with no reader holding the token | State ready, DMA state reset, hardware stop called, read token retained. |
+| Reader starts after completed disable | Its 50 ms token wait fails with `0x103`, zero bytes and no queue read. |
+| Disable waits for a live reader | State is already ready and channel mutex held; DMA reset/hardware stop have not happened. The fixture captures this unbounded-wait boundary instead of hanging. |
+| Reader releases its token | Disable can complete and retain that token. |
+| Channel already disabled | Return `0x103`; no token release or hardware stop. |
+| Channel enabled again | Queue reset and token give allow an existing reader to consume new bytes. No factory-task restart is required at the SDK layer. |
+| Ready state with an available token | Reader returns empty success. This counterfactual control explains the earlier isolated reader case; it is not the normal post-disable semaphore state. |
+
+Together with the [factory lifecycle audit](local-api.md#factory-and-normal-microphone-capture-can-both-be-admitted),
+this means normal voice cleanup can stop the shared channel while a factory
+worker remains active. That worker can keep receiving invalid-state results and
+resume reading after a later enable. The earlier immediate-error worker case
+does **not** imply a busy loop after ordinary SDK disable: its unavailable-token
+wait is a separate blocking boundary. Actual scheduling, delay, CPU usage and
+power were not measured.
+
+A firmware owner must track both task lifetime and channel state; successful
+disable alone does not establish exclusive capture for the next job. The seven
+cases passed with address/undefined-behavior sanitizers and warnings treated as
+errors. Semaphore release, queue bytes, time and hardware callbacks are modeled,
+not a FreeRTOS or microphone execution. [Evidence](microphone-teardown-cases.json).
+
 ## Presign
 
 `0x420266d8` sends:

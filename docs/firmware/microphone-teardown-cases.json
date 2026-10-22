@@ -1,0 +1,225 @@
+{
+  "method": "Three complete paired GNU bodies and existing caller CFGs, plus unchanged matching-SDK C functions under a synthetic semaphore/queue model",
+  "models": {
+    "large": {
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "functions": [
+        {
+          "name": "microphone-teardown-cleanup",
+          "entry": "0x4201fe94",
+          "instructions": 23,
+          "sha256": "a1a3b0e8bbb27e4b97619c058db059007b4dd2d331342700f31c483aa280d4c6"
+        },
+        {
+          "name": "microphone-teardown-disable",
+          "entry": "0x4204fb44",
+          "instructions": 63,
+          "sha256": "6fba2b789be3ff7257d2bdce85a83a7f00e78e220224414a7295b7ffac5dfe07"
+        },
+        {
+          "name": "microphone-teardown-reader",
+          "entry": "0x4204fbec",
+          "instructions": 110,
+          "sha256": "de43918f1ce4b2a7d58b37e1ddbaec9161ebcd147cf21694a8b380a7a547421c"
+        },
+        {
+          "name": "button-record-control",
+          "entry": "0x42011314",
+          "instructions": 260,
+          "sha256": "3874826d2dcc3f30da800c82a597dc7d7ef39dfa9932c4839252abff36f21988"
+        },
+        {
+          "name": "cancel-record-start",
+          "entry": "0x42010994",
+          "instructions": 256,
+          "sha256": "49340af04cbeae6382fb4d79f6e07642adc5b9cd318ff1a0ac67121cc862e6d9"
+        }
+      ],
+      "identified_direct_cleanup_calls": [
+        {
+          "caller": "0x42011314",
+          "site": "0x42011363"
+        },
+        {
+          "caller": "0x42011314",
+          "site": "0x42011433"
+        },
+        {
+          "caller": "0x42011314",
+          "site": "0x420114a7"
+        },
+        {
+          "caller": "0x42011314",
+          "site": "0x420115b8"
+        },
+        {
+          "caller": "0x42010994",
+          "site": "0x42010c3b"
+        }
+      ]
+    },
+    "standard": {
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "functions": [
+        {
+          "name": "microphone-teardown-cleanup",
+          "entry": "0x4201fe64",
+          "instructions": 23,
+          "sha256": "148a1a024eadee3b3e26233b8427466cc1926fc9687d58a5290b1e2650b62ca8"
+        },
+        {
+          "name": "microphone-teardown-disable",
+          "entry": "0x4204ec1c",
+          "instructions": 63,
+          "sha256": "044f9109765d64e58597a76544c4002b2d64f9e0b53886619153834339e69605"
+        },
+        {
+          "name": "microphone-teardown-reader",
+          "entry": "0x4204ecc4",
+          "instructions": 110,
+          "sha256": "e0810a4a211d760606db8c5257cb5249fea88c7923eac6747dd689cf61010687"
+        },
+        {
+          "name": "button-record-control",
+          "entry": "0x42011274",
+          "instructions": 260,
+          "sha256": "3f4689ae24b99438ef951cc730585917feb3a9dcd21332d08a967a203537aced"
+        },
+        {
+          "name": "cancel-record-start",
+          "entry": "0x420106d0",
+          "instructions": 256,
+          "sha256": "53a56557b4cf48c5ced71b718ec20ff416cbc85e11a7e59c781099ba26c13630"
+        }
+      ],
+      "identified_direct_cleanup_calls": [
+        {
+          "caller": "0x42011274",
+          "site": "0x420112c3"
+        },
+        {
+          "caller": "0x42011274",
+          "site": "0x42011393"
+        },
+        {
+          "caller": "0x42011274",
+          "site": "0x42011407"
+        },
+        {
+          "caller": "0x42011274",
+          "site": "0x42011518"
+        },
+        {
+          "caller": "0x420106d0",
+          "site": "0x4201097b"
+        }
+      ]
+    }
+  },
+  "static_comparison": {
+    "sha256": "1e48ab510aceec9f65a8b91e5721d47b95d36b6f37c1c73ac556f5918cca9b9b",
+    "functions": [
+      {
+        "name": "cleanup",
+        "large": "0x4201fe94",
+        "standard": "0x4201fe64",
+        "instructions": 23,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "disable",
+        "large": "0x4204fb44",
+        "standard": "0x4204ec1c",
+        "instructions": 63,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "reader",
+        "large": "0x4204fbec",
+        "standard": "0x4204ecc4",
+        "instructions": 110,
+        "normalized_operations_match": true
+      }
+    ],
+    "instructions_per_model": 196,
+    "mapped_direct_call_pairs": 2
+  },
+  "host": {
+    "cases": [
+      {
+        "case": "disable-retains-read-token-and-resets-dma",
+        "passed": true,
+        "channel_state": 1,
+        "read_token_available": false,
+        "virtual_ms": 0,
+        "stop_callbacks": 1,
+        "unbounded_waits": 0
+      },
+      {
+        "case": "post-disable-reader-waits-then-invalid-state",
+        "passed": true,
+        "channel_state": 1,
+        "read_token_available": false,
+        "virtual_ms": 50,
+        "stop_callbacks": 1,
+        "unbounded_waits": 0
+      },
+      {
+        "case": "reenable-allows-existing-reader-to-resume",
+        "passed": true,
+        "channel_state": 2,
+        "read_token_available": true,
+        "virtual_ms": 50,
+        "stop_callbacks": 1,
+        "unbounded_waits": 0
+      },
+      {
+        "case": "disable-sets-ready-before-blocking-on-live-reader",
+        "passed": true,
+        "channel_state": 1,
+        "read_token_available": false,
+        "virtual_ms": 0,
+        "stop_callbacks": 0,
+        "unbounded_waits": 1
+      },
+      {
+        "case": "reader-release-allows-disable-to-finish",
+        "passed": true,
+        "channel_state": 1,
+        "read_token_available": false,
+        "virtual_ms": 0,
+        "stop_callbacks": 1,
+        "unbounded_waits": 1
+      },
+      {
+        "case": "already-disabled-does-not-release-reader-token",
+        "passed": true,
+        "channel_state": 1,
+        "read_token_available": false,
+        "virtual_ms": 0,
+        "stop_callbacks": 0,
+        "unbounded_waits": 0
+      },
+      {
+        "case": "ready-with-available-token-is-empty-success-control",
+        "passed": true,
+        "channel_state": 1,
+        "read_token_available": true,
+        "virtual_ms": 0,
+        "stop_callbacks": 0,
+        "unbounded_waits": 0
+      }
+    ],
+    "source_url": "https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_driver_i2s/i2s_common.c",
+    "source_sha256": "b39ebba9ea228bba21f9629ce54e4c6ffba628c0b7ec3b477a6960e094dc232c",
+    "selected_functions": [
+      "i2s_channel_enable",
+      "i2s_channel_disable",
+      "i2s_channel_read"
+    ],
+    "extracted_functions_sha256": "8d0ea499805dede62f8098a234089aa6f35b347cd5e5ed3f828df51c0da24a3f",
+    "fixture_sha256": "0658f94d7e36f0d75d03c862f13b4b6b6e61fe798881f8646681131998e4f5c2",
+    "validation": "clang -std=c11 -Wall -Wextra -Werror -fsanitize=address,undefined; all seven cases pass"
+  },
+  "limits": "Semaphore availability, reader release, queue bytes, virtual timing and hardware start/stop callbacks are modeled. An unbounded wait is a captured host suspension point, not a real elapsed hang. This is not a FreeRTOS scheduler, physical microphone test, CPU/power measurement or proof of actual overlap. The caller census covers exact recovered references and known complete callers, not arbitrary computed calls. Factory worker survival follows the separately established flags/task ownership; the C fixture executes SDK channel functions, not the whole application."
+}

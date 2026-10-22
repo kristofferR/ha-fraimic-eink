@@ -109,6 +109,10 @@ restart before worker exit and the factory reader's partial-timeout handling.
 Standard's separate recording/image allocations do not separate these two
 microphone readers: both still use one I2S channel handle. No physical overlap
 or battery effect was tested. [Evidence](factory-mic-cases.json).
+Three more [cleanup/disable/reader pairs](voice.md#channel-disable-is-not-worker-termination)
+match across 196 instructions, with five cleanup call sites per model reconciled
+to their callers. Seven matching-SDK host cases distinguish ready state, retained
+read token, unfinished disable and a surviving reader resuming after re-enable.
 
 ### Physical input paths match within the audited scope
 

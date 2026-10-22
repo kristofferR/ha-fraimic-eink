@@ -78,6 +78,10 @@ The later [microphone ownership audit](local-api.md#factory-and-normal-microphon
 finds asymmetric admission: factory then normal capture can create two readers
 of one I2S channel, and factory stop can return before its worker exits. Keep
 factory diagnostics outside the normal voice-command path.
+The [channel-disable trace](voice.md#channel-disable-is-not-worker-termination)
+adds the cleanup boundary: normal voice cleanup does not terminate a factory
+worker, and later re-enable can give that existing reader access again. Device
+control needs confirmed worker exit as well as channel disable.
 
 Existing local controls do not uniformly protect this lifecycle. Standard
 0.2.28's refresh endpoint lacks Large's early recording/LED-protection guard;

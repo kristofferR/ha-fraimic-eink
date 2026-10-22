@@ -4166,3 +4166,32 @@ The locally archived vendor downloads from 20:53 UTC (Large) and 20:58 UTC
 additional build was present in that archive to extend the comparison. This
 is an archive observation, not proof that the vendor has no other releases;
 no additional cloud poll or download was performed in this pass.
+
+## Microphone channel teardown: H05/A06/E01/E02
+
+Cleanup, SDK disable and SDK reader match across **196 instructions per model**.
+Their complete GNU control flow and bytes were checked; five direct cleanup
+calls on each model were reconciled against the existing recording-control and
+outer-wrapper CFGs. The helper has no factory-owner check; callers do not branch
+on its result. Exact-reference searches are bounded and do not exclude arbitrary
+computed calls.
+
+**Seven host cases pass** using unchanged enable/disable/read functions from
+the pinned IDF 5.4.1 source, compiled with `-Wall -Wextra -Werror` and address/
+undefined-behavior sanitizers. They distinguish completed disable, retained read
+token, reader timeout, state-ready before an unbounded token wait, eventual
+reader release, already-disabled error and successful read after re-enable.
+A ready-state/available-token control keeps the earlier isolated empty-success
+case separate from ordinary post-disable state.
+
+The C fixture models semaphores, queue contents, virtual time and hardware
+callbacks. An unbounded wait is intercepted at a host suspension point; no real
+hang or wall-clock timing is claimed. The existing factory-task lifetime comes
+from the preceding application audit, not a concurrent RTOS run in this fixture.
+No device command, recording, image, setting or routing change was made for this
+pass. [Findings](voice.md#channel-disable-is-not-worker-termination),
+[metadata and hashes](microphone-teardown-cases.json). Existing checklist counts
+remain **12/67 original items and 125/189 milestones**.
+
+Fixture SHA-256:
+`0658f94d7e36f0d75d03c862f13b4b6b6e61fe798881f8646681131998e4f5c2`.

@@ -519,6 +519,10 @@ Do not reuse `mic_start`/`mic_stop` as normal voice controls or run diagnostics
 alongside voice. A firmware implementation needs one microphone owner spanning
 admission, capture, stop and confirmed worker exit. A cleared factory flag or
 successful stop response is insufficient to establish that boundary.
+The [outer-cleanup follow-up](voice.md#channel-disable-is-not-worker-termination)
+also distinguishes SDK channel disable from task termination. A surviving
+factory reader can resume after a later enable, while ordinary post-disable
+reads wait on an unavailable token rather than necessarily spinning immediately.
 
 ### Developer page and authentication
 
