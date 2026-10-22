@@ -1,0 +1,1078 @@
+{
+  "evidence": "Original decoded instructions with synthetic AP scan/connection, gauge registers, allocation and RTOS results; no device I/O.",
+  "models": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "wifi-blacklist",
+          "entry": "0x42019bd8",
+          "instructions": 19,
+          "sha256": "38c19e2aee005bf5220685667801900c46b53913543069bb3cf703560dea4815"
+        },
+        {
+          "name": "wifi-connect",
+          "entry": "0x42019c0c",
+          "instructions": 81,
+          "sha256": "795e58c8cdf3f2112e716872c39a2a30f7ba257f5ca5c98b0c7425d19fb11322"
+        },
+        {
+          "name": "wifi-tier2",
+          "entry": "0x42019ce8",
+          "instructions": 764,
+          "sha256": "464403f9f937b9917fe109747f7c883b28c8ec09e5ee4188951cdada81c1bdb0"
+        },
+        {
+          "name": "gauge-profile",
+          "entry": "0x420316e0",
+          "instructions": 74,
+          "sha256": "b10862b6a2b460ad77bb4f741348d42592d1ed8f0c04c2d794c37a92b77ae874"
+        },
+        {
+          "name": "gauge-stable-read",
+          "entry": "0x42031850",
+          "instructions": 47,
+          "sha256": "e89262fea4b9584bd206e0560c89a69c57136b45d3bca1ca7ab368c2fc46db46"
+        },
+        {
+          "name": "gauge-config",
+          "entry": "0x420315f4",
+          "instructions": 85,
+          "sha256": "da1d4c58497563798b8d02ed0e4c39b320aecd361a207f4efb273e7765c3a812"
+        },
+        {
+          "name": "gauge-write-profile",
+          "entry": "0x420314b8",
+          "instructions": 55,
+          "sha256": "3a71d07f7a9b6cfe295ca1689cfe0bebb52eb1ab9780d27df5f2b657e672c560"
+        }
+      ],
+      "executed_instruction_sites": 1010,
+      "results": [
+        {
+          "name": "wifi-saved-channel-bonus",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11
+          ],
+          "attempts": [
+            {
+              "id": 2,
+              "channel": 6,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [
+            {
+              "locked": 0,
+              "channel": 6
+            }
+          ],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-failover-removes-channel-bonus",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 1,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-blacklist-and-ssid-filter",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11
+          ],
+          "attempts": [
+            {
+              "id": 3,
+              "channel": 11,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [
+            {
+              "locked": 0,
+              "channel": 11
+            }
+          ],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-full-scan-after-priority-miss",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 3,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [
+            {
+              "locked": 0,
+              "channel": 3
+            }
+          ],
+          "allocations": 1,
+          "frees": 1
+        },
+        {
+          "name": "wifi-five-attempt-budget-spans-stages",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 1,
+              "attempt": 1,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 2,
+              "channel": 1,
+              "attempt": 2,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 3,
+              "channel": 1,
+              "attempt": 3,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 4,
+              "channel": 1,
+              "attempt": 4,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 5,
+              "channel": 3,
+              "attempt": 5,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 1,
+          "frees": 1
+        },
+        {
+          "name": "wifi-five-priority-attempts-exhaust-full-scan-budget",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 1,
+              "attempt": 1,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 2,
+              "channel": 1,
+              "attempt": 2,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 3,
+              "channel": 1,
+              "attempt": 3,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 4,
+              "channel": 1,
+              "attempt": 4,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 5,
+              "channel": 1,
+              "attempt": 5,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 1,
+          "frees": 1
+        },
+        {
+          "name": "wifi-no-aps",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-scan-error",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-full-scan-allocation-failure",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 1,
+          "frees": 0
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-1",
+          "passed": true,
+          "result": 0,
+          "requested_delay_ticks": 10,
+          "disconnects": 0,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-39",
+          "passed": true,
+          "result": 0,
+          "requested_delay_ticks": 390,
+          "disconnects": 0,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-40",
+          "passed": true,
+          "result": 4294967295,
+          "requested_delay_ticks": 410,
+          "disconnects": 1,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-100",
+          "passed": true,
+          "result": 4294967295,
+          "requested_delay_ticks": 410,
+          "disconnects": 1,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "gauge-profile-mismatch--1",
+          "passed": true,
+          "result": 0,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-mismatch-0",
+          "passed": true,
+          "result": 3,
+          "read_registers": [
+            8,
+            11,
+            16
+          ],
+          "profile_bytes_examined": 1
+        },
+        {
+          "name": "gauge-profile-mismatch-7",
+          "passed": true,
+          "result": 3,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-mismatch-8",
+          "passed": true,
+          "result": 0,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-mismatch-79",
+          "passed": true,
+          "result": 0,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-writes-all-eighty-bytes",
+          "passed": true,
+          "write_count": 80,
+          "first_register": 16,
+          "last_register": 95
+        },
+        {
+          "name": "gauge-double-read-equal",
+          "passed": true,
+          "result": 0,
+          "reads": 2,
+          "output": 4660
+        },
+        {
+          "name": "gauge-double-read-different-third",
+          "passed": true,
+          "result": 0,
+          "reads": 3,
+          "output": 17185
+        },
+        {
+          "name": "gauge-double-read-first-error",
+          "passed": true,
+          "result": 263,
+          "reads": 1,
+          "output": 61166
+        },
+        {
+          "name": "gauge-double-read-second-error",
+          "passed": true,
+          "result": 263,
+          "reads": 2,
+          "output": 61166
+        },
+        {
+          "name": "gauge-double-read-third-error",
+          "passed": true,
+          "result": 263,
+          "reads": 3,
+          "output": 61166
+        },
+        {
+          "name": "gauge-configuration-ready-after-1",
+          "passed": true,
+          "result": 0,
+          "polls": 1,
+          "activation_calls": 1
+        },
+        {
+          "name": "gauge-configuration-ready-after-100",
+          "passed": true,
+          "result": 0,
+          "polls": 100,
+          "activation_calls": 1
+        },
+        {
+          "name": "gauge-configuration-ready-after-101",
+          "passed": true,
+          "result": 263,
+          "polls": 100,
+          "activation_calls": 2
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "wifi-blacklist",
+          "entry": "0x42019bac",
+          "instructions": 19,
+          "sha256": "b0c3c31d7a8fb61fe691ebff7f361dfcfe735d152ea59e294267eaa1ab2e62fd"
+        },
+        {
+          "name": "wifi-connect",
+          "entry": "0x42019be0",
+          "instructions": 81,
+          "sha256": "031fde477efe8a52153a88ba270c12b15ca1a544f91f31b66641bda163f7c9ae"
+        },
+        {
+          "name": "wifi-tier2",
+          "entry": "0x42019cbc",
+          "instructions": 764,
+          "sha256": "e042081d55b625f793971ba17149a9e09a926f02baaf9a0d91b9f2bdf3df818d"
+        },
+        {
+          "name": "gauge-profile",
+          "entry": "0x420301a4",
+          "instructions": 74,
+          "sha256": "22e26123dc27c7cf6b354a824547ae81f2972861bae2e8f743a9b85b1533a4d7"
+        },
+        {
+          "name": "gauge-stable-read",
+          "entry": "0x42030314",
+          "instructions": 47,
+          "sha256": "26a3141c5745a0564b7c3a1d06983ee267ce266dbe12af3e6e09ed685440ee95"
+        },
+        {
+          "name": "gauge-config",
+          "entry": "0x420300b8",
+          "instructions": 85,
+          "sha256": "24eb577a93a08de47858a658ede14539465d74f33e3398fe39f1fc455a02f5d3"
+        },
+        {
+          "name": "gauge-write-profile",
+          "entry": "0x4202ff7c",
+          "instructions": 55,
+          "sha256": "df6e5e43bf9042a5d713522c95b2419d3a90edde891c6aa33a52341c9ff3bb10"
+        }
+      ],
+      "executed_instruction_sites": 1010,
+      "results": [
+        {
+          "name": "wifi-saved-channel-bonus",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11
+          ],
+          "attempts": [
+            {
+              "id": 2,
+              "channel": 6,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [
+            {
+              "locked": 0,
+              "channel": 6
+            }
+          ],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-failover-removes-channel-bonus",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 1,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-blacklist-and-ssid-filter",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11
+          ],
+          "attempts": [
+            {
+              "id": 3,
+              "channel": 11,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [
+            {
+              "locked": 0,
+              "channel": 11
+            }
+          ],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-full-scan-after-priority-miss",
+          "passed": true,
+          "result": 0,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 3,
+              "attempt": 1,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [
+            {
+              "locked": 0,
+              "channel": 3
+            }
+          ],
+          "allocations": 1,
+          "frees": 1
+        },
+        {
+          "name": "wifi-five-attempt-budget-spans-stages",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 1,
+              "attempt": 1,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 2,
+              "channel": 1,
+              "attempt": 2,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 3,
+              "channel": 1,
+              "attempt": 3,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 4,
+              "channel": 1,
+              "attempt": 4,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 5,
+              "channel": 3,
+              "attempt": 5,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 1,
+          "frees": 1
+        },
+        {
+          "name": "wifi-five-priority-attempts-exhaust-full-scan-budget",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [
+            {
+              "id": 1,
+              "channel": 1,
+              "attempt": 1,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 2,
+              "channel": 1,
+              "attempt": 2,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 3,
+              "channel": 1,
+              "attempt": 3,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 4,
+              "channel": 1,
+              "attempt": 4,
+              "timeout_ms": 4000
+            },
+            {
+              "id": 5,
+              "channel": 1,
+              "attempt": 5,
+              "timeout_ms": 4000
+            }
+          ],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 1,
+          "frees": 1
+        },
+        {
+          "name": "wifi-no-aps",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-scan-error",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 0,
+          "frees": 0
+        },
+        {
+          "name": "wifi-full-scan-allocation-failure",
+          "passed": true,
+          "result": 4294967295,
+          "scan_channels": [
+            1,
+            6,
+            11,
+            0
+          ],
+          "attempts": [],
+          "storage_requests": [
+            1,
+            0
+          ],
+          "final_configuration": [],
+          "allocations": 1,
+          "frees": 0
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-1",
+          "passed": true,
+          "result": 0,
+          "requested_delay_ticks": 10,
+          "disconnects": 0,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-39",
+          "passed": true,
+          "result": 0,
+          "requested_delay_ticks": 390,
+          "disconnects": 0,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-40",
+          "passed": true,
+          "result": 4294967295,
+          "requested_delay_ticks": 410,
+          "disconnects": 1,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "wifi-connect-ready-after-delay-100",
+          "passed": true,
+          "result": 4294967295,
+          "requested_delay_ticks": 410,
+          "disconnects": 1,
+          "immediate_config_and_connect_errors_ignored": true
+        },
+        {
+          "name": "gauge-profile-mismatch--1",
+          "passed": true,
+          "result": 0,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-mismatch-0",
+          "passed": true,
+          "result": 3,
+          "read_registers": [
+            8,
+            11,
+            16
+          ],
+          "profile_bytes_examined": 1
+        },
+        {
+          "name": "gauge-profile-mismatch-7",
+          "passed": true,
+          "result": 3,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-mismatch-8",
+          "passed": true,
+          "result": 0,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-mismatch-79",
+          "passed": true,
+          "result": 0,
+          "read_registers": [
+            8,
+            11,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23
+          ],
+          "profile_bytes_examined": 8
+        },
+        {
+          "name": "gauge-profile-writes-all-eighty-bytes",
+          "passed": true,
+          "write_count": 80,
+          "first_register": 16,
+          "last_register": 95
+        },
+        {
+          "name": "gauge-double-read-equal",
+          "passed": true,
+          "result": 0,
+          "reads": 2,
+          "output": 4660
+        },
+        {
+          "name": "gauge-double-read-different-third",
+          "passed": true,
+          "result": 0,
+          "reads": 3,
+          "output": 17185
+        },
+        {
+          "name": "gauge-double-read-first-error",
+          "passed": true,
+          "result": 263,
+          "reads": 1,
+          "output": 61166
+        },
+        {
+          "name": "gauge-double-read-second-error",
+          "passed": true,
+          "result": 263,
+          "reads": 2,
+          "output": 61166
+        },
+        {
+          "name": "gauge-double-read-third-error",
+          "passed": true,
+          "result": 263,
+          "reads": 3,
+          "output": 61166
+        },
+        {
+          "name": "gauge-configuration-ready-after-1",
+          "passed": true,
+          "result": 0,
+          "polls": 1,
+          "activation_calls": 1
+        },
+        {
+          "name": "gauge-configuration-ready-after-100",
+          "passed": true,
+          "result": 0,
+          "polls": 100,
+          "activation_calls": 1
+        },
+        {
+          "name": "gauge-configuration-ready-after-101",
+          "passed": true,
+          "result": 263,
+          "polls": 100,
+          "activation_calls": 2
+        }
+      ]
+    }
+  ],
+  "comparison": {
+    "functions": [
+      {
+        "name": "wifi-blacklist",
+        "large": "0x42019bd8",
+        "standard": "0x42019bac",
+        "instructions": 19,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "wifi-connect",
+        "large": "0x42019c0c",
+        "standard": "0x42019be0",
+        "instructions": 81,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "wifi-tier2",
+        "large": "0x42019ce8",
+        "standard": "0x42019cbc",
+        "instructions": 764,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "gauge-profile",
+        "large": "0x420316e0",
+        "standard": "0x420301a4",
+        "instructions": 74,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "gauge-stable-read",
+        "large": "0x42031850",
+        "standard": "0x42030314",
+        "instructions": 47,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "gauge-config",
+        "large": "0x420315f4",
+        "standard": "0x420300b8",
+        "instructions": 85,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "gauge-write-profile",
+        "large": "0x420314b8",
+        "standard": "0x4202ff7c",
+        "instructions": 55,
+        "normalized_operations_match": true,
+        "differences": []
+      }
+    ],
+    "instructions_per_build": 1125,
+    "direct_call_pairs": 12,
+    "sha256": "7e172ebe5607db47d47d94134237b1f78cc2cd790d5f31dc0becee1530ef1433"
+  },
+  "fixture_sha256": "efccc91d0e96a1e16419ad61c87daa7e6436eebecc8f6aabf3319b694cc5c8a7",
+  "limits": [
+    "Synthetic SDK scan records and connection flags establish selected ranking, filtering, attempt and timeout branches; RF behavior and wall-clock durations are not measured.",
+    "The ranking scenarios stub the blacklist predicate and connection attempt; four separate scenarios execute the real connection helper. The blacklist loop is statically compared.",
+    "Gauge register contents and I2C results are synthetic. No battery profile was read from or written to a physical gauge.",
+    "Equivalent normalized operations do not recursively prove SDK callee equivalence.",
+    "Third-read acceptance is this helper policy, not a claim that physical gauge readings oscillate or are inaccurate."
+  ]
+}

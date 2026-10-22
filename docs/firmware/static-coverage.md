@@ -16,7 +16,7 @@ the firmware has been exhaustively analyzed**.
 | GDMA interrupt dispatch and error-handler path | Complete for the stated boundaries | [EOF flags, callback masks and hardware start wait](microphone-dma.md#interrupt-flags-do-not-reach-the-saved-recording), [13 cases per build](microphone-interrupt-cases.json) |
 | Model-specific initialization and excluded allocators/drivers | In progress | [Helper and driver audit](initialization-helpers.md): ten initial roots, Large PMIC/expander/SPI and both LED initializers; [38 additional driver cases](driver-initialization-cases.json); continue dependencies found by the census |
 | Application function and callback coverage census | In progress | Reconcile fresh Ghidra entries, byte-checked CFGs, earlier disassembly and documented roles; prioritize actual gaps |
-| Remaining reachable application gaps found by that census | Pending | Name each bounded question and its evidence before closing it |
+| Remaining reachable application gaps found by that census | In progress | [Wi-Fi selection/budget](wifi-recovery.md) and [fuel-gauge acceptance/read policy](fuel-gauge.md) now checked with [27 cases per build](wifi-gauge-cases.json); continue the remaining helper-role audit |
 
 ## What the census can establish
 

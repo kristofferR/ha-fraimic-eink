@@ -48,6 +48,8 @@ No transcription or AI generation was invoked.
 | [Boot and scheduling](boot-and-scheduling.md) | Model-specific wake pins, boot classification, recording admission, timers and offline dependencies |
 | [Startup and readiness](startup-and-readiness.md) | Early errors, wake-dependent waits, normal/setup worker failures and completion-token limits |
 | [Initialization helpers](initialization-helpers.md) | Component retry/cleanup policies, null event-group success and model-specific memory/I2C/GPIO failures |
+| [Wi-Fi recovery](wifi-recovery.md) | AP ranking, saved-channel preference, shared five-attempt budget and connection-flag timeout |
+| [Fuel gauge](fuel-gauge.md) | Eight-byte profile acceptance, eighty-byte programming, readiness budget and sample consistency |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
 | [Firmware downloader](downloader.md) | Standalone offer check and application download while frames stay blocked from the web |
