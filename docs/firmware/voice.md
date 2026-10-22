@@ -1131,14 +1131,69 @@ after the last pre-render check, can leave the flag set within the same wake
 session. A subsequent recording can then obtain a presign response and immediately
 abort before sending its WAV because upload worker `0x42010108` checks that flag
 after presign. Its explicit cancellation cleanup would then clear it. This is a
-static path hypothesis, not an observed two-job failure; reboot/sleep boundaries
-and remaining indirect stores must be accounted for in validation.
+static path hypothesis, not an observed two-job failure. The follow-up below
+bounds the identified stores and the fresh-startup reset; arbitrary computed
+aliases and physical task timing remain outside the evidence.
 
 For a future firmware change, make cancellation belong to a job and join old
 workers before discarding their context or accepting a new owner of the buffer.
 Blindly clearing a global flag at the next job's start can let an old worker
 continue. For the stock adapter, a presign request without a WAV or finalize is
 not proof of user intent to generate; let unused tickets expire.
+
+### Cancellation flags have different reset boundaries
+
+The later [reference and instruction audit](cancellation-state-cases.json) finds
+the same roles on both pinned builds:
+
+| Flag | Large | Standard | Identified byte accesses per build |
+| --- | --- | --- | --- |
+| Processing cancellation | `0x3fca6b19` | `0x3fca6b88` | Ten reads, two stores of 1, three stores of 0 |
+| Recording cancellation | `0x3fca6b1a` | `0x3fca6b89` | Four reads, two stores of 1, two stores of 0 |
+
+Each flag has one exact pointer in the initialized image. All recovered uses
+of those pointers are covered by byte-checked monitor, recording, workflow,
+worker or main-loop bodies. The processing flag's two set sites are in the
+button monitor. Its three clear sites are the explicit workflow cancellation
+branches described above. Monitor start/stop leaves both flags alone. An enabled
+recording-start path clears recording cancellation only; the disabled path
+returns before that clear. This census does not exclude arbitrary computed
+aliases, broad memory corruption or writes from code outside the recovered app.
+
+Eighteen instruction cases per model exercise those distinctions and the
+workflow's exit paths. Upload invalid-state with cancellation, successful upload
+with cancellation and successful download with cancellation clear the processing
+flag. A generic upload error, cancelled download error, download timeout, and
+cancellation injected at rendering leave it set in the selected cases. Both
+render success and render error/timeout preserve it. The task outputs and
+cancellation timing are supplied by the fixture; real concurrency is not run.
+
+A separately executed upload worker with the flag already set still calls the
+presign helper. Presign success then yields worker status `0x103` without a WAV
+upload; presign failure preserves that error instead. Neither worker branch
+clears the processing flag. The outer workflow's explicit cancelled-upload
+branch supplies the clear, so failure before that branch can preserve it again.
+
+Fresh application startup provides a separate boundary. The image entry points
+are Large `0x40375a84` and Standard `0x40375a8c`. Before testing the deep-sleep
+reset reason, each calls ROM `memset` with zero over its ordinary BSS:
+
+| Model | Start | Exclusive end | Covers both flags |
+| --- | --- | --- | --- |
+| Large | `0x3fca5cf0` | `0x3fcb11e8` | Yes |
+| Standard | `0x3fca5d60` | `0x3fcb1290` | Yes |
+
+The [SDK startup source](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_system/port/cpu_start.c)
+distinguishes this unconditional ordinary-BSS clear from the later conditional
+RTC-BSS clear. The [ESP32-S3 ROM map](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_rom/esp32s3/ld/esp32s3.rom.newlib.ld)
+identifies `0x400011e8` as `memset`. Both normal and deep-sleep reset-reason host
+cases clear the seeded flags before the next startup helper. Thus stale flag
+retention concerns consecutive jobs within a wake session; it does not survive
+re-entry through this normal startup prefix. This is not a physical restart
+test, a light-sleep result, or a recommendation to reset during active work.
+
+The [validation record](validation-2026-10-22.md#cancellation-state-reference-and-startup-boundaries-c08e01e02)
+retains the exact store sites, hashes and fixture limits.
 
 ### Prepared bounded finalize experiment
 

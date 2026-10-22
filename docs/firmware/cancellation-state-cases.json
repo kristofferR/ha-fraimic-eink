@@ -1,0 +1,977 @@
+{
+  "evidence": "Byte-checked instructions with synthetic service/task/ROM outcomes; no physical operation",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "workflow",
+          "entry": "0x42011adc",
+          "instructions": 793,
+          "sha256": "c8f897eace812858b45c8508e21b4879b9d5db659b0805be2889741c1cbc0495"
+        },
+        {
+          "name": "upload",
+          "entry": "0x42010108",
+          "instructions": 346,
+          "sha256": "318f85328f6f242d572b8b787a698f344d46a991588b70ab1c2ecf0e5a8cb5dc"
+        },
+        {
+          "name": "download",
+          "entry": "0x420104a8",
+          "instructions": 155,
+          "sha256": "ec564d629c11cd3927fc5f995bc139642f776dd18ecf9170d22f28017698dab4"
+        },
+        {
+          "name": "record-start",
+          "entry": "0x42010994",
+          "instructions": 256,
+          "sha256": "49340af04cbeae6382fb4d79f6e07642adc5b9cd318ff1a0ac67121cc862e6d9"
+        },
+        {
+          "name": "monitor",
+          "entry": "0x4200f770",
+          "instructions": 494,
+          "sha256": "b1a9455056ea33b567d88daa343109fb6dbe92e13a73c3222ca80d2ec07342d5"
+        },
+        {
+          "name": "start",
+          "entry": "0x420110a4",
+          "instructions": 141,
+          "sha256": "a0050d4f0ccbb2b43a012d8e37fdebf808583898299d7f1dd7aa59c3a1f52c4c"
+        },
+        {
+          "name": "stop",
+          "entry": "0x42011218",
+          "instructions": 94,
+          "sha256": "8e440714342338e86d36b6b30d6cc5a52876698efcd47e15dd4aa1b8b6b41faf"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011314",
+          "instructions": 260,
+          "sha256": "3874826d2dcc3f30da800c82a597dc7d7ef39dfa9932c4839252abff36f21988"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        },
+        {
+          "name": "startup-prefix",
+          "entry": "0x40375a84",
+          "instructions": 26,
+          "sha256": "64a43538b90274015aa0b6145ce55c849d0eced685e76f9ebe4720e2f196f373",
+          "end_exclusive": "0x40375acb"
+        }
+      ],
+      "reference_audit": [
+        {
+          "name": "processing",
+          "target": "0x3fca6b19",
+          "pointers": [
+            "0x42000dd8"
+          ],
+          "pointer_uses": [
+            "0x4200fa53",
+            "0x4200fc43",
+            "0x42011d90",
+            "0x42011dab",
+            "0x42011e01",
+            "0x42011f07",
+            "0x42011fe9",
+            "0x42012157",
+            "0x42010174",
+            "0x420101f9",
+            "0x4201025a",
+            "0x420102dd",
+            "0x42010358",
+            "0x420103dc",
+            "0x420104e7"
+          ],
+          "accesses": [
+            {
+              "address": "0x4200fa5b",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x4200fc4b",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x4201017a",
+              "access": "read"
+            },
+            {
+              "address": "0x420101ff",
+              "access": "read"
+            },
+            {
+              "address": "0x42010260",
+              "access": "read"
+            },
+            {
+              "address": "0x420102e3",
+              "access": "read"
+            },
+            {
+              "address": "0x4201035e",
+              "access": "read"
+            },
+            {
+              "address": "0x420103e2",
+              "access": "read"
+            },
+            {
+              "address": "0x420104ed",
+              "access": "read"
+            },
+            {
+              "address": "0x42011d96",
+              "access": "read"
+            },
+            {
+              "address": "0x42011db1",
+              "access": "read"
+            },
+            {
+              "address": "0x42011e09",
+              "access": "write",
+              "value": 0
+            },
+            {
+              "address": "0x42011f0f",
+              "access": "write",
+              "value": 0
+            },
+            {
+              "address": "0x42011fef",
+              "access": "read"
+            },
+            {
+              "address": "0x4201215f",
+              "access": "write",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "recording",
+          "target": "0x3fca6b1a",
+          "pointers": [
+            "0x42000dd0"
+          ],
+          "pointer_uses": [
+            "0x4200fa28",
+            "0x42010a52",
+            "0x42010b24",
+            "0x42011534",
+            "0x42011564",
+            "0x4201158f",
+            "0x42013c6d",
+            "0x42013ce7"
+          ],
+          "accesses": [
+            {
+              "address": "0x4200fa30",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x42010a58",
+              "access": "write",
+              "value": 0
+            },
+            {
+              "address": "0x42010b2a",
+              "access": "read"
+            },
+            {
+              "address": "0x4201153c",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x4201156a",
+              "access": "read"
+            },
+            {
+              "address": "0x42011595",
+              "access": "read"
+            },
+            {
+              "address": "0x42013c73",
+              "access": "read"
+            },
+            {
+              "address": "0x42013cf0",
+              "access": "write",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "bss": {
+        "start": "0x3fca5cf0",
+        "end_exclusive": "0x3fcb11e8"
+      },
+      "instructions_executed_unique": 1034,
+      "scenarios": [
+        {
+          "name": "monitor-start-preserves-flags",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": []
+        },
+        {
+          "name": "monitor-stop-preserves-flags",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": []
+        },
+        {
+          "name": "record-disabled-preserves-flags",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": []
+        },
+        {
+          "name": "record-start-clears-only-recording",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 0,
+          "events": []
+        },
+        {
+          "name": "upload-invalid-state-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            10
+          ]
+        },
+        {
+          "name": "upload-error-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000
+          ]
+        },
+        {
+          "name": "upload-success-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            10
+          ]
+        },
+        {
+          "name": "download-success-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            10
+          ]
+        },
+        {
+          "name": "download-error-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000
+          ]
+        },
+        {
+          "name": "download-timeout-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            500
+          ]
+        },
+        {
+          "name": "render-completion-with-late-cancel",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0,
+            18000
+          ]
+        },
+        {
+          "name": "render-error-with-late-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0
+          ]
+        },
+        {
+          "name": "render-timeout-with-late-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0,
+            18000
+          ]
+        },
+        {
+          "name": "normal-workflow",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0,
+            18000
+          ]
+        },
+        {
+          "name": "stale-flag-presign-success-skips-wav",
+          "outcome": "boundary",
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "presign"
+          ],
+          "worker_status": 259
+        },
+        {
+          "name": "stale-flag-presign-error",
+          "outcome": "boundary",
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "presign"
+          ],
+          "worker_status": 257
+        },
+        {
+          "name": "startup-reset-reason-1",
+          "outcome": "boundary",
+          "processing_cancel": 0,
+          "recording_cancel": 0,
+          "events": [],
+          "clears": [
+            {
+              "start": "0x3fca5cf0",
+              "length": 46328,
+              "value": 0
+            },
+            {
+              "start": "0x50000000",
+              "length": 0,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "startup-reset-reason-5",
+          "outcome": "boundary",
+          "processing_cancel": 0,
+          "recording_cancel": 0,
+          "events": [],
+          "clears": [
+            {
+              "start": "0x3fca5cf0",
+              "length": 46328,
+              "value": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "workflow",
+          "entry": "0x42011a3c",
+          "instructions": 793,
+          "sha256": "4306f5626ba89844137cd478296a5e3c354deaf88f09b3eb5b237f35f510a6f4"
+        },
+        {
+          "name": "upload",
+          "entry": "0x4201005c",
+          "instructions": 346,
+          "sha256": "45b3e7279c52979222ac06878e7ca698866c4b6d426c82284d6033d6f11f6aa4"
+        },
+        {
+          "name": "download",
+          "entry": "0x420103fc",
+          "instructions": 155,
+          "sha256": "89c4767ef429668c2148452d6852ff5f23b2e10e0098cb57e55b88bc4bb53626"
+        },
+        {
+          "name": "record-start",
+          "entry": "0x420106d0",
+          "instructions": 256,
+          "sha256": "53a56557b4cf48c5ced71b718ec20ff416cbc85e11a7e59c781099ba26c13630"
+        },
+        {
+          "name": "monitor",
+          "entry": "0x4200f6c4",
+          "instructions": 494,
+          "sha256": "36dbe7091c26537374f1aa5516ee5244d500fbfb1dc5c6eada37fe1468ae2142"
+        },
+        {
+          "name": "start",
+          "entry": "0x42011004",
+          "instructions": 141,
+          "sha256": "50a3bf97301a8b0ca21c1a3a06331033f93f473a2180ea03c46ce8b4469ee9a3"
+        },
+        {
+          "name": "stop",
+          "entry": "0x42011178",
+          "instructions": 94,
+          "sha256": "bbbbdcda5ea6bf5fbb93fe8ce5885faaa3181fe60a79d61f4f6ce3f9a0f5dcc7"
+        },
+        {
+          "name": "record-control",
+          "entry": "0x42011274",
+          "instructions": 260,
+          "sha256": "3f4689ae24b99438ef951cc730585917feb3a9dcd21332d08a967a203537aced"
+        },
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        },
+        {
+          "name": "startup-prefix",
+          "entry": "0x40375a8c",
+          "instructions": 26,
+          "sha256": "eb4d2b95ae3688b2267af77dde938ab17fd910824e50014705f296b352c7d20d",
+          "end_exclusive": "0x40375ad3"
+        }
+      ],
+      "reference_audit": [
+        {
+          "name": "processing",
+          "target": "0x3fca6b88",
+          "pointers": [
+            "0x42000dd8"
+          ],
+          "pointer_uses": [
+            "0x4200f9a7",
+            "0x4200fb97",
+            "0x420100c8",
+            "0x4201014d",
+            "0x420101ae",
+            "0x42010231",
+            "0x420102ac",
+            "0x42010330",
+            "0x4201043b",
+            "0x42011cf0",
+            "0x42011d0b",
+            "0x42011d61",
+            "0x42011e67",
+            "0x42011f49",
+            "0x420120b7"
+          ],
+          "accesses": [
+            {
+              "address": "0x4200f9af",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x4200fb9f",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x420100ce",
+              "access": "read"
+            },
+            {
+              "address": "0x42010153",
+              "access": "read"
+            },
+            {
+              "address": "0x420101b4",
+              "access": "read"
+            },
+            {
+              "address": "0x42010237",
+              "access": "read"
+            },
+            {
+              "address": "0x420102b2",
+              "access": "read"
+            },
+            {
+              "address": "0x42010336",
+              "access": "read"
+            },
+            {
+              "address": "0x42010441",
+              "access": "read"
+            },
+            {
+              "address": "0x42011cf6",
+              "access": "read"
+            },
+            {
+              "address": "0x42011d11",
+              "access": "read"
+            },
+            {
+              "address": "0x42011d69",
+              "access": "write",
+              "value": 0
+            },
+            {
+              "address": "0x42011e6f",
+              "access": "write",
+              "value": 0
+            },
+            {
+              "address": "0x42011f4f",
+              "access": "read"
+            },
+            {
+              "address": "0x420120bf",
+              "access": "write",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "recording",
+          "target": "0x3fca6b89",
+          "pointers": [
+            "0x42000dd0"
+          ],
+          "pointer_uses": [
+            "0x4200f97c",
+            "0x4201078e",
+            "0x42010860",
+            "0x42011494",
+            "0x420114c4",
+            "0x420114ef",
+            "0x42013bed",
+            "0x42013c67"
+          ],
+          "accesses": [
+            {
+              "address": "0x4200f984",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x42010794",
+              "access": "write",
+              "value": 0
+            },
+            {
+              "address": "0x42010866",
+              "access": "read"
+            },
+            {
+              "address": "0x4201149c",
+              "access": "write",
+              "value": 1
+            },
+            {
+              "address": "0x420114ca",
+              "access": "read"
+            },
+            {
+              "address": "0x420114f5",
+              "access": "read"
+            },
+            {
+              "address": "0x42013bf3",
+              "access": "read"
+            },
+            {
+              "address": "0x42013c70",
+              "access": "write",
+              "value": 0
+            }
+          ]
+        }
+      ],
+      "bss": {
+        "start": "0x3fca5d60",
+        "end_exclusive": "0x3fcb1290"
+      },
+      "instructions_executed_unique": 1034,
+      "scenarios": [
+        {
+          "name": "monitor-start-preserves-flags",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": []
+        },
+        {
+          "name": "monitor-stop-preserves-flags",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": []
+        },
+        {
+          "name": "record-disabled-preserves-flags",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": []
+        },
+        {
+          "name": "record-start-clears-only-recording",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 0,
+          "events": []
+        },
+        {
+          "name": "upload-invalid-state-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            10
+          ]
+        },
+        {
+          "name": "upload-error-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000
+          ]
+        },
+        {
+          "name": "upload-success-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            10
+          ]
+        },
+        {
+          "name": "download-success-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            10
+          ]
+        },
+        {
+          "name": "download-error-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000
+          ]
+        },
+        {
+          "name": "download-timeout-with-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            500
+          ]
+        },
+        {
+          "name": "render-completion-with-late-cancel",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0,
+            9000
+          ]
+        },
+        {
+          "name": "render-error-with-late-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0
+          ]
+        },
+        {
+          "name": "render-timeout-with-late-cancel",
+          "outcome": "returned",
+          "value": 4294967295,
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0,
+            9000
+          ]
+        },
+        {
+          "name": "normal-workflow",
+          "outcome": "returned",
+          "value": 0,
+          "processing_cancel": 0,
+          "recording_cancel": 1,
+          "events": [
+            "upload",
+            "download",
+            "render"
+          ],
+          "requested_wait_ticks": [
+            0,
+            90000,
+            0,
+            30000,
+            0,
+            9000
+          ]
+        },
+        {
+          "name": "stale-flag-presign-success-skips-wav",
+          "outcome": "boundary",
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "presign"
+          ],
+          "worker_status": 259
+        },
+        {
+          "name": "stale-flag-presign-error",
+          "outcome": "boundary",
+          "processing_cancel": 1,
+          "recording_cancel": 1,
+          "events": [
+            "presign"
+          ],
+          "worker_status": 257
+        },
+        {
+          "name": "startup-reset-reason-1",
+          "outcome": "boundary",
+          "processing_cancel": 0,
+          "recording_cancel": 0,
+          "events": [],
+          "clears": [
+            {
+              "start": "0x3fca5d60",
+              "length": 46384,
+              "value": 0
+            },
+            {
+              "start": "0x50000000",
+              "length": 0,
+              "value": 0
+            }
+          ]
+        },
+        {
+          "name": "startup-reset-reason-5",
+          "outcome": "boundary",
+          "processing_cancel": 0,
+          "recording_cancel": 0,
+          "events": [],
+          "clears": [
+            {
+              "start": "0x3fca5d60",
+              "length": 46384,
+              "value": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "Reference census covers exact initialized pointers and recovered references, not arbitrary computed aliases or memory corruption.",
+    "Task outcomes are injected synchronously into borrowed contexts; no scheduling, network, hardware or concurrent worker is executed.",
+    "Startup prefix models the ROM memset and reset-reason calls; vector-base write has no modeled hardware effects.",
+    "Return through normal startup clears these flags; alternate bootloader paths, light sleep and physical reset behavior are not tested."
+  ]
+}

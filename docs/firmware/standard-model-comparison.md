@@ -106,6 +106,18 @@ The AP bodies match across 264 instructions. The 963/964-instruction normal
 workers are interpreted separately, without a whole-body equivalence claim.
 Actual semaphore faults, service availability and timing remain untested.
 
+### Cancellation retention has the same startup boundary
+
+The [flag-lifetime audit](voice.md#cancellation-flags-have-different-reset-boundaries)
+identifies the same processing/recording roles and byte-access counts on both
+builds. Eighteen instruction cases each confirm that monitor start/stop and a
+new recording do not clear processing cancellation, selected voice exits retain
+it, and the upload worker checks it only after presign. Both normal application
+entry prefixes unconditionally zero a BSS region containing both flags, before
+the deep-sleep-specific RTC branch. This bounds the stale flag to the current
+wake session when normal startup is used; it does not demonstrate physical
+concurrency, reset behavior or complete driver equivalence.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

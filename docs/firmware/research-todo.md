@@ -99,7 +99,10 @@ time-control/overlapping-waiter cases and N03's bounded identity/save/reset comp
 are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
-remain deferred. A02–A04 and A03's final integration check need implementation;
+remain deferred. C08's follow-up reference audit and eighteen instruction cases
+per build establish the distinct cancellation reset boundaries, including fresh
+startup; this extends its existing evidence rather than closing the device test.
+A02–A04 and A03's final integration check need implementation;
 report that dependency rather than substituting more library decompilation.
 Preserve the remaining lower-priority static work under its original ID.
 Commit and push validated research batches periodically as requested.
@@ -189,6 +192,7 @@ Commit and push validated research batches periodically as requested.
   - [x] **Static/Host:** Map cancellation at each stage, all 21 direct active-client operations, SDK close/reconnect state and selected Standard equivalents. [Cancellation](voice.md#which-stages-can-abort-their-socket), [slot ownership](voice.md#active-client-ownership-and-failed-unregistration).
   - [x] **Static:** Trace borrowed upload/download contexts, timeout returns, forced deletion and stale-result candidates. [Download lifetime](image-downloads.md#voice-download-timeout-and-forced-task-deletion).
   - [x] **Host:** Enumerate 70 client-slot orders and explicit late-result/stale-cancel traces using bounded transition models; retain overlap, stack-reuse and scheduler/socket assumptions. [Model and counterexamples](voice.md#bounded-two-job-ownership-and-completion-model).
+    The follow-up audits exact cancellation-flag references and runs eighteen instruction cases per build, including ordinary-BSS clearing at startup: [flag boundaries](voice.md#cancellation-flags-have-different-reset-boundaries), [cases](cancellation-state-cases.json), [validation](validation-2026-10-22.md#cancellation-state-reference-and-startup-boundaries-c08e01e02).
   - [ ] **Deferred:** **Device:** Run the postponed cancellation experiment and correlate backend disconnect, continuing work and final state. This is the owner-deferred recording test.
 
 - [x] **C09 · Host/Device:** Complete one local end-to-end voice round trip using

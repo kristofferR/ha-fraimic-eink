@@ -3501,3 +3501,59 @@ Private artifact hashes; the result JSON alone is published as the numeric ledge
 | `standard-background-ap-comparison.json` | `8fd0da36de5588fe8e7719040f9574a188713bee520cd8eaa8c2f51c7f45e4fc` |
 | `background-ready-reference-large.tsv` | `63a22ca5d8cc4c4c05d4a85bf74346dab40ebfce7f8286b36a0f25a3ac6fcce7` |
 | `background-ready-reference-standard.tsv` | `04ea6598764ec015aed7f10e7b87406360cbd14537b2d2c95a578a13b8bc6f57` |
+
+## Cancellation state reference and startup boundaries: C08/E01/E02
+
+Audited exact initialized pointers and recovered references for processing
+cancellation (`0x3fca6b19` / `0x3fca6b88`) and recording cancellation
+(`0x3fca6b1a` / `0x3fca6b89`). Each flag has one exact initialized pointer in
+each build. Processing has ten reads and five writes; recording has four reads
+and four writes. Every identified access is present in byte-checked CFGs, and
+store values are checked against their preceding immediate definitions. This
+does not exclude computed aliases or memory corruption.
+
+| Processing write | Large | Standard | Value |
+| --- | --- | --- | ---: |
+| Immediate triple-tap monitor branch | `0x4200fa5b` | `0x4200f9af` | 1 |
+| Quiet-window monitor branch | `0x4200fc4b` | `0x4200fb9f` | 1 |
+| Upload invalid-state cancellation cleanup | `0x42011e09` | `0x42011d69` | 0 |
+| Successful upload followed by cancellation | `0x42011f0f` | `0x42011e6f` | 0 |
+| Successful download followed by cancellation | `0x4201215f` | `0x420120bf` | 0 |
+
+Fresh GNU recovery checks 346 upload-worker, 155 download-worker, 793 workflow
+and 256 recording-start instructions per build. Existing byte-checked monitor,
+start/stop, recording-control and main CFGs supply the other reference owners.
+The startup prefix adds 26 contiguous instructions per build through the first
+post-clear helper call; all bytes and relevant literals are checked against
+the pinned images. This is a bounded prefix, not a complete CPU-start emulation.
+
+All **18 cases per model passed**, executing 1,034 distinct instructions each.
+The [sanitized ledger](cancellation-state-cases.json) records two monitor
+lifecycle, two recording-start, ten workflow, two already-cancelled upload-worker
+and two startup cases. Task creation injects selected result/size/cancel values
+into synthetic contexts synchronously. No concurrent task, network, microphone
+or rendering driver executes. Startup stubs the reset-reason and ROM `memset`
+calls and ignores hardware effects of setting the vector base.
+
+The cases establish retention on selected generic upload errors, download
+errors/timeouts and cancellation injected at render entry, including successful
+render completion. An already-set flag still allows a presign call before the
+worker's cancellation check. Recording-start clears only its own flag; disabled
+recording and monitor lifecycle retain both seeded flags.
+
+At image entry, the unconditional BSS clears cover both flags: Large
+`[0x3fca5cf0, 0x3fcb11e8)`, Standard `[0x3fca5d60, 0x3fcb1290)`. Reset-reason
+values 1 and 5 both clear them; only the later RTC-BSS call is conditional.
+This refines the same-wake hypothesis without claiming a physical cancellation
+or reset result. See the [firmware consequences and primary SDK sources](voice.md#cancellation-flags-have-different-reset-boundaries).
+
+No device/network/HA operation occurred. C08's physical test remains deferred;
+existing static/host milestones are extended without changing the 12/67 or
+124/188 checklist counts.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `cancel-state-cases.mjs` | `cd7752c5c5322361f315f51522eee33e7206348ceedc10715d29c4f4623271eb` |
+| `cancel-state-results.json` (published as the numeric ledger) | `097aad4f41cb2615549cffef89cb952d59b343f774ce406e97b8ca585edd5b87` |
+| `cancel-state-reference-large.tsv` | `6a30305561afb27a661c01de76e68d11b915e83896455fd5446eff6a9a545cc5` |
+| `cancel-state-reference-standard.tsv` | `1b87c5bf1582d72b4c33ca29b77c081784cb4ba80d27accc8044a88057fde48f` |
