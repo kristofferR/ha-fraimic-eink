@@ -733,8 +733,10 @@ Eighteen isolated host cases validate these receive/conversion boundaries using
 four unmodified pinned functions and buffer/timer/clock-recording stubs. They
 perform no actual clock setting or network I/O. The local-backend requirement is
 an **accurate time service returning plain 48-byte server responses**, alongside
-working DNS and the separate connectivity gate. No physical local-NTP test or
-Standard receive-path equivalence is established by this pass.
+working DNS and the separate connectivity gate. The subsequent
+[Standard comparison](standard-model-comparison.md#ntp-receive-and-clock-application-also-match)
+confirms the same selected receive/clock branches there. Physical local-NTP
+compatibility remains untested.
 
 ### DHCP does not configure the stock time server
 

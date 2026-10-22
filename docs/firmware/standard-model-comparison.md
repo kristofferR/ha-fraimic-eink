@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 94 corresponding functions, including the subsequent
+The preserved metadata maps 100 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -157,6 +157,30 @@ or address constants, or consistent RAM/code pointer mappings. This is scoped
 branch/data-flow evidence, not a proof that all external helpers or the entire
 SDK are equivalent. Physical timing and the proposed local DNS/NTP setup remain
 unverified.
+
+### NTP receive and clock application also match
+
+Standard receive callback `0x42055278` and timestamp converter `0x42055250`
+have the same relevant [packet/clock contract](boot-and-scheduling.md#ntp-response-contract-and-clock-application)
+as Large. They require exactly 48 bytes and the matching response mode, handle
+stratum zero as a retry, and apply the transmit timestamp without the additional
+source/port, leap/version, originate-match or freshness checks discussed there.
+The epoch offset and fractional conversion match, including zero time becoming
+7 February 2036.
+
+Wrapper `0x42052114` zero-extends seconds into a 64-bit time value; SDK sync
+`0x42052018` invokes clock setter `0x4200aedc` in its immediate branch and then
+the registered callback. Application callback `0x42014748` reads the resulting
+clock and checks local year >= 2020 before setting flag `0x3fca6bbc` and signaling
+the semaphore at `0x3fca6bb8`. Its early-year branch does not clear a previously
+true flag. Interval getter `0x42052108` reads `0x3fca1320`, initialized to the same
+3,600,000 ms. None of this proves that the frame remains awake for that interval.
+
+Nine functions, 256 instructions and 31 internal branches were compared, including
+request initialization, SDK/application callbacks and the clock-setter entry.
+The existing 18 host receive/conversion cases have matching relevant branches on
+both builds; they are not additional executions. The static comparison does not
+replace a physical cold-boot, local-NTP or clock-correction test.
 
 ### Orientation and album-body follow-up
 

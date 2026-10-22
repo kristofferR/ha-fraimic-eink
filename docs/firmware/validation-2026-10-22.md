@@ -1283,3 +1283,28 @@ Private artifacts: `ntp-response-pass1.txt` through `ntp-response-pass4.txt`,
 `ntp-response-literals.jsonl`, `ntp-response-fixture.c`,
 `prepare-ntp-response-fixture.mjs`, `ntp-response-source-hashes.json`,
 `ntp-response-results.txt` and `ntp-response-evidence-hashes.txt`.
+
+## Standard NTP receive and clock comparison: S02/E02
+
+One Standard reference pass and 12 bounded GNU ranges compare nine functions,
+256 instructions and 31 internal branches with the Large response/clock pass.
+Every instruction's offset and bytes are checked against the hash-validated
+application image. Non-call/non-literal instruction bytes match. Fifteen distinct
+direct-call pairs and 26 literal pairs are reviewed as corresponding pointers,
+equal constants or identical strings; this does not establish all external
+helper implementations as equivalent. The application callback and clock-setter
+entry have different relocation offsets from the lwIP helpers and were compared
+at their own verified entries.
+
+Separate literal reads confirm the 3,600,000 ms interval at Standard
+`0x3fca1320`, epoch/fraction constants and application flag/semaphore addresses.
+The comparison extends the existing 18 receive/conversion host cases to matched
+static paths in Standard; no additional cases or physical packets are claimed.
+Six function pairs bring the public map to 100. Actual local time service,
+clock correction, cold boot, retained RTC and full offline operation remain open.
+No frame, backend, host clock, DNS or router setting changed.
+
+Private Standard artifacts: `standard-ntp-pass1.txt`,
+`compare-standard-ntp.mjs`, `standard-ntp-boundaries-gnu.txt`,
+`standard-ntp-comparison.json`, `standard-ntp-literals.jsonl` and
+`standard-ntp-evidence-hashes.txt`.

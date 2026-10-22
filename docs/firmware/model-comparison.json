@@ -165,7 +165,22 @@
       "large_dhcp_request_table": "0x3c3c4f14",
       "standard_dhcp_request_table": "0x3c24debc",
       "pending_dns_callbacks_cancelled_by_sntp_stop": false,
-      "sntp_dns_callback_checks_attempt_identity": false
+      "sntp_dns_callback_checks_attempt_identity": false,
+      "receive_contract": {
+        "evidence": "Matched static branches; 18 existing isolated host receive/conversion cases, no physical local-NTP test",
+        "payload_bytes": 48,
+        "poll_response_mode": 4,
+        "stratum_zero_is_retry": true,
+        "source_port_checked_in_callback": false,
+        "source_address_checked_in_callback": false,
+        "leap_version_checked_in_callback": false,
+        "originate_timestamp_checked": false,
+        "zero_transmit_unix_seconds": 2085978496,
+        "initial_update_interval_ms": 3600000,
+        "application_min_local_year": 2020,
+        "large_update_interval": "0x3fca12b0",
+        "standard_update_interval": "0x3fca1320"
+      }
     },
     "dns_resolver": {
       "evidence": "Scoped static comparison of selected resolver and SNTP callback branches; no DNS cutover/outage packet test",
@@ -655,6 +670,36 @@
       "role": "dns_dhcp_clear",
       "large": "0x4206a398",
       "standard": "0x420693c4"
+    },
+    {
+      "role": "sntp_receive",
+      "large": "0x4205624c",
+      "standard": "0x42055278"
+    },
+    {
+      "role": "sntp_timestamp_convert",
+      "large": "0x42056224",
+      "standard": "0x42055250"
+    },
+    {
+      "role": "sntp_system_time_wrapper",
+      "large": "0x420530e8",
+      "standard": "0x42052114"
+    },
+    {
+      "role": "sntp_sdk_sync_time",
+      "large": "0x42052fec",
+      "standard": "0x42052018"
+    },
+    {
+      "role": "sntp_application_callback",
+      "large": "0x42014728",
+      "standard": "0x42014748"
+    },
+    {
+      "role": "system_clock_set",
+      "large": "0x4200af88",
+      "standard": "0x4200aedc"
     }
   ],
   "live_standard": {

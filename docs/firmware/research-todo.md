@@ -305,8 +305,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   remains for when device tests resume.
   Large's [NTP receive contract](boot-and-scheduling.md#ntp-response-contract-and-clock-application)
   now includes 18 host cases for packet acceptance and timestamp conversion,
-  including zero timestamp mapping to 2036. Compare Standard reception and test
-  accurate local NTP separately from SDK parse success or the year-only app flag.
+  including zero timestamp mapping to 2036. The Standard receive/clock comparison
+  confirms those static paths too. Test accurate local NTP separately from SDK
+  parse success or the year-only app flag.
 - [ ] **S03 · Host/Device:** Exercise future, absent, invalid, past and failed-poll
   deadlines across reboot. Check persistence and the distinction between clearing
   the schedule and a network failure.
