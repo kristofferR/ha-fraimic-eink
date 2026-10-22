@@ -4129,3 +4129,20 @@ and [case metadata](factory-mic-cases.json) extend existing milestones; totals
 remain **12/67 original items and 125/189 milestones**. No device, network or HA
 changes were made. Fixture SHA-256:
 `a9aad8f7521f78ebecc9f0731662b3c5037fb19f1a6fb14c0e112744efa8d223`.
+
+## Read-only Standard counter observation: H05/E02
+
+Two direct GET `/api/info` requests to Standard returned HTTP 200 with firmware
+0.2.28 / build 4654a1d8. Both reported `display.render_attempts: 3`,
+`display.render_failures: 0`, `display.last_refresh: null`, four-day maintenance
+interval and hour 3. The later read completed at **2026-10-22 21:28:54 UTC**.
+This physically confirms the optional counter shape on the pinned Standard
+build, not causation, persistence after a new reboot or any new render outcome.
+The original successful voice capture and visual confirmation remain separate
+evidence. No artwork, recording, settings or routing was changed.
+
+Large's single status request hit the four-second timeout. Its static field
+absence is still established by the complete handler comparison, but no current
+Large response was obtained. A wake was requested for the next read-only check.
+Raw Standard responses remain private; published values above exclude identity
+and network fields. Existing task counts remain unchanged.

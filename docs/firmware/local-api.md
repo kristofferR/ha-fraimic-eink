@@ -667,6 +667,13 @@ The [caller and driver follow-up](rendering-and-concurrency.md#standard-counters
 shows that these count final refresh returns, bypass early worker rejection and
 conditioning, and cannot attribute success to a particular backend job.
 
+Two read-only Standard `/api/info` requests on 22 October returned the same
+`render_attempts: 3`, `render_failures: 0` and `last_refresh: null`, on the pinned
+0.2.28 / 4654a1d8 build. The later read completed at 21:28:54 UTC. This confirms
+the live field shape and unchanged values across those reads; no image, recording
+or failure was induced. Large timed out, so its current response shape was not
+rechecked in this pass.
+
 ## Restart, sleep and refresh acknowledgments
 
 The separate portal reset action performs
