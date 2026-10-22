@@ -582,7 +582,39 @@ they should not be inferred from an ordinary timeout log alone.
 For future firmware, keep a selected time client alive long enough to cover its
 startup delay, DNS and response budget, and make recovery account for outstanding
 callbacks. For stock emulation, accurate local NTP service remains a candidate;
-this pass has not established DHCP option 42 support or physical offline boot.
+the DHCP follow-up below rules out option 42, while physical offline boot is
+still untested.
+
+### DHCP does not configure the stock time server
+
+Large 0.2.29 **does not consume DHCPv4 option 42 as an NTP configuration**. This
+conclusion follows the compiled request builders, response parser and extension
+hooks, rather than the SDK's default build settings:
+
+- The parameter-request list at `0x3c3c4f14` contains exactly four bytes:
+  `01 03 1c 06` (subnet mask, router, broadcast address and DNS). Five message
+  builders use a four-byte loop and advertise length four for option 55.
+- Their append hook `0x42067360` can add client identifier option 61; it does not
+  append an NTP request or extend that parameter list.
+- Reply parser `0x4206044c` has no option-42 case. That value takes its unknown
+  option path at `0x420605cb`. The extension hook `0x420672e4` immediately returns
+  for every option except 26, so it also ignores 42. The parser then skips the
+  supplied payload without storing it in its decoded-option table.
+- ACK application `0x420607ec` consumes lease, subnet, router and DNS fields, with
+  no time-server installation. The recovered SNTP address references likewise
+  lead to its request/DNS paths, not this DHCP path.
+
+The option identities and conditional SDK feature align with the
+[pinned DHCP implementation](https://github.com/espressif/esp-lwip/blob/fa4dffdfac52587a26c1f29258376df750cf8474/src/core/ipv4/dhcp.c).
+The binary checks establish that enabling NTP advertisement on the router alone
+will not replace the application-selected names in this build. Unsolicited option
+42 does not provide a workaround. This is a static IPv4 DHCP result; it is not
+a DHCP packet experiment, a Standard-model comparison or a claim about DHCPv6.
+
+For stock emulation, resolving the four configured names to an accurate local
+NTP service remains the candidate to validate. A later custom firmware can expose
+an explicit time-server setting or deliberately implement DHCP-based selection.
+Keep this separate from the public TCP reachability dependency.
 
 ### HTTP Date does not supply a fallback clock
 

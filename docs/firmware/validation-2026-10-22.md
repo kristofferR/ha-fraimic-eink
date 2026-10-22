@@ -1091,3 +1091,28 @@ Private artifacts: `sntp-selection-pass1.txt` through `sntp-selection-pass5.txt`
 `sntp-selection-literals.jsonl`, `sntp-more-literals.jsonl` and
 `sntp-selection-evidence-hashes.txt`. SDK names are analytical identifications;
 the binary is still the pinned Large application, not recovered vendor source.
+
+## DHCP time-server handling: S02
+
+Four reference/decompiler passes and 52 bounded GNU ranges cover ten Large
+functions/call regions: five request builders, reply parsing, ACK application,
+receive dispatch and two extension hooks. A hash-checked segment scan found the
+four-byte request list; its callers confirm both the list length and byte values.
+Ghidra truncates the parser at `SALTU`, so the GNU pass resumes at verified branch
+targets and separately decodes blocks after padding. The unknown-option branch,
+hook's immediate non-26 return and zero decode length establish that a supplied
+option 42 is skipped, rather than merely absent from the request list.
+
+The ACK path contains no time-server installation. The append hook adds a client
+identifier, not a time-server request. The option-26-specific hook body is outside
+this question; its early return is sufficient to determine option-42 behavior.
+This is static evidence for Large's DHCPv4 client only. No synthetic DHCP traffic,
+lease renewal, router change, frame contact, DHCPv6 conclusion or Standard-model
+equivalence is claimed. Local DNS/NTP compatibility still needs a bounded physical
+test; the broader S02 item remains open.
+
+Private artifacts: `find-dhcp-table.mjs`, `dhcp-table-candidates.json`,
+`dhcp-time-pass1.txt` through `dhcp-time-pass4.txt`, `dhcp-time-gnu.mjs`,
+`dhcp-time-boundaries-gnu.txt` and `dhcp-time-evidence-hashes.txt`.
+`dhcp-parser-exploratory-gnu.txt` is discovery output with padding misdecodes;
+use the bounded output as the instruction evidence.

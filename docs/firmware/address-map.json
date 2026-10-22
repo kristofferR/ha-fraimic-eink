@@ -76,6 +76,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c3c4f14",
+      "kind": "data",
+      "role": "DHCPv4 parameter-request list: four bytes 01 03 1c 06; no NTP option 42",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
       "address": "0x3fca64dc",
       "kind": "data",
       "role": "Shared 1,536-byte voice result URL buffer; distinct from caller-stack upload status",
@@ -2948,6 +2954,66 @@
       "kind": "function",
       "role": "lwIP timer cancellation; matches callback and argument and unlinks first match",
       "evidence": "static; 22 October SNTP startup follow-up"
+    },
+    {
+      "address": "0x4205fc50",
+      "kind": "function",
+      "role": "DHCP rebind request builder; four-byte parameter-request list",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x4205fd90",
+      "kind": "function",
+      "role": "DHCP reboot request builder; four-byte parameter-request list",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x4205fec4",
+      "kind": "function",
+      "role": "DHCP selecting/request builder; four-byte parameter-request list",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x4206009c",
+      "kind": "function",
+      "role": "DHCP discover builder; four-byte parameter-request list",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x4206044c",
+      "kind": "function",
+      "role": "DHCP reply-option parser; option 42 follows unknown-option hook and payload skip",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x420607ec",
+      "kind": "function",
+      "role": "DHCP ACK application; lease, subnet, router and DNS, no NTP installation",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x42060900",
+      "kind": "function",
+      "role": "DHCP receive dispatch to reply parser and ACK/offer/NAK handlers",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x42060ac8",
+      "kind": "function",
+      "role": "DHCP renew request builder; four-byte parameter-request list",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x420672e4",
+      "kind": "function",
+      "role": "DHCP extra-option hook; returns immediately unless option is 26, so ignores 42",
+      "evidence": "static; 22 October DHCP time-source follow-up"
+    },
+    {
+      "address": "0x42067360",
+      "kind": "function",
+      "role": "DHCP append hook; conditional client identifier option 61, no NTP request",
+      "evidence": "static; 22 October DHCP time-source follow-up"
     },
     {
       "address": "0x4206d20c",

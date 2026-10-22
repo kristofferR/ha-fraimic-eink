@@ -288,8 +288,10 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   ordinary offline boot and actual local NTP compatibility still need validation.
   Large's [single-slot SNTP and startup delay](boot-and-scheduling.md#sntp-server-selection-and-startup-delay)
   can cancel a delayed request when the first two application waits expire.
-  Check DHCP time-server handling, late callbacks, callback-queue failures and
-  physical startup timing; SDK defaults alone do not establish build behavior.
+  Large's [DHCPv4 parser and hooks](boot-and-scheduling.md#dhcp-does-not-configure-the-stock-time-server)
+  skip option 42, including unsolicited time-server offers. Check Standard
+  behavior, late callbacks, callback-queue failures and physical startup timing;
+  SDK defaults alone do not establish build behavior.
 - [ ] **S03 · Host/Device:** Exercise future, absent, invalid, past and failed-poll
   deadlines across reboot. Check persistence and the distinction between clearing
   the schedule and a network failure.
