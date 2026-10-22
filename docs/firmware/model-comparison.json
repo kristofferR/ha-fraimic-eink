@@ -535,6 +535,38 @@
         "finalize_parser_groups": 8
       },
       "limitations": "Host caller/parser behavior is reconstructed; external helpers are not recursively compared; no new device tests, HTTP fault injection, allocation failure or peer-receipt proof"
+    },
+    "voice_json_request_allocation": {
+      "evidence": "Previously compared complete request callers plus seven matching cJSON ownership helpers; real pinned cJSON under reconstructed host callers and injected allocator failures",
+      "compared_helper_functions": 7,
+      "compared_helper_instructions_per_image": 145,
+      "compared_branches": 26,
+      "gnu_ranges_per_image": 10,
+      "direct_call_pairs": 5,
+      "literal_pairs": 5,
+      "presign_fields": [
+        "device_key",
+        "user_id"
+      ],
+      "finalize_fields": [
+        "device_key",
+        "user_id",
+        "key",
+        "orientation"
+      ],
+      "all_children_created_before_attachment": true,
+      "creation_error_cleanup": "Delete root only; successfully created unattached children remain allocated",
+      "attachment_result_checked": false,
+      "host_cases": {
+        "total": 50,
+        "baselines": 2,
+        "single_failure_cases": 24,
+        "persistent_failure_cases": 24,
+        "presign_total": 19,
+        "finalize_total": 31,
+        "incomplete_serialized_requests": 6
+      },
+      "limitations": "Synthetic host allocations and custom allocator hooks, not ESP32 heap byte counts, actual fragmentation or physical TLS failure diagnosis; measured orphans freed only during fixture teardown"
     }
   },
   "function_map": [
@@ -1477,6 +1509,41 @@
       "role": "http_client_write",
       "large": "0x4206d930",
       "standard": "0x4206cf28"
+    },
+    {
+      "role": "cjson_create_string",
+      "large": "0x42039830",
+      "standard": "0x420382f4"
+    },
+    {
+      "role": "cjson_create_object",
+      "large": "0x42039884",
+      "standard": "0x42038348"
+    },
+    {
+      "role": "cjson_add_item_to_object",
+      "large": "0x42039690",
+      "standard": "0x42038154"
+    },
+    {
+      "role": "cjson_delete",
+      "large": "0x42039158",
+      "standard": "0x42037c1c"
+    },
+    {
+      "role": "cjson_add_item_to_object_internal",
+      "large": "0x420387c8",
+      "standard": "0x4203728c"
+    },
+    {
+      "role": "cjson_strdup",
+      "large": "0x42038798",
+      "standard": "0x4203725c"
+    },
+    {
+      "role": "cjson_new_item",
+      "large": "0x42038900",
+      "standard": "0x420373c4"
     }
   ],
   "live_standard": {

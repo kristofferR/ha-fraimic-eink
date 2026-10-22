@@ -216,7 +216,7 @@ upload routine subsequently reparses the truncated string and fails before
 opening its HTTP client.
 
 Twenty-five isolated host groups use the pinned
-[cJSON 1.7.18 implementation](https://github.com/DaveGamble/cJSON/blob/v1.7.18/cJSON.c)
+[pinned cJSON implementation](https://github.com/DaveGamble/cJSON/blob/acc76239bee01d8e9c858ae2cab296704e52d916/cJSON.c)
 with reconstructed positive-read HTTP-200 field handling and string-part
 projection. Concrete boundary cases use synthetic short field names and values:
 
@@ -391,6 +391,57 @@ are unnecessary for the simple empty acknowledgment.
 This corrects the earlier claim that any 2xx response suffices. The first Ghidra
 export truncated the upload function before this check; live validation exposed
 the missing condition.
+
+### JSON request allocation failures can lose ownership or fields
+
+Presign creates an object and two string children (`device_key`, `user_id`);
+finalize creates an object and four (`device_key`, `user_id`, `key`,
+`orientation`). Both call every string constructor before checking whether any
+creation failed. At this point none of the children belongs to the object.
+The error branch deletes only the root and returns the no-memory error. Any
+successfully created unattached children therefore remain allocated.
+
+If creation succeeds, both callers invoke `cJSON_AddItemToObject` for each field
+without checking its return. The compiled helper (`0x42039690` → `0x420387c8`)
+duplicates the field name before attaching the child. A failed name allocation
+returns false without taking ownership or freeing the child. The caller still
+serializes the object, so a transient failure can produce a request missing an
+intended field while also leaving its child/value allocated. A later print failure
+returns no-memory, but does not recover a child that was never attached.
+
+These ownership rules agree with the
+[pinned cJSON implementation](https://github.com/DaveGamble/cJSON/blob/acc76239bee01d8e9c858ae2cab296704e52d916/cJSON.c).
+Seven compiled Large helpers were checked over ten GNU ranges and 145
+byte-matched instructions; their Standard counterparts match normalized operations
+and 26 branches. The allocator hooks, constructors, string duplication, ordinary
+object attachment and recursive deletion were distinguished from application
+cleanup. The two complete application callers were compared separately.
+
+A host fixture used the real pinned cJSON source, synthetic request values,
+tracked allocator hooks and reconstructed caller order. It swept each allocation
+position on the successful path, first failing only that allocation and then
+failing every allocation from that point onward:
+
+| Request | Host cases including successful baseline | Result of transient field-name allocation failures |
+| --- | --- | --- |
+| Two-field presign | 19 | Either intended field can be omitted; its child/value remain allocated |
+| Four-field finalize | 31 | Any one of the four intended fields can be omitted with the same ownership loss |
+
+All **50 cases** passed their expected-outcome checks with compiler warnings
+treated as errors and address/undefined-behavior sanitizers. The two successful
+baselines released everything. Creation failures demonstrated unattached children;
+six transient attachment failures serialized incomplete objects. Failures confined
+to printing after successful attachment released the object and its children.
+The fixture measured orphaned allocations before freeing them in test teardown;
+that teardown is not present in the firmware error path.
+
+These are conditional fault paths, not a leak demonstrated during ordinary voice
+use. Host pointer sizes and custom hooks do not measure ESP32 heap consumption,
+fragmentation or failure frequency. This does not establish the cause of the
+earlier physical TLS allocation errors. A firmware fix should free untransferred
+children on every error and check attachment results. The backend should validate
+its required request fields before side effects, rather than assuming the stock
+client always emits every intended member.
 
 ### JSON request writes can proceed after zero
 

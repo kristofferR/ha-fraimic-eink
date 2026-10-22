@@ -46,7 +46,7 @@ combined IRAM by 32 bytes. This supports a shared software base with substantial
 model data/assets, not instruction-by-instruction equivalence. Hardware model
 and firmware release differ together, so their effects cannot always be separated.
 
-The preserved metadata maps 188 corresponding functions, including the subsequent
+The preserved metadata maps 195 corresponding functions, including the subsequent
 account-setup, `/dev`, calendar, orientation, album-body, task/conditioning,
 maintenance, LED, status-image, cancellation and SNTP/DHCP/DNS comparisons. The poll paths share 86
 referenced strings apart from their model/version literals; selected presign and
@@ -507,6 +507,13 @@ not validate a nonempty URL or consult `success`, `message` or a job ID. Its
 32-bit processing-time field is sampled after headers and before reading the
 body. The handler has no application-level retry/status-polling loop. The outer
 voice worker's existing cancellation/lifetime rules still apply.
+
+The [allocation-ownership follow-up](voice.md#json-request-allocation-failures-can-lose-ownership-or-fields)
+also compares seven cJSON helpers: 145 instructions, 26 branches and ten ranges
+per build. The complete callers plus these helpers support the same conditional
+unattached-child leaks and ignored field-attachment failures on both versions.
+Fifty host allocation cases use reconstructed callers and the pinned library;
+they do not measure either device's heap or explain its observed TLS failures.
 
 The [JSON write checks](voice.md#json-request-writes-can-proceed-after-zero) and
 [finalize parser groups](voice.md#finalize-response-fields-and-host-parser-checks)
