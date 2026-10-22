@@ -95,7 +95,7 @@ per question, not a count of tool calls or decompiled functions.
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema and saved schema-version differences recorded | Remaining incomplete flow, unconstrained server values and untested authorization cases |
 | H05/N03/A01 | Both builds' mDNS setup, MAC-suffix names, ignored errors, one-time delegated address and blocking action waits match; HTTP service registration is absent from the recovered setup path | Actual service packets, collisions, changed IPs, action faults and credential identity across reset/environment changes |
 | N03/C11/A01 | Five identity bodies match: stored-key precedence, user-ID-gated legacy migration, deterministic generation and different save-error handling; embedded material compared privately | Physical identity/reset behavior, interrupted saves, MAC/read faults and remaining reset/SDK paths |
-| N03/H05/C11 | Both reset backups/restores match; Large whole-NVS erase, recovery erase before backup, unchecked field writes and reset handoff despite helper error traced | Physical/interrupted recovery, remaining caller/SDK comparison, cached identity and later recreated state/artwork |
+| N03/H05/C11 | Both reset backups/restores match; Large erase/handoff, cached account versus SDK credential checks, conditional statistics rewrite and later sleep markers traced | Physical/interrupted recovery, remaining caller/SDK comparison, concurrent writers and final persisted identity/artwork |
 | C04/C11/E02 | Three complete setup metadata/fetch bodies match except model literal; nineteen SDK/parser host cases cover chunked zero-header results, incomplete bodies, URL limits and field lookup | Physical local setup assets, heap/transport faults, external SDK/driver equivalence and independent enrollment |
 | C01/S02/E02 | Ten resolver/transport functions match; 23 host cases establish lowercase `.local` selection, cache precedence, pending-route inheritance and query/callback limits; DNS barrier has no HTTP deadline argument | Physical multicast, DNS packets/faults, TLS identity, fresh/cache-expired backend resolution and actual offline timing |
 | C01/S02/E02 | Four reply-parser/completion functions match; 26 host packet cases cover transaction/question/class checks, one-address limit, TTLs and partial-answer state retained before a later failed reply | Physical UDP/multicast interoperability, callback re-entry, timers, dual-family faults, lower-network filters and TLS |
@@ -540,9 +540,11 @@ Source: [storage and configuration](storage-and-configuration.md).
   storage/MAC faults and recovery remain open. Both
   [reset helpers](storage-and-configuration.md#reset-erases-nvs-before-restoring-the-other-environment)
   now match: opposite-environment backups precede whole-NVS erase, while a Large
-  caller recovery branch can erase even before backup. End-to-end cached state,
-  subsequent recreated records, interrupted recovery and Standard SDK/callers
-  remain open.
+  caller recovery branch can erase even before backup. Large's
+  [later cache checks and writes](storage-and-configuration.md#cached-identity-and-later-writes-after-reset)
+  distinguish old account RAM from the SDK credential fallback, dirty-statistics
+  rewrites and new sleep markers. Final persisted identity/artwork, concurrent
+  writers, interrupted recovery and Standard SDK/callers remain open.
 - [ ] **N04 · Host/Device:** Validate mount retries and format-on-failure decisions
   with missing legacy key, NVS read error and filesystem corruption in a disposable
   fixture. Establish which state/artwork survives recovery on the actual layout.

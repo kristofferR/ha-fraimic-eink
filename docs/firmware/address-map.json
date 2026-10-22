@@ -106,6 +106,12 @@
       "evidence": "static and bounded GNU cross-check; 22 October NTP receive/clock follow-up"
     },
     {
+      "address": "0x3fca1794",
+      "kind": "data",
+      "role": "SDK Wi-Fi internal state word; initialized is 3, deinitializing 4, deinitialized 1",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
+    },
+    {
       "address": "0x3fca64dc",
       "kind": "data",
       "role": "Shared 1,536-byte voice result URL buffer; distinct from caller-stack upload status",
@@ -422,6 +428,12 @@
       "kind": "global",
       "role": "Pointer to 65,536-byte diagnostic PSRAM store",
       "evidence": "static; 22 October diagnostic follow-up"
+    },
+    {
+      "address": "0x3fcac6d6",
+      "kind": "data",
+      "role": "Wi-Fi statistics dirty flag; reset helpers do not explicitly clear it",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
       "address": "0x3fcaca80",
@@ -860,6 +872,18 @@
       "kind": "function",
       "role": "Saved email-verification flag getter",
       "evidence": "static; enrollment and HTTP follow-up"
+    },
+    {
+      "address": "0x42015240",
+      "kind": "function",
+      "role": "Setup-complete predicate: bitwise AND of cached nonempty-email and verification bytes, without persistence/key/user-ID validation",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
+    },
+    {
+      "address": "0x42015264",
+      "kind": "function",
+      "role": "Reevaluate user type from Wi-Fi credential and cached-account predicates; configured branch ignores force_ftu erase result",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
       "address": "0x420153b0",
@@ -1430,6 +1454,12 @@
       "kind": "function",
       "role": "Read factory-test mode byte; LED setter applies its allowlist before urgency",
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x4201ea80",
+      "kind": "function",
+      "role": "Credential presence: initialized STA first SSID byte, else SDK sta.ssid blob-length query; no environment-backup lookup",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
       "address": "0x4201eae0",
@@ -2500,6 +2530,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4202e9b0",
+      "kind": "function",
+      "role": "Flush dirty 906-byte Wi-Fi statistics; clear dirty flags only after successful open/write/commit; called twice in reset-to-storage-sleep path",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
+    },
+    {
       "address": "0x4202ed00",
       "kind": "function",
       "role": "Clear 906-byte Wi-Fi stats RAM record and attempt NVS erasure",
@@ -3472,6 +3508,18 @@
       "evidence": "static; 22 October DNS fallback/cache follow-up"
     },
     {
+      "address": "0x4206c800",
+      "kind": "function",
+      "role": "Wi-Fi SDK deinitialization wrapper: stop check, callbacks/cleanup, internal deinit and initialized-byte clear on success",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
+    },
+    {
+      "address": "0x4206c8c4",
+      "kind": "function",
+      "role": "Public Wi-Fi deinit gate: SDK initialized byte required, otherwise 0x3001",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
+    },
+    {
       "address": "0x4206d16c",
       "kind": "function",
       "role": "HTTP common transport options: keep-alive/interface configuration",
@@ -3644,6 +3692,24 @@
       "kind": "function",
       "role": "SDK URI registration helper",
       "evidence": "static; 22 October HTTP/factory follow-up"
+    },
+    {
+      "address": "0x4209bc88",
+      "kind": "function",
+      "role": "Locked Wi-Fi initialized-state predicate, true only for internal state 3",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
+    },
+    {
+      "address": "0x4209c4dc",
+      "kind": "function",
+      "role": "Internal Wi-Fi deinit: state 3 to 4, successful cleanup to 1; allocation/message failure restores 3",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
+    },
+    {
+      "address": "0x4209cb8c",
+      "kind": "function",
+      "role": "STA/AP configuration getter requires internal initialized state before accessing driver configuration",
+      "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
       "address": "0x420af6e4",

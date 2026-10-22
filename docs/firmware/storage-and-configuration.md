@@ -497,8 +497,8 @@ state, and enters storage sleep through `0x42010674`. These are later operations
 not part of an atomic NVS transaction or an immediate reboot. The existing
 [teardown](local-api.md#server-capacity-and-lifecycle),
 [render-completion](rendering-and-concurrency.md) and sleep limits still apply.
-End-to-end cached identity, recreated keys, artwork and failure recovery remain
-unverified; no reset request was sent.
+The later cache checks and writes are traced below. Final persisted identity,
+artwork and failure recovery remain unverified; no reset request was sent.
 
 The two reset-helper bodies match Standard `0x42017a80` / `0x42017fe0` across
 969 byte-matched GNU instructions, 60 branch destinations and 17 contiguous
@@ -507,6 +507,53 @@ Large pass checks three SDK bodies and the HTTP/main-loop reset regions across
 12 ranges and 396 instructions. That second pass is not a Standard SDK/caller
 comparison. These findings argue for a dedicated backend migration setting that
 preserves identity and storage, rather than repurposing factory reset.
+
+### Cached identity and later writes after reset
+
+Large's initialized identity accessor `0x4201912c` returns the RAM configuration
+without reloading NVS. The reset helpers do not explicitly invalidate that cache.
+The “complete” predicate `0x42015240` combines a nonempty cached email with its
+cached verification byte; it does not validate a device key, user ID or successful
+post-reset read. A status reported in this interval is therefore not evidence
+that the corresponding account records survived the erase.
+
+User reevaluation `0x42015264` also requires Wi-Fi credentials. Its credential
+predicate `0x4201ea80` first asks the initialized driver for STA configuration
+and checks the first SSID byte. If that request fails, it opens `nvs.net80211`
+and asks for the `sta.ssid` blob's length: a successful nonzero length passes,
+without examining its contents. It does not consult the environment-specific
+`app_data/wifi_ssid_p` or `wifi_ssid_d` backups here.
+
+Successful SDK deinitialization changes the internal initialized state from 3
+to 1. The STA-config getter then returns `0x3001` instead of serving old driver
+configuration, causing the NVS fallback above. If the SDK SSID record is absent,
+reevaluation selects setup even when the cached account remains complete.
+Conversely, a teardown failure that leaves usable old STA configuration, together
+with the old complete account cache, can select the configured branch. That
+branch attempts to erase `force_ftu`, ignores the helper's result and requests
+the ready LED. This is a conditional static path, not an observed reset outcome.
+The erase helper treats a missing flag as success and ignores commit failure.
+
+The pending-reset sequence also performs later storage writes:
+
+| Later operation | Persistence attempted and error handling |
+| --- | --- |
+| First network teardown | `0x4202e9b0` saves the 906-byte RAM `wifi_stats` blob only when dirty. Open/write/commit failure leaves its dirty flag set; the caller ignores the result. |
+| Storage-sleep entry | Attempts one-byte blobs `deep_sleep=1` and `storage_mode=1`; individual writes and commit are unchecked after a successful namespace open. |
+| Second network teardown inside storage sleep | Calls the same statistics flush again, so an earlier failed flush can be retried. Wi-Fi stop/deinit errors are logged without preventing the remaining sleep sequence. |
+| Immediately before deep sleep | `0x4202d860` attempts I64 `last_sleep_ts` from the current clock; it checks the write but ignores commit failure. |
+
+Neither reset helper clears the statistics dirty flag. Consequently a successful
+erase can be followed by saving pre-reset statistics and new sleep markers;
+the HTTP reset response is not a snapshot of final NVS contents. The recovered
+storage-sleep branch does not call the whole-identity saver, so these writes do
+not establish that the erased account is restored.
+
+This follow-up checks 15 complete Large helper bodies across 661 byte-matched
+GNU instructions, 68 branches and 31 contiguous ranges, alongside the recovered
+storage-sleep caller. It does not compare these SDK/cache paths on Standard or
+execute them on either device. Internal SDK cleanup, concurrent writers,
+interrupted shutdown, subsequent boot and actual final storage remain open.
 
 ## Mounting the image partition
 

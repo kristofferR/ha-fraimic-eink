@@ -1747,3 +1747,28 @@ per-function `transport-family-*-cfg.json`/`.txt`,
 `transport-family-ssl.c` / `local-resolver-esp-tls.c` references.
 The socket/select/allocator/TLS callees are not all recursively compared; actual
 IPv6 compatibility, retry sequences, network faults and timing remain open.
+
+## Reset cache checks and subsequent writes: N02/N03/H05/C11
+
+Fifteen complete Large helper bodies were checked against the pinned application
+with GNU disassembly: 661 instructions, 68 branches and 31 contiguous ranges.
+Entry prologues, instruction bytes, reachable branch destinations and coverage
+are checked independently of Ghidra's inferred function ends. The additional
+storage-sleep caller establishes the order of marker writes, repeated teardown
+and the final timestamp attempt.
+
+The [reset follow-up](storage-and-configuration.md#cached-identity-and-later-writes-after-reset)
+separates initialized account RAM from persisted identity and SDK credentials.
+Successful driver deinitialization prevents the STA getter from simply returning
+old configuration; the fallback checks the SDK SSID blob length. The configured
+branch and first-time-flag erase require both credential and account predicates.
+Dirty statistics can be written after the NVS erase, with a second attempt on
+storage-sleep entry if the first failed. Later sleep markers and timestamp are
+separate unchecked/partly checked writes, not an account restore transaction.
+
+Private artifacts: `reset-cache-pass1.txt` through `reset-cache-pass4.txt`,
+`run-reset-cache-cfg.mjs`, `reset-cache-summary.json` and per-function
+`reset-cache-*-large-cfg.json`/`.txt`. These are static results only: no reset,
+live HTTP request, network change, new host fault fixture or firmware write was
+performed. Standard comparison, recursive SDK cleanup, concurrent writes and
+final state after interrupted shutdown/reboot remain open.
