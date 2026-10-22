@@ -1,0 +1,412 @@
+{
+  "method": "Pinned-image complete GNU CFG comparison and interpretation of original decoded instructions with synthetic RAM, DMA completions, queues and allocation results.",
+  "builds": {
+    "large": "0.2.29 / f1555ee5",
+    "standard": "0.2.28 / 4654a1d8"
+  },
+  "image_sha256": {
+    "large": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+    "standard": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7"
+  },
+  "comparison": {
+    "functions": [
+      {
+        "name": "callback",
+        "large": "0x4037afb8",
+        "standard": "0x4037afd8",
+        "instructions": 48,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "buffer-size",
+        "large": "0x4204edd4",
+        "standard": "0x4204deac",
+        "instructions": 21,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "allocate-ring",
+        "large": "0x4204eeac",
+        "standard": "0x4204df84",
+        "instructions": 215,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "dma-init",
+        "large": "0x4204f0f8",
+        "standard": "0x4204e1d0",
+        "instructions": 199,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "register-channel",
+        "large": "0x4204f5b4",
+        "standard": "0x4204e68c",
+        "instructions": 150,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "new-channel",
+        "large": "0x4204f758",
+        "standard": "0x4204e830",
+        "instructions": 309,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "pdm-slot",
+        "large": "0x4204ff48",
+        "standard": "0x4204f020",
+        "instructions": 95,
+        "normalized_operations_match": true
+      },
+      {
+        "name": "pdm-init",
+        "large": "0x420500e0",
+        "standard": "0x4204f1b8",
+        "instructions": 204,
+        "normalized_operations_match": true
+      }
+    ],
+    "instructions_per_build": 1241,
+    "mapped_direct_call_pairs": 17,
+    "private_comparison_sha256": "a2edfba3b81ea00a3bd7ddf0b8d53fff2859a3a4c4d65dca37ce48b57366e1ff"
+  },
+  "instruction_cases": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "callback",
+          "entry": "0x4037afb8",
+          "instructions": 48,
+          "sha256": "346a4ce230edb3b931e5de90c979cfd4d286a309ef4b7fd94bd3e1cf82b3f6bb"
+        },
+        {
+          "name": "buffer-size",
+          "entry": "0x4204edd4",
+          "instructions": 21,
+          "sha256": "58be0adce4336d0d3e5d75d11e7c01e3745dc3a90e77a5896dc34177f6827ff4"
+        },
+        {
+          "name": "reader",
+          "entry": "0x4204fbec",
+          "instructions": 110,
+          "sha256": "de43918f1ce4b2a7d58b37e1ddbaec9161ebcd147cf21694a8b380a7a547421c"
+        },
+        {
+          "name": "register-channel",
+          "entry": "0x4204f5b4",
+          "instructions": 150,
+          "sha256": "4318f3b7172f714e56c919e7c3cdcc809c344b69ea34221b65981541406fcb4c"
+        },
+        {
+          "name": "allocate-ring",
+          "entry": "0x4204eeac",
+          "instructions": 215,
+          "sha256": "5c2530a04ed208ed2f5598acaed4b49389cf0cf3c1a00c6d26f45933613d6d78"
+        },
+        {
+          "name": "pdm-slot",
+          "entry": "0x4204ff48",
+          "instructions": 95,
+          "sha256": "d8ba5e147c179e6f8822ebe78044cd65e1a669960d2320a0178e8b187cc5a706"
+        },
+        {
+          "name": "dma-init",
+          "entry": "0x4204f0f8",
+          "instructions": 199,
+          "sha256": "afe5d35df3b21422fb8f489c83c8cffaf4bf1027e5052095f627ec38fedaf10b"
+        }
+      ],
+      "executed_instruction_sites": 464,
+      "results": [
+        {
+          "name": "rx-dma-registration-installs-only-eof-handler",
+          "passed": true,
+          "callback": "0x4037afb8",
+          "secondary_handlers": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "configured-mono-pdm-slot-allocates-480-byte-ring-blocks",
+          "passed": true,
+          "active_slots": 1,
+          "total_slots": 2,
+          "buffer_bytes": 480
+        },
+        {
+          "name": "channel-creation-five-pointer-queue-and-null-hooks",
+          "passed": true,
+          "queue_length": 5,
+          "queue_item_bytes": 4,
+          "user_hooks_all_null": true
+        },
+        {
+          "name": "allocator-links-six-480-byte-buffers-in-circle",
+          "passed": true,
+          "descriptors": 6,
+          "buffer_bytes": 480,
+          "total_sample_storage_bytes": 2880
+        },
+        {
+          "name": "first-pointer-array-allocation-failure-returns-no-memory",
+          "passed": true,
+          "status": 257,
+          "cleanup_calls": 1
+        },
+        {
+          "name": "second-pointer-array-allocation-failure-reaches-null-store",
+          "passed": true,
+          "null_store_address": 0,
+          "cleanup_calls_before_boundary": 0
+        },
+        {
+          "name": "compiled-mono-size-is-480-bytes",
+          "passed": true,
+          "bytes": 480,
+          "nominal_ms_at_16000_hz": 15
+        },
+        {
+          "name": "five-completions-retain-five-pointers",
+          "passed": true,
+          "queued": 5,
+          "lost": 0
+        },
+        {
+          "name": "sixth-completion-drops-oldest-with-no-error-return",
+          "passed": true,
+          "lost": 1,
+          "first_returned_generation": 1,
+          "reader_status": 0
+        },
+        {
+          "name": "sustained-producer-keeps-latest-five-completions",
+          "passed": true,
+          "completions": 20,
+          "lost": 15,
+          "returned_generations": [
+            15,
+            16,
+            17,
+            18,
+            19
+          ]
+        },
+        {
+          "name": "borrowed-buffer-suffix-can-change-after-ring-wrap",
+          "passed": true,
+          "prefix_generation": 0,
+          "suffix_generation": 6,
+          "prefix_bytes": 32,
+          "suffix_bytes": 448,
+          "reader_status": 0,
+          "lost": 1
+        },
+        {
+          "name": "prompt-reader-preserves-two-completions",
+          "passed": true,
+          "bytes": 960,
+          "lost": 0
+        },
+        {
+          "name": "producer-backed-reader-still-reports-partial-timeout",
+          "passed": true,
+          "bytes_consumed": 480,
+          "reader_status": 263
+        },
+        {
+          "name": "optional-sdk-hook-order-and-yield",
+          "passed": true,
+          "order": [
+            "receive-callback",
+            "drop",
+            "overflow-callback",
+            "send"
+          ]
+        },
+        {
+          "name": "callback-does-not-surface-synthetic-send-failure",
+          "passed": true,
+          "queued": 0,
+          "callback_result": 0
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "callback",
+          "entry": "0x4037afd8",
+          "instructions": 48,
+          "sha256": "ab3457a379a94491803b9f23a4a6eee42193e5e7afc728fb25e2dd9d43d3cc68"
+        },
+        {
+          "name": "buffer-size",
+          "entry": "0x4204deac",
+          "instructions": 21,
+          "sha256": "c5a98e90766da2a99583fb20300f1fc602f47473457c180b7475869961b6b22e"
+        },
+        {
+          "name": "reader",
+          "entry": "0x4204ecc4",
+          "instructions": 110,
+          "sha256": "e0810a4a211d760606db8c5257cb5249fea88c7923eac6747dd689cf61010687"
+        },
+        {
+          "name": "register-channel",
+          "entry": "0x4204e68c",
+          "instructions": 150,
+          "sha256": "7827e2a485ef178931b061df20abe51e9ce4692d1cd88efce8fb99a0097bca37"
+        },
+        {
+          "name": "allocate-ring",
+          "entry": "0x4204df84",
+          "instructions": 215,
+          "sha256": "d09ea9e9cc716d1c71625372f0eaebcbd017a13d2ac86eced6506b764b86d5a7"
+        },
+        {
+          "name": "pdm-slot",
+          "entry": "0x4204f020",
+          "instructions": 95,
+          "sha256": "4dc77ed059426fef2bfa6836e6d3b8bd1b48bf097a7fe67c700d1c5fc1c87e4c"
+        },
+        {
+          "name": "dma-init",
+          "entry": "0x4204e1d0",
+          "instructions": 199,
+          "sha256": "9e5234771c2bd82135f0ec533ce555d010a97ef5cda1227348ca79b216b9d607"
+        }
+      ],
+      "executed_instruction_sites": 464,
+      "results": [
+        {
+          "name": "rx-dma-registration-installs-only-eof-handler",
+          "passed": true,
+          "callback": "0x4037afd8",
+          "secondary_handlers": [
+            0,
+            0
+          ]
+        },
+        {
+          "name": "configured-mono-pdm-slot-allocates-480-byte-ring-blocks",
+          "passed": true,
+          "active_slots": 1,
+          "total_slots": 2,
+          "buffer_bytes": 480
+        },
+        {
+          "name": "channel-creation-five-pointer-queue-and-null-hooks",
+          "passed": true,
+          "queue_length": 5,
+          "queue_item_bytes": 4,
+          "user_hooks_all_null": true
+        },
+        {
+          "name": "allocator-links-six-480-byte-buffers-in-circle",
+          "passed": true,
+          "descriptors": 6,
+          "buffer_bytes": 480,
+          "total_sample_storage_bytes": 2880
+        },
+        {
+          "name": "first-pointer-array-allocation-failure-returns-no-memory",
+          "passed": true,
+          "status": 257,
+          "cleanup_calls": 1
+        },
+        {
+          "name": "second-pointer-array-allocation-failure-reaches-null-store",
+          "passed": true,
+          "null_store_address": 0,
+          "cleanup_calls_before_boundary": 0
+        },
+        {
+          "name": "compiled-mono-size-is-480-bytes",
+          "passed": true,
+          "bytes": 480,
+          "nominal_ms_at_16000_hz": 15
+        },
+        {
+          "name": "five-completions-retain-five-pointers",
+          "passed": true,
+          "queued": 5,
+          "lost": 0
+        },
+        {
+          "name": "sixth-completion-drops-oldest-with-no-error-return",
+          "passed": true,
+          "lost": 1,
+          "first_returned_generation": 1,
+          "reader_status": 0
+        },
+        {
+          "name": "sustained-producer-keeps-latest-five-completions",
+          "passed": true,
+          "completions": 20,
+          "lost": 15,
+          "returned_generations": [
+            15,
+            16,
+            17,
+            18,
+            19
+          ]
+        },
+        {
+          "name": "borrowed-buffer-suffix-can-change-after-ring-wrap",
+          "passed": true,
+          "prefix_generation": 0,
+          "suffix_generation": 6,
+          "prefix_bytes": 32,
+          "suffix_bytes": 448,
+          "reader_status": 0,
+          "lost": 1
+        },
+        {
+          "name": "prompt-reader-preserves-two-completions",
+          "passed": true,
+          "bytes": 960,
+          "lost": 0
+        },
+        {
+          "name": "producer-backed-reader-still-reports-partial-timeout",
+          "passed": true,
+          "bytes_consumed": 480,
+          "reader_status": 263
+        },
+        {
+          "name": "optional-sdk-hook-order-and-yield",
+          "passed": true,
+          "order": [
+            "receive-callback",
+            "drop",
+            "overflow-callback",
+            "send"
+          ]
+        },
+        {
+          "name": "callback-does-not-surface-synthetic-send-failure",
+          "passed": true,
+          "queued": 0,
+          "callback_result": 0
+        }
+      ]
+    }
+  ],
+  "fixture_sha256": "3ac56ed1db78450bf652a23afc685564799343e989cbd0f24697373cc4dae5b1",
+  "source_crosscheck": {
+    "url": "https://github.com/espressif/esp-idf/blob/v5.4.1/components/esp_driver_i2s/i2s_common.c",
+    "sha256": "b39ebba9ea228bba21f9629ce54e4c6ffba628c0b7ec3b477a6960e094dc232c"
+  },
+  "limits": [
+    "This is not physical DMA execution or a FreeRTOS scheduler. Synthetic DMA overwrites are an explicit input, not an observed dropout.",
+    "Queued pointers and borrowed-buffer lifetime are proven for the recovered producer/reader; exact wall-clock reuse and interrupt latency are not.",
+    "The ring allocation failure stops at the attempted address-zero store. It does not execute an ESP32 exception handler or establish a reset on the owned frames.",
+    "Normalized bodies map relocated calls and literals; arbitrary callees are not recursively proven equivalent.",
+    "A missing SDK callback-registration function-name string and null constructor callbacks do not exclude arbitrary computed registration."
+  ]
+}

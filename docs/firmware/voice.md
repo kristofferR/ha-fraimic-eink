@@ -99,6 +99,10 @@ Its `abs(sample) > 100` count is diagnostic: it does not remove silence or stop
 recording. There is no sample gain/normalization or software speech detector in
 this application worker; this says nothing about the microphone's physical DSP.
 
+The [23 October producer audit](microphone-dma.md) now establishes the actual
+480-byte blocks, five-pointer queue, oldest-entry eviction and circular reuse
+on both builds. It adds sample-loss boundaries independent of read timeouts.
+
 The compiled SDK reader at `0x4204fbec` can copy bytes, advance its DMA position,
 then return `ESP_ERR_TIMEOUT` when a later queue receive fails. The app discards
 that entire partial result. Later reads continue from the advanced position,

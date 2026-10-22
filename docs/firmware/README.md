@@ -1,7 +1,7 @@
 # Fraimic firmware research
 
 This is an implementation-oriented map of **Fraimic Large firmware 0.2.29,
-build f1555ee5**, researched on 21–22 October 2026. It covers the stock application,
+build f1555ee5**, researched on 21–23 October 2026. It covers the stock application,
 its local and cloud protocols, and ways to integrate a custom backend with this
 Home Assistant integration. It is not recovered vendor source or a flashing guide.
 The [Standard-model comparison](standard-model-comparison.md) separately covers
@@ -15,6 +15,9 @@ claims across these documents, with stable task IDs and concrete validation work
 It separates checked evidence milestones from remaining research, implementation,
 device tests and recovery prerequisites. The earlier cumulative table is retained
 as [pass history](research-progress-2026-10-22.md); the checklist owns current status.
+The [static coverage ledger](static-coverage.md) tracks the renewed producer,
+initialization and application-census work. Original checklist counts do not
+measure how much of the firmware has been analyzed.
 The [21 October validation](validation-2026-10-21.md) records owner gallery reads,
 installed HA capabilities, five library host checks and deeper firmware traces.
 The [22 October continuation](validation-2026-10-22.md) adds HTTP-server lifecycle,
@@ -38,6 +41,7 @@ No transcription or AI generation was invoked.
 | [Schema versus client contract](schema-and-client-contract.md) | July/October schema differences, captured extra fields and limits of generated API models |
 | [Image downloads](image-downloads.md) | Length/framing checks, restart-from-zero retries, incomplete images and cache consequences |
 | [Voice](voice.md) | Recording, WAV upload, synchronous generation, cancellation, concurrency |
+| [Microphone DMA](microphone-dma.md) | Circular buffers, silent queue loss, buffer reuse and allocation-failure boundaries on both builds |
 | [Voice and local-control hooks](voice-local-control-hooks.md) | Stock-compatible features, normal recording entry points and firmware hooks for HA controls and no-redraw commands |
 | [Physical input and gestures](input-and-gestures.md) | Tap windows, ignored double taps, held-input admission and monitor/result lifetime on both builds |
 | [Rendering and concurrency](rendering-and-concurrency.md) | Buffer aliases, upload ordering, render policies, error propagation and completion signals |
@@ -54,6 +58,7 @@ No transcription or AI generation was invoked.
 | [Voice feature proposal](voice-feature-proposal.md) | Creation history, explicit image/target semantics and six playlist/scene API checks |
 | [Album/playlist mapping](album-playlist-mapping.md) | Proposed stock-album subset, wake-only records and nineteen isolated mutation checks |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
+| [Static coverage](static-coverage.md) | Supplemental research ledger, function-census method and explicit coverage limits |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
 | [22 October validation](validation-2026-10-22.md) | Transport/parser, storage, task ownership, input/wake and complete poll-body comparisons |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |

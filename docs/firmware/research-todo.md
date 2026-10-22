@@ -11,6 +11,10 @@ the top-level box closes only the stated question.
 
 **12 of 67 original items complete; 125 of 189 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
+The owner reopened broad static coverage on 23 October. The
+[supplemental ledger](static-coverage.md) tracks microphone DMA/interrupts,
+model-specific initialization and unexamined application paths. Its pending
+work is separate from the status counts of the original 67 questions below.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
@@ -74,6 +78,13 @@ repeatedly request a recording or board access. No device/network change or HA
 implementation is authorized merely by an unchecked box.
 
 ## Available next work
+
+**23 October:** continue the [static coverage pass](static-coverage.md).
+The first [microphone producer batch](microphone-dma.md) adds ring sizing,
+queue-overflow/lifetime and allocation-failure evidence on both builds, with
+15 instruction cases per build. GDMA dispatch, excluded initialization helpers
+and the application census remain active research. No implementation is needed
+to continue those investigations.
 
 The owner selected **voice and local-control hooks** for the next direction,
 superseding further shared-JSON buffer/race analysis. The
