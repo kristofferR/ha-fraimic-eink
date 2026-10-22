@@ -1581,8 +1581,8 @@
     {
       "address": "0x420234cc",
       "kind": "function",
-      "role": "Shared JSON HTTP-event accumulator; drops whole overflowing events, retains later bytes and returns success",
-      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture"
+      "role": "Shared JSON HTTP-event accumulator; drops whole overflowing events, retains later bytes and returns success; Date branch ignores header value and only converts the current clock",
+      "evidence": "static and bounded GNU cross-check; isolated enrollment JSON/event host fixture; both-model Date data-flow/GNU follow-up"
     },
     {
       "address": "0x4202358c",

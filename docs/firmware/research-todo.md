@@ -283,6 +283,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
   Follow up the separate synchronized/completed/in-progress flags, NTP-triggered
   AP failover and semaphore-allocation/overlapping-wait behavior now mapped in
   [the time-service trace](boot-and-scheduling.md#time-service).
+  Both models' [HTTP Date callbacks](boot-and-scheduling.md#http-date-does-not-supply-a-fallback-clock)
+  ignore the header value and do not provide a clock/synchronized-flag fallback;
+  ordinary offline boot and actual local NTP compatibility still need validation.
 - [ ] **S03 · Host/Device:** Exercise future, absent, invalid, past and failed-poll
   deadlines across reboot. Check persistence and the distinction between clearing
   the schedule and a network failure.

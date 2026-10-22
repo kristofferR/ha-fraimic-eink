@@ -636,6 +636,11 @@ be generalized to these event-driven paths. Their chunked path is reachable
 statically; it has not been exercised in a physical response-variant test.
 Compact explicit-length JSON remains the emulator baseline.
 
+The callback's `Date` header branch does not parse its value or synchronize time:
+it only reads and converts the already-current local clock. This holds in both
+pinned models; see the [HTTP-time trace](boot-and-scheduling.md#http-date-does-not-supply-a-fallback-clock).
+An accurate backend response date is not a replacement for the stock time service.
+
 An intermediate redirect body and the final body can accumulate in the same
 buffer. The JSON wrappers (`0x4203961c` / `0x4203962c`) disable the parser's
 require-end-of-input option. A complete leading JSON value can therefore be

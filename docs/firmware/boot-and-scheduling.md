@@ -543,6 +543,22 @@ all indirect writes or a controlled cold-boot/deep-sleep experiment. RTC surviva
 alone therefore does not establish working offline scheduling. Without the flag,
 the unified scheduler takes the 24-hour fallback described above.
 
+### HTTP Date does not supply a fallback clock
+
+The shared cloud-event callback has a `Date` header branch, but it **does not read
+the header value**. Large `0x420234cc` compares the header name at event offset
+`+0x14` with exact-case `Date`. On a match it calls `time()` at `0x420d0d48` into
+a stack temporary, then `localtime_r()` at `0x420cfa1c` into another temporary,
+and returns without using the result. It neither parses server time nor sets the
+clock or application synchronization flags.
+
+Standard callback `0x42021f7c` has the same branch, with corresponding time-helper
+targets `0x420d102c` and `0x420cfd00`. This static comparison rules out this
+callback as an HTTP-time fallback; it is not a physical cold-boot experiment or
+an assertion about every SDK clock source. Adding an accurate `Date` header to a
+local poll/setup/verification response does not remove the separate SNTP
+dependency through this path. Keep time service in the offline-backend design.
+
 ### Time failure also triggers AP failover
 
 Startup does not treat time-server failure as an isolated scheduling problem:

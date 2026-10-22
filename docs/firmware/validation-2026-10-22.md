@@ -1046,3 +1046,25 @@ Private artifacts: `poll-request-pass1.txt`, `poll-request-pass2.txt`,
 `poll-request-gnu.mjs`, `poll-request-boundaries-gnu.txt`,
 `poll-request-literals.jsonl`, `poll-request-fixture.c`,
 `poll-request-results.txt` and `poll-request-evidence-hashes.txt`.
+
+## HTTP Date callback and offline time: S02/C01/E02
+
+One reference/decompiler pass per model and eight bounded GNU ranges cover both
+complete cloud callbacks, Large's time reader and its calendar-conversion entry.
+Literal reads establish the exact `Date` name and indirect-call targets. The
+header branch reads the name, never loads the value, passes stack temporaries to
+the clock/calendar helpers and discards the result. Standard has the same branch
+with relocated helper targets. The time/calendar identification also agrees with
+the earlier SNTP callback and calendar research.
+
+This answers the specific fallback question without simulating a clock update:
+the inspected callback does not derive time from HTTP. The pass does not re-prove
+the entire libc DST implementation, exercise NTP/RTC behavior, inspect installed
+bootloader state or test a frame with an invalid clock. No host clock, device,
+network or backend response was changed, and no additional host fixture was
+needed for the absent header-value data flow.
+
+Private artifacts: `http-date-pass1.txt`, `http-date-gnu.mjs`,
+`http-date-boundaries-gnu.txt`, `http-date-literals.jsonl`,
+`http-date-evidence-hashes.txt`, and Standard's `standard-http-date-pass1.txt`,
+`standard-http-date-boundaries-gnu.txt` and `standard-http-date-literals.jsonl`.
