@@ -430,6 +430,84 @@ the SDK restart path. The recovered shutdown-handler loop matches
 Ghidra incorrectly included instructions from the adjacent sleep routine after
 the nonreturning call; that neighboring charging guard does not gate this restart.
 
+## Reset erases NVS before restoring the other environment
+
+The reset helpers are not namespace-only account erasers. Development reset
+`0x42017aac` and production reset `0x4201800c` first read a small backup into
+stack buffers, erase the default `nvs` partition, initialize it again, then
+attempt to restore the **opposite** environment's selected fields.
+
+| Helper / selected mode | Backup and attempted restore | Additional writes after erase |
+| --- | --- | --- |
+| Development reset | Production `device_key_p` (legacy `device_key` fallback on read error), `user_id_p`, `email_p`, `email_vp`, `wifi_ssid_p`, `wifi_pass_p` | `server_mode=1`, `force_ftu=1` |
+| Production reset | Development `device_key_d`, `user_id_d`, `email_d`, `email_vd`, `wifi_ssid_d`, `wifi_pass_d` | No explicit mode/first-time override; the mode getter defaults to production after erase |
+
+Key/user/email read capacities are 128/65/100 bytes; verification is I32;
+SSID/password blob capacities are 32/64 bytes. Backup eligibility is each read's
+success, not a nonempty-string or exact-blob-length check. Successful empty values
+can be restored. A successfully read empty production key does not trigger the
+legacy fallback; a read error does. Blob restores use their returned lengths.
+
+The erase wrapper `0x42049d8c` supplies the literal `nvs` to `0x42049d40`.
+That helper finds a data/NVS partition by this label and erases from offset zero
+through its reported size, matching
+[`nvs_flash_erase_partition`](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/nvs_flash/src/nvs_api.cpp).
+This removes other namespaces in that partition as well as `app_data` on a
+successful erase. The backup list contains no timezone, four-switch settings,
+maintenance/album schedule, OTA history, Wi-Fi statistics or SDK Wi-Fi/PHY state.
+Those records are not preserved by these helpers, although later startup and
+shutdown code can recreate some of them. The separate `imagedata` FAT partition
+is not the target of this erase; that distinction alone does not establish which
+artwork survives the entire reset workflow or subsequent filesystem recovery.
+
+### Backup and restore errors do not form a transaction
+
+A failed backup namespace open, or any failed individual backup read, does not
+abort the erase. That field simply loses its restore flag. Production reset
+skips reopening `app_data` if no development fields were read successfully;
+development reset still opens it to write its mode and first-time flags.
+
+After erase/reinitialization, every individual restore write is unchecked,
+including the development mode/first-time flags. The helpers check the final
+commit and return the erase, initialization, restore-open or commit result.
+GNU instructions preserve that result in `a2`; Ghidra's `void` labels are wrong.
+Thus a helper can return zero after failed field writes when commit succeeds.
+Large's [resolved commit implementation](#nvs-commit-does-not-make-the-four-switches-atomic)
+does not turn these separate writes into an atomic restore. No power-loss,
+flash-write, backup or restore failure was injected.
+
+The HTTP reset branch adds an earlier hazard. Before selecting a mode or calling
+either backup helper, it initializes NVS; `0x110d` (no free pages) or `0x1110`
+(new version found) triggers an immediate whole-`nvs` erase and reinitialization.
+Any opposite-environment backup is attempted **after** this recovery erase.
+Consequently the later preservation logic cannot recover data already erased,
+and the original mode may also be lost. This conditional path was not exercised.
+
+### The HTTP result and later reset handoff are separate
+
+Large handler `0x4201c740` selects a success/error HTML page from the helper result,
+but sets the reset-pending RAM byte `0x3fca6b17` and logs completion in both cases.
+It does not suppress the later reset work merely because the helper returned an
+error. A failed response send is also ignored.
+
+When the main loop reaches that flag, it clears it, delays 200 ticks (two seconds),
+enters the reset LED state and calls the HTTP/network teardown path. It then
+attempts a local wake-up instruction render when available, reevaluates user
+state, and enters storage sleep through `0x42010674`. These are later operations,
+not part of an atomic NVS transaction or an immediate reboot. The existing
+[teardown](local-api.md#server-capacity-and-lifecycle),
+[render-completion](rendering-and-concurrency.md) and sleep limits still apply.
+End-to-end cached identity, recreated keys, artwork and failure recovery remain
+unverified; no reset request was sent.
+
+The two reset-helper bodies match Standard `0x42017a80` / `0x42017fe0` across
+969 byte-matched GNU instructions, 60 branch destinations and 17 contiguous
+ranges per build, with 13 direct-call and 79 literal pairs reviewed. A separate
+Large pass checks three SDK bodies and the HTTP/main-loop reset regions across
+12 ranges and 396 instructions. That second pass is not a Standard SDK/caller
+comparison. These findings argue for a dedicated backend migration setting that
+preserves identity and storage, rather than repurposing factory reset.
+
 ## Mounting the image partition
 
 `0x42028368` finds the `imagedata` data partition and mounts `/imagedata` through

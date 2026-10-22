@@ -95,6 +95,7 @@ per question, not a count of tool calls or decompiled functions.
 | E01/E03 | Missing task entries recovered; restart boundaries/nonreturning flow corrected; consequential time/cancellation branches cross-checked; observed account schema and saved schema-version differences recorded | Remaining incomplete flow, unconstrained server values and untested authorization cases |
 | H05/N03/A01 | Both builds' mDNS setup, MAC-suffix names, ignored errors, one-time delegated address and blocking action waits match; HTTP service registration is absent from the recovered setup path | Actual service packets, collisions, changed IPs, action faults and credential identity across reset/environment changes |
 | N03/C11/A01 | Five identity bodies match: stored-key precedence, user-ID-gated legacy migration, deterministic generation and different save-error handling; embedded material compared privately | Physical identity/reset behavior, interrupted saves, MAC/read faults and remaining reset/SDK paths |
+| N03/H05/C11 | Both reset backups/restores match; Large whole-NVS erase, recovery erase before backup, unchecked field writes and reset handoff despite helper error traced | Physical/interrupted recovery, remaining caller/SDK comparison, cached identity and later recreated state/artwork |
 | E02/H04/D01 | Both app hashes pinned; 42 routes and 73 function pairs compared; Standard has separate audio/image allocations, lacks Large's poll exclusions/creation retries, uses a 2 KiB clear buffer and differs in maintenance ordering | Remaining handler/driver/shutdown differences, physical concurrency/conditioning, same-version comparison and other releases |
 | E02/H05/D01/D07 | Thirteen LED-related function pairs match across 826 relocated GNU instructions; 22 host groups cover pending replacement, latch timing, factory gates and conditional stale completion | Physical indications/interleavings, complete caller meanings, SDK/output-driver comparison and other releases |
 | E02/C05/C07 | Standard's selected upload/finalize branches match empty upload acknowledgment, 4 KiB WAV chunks, 4,095-byte JSON reads and synchronous finalize; its voice image limit remains 960,000 bytes | Full error/SDK comparison, device response faults, cancellation and late-worker/two-job behavior |
@@ -509,7 +510,12 @@ Source: [storage and configuration](storage-and-configuration.md).
   [Key selection and regeneration](storage-and-configuration.md#device-key-selection-and-regeneration)
   now match in five bodies: generation has no environment input, and legacy
   migration ignores save failures. Physical identity preservation, reset paths,
-  storage/MAC faults and recovery remain open.
+  storage/MAC faults and recovery remain open. Both
+  [reset helpers](storage-and-configuration.md#reset-erases-nvs-before-restoring-the-other-environment)
+  now match: opposite-environment backups precede whole-NVS erase, while a Large
+  caller recovery branch can erase even before backup. End-to-end cached state,
+  subsequent recreated records, interrupted recovery and Standard SDK/callers
+  remain open.
 - [ ] **N04 · Host/Device:** Validate mount retries and format-on-failure decisions
   with missing legacy key, NVS read error and filesystem corruption in a disposable
   fixture. Establish which state/artwork survives recovery on the actual layout.

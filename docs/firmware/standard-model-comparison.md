@@ -623,6 +623,17 @@ are returned. Separate NVS slots are therefore not proof of different production
 and development credentials or of rotation after reset. Existing stored values
 can still differ. No frame credentials, modes, accounts or storage were changed.
 
+### Opposite-environment reset backups also match
+
+Both [reset helpers](storage-and-configuration.md#reset-erases-nvs-before-restoring-the-other-environment)
+match across 969 GNU instructions, 60 branch destinations and 17 ranges per
+build. The helpers back up six fields from the opposite environment, erase NVS,
+reinitialize and attempt restoration. Backup failures do not stop erasure;
+individual restore writes are unchecked. Development reset also attempts to
+restore mode 1 and the first-time override. Production reset makes no such writes.
+These matching application bodies do not establish Standard's SDK erase internals,
+all caller behavior or physical recovery after faults. No reset was performed.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering

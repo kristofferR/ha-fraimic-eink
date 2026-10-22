@@ -503,6 +503,11 @@ the shared HTTP task can delay the response during another operation.
 
 ## Restart, sleep and refresh acknowledgments
 
+The separate portal reset action performs
+[whole-NVS erase and conditional opposite-environment restore](storage-and-configuration.md#reset-erases-nvs-before-restoring-the-other-environment).
+Its error page still queues the later reset/sleep handoff. It must not be treated
+as equivalent to the non-erasing restart handler below.
+
 These Large 0.2.29 handlers do not parse a request body or a job identifier. Their
 small responses describe different points in the operation:
 

@@ -613,6 +613,46 @@
       "fresh_save_errors_returned": true,
       "mac_read_result_checked": false,
       "limitations": "No hardware-reset, migration, read/MAC/crypto/storage-fault or SDK implementation validation; existing keys can differ and override deterministic generation"
+    },
+    "reset_preservation": {
+      "evidence": "Two paired GNU control-flow graphs; separate Large SDK/HTTP/main-loop trace; no reset requests",
+      "compared_functions": 2,
+      "instructions_per_image": 969,
+      "compared_branches": 60,
+      "gnu_ranges_per_image": 17,
+      "direct_call_pairs": 13,
+      "literal_pairs": 79,
+      "development_reset_preserves": [
+        "device_key_p (legacy fallback on read error)",
+        "user_id_p",
+        "email_p",
+        "email_vp",
+        "wifi_ssid_p",
+        "wifi_pass_p"
+      ],
+      "production_reset_preserves": [
+        "device_key_d",
+        "user_id_d",
+        "email_d",
+        "email_vd",
+        "wifi_ssid_d",
+        "wifi_pass_d"
+      ],
+      "development_reset_additional_writes": {
+        "server_mode": 1,
+        "force_ftu": 1
+      },
+      "production_reset_additional_writes": [],
+      "backup_read_errors_abort_erase": false,
+      "individual_restore_write_results_checked": false,
+      "large_erase_target": "Entire data/NVS partition named nvs",
+      "large_extra_validation": {
+        "sdk_functions": 3,
+        "caller_regions": 2,
+        "instructions": 396,
+        "ranges": 12
+      },
+      "limitations": "Preservation lists are attempted backups/restores, not guaranteed final state. No Standard SDK/caller equivalence, live reset, interruption or later cache/state/artwork recovery validation."
     }
   },
   "function_map": [
@@ -1650,6 +1690,16 @@
       "role": "md_hmac_wrapper",
       "large": "0x4207df20",
       "standard": "0x4207d54c"
+    },
+    {
+      "role": "reset_development_preserve_production",
+      "large": "0x42017aac",
+      "standard": "0x42017a80"
+    },
+    {
+      "role": "reset_production_preserve_development",
+      "large": "0x4201800c",
+      "standard": "0x42017fe0"
     }
   ],
   "live_standard": {
