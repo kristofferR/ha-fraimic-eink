@@ -568,6 +568,18 @@
       "evidence": "static; 22 October DNS fallback/cache follow-up"
     },
     {
+      "address": "0x40376204",
+      "kind": "function",
+      "role": "Interrupt-watchdog tick hook: CPU1 flag gates CPU0 feed; stage 0 600 ticks/interrupt, stage 1 1200 ticks/system reset",
+      "evidence": "static; complete GNU body and bounded D06 host reconstruction"
+    },
+    {
+      "address": "0x403768f0",
+      "kind": "function",
+      "role": "Dispatch up to eight registered tick hooks for the current CPU",
+      "evidence": "static; complete GNU body and bounded D06 host reconstruction"
+    },
+    {
       "address": "0x40376b14",
       "kind": "function",
       "role": "Capability-preference allocator loops in supplied order and stops on first success; invokes failure handler after exhausted nonzero allocation",
@@ -728,6 +740,24 @@
       "kind": "literal",
       "role": "Pointer to instruction description table",
       "evidence": "static"
+    },
+    {
+      "address": "0x42005680",
+      "kind": "function",
+      "role": "Initialize MWDT1 with prescaler 40000 and two 10000-tick interrupt/reset stages",
+      "evidence": "static; complete GNU body and bounded D06 host reconstruction"
+    },
+    {
+      "address": "0x42005738",
+      "kind": "function",
+      "role": "Register per-CPU interrupt-watchdog tick hook and route interrupt; registration result ignored",
+      "evidence": "static; complete GNU body and bounded D06 host reconstruction"
+    },
+    {
+      "address": "0x420064f0",
+      "kind": "function",
+      "role": "Register tick hook in first free one of eight slots per CPU; no-memory if full",
+      "evidence": "static; complete GNU body and bounded D06 host reconstruction"
     },
     {
       "address": "0x4200af88",
@@ -1689,14 +1719,20 @@
     {
       "address": "0x42021848",
       "kind": "function",
-      "role": "Bounded PMIC power-good assertion wait",
-      "evidence": "static; concurrency follow-up"
+      "role": "Power-good assertion wait; 200-tick caller budget plus ten-tick exit delay, ignored failure result",
+      "evidence": "static; complete GNU body and bounded D06 host reconstruction"
     },
     {
       "address": "0x420218c4",
       "kind": "function",
       "role": "Enable PMIC; logs failures without upstream result",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42021ad4",
+      "kind": "function",
+      "role": "Update cached TCA9534 output byte before I2C write; return write result without rolling back cache",
+      "evidence": "static; complete GNU body and bounded D06 host reconstruction"
     },
     {
       "address": "0x42021ba8",

@@ -489,8 +489,9 @@ Timeout ISR `0x42047fc4` passes the runtime panic flag to `0x42047ba0`. Its fals
 branch prints/request backtraces and returns; the panic branch is separate.
 The optional user ISR hook pointer is zero in this build. A task-watchdog message
 therefore does not imply an automatic firmware restart under the startup policy.
-This does not disable or fully characterize the separate interrupt watchdog,
-hardware fallback stages, exception handling or boot recovery.
+The separate interrupt watchdog's startup/tick policy is now mapped below;
+exception handling, installed boot recovery and physical reset timing remain
+outside this task-watchdog result.
 
 In the normal successful-unsubscribe path, a stuck power-good loop can continue
 yielding one tick per iteration while both idle tasks run. Idle-task supervision
@@ -503,7 +504,73 @@ A firmware fork should put deadlines and propagated failure results on the
 hardware operations, keep job/buffer ownership through cleanup, and establish a
 bounded power-down recovery path. Increasing a global watchdog timeout would
 not supply those missing semantics. D06/D07 retain physical failure/recovery
-tests and the wider watchdog audit.
+tests and a result-bearing implementation.
+
+### Interrupt watchdog: tick health is not render progress
+
+Large's CPU0 startup `0x420ebefc` calls initializer `0x42005680` and per-CPU
+registration `0x42005738`; the CPU1 startup also calls that registration. The
+initializer selects **MWDT1**, prescaler **40,000**, and two initial **10,000-tick**
+stages: interrupt, then system reset. At the SDK's 500 microsecond watchdog tick,
+each initial stage setting represents five seconds. The
+[pinned startup](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/freertos/app_startup.c),
+[interrupt-watchdog implementation](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_system/int_wdt.c),
+[ROM addresses](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/esp_rom/esp32s3/ld/esp32s3.rom.wdt.ld)
+and [HAL enums](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/hal/include/hal/wdt_types.h)
+identify the calls and units; the actual values above come from the app bytes.
+
+Registered IRAM tick hook `0x40376204` has the CPU1 check compiled in. CPU1 sets
+a shared byte. CPU0 feeds only when that byte is set, then clears it. Each feed
+replaces the startup settings with **600 ticks / 300 ms, interrupt** and
+**1,200 ticks / 600 ms, system reset**. The second value is a stage setting,
+not a measured total reset deadline. Neither the hook nor its eight-slot
+per-CPU dispatcher `0x403768f0` checks render busy, image progress or power-good.
+Registration failure is not checked by the per-CPU initializer.
+
+Thus successful ticks from both CPUs can keep feeding the interrupt watchdog
+while the render worker keeps yielding in the power-good wait. A missing tick
+and a stalled panel transaction are different conditions. The SDK describes the
+second stage as a reset fallback when the timeout's panic handling cannot run;
+this pass establishes the configured fallback, not physical execution of the
+panic/ROM path or safe panel recovery after reset.
+[SDK watchdog behavior](https://docs.espressif.com/projects/esp-idf/en/v5.4.1/esp32s3/api-reference/system/wdts.html)
+
+### Driver faults through the worker: bounded host cases
+
+Twenty-six Large-only host cases reconstruct selected driver branches through
+the valid render worker and its cleanup. Driver results, delays, watchdog feeds
+and successful register writes are simulated; the Xtensa app, RTOS, SPI/I2C SDK
+and panel are not executed. Normal early initialization and conditioning are
+assumed successful. This extends D04's admission/cleanup model with the nested
+failure paths; it does not demonstrate a physical fault or Standard equivalence.
+
+| Injected condition | Reconstructed result |
+| --- | --- |
+| SPI command, first payload chunk or middle chunk fails; later chunks succeed | The final low-byte result is zero, so even the controller transfer-error log is absent |
+| Last payload transfer returns `0x107` | The controller logs result `7`; the worker still refreshes and signals completion |
+| All 488 selected SPI calls fail | Eight controller errors are logged, but status/refresh/cleanup still run |
+| Synthetic last-transfer result `256` | Low-byte narrowing produces zero; this is a width-boundary probe, not an observed SDK error |
+| All controller status bytes are zero or `0xff` | Status returns failure, which the worker ignores |
+| VCOM byte is zero or a masked power-setting byte exceeds 120 | The worker takes its early power-setup failure cleanup, which still gives the same completion semaphore |
+| Selected BUSY input never becomes high | Each wait makes 5,501 one-tick delays, about 55.01 seconds excluding call overhead, then logs and returns; one or all six selected power/refresh waits can time out without aborting |
+| PMIC initializer reports failure | Enable logs the failure and returns without an error result; refresh continues |
+| Power-good never asserts, or all assertion reads fail | Assertion wait `0x42021848` exhausts 200 one-tick delays, adds its ten-tick exit delay and returns failure; `0x420218c4` ignores that result and still logs enable completion |
+| Power-good deassertion read fails | `0x42021ba8` turns the read error into zero, releasing the wait and allowing refresh completion |
+| Power-good stays high while both CPUs keep ticking | A host-only 60,000-iteration observation cap is reached, representing ten minutes of requested delays; worker/context/busy remain active, with no completion or discharge |
+| Shutdown writes keep failing | The software output byte reaches the cleared state and discharge/completion logs occur; the successful-write register model still holds its prior power-switch bits |
+
+Output helper `0x42021ad4` changes its cached byte **before** attempting the I2C
+write. Enable/discharge callers ignore its returned error. A later successful
+whole-register write can apply earlier cached changes, as the transient-failure
+control demonstrates; continued failures do not establish that the hardware
+followed the cache. The register model deliberately assumes a failed write has
+no effect. Real partial transfers and analog rail state are unknown, so neither
+that model nor a success log proves safe power-down.
+
+Four further feed-policy controls verify that both cores permit repeated feeds,
+either core alone does not, and one CPU1 tick cannot authorize repeated CPU0
+feeds. The ten-minute cap belongs only to the host harness; it is not a recovered
+firmware deadline. See [validation and private artifact fingerprints](validation-2026-10-22.md#panel-faults-and-interrupt-watchdog-d06).
 
 ### Observed poll and voice cache ordering
 

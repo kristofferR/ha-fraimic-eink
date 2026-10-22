@@ -9,14 +9,14 @@ the top-level box closes only the stated question.
 
 ## Current status
 
-**9 of 67 original items complete; 109 of 182 concrete milestones complete.**
+**9 of 67 original items complete; 110 of 182 concrete milestones complete.**
 These are task counts, not a percentage estimate of firmware understood.
 
 | Status | Items | Meaning |
 | --- | --- | --- |
 | Complete | 9 | Original bounded question answered; evidence linked below |
-| Research | 11 | Concrete static, host or design work remains available |
-| Waiting for device | 21 | Remaining original criteria require physical validation |
+| Research | 10 | Concrete static, host or design work remains available |
+| Waiting for device | 22 | Remaining original criteria require physical validation |
 | Needs implementation | 5 | Validation depends on an adapter, importer or protocol extension |
 | Waiting for recovery | 11 | Access, partition, backup or recovery prerequisite is missing |
 | Deferred | 8 | Owner-postponed work; do not resume automatically |
@@ -65,12 +65,12 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-For the owner's local-cloud/voice priorities, continue with the remaining driver
-faults under D06 or N04's filesystem-corruption cases while A07's [feature proposal](voice-feature-proposal.md)
+For the owner's local-cloud/voice priorities, continue with N04's filesystem-
+corruption cases while A07's [feature proposal](voice-feature-proposal.md)
 awaits provider/interaction choices; the owner selected all three feature groups.
 Its six API reuse checks, C12's local album mutation contract, D02's byte-level
-overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass
-and N06's wake-asset cases
+overlap, D04's bounded renderer fault model, N05's recoverable cache-slot pass,
+N06's wake-asset cases and D06's driver-fault/watchdog pass
 are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
@@ -519,10 +519,10 @@ Commit and push validated research batches periodically as requested.
   failures. Establish watchdog behavior for the power-good wait, recovery and safe
   shutdown; distinguish logged failures from propagated results.
 
-  Status: **Research**.
+  Status: **Waiting for device**.
 
   - [x] **Static:** Trace controller/DMA/BUSY/PMIC errors, unbounded power-good wait, task-watchdog unsubscription and suppressed shutdown results. [Watchdog](rendering-and-concurrency.md#the-task-watchdog-does-not-bound-the-long-panel-sequence), [shutdown](boot-and-scheduling.md#display-shutdown-suppresses-its-own-failure-evidence).
-  - [ ] **Next:** **Host:** Inject representative SPI/I2C/BUSY/power errors and trace propagation through the complete caller; audit interrupt-watchdog/fallback coverage.
+  - [x] **Static/Host:** Exercise 26 Large driver-fault/feed-policy cases through the reconstructed worker; recover MWDT1 startup, dual-core feeding and 300/600 ms interrupt/reset stage settings. These do not bound yielding panel waits or verify physical recovery. [Fault cases](rendering-and-concurrency.md#driver-faults-through-the-worker-bounded-host-cases), [interrupt watchdog](rendering-and-concurrency.md#interrupt-watchdog-tick-health-is-not-render-progress).
   - [ ] **Deferred:** **Device:** Establish actual fault recovery and safe shutdown. A successful ordinary render does not close these tests.
 
 - [ ] **D07 · Host/Device:** Correlate accepted/cached/worker-ended/driver-completed/

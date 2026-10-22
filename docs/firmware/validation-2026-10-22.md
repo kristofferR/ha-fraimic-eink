@@ -2695,3 +2695,43 @@ upgrade/reset persistence on hardware remain deferred with recovery prerequisite
 | `wake-version-large-cfg.json` | `8133fa3f21108494cc7fa12a537e911d6d37c3165a7a4c67702854b34cbdc5b7` |
 | `wake-stamp-large-cfg.json` | `c89fbd5b52f0077251050f1124121f4b418f196f0f304bc56b124f668b2f33ed` |
 | `wake-install-large-cfg.json` | `caba6795b3f4bcc370989732c8279d68b0fca5e43d68122200cfb128e3b9a55e` |
+
+## Panel faults and interrupt watchdog: D06
+
+Twenty-two complete Large GNU control-flow recoveries contain 993 instructions
+in 34 ranges, spanning interrupt-watchdog initialization/ticks/registration and
+the selected SPI, status, BUSY, PMIC, output, refresh and cleanup helpers. Combined
+with D04's complete 384-instruction render worker, the pass checks **1,377
+instruction encodings across 23 bodies** against the pinned image. The manifest
+below fingerprints every new body. ROM function identities are corroborated by
+the ESP-IDF 5.4.1 ESP32-S3 linker map; ROM implementations and panic-handler
+execution are not included in the host reconstruction.
+
+The Bun fixture passed **26 cases**: 22 nested driver/worker scenarios and four
+interrupt-feed policy controls. It checks hidden versus logged SPI errors, status
+suppression, true power-setup failure cleanup, one/six BUSY timeouts, PMIC failure,
+power-good assertion/deassertion errors, a bounded observation of a yielding
+unbounded wait, and cached output versus modeled register state after failed
+writes. The [case table](rendering-and-concurrency.md#driver-faults-through-the-worker-bounded-host-cases)
+records the interpretation and exclusions.
+
+Every selected controller transfer is one command plus sixty 4,800-byte data
+transactions; eight controllers yield 488 selected SPI calls. The fixture uses
+virtual delay ticks and does not wait ten real minutes or send hardware commands.
+Its power-register model applies the cached output byte only on an injected
+successful write. It cannot infer partial I2C effects, rail discharge or optical
+state. Successful early setup/conditioning and other unselected calls are
+assumptions, not independently validated paths. Separate feed controls test the
+reconstructed dual-core flag policy, without emulating hardware counters or panic.
+
+No frame requests, firmware writes, GPIO changes, HA source/deployment changes
+or network configuration changes were made. D06's static/host milestone is
+checked; its original physical recovery/shutdown criterion remains deferred.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `panel-fault-model.mjs` | `4263598986737cc20e94544eaa17d1340a7b03a20539b0f0d2541f9efa23a999` |
+| `panel-fault-results.json` | `93d3173009c277bb3e9e93c4977e9094560bf9e103235f27865384257c8926b1` |
+| `panel-fault-cfg-manifest.json` | `ff68b822ee17c9e8b904d177fdd0095f68cfdf1b550afea94f91f28868c99628` |
+| Reused `renderer-worker-large-cfg.json` | `60a156d0382dc7c6f686a8eb0fb484e0e9f66ced1d0370795d784ad792204e8e` |
+| SDK `int_wdt.c` | `7bdb472a5c7046d4c4f246830576c5dbd7153db149ea2b8c5654d337ac8e81db` |
