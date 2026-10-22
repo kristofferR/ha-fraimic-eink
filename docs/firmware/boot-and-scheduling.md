@@ -877,8 +877,9 @@ The application does not stop SNTP when all five waits expire. A remaining SDK
 request/retry may therefore run after the application has logged synchronization
 failure and entered recovery. Conversely, the stop/init/mode wrappers discard
 the enqueue result from `tcpip_callback` (`0x42055f24`), which can fail to allocate
-its message. Neither late success nor an allocation failure was exercised here;
-they should not be inferred from an ordinary timeout log alone.
+its message. The later [control/lifecycle model](#time-control-and-overlapping-waiters-host-cases)
+exercises selected late-success and allocation-failure orderings; none was induced
+on a frame or should be inferred from an ordinary timeout log alone.
 
 For future firmware, keep a selected time client alive long enough to cover its
 startup delay, DNS and response budget, and make recovery account for outstanding
@@ -946,14 +947,64 @@ The API-call path forwards that null without a guard to wait/signal helpers
 that dereference the storage pointer. This is a separate conditional allocation
 failure, not a cleanly reported synchronization timeout.
 
-These findings are static, with no injected allocation failure, queue saturation,
-new host behavioral test or observed crash. The [Standard queue comparison](standard-model-comparison.md#sntp-control-queue-and-failure-paths-also-match)
+The original findings were static; the later
+[host control cases](#time-control-and-overlapping-waiters-host-cases) reconstruct
+selected allocation failures, bounded mailbox saturation and callback orderings.
+They do not execute the RTOS or reproduce a device crash. The [Standard queue comparison](standard-model-comparison.md#sntp-control-queue-and-failure-paths-also-match)
 now confirms these relevant static paths there too. The earlier TLS
 memory-allocation error is not evidence that any of
 these paths occurred. A future implementation should report control-request
 failure, use an acknowledged stop/configure/start operation with an overall
 deadline, and retain safe message ownership if that deadline expires. A local
 cloud server cannot repair the stock client's internal queue handling.
+
+### Time control and overlapping waiters: host cases
+
+Twenty-five bounded Bun cases reconstruct the recovered control-message and
+application-wait policies. Nine complete Large control-flow bodies, including
+the full application synchronization routine and notification callback, were
+recovered across 541 instructions and 25 ranges and verified against the pinned
+image. This pass models the queues, allocation outcomes and selected event orders;
+it does not execute firmware, SDK C, FreeRTOS scheduling or network/time services.
+
+The application completion semaphore is binary. A valid notification sets the
+synchronized flag and offers one token; it does not broadcast completion to all
+callers. The overlapping-caller branch waits for that same token for 3,000 ticks,
+then returns without applying timezone or setting completed-this-wake. Only the
+initiator's successful wait does those final steps.
+
+| Chosen host event/fault | Result and scope |
+| --- | --- |
+| Stop/mode/name succeed; init still queued | The name barrier has finished, but the client has not started; the init message remains owned until dispatch |
+| Stop message allocation fails while a client exists | The later mode callback reaches its stopped-client assertion; the callback's normal message-free path is not reached |
+| Mode or init message allocation fails | Prior mode remains, or the client remains stopped, respectively; the wrappers do not report the failure to the application |
+| Stop and mode message allocations both fail | Init sees the existing client; it does not create a new client or draw a new startup delay |
+| UDP-client allocation fails during init | Reaches an assertion boundary, rather than a clean application timeout |
+| Mailbox has 32 entries | The next producer and its message remain blocked/alive; after dispatch frees space it can progress in FIFO order. A modeled aborted send reaches the port assertion |
+| Per-thread semaphore storage or kernel object allocation fails | The hostname message can still be posted; the subsequent null-storage wait/signal boundary is unsafe. Kernel-allocation failure frees the temporary storage |
+| Another producer queues init between stop and mode | The mode callback can see an active client and assert. Successful hostname completion also does not prevent another producer changing the name before init |
+| Joining caller consumes the only valid notification | It returns success, but the initiator can exhaust its waits and clear the synchronized flag. Neither applies the initiator's successful-completion bookkeeping in this ordering |
+| Initiator consumes the only notification | It completes normally; an already-waiting joiner can still time out despite the successful synchronization |
+| Init dispatch or a valid notification arrives after the final application timeout | The client can start afterward, or the synchronized flag can become true without completed-this-wake/timezone bookkeeping |
+| Two notifications precede consumption | They coalesce to one binary token; a new initiator drains a stale token before clearing the synchronized flag and retrying |
+
+The twenty-five cases include normal completion, reused per-thread semaphore,
+invalid-year/no-semaphore notification and callback-before-response-wait controls.
+Assertion and null-dereference paths are explicit model fault markers; no invalid
+memory access, panic or indefinite blocking is executed. A full-mailbox case
+observes a bounded blocked state rather than claiming a measured deadlock.
+
+The semaphore winner and absence of a further notification are chosen inputs.
+Actual caller overlap, task priorities, callback frequency, scheduler decisions
+and simultaneous flag loads remain unmeasured. In particular, these examples
+do not establish a race occurred on either owned frame. The previous Standard
+comparison covers selected queue/control paths; this new application-level
+fixture is based on Large and is not a complete Standard lifecycle comparison.
+
+For custom firmware, one synchronization owner should publish a persistent
+completion result to every waiter, with explicit attempt identity and a bounded,
+acknowledged control sequence. A local backend can make DNS/NTP responsive but
+cannot change these stock message-ownership or completion rules.
 
 ### Pending DNS callbacks survive SNTP stop
 
@@ -1154,14 +1205,16 @@ offline test.
 If allocation fails, the branch at `0x42014fc6` returns `0x101` without clearing
 the flag. A later caller can consequently take the already-in-progress path,
 which waits up to 3,000 ticks (30 seconds), although that failed attempt never
-started SNTP. This is a static resource-failure candidate, not a reproduced
-device failure or an explanation of the earlier TLS allocation errors.
+started SNTP. The host model reproduces the latched flag and a later timed-out
+joiner under injected allocation failure. It is not a reproduced device failure
+or an explanation of the earlier TLS allocation errors.
 
-The shared completion semaphore also needs a concurrency audit: an overlapping
-caller waits 30 seconds, while the initiator's five wait budgets sum to 34 seconds.
-Whether such calls actually overlap, consume each other's completion signal or
-recover through a later callback remains untested. Do not infer a runtime race
-from these timeout values alone.
+An overlapping caller waits 30 seconds, while the initiator's five wait budgets
+sum to 34 seconds, excluding control-operation waits. The
+[bounded overlap cases](#time-control-and-overlapping-waiters-host-cases) now
+exercise either caller consuming the single signal and later notifications.
+Whether those orderings occur on a frame remains untested; the budgets alone
+do not establish a runtime race.
 
 ### Setup and identity
 

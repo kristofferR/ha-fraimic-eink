@@ -2735,3 +2735,47 @@ checked; its original physical recovery/shutdown criterion remains deferred.
 | `panel-fault-cfg-manifest.json` | `ff68b822ee17c9e8b904d177fdd0095f68cfdf1b550afea94f91f28868c99628` |
 | Reused `renderer-worker-large-cfg.json` | `60a156d0382dc7c6f686a8eb0fb484e0e9f66ced1d0370795d784ad792204e8e` |
 | SDK `int_wdt.c` | `7bdb472a5c7046d4c4f246830576c5dbd7153db149ea2b8c5654d337ac8e81db` |
+
+## Time-control allocation and overlapping waiters: S02
+
+Nine complete Large GNU control-flow recoveries contain **541 instructions in
+25 ranges**: synchronization entry `0x42014e90`, notification `0x42014728`,
+message dispatcher `0x42055dc0`, callback post `0x42055f24`, synchronous API
+call `0x42056010`, init `0x42056314`, stop `0x4205639c`, mode `0x420563e4` and
+thread-semaphore construction `0x42067840`. Every instruction encoding was checked
+against the pinned firmware, with entry prologues checked. The manifest below
+records the individual body fingerprints. Earlier traces supply mailbox capacity,
+FreeRTOS posting/wait semantics and wrapper identities; those implementations
+are not emulated by the new host fixture.
+
+The Bun 1.4.3 reconstruction passed **25 cases** on Omarchy. It combines selected
+control-message behavior with a generator reconstruction of the application's
+initiator/joiner branches and a binary completion semaphore. It tracks callback
+message ownership through enqueue/block/dispatch/free and keeps synchronous
+stack-message lifetime separate. Fault outcomes stop at explicit assertion or
+null-storage-dereference markers rather than executing invalid memory accesses.
+The [case table](boot-and-scheduling.md#time-control-and-overlapping-waiters-host-cases)
+records the observed model consequences and implementation implications.
+
+Two joiner orderings are selected deliberately: whichever caller takes the only
+token can succeed while the other times out. If the joiner takes it and no later
+notification arrives, the initiator ultimately clears the synchronized flag.
+These are conditional interleavings, not an exhaustive schedule search or a
+measurement of FreeRTOS waiter priority. Delayed init, late notification, stale
+token draining, coalesced callbacks and semaphore-allocation progress latching
+are separate controls. Timed waits are supplied outcomes; no actual 34-second
+wait, thread scheduler, timer clock, DNS, UDP or time change is used.
+
+This is reconstructed TypeScript, not execution of the app or unmodified SDK C.
+The new complete application lifecycle trace is Large-only; previously documented
+Standard queue/control comparisons retain their narrower scope. No device, HA
+or network changes were made. S02's host milestone is checked; physical offline
+clock/TLS/sleep behavior remains deferred. N04 was owner-postponed during its
+partial filesystem pass and remains unchecked/deferred, with unpublished private
+artifacts preserved.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `time-control-model.ts` | `7d74f38ffc8455745488bf7d7ba93094b3703a04493060a01b1e1c003752e56c` |
+| `time-control-results.json` | `d380281e86f3b96ad2f9f6ec2ea8d68d5660b785a441e9e6ffeb794dac41244a` |
+| `time-control-cfg-manifest.json` | `23f7fc96c898415817f121067a243c02e9660a5c0464fa193984bee0e4956e70` |
