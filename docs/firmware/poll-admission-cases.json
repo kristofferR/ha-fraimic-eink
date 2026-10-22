@@ -1,0 +1,426 @@
+{
+  "evidence": "Byte-checked starter and worker instructions with scripted overlapping callers and modeled successful task creation",
+  "models": [
+    {
+      "model": "large",
+      "image_sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012810",
+          "instructions": 2514,
+          "sha256": "d553be58f550dc8eaec0d53a737ce1d3ef204231bdfd85ef00b6eec82ae86b7c"
+        },
+        {
+          "name": "getter",
+          "entry": "0x42025da0",
+          "instructions": 40,
+          "sha256": "4422af41c60b17e5688e2552ac0019d8bcef333fb96490dffc4f229052426a1f"
+        },
+        {
+          "name": "clear",
+          "entry": "0x42025e10",
+          "instructions": 12,
+          "sha256": "f2fc6ff477388a3821d3c4c366189e4cb938652363fb950bdd1dee7ea6114f4f"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x42016570",
+          "instructions": 123,
+          "sha256": "a7f8a1fbc20a32c54fa0f951b130d420b8051ffe52fd1da37de0cfceeadcbfc5"
+        },
+        {
+          "name": "worker",
+          "entry": "0x42025aec",
+          "instructions": 150,
+          "sha256": "e8f985d8ef3d1defd53be7036cce50c7ad0375dbf695c34192857ad22ddd5781"
+        },
+        {
+          "name": "starter",
+          "entry": "0x42025c84",
+          "instructions": 92,
+          "sha256": "820fae2645defe0feaa06a627dc753c8ef2d32d301ca8389bddc0fadbfe70876"
+        },
+        {
+          "name": "ready",
+          "entry": "0x42025d84",
+          "instructions": 4,
+          "sha256": "ada942cedd5ffc9e120152f04ee23207e3c74d25c08e5febba854a3ee89dbd9f"
+        },
+        {
+          "name": "cooldown",
+          "entry": "0x4202358c",
+          "instructions": 5,
+          "sha256": "38405046daf236d17b56994676336ebb7055af37d766c01af45779fd789c4564"
+        },
+        {
+          "name": "button",
+          "entry": "0x4201163c",
+          "instructions": 427,
+          "sha256": "bc623d8b7545cebc89eba73c6a59a1be5613651872e8bda01d036802eada71b0"
+        },
+        {
+          "name": "background",
+          "entry": "0x420167b4",
+          "instructions": 963,
+          "sha256": "67a4f1c42f13dd759cfbc7f4fd555c249e83958e226f0cd81470d31f5d51bc6a"
+        },
+        {
+          "name": "recovery",
+          "entry": "0x420166c8",
+          "instructions": 86,
+          "sha256": "d5535e9c72a6dd1f987b0b3d68c8ca1a4cb3cabe2bda61e2a02276c632396e55"
+        },
+        {
+          "name": "recovery-start",
+          "entry": "0x42015d10",
+          "instructions": 12,
+          "sha256": "c27963853dd2bf6cf36115fb4ea4ab15ebc95240f716d07f18cdffaed15d09f1"
+        }
+      ],
+      "dispatch_callers": [
+        {
+          "context": "main",
+          "caller": "0x42012810",
+          "site": "0x420129c7"
+        },
+        {
+          "context": "main",
+          "caller": "0x42012810",
+          "site": "0x42012b59"
+        },
+        {
+          "context": "main",
+          "caller": "0x42012810",
+          "site": "0x42013b70"
+        },
+        {
+          "context": "button",
+          "caller": "0x4201163c",
+          "site": "0x420119ee"
+        },
+        {
+          "context": "background",
+          "caller": "0x420167b4",
+          "site": "0x42016e77"
+        },
+        {
+          "context": "background",
+          "caller": "0x420167b4",
+          "site": "0x42016fd3"
+        },
+        {
+          "context": "recovery",
+          "caller": "0x420166c8",
+          "site": "0x4201673b"
+        }
+      ],
+      "admission_checkpoint": "0x42025d0a",
+      "worker_cleanup_checkpoint": "0x42025c6b",
+      "instructions_executed_unique": 87,
+      "scenarios": [
+        {
+          "name": "sequential-second-caller-rejected",
+          "starter_results": [
+            0,
+            259
+          ],
+          "created_tasks": 1,
+          "alive_tasks": 1,
+          "global_handle": 1441792,
+          "worker_delay_ticks": [],
+          "freed_keys": 0,
+          "events": [
+            {
+              "name": "create",
+              "handle": 1441792,
+              "global_handle": 1441792,
+              "alive": 1
+            }
+          ]
+        },
+        {
+          "name": "both-callers-pass-zero-handle-check",
+          "starter_results": [
+            0,
+            0
+          ],
+          "created_tasks": 2,
+          "alive_tasks": 2,
+          "global_handle": 1441808,
+          "worker_delay_ticks": [],
+          "freed_keys": 0,
+          "events": [
+            {
+              "name": "create",
+              "handle": 1441792,
+              "global_handle": 1441792,
+              "alive": 1
+            },
+            {
+              "name": "create",
+              "handle": 1441808,
+              "global_handle": 1441808,
+              "alive": 2
+            }
+          ]
+        },
+        {
+          "name": "first-worker-exit-clears-newer-handle",
+          "starter_results": [
+            0,
+            0,
+            0
+          ],
+          "created_tasks": 3,
+          "alive_tasks": 2,
+          "global_handle": 1441824,
+          "worker_delay_ticks": [
+            200
+          ],
+          "freed_keys": 1,
+          "events": [
+            {
+              "name": "create",
+              "handle": 1441792,
+              "global_handle": 1441792,
+              "alive": 1
+            },
+            {
+              "name": "create",
+              "handle": 1441808,
+              "global_handle": 1441808,
+              "alive": 2
+            },
+            {
+              "name": "delete",
+              "handle": 1441792,
+              "global_handle": 0,
+              "alive": 1
+            },
+            {
+              "name": "create",
+              "handle": 1441824,
+              "global_handle": 1441824,
+              "alive": 2
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "image_sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
+      "cfgs": [
+        {
+          "name": "main",
+          "entry": "0x42012770",
+          "instructions": 2551,
+          "sha256": "da353431616ac487cc3faae6150277c229d9aa6dba2400d2b728e59e10750976"
+        },
+        {
+          "name": "getter",
+          "entry": "0x420247f0",
+          "instructions": 40,
+          "sha256": "ac6db42056e519b88607961237dec91672092199beff716043c6e4c476ff65d3"
+        },
+        {
+          "name": "clear",
+          "entry": "0x42024860",
+          "instructions": 12,
+          "sha256": "259b3fe6bff9561565d3be842da38724c2a9fb65bfb74d41d0873fce8660231e"
+        },
+        {
+          "name": "dispatch",
+          "entry": "0x42016590",
+          "instructions": 99,
+          "sha256": "519e03b736300422f62115e3b215e95b4181cda67a218c94843a858d0a1aca1b"
+        },
+        {
+          "name": "worker",
+          "entry": "0x42024538",
+          "instructions": 150,
+          "sha256": "7bb2c019a516b2612c88c67c4d5a82d4233957e18941d8d9691aa8f764d5b6e7"
+        },
+        {
+          "name": "starter",
+          "entry": "0x420246d0",
+          "instructions": 92,
+          "sha256": "c5d1c99093489b7c7c571159b581f2dc0de1aac4e1b2de30c98c809be197e87f"
+        },
+        {
+          "name": "ready",
+          "entry": "0x420247d4",
+          "instructions": 4,
+          "sha256": "0e8b85431adeae01e336db5983d6ba0d92061048104b3b66f840576306d66c4d"
+        },
+        {
+          "name": "cooldown",
+          "entry": "0x4202203c",
+          "instructions": 5,
+          "sha256": "f8c8f0427e13c4a3c3221c982b09730829e0f8077c69788ee4d1dbb13947edbe"
+        },
+        {
+          "name": "button",
+          "entry": "0x4201159c",
+          "instructions": 427,
+          "sha256": "5714177a5104be086e3f7257ea6826d8fab7bdaf54b353a9cbbafa5d973d08f4"
+        },
+        {
+          "name": "background",
+          "entry": "0x42016790",
+          "instructions": 964,
+          "sha256": "694ec3f65982d10342d8c06396edec605c92d5f73d1a523ec74b51a58aefca55"
+        },
+        {
+          "name": "recovery",
+          "entry": "0x420166a4",
+          "instructions": 86,
+          "sha256": "d0a507617d981690a093a6c52f9a0f5f53a20e8d08dc0e69926427b16e5437ba"
+        },
+        {
+          "name": "recovery-start",
+          "entry": "0x42015d30",
+          "instructions": 12,
+          "sha256": "e6a9eb9cf8f601348c8c673c2c15875729d3399071ff467eaa03b48aade28f92"
+        }
+      ],
+      "dispatch_callers": [
+        {
+          "context": "main",
+          "caller": "0x42012770",
+          "site": "0x42012927"
+        },
+        {
+          "context": "main",
+          "caller": "0x42012770",
+          "site": "0x42012ab9"
+        },
+        {
+          "context": "main",
+          "caller": "0x42012770",
+          "site": "0x42013af0"
+        },
+        {
+          "context": "button",
+          "caller": "0x4201159c",
+          "site": "0x4201194e"
+        },
+        {
+          "context": "background",
+          "caller": "0x42016790",
+          "site": "0x42016e4b"
+        },
+        {
+          "context": "background",
+          "caller": "0x42016790",
+          "site": "0x42016fa7"
+        },
+        {
+          "context": "recovery",
+          "caller": "0x420166a4",
+          "site": "0x42016717"
+        }
+      ],
+      "admission_checkpoint": "0x4202475a",
+      "worker_cleanup_checkpoint": "0x420246b7",
+      "instructions_executed_unique": 87,
+      "scenarios": [
+        {
+          "name": "sequential-second-caller-rejected",
+          "starter_results": [
+            0,
+            259
+          ],
+          "created_tasks": 1,
+          "alive_tasks": 1,
+          "global_handle": 1441792,
+          "worker_delay_ticks": [],
+          "freed_keys": 0,
+          "events": [
+            {
+              "name": "create",
+              "handle": 1441792,
+              "global_handle": 1441792,
+              "alive": 1
+            }
+          ]
+        },
+        {
+          "name": "both-callers-pass-zero-handle-check",
+          "starter_results": [
+            0,
+            0
+          ],
+          "created_tasks": 2,
+          "alive_tasks": 2,
+          "global_handle": 1441808,
+          "worker_delay_ticks": [],
+          "freed_keys": 0,
+          "events": [
+            {
+              "name": "create",
+              "handle": 1441792,
+              "global_handle": 1441792,
+              "alive": 1
+            },
+            {
+              "name": "create",
+              "handle": 1441808,
+              "global_handle": 1441808,
+              "alive": 2
+            }
+          ]
+        },
+        {
+          "name": "first-worker-exit-clears-newer-handle",
+          "starter_results": [
+            0,
+            0,
+            0
+          ],
+          "created_tasks": 3,
+          "alive_tasks": 2,
+          "global_handle": 1441824,
+          "worker_delay_ticks": [
+            200
+          ],
+          "freed_keys": 1,
+          "events": [
+            {
+              "name": "create",
+              "handle": 1441792,
+              "global_handle": 1441792,
+              "alive": 1
+            },
+            {
+              "name": "create",
+              "handle": 1441808,
+              "global_handle": 1441808,
+              "alive": 2
+            },
+            {
+              "name": "delete",
+              "handle": 1441792,
+              "global_handle": 0,
+              "alive": 1
+            },
+            {
+              "name": "create",
+              "handle": 1441824,
+              "global_handle": 1441824,
+              "alive": 2
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "The two callers are deliberately paused after the zero-handle branch before strdup/task creation. No actual scheduler, critical-section behavior inside SDK task creation or frequency is modeled.",
+    "Task creation is modeled successful and writes a unique handle to the supplied output pointer. This models the ordinary handle-output contract, not complete FreeRTOS execution.",
+    "Worker HTTP is stubbed idle-success; completion give succeeds. Cleanup is resumed after its requested 200-tick delay without real time.",
+    "Task-context references are a bounded static census; no physical concurrent poll, heap corruption or image failure was induced.",
+    "No device, backend, network or HA change was made."
+  ]
+}

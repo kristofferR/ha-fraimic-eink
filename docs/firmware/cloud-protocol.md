@@ -458,6 +458,47 @@ using the ready byte and delayed task handle as interchangeable states. A stock
 backend can prepare assets early and retain durable offers, but cannot turn this
 caller sequence into an exactly-once display acknowledgment by response timing.
 
+### The poll starter guard does not reserve ownership
+
+Starter Large `0x42025c84` / Standard `0x420246d0` rejects a nonzero task
+handle, but the zero check and creation are separate. After the branch it
+duplicates the key, then creates the worker with an 8,192-byte stack, priority 5
+and the same global handle output pointer. No mutex, critical section or
+reservation spans those operations in the recovered starter/dispatcher bodies.
+The result-completion semaphore is not taken as an admission lock.
+
+Seven direct dispatcher sites per build occur in the recovered main, button,
+background initialization and Wi-Fi recovery bodies. Main/button paths are not
+seven separate tasks. The recovery starter is a distinct 4,096-byte, priority-3
+task creation with no retained handle; its worker dispatches after successful
+time synchronization. Large's portal event handler reaches that starter in its
+background Wi-Fi recovery branch. These establish multiple task contexts, not
+a claim that every call site can coincide in every boot state.
+
+Three scripted cases per build execute the starter and selected worker cleanup:
+
+| Schedule | Modeled outcome |
+| --- | --- |
+| First starter completes, then second enters | Second returns `0x103`; one worker created |
+| Both callers pause after reading zero, then each resumes | Both return success; two workers created, with the last handle replacing the first |
+| First of those workers completes while the second remains | Its unconditional handle-zero store removes the second worker's handle; a third starter succeeds |
+
+The last case uses the actual worker idle-success path, cooldown call and cleanup
+tail. It does not run concurrent HTTP or demonstrate shared-buffer corruption.
+The fixture models successful task creation writing its output handle, consistent
+with the pinned [IDF task initialization](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/freertos/FreeRTOS-Kernel/tasks.c);
+it does not emulate the kernel scheduler. Admission checkpoints are Large
+`0x42025d0a` / Standard `0x4202475a`, after the zero-handle branch and before
+key duplication. [Cases](poll-admission-cases.json) and
+[validation](validation-2026-10-22.md#poll-task-admission-and-ownerless-cleanup-c02d01e01e02)
+preserve that conditional scope.
+
+A future fork should reserve the poll slot atomically before allocation/creation
+and release it only for the owning request. A generation-tagged result should
+travel with that owner. The stock backend should tolerate overlapping requests
+without treating the starter guard as proof of one active request; no physical
+overlap or frequency has been measured.
+
 ### Four foreground consumers do not acknowledge image success
 
 The complete recovered main/button bodies contain these direct result-getter

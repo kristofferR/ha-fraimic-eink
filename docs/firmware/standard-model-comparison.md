@@ -149,6 +149,14 @@ the final query or after the retry clear instead permits consumption. These
 scripted schedules establish the control-flow possibility, not physical timing
 or observed image loss.
 
+The [task-admission follow-up](cloud-protocol.md#the-poll-starter-guard-does-not-reserve-ownership)
+finds seven direct dispatcher sites in four recovered bodies per model. Three
+scripted cases each show sequential exclusion, admission of two callers that
+both passed the zero-handle check, and a first worker clearing a newer handle
+on exit. Together these cases cover 87 distinct starter/worker/cooldown
+instructions per build with modeled task creation. Actual scheduling and
+concurrent HTTP remain untested.
+
 ### Saved memory states constrain extra buffers
 
 The [memory comparison](rendering-and-concurrency.md#exclusive-ownership-versus-a-snapshot)

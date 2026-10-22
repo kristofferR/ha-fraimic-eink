@@ -3696,3 +3696,51 @@ the deferred physical criteria and 12/67, 124/188 counts remain unchanged.
 | `poll-late-results.json` (published as the numeric ledger) | `a1a8f9f4070ef8eb1610c4fe1ec2813e24d359ef68467ddec1168e1d437d7bd7` |
 | `poll-starter-large-cfg.json` | `820fae2645defe0feaa06a627dc753c8ef2d32d301ca8389bddc0fadbfe70876` |
 | `poll-starter-standard-cfg.json` | `c5d1c99093489b7c7c571159b581f2dc0de1aac4e1b2de30c98c809be197e87f` |
+
+## Poll task admission and ownerless cleanup: C02/D01/E01/E02
+
+The [admission audit](cloud-protocol.md#the-poll-starter-guard-does-not-reserve-ownership)
+uses the complete 92-instruction starters and selected worker/cooldown paths.
+Three cases per build passed, each build covering 87 distinct instructions:
+sequential second-caller rejection, two callers paused after the zero-handle
+branch, and an older worker exiting before a third starter enters.
+
+The two paused callers retain distinct stacks/registers at Large `0x42025d0a`
+/ Standard `0x4202475a`; both resume after the check and successfully create
+workers in the modeled SDK call. Task creation writes a unique handle through
+the supplied global output pointer. This follows the ordinary output-handle
+contract in the pinned [IDF task initializer](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/freertos/FreeRTOS-Kernel/tasks.c),
+not a full scheduler simulation. The worker's idle-success response and give are
+stubbed; its real 200-tick cooldown call precedes paused/resumed cleanup. Cleanup
+frees its own copied key but unconditionally zeroes the shared handle, so the
+modeled third start succeeds while the second worker is still alive.
+
+The [ledger](poll-admission-cases.json) includes exact call sites and CFG hashes.
+Byte-checked main/button/background/recovery bodies contain seven direct
+dispatcher calls per model. Ghidra listed only six, again omitting the album
+retry. The starter has one identified direct caller, the dispatcher. Each task
+handle has one exact initialized pointer with four literal-load sites: worker
+clear, starter read, starter output-address setup and running getter. Call-site
+references associated with leftover registers are not additional memory uses.
+Computed aliases/indirect targets remain outside that bounded reference census.
+
+The 86-instruction recovery workers and 12-instruction recovery starters were
+also recovered against both pinned images. The starter passes its worker to
+task creation with no output handle. Large's additional reference trace locates
+the call at `0x4201b0b3` in portal event handler `0x4201ab08`; the saved handler
+decompilation places it in the background Wi-Fi recovery branch. This establishes
+relevant task contexts but does not execute all their admission predicates or
+claim all seven call sites are simultaneously reachable.
+
+No real scheduler, heap contention, HTTP overlap or physical fault was run.
+The three schedules are conditional possibilities, not frequency measurements.
+No device, backend, network or HA changes occurred. C02/D01/E01/E02 evidence is
+extended without reopening D01's bounded census or closing physical criteria.
+Checklist totals remain 12/67 original items and 124/188 milestones.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `poll-admission-cases.mjs` | `26086fa33d95f8f1a4d4af68c7ab5ade4a6a6a163b5fcc46c2b29e36d172d8af` |
+| `poll-admission-results.json` (published as the numeric ledger) | `dc7563039397bba80b2037043d0a7ce5b3df593a3e77a1d430bea764156d460e` |
+| `poll-admission-reference-large.tsv` | `45a59b804bd96672aa20f9a58a198b0c6fd2cd8e48a653281abeaae46d08722b` |
+| `poll-admission-reference-standard.tsv` | `0299cab7e182c1666894ba186a67d02a8c97ca0c198a872adcfaefdc84185dee` |
