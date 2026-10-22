@@ -2,12 +2,12 @@
 
 [Research index](README.md) · [HA reuse map](home-assistant-roadmap.md) · [Future protocol](protocol-extensions.md)
 
-**Recommended first scope: new voice artwork with visible transcript, final
-generation prompt and creation history.** This matches the owner's stated
-interest in local voice generation appearing in HA. The owner has been asked
-whether to prioritize this, add image editing, or include HA/playlist commands.
-That preference remains open; this proposal does not authorize implementation,
-provider calls or deployment.
+**Owner-selected scope: all three feature groups.** Include new voice artwork
+with visible transcript, final generation prompt and creation history; image
+editing; and HA commands with playlist control. The owner selected this scope
+on 22 October. This is a research proposal; it does not authorize implementation,
+provider calls or deployment. Build on one job/history model across all three
+groups, with explicit image and action targets as described below.
 
 ## First creation flow
 
@@ -92,10 +92,11 @@ the higher-level render-and-upload helper.
 
 ## Choices still open before implementation
 
-The first feature scope is awaiting the owner's preference. Provider selection
-and editing capability are also open; no paid-generation test has run. The
-proposal resolves target/current-image semantics conservatively and identifies
-the reusable APIs, but does not claim those product choices have been approved.
-A07's host milestone is complete; its decision milestone remains open.
+The owner selected all three feature groups. Provider selection and editing
+capability remain open; no paid-generation test has run. The proposal defines
+target/current-image semantics conservatively and identifies the reusable APIs.
+A07's host milestone is complete; its decision milestone remains open for
+provider capability and the proposed interaction details. Stock firmware still
+cannot provide clean no-redraw success for a nonvisual command.
 
 See [validation and source hashes](validation-2026-10-22.md#voice-feature-reuse-a07).

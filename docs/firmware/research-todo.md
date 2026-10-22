@@ -67,7 +67,8 @@ implementation is authorized merely by an unchecked box.
 
 For the owner's local-cloud/voice priorities, continue with the remaining host
 fault cases under D04/E01 while A07's [feature proposal](voice-feature-proposal.md)
-awaits the owner's scope/provider choices. Its six API reuse checks are complete. A06's compatibility
+awaits provider/interaction choices; the owner selected all three feature groups.
+Its six API reuse checks are complete. A06's compatibility
 examples, C08/D05's bounded interleaving
 pass and C11's synthetic enrollment pass are complete; their physical criteria
 remain deferred. A02–A04 and A03's final integration check need implementation;
@@ -273,7 +274,7 @@ Commit and push validated research batches periodically as requested.
   Status: **Research**.
 
   - [x] **Static/Design:** Map candidate library/scheduler reuse and provider limitations for voice creations, edits and commands. [Roadmap](home-assistant-roadmap.md).
-  - [ ] **Next:** **Design:** Obtain the owner's first feature scope and select/validate the needed provider capabilities before implementation. Current-image and target semantics are defined in the [concrete proposal](voice-feature-proposal.md); product choices remain open.
+  - [ ] **Next:** **Design:** Select/validate provider capabilities and settle interaction details before implementation. The owner selected new artwork/history, edits and HA/playlist commands; current-image and target semantics are defined in the [concrete proposal](voice-feature-proposal.md).
   - [x] **Host:** Check six playlist/queue/scene scenarios against unchanged integration APIs, including replay, missing sources, partial success and queued delivery. [Results and limits](validation-2026-10-22.md#voice-feature-reuse-a07).
 
 ## Recovery and OTA prerequisites
@@ -719,7 +720,7 @@ Commit and push validated research batches periodically as requested.
 
   Status: **Ongoing**.
 
-  - [x] **Static:** Correct consequential Ghidra truncations, missing task entries and generic-Xtensa decoding with pinned bytes/GNU control flow. [Method](evidence-and-open-questions.md#method-and-private-artifacts).
+  - [x] **Static:** Correct consequential Ghidra truncations, missing task entries and generic-Xtensa decoding with pinned bytes/GNU control flow. [Method](evidence-and-open-questions.md#method-and-private-artifacts). The response-cache follow-up adds two complete cleanup pairs and twelve bounded allocation cases: [evidence](validation-2026-10-22.md#response-cache-allocation-and-cleanup-e01e02).
   - [ ] **Next:** **Static:** Audit unresolved claims used by the next implementation decision. Track each concrete missing call/body/type in its owning item; do not reopen completed work merely because more library code exists.
 
 - [ ] **E02 · Static/Device:** Compare each relevant finding with other firmware

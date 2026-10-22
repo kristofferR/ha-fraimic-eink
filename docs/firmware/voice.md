@@ -442,6 +442,43 @@ semantics. Generation remains a separate finalize operation. The earlier Large
 200/empty and Standard 204 observations are the physical positive controls;
 the new variants are host-only. See [validation scope](validation-2026-10-22.md#upload-acknowledgment-framing-and-early-success-c05c08).
 
+### HTTP response-cache growth can lose an allocation
+
+An additional SDK audit finds a specific low-memory failure in body bytes cached
+while fetching headers. `http_on_body` assigns `realloc` directly to
+`orig_raw_data`. If growth fails after an earlier chunk was cached, the old
+allocation remains valid through `raw_data`, but the owning `orig_raw_data`
+becomes null. The callback returns an error without advancing its byte counters.
+The cache cleanup helper frees only a non-null `orig_raw_data`, so it neither
+frees that block nor clears the remaining cache fields on this path.
+
+The complete cache cleanup and client cleanup bodies match on both builds:
+`0x4206ce3c` → `0x4206c434` and `0x4206dbd8` → `0x4206d1d0`.
+The latter calls cache cleanup, then frees the response buffer structure; it has
+no alternate free of `raw_data`. The body callback and header-fetch comparison
+above establish the other consequential branches. External allocator/transport
+bodies are not recursively compared by this pass.
+
+Twelve isolated cases use the pinned SDK functions and HTTP parser with a tracked
+allocator and scripted response bytes. Failed second/third allocations in one
+three-chunk response leave **3/6 bytes allocated after cache cleanup**, respectively.
+Those small sizes make ownership observable; they do not estimate a device leak's
+size or frequency. Reading the surviving cached prefix does not restore ownership.
+Normal partial/full reads and repeated cleanup free the original once.
+
+For chunked responses, header fetch still returns zero despite `HPE_CB_body`,
+and the reconstructed upload acceptance branch reports success. An initial
+allocation failure also produces that mismatch, but has no prior block to leak.
+An empty explicit-length acknowledgment allocates no body cache and avoids this
+path. Direct body reads into a caller's output buffer also bypass this allocation;
+that does not remove other memory failures in the HTTP/TLS pipeline.
+
+This is a static/host finding, **not a reproduced frame leak or an explanation
+of the earlier live TLS allocation failure**. The fixture measures retained
+allocations, then explicitly reclaims them outside SDK cleanup so sanitizer
+runs can finish cleanly. It does not execute the full client teardown or the
+firmware allocator. See [validation](validation-2026-10-22.md#response-cache-allocation-and-cleanup-e01e02).
+
 ### JSON request allocation failures can lose ownership or fields
 
 Presign creates an object and two string children (`device_key`, `user_id`);

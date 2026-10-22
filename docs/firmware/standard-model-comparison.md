@@ -1185,6 +1185,19 @@ scripted transport and a reconstruction of that immediate caller branch.
 They do not prove live response segmentation, cancellation races, all parser
 configuration/callbacks or external-helper equivalence on either model.
 
+## HTTP response-cache cleanup also matches
+
+Two additional complete function pairs cover cache cleanup and client cleanup:
+88 instructions, ten internal branches and two ranges per image. Six direct
+call pairs and the free-helper literal pair are mapped; external callees are
+not all recursively compared. The function map now contains **315 pairs**.
+
+Together with the already compared body/fetch callbacks, these establish the
+same lost-cache-ownership branch after failed `realloc` growth on both apps.
+The [twelve isolated allocation cases](voice.md#http-response-cache-growth-can-lose-an-allocation)
+are one host fixture with pinned SDK/parser code and a tracked allocator, not
+two device tests. No live heap-pressure, fragmentation or TLS-cause claim follows.
+
 ## Coverage and cleanup
 
 The 24 decoded origin-API exchanges were complete and all HTTP 200: one

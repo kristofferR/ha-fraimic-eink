@@ -2446,8 +2446,9 @@ and `resvg_py` in a disposable `uv run --no-project` environment; the worktree's
 **6 passed in 0.17 seconds**. No integration source changed.
 
 The [feature proposal](voice-feature-proposal.md) captures explicit target/current-
-image semantics and the remaining scope/provider decision. A07's host milestone
-is complete; the owner's feature choice is not inferred from these checks.
+image semantics. A07's host milestone is complete. The owner subsequently selected
+all three feature groups (creation/history, editing, HA/playlist commands);
+provider capability and interaction choices remain open.
 
 | Source / private fixture | SHA-256 |
 | --- | --- |
@@ -2455,3 +2456,44 @@ is complete; the owner's feature choice is not inferred from these checks.
 | `custom_components/fraimic/playlists.py` | `9e52cca63246e2b8bf4989a58cbd98d0a2901d7e9e6cd37b7099d6db88726e1d` |
 | `custom_components/fraimic/playback_queue.py` | `2ad3295fd3d392e92dcee4636ddc05aa31fe76ab2f478298c08da98989227171` |
 | `custom_components/fraimic/scenes.py` | `4cae6c6cc2c0fe26e8f778c63a40566bf4223dab26a91b9e8659d403c3320d2e` |
+
+## Response-cache allocation and cleanup: E01/E02
+
+Two additional complete GNU control-flow comparisons match cache cleanup
+(`0x4206ce3c` → `0x4206c434`, eleven instructions) and full client cleanup
+(`0x4206dbd8` → `0x4206d1d0`, 77 instructions). Pinned image bytes, entry
+prologues, all reachable operations and ten internal branches were checked.
+Six direct-call pairs and one free-helper literal pair were reviewed as mapped
+dependencies; this does not prove every external body equivalent. The map now
+contains 315 selected pairs.
+
+The private host fixture adds a tracked allocation wrapper to the unchanged
+SDK callbacks/header reader/cache cleanup used by the acknowledgment fixture.
+It uses the original HTTP parser, scripted transport and the same reconstructed
+immediate upload return/status branch. **Twelve cases passed** under C11,
+warnings-as-errors, AddressSanitizer and UndefinedBehaviorSanitizer on Omarchy.
+
+The cases cover no-allocation empty acknowledgment, initial allocation failure,
+second/third chunk growth failures, normal cleanup, partial/full cached reads,
+repeated cleanup, reads after lost ownership, fixed-length success-path cleanup,
+and direct-output body copying. Failed growth leaves the earlier 3/6-byte
+allocation live after SDK cleanup; the fixture measures that ownership defect
+and explicitly reclaims the block afterward. Therefore a clean sanitizer exit
+does not mean the modeled SDK cleanup freed it. No invalid memory-access or
+undefined-behavior finding occurred in these bounded cases.
+
+Chunked header fetching returns zero even with `HPE_CB_body`; the reconstructed
+upload branch consequently reports success. The normal empty explicit-length
+acknowledgment does not enter the body allocator. The full client cleanup was
+compared statically, not executed in this host fixture. No live heap pressure,
+firmware allocator, concurrency or device failure was induced; the earlier TLS
+allocation failure's cause remains unknown. This advances ongoing E01/E02 and
+does not reopen the completed C05 contract or change checklist totals.
+
+| Private artifact | SHA-256 |
+| --- | --- |
+| `voice-cache-fixture.c` | `d3e05049950a710af636c3819aab47f973511e113d711ae3c129dce4c97746b0` |
+| `voice-cache-results.jsonl` | `c39313987c1b1552df7573aeacbc887f66e5d4036f6f64b69017ecc588c943c7` |
+| `compare-standard-voice-cache.mjs` | `946ded7a718c85ec3ce4a0b44e3dc254227c63f3d5676a5a8562a88d2cdcdd74` |
+| `standard-voice-cache-comparison.json` | `6b9a9424625ccf944336be97020a151bea80da5f0c6a0aae55cfee6c126bb1b5` |
+| Pinned `esp_http_client.c` | `7aabd415f3a39675e59f591919b9e88e31213e548b010cb0809a888d2b0ceef2` |
