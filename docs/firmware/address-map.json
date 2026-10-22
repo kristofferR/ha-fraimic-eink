@@ -576,14 +576,20 @@
     {
       "address": "0x42014ad4",
       "kind": "function",
-      "role": "Maintenance schedule persistence helper",
-      "evidence": "static"
+      "role": "Load zero-initialized 32-byte maintenance record; no returned-length validation",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42014b48",
       "kind": "function",
       "role": "Read 48-byte refresh_hist maintenance timestamp ring",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x42014bac",
+      "kind": "function",
+      "role": "Convert absolute wake target to corrected timer interval; elapsed target uses 60 seconds",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42014d14",
@@ -594,8 +600,8 @@
     {
       "address": "0x42014d48",
       "kind": "function",
-      "role": "Maintenance schedule persistence helper",
-      "evidence": "static"
+      "role": "Save 32-byte maintenance schedule with checked set/commit result",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42014dcc",
@@ -682,10 +688,16 @@
       "evidence": "static"
     },
     {
+      "address": "0x42015dac",
+      "kind": "function",
+      "role": "Read U8 wake reason; return zero on NVS open/read failure",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
+    },
+    {
       "address": "0x42015de8",
       "kind": "function",
-      "role": "Select maintenance/album deadline and reason",
-      "evidence": "static"
+      "role": "Select earliest deadline strictly beyond now plus 30 seconds; ties retain maintenance",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42015e5c",
@@ -702,26 +714,26 @@
     {
       "address": "0x42015f2c",
       "kind": "function",
-      "role": "Validate/configure maintenance schedule",
-      "evidence": "static"
+      "role": "Validate and persist maintenance schedule before timer arming; busy guard returns zero",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42016144",
       "kind": "function",
-      "role": "Default maintenance or 24-hour fallback scheduling, with optional time retry",
-      "evidence": "static; offline-time follow-up"
+      "role": "Request 24-hour timer only with invalid time; valid-time scheduling error recursively retries",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42016248",
       "kind": "function",
-      "role": "Request fallback scheduling when Wi-Fi credentials exist",
-      "evidence": "static; offline-time follow-up"
+      "role": "Invoke fallback helper only when Wi-Fi credentials exist",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42016274",
       "kind": "function",
-      "role": "Unified wake scheduling; create default maintenance schedule or use invalid-time fallback",
-      "evidence": "static; offline-time follow-up"
+      "role": "Select and arm wake timer; save reason even after timer error; no-candidate path retains reason",
+      "evidence": "static GNU validation; 22 October wake-scheduling host reconstruction"
     },
     {
       "address": "0x42016400",

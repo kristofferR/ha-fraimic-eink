@@ -67,6 +67,7 @@ per question, not a count of tool calls or decompiled functions.
 | N04/N05/N06 | Wake-image version decisions and 8 KiB validation allocation mapped; validation failure can trigger replacement/unlink; version stamp commit is unchecked | Filesystem/allocation faults, custom-artwork persistence and controlled recovery |
 | N08/D01/D07 | Sixteen RLE host cases verify partial writes, unchecked colours, ignored trailing pairs and vendor-asset output; status/restore helpers write before DROP and change markers before completion | Physical rendering, overlap, storage faults, Standard comparison and actual marker/artwork recovery |
 | S05/S06 | POSIX parser/default US rules traced; nine parser and eight calendar host cases passed, reproducing stale-DST one-hour target shifts; powered wake/test-timeout observations retained | Physical timezone/DST, stored-schedule recalculation, remaining setter audit and ordinary sleep/wake transitions |
+| S03/S04/S05/S06 | Thirty-three host case groups cover deadline selection, missed-album retry and scheduling faults; timer/reason ordering, maintenance correction and conditional recursive fallback traced | Physical wake timing, actual persisted correction, clock changes, concurrency and real timer/NVS faults |
 | H05/S06 | HTTP capacity/shared task, registration failure groups, teardown wait and factory GET/POST behavior added to `/dev`, Wi-Fi, local actions and LED findings | Remaining handler schemas, physical request concurrency, all LED meanings/timing, boot-state and controlled side-effect validation |
 | H05/N05/E01 | Log hook recovered; detail visibility, whole-history reset, mutex/truncation losses, binary snapshot and unchecked flush mapped | Controlled log/heap/storage faults, remaining redaction branches and complete diagnostics retention |
 | H05/N03/C11 | Onboarding GET/cache semantics and eight embedded page selections mapped; seven script host checks establish local submissions, recurring checks and error-body behavior | Initialization/read faults, remaining pages, real browser behavior, cache refresh and independent enrollment |
@@ -264,6 +265,9 @@ Source: [boot and scheduling](boot-and-scheduling.md).
 - [ ] **S04 · Host/Device:** Validate the strict 30-second margin, equal deadline
   handling, maintenance/album collisions, long transfer/redraw, overdue five-minute
   retry, missing-album fallback and invalid-time fallback.
+  [Timer/reason ordering](boot-and-scheduling.md#timer-selection-arming-and-wake-reason-are-separate-operations)
+  and 33 host case groups now distinguish candidate filtering, fallback timer
+  requests and persisted reasons. Physical timing remains unverified.
 - [ ] **S05 · Static/Host/Device:** Validate maintenance calendar calculations,
   default first target, timezone/DST changes and stored schedule limits. Determine
   whether any usable public setter exists for the internal schedule parameters.

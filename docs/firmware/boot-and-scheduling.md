@@ -149,6 +149,52 @@ Choose deadlines that remain more than 30 seconds away **after** downloads and
 panel work finish. `now + 31` at response construction is not sufficient margin
 for a long transfer/redraw.
 
+### Timer selection, arming and wake reason are separate operations
+
+The 30-second rule belongs to candidate selection, not every timer request.
+If neither candidate qualifies, unified scheduler `0x42016274` sends the loaded
+maintenance record to timer helper `0x42014bac` anyway. A maintenance target
+20 seconds ahead therefore requests about 20 seconds; an elapsed/equal target
+requests 60 seconds. This fallback does not update `wake_reason` and discards
+the timer helper's result. A previous album reason can remain in NVS.
+
+For a selected candidate, the scheduler calls the timer helper, checks its result,
+then attempts to save `app_data/wake_reason` **even if timer setup failed**.
+Set/commit errors are ignored. Conversely, successful timer setup followed by a
+failed reason write can leave the previous reason. At the next timer wake,
+`0x42015dac` returns the saved U8, defaulting to zero on read failure; the main
+loop treats exactly 1 as album wake and other values as maintenance. A persisted
+reason or “Timer set” log is not an atomic acknowledgement of the whole plan.
+
+The timer helper reads wall time again. If a target chosen more than 30 seconds
+ahead has become elapsed before this second read, the helper requests its
+60-second fallback while the outer scheduler still saves the chosen reason.
+Clock steps and delays between selection and arming therefore need separate
+handling from the initial margin.
+
+For a future target, the helper computes
+`(target - now) * (1.0 - correction) * 1,000,000` in double precision before
+integer conversion and timer setup. The maintenance record supplies the double
+at byte offset 8; an album candidate explicitly supplies zero. The record also
+contains its I64 target at offset 0 and interval/hour/minute fields at 16/20/24,
+within a 32-byte blob. The setter preserves a nonzero correction and does not
+validate its range here. This does not establish that the device learns drift
+or currently stores a nonzero value. Synthetic ±0.125 fixture values only verify
+the arithmetic, not a recommended calibration or measured clock behavior.
+
+Unified scheduling first requires a nonzero maintenance target. If absent, it
+creates the default schedule before examining album candidates. Failure to create
+or arm that default returns immediately, even when the album deadline itself
+would be usable. The default setter saves its record before arming the timer;
+an arming failure does not roll back that saved schedule. It also returns zero
+without doing work when its global “scheduling in progress” byte is already set.
+That return is not a wait for the other call to finish.
+
+An existing nonzero maintenance target is reused by this scheduler; it does not
+recalculate it merely because the local timezone or current time has changed.
+Other explicit rescheduling calls remain distinct. These are static findings
+with host boundary/fault models, not physical wake or induced storage failures.
+
 ### Maintenance timing
 
 `0x42016274` creates a schedule with `(interval_days=4, hour=3, minute=0)` when
@@ -271,6 +317,36 @@ on both frames.
 - The lower-level timer setter has an elapsed-target safety fallback of roughly
   60 seconds. This is separate from the album retry and not a promise of one-minute
   cloud polling.
+
+The album-retry branch is separate from ordinary unified selection. With a
+positive album deadline at or before `now + 30`, it requests 300,000,000 µs,
+attempts to save album reason 1, performs shutdown and requests the same timer
+again immediately before sleep. It does not compare a nearer maintenance target
+in that branch. Both timer results and reason set/commit results are ignored.
+Clearing the album deadline on a successful idle poll removes this branch;
+retaining an overdue positive deadline after a failed poll can preserve it.
+
+### The advertised 24-hour fallback has a conditional retry path
+
+When time is invalid, wrapper `0x42016248` skips fallback if there are no Wi-Fi
+credentials. Otherwise it calls `0x42016144(1)`. While the time-valid flag remains
+false, that helper requests exactly 86,400,000,000 µs and logs success without
+checking the timer result. It does not save a new wake reason.
+
+If the helper instead sees valid time, it calls the ordinary default schedule
+setter. On failure it logs “using 24h fallback” but recursively calls itself with
+argument 1. **Valid time still selects ordinary scheduling again.** Persistent
+schedule-save or timer errors, while the flag remains valid, can therefore repeat
+the call rather than reach the 24-hour timer branch. GNU at `0x42016242` confirms
+a real self-call, with a 32-byte function frame, not a tail-loop or a bounded retry.
+This is a conditional static failure path; no device stack exhaustion was induced.
+
+The host model covers transient failures that eventually succeed and persistent
+failure stopped by an explicit harness depth limit. That limit is not present in
+the firmware. A future firmware change should make fallback finite, check timer
+results and preserve a coherent reason/deadline transaction. A local backend
+should retain its intended future album epoch on idle responses and allow enough
+time for actual download/render latency, rather than depend on these fallback logs.
 
 A device timing test is still needed for outages, drift, overdue events,
 maintenance collisions, long rendering, timezone changes and cold boots.

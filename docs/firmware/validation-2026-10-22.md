@@ -758,3 +758,42 @@ Private artifacts: `ota-queue-pass1.txt`, `ota-queue-pass2.txt`,
 `ota-queue-gnu.mjs`, `ota-queue-boundaries-gnu.txt`, `ota-queue-literals.jsonl`,
 `ota-queue-fixture.c`, `ota-queue-fixture-results.txt` and
 `ota-queue-evidence-hashes.txt`.
+
+## Wake selection and timer/reason failures: S03/S04/S05/S06
+
+Two Ghidra passes, pinned constants and 29 bounded GNU ranges cover ten helpers
+plus selected album-wake caller branches. The selector's 64-bit return and reason
+registers were read directly; Ghidra's inferred void return and removed-branch
+warnings are not a sufficient account of this function. The lower timer helper
+also returns the SDK result despite its decompiled void signature.
+
+A C host reconstruction passed **33 case groups** under AddressSanitizer and
+UndefinedBehaviorSanitizer. Cases cover 29/30/31-second margins, equal/competing
+deadlines, a low-word epoch carry, overdue and cleared album state, timer/reason
+write failure combinations, default-schedule failure, time invalid with/without
+credentials, and a clock advancing between selection and arming. Synthetic
+maintenance correction values verify the arithmetic and album's zero correction.
+
+The separate fallback model covers invalid time, transient scheduling failures,
+persistent scheduling failures and the busy guard's no-work success. Persistent
+failure stops at a **host-only depth limit of 16**; this avoids deliberately
+exhausting a stack and does not assert an on-device failure threshold. The
+firmware's real recursive call and missing retry limit are static evidence.
+
+The [scheduling contract](boot-and-scheduling.md#timer-selection-arming-and-wake-reason-are-separate-operations)
+now distinguishes selected deadlines, requested timer intervals, persisted wake
+reasons and logs. The 30-second candidate cutoff is not a global minimum sleep:
+the no-candidate maintenance fallback can arm a nearer future target. Missed-album
+retry bypasses that selection and requests five minutes again after shutdown.
+
+These fixtures do not execute the Xtensa application, NVS, SNTP, RTC calibration,
+sleep hardware or concurrent tasks. No schedule/timezone/clock was written and
+neither frame was polled or woken. S03–S06 remain open for their physical,
+persistence and concurrency portions. The correction field's active calibration
+source and actual value remain unverified.
+
+Private artifacts: `wake-scheduling-pass1.txt`, `wake-scheduling-pass2.txt`,
+`wake-scheduling-gnu.mjs`, `wake-scheduling-boundaries-gnu.txt`,
+`wake-scheduling-literals.jsonl`, `wake-scheduling-extra-literals.jsonl`,
+`wake-scheduling-fixture.c`, `wake-scheduling-fixture-results.txt` and
+`wake-scheduling-evidence-hashes.txt`.

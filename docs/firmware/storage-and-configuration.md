@@ -72,7 +72,7 @@ Capacities below are observed application read/write sizes, not global NVS limit
 | `app_data/wifi_ssid_p`, `wifi_ssid_d` | Blob, 32-byte ordinary backup | `0x420185ac`; fixed driver field, not a NUL-terminated NVS string |
 | `app_data/wifi_pass_p`, `wifi_pass_d` | Blob, 64-byte ordinary backup | Same switch helper; other reset paths can preserve the returned blob length |
 | `app_data/deep_sleep`, `storage_mode` | **One-byte blobs**, not U8 | `0x42010674` and pre-sleep paths use `nvs_set_blob`; deep-sleep startup reader uses `nvs_get_blob` |
-| `app_data/refresh_sched` | Blob, 32-byte write/read capacity | `0x42014ad4` / `0x42014d48`; loader zero-initializes its destination |
+| `app_data/refresh_sched` | Blob, 32-byte write/read capacity | `0x42014ad4` / `0x42014d48`; I64 epoch at 0, double correction at 8, interval/hour/minute at 16/20/24; loader zero-initializes its destination |
 | `app_data/refresh_hist` | Blob, 48-byte write/read capacity | `0x42014b48` / `0x42014d14`; zero-initialized five-timestamp ring with index/count |
 | `app_data/sched_img_time` | **I64** | `0x42015d30` / `0x42015d60`; epoch value with a zero-valued RAM cache sentinel |
 | `app_data/last_sleep_ts` | **U64** | `0x4202d860` / `0x4202d90c`; written during sleep preparation and after conditioning returns success; set checked, commit unchecked |
