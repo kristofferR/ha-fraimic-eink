@@ -800,6 +800,22 @@
         "late_mount_error_releases_wear_level_handle": false,
         "host_case_groups": 12,
         "limits": "Conditional late-failure sequence; real wear-level driver, heap size, other cleanup paths, concurrency and physical effects not exercised"
+      },
+      "vfs_registration": {
+        "evidence": "Complete paired GNU registration body and previously compared mount wrapper",
+        "instructions_per_image": 83,
+        "branches_per_image": 13,
+        "gnu_ranges_per_image": 4,
+        "direct_call_pairs": 4,
+        "literal_pairs": 8,
+        "duplicate_path_error": "0x103",
+        "output_filesystem_set_on_duplicate": false,
+        "wrapper_accepts_duplicate_error": true,
+        "wrapper_output_slot_initialized_before_call": false,
+        "four_file_context_bytes": 25376,
+        "four_file_flags_bytes": 16,
+        "total_requested_bytes": 25392,
+        "limitations": "Conditional static handoff; no crash, race, heap-placement measurement or real allocation-failure experiment. Prior injected invalid-state host case supplied a valid pointer."
       }
     }
   },
@@ -2008,6 +2024,11 @@
       "role": "fat_vfs_registration_cleanup",
       "large": "0x42036ba0",
       "standard": "0x42035664"
+    },
+    {
+      "role": "fat_vfs_register_configuration",
+      "large": "0x42036ab8",
+      "standard": "0x4203557c"
     }
   ],
   "live_standard": {

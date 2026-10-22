@@ -1830,8 +1830,8 @@ not a claim that the firmware releases these resources.
 | Private artifact | SHA-256 |
 | --- | --- |
 | `last-cache-sdk-wrapper.inc` | `2c61d84376dffe7a9545005bf841e3eb3b9b2890682cd481d67a3924f9724549` |
-| `last-cache-cleanup-fixture.c` | `08b9235a6042076bf97b6114480275ee8df849e5881eca9bb50856698f9e9cd1` |
-| `last-cache-cleanup-fixture-results.jsonl` | `c1bd2d8b9a6709d0b4a4aa4aa4d3c815864cb0dfcdaa6590a25e5f27c4c00d8b` |
+| `last-cache-cleanup-fixture.c` | `cc5f8fb8171f83f706223e0c08ca80a4c803787155ec7534e97a29f13922c865` |
+| `last-cache-cleanup-fixture-results.jsonl` | `a3fbab478efa1e701eed50df13b02a520d28492f758c98e74ebe5e1acffb8f8d` |
 | `last-cache-wear_levelling.cpp` | `880e32476dd5ef0ed1319dac44b732685dc6ca87330e6aa804d95ba31278b740` |
 
 Other private artifacts: `last-cache-cleanup-pass1.txt`,
@@ -1843,3 +1843,31 @@ Other private artifacts: `last-cache-cleanup-pass1.txt`,
 made. Remaining cleanup callers, actual allocator/driver behavior, concurrency,
 interrupted storage and physical recovery remain untested. No causal connection
 to the earlier observed TLS allocation failure has been established.
+
+## FAT registration error output and allocation requests: N04/E01/E02
+
+A complete paired registration body adds 83 instructions, 13 branches and four
+GNU ranges per image, with four direct-call and eight literal pairs reviewed.
+The public map now contains 242 pairs. First twelve core/directory slots and
+sixteen directory callbacks are checked as pointer tables rather than treating
+a binary table as a terminated string; callback bodies and optional table tails
+are not all validated.
+
+The [registration output trace](storage-and-configuration.md#existing-vfs-registration-does-not-supply-a-filesystem-pointer)
+shows the accepted `0x103` path leaves the filesystem pointer unset. The mount
+wrapper's stack slot is not initialized before that call. This is static
+evidence of a conditional uninitialized-value handoff, not an induced crash.
+The earlier cleanup fixture's injected-invalid-state case supplies a valid
+pointer, so it is only a wrapper status test. Its label is clarified and all
+twelve groups rerun successfully; the two affected hashes above are updated.
+No host execution of an uninitialized pointer was attempted.
+
+The four-file configuration requests 25,376 bytes for the FAT context and file
+structures, plus sixteen flag bytes. Other allocations, allocator overhead and
+memory placement are excluded. No causal link to observed TLS memory errors is
+established. Private artifacts: `cache-registration-pass1.txt`,
+`cache-registration-{large,standard}-cfg.json`/`.txt`,
+`compare-standard-cache-registration.mjs`,
+`standard-cache-registration-comparison.json` and
+`standard-cache-registration-boundaries-gnu.txt`. No device, storage, network
+or HA changes were made; runtime reachability, concurrency and recovery remain open.

@@ -763,6 +763,16 @@ compared SDK wrapper omits wear-leveling unmount on later error paths. Twelve ne
 host groups check that wrapper with slot accounting, without executing the full
 driver or reproducing a physical memory/storage failure.
 
+The registration helper is now compared as well: 83 instructions, 13 branches,
+four ranges, four direct-call pairs and eight literal pairs. Both leave the
+filesystem output untouched on an already-registered error, although the mount
+wrapper accepts that status and consumes its uninitialized local pointer.
+Both request 25,392 bytes for the four-file FAT context/flags, before other
+overheads. The first twelve core/directory operation slots and sixteen directory
+callbacks are mapped separately; their bodies are not all compared. This adds
+one function pair, bringing the map to 242. No duplicate-registration crash or
+actual heap-pressure failure was induced.
+
 ### Cancellation ownership and download timeouts also match
 
 Two additional Standard reference passes compare fifteen function pairs covering

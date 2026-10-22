@@ -640,11 +640,40 @@ experienced it or an explanation of the captured TLS allocation failure.
 Twelve host groups exercise the unchanged SDK wrapper with controlled dependencies,
 including registration, FAT and allocation failures, successful
 retry with an earlier retained slot, eight-slot exhaustion and an already-registered
-VFS result. Wear-leveling is an eight-slot accounting stub based on the verified
+VFS status supplied together with a valid pointer by the stub. That last case
+checks wrapper status handling, not the real registration helper's output on
+error; the distinction is traced below. Wear-leveling is an eight-slot accounting stub based on the verified
 allocator, not real flash or a measurement of leaked heap bytes. Host cleanup
 deliberately frees fixture contexts after assertions. Three additional paired
 GNU bodies verify the allocator and both cleanup helpers across 232 instructions,
 24 branches and six ranges per model. No storage failure was induced on a frame.
+
+### Existing VFS registration does not supply a filesystem pointer
+
+The real registration helper `0x42036ab8` returns `0x103` immediately when the
+base path already has a VFS context. It does not populate its filesystem output
+pointer on this path. Only the successful final branch stores that pointer.
+The mount wrapper nevertheless accepts `0x103` as well as zero and continues
+with its local pointer slot at stack offset 20. The complete wrapper has not
+initialized that slot before the registration call; it later loads it as the
+FAT mount argument. The two recovered functions therefore do not provide safe
+reuse of an existing registration. This agrees with the corresponding
+[SDK registration code](https://raw.githubusercontent.com/espressif/esp-idf/v5.4.1/components/fatfs/vfs/vfs_fat.c).
+
+This is a conditional uninitialized-value path, not a reproduced crash or proof
+that ordinary startup reaches duplicate registration. The host fixture's injected
+`0x103` case deliberately supplied a valid filesystem pointer; it establishes
+only that the wrapper accepts the status. Its label and evidence hashes now make
+that scope explicit. No uninitialized-pointer execution was attempted.
+
+The helper also establishes the allocation requests for the app's four-file
+configuration: an 8,832-byte base context plus four 4,136-byte file structures
+(25,376 bytes), then a separate 16-byte flags allocation. The combined 25,392
+bytes exclude allocator overhead, VFS registration, wear-leveling objects and
+other buffers; they are not a measurement of actual free heap or internal-RAM
+placement. Registration on Standard `0x4203557c` matches across 83 instructions,
+13 branches and four ranges. Actual initialization races, resource pressure and
+safe cache replacement remain untested.
 
 ## Last artwork
 

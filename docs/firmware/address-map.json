@@ -88,6 +88,18 @@
       "evidence": "static"
     },
     {
+      "address": "0x3c3b1350",
+      "kind": "pointer_table",
+      "role": "FAT VFS core operation table; first twelve core/directory slots mapped against Standard, optional tail fields not yet audited",
+      "evidence": "static; 22 October registration GNU and bounded VFS table comparison"
+    },
+    {
+      "address": "0x3c3b1388",
+      "kind": "pointer_table",
+      "role": "Sixteen FAT VFS directory callback pointers, mapped against Standard; not all callback bodies compared",
+      "evidence": "static; 22 October registration GNU and bounded VFS table comparison"
+    },
+    {
       "address": "0x3c3c46d0",
       "kind": "data",
       "role": "16-byte heap-backed TCP/IP API callback allocation descriptor; pool index 8",
@@ -2852,6 +2864,12 @@
       "kind": "function",
       "role": "Disk I/O registration helper; null implementation frees registration only, without wear-level unmount",
       "evidence": "static; 22 October Large/Standard late-mount cleanup GNU comparison"
+    },
+    {
+      "address": "0x42036ab8",
+      "kind": "function",
+      "role": "FAT VFS registration: duplicate-path 0x103 leaves output pointer untouched; only successful publication assigns it; four-file context/flags request 25392 bytes",
+      "evidence": "static; 22 October registration GNU and bounded VFS table comparison"
     },
     {
       "address": "0x42036ba0",
