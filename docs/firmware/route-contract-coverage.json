@@ -4,7 +4,7 @@
   "registrations": 42,
   "unique_handlers": 39,
   "availability": "Registrations do not guarantee reachability: HTTP startup, partial registration, sleep, factory state and shared blocking task remain conditional; see local-api.md server capacity/lifecycle.",
-  "limits": "Static handler contracts and selected host cases, not exhaustive browser/SDK execution or live validation of every input/error/state. Standard route identity is separately inventoried; complete Standard handler equivalence is not claimed.",
+  "limits": "Large static handler contracts and selected host cases, not exhaustive browser/SDK execution or live validation of every input/error/state. local-handler-comparison.json separately compares all 39 complete handler bodies across both pinned builds and identifies structural/data differences; mapped external callees are not recursively equated.",
   "routes": [
     {
       "route": "/complete",
@@ -418,11 +418,11 @@
       "method": "POST",
       "handler": "0x420307f8",
       "record_offset": "0x50584",
-      "input": "Raw panel body with exact application/octet-stream Content-Type; Large upper limit 2304000 bytes",
+      "input": "Raw panel body; Content-Type length 1..63 must contain case-sensitive application/octet-stream; Large upper limit 2304000 bytes and save/start lower bound 2302976 bytes",
       "output": "JSON status=rendering and bytes_received, or error",
       "effect": "Writes shared buffer and artwork cache before renderer wait; response is not render completion",
       "access": "No handler-level access check identified",
-      "evidence": "local-api.md#image-delivery"
+      "evidence": "local-api.md#raw-image-acceptance-and-failure-boundaries-on-both-models"
     },
     {
       "route": "/api/albums",

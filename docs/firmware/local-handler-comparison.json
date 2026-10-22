@@ -1,0 +1,851 @@
+{
+  "audited_on": "2026-10-22",
+  "image_sha256": {
+    "large": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
+    "standard": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7"
+  },
+  "registrations": 42,
+  "handler_pairs": 39,
+  "normalized_matching_pairs": 37,
+  "instructions": {
+    "large": 7411,
+    "standard": 7412
+  },
+  "matching_instructions_per_model": 6968,
+  "mapped_direct_call_pairs": 114,
+  "mapped_literal_value_pairs": 662,
+  "private_comparison_sha256": "91ceb7edba9fad31b79302ccd21d1277338988c3940ac7bc9f05088cd56ecb31",
+  "handlers": [
+    {
+      "routes": [
+        "GET /complete"
+      ],
+      "large": {
+        "entry": "0x42017560",
+        "instructions": 47,
+        "cfg_sha256": "b1cd196b5b5f6f154ce6e90ec797a482046086c1879f3df39bfe6b7f390c4075",
+        "end_exclusive": "0x420175dc"
+      },
+      "standard": {
+        "entry": "0x42017534",
+        "instructions": 47,
+        "cfg_sha256": "16297eed684b1e9badc8a718d332b24790240756916f43eeb272b6328bcc4f23",
+        "end_exclusive": "0x420175b0"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /create-account"
+      ],
+      "large": {
+        "entry": "0x42019224",
+        "instructions": 41,
+        "cfg_sha256": "4dbcfb37c7f7d6ff20e8b5d094eed4670c6427c57dc427eefac62dc952163cdd",
+        "end_exclusive": "0x42019294"
+      },
+      "standard": {
+        "entry": "0x420191f8",
+        "instructions": 41,
+        "cfg_sha256": "25fb95b80731fcbb09e6b7fe3d7d448377432069a093b266fba3e40b305325da",
+        "end_exclusive": "0x42019268"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /create-account"
+      ],
+      "large": {
+        "entry": "0x42018cc8",
+        "instructions": 423,
+        "cfg_sha256": "8d46c0a2f0a58d6e554bfdab6ca91dceb0e4e3f9d5fd36e75520d798265b8cac",
+        "end_exclusive": "0x4201912c"
+      },
+      "standard": {
+        "entry": "0x42018c9c",
+        "instructions": 423,
+        "cfg_sha256": "79c418654f8337d483b8e0619ef8a065dc66e055c2ce7f7493cea394bbd528df",
+        "end_exclusive": "0x42019100"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /sign-in"
+      ],
+      "large": {
+        "entry": "0x420191b4",
+        "instructions": 41,
+        "cfg_sha256": "493d1d6aa2dd307e87a6c9cb96c1d7a00f1ea0a5c2b3a5064afdceb058d6e6f8",
+        "end_exclusive": "0x42019224"
+      },
+      "standard": {
+        "entry": "0x42019188",
+        "instructions": 41,
+        "cfg_sha256": "de6add43144038c032ef8027fc34e32a23dfa5fa0d6b575e917bfdc8ad3de023",
+        "end_exclusive": "0x420191f8"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /sign-in"
+      ],
+      "large": {
+        "entry": "0x420192c8",
+        "instructions": 352,
+        "cfg_sha256": "9f1a2d7b07402f5d4ff38aa7973df490c361de8d671f10937aa2aa036bab3565",
+        "end_exclusive": "0x42019670"
+      },
+      "standard": {
+        "entry": "0x4201929c",
+        "instructions": 352,
+        "cfg_sha256": "b3177f1f122f2dbe0d5aaeb9d8720ee8db43249ef357524e9fc8800f2449c731",
+        "end_exclusive": "0x42019644"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /api/verification-status"
+      ],
+      "large": {
+        "entry": "0x42019168",
+        "instructions": 27,
+        "cfg_sha256": "fb2412b63b395a97bedcb30bd3f1c7cb2d89d6120c2e345a7387231263d10cd7",
+        "end_exclusive": "0x420191b4"
+      },
+      "standard": {
+        "entry": "0x4201913c",
+        "instructions": 27,
+        "cfg_sha256": "07637299ece7e8ea61add67cd670d1dfba94c7bbb1e6b0bce692400ef3260181",
+        "end_exclusive": "0x42019188"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /"
+      ],
+      "large": {
+        "entry": "0x4201b290",
+        "instructions": 30,
+        "cfg_sha256": "ea357061c0438a31717e665728d48037231e0f2e4c981a76ff2c548b9b94e0b6",
+        "end_exclusive": "0x4201b2e0"
+      },
+      "standard": {
+        "entry": "0x4201b264",
+        "instructions": 30,
+        "cfg_sha256": "e6631d4159738033050117756585432059f91f8d4b5d2117072c5b1633863669",
+        "end_exclusive": "0x4201b2b4"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /scan.json"
+      ],
+      "large": {
+        "entry": "0x4201d28c",
+        "instructions": 248,
+        "cfg_sha256": "a7fd52575b141ce7a2503cef1611f9582472f6e879c6d6bc0ee50d417aae82b5",
+        "end_exclusive": "0x4201d528"
+      },
+      "standard": {
+        "entry": "0x4201d260",
+        "instructions": 248,
+        "cfg_sha256": "f93029965434db377c2589b2690c713372bab48622a75bd0eec322c25d08a67d",
+        "end_exclusive": "0x4201d4fc"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /connect"
+      ],
+      "large": {
+        "entry": "0x4201d07c",
+        "instructions": 202,
+        "cfg_sha256": "74cf5c0471a23b48893ed4c789fb7703dc614598197928c5d72e42b280136823",
+        "end_exclusive": "0x4201d28c"
+      },
+      "standard": {
+        "entry": "0x4201d050",
+        "instructions": 202,
+        "cfg_sha256": "fb2e3f93980ba4facbc9792e8a50812aa09ce0f60ec4054baf09e0d8d93f2894",
+        "end_exclusive": "0x4201d260"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /hotspot-detect.html",
+        "GET /generate_204",
+        "GET /connecttest.txt",
+        "GET /wifi"
+      ],
+      "large": {
+        "entry": "0x4201b3d8",
+        "instructions": 12,
+        "cfg_sha256": "7107d3e4da53105e795ff7690c5ed9d105ff7ff3f0fae020357b3e7292362566",
+        "end_exclusive": "0x4201b3f8"
+      },
+      "standard": {
+        "entry": "0x4201b3ac",
+        "instructions": 12,
+        "cfg_sha256": "72bff2a122a0c9fb059c8e242dbba229cccca92a18b956c69542cb2775cbb5b0",
+        "end_exclusive": "0x4201b3cc"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /connect"
+      ],
+      "large": {
+        "entry": "0x4201b3f8",
+        "instructions": 180,
+        "cfg_sha256": "856b8ef609d918b1b2dc5bc3513944699a19242f99191494a5c53b9404bc133c",
+        "end_exclusive": "0x4201b628"
+      },
+      "standard": {
+        "entry": "0x4201b3cc",
+        "instructions": 180,
+        "cfg_sha256": "66bfa37e8b530c001528581cbbfba325506ce48cdb83740f8854ebe6deba0129",
+        "end_exclusive": "0x4201b5fc"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /upload"
+      ],
+      "large": {
+        "entry": "0x4201b3ac",
+        "instructions": 14,
+        "cfg_sha256": "7951d6a70c7dfdbe16a992991831272ad8a35bc0e6df434b12d290a30c9ccba0",
+        "end_exclusive": "0x4201b3d8"
+      },
+      "standard": {
+        "entry": "0x4201b380",
+        "instructions": 14,
+        "cfg_sha256": "906006ba4495d4970c20936eba0c0d7efda0b0eb0430ae7ce6791a81cd5336de",
+        "end_exclusive": "0x4201b3ac"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /upload"
+      ],
+      "large": {
+        "entry": "0x4201cc0c",
+        "instructions": 413,
+        "cfg_sha256": "30030298f3a3dddea589ad82edd1496c227aa4e5b0ecb247923e352713db336c",
+        "end_exclusive": "0x4201d07c"
+      },
+      "standard": {
+        "entry": "0x4201cbe0",
+        "instructions": 413,
+        "cfg_sha256": "34d1eee7bd87b277e19cae73c80bc518ef45e405953aa186047e99584c125033",
+        "end_exclusive": "0x4201d050"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /action"
+      ],
+      "large": {
+        "entry": "0x4201c740",
+        "instructions": 433,
+        "cfg_sha256": "f13d6d19a282e5a0cdbd35b39137412f849643aebfe500c79aa949d62f56095c",
+        "end_exclusive": "0x4201cc0c"
+      },
+      "standard": {
+        "entry": "0x4201c714",
+        "instructions": 433,
+        "cfg_sha256": "bafdd94cd6767486b44cc507c0c9227538726ec0c995ffb7a521b0fa59cc77b6",
+        "end_exclusive": "0x4201cbe0"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /portal"
+      ],
+      "large": {
+        "entry": "0x4201e81c",
+        "instructions": 198,
+        "cfg_sha256": "65ccfa48ab1092b91040dd7b9d16ca80505068d252a89d6c3f118618d4fa31cf",
+        "end_exclusive": "0x4201ea38"
+      },
+      "standard": {
+        "entry": "0x4201e7f0",
+        "instructions": 198,
+        "cfg_sha256": "8078e8c7eb3ea2474397fd71a2cfe68c1f99c720c5ad5b751366bfd4fb11efb5",
+        "end_exclusive": "0x4201ea0c"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /info"
+      ],
+      "large": {
+        "entry": "0x4201f0f8",
+        "instructions": 879,
+        "cfg_sha256": "69178cdc0ab5a25299bc16578e52de67c6f67c9aedebf4c06780658e3dceb9fc",
+        "end_exclusive": "0x4201fd90"
+      },
+      "standard": {
+        "entry": "0x4201f0cc",
+        "instructions": 879,
+        "cfg_sha256": "590f81eca0e91ac0817b8c431dd587e084917562c385b8517cb9647f65a8b522",
+        "end_exclusive": "0x4201f9f8"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /wifi-stats"
+      ],
+      "large": {
+        "entry": "0x4201e05c",
+        "instructions": 726,
+        "cfg_sha256": "2eff76b65badce570137142e985b7df31e900df259604c300a58947f4a5143c7",
+        "end_exclusive": "0x4201e81c"
+      },
+      "standard": {
+        "entry": "0x4201e030",
+        "instructions": 726,
+        "cfg_sha256": "9b6498f91b31c4edc97ba2404f51b0511f4768099728987521b9e340d4066acd",
+        "end_exclusive": "0x4201e7f0"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /clear-stats"
+      ],
+      "large": {
+        "entry": "0x4201c6f4",
+        "instructions": 27,
+        "cfg_sha256": "474aa470d668716d3c0935610e529d0d8b25a1f5e7d1bee678870b4524202cf9",
+        "end_exclusive": "0x4201c740"
+      },
+      "standard": {
+        "entry": "0x4201c6c8",
+        "instructions": 27,
+        "cfg_sha256": "fed704b584f1cc385894a5b74a1e9f0f4f1ae1b07ee19849232f14a11d93392c",
+        "end_exclusive": "0x4201c714"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /switch-ap"
+      ],
+      "large": {
+        "entry": "0x4201c4cc",
+        "instructions": 204,
+        "cfg_sha256": "7420599785e95a39c28d9df7f674d90c42b8e3e9e9fbe5bb12371aa1d4311bd0",
+        "end_exclusive": "0x4201c6f4"
+      },
+      "standard": {
+        "entry": "0x4201c4a0",
+        "instructions": 204,
+        "cfg_sha256": "e4823c828be86c3634752214ab036813ee94fd9a01b91355f779a3c2b215e005",
+        "end_exclusive": "0x4201c6c8"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /check-internet"
+      ],
+      "large": {
+        "entry": "0x4201c404",
+        "instructions": 76,
+        "cfg_sha256": "6db62e5e03443d8337e104d57e17b362acbd4a24f9a6534e8921a14c53741939",
+        "end_exclusive": "0x4201c4cc"
+      },
+      "standard": {
+        "entry": "0x4201c3d8",
+        "instructions": 76,
+        "cfg_sha256": "738e71c9c82d93560131c02f1f69f372902ac01ef02b4f4c12a426f2c1aff081",
+        "end_exclusive": "0x4201c4a0"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /logs"
+      ],
+      "large": {
+        "entry": "0x4201c0d0",
+        "instructions": 304,
+        "cfg_sha256": "a1b2601c413f2975d6d69e9173b0ff6d47c976d753c0f69c5e2f144839c0dbed",
+        "end_exclusive": "0x4201c404"
+      },
+      "standard": {
+        "entry": "0x4201c0a4",
+        "instructions": 304,
+        "cfg_sha256": "0081b529c4d30d4abec03147393eee8e6f0122814483f5ad69e3f1a707db1f82",
+        "end_exclusive": "0x4201c3d8"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /logs"
+      ],
+      "large": {
+        "entry": "0x4201b2e0",
+        "instructions": 63,
+        "cfg_sha256": "ff8ed71d7c0cf541191c9714e04c10e6b42bbb3ba74f54f255bedb0293cfa190",
+        "end_exclusive": "0x4201b38c"
+      },
+      "standard": {
+        "entry": "0x4201b2b4",
+        "instructions": 63,
+        "cfg_sha256": "520cbdbecdcf11d1161f3589a3cbe6ee3c5f7472907fe47055eff30567bc44fb",
+        "end_exclusive": "0x4201b360"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /logs/action"
+      ],
+      "large": {
+        "entry": "0x4201c048",
+        "instructions": 49,
+        "cfg_sha256": "b96a392c0d205e78c87c22490a286f35dc252107a2e15b69feaf4b4ffda863b2",
+        "end_exclusive": "0x4201c0d0"
+      },
+      "standard": {
+        "entry": "0x4201c01c",
+        "instructions": 49,
+        "cfg_sha256": "b7e7e79f44ec5b430e977558684c5ff1c1ec087bc1164cda3814ac5c0ae485a9",
+        "end_exclusive": "0x4201c0a4"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /get-started"
+      ],
+      "large": {
+        "entry": "0x4201b38c",
+        "instructions": 12,
+        "cfg_sha256": "93d9120b3541defa338dfe82aa850c46c02b80790bcf0fd0febb6f1618afcc59",
+        "end_exclusive": "0x4201b3ac"
+      },
+      "standard": {
+        "entry": "0x4201b360",
+        "instructions": 12,
+        "cfg_sha256": "601cf1f6c4c5333bdfb4588bc0657fb4eb32266092c94f4adb5360883f4ea52f",
+        "end_exclusive": "0x4201b380"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /test"
+      ],
+      "large": {
+        "entry": "0x4201ed28",
+        "instructions": 361,
+        "cfg_sha256": "d025103ab100d0490b3fe1e9b819d80155804d603b64bf8faaef0888e38ee803",
+        "end_exclusive": "0x4201f0f8"
+      },
+      "standard": {
+        "entry": "0x4201ecfc",
+        "instructions": 361,
+        "cfg_sha256": "d94b203e7647b1a72e278e29c306ea2702b3f85a9099b9176a2831b15dbb9f4a",
+        "end_exclusive": "0x4201f0cc"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /test"
+      ],
+      "large": {
+        "entry": "0x4201ba9c",
+        "instructions": 526,
+        "cfg_sha256": "a4b79022a3b002656d4dbd06a0fa3f9a652825f9248bb1bbea0ec834d9424942",
+        "end_exclusive": "0x4201c048"
+      },
+      "standard": {
+        "entry": "0x4201ba70",
+        "instructions": 526,
+        "cfg_sha256": "f657c92d876fb8d107a545bfe86c1fd1d3f694ecc1e856b06d3c50a9b08cf157",
+        "end_exclusive": "0x4201c01c"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /dev"
+      ],
+      "large": {
+        "entry": "0x4201ebbc",
+        "instructions": 135,
+        "cfg_sha256": "e6c051e1d23f4b465e9053e40f02552cc748e198a390b8feba2a4f4e65c2e0d8",
+        "end_exclusive": "0x4201ed28"
+      },
+      "standard": {
+        "entry": "0x4201eb90",
+        "instructions": 135,
+        "cfg_sha256": "60da393d28d9fe4dae72b983f1a97928ee74ca44fb8f170f6b4f89ff5d5ac0f3",
+        "end_exclusive": "0x4201ecfc"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /dev"
+      ],
+      "large": {
+        "entry": "0x4201b6a0",
+        "instructions": 311,
+        "cfg_sha256": "3e2eecc0f3f37c159aece51d1fecb81eed1d586da8414ba15dcff9ef4b5b84da",
+        "end_exclusive": "0x4201b9f4"
+      },
+      "standard": {
+        "entry": "0x4201b674",
+        "instructions": 311,
+        "cfg_sha256": "165abd54fe31952481deda822266a3b6684fa2cb0d80d7bfa0e872c278929f4e",
+        "end_exclusive": "0x4201b9c8"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /battery/status"
+      ],
+      "large": {
+        "entry": "0x4202a154",
+        "instructions": 110,
+        "cfg_sha256": "010e090c3b1043643b2209a98bfc20241eb157c9b98b4e80f2cbc463de03ab1d",
+        "end_exclusive": "0x4202a280"
+      },
+      "standard": {
+        "entry": "0x420289bc",
+        "instructions": 110,
+        "cfg_sha256": "f9ce7366a81d2d268b4bfddb466c40495f95e4500e7559db44b93e22417ea435",
+        "end_exclusive": "0x42028ae8"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /api/info"
+      ],
+      "large": {
+        "entry": "0x42030c98",
+        "instructions": 389,
+        "cfg_sha256": "e41054e2dc68aef2c1f2611cf6c1e649165cbf1446ea5efa3ce83fb9dd6b3a0d",
+        "end_exclusive": "0x420310b0"
+      },
+      "standard": {
+        "entry": "0x4202f384",
+        "instructions": 413,
+        "cfg_sha256": "759ba5842c23c0672f189fd8a864ea3688d52983f070325f4a9f92359e47cfe3",
+        "end_exclusive": "0x4202f7dc"
+      },
+      "normalized_operations_match": false
+    },
+    {
+      "routes": [
+        "GET /api/battery"
+      ],
+      "large": {
+        "entry": "0x42030c6c",
+        "instructions": 14,
+        "cfg_sha256": "d178b669d84a501ea6964f8845f340dfa8350e0ee4bafb67cda4d515dee954cc",
+        "end_exclusive": "0x42030c98"
+      },
+      "standard": {
+        "entry": "0x4202f358",
+        "instructions": 14,
+        "cfg_sha256": "89a5bd1a7b8d2be53fb9539da2c63c7c83d8cd50dcb9a5a15a15677c5fc37414",
+        "end_exclusive": "0x4202f384"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /api/restart"
+      ],
+      "large": {
+        "entry": "0x42030ba0",
+        "instructions": 31,
+        "cfg_sha256": "d16d24eff7849e68b6d23e1ab3915473e3a1d2b847c1c5657e8382f2bbaf63ec",
+        "end_exclusive": "0x42030bf8"
+      },
+      "standard": {
+        "entry": "0x4202f28c",
+        "instructions": 31,
+        "cfg_sha256": "6db5d30d5856ecbb2a856a950d558839ce3cb06be1b04291a96869150f46b2dd",
+        "end_exclusive": "0x4202f2e4"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /api/sleep"
+      ],
+      "large": {
+        "entry": "0x42030b38",
+        "instructions": 36,
+        "cfg_sha256": "bb506276fc1e2d224e1609c86c72ba08c4e2417b360c2eabeff60c344c69df5e",
+        "end_exclusive": "0x42030ba0"
+      },
+      "standard": {
+        "entry": "0x4202f224",
+        "instructions": 36,
+        "cfg_sha256": "6dcdeb188657bb86adca61718ba9da64da552696b344e06fe687caa68b3c7162",
+        "end_exclusive": "0x4202f28c"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /api/refresh"
+      ],
+      "large": {
+        "entry": "0x42030aa0",
+        "instructions": 54,
+        "cfg_sha256": "25c7347be58a43524acb35c55621c35bbc3c484e040d3501f70a4e54b4d8af1f",
+        "end_exclusive": "0x42030b38"
+      },
+      "standard": {
+        "entry": "0x4202f1cc",
+        "instructions": 31,
+        "cfg_sha256": "3c98cbd554b5875e0112f3e3cb418056c545ef8108e281ef45104a274ca7135e",
+        "end_exclusive": "0x4202f224"
+      },
+      "normalized_operations_match": false
+    },
+    {
+      "routes": [
+        "POST /api/image"
+      ],
+      "large": {
+        "entry": "0x420307f8",
+        "instructions": 245,
+        "cfg_sha256": "e835055d9cf68e0c3900944078c27ca624404656c45a4bbec93eff48056bcac2",
+        "end_exclusive": "0x42030aa0"
+      },
+      "standard": {
+        "entry": "0x4202ef24",
+        "instructions": 245,
+        "cfg_sha256": "155c7f4a4dc7cdd77947eddc9cd76dde1c158a53cff69451fb53717707444e0a",
+        "end_exclusive": "0x4202f1cc"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "GET /api/albums"
+      ],
+      "large": {
+        "entry": "0x420304b8",
+        "instructions": 36,
+        "cfg_sha256": "21126e2894abb0a9a832637e3933de03e53b3f4f7fd8758c5276eae775dce960",
+        "end_exclusive": "0x4203051c"
+      },
+      "standard": {
+        "entry": "0x4202ebe4",
+        "instructions": 36,
+        "cfg_sha256": "ad55f6d5bcf62f4548d3ddc5804ba0d7070373ef489998b403c81994e0298039",
+        "end_exclusive": "0x4202ec48"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "POST /api/albums"
+      ],
+      "large": {
+        "entry": "0x42030790",
+        "instructions": 38,
+        "cfg_sha256": "d21f052ff5b2a864bf02a6deb7ec195d8cf374be69046c9aa432d495209b0834",
+        "end_exclusive": "0x420307f8"
+      },
+      "standard": {
+        "entry": "0x4202eebc",
+        "instructions": 38,
+        "cfg_sha256": "1beac4db43bcfacb3fcf22b335f1f9890baac4b2e12de88315083647da78f7aa",
+        "end_exclusive": "0x4202ef24"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "PUT /api/albums/*"
+      ],
+      "large": {
+        "entry": "0x420306c8",
+        "instructions": 73,
+        "cfg_sha256": "552aaa2b349819dc953a7846eb154a3c566671bf691a53c18333fe475e71c335",
+        "end_exclusive": "0x42030790"
+      },
+      "standard": {
+        "entry": "0x4202edf4",
+        "instructions": 73,
+        "cfg_sha256": "0b43a1862183ec99df99ed6a496ed82c9a98c3ac2df9a712bec1d6a387ba4a3b",
+        "end_exclusive": "0x4202eebc"
+      },
+      "normalized_operations_match": true
+    },
+    {
+      "routes": [
+        "DELETE /api/albums/*"
+      ],
+      "large": {
+        "entry": "0x4203042c",
+        "instructions": 51,
+        "cfg_sha256": "2f1fd96bb49dbdae2600ea423cdbb71be7e3e830161cc28d26c30395d2e04086",
+        "end_exclusive": "0x420304b8"
+      },
+      "standard": {
+        "entry": "0x4202eb58",
+        "instructions": 51,
+        "cfg_sha256": "699605beba1b554cd6e563395eb3c0e9705a4a0688344c321b2a7478ad0779ad",
+        "end_exclusive": "0x4202ebe4"
+      },
+      "normalized_operations_match": true
+    }
+  ],
+  "differences": [
+    {
+      "routes": [
+        "POST /api/refresh"
+      ],
+      "kind": "control_flow",
+      "finding": "Standard lacks the Large early recording/LED-protected busy guard.",
+      "evidence": "local-api.md#standard-refresh-lacks-the-early-busy-guard"
+    },
+    {
+      "routes": [
+        "GET /api/info"
+      ],
+      "kind": "control_flow",
+      "finding": "Standard adds 24 instructions for display.render_attempts and display.render_failures via a read-only RAM getter. Large omits these fields.",
+      "standard_added_start": "0x4202f791",
+      "standard_added_end_exclusive": "0x4202f7d1",
+      "standard_getter": "0x4202fcc4",
+      "evidence": "local-api.md#standard-only-render-counters"
+    },
+    {
+      "routes": [
+        "POST /create-account",
+        "POST /sign-in"
+      ],
+      "kind": "model_literal",
+      "large": "315",
+      "standard": "133"
+    },
+    {
+      "routes": [
+        "GET /upload"
+      ],
+      "kind": "embedded_asset",
+      "large_bytes": 3515,
+      "standard_bytes": 3510,
+      "finding": "Model-specific upload size/help text. The adjacent four-byte asset lengths are binary data, not strings."
+    },
+    {
+      "routes": [
+        "GET /action"
+      ],
+      "kind": "diagnostic_literal",
+      "large": 4813,
+      "standard": 4773,
+      "finding": "Source-line argument to the fatal error-check helper, not an action selector."
+    },
+    {
+      "routes": [
+        "GET /info"
+      ],
+      "kind": "embedded_asset",
+      "finding": "Model dimensions and build hash differ."
+    },
+    {
+      "routes": [
+        "GET /logs"
+      ],
+      "kind": "buffer_capacity",
+      "large_bytes": 65536,
+      "standard_bytes": 32768,
+      "finding": "Current/previous text buffers; Standard backing-history initializer independently uses the same 32768-byte literal.",
+      "evidence": "diagnostics-and-logs.md#standard-retains-half-as-much-history"
+    },
+    {
+      "routes": [
+        "GET /test"
+      ],
+      "kind": "inactive_embedded_asset",
+      "large_bytes": 15195,
+      "standard_bytes": 11700,
+      "finding": "Large includes commented-out Display Test markup and JavaScript plus related CSS. The complete paired GET/POST handlers have no added active display_test/display_status branch."
+    },
+    {
+      "routes": [
+        "POST /test",
+        "POST /api/image"
+      ],
+      "kind": "model_size_literals",
+      "finding": "Panel/buffer sizes differ. See model-specific image and factory contracts.",
+      "evidence": "local-api.md#image-delivery"
+    }
+  ],
+  "supporting_standard_functions": [
+    {
+      "name": "standard-log-init-cfg",
+      "entry": "0x4202c71c",
+      "end_exclusive": "0x4202c7f8",
+      "instructions": 80,
+      "cfg_sha256": "4e032f148d74d4b222ade6628c1a03382ee5ac729ab0ce98037a1af0219077c6"
+    },
+    {
+      "name": "standard-counter-getter-cfg",
+      "entry": "0x4202fcc4",
+      "end_exclusive": "0x4202fcdc",
+      "instructions": 10,
+      "cfg_sha256": "033d9faa1c6dd725a9611fcd4cd61345e309ab854340a229c51f834fc8b0ed54"
+    }
+  ],
+  "corrected_standard_boundaries": [
+    {
+      "route": "POST /connect",
+      "entry": "0x4201d050",
+      "premature_end": "0x4201d1e4",
+      "end_exclusive": "0x4201d260"
+    },
+    {
+      "route": "GET /wifi-stats",
+      "entry": "0x4201e030",
+      "premature_end": "0x4201e202",
+      "end_exclusive": "0x4201e7f0"
+    },
+    {
+      "route": "POST /logs/action",
+      "entry": "0x4201c01c",
+      "premature_end": "0x4201c05d",
+      "end_exclusive": "0x4201c0a4"
+    },
+    {
+      "route": "GET /api/info",
+      "entry": "0x4202f384",
+      "premature_end": "0x4202f74c",
+      "end_exclusive": "0x4202f7dc"
+    }
+  ],
+  "limits": "All 39 registered handler pairs have complete reachable GNU control flow and instruction-byte checks against the pinned images. Normalization compares operations and internal branches while mapping relocated calls/literals separately. It does not prove recursive callee, RAM layout, binary asset or whole-device equivalence. String comparisons alone do not establish a data type. No device requests or new host execution cases were performed for this inventory."
+}

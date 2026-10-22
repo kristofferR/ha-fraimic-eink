@@ -66,6 +66,39 @@ privately to the owner. Neither device was switched to development mode; the
 [detailed transition and error-path trace](storage-and-configuration.md#vendor-environment-switch)
 is for Large unless explicitly stated otherwise.
 
+### Complete local-handler comparison
+
+The [39-pair ledger](local-handler-comparison.json) covers every distinct handler
+behind the 42 registrations, with complete reachable GNU control flow and bytes
+checked against both pinned images. Large contains 7,411 instructions in these
+bodies; Standard contains 7,412. **Thirty-seven pairs match normalized operations
+and internal branches**, totaling 6,968 instructions per model. Their 114 direct
+call pairs and 662 literal-value pairs are mapped separately, not recursively
+proved equivalent.
+
+Only two handler bodies differ structurally: Standard's shorter refresh handler
+lacks the early busy guard, and Standard's `/api/info` has 24 additional
+instructions exposing `display.render_attempts` and `display.render_failures`.
+The [counter getter](local-api.md#standard-only-render-counters) reads RAM without
+changing the counters. Their aggregate, per-build persistence has separate limits.
+
+Matching operations still consume different data:
+
+| Area | Difference and consequence |
+| --- | --- |
+| Logs | Standard's backing history and current/previous text output capacities are 32 KiB, versus 64 KiB on Large. Retention depends on message volume, not only elapsed time. |
+| Signup/sign-in | Model literal is `133` versus `315`. |
+| Upload/factory | Model-specific panel sizes, buffer sizes and help text remain necessary. |
+| Information HTML | Model dimensions and compiled build differ. |
+| Factory page | Large includes commented-out Display Test markup/JavaScript and related CSS. The paired active handlers have no additional display-test/status branch. This is not an available control. |
+| Action error logging | One differing integer is a source-line argument to the fatal error-check helper, not an action selector. |
+
+Independent recovery corrected four premature Standard Ghidra boundaries in
+`POST /connect`, `GET /wifi-stats`, `POST /logs/action` and `GET /api/info`.
+Adjacent asset-length words were read as binary sizes rather than inferred
+strings. This closes the handler-body comparison, not all external callees,
+binary assets, live boot-state availability or whole-device behavior.
+
 ### Physical input paths match within the audited scope
 
 The [physical-input comparison](input-and-gestures.md) covers seven complete

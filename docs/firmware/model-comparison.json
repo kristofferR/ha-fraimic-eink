@@ -2,11 +2,20 @@
   "captured_on": "2026-10-21",
   "provenance": "Vendor application images matched to live device metadata; not raw flash dumps",
   "scope_note": "Static comparison followed by a separate owner-directed live vendor-proxy capture; not an independent local provisioning test",
+  "local_handler_comparison": {
+    "evidence": "local-handler-comparison.json",
+    "registrations": 42,
+    "handler_pairs": 39,
+    "normalized_matching_pairs": 37,
+    "limits": "Complete handler bodies; mapped external callees and data are not recursively equivalent"
+  },
   "models": {
     "standard": {
       "version": "0.2.28",
       "build": "4654a1d8",
       "model": "133",
+      "log_history_bytes": 32768,
+      "api_info_render_counters": true,
       "application_bytes": 2589216,
       "sha256": "d31870cca2c6ef7395a80be4466c9c3424867dc42cfa39a34d1c60492f7c5ce7",
       "panel_payload_bytes": 960000,
@@ -37,6 +46,8 @@
       "version": "0.2.29",
       "build": "f1555ee5",
       "model": "315",
+      "log_history_bytes": 65536,
+      "api_info_render_counters": false,
       "application_bytes": 4123920,
       "sha256": "a75914caba6f5f35936a40e394b1d55eb88de4be4e76aa6d6bdabc061486a64f",
       "panel_payload_bytes": 2304000,

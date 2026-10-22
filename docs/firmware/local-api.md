@@ -20,7 +20,9 @@ registrations, covering 39 distinct handlers, to consumed inputs, response shape
 access checks, effects and the detailed evidence below. Its method/path/handler
 triples are checked against the original registration bytes. It closes the
 bounded static inventory; it does not establish live availability in every boot
-state, every browser behavior or all Standard handler equivalents.
+state or every browser behavior. The later [complete paired-handler comparison](standard-model-comparison.md#complete-local-handler-comparison)
+checks both builds and identifies two structural differences; mapped external
+callees and model-dependent data are not thereby equivalent.
 
 | Method | Path | Role / effect |
 | --- | --- | --- |
@@ -465,6 +467,12 @@ For normal voice control, these factory actions are not reusable start/finish
 endpoints. The [voice hook map](voice-local-control-hooks.md) traces normal
 admission and verifies why capture stop alone does not submit a recording.
 
+Large's embedded page also contains commented-out “Display Test” markup and
+JavaScript mentioning `display_test` and `display_status`. These are inactive
+assets: the complete GET/POST handler comparison finds no corresponding action
+branch on either pinned build. Do not treat the page's dormant code as another
+local control. [Comparison evidence](local-handler-comparison.json).
+
 `/dev` selects the vendor development environment, not a root shell or configurable
 URL. See [the complete mode-switch sequence](storage-and-configuration.md#vendor-environment-switch).
 
@@ -596,6 +604,21 @@ There is no recording task state, buffer owner, render-in-progress flag,
 content hash or job ID in this handler. Polling it faster cannot supply those
 missing events. Its getters run sequentially without a whole-snapshot lock, and
 the shared HTTP task can delay the response during another operation.
+
+### Standard-only render counters
+
+Standard `/api/info` at `0x4202f384` adds `display.render_attempts` and
+`display.render_failures`. The extra block at `0x4202f791` calls getter
+`0x4202fcc4`, converts two unsigned 32-bit values to JSON numbers and inserts
+them into the display child object. The complete ten-instruction getter only
+copies RAM values to non-null output pointers. Reading this endpoint does not
+increment or persist them. Large's complete handler omits both fields.
+
+These are the [per-build aggregate display-health counters](storage-and-configuration.md#standard-also-stores-per-build-display-health-counters),
+not a job ID or guaranteed durable completion record. Child/field allocation
+failures can still omit them. The integration already consumes them as optional
+fields; clients should preserve the distinction between absent and zero.
+[Full handler/counter evidence](local-handler-comparison.json).
 
 ## Restart, sleep and refresh acknowledgments
 

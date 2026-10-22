@@ -735,6 +735,7 @@ control-flow boundary; physical timing and delivery remain deferred.
     The local-control follow-up compares both models' restart/sleep/refresh paths: Standard lacks Large's early refresh guard, and JSON serialization failure can precede an accepted action. Fourteen instruction cases per build verify those boundaries. [Comparison](local-api.md#standard-refresh-lacks-the-early-busy-guard), [cases](local-control-cases.json).
     The raw-image follow-up compares the full handler/save-start pair on both builds and checks 21 cases each: MIME and length boundaries, consecutive timeout reset, partial writes, cache/render order and response failure after render-start. [Contract](local-api.md#raw-image-acceptance-and-failure-boundaries-on-both-models), [cases](image-api-cases.json). Physical failure/concurrency criteria remain open.
     The legacy multipart follow-up recovers the previously truncated handler and compares its binary/string footer search on both builds. Fifteen cases each verify NUL/split-footer effects, incomplete-body acceptance and HTTP-200 render-error pages. [Findings](multipart-uploads.md), [cases](legacy-upload-cases.json). The subsequent nine-body SDK comparison and twelve cases per build establish return-value-driven 32-byte purging and session closure. [Cleanup](local-api.md#unread-bodies-are-drained-after-some-error-responses), [cases](http-purge-cases.json). Historical persistent-upload failure causation and actual socket timing remain unproven.
+    The complete [39-pair handler comparison](standard-model-comparison.md#complete-local-handler-comparison) checks 7,411/7,412 instructions, identifies Standard-only render counters and 32 KiB log capacity, and distinguishes inactive factory-page code from available controls. [Ledger](local-handler-comparison.json). External callees remain separately scoped.
   - [ ] **Deferred:** **Device:** Validate remaining boot-state availability, concurrent reads, LED/discovery timing and separately approved mutating controls. Keep destructive actions separate.
 
 - [ ] **H06 · Static/Hardware:** Establish current/voltage calibration, fitted battery
@@ -800,7 +801,7 @@ control-flow boundary; physical timing and delivery remain deferred.
   Status: **Ongoing**.
 
   - [x] **Static/Device:** Pin both app hashes, compare 42 routes and the accumulated selected function/data pairs, and retain model-specific rendering/memory/timing differences. [Model comparison](standard-model-comparison.md), [machine-readable map](model-comparison.json).
-  - [ ] **Next:** **Static:** Compare remaining decision-relevant handlers/SDK/driver paths and new builds when they become relevant; a mapped external call is not body equivalence.
+  - [ ] **Next:** **Static:** Compare remaining decision-relevant external callees/SDK/driver paths and new builds when they become relevant. All 39 registered handler pairs now have complete control-flow comparison; a mapped external call is not body equivalence. [Ledger](local-handler-comparison.json).
   - [ ] **Deferred:** **Device:** Validate model-specific concurrency, conditioning and timing differences when experiments resume; never infer cross-flash compatibility.
 
 - [x] **E03 · Static/Account:** Reconcile the older repository OpenAPI snapshot,

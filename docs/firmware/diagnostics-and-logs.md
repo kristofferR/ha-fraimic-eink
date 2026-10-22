@@ -3,7 +3,8 @@
 [Research index](README.md)
 
 These are static findings and bounded host instruction cases for the pinned
-Large 0.2.29 application. No device log-clear, authentication-bypass,
+Large 0.2.29 application, with the Standard capacity comparison called out below.
+No device log-clear, authentication-bypass,
 filesystem-fault or logging stress test was performed.
 The purpose is to interpret existing evidence and design better local-backend
 diagnostics, not to treat a log page as a complete execution trace.
@@ -73,6 +74,19 @@ contention, which the page can display as no captured entries even if the store
 is populated. It also stops on an invalid/incomplete record or output capacity.
 Combined with truncation, filtering and whole-store reset, absence from `/logs`
 cannot prove that an operation did not occur.
+
+### Standard retains half as much history
+
+Standard initializer `0x4202c71c` uses the 32,768-byte literal at `0x42000288`
+for the backing allocation, retained capacity and zeroing. Complete GNU recovery
+checks its 80 reachable instructions. Standard GET `/logs` also uses 32,768 bytes
+where Large uses 65,536 for current/previous text-buffer capacity. Its 304
+handler instructions match Large after relocation, with that data difference.
+
+Thus the Standard history is **32 KiB**, while the Large history described here
+is **64 KiB**. This does not translate into a fixed retention duration, and the
+whole-handler comparison does not recursively establish every lower storage or
+redaction helper's equivalence. [Paired evidence](local-handler-comparison.json).
 
 ## “Previous” is one saved snapshot
 

@@ -4046,3 +4046,28 @@ distinguishes temporary single-task blocking from that unproven cause.
 SHA-256 `322311837924a7c45319bae2dbbca42825a3b6e30e3ebecac7b5020106dcbc6f`.
 Existing H05/E01/E02 evidence is extended without changing the **12/67 items or
 125/189 milestones**. No device, network, HA source or deployment change occurred.
+
+## Complete paired local-handler audit: H05/E01/E02
+
+All 42 registrations are covered by 39 complete handler pairs: **7,411 Large
+instructions and 7,412 Standard instructions**, with reachable GNU decoding and
+every instruction byte checked against the pinned application. Thirty-seven
+pairs match normalized operations/internal branches across 6,968 instructions
+per model. The two structural differences are refresh admission and Standard's
+24-instruction render-counter extension in `/api/info`.
+
+The comparison separately maps 114 direct-call pairs and 662 literal-value
+pairs. Curated data differences include model/build identifiers, panel/buffer
+sizes, 32 KiB versus 64 KiB log capacity, a diagnostic source-line number and
+inactive Display Test page code. Four Standard Ghidra fragments required wider
+function recovery. Adjacent HTML length words were verified as binary data,
+not reported as strings. The Standard log initializer and read-only counter
+getter add 80 and ten byte-checked instructions respectively; the log capacity
+literal is verified directly as 32,768 in the pinned image.
+
+[The public ledger](local-handler-comparison.json) includes per-function hashes,
+corrected boundaries, differences and the private comparison hash. No new host
+execution cases or device requests were performed in this inventory. A matching
+handler body does not recursively validate its callees, RAM layout, all binary
+assets or live behavior. Existing milestones are extended; totals remain
+**12/67 original items and 125/189 milestones**.

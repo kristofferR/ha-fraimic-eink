@@ -344,6 +344,8 @@ persists, a later initializer can accept that tag and retain an old counter.
 This is an inferred per-key failure consequence, not an induced device fault.
 The tally has no artwork ID, job ID or timestamp; its presence in logs is useful
 aggregate evidence, not a durable acknowledgment for a local-backend job.
+The [Standard-only API fields](local-api.md#standard-only-render-counters) expose
+these RAM counters through a read-only getter; Large omits those fields.
 
 The pinned Large app has no terminated `disphealth` literal and no counterpart
 among its identified NVS API callers. This is a build-scoped difference, not a
