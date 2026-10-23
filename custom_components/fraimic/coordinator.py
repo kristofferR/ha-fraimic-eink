@@ -409,6 +409,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if self.data is not None and self.last_update_success:
                 return self.data
             raise UpdateFailed("An upload to the frame is in progress")
+        contact_before = self.client.last_response
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:
@@ -430,6 +431,27 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # An error response is still contact; keep it across restarts.
             await self._async_save_cache()
             raise UpdateFailed(str(err)) from err
+        if (foreign := self._foreign_device_key(data)) is not None:
+            # Not this entry's frame: keep its data out, and don't count the
+            # reply as contact with the frame this entry represents.
+            self.client.last_response = contact_before
+            self.frame_online = False
+            if self.client.wrong_device != foreign:
+                _LOGGER.warning(
+                    "A different frame answers at %s for %s; holding its sends "
+                    "and searching the network for the right one",
+                    self.client.host,
+                    self.config_entry.title,
+                )
+            self.client.wrong_device = foreign
+            self._async_maybe_rediscover(force=True, near=data["wifi"].get("ip"))
+            raise UpdateFailed(f"A different frame answers at {self.client.host}")
+        if self.client.wrong_device is not None:
+            _LOGGER.info("%s answers at %s again", self.config_entry.title, self.client.host)
+            self.client.wrong_device = None
+            # The identity poll itself wasn't counted while the flag was set.
+            self.client.last_response = time.time()
+            self._async_contact_seen()
         self._consecutive_failures = 0
         self.frame_online = True
         self._cloud_snapshot = None
@@ -512,16 +534,42 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.async_update_listeners()
         return self.info_page
 
+    def _replaceable_unique_id(self, data: dict[str, Any]) -> bool:
+        """Whether the unique_id predates device_key support (host or device_id)."""
+        unique_id = self.config_entry.unique_id
+        if not unique_id or unique_id == data.get("device_id"):
+            return True
+        hosts = (self.client.host, str(self.config_entry.data.get(CONF_HOST, "")))
+        return unique_id.lower() in {host.lower() for host in hosts}
+
+    def _foreign_device_key(self, data: dict[str, Any]) -> str | None:
+        """The answering frame's key when it isn't this entry's frame."""
+        identity = data.get("device_key") or data.get("device_id")
+        if not identity or self.config_entry.unique_id in (
+            data.get("device_key"),
+            data.get("device_id"),
+        ):
+            return None
+        if self._replaceable_unique_id(data):
+            return None
+        return str(identity)
+
     def _async_backfill_unique_id(self, data: dict[str, Any]) -> None:
         """Adopt the frame's stable ``device_key`` as the entry's unique_id.
 
         Entries created before device_key support (or while the frame was
         asleep) carry a host-based unique_id; upgrade it on the first
         successful poll so an IP change can never look like a new device.
+        A device-key unique_id is never replaced: a different key at this
+        host is another frame (see ``_foreign_device_key``).
         """
         device_key = data.get("device_key")
         entry = self.config_entry
-        if not device_key or entry.unique_id == device_key:
+        if (
+            not device_key
+            or entry.unique_id == device_key
+            or not self._replaceable_unique_id(data)
+        ):
             return
         for other in self.hass.config_entries.async_entries(DOMAIN):
             if other.entry_id != entry.entry_id and other.unique_id == device_key:
@@ -536,19 +584,34 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         _LOGGER.debug("Backfilling unique_id %s for entry %s", device_key, entry.title)
         self.hass.config_entries.async_update_entry(entry, unique_id=device_key)
 
-    def _async_maybe_rediscover(self) -> None:
-        """Kick off a subnet scan for the frame's new IP, heavily rate-limited."""
-        if self._consecutive_failures < REDISCOVERY_FAIL_THRESHOLD:
+    def _async_maybe_rediscover(
+        self, *, force: bool = False, near: str | None = None
+    ) -> None:
+        """Kick off a subnet scan for the frame's new IP, heavily rate-limited.
+
+        ``force`` skips the failure threshold (another frame answers at the
+        host, so the address is certainly stale); ``near`` is an address on
+        the frame's LAN to scan around when the host is a hostname.
+        """
+        if not force and self._consecutive_failures < REDISCOVERY_FAIL_THRESHOLD:
             return
         device_key = self.config_entry.unique_id
         if not device_key:
             return
+        last_ip = self.client.host
         try:
-            ipaddress.IPv4Address(self.client.host)
+            ipaddress.IPv4Address(last_ip)
         except ValueError:
-            # Hostname-configured entries (fraimic.local) re-resolve on their
-            # own; scanning is only useful when a raw IP went stale.
-            return
+            # A hostname that simply fails to answer re-resolves on its own;
+            # scanning is only useful when a raw IP went stale, or when the
+            # name now resolves to another frame.
+            if near is None:
+                return
+            try:
+                ipaddress.IPv4Address(near)
+            except ValueError:
+                return
+            last_ip = near
         if self._rediscovery_task is not None and not self._rediscovery_task.done():
             return
         now = time.monotonic()
@@ -560,7 +623,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_rediscovery = now
         self._rediscovery_task = self.config_entry.async_create_background_task(
             self.hass,
-            self._async_rediscover(self.client.host, device_key),
+            self._async_rediscover(last_ip, device_key),
             name=f"fraimic-rediscover-{self.config_entry.entry_id}",
         )
 

@@ -307,9 +307,12 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
             power=None, cloud=types.SimpleNamespace(async_device=cloud_device),
         ),
     )
-    coordinator.client = types.SimpleNamespace(get_info=AsyncMock(side_effect=[
-        {"battery_pct": 80}, coordinator_module.FraimicConnectionError("asleep"),
-    ]))
+    coordinator.client = types.SimpleNamespace(
+        last_response=None, wrong_device=None,
+        get_info=AsyncMock(side_effect=[
+            {"battery_pct": 80}, coordinator_module.FraimicConnectionError("asleep"),
+        ]),
+    )
     coordinator._cloud_snapshot = (time.time(), {"battery": {"percent": 20}})
     coordinator._async_backfill_unique_id = Mock()
     coordinator._async_save_cache = AsyncMock()

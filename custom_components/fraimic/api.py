@@ -48,6 +48,15 @@ class FraimicTimeoutError(FraimicConnectionError):
     """
 
 
+class FraimicWrongDeviceError(FraimicConnectionError):
+    """Raised while a different frame answers at this entry's host.
+
+    Stock frames all claim ``fraimic.local`` and DHCP can hand a sleeping
+    frame's address to another one. The entry's own frame is then not
+    reachable here, so its sends wait (or queue) as for a sleeping frame.
+    """
+
+
 class FraimicApiError(FraimicError):
     """Raised when the frame returns an error response.
 
@@ -129,6 +138,10 @@ class FraimicClient:
         self.last_response: float | None = None
         # Called after every response; the coordinator persists the contact.
         self.on_response: Callable[[], None] | None = None
+        # Set by the coordinator while another frame's device_key answers at
+        # this host: every request except the identity poll is refused, and
+        # responses don't count as contact with this entry's frame.
+        self.wrong_device: str | None = None
         self._session = session
         # Bracket bare IPv6 literals (2+ colons, not already bracketed) so the URL
         # is valid; a normal "host" or "host:port" is left untouched.
@@ -143,6 +156,10 @@ class FraimicClient:
         return self._host
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> aiohttp.ClientResponse:
+        if self.wrong_device is not None and path != "/api/info":
+            raise FraimicWrongDeviceError(
+                f"A different frame answers at {self._host}"
+            )
         url = f"{self._base}{path}"
         timeout = aiohttp.ClientTimeout(total=kwargs.pop("timeout", DEFAULT_TIMEOUT))
         try:
@@ -155,9 +172,10 @@ class FraimicClient:
             raise FraimicConnectionError(f"Cannot reach Fraimic at {self._host}: {err}") from err
         except aiohttp.ClientError as err:
             raise FraimicError(f"Unexpected error talking to {self._host}: {err}") from err
-        self.last_response = time.time()
-        if self.on_response is not None:
-            self.on_response()
+        if self.wrong_device is None:
+            self.last_response = time.time()
+            if self.on_response is not None:
+                self.on_response()
         return resp
 
     async def _json(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
@@ -332,10 +350,11 @@ class FraimicClient:
         attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
         try:
             await attempt(data)
-        except FraimicTimeoutError:
+        except (FraimicTimeoutError, FraimicWrongDeviceError):
             # The frame may have accepted the image and be mid-redraw with the
             # response blocked — a restart+retry here could double-redraw the
             # panel. Surface the timeout instead; callers decide what it means.
+            # Never restart a frame that isn't this entry's.
             raise
         except FraimicConnectionError:
             if not recover:

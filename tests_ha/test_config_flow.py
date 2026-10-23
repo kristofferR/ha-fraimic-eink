@@ -84,6 +84,21 @@ async def test_user_step_creates_entry_keyed_by_device_key(
     assert result["result"].unique_id == DEVICE_KEY
 
 
+async def test_user_step_stores_the_frame_ip_for_an_mdns_name(
+    hass: HomeAssistant, frame_client: dict[str, AsyncMock]
+) -> None:
+    """Every stock frame claims fraimic.local, so the name is no identity."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOST: "fraimic.local"}
+    )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_HOST] == HOST
+
+
 async def test_user_step_reports_unreachable_frame(
     hass: HomeAssistant, frame_client: dict[str, AsyncMock]
 ) -> None:

@@ -23,6 +23,7 @@ from custom_components.fraimic.api import (
     FraimicApiError,
     FraimicClient,
     FraimicConnectionError,
+    FraimicWrongDeviceError,
 )
 from custom_components.fraimic.const import (
     CONF_HEIGHT,
@@ -291,6 +292,41 @@ async def test_first_poll_backfills_device_key_unique_id(
     await setup_entry(hass, entry)
 
     assert entry.unique_id == DEVICE_KEY
+
+
+async def test_other_frame_at_the_host_is_rejected(
+    loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
+) -> None:
+    """DHCP or a shared mDNS name put another frame at the stored host."""
+    coordinator = _coordinator(loaded_entry)
+    client = loaded_entry.runtime_data.client
+    data = coordinator.data
+    frame_client["get_info"].return_value = {**FRAME_INFO, "device_key": "fk_other"}
+
+    with patch.object(
+        FraimicDataUpdateCoordinator, "_async_rediscover", AsyncMock()
+    ) as rediscover:
+        await coordinator.async_refresh()
+
+    assert not coordinator.last_update_success
+    assert not coordinator.frame_online
+    assert coordinator.data is data
+    assert loaded_entry.unique_id == DEVICE_KEY
+    # Immediately, without waiting for the failure threshold.
+    rediscover.assert_awaited_once_with(HOST, DEVICE_KEY)
+    # Uploads (direct or queued flushes) and commands never reach that frame.
+    with patch.object(client, "_session") as session:
+        with pytest.raises(FraimicWrongDeviceError):
+            await client.upload_image(bytes(960_000))
+        with pytest.raises(FraimicWrongDeviceError):
+            await client.sleep()
+    session.request.assert_not_called()
+
+    frame_client["get_info"].return_value = dict(FRAME_INFO)
+    await coordinator.async_refresh()
+
+    assert coordinator.last_update_success
+    assert client.wrong_device is None
 
 
 async def test_error_response_still_counts_as_contact() -> None:
