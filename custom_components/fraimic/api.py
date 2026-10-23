@@ -71,6 +71,27 @@ class FraimicApiError(FraimicError):
         self.error = error
 
 
+# Firmware command refusals with a clearer meaning than the raw error code.
+COMMAND_ERROR_MESSAGES = {
+    # Large firmware only (Standard 0.2.28 has no such guard): a voice
+    # recording or an LED workflow, such as a maintenance redraw, is running.
+    "device_busy": (
+        "The frame is busy with a voice recording or its own redraw. "
+        "Try again in a minute."
+    ),
+    "charging_cable_connected": (
+        "The frame won't sleep while it reports a connected charging cable."
+    ),
+}
+
+
+def command_error_message(err: FraimicError) -> str:
+    """User-facing text for a failed restart, sleep or refresh command."""
+    if isinstance(err, FraimicApiError) and err.error in COMMAND_ERROR_MESSAGES:
+        return COMMAND_ERROR_MESSAGES[err.error]
+    return str(err)
+
+
 # First firmware verified (on real hardware) to accept POST /api/image with an
 # application/octet-stream body. Older firmware (0.2.21) answered 501 and hung.
 MIN_API_IMAGE_FIRMWARE = (0, 2, 28)
@@ -298,15 +319,21 @@ class FraimicClient:
         return await self._json("POST", "/api/restart")
 
     async def sleep(self) -> dict[str, Any]:
-        """Put the frame into deep sleep (``POST /api/sleep``).
+        """Request deep sleep (``POST /api/sleep``).
 
         Blocked while a charging cable is connected; the frame then responds
-        with ``{"error": "charging_cable_connected"}``.
+        with ``{"error": "charging_cable_connected"}``. A ``sleeping`` reply
+        only queues the request: the main loop re-checks the cable and can
+        decline, and a pending OTA may install first.
         """
         return await self._json("POST", "/api/sleep")
 
     async def refresh(self) -> dict[str, Any]:
-        """Trigger a full E-Ink refresh cycle (``POST /api/refresh``)."""
+        """Trigger a full E-Ink refresh cycle (``POST /api/refresh``).
+
+        Large firmware answers 409 ``device_busy`` during a voice recording
+        or an LED workflow; Standard 0.2.28 has no such guard.
+        """
         return await self._json("POST", "/api/refresh")
 
     async def upload_image(

@@ -12,6 +12,7 @@ import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
 from freezegun.api import FrozenDateTimeFactory
 from pytest_homeassistant_custom_component.common import (
@@ -383,3 +384,20 @@ async def test_maintenance_refresh_keeps_upload_state(
 
     assert runtime.power.last_hash == "uploaded"
     invalidate.assert_not_awaited()
+
+
+async def test_busy_refresh_explains_itself(
+    hass: HomeAssistant, loaded_entry: MockConfigEntry
+) -> None:
+    """Large firmware refuses /api/refresh during a recording or LED workflow."""
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "button", DOMAIN, f"{loaded_entry.entry_id}_refresh"
+    )
+    busy = FraimicApiError("busy", status=409, error="device_busy")
+    with (
+        patch.object(FraimicClient, "refresh", AsyncMock(side_effect=busy)),
+        pytest.raises(HomeAssistantError, match="voice recording or its own redraw"),
+    ):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": entity_id}, blocking=True
+        )

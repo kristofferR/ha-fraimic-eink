@@ -69,6 +69,7 @@ BINARY_SENSORS: tuple[FraimicBinaryDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=lambda d: _g(d, "device", "time_synced"),
     ),
+    # The voice preference, not recording activity (no endpoint reports that).
     FraimicBinaryDescription(
         key="voice_recording",
         translation_key="voice_recording",
@@ -83,6 +84,8 @@ BINARY_SENSORS: tuple[FraimicBinaryDescription, ...] = (
         entity_registry_enabled_default=False,
         value_fn=lambda d: _g(d, "settings", "keep_awake"),
     ),
+    # A stored preference the firmware's OTA path never reads; it controls
+    # nothing and an incomplete cloud settings snapshot resets it to false.
     FraimicBinaryDescription(
         key="auto_update",
         translation_key="auto_update",

@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .api import FraimicApiError, FraimicClient, FraimicError
+from .api import FraimicApiError, FraimicClient, FraimicError, command_error_message
 from .coordinator import FraimicConfigEntry
 from .entity import FraimicEntity
 
@@ -103,7 +103,7 @@ class FraimicButton(FraimicEntity, ButtonEntity):
             # e.g. POST /api/sleep is blocked while a charging cable is connected.
             raise HomeAssistantError(
                 f"Fraimic rejected the {self.entity_description.key} command: "
-                f"{err.error or err}"
+                f"{command_error_message(err)}"
             ) from err
         except FraimicError as err:
             raise HomeAssistantError(

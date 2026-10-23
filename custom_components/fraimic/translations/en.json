@@ -316,13 +316,13 @@
         "name": "Time synced"
       },
       "voice_recording": {
-        "name": "Voice recording"
+        "name": "Voice recording enabled"
       },
       "keep_awake": {
         "name": "Keep awake"
       },
       "auto_update": {
-        "name": "Auto-update"
+        "name": "Auto-update preference"
       },
       "charging_led": {
         "name": "Charging LED"
