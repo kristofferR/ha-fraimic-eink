@@ -80,7 +80,7 @@ COMMAND_ERROR_MESSAGES = {
         "Try again in a minute."
     ),
     "charging_cable_connected": (
-        "The frame won't sleep while it reports a connected charging cable."
+        "The frame won't sleep while it reports a charging cable plugged in."
     ),
 }
 

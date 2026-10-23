@@ -99,6 +99,19 @@ async def test_user_step_stores_the_frame_ip_for_an_mdns_name(
     assert result["data"][CONF_HOST] == HOST
 
 
+async def test_user_step_keeps_a_chosen_dns_name(
+    hass: HomeAssistant, frame_client: dict[str, AsyncMock]
+) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_HOST: "frame.home.arpa"}
+    )
+
+    assert result["data"][CONF_HOST] == "frame.home.arpa"
+
+
 async def test_user_step_reports_unreachable_frame(
     hass: HomeAssistant, frame_client: dict[str, AsyncMock]
 ) -> None:

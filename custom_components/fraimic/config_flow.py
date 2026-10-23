@@ -103,14 +103,10 @@ def _stable_host(host: str, info: dict[str, Any]) -> str:
     ``fraimic-2.local`` and so on, by boot order), so these names don't
     identify a frame, and IP-change rediscovery only runs for IP hosts.
     """
-    if ":" in host:
-        # An IPv6 literal, or an explicit port the frame's IP alone would drop.
+    name = host.lower().rstrip(".")
+    if name != "fraimic" and not name.endswith(".local"):
+        # An IP, an explicit port, or a DNS name the user chose to keep.
         return host
-    try:
-        ipaddress.ip_address(host)
-        return host
-    except ValueError:
-        pass
     try:
         return str(ipaddress.IPv4Address((info.get("wifi") or {}).get("ip")))
     except ValueError:

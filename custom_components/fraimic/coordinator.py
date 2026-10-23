@@ -406,6 +406,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_probe(self) -> None:
         if self.frame_busy:
             return
+        if self.client.wrong_device is not None:
+            # Only the identity poll can tell whether the right frame is back.
+            await self.async_request_refresh()
+            return
         try:
             await self.client.get_battery()
         except FraimicError:

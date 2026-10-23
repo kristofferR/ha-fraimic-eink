@@ -324,9 +324,13 @@ async def test_other_frame_at_the_host_is_rejected(
             await client.sleep()
     session.request.assert_not_called()
 
+    # A dashboard probe (Minimum mode never polls) uses the identity poll.
     frame_client["get_info"].return_value = dict(FRAME_INFO)
-    await coordinator.async_refresh()
+    frame_client["get_battery"].reset_mock()
+    with patch.object(coordinator, "async_request_refresh", coordinator.async_refresh):
+        await coordinator._async_probe()
 
+    frame_client["get_battery"].assert_not_called()
     assert coordinator.last_update_success
     assert client.wrong_device is None
 
