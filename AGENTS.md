@@ -86,7 +86,9 @@ Hardware quirks the code accounts for:
   `upload_lock` is held (`coordinator.frame_busy`).
 - Frame is battery-powered; deep sleep = unreachable (polls fail; entities keep
   last-known values, see availability below).
-- `display.last_refresh` tracks only the *scheduled* cycle, not uploads.
+- `display.last_refresh` tracks only the *scheduled* maintenance cycle, not
+  uploads. Maintenance redraws `last_image.bin` (HA's last upload), so it
+  keeps the duplicate guard and overlay state.
 - `device.local_time` and `display.last/next_refresh` are frame-local time with
   no offset, in the frame's own POSIX timezone (often `EST5EDT`, not HA's).
   The coordinator derives `device.utc_offset_minutes` from synced polls and

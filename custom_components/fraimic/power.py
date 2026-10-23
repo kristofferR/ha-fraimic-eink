@@ -200,7 +200,6 @@ class FraimicPowerManager:
         self.mode = power_mode(dict(entry.options))
         self.profile = PROFILES[self.mode]
         self.last_hash: str | None = None
-        self.last_display_marker: str | None = None
         self.last_automatic_at = 0.0
         self.last_upload_at = 0.0
         self.budget_day = ""
@@ -225,7 +224,6 @@ class FraimicPowerManager:
         )
         data = await self._store.async_load() or {}
         self.last_hash = data.get("last_hash")
-        self.last_display_marker = data.get("last_display_marker")
         self.last_automatic_at = float(data.get("last_automatic_at", 0.0))
         self.last_upload_at = float(data.get("last_upload_at", 0.0))
         self.budget_day = str(data.get("budget_day", ""))
@@ -244,7 +242,6 @@ class FraimicPowerManager:
         await self._store.async_save(
             {
                 "last_hash": self.last_hash,
-                "last_display_marker": self.last_display_marker,
                 "last_automatic_at": self.last_automatic_at,
                 "last_upload_at": self.last_upload_at,
                 "budget_day": self.budget_day,
@@ -294,17 +291,10 @@ class FraimicPowerManager:
         """Return why a rendered send should not touch the frame."""
         now = time.time() if now is None else now
         data = data or {}
-        display = data.get("display") if isinstance(data, dict) else {}
-        next_native_refresh = _epoch(
-            display.get("next_refresh_at") if isinstance(display, dict) else None
-        )
-        # Firmware can retain a past deadline. A later confirmed upload is
-        # newer than the native refresh that deadline describes.
-        native_refresh_may_have_run = (
-            next_native_refresh is not None
-            and self.last_upload_at < next_native_refresh <= now
-        )
-        if content_hash == self.last_hash and not native_refresh_may_have_run:
+        # The frame's scheduled maintenance refresh redraws last_image.bin,
+        # which is this integration's last upload, so it never makes a
+        # duplicate worth sending again.
+        if content_hash == self.last_hash:
             return self._count_skip(SKIP_DUPLICATE)
         automatic = trigger in AUTOMATIC_TRIGGERS
         if not automatic:
@@ -357,38 +347,6 @@ class FraimicPowerManager:
                 self.automatic_count = 0
             self.automatic_count += 1
             self.last_automatic_at = now
-        await self._async_save()
-
-    async def async_observe_frame(self, data: dict[str, Any]) -> None:
-        """Invalidate the hash when a native/cloud refresh changed the glass."""
-        display = data.get("display") if isinstance(data, dict) else None
-        if not isinstance(display, dict) or not (marker := display.get("last_refresh")):
-            return
-        marker = str(marker)
-        if marker == self.last_display_marker:
-            return
-        refreshed_at = _epoch(display.get("last_refresh_at"))
-        if self.last_display_marker and (
-            refreshed_at is None or refreshed_at > self.last_upload_at
-        ):
-            self.last_hash = None
-            runtime = getattr(self.entry, "runtime_data", None)
-            overlays = getattr(runtime, "temporary_overlays", None)
-            cloud = getattr(runtime, "cloud", None)
-            queue = getattr(runtime, "send_queue", None)
-            pending = getattr(queue, "pending", None)
-            queued_overlay = (
-                overlays is not None
-                and isinstance(pending, dict)
-                and pending.get("content_hash") == overlays.submitted_hash
-            )
-            if (
-                overlays is not None
-                and not queued_overlay
-                and not (cloud is not None and cloud.has_image)
-            ):
-                await overlays.async_invalidate()
-        self.last_display_marker = marker
         await self._async_save()
 
     def schedule_sleep(self) -> None:

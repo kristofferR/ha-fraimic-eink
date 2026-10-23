@@ -356,3 +356,30 @@ async def test_error_response_still_counts_as_contact() -> None:
     with pytest.raises(FraimicConnectionError):
         await client.get_info()
     assert client.last_response == seen
+
+
+async def test_maintenance_refresh_keeps_upload_state(
+    loaded_entry: MockConfigEntry,
+    frame_client: dict[str, AsyncMock],
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """last_refresh only moves for maintenance, which redraws the last upload."""
+    runtime = loaded_entry.runtime_data
+    freezer.move_to("2026-10-22T12:00:00+00:00")
+    frame_client["get_info"].return_value = {
+        **FRAME_INFO, "last_refresh": "2026-10-19T03:00:00",
+    }
+    await runtime.coordinator.async_refresh()
+    await runtime.power.async_record_upload("uploaded", "manual")
+    freezer.move_to("2026-10-23T12:00:00+00:00")
+    frame_client["get_info"].return_value = {
+        **FRAME_INFO, "last_refresh": "2026-10-23T03:00:00",
+    }
+
+    with patch.object(
+        runtime.temporary_overlays, "async_invalidate", AsyncMock()
+    ) as invalidate:
+        await runtime.coordinator.async_refresh()
+
+    assert runtime.power.last_hash == "uploaded"
+    invalidate.assert_not_awaited()

@@ -467,9 +467,6 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         annotate_frame_times(data, time.time(), dt_util.get_default_time_zone())
         self._async_update_timezone_issue(data["device"]["utc_offset_minutes"])
         self._async_backfill_unique_id(data)
-        runtime = getattr(self.config_entry, "runtime_data", None)
-        if runtime is not None and runtime.power is not None:
-            await runtime.power.async_observe_frame(data)
         self.data = data
         await self._async_save_cache()
         return data
