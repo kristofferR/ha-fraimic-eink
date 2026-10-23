@@ -101,9 +101,11 @@ without physical-device experiments.
 
 ## Method and private artifacts
 
-The private working set contains the stock app, a synthetic ELF, disassembly,
-471 indexed application functions, selected Ghidra exports, literal/reference
-tables, logs and a server schema snapshot. These artifacts are deliberately not
+The private working set contains the stock apps, synthetic ELFs, disassembly,
+Ghidra exports, literal/reference tables, logs and server schema snapshots.
+The early 471-entry Large index has been superseded by the
+[reconciled census](static-coverage.md): 481 Large / 455 Standard main-region
+entries and eight identified application outliers per build. These artifacts are deliberately not
 copied wholesale into this repository: captures can contain credentials and
 identifiers, and the vendor binary embeds artwork and web resources.
 
@@ -217,7 +219,7 @@ The table below remains a short priority overview.
 | How can a custom image be recovered? | Still requires partition/security/recovery evidence; hardware inspection deferred under the closed-enclosure preference |
 | Will gallery import remain reliable? | Reads now work; test expired URLs, retention, pagination changes and persisted deduplication |
 | Do current album create/delete handlers work end to end? | Verify proxy auth and payload semantics before owner-directed mutations |
-| Which paths own the shared buffer concurrently? | Trace local upload, background download, recording and renderer locks; instrument ownership in a test build |
+| Which paths own the shared buffer concurrently? | Static owners, overlap schedules and cleanup are traced; instrument actual ownership and timing in a recoverable test build |
 | Can WAN-free cold boot work reliably? | Local backend/time support and explicit cold-boot/outage test, not only RTC-preserving sleep |
 | How much image cache can be retained? | Real partition/filesystem capacity, system-image overhead, write policy and endurance |
 | Can display completion be observed accurately? | Driver busy/power-down completion traced to a content-ID event; correlate with the physical panel |
@@ -226,7 +228,13 @@ The table below remains a short priority overview.
 
 Additional unresolved details include the physical microphone part number,
 accelerometer model, alternative panel refresh modes, current calibration,
-complete factory-reset/mode-migration semantics, and long-term battery behavior.
+physical factory-reset/mode-migration outcomes and long-term battery behavior.
+The [reset/migration caller and failure policy](storage-and-configuration.md#identity-saves-and-reset-restoration-host-cases)
+already has static and bounded host evidence; the remaining question is not
+an unexamined application reset handler. The
+[23 October supplemental pass](static-coverage.md#final-boundary-of-this-pass)
+likewise closes its selected application questions while retaining explicit
+SDK/ROM, device and server-side limits.
 Absence of a discovered interface is not proof that no such interface exists.
 
 ## Battery observation

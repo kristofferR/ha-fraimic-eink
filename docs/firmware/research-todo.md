@@ -2,7 +2,7 @@
 
 [Research index](README.md) · [Detailed pass history](research-progress-2026-10-22.md)
 
-Reconciled against the published evidence on 22 October 2026 for Large 0.2.29 /
+Reconciled against the published evidence through 23 October 2026 for Large 0.2.29 /
 f1555ee5 and Standard 0.2.28 / 4654a1d8. The 67 original IDs and questions are
 retained. Checkboxes below distinguish completed milestones from remaining work;
 the top-level box closes only the stated question.
@@ -13,10 +13,12 @@ the top-level box closes only the stated question.
 These are task counts, not a percentage estimate of firmware understood.
 The owner reopened broad static coverage on 23 October. The
 [supplemental ledger](static-coverage.md) tracks microphone DMA/interrupts,
-model-specific initialization and unexamined application paths. Its pending
-work is separate from the status counts of the original 67 questions below.
-The ledger now includes an explicit supplemental checklist and a
-[function census](static-function-census.json); completed static passes do not
+model-specific initialization and application paths. Its thirteen supplemental
+steps are now complete for the explicitly stated boundaries, separately from
+the status counts of the original 67 questions below. The ledger includes a
+[function census](static-function-census.json),
+[call-target inventory](static-call-boundaries.json) and
+[bounded data comparison](static-data-comparison.json); completed static passes do not
 tick the original items' remaining physical or implementation milestones.
 
 | Status | Items | Meaning |
@@ -82,22 +84,19 @@ implementation is authorized merely by an unchecked box.
 
 ## Available next work
 
-**23 October:** continue the [static coverage pass](static-coverage.md).
-The first [microphone producer batch](microphone-dma.md) adds ring sizing,
-queue-overflow/lifetime and allocation-failure evidence on both builds, with
-15 instruction cases per build. The follow-up adds GDMA dispatch, EOF flags and
-the hardware-start wait with 13 cases per build. Excluded initialization helpers
-and the application census remain active research. No implementation is needed
-to continue those investigations.
-The [initializer follow-up](initialization-helpers.md) adds 18 Large / 21
-Standard cases and ten-root reference audits; remaining driver dependencies
-and the broader census stay on the supplemental ledger.
-The [driver pass](initialization-helpers.md#large-pmic-readiness-precedes-expander-success)
-adds 32 Large / six Standard cases. [Wi-Fi selection](wifi-recovery.md) and
-[fuel-gauge policy](fuel-gauge.md) add 27 cases per build, while the
-[helper-role audit](application-helpers.md) reconciles 130 Large entries across
-6,366 instructions. The original milestone count remains separate from these
-newly requested static questions; the supplemental census is still active.
+**23 October:** the [supplemental static pass](static-coverage.md) is reconciled
+and complete for its selected questions. It adds microphone DMA/interrupts,
+initializer/driver failure paths, Wi-Fi selection/retry ownership, gauge and
+battery-presentation policy, application helper roles, callback references and
+bounded cross-model data comparisons. All recovered main-region calls now
+have statically identified destinations. This does not equate their external
+SDK/ROM bodies or prove every runtime outcome.
+
+The original milestone count stays at 125/189 because the supplemental results
+do not satisfy physical, implementation or recovery criteria. The
+[final boundary](static-coverage.md#final-boundary-of-this-pass) lists those
+remaining categories explicitly. E01/E02 stay ongoing for new concrete claims
+and new builds; the selected application census is no longer labelled active.
 
 The owner selected **voice and local-control hooks** for the next direction,
 superseding further shared-JSON buffer/race analysis. The

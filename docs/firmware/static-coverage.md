@@ -14,9 +14,9 @@ the firmware has been exhaustively analyzed**.
 | --- | --- | --- |
 | Microphone DMA sizing, ring, receive callback, overflow and buffer lifetime | Complete for the stated boundaries | [Producer analysis](microphone-dma.md), [15 cases per build](microphone-producer-cases.json) |
 | GDMA interrupt dispatch and error-handler path | Complete for the stated boundaries | [EOF flags, callback masks and hardware start wait](microphone-dma.md#interrupt-flags-do-not-reach-the-saved-recording), [13 cases per build](microphone-interrupt-cases.json) |
-| Model-specific initialization and excluded allocators/drivers | In progress | [Helper and driver audit](initialization-helpers.md): ten initial roots, Large PMIC/expander/SPI and both LED initializers; [38 additional driver cases](driver-initialization-cases.json); continue dependencies found by the census |
-| Application function and callback coverage census | Main regions and eight outlying helpers reconciled per build; dependency review continues | [Function ledger](static-function-census.json): 481 Large / 455 Standard main-region entries, plus eight outliers each; all 64 entries per region lacking a direct caller have identified pointer-word uses |
-| Remaining reachable application gaps found by that census | Final reconciliation in progress | [Wi-Fi selection and retry-worker ownership](wifi-recovery.md), [fuel-gauge policy](fuel-gauge.md), [52 battery-policy cases](battery-policy-cases.json), [130 Large helper roles](application-helpers.md), and the data/call audits below |
+| Model-specific initialization and excluded allocators/drivers | Complete for the selected application helpers and driver boundaries | [Helper and driver audit](initialization-helpers.md): ten initial roots, Large PMIC/expander/SPI and both LED initializers; [38 additional driver cases](driver-initialization-cases.json); SDK/peripheral outcomes remain explicit boundaries |
+| Application function and callback coverage census | Complete for the stated inventory | [Function ledger](static-function-census.json): 481 Large / 455 Standard main-region entries, plus eight outliers each; all 64 entries per region lacking a direct caller have identified pointer-word uses |
+| Application gaps selected from that census | Complete for the stated questions | [Wi-Fi selection and retry-worker ownership](wifi-recovery.md), [fuel-gauge policy](fuel-gauge.md), [52 battery-policy cases](battery-policy-cases.json), [130 Large helper roles](application-helpers.md), and the data/call audits below |
 
 ## What the census can establish
 
@@ -38,8 +38,8 @@ The census must keep these evidence classes separate:
 
 Address mentions, exported disassembly and a high count of passing cases are
 not substitutes for semantic analysis. Conversely, an older pass without the
-newer CFG JSON format is not automatically unexamined. The reconciliation is
-still running; no whole-firmware coverage percentage is claimed.
+newer CFG JSON format is not automatically unexamined. This pass reconciles its
+selected application boundaries; no whole-firmware coverage percentage is claimed.
 
 ## Reconciled function inventory
 
@@ -172,8 +172,66 @@ separate OTA preflight calculation.
 - [x] Classify the remaining shape-paired data references using actual object extents.
 - [x] Resolve all call targets in the selected main regions and reconcile vendor anchors.
 - [x] Check Wi-Fi retry stop/replacement ownership and disconnect-reason precedence.
-- [ ] Finish the remaining dependency/state-lifetime questions exposed by this pass.
-- [ ] Reconcile final static limits against the original research checklist.
+- [x] Finish the selected dependency/state-lifetime questions: microphone producer, initialization latches, Wi-Fi retries and model-specific gauge/presentation paths.
+- [x] Reconcile final static limits against the original research checklist.
+
+## Final boundary of this pass
+
+The supplemental checklist is complete for the two pinned application images.
+That closes the selected questions, **not a proof that every possible static
+question about the firmware has been exhausted**. In particular, a function
+role, a complete CFG and a tested branch are three different levels of evidence.
+
+The seven new instruction suites record **253 passing modeled scenarios**:
+
+| Suite | Large | Standard |
+| --- | --- | --- |
+| [Microphone producer](microphone-producer-cases.json) | 15 | 15 |
+| [Microphone interrupt/start-stop](microphone-interrupt-cases.json) | 13 | 13 |
+| [Initializers](initializer-cases.json) | 18 | 21 |
+| [Additional drivers](driver-initialization-cases.json) | 32 | 6 |
+| [Wi-Fi selection and gauge](wifi-gauge-cases.json) | 27 | 27 |
+| [Battery presentation and voltage](battery-policy-cases.json) | 24 | 28 |
+| [Wi-Fi retry lifetime](wifi-retry-cases.json) | 7 | 7 |
+| Total | 136 | 117 |
+
+These interpret selected original instructions with explicitly modeled memory,
+SDK results and interleavings. They are not 253 physical experiments, a complete
+ESP32 emulator or a claim that all instructions in the application were tested.
+
+There are 279 distinct call destinations per build outside the main region and
+the eight identified application outliers. These include SDK, ROM and library
+code. Selected consequential bodies already have detailed audits in the topic
+pages, but this pass does not claim recursive analysis or model equivalence of
+all 279. Their explicit addresses remain in the call ledger for a future concrete
+question. The original E01/E02 evidence-discipline items remain ongoing.
+
+The final documentation sweep reconciled the remaining unknowns with their
+owning checklist items:
+
+| Remaining question | Why these app images do not settle it |
+| --- | --- |
+| Installed secure boot, eFuses, full flash layout, custom-image acceptance and recovery | Requires installed-state/recovery evidence, not another application-only disassembly; R01–R12 retain their individual states |
+| Real cancellation, race frequency, stale pixels, dropped audio, failed initialization and heap pressure | Static paths and synthetic schedules establish possibilities; physical outcomes remain C08/D04–D06/H03 and related device criteria |
+| WAN-free cold boot, local time and independent enrollment | Stock dependencies and parser contracts are traced; actual cold-start/provisioning behavior remains C11/S01/S02 and their device criteria |
+| Durable local backend, HA jobs, prompt history and artwork reuse | Protocol and reuse research is complete for its stated contract; A02–A04 require implementation |
+| Physical sensor identity, battery calibration, panel requirements and alternative waveforms | Compiled targets/policies do not establish fitted parts or analog behavior; H01–H06 and S07 retain their states |
+| Future vendor trust changes, indefinite gallery retention or the vendor's final AI prompt | Future/server-side behavior is not recoverable from these fixed client applications |
+| R12 outer OTA host cases, N04 disposable-filesystem suite and A07 provider selection | Explicitly deferred by the owner; this pass does not silently reopen them |
+
+### Consequences for the local-backend design
+
+The extra analysis reinforces a shared stock-protocol adapter with separate
+model renderers. It does not reveal a stock setting that replaces the hardcoded
+API origin or eliminates the public reachability/time dependencies.
+
+For a later custom-firmware effort, the most useful findings are concrete:
+give asynchronous workers explicit ownership and shutdown acknowledgement;
+surface microphone overflow/error and measurement-validity information;
+separate resource allocation from actual component readiness; and emit
+content-specific render acknowledgements. Backend/UI code should already keep
+job state distinct from LED state, generic success logs and displayed battery
+percentage. These are design consequences, not implemented changes.
 
 Physical recording/cancellation, recovery, flashing, installed eFuses/partitions,
 provider selection and implementation remain separate. This pass does not turn
