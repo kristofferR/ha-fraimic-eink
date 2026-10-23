@@ -48,7 +48,7 @@ No transcription or AI generation was invoked.
 | [Boot and scheduling](boot-and-scheduling.md) | Model-specific wake pins, boot classification, recording admission, timers and offline dependencies |
 | [Startup and readiness](startup-and-readiness.md) | Early errors, wake-dependent waits, normal/setup worker failures and completion-token limits |
 | [Initialization helpers](initialization-helpers.md) | Component retry/cleanup policies, null event-group success and model-specific memory/I2C/GPIO failures |
-| [Wi-Fi recovery](wifi-recovery.md) | AP ranking, saved-channel preference, shared five-attempt budget and connection-flag timeout |
+| [Wi-Fi recovery](wifi-recovery.md) | AP ranking, shared attempt budget, retry-worker ownership and disconnect-reason precedence |
 | [Fuel gauge](fuel-gauge.md) | Profile acceptance/programming, sample consistency, model-specific charge presentation and ADC error handling |
 | [Application helpers](application-helpers.md) | 130 Large helper roles, repaired decompiler gaps, telemetry presentation and retry-worker limits |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |

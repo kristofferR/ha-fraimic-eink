@@ -1,0 +1,417 @@
+{
+  "evidence": "Original byte-checked worker/stop instructions. RTOS and Wi-Fi results are synthetic. Replacement publication is modeled at explicit call boundaries, not a physical race reproduction or execution of the entire starter.",
+  "models": [
+    {
+      "model": "large",
+      "cfgs": [
+        {
+          "name": "worker",
+          "entry": "0x4201a580",
+          "instructions": 76,
+          "sha256": "60187d762f28492aecd116744bcdf5cbee0f4760b53c14b784ee1c466148ea98"
+        },
+        {
+          "name": "stop",
+          "entry": "0x4201a650",
+          "instructions": 30,
+          "sha256": "1cf8c7c7c2b58cfa965d45c71524541681c0a34108f687a316ec0427d9138b20"
+        }
+      ],
+      "executed_instruction_sites": 106,
+      "results": [
+        {
+          "name": "inactive-still-enters-first-wait",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 0,
+          "events": [
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "connected-still-enters-first-wait",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 1,
+          "attempts": 0,
+          "events": [
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "connection-and-set-config-errors-do-not-stop-worker",
+          "passed": true,
+          "waits": [
+            6000,
+            6000
+          ],
+          "connects": 1,
+          "configs": [
+            {
+              "lock": 0,
+              "bssid": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "channel": 0,
+              "field144": 2
+            }
+          ],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 1,
+          "events": [
+            "read-mode",
+            "request-apsta",
+            "read-config",
+            "write-config",
+            "connect-error",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "read-config-error-still-connects",
+          "passed": true,
+          "waits": [
+            6000,
+            6000
+          ],
+          "connects": 1,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 1,
+          "events": [
+            "read-mode",
+            "request-apsta",
+            "read-config",
+            "connect-error",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "cancel-clears-flag-and-wakes-worker",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 1,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 0,
+          "events": [
+            "stop-notification",
+            "stop-returned",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "replacement-revives-old-worker",
+          "passed": true,
+          "waits": [
+            6000,
+            6000
+          ],
+          "connects": 1,
+          "configs": [
+            {
+              "lock": 0,
+              "bssid": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "channel": 0,
+              "field144": 2
+            }
+          ],
+          "notifications": 1,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 1,
+          "events": [
+            "stop-notification",
+            "stop-returned",
+            "replacement-published-before-old-resumes",
+            "read-mode",
+            "request-apsta",
+            "read-config",
+            "write-config",
+            "connect-error",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "late-cleanup-clears-replacement-handle",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 1,
+          "attempts": 0,
+          "events": [
+            "replacement-published-during-exit",
+            "delete-current-task"
+          ]
+        }
+      ]
+    },
+    {
+      "model": "standard",
+      "cfgs": [
+        {
+          "name": "worker",
+          "entry": "0x4201a554",
+          "instructions": 76,
+          "sha256": "3eef9efa3256387223882060b30ce80f9bb16dbef9a49349cc872331e8f28e8e"
+        },
+        {
+          "name": "stop",
+          "entry": "0x4201a624",
+          "instructions": 30,
+          "sha256": "7ee8032c4ca0cf322235d872c721b497a475898249f240e8d519da17489fc922"
+        }
+      ],
+      "executed_instruction_sites": 106,
+      "results": [
+        {
+          "name": "inactive-still-enters-first-wait",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 0,
+          "events": [
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "connected-still-enters-first-wait",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 1,
+          "attempts": 0,
+          "events": [
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "connection-and-set-config-errors-do-not-stop-worker",
+          "passed": true,
+          "waits": [
+            6000,
+            6000
+          ],
+          "connects": 1,
+          "configs": [
+            {
+              "lock": 0,
+              "bssid": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "channel": 0,
+              "field144": 2
+            }
+          ],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 1,
+          "events": [
+            "read-mode",
+            "request-apsta",
+            "read-config",
+            "write-config",
+            "connect-error",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "read-config-error-still-connects",
+          "passed": true,
+          "waits": [
+            6000,
+            6000
+          ],
+          "connects": 1,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 1,
+          "events": [
+            "read-mode",
+            "request-apsta",
+            "read-config",
+            "connect-error",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "cancel-clears-flag-and-wakes-worker",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 1,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 0,
+          "events": [
+            "stop-notification",
+            "stop-returned",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "replacement-revives-old-worker",
+          "passed": true,
+          "waits": [
+            6000,
+            6000
+          ],
+          "connects": 1,
+          "configs": [
+            {
+              "lock": 0,
+              "bssid": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "channel": 0,
+              "field144": 2
+            }
+          ],
+          "notifications": 1,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 0,
+          "attempts": 1,
+          "events": [
+            "stop-notification",
+            "stop-returned",
+            "replacement-published-before-old-resumes",
+            "read-mode",
+            "request-apsta",
+            "read-config",
+            "write-config",
+            "connect-error",
+            "delete-current-task"
+          ]
+        },
+        {
+          "name": "late-cleanup-clears-replacement-handle",
+          "passed": true,
+          "waits": [
+            6000
+          ],
+          "connects": 0,
+          "configs": [],
+          "notifications": 0,
+          "deletes": 1,
+          "final_handle": 0,
+          "final_active": 1,
+          "attempts": 0,
+          "events": [
+            "replacement-published-during-exit",
+            "delete-current-task"
+          ]
+        }
+      ]
+    }
+  ],
+  "comparison": {
+    "functions": [
+      {
+        "name": "worker",
+        "large": "0x4201a580",
+        "standard": "0x4201a554",
+        "instructions": 76,
+        "normalized_operations_match": true,
+        "differences": []
+      },
+      {
+        "name": "stop",
+        "large": "0x4201a650",
+        "standard": "0x4201a624",
+        "instructions": 30,
+        "normalized_operations_match": true,
+        "differences": []
+      }
+    ],
+    "instructions_per_build": 106,
+    "direct_call_pairs": 1,
+    "literal_pairs": 19,
+    "sha256": "f67ed40d6e0f9477a37dfcfd0ffc0170ac058362cd7669bac59f4a393e0ca0c2"
+  },
+  "fixture_sha256": "12755f9cc253f1b3b31ebb77e6222002b6f018015be152be322d524099126c5e",
+  "limits": [
+    "Task notification, deletion and Wi-Fi driver operations are stubs, not a full FreeRTOS simulation.",
+    "Replacement-task publication is modeled at explicit instruction call boundaries; the complete starter is not executed by these two race schedules.",
+    "The schedules establish conditional stale-worker behavior, not physical race frequency, a reproduced outage or battery-drain causation.",
+    "The seven cases cover all 106 selected instruction sites; they do not exhaust every interleaving or event callback.",
+    "Exact callback/shared-state references were reviewed on Large; the paired worker/stop operations and mapped globals establish the two-model fixture comparison."
+  ]
+}

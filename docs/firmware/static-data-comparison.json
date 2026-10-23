@@ -1,0 +1,1309 @@
+{
+  "date": "2026-10-23",
+  "scope": "Only data-pointer literal pairs from the 354 unique main-region instruction-shape candidates; not all data in either image.",
+  "limits": [
+    "The original 64-byte previews were search aids, not object extents. These comparisons use the selected consumer instructions or previously recovered asset boundaries.",
+    "Relocated handler pointers are references, not proof of callee equivalence. Equal tables do not establish equal runtime state or physical behavior.",
+    "No vendor payloads, encoded authentication values, decompiled source or asset contents are included."
+  ],
+  "counts": {
+    "initial_data_pointer_pairs": 443,
+    "initial_data_pointer_occurrences": 478,
+    "text_pairs": 371,
+    "text_occurrences": 388,
+    "changed_text_pairs": 6,
+    "changed_text_occurrences": 7,
+    "nontext_empty_boundary_pairs": 72,
+    "nontext_empty_boundary_occurrences": 90
+  },
+  "changed_text": [
+    {
+      "large": "0x3c3ab30c",
+      "standard": "0x3c234fec",
+      "owners": [
+        "0x4201b3ac"
+      ],
+      "occurrences": 1,
+      "text_candidate": true,
+      "text_equal": false,
+      "large_text_bytes": 3515,
+      "standard_text_bytes": 3510
+    },
+    {
+      "large": "0x3c3ac0cc",
+      "standard": "0x3c235da7",
+      "owners": [
+        "0x4201ed28"
+      ],
+      "occurrences": 2,
+      "text_candidate": true,
+      "text_equal": false,
+      "large_text_bytes": 15195,
+      "standard_text_bytes": 11700
+    },
+    {
+      "large": "0x3c118f10",
+      "standard": "0x3c119024",
+      "owners": [
+        "0x4201f0f8"
+      ],
+      "occurrences": 1,
+      "text_candidate": true,
+      "text_equal": false,
+      "large_text_bytes": 599,
+      "standard_text_bytes": 599
+    },
+    {
+      "large": "0x3c11b57c",
+      "standard": "0x3c11b4e8",
+      "owners": [
+        "0x420208d4"
+      ],
+      "occurrences": 1,
+      "text_candidate": true,
+      "text_equal": false,
+      "large_text_bytes": 50,
+      "standard_text_bytes": 54
+    },
+    {
+      "large": "0x3c11b6f0",
+      "standard": "0x3c11b660",
+      "owners": [
+        "0x420208d4"
+      ],
+      "occurrences": 1,
+      "text_candidate": true,
+      "text_equal": false,
+      "large_text_bytes": 63,
+      "standard_text_bytes": 67
+    },
+    {
+      "large": "0x3c11b74c",
+      "standard": "0x3c11b6c0",
+      "owners": [
+        "0x420208d4"
+      ],
+      "occurrences": 1,
+      "text_candidate": true,
+      "text_equal": false,
+      "large_text_bytes": 44,
+      "standard_text_bytes": 48
+    }
+  ],
+  "objects": [
+    {
+      "large": "0x3c13bbc4",
+      "standard": "0x3c13be18",
+      "owners": [
+        "0x42014e90"
+      ],
+      "occurrences": 1,
+      "role": "SNTP server-name pointers",
+      "comparison": "NUL-terminated UTF-8 strings reached through each pointer",
+      "bytes": 16,
+      "records": 4,
+      "equal": true
+    },
+    {
+      "large": "0x3c13bc8c",
+      "standard": "0x3c13bee0",
+      "owners": [
+        "0x42017544",
+        "0x420189c0"
+      ],
+      "occurrences": 2,
+      "role": "default identity template",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 263,
+      "equal": true
+    },
+    {
+      "large": "0x3c13bd10",
+      "standard": "0x3c13bf64",
+      "owners": [
+        "0x420189c0"
+      ],
+      "occurrences": 1,
+      "role": "empty substring of default identity template",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 1,
+      "equal": true
+    },
+    {
+      "large": "0x3c13bd51",
+      "standard": "0x3c13bfa5",
+      "owners": [
+        "0x420189c0"
+      ],
+      "occurrences": 1,
+      "role": "empty substring of default identity template",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 1,
+      "equal": true
+    },
+    {
+      "large": "0x3c13bbf0",
+      "standard": "0x3c13be44",
+      "owners": [
+        "0x4201978c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/complete",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42017560",
+      "standard_handler": "0x42017534"
+    },
+    {
+      "large": "0x3c13bc00",
+      "standard": "0x3c13be54",
+      "owners": [
+        "0x4201978c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/create-account",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42019224",
+      "standard_handler": "0x420191f8"
+    },
+    {
+      "large": "0x3c13bc10",
+      "standard": "0x3c13be64",
+      "owners": [
+        "0x4201978c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/create-account",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42018cc8",
+      "standard_handler": "0x42018c9c"
+    },
+    {
+      "large": "0x3c13bc20",
+      "standard": "0x3c13be74",
+      "owners": [
+        "0x4201978c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/sign-in",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x420191b4",
+      "standard_handler": "0x42019188"
+    },
+    {
+      "large": "0x3c13bc30",
+      "standard": "0x3c13be84",
+      "owners": [
+        "0x4201978c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/sign-in",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x420192c8",
+      "standard_handler": "0x4201929c"
+    },
+    {
+      "large": "0x3c13bc40",
+      "standard": "0x3c13be94",
+      "owners": [
+        "0x4201978c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/verification-status",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42019168",
+      "standard_handler": "0x4201913c"
+    },
+    {
+      "large": "0x3c13fec4",
+      "standard": "0x3c140114",
+      "owners": [
+        "0x42019ce8"
+      ],
+      "occurrences": 1,
+      "role": "three priority scan channels",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 3,
+      "equal": true
+    },
+    {
+      "large": "0x3c13bd98",
+      "standard": "0x3c13bfe8",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP server default configuration before application overrides",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 88,
+      "equal": true
+    },
+    {
+      "large": "0x3c13bdf0",
+      "standard": "0x3c13c040",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b290",
+      "standard_handler": "0x4201b264"
+    },
+    {
+      "large": "0x3c13be00",
+      "standard": "0x3c13c050",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/scan.json",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201d28c",
+      "standard_handler": "0x4201d260"
+    },
+    {
+      "large": "0x3c13be10",
+      "standard": "0x3c13c060",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/connect",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201d07c",
+      "standard_handler": "0x4201d050"
+    },
+    {
+      "large": "0x3c13be20",
+      "standard": "0x3c13c070",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/hotspot-detect.html",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b3d8",
+      "standard_handler": "0x4201b3ac"
+    },
+    {
+      "large": "0x3c13be30",
+      "standard": "0x3c13c080",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/generate_204",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b3d8",
+      "standard_handler": "0x4201b3ac"
+    },
+    {
+      "large": "0x3c13be40",
+      "standard": "0x3c13c090",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/connecttest.txt",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b3d8",
+      "standard_handler": "0x4201b3ac"
+    },
+    {
+      "large": "0x3c13be50",
+      "standard": "0x3c13c0a0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/connect",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b3f8",
+      "standard_handler": "0x4201b3cc"
+    },
+    {
+      "large": "0x3c13be60",
+      "standard": "0x3c13c0b0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/wifi",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b3d8",
+      "standard_handler": "0x4201b3ac"
+    },
+    {
+      "large": "0x3c13be70",
+      "standard": "0x3c13c0c0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/upload",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b3ac",
+      "standard_handler": "0x4201b380"
+    },
+    {
+      "large": "0x3c13be80",
+      "standard": "0x3c13c0d0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/upload",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201cc0c",
+      "standard_handler": "0x4201cbe0"
+    },
+    {
+      "large": "0x3c13be90",
+      "standard": "0x3c13c0e0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/action",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201c740",
+      "standard_handler": "0x4201c714"
+    },
+    {
+      "large": "0x3c13bea0",
+      "standard": "0x3c13c0f0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/portal",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201e81c",
+      "standard_handler": "0x4201e7f0"
+    },
+    {
+      "large": "0x3c13beb0",
+      "standard": "0x3c13c100",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/info",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201f0f8",
+      "standard_handler": "0x4201f0cc"
+    },
+    {
+      "large": "0x3c13bec0",
+      "standard": "0x3c13c110",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/wifi-stats",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201e05c",
+      "standard_handler": "0x4201e030"
+    },
+    {
+      "large": "0x3c13bed0",
+      "standard": "0x3c13c120",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/clear-stats",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201c6f4",
+      "standard_handler": "0x4201c6c8"
+    },
+    {
+      "large": "0x3c13bee0",
+      "standard": "0x3c13c130",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/switch-ap",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201c4cc",
+      "standard_handler": "0x4201c4a0"
+    },
+    {
+      "large": "0x3c13bef0",
+      "standard": "0x3c13c140",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/check-internet",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201c404",
+      "standard_handler": "0x4201c3d8"
+    },
+    {
+      "large": "0x3c13bf00",
+      "standard": "0x3c13c150",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/logs",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201c0d0",
+      "standard_handler": "0x4201c0a4"
+    },
+    {
+      "large": "0x3c13bf10",
+      "standard": "0x3c13c160",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/logs",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b2e0",
+      "standard_handler": "0x4201b2b4"
+    },
+    {
+      "large": "0x3c13bf20",
+      "standard": "0x3c13c170",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/logs/action",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201c048",
+      "standard_handler": "0x4201c01c"
+    },
+    {
+      "large": "0x3c13bf30",
+      "standard": "0x3c13c180",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/get-started",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b38c",
+      "standard_handler": "0x4201b360"
+    },
+    {
+      "large": "0x3c13bf40",
+      "standard": "0x3c13c190",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/test",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201ed28",
+      "standard_handler": "0x4201ecfc"
+    },
+    {
+      "large": "0x3c13bf50",
+      "standard": "0x3c13c1a0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/test",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201ba9c",
+      "standard_handler": "0x4201ba70"
+    },
+    {
+      "large": "0x3c13bf60",
+      "standard": "0x3c13c1b0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/dev",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201ebbc",
+      "standard_handler": "0x4201eb90"
+    },
+    {
+      "large": "0x3c13bf70",
+      "standard": "0x3c13c1c0",
+      "owners": [
+        "0x4201a69c"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/dev",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4201b6a0",
+      "standard_handler": "0x4201b674"
+    },
+    {
+      "large": "0x3c3c54ec",
+      "standard": "0x3c24e494",
+      "owners": [
+        "0x4201ab08",
+        "0x4201dd0c",
+        "0x4201eae0"
+      ],
+      "occurrences": 3,
+      "role": "Wi-Fi event-base identifier",
+      "comparison": "NUL-terminated UTF-8 strings reached through each pointer",
+      "bytes": 4,
+      "records": 1,
+      "equal": true
+    },
+    {
+      "large": "0x3c3c5488",
+      "standard": "0x3c24e430",
+      "owners": [
+        "0x4201ab08",
+        "0x4201dd0c",
+        "0x4201eae0"
+      ],
+      "occurrences": 3,
+      "role": "IP event-base identifier",
+      "comparison": "NUL-terminated UTF-8 strings reached through each pointer",
+      "bytes": 4,
+      "records": 1,
+      "equal": true
+    },
+    {
+      "large": "0x3c3ab308",
+      "standard": "0x3c234fe8",
+      "owners": [
+        "0x4201b38c"
+      ],
+      "occurrences": 1,
+      "role": "get-started page end",
+      "comparison": "asset-boundary reference; neither a NUL string nor a fixed-size object; existing asset audit applies"
+    },
+    {
+      "large": "0x3c3ac0c8",
+      "standard": "0x3c235da3",
+      "owners": [
+        "0x4201b3ac"
+      ],
+      "occurrences": 1,
+      "role": "upload page end",
+      "comparison": "asset-boundary reference; neither a NUL string nor a fixed-size object; existing asset audit applies"
+    },
+    {
+      "large": "0x3c13617c",
+      "standard": "0x3c1360f4",
+      "owners": [
+        "0x4201b3f8",
+        "0x4201c0d0",
+        "0x4201d28c",
+        "0x4201e05c",
+        "0x42023bcc",
+        "0x4202475c",
+        "0x4202bb88",
+        "0x4202c514"
+      ],
+      "occurrences": 10,
+      "role": "empty string",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 1,
+      "equal": true
+    },
+    {
+      "large": "0x3c3b0dc6",
+      "standard": "0x3c239cfa",
+      "owners": [
+        "0x4201ebbc"
+      ],
+      "occurrences": 1,
+      "role": "developer page end",
+      "comparison": "asset-boundary reference; neither a NUL string nor a fixed-size object; existing asset audit applies"
+    },
+    {
+      "large": "0x3c3afc28",
+      "standard": "0x3c238b5c",
+      "owners": [
+        "0x4201ed28"
+      ],
+      "occurrences": 1,
+      "role": "factory page end",
+      "comparison": "asset-boundary reference; neither a NUL string nor a fixed-size object; existing asset audit applies"
+    },
+    {
+      "large": "0x3c13bfd0",
+      "standard": "0x3c13c220",
+      "owners": [
+        "0x4201ed28"
+      ],
+      "occurrences": 1,
+      "role": "factory GPIO configuration template",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 24,
+      "equal": true
+    },
+    {
+      "large": "0x3c13ff68",
+      "standard": "0x3c1401dc",
+      "owners": [
+        "0x42022648"
+      ],
+      "occurrences": 2,
+      "role": "41 LED state records",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 984,
+      "equal": true
+    },
+    {
+      "large": "0x3c140340",
+      "standard": "0x3c1405b4",
+      "owners": [
+        "0x42023ed4"
+      ],
+      "occurrences": 1,
+      "role": "account-setup response member-name table",
+      "comparison": "NUL-terminated UTF-8 strings reached through each pointer",
+      "bytes": 12,
+      "records": 3,
+      "equal": true
+    },
+    {
+      "large": "0x3c3cab81",
+      "standard": "0x3c253cd1",
+      "owners": [
+        "0x42023ed4"
+      ],
+      "occurrences": 1,
+      "role": "character classification table indexed by unsigned response byte",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 256,
+      "equal": true
+    },
+    {
+      "large": "0x3c140378",
+      "standard": "0x3c1405e0",
+      "owners": [
+        "0x420293e4"
+      ],
+      "occurrences": 1,
+      "role": "seven alternative accelerometer probe records",
+      "bytes": 56,
+      "records": 7,
+      "comparison": "four record bytes plus resolved sensor-label string",
+      "equal": true
+    },
+    {
+      "large": "0x3c1403c0",
+      "standard": "0x3c140690",
+      "owners": [
+        "0x42029938"
+      ],
+      "occurrences": 3,
+      "role": "fallback voltage-to-percentage table",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 36,
+      "equal": false,
+      "changed_offsets": [
+        0,
+        1,
+        4,
+        5,
+        8,
+        9,
+        12,
+        13,
+        16,
+        17,
+        20,
+        21,
+        24,
+        25,
+        28,
+        29,
+        32,
+        33
+      ],
+      "records": [
+        {
+          "large_millivolts": 8400,
+          "standard_millivolts": 4200,
+          "large_percent": 100,
+          "standard_percent": 100,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 8200,
+          "standard_millivolts": 4100,
+          "large_percent": 90,
+          "standard_percent": 90,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 8000,
+          "standard_millivolts": 4000,
+          "large_percent": 80,
+          "standard_percent": 80,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 7800,
+          "standard_millivolts": 3900,
+          "large_percent": 70,
+          "standard_percent": 70,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 7600,
+          "standard_millivolts": 3800,
+          "large_percent": 50,
+          "standard_percent": 50,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 7400,
+          "standard_millivolts": 3700,
+          "large_percent": 30,
+          "standard_percent": 30,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 7200,
+          "standard_millivolts": 3600,
+          "large_percent": 10,
+          "standard_percent": 10,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 7000,
+          "standard_millivolts": 3500,
+          "large_percent": 5,
+          "standard_percent": 5,
+          "padding_equal": true
+        },
+        {
+          "large_millivolts": 6000,
+          "standard_millivolts": 3300,
+          "large_percent": 0,
+          "standard_percent": 0,
+          "padding_equal": true
+        }
+      ]
+    },
+    {
+      "large": "0x3c1403b0",
+      "standard": "0x3c140648",
+      "owners": [
+        "0x42029e64"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/battery/status",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4202a154",
+      "standard_handler": "0x420289bc"
+    },
+    {
+      "large": "0x3c140440",
+      "standard": "0x3c140710",
+      "owners": [
+        "0x4202abe8"
+      ],
+      "occurrences": 1,
+      "role": "instruction asset-name pointers",
+      "comparison": "NUL-terminated UTF-8 strings reached through each pointer",
+      "bytes": 12,
+      "records": 3,
+      "equal": true
+    },
+    {
+      "large": "0x3c140434",
+      "standard": "0x3c140704",
+      "owners": [
+        "0x4202b3ac"
+      ],
+      "occurrences": 1,
+      "role": "instruction description pointers",
+      "comparison": "NUL-terminated UTF-8 strings reached through each pointer",
+      "bytes": 12,
+      "records": 3,
+      "equal": true
+    },
+    {
+      "large": "0x3c14044c",
+      "standard": "0x3c14071c",
+      "owners": [
+        "0x4202b954",
+        "0x4202d484"
+      ],
+      "occurrences": 2,
+      "role": "firmware identification template",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 19,
+      "equal": false,
+      "changed_offsets": [
+        2,
+        8
+      ]
+    },
+    {
+      "large": "0x3c140484",
+      "standard": "0x3c140754",
+      "owners": [
+        "0x4202dae8"
+      ],
+      "occurrences": 1,
+      "role": "diagnostic redaction pattern lengths",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 28,
+      "equal": true
+    },
+    {
+      "large": "0x3c140468",
+      "standard": "0x3c140738",
+      "owners": [
+        "0x4202dae8"
+      ],
+      "occurrences": 1,
+      "role": "diagnostic redaction pattern pointers",
+      "comparison": "NUL-terminated UTF-8 strings reached through each pointer",
+      "bytes": 28,
+      "records": 7,
+      "equal": true
+    },
+    {
+      "large": "0x3c140460",
+      "standard": "0x3c140730",
+      "owners": [
+        "0x4202dae8"
+      ],
+      "occurrences": 1,
+      "role": "diagnostic redaction pattern flags",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 7,
+      "equal": true
+    },
+    {
+      "large": "0x3c1404a0",
+      "standard": "0x3c140770",
+      "owners": [
+        "0x4202eba4"
+      ],
+      "occurrences": 1,
+      "role": "initial Wi-Fi diagnostic summary",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 132,
+      "equal": true
+    },
+    {
+      "large": "0x3c372e18",
+      "standard": "0x3c22aee8",
+      "owners": [
+        "0x4202f8bc"
+      ],
+      "occurrences": 1,
+      "role": "status-image RLE start",
+      "comparison": "asset-boundary reference; neither a NUL string nor a fixed-size object; existing asset audit applies"
+    },
+    {
+      "large": "0x3c3a7b56",
+      "standard": "0x3c231836",
+      "owners": [
+        "0x4202f8bc"
+      ],
+      "occurrences": 1,
+      "role": "status-image RLE end",
+      "comparison": "asset-boundary reference; neither a NUL string nor a fixed-size object; existing asset audit applies"
+    },
+    {
+      "large": "0x3c140534",
+      "standard": "0x3c140804",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/info",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42030c98",
+      "standard_handler": "0x4202f384"
+    },
+    {
+      "large": "0x3c140544",
+      "standard": "0x3c140814",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/battery",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42030c6c",
+      "standard_handler": "0x4202f358"
+    },
+    {
+      "large": "0x3c140554",
+      "standard": "0x3c140824",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/restart",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42030ba0",
+      "standard_handler": "0x4202f28c"
+    },
+    {
+      "large": "0x3c140564",
+      "standard": "0x3c140834",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/sleep",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42030b38",
+      "standard_handler": "0x4202f224"
+    },
+    {
+      "large": "0x3c140574",
+      "standard": "0x3c140844",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/refresh",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42030aa0",
+      "standard_handler": "0x4202f1cc"
+    },
+    {
+      "large": "0x3c140584",
+      "standard": "0x3c140854",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/image",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x420307f8",
+      "standard_handler": "0x4202ef24"
+    },
+    {
+      "large": "0x3c140594",
+      "standard": "0x3c140864",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/albums",
+      "method_number": 1,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x420304b8",
+      "standard_handler": "0x4202ebe4"
+    },
+    {
+      "large": "0x3c1405a4",
+      "standard": "0x3c140874",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/albums",
+      "method_number": 3,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x42030790",
+      "standard_handler": "0x4202eebc"
+    },
+    {
+      "large": "0x3c1405b4",
+      "standard": "0x3c140884",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/albums/*",
+      "method_number": 4,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x420306c8",
+      "standard_handler": "0x4202edf4"
+    },
+    {
+      "large": "0x3c1405c4",
+      "standard": "0x3c140894",
+      "owners": [
+        "0x420310b0"
+      ],
+      "occurrences": 1,
+      "role": "HTTP URI registration descriptor",
+      "bytes": 16,
+      "route": "/api/albums/*",
+      "method_number": 0,
+      "comparison": "resolved URI, method and user context; handler addresses retained as references, not equated",
+      "uri_equal": true,
+      "method_equal": true,
+      "user_context_equal": true,
+      "large_handler": "0x4203042c",
+      "standard_handler": "0x4202eb58"
+    },
+    {
+      "large": "0x3c1405d4",
+      "standard": "0x3c1408a4",
+      "owners": [
+        "0x420313b4"
+      ],
+      "occurrences": 1,
+      "role": "encoded authentication material; values and per-object hashes withheld",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 32,
+      "equal": true
+    },
+    {
+      "large": "0x3c1405f4",
+      "standard": "0x3c1408c4",
+      "owners": [
+        "0x420313b4"
+      ],
+      "occurrences": 1,
+      "role": "encoded authentication material; values and per-object hashes withheld",
+      "comparison": "exact bytes within instruction-derived extent",
+      "bytes": 32,
+      "equal": true
+    }
+  ]
+}

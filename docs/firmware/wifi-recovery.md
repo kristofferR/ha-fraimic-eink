@@ -77,3 +77,67 @@ Wi-Fi scenarios and fourteen fuel-gauge scenarios. Seven paired bodies total
 match. The cases execute 1,010 distinct sites per build. External SDK behavior,
 RF results, physical timing and all concurrent event schedules remain outside
 these synthetic cases.
+
+## Background retry has a separate lifetime
+
+The worker is Large `0x4201a580` / Standard `0x4201a554`; its stop helper is
+`0x4201a650` / `0x4201a624`. Their 106 instructions match after mapped calls and
+data relocation. [Seven cases per build](wifi-retry-cases.json) execute every
+selected instruction site with synthetic notification and Wi-Fi outcomes.
+
+The worker first requests a notification wait of 6,000 ticks, nominally
+60 seconds, **before** checking whether retry is active or Wi-Fi is connected.
+Each retry increments a shared attempt counter, requests AP+station mode if
+needed, and reads station configuration. On a successful configuration read it
+clears BSSID locking, the BSSID bytes and selected channel, then requests the
+modified configuration. A failed configuration read skips that write but still
+attempts connection. Mode/configuration/connect errors do not themselves stop
+the loop. Another notification wait precedes the next active/connected checks.
+Notifications can end waits early, so this is not a guaranteed 60-second cadence.
+
+Stopping clears the shared active flag, notifies the retained task handle when
+nonnull and resets the attempt counter. It does **not** wait for the worker to
+exit. The worker clears the global handle immediately before deleting itself,
+without comparing that handle to its own task identity.
+
+Two instruction schedules expose the ownership consequences:
+
+- Stop returns, then a replacement sets the same active flag before the old
+  worker resumes: the old worker can enter another connection attempt.
+- The old worker has decided to exit, then a replacement publishes its handle:
+  the old worker's unconditional cleanup clears the replacement's global slot.
+
+The replacement publication in these cases is explicitly modeled at call
+boundaries; the complete starter and real scheduler are not executed. The
+Large reference audit identifies both setup and Wi-Fi-event paths creating the
+worker. Both set active before creation and discard its return value. Acquiring
+an IP calls the stop helper, so the worker's failure to clear active itself is
+not evidence that normal successful connections always leave it set.
+
+A future firmware should own retry through one persistent worker or distinguish
+worker generations and acknowledge shutdown. Backend recovery must not infer
+that a retry task is alive from its startup log, or that it is gone merely
+because stop returned. This is a static design consequence, not a deployed fix.
+
+## Connection-page errors preserve a ranked reason
+
+Large's Wi-Fi event callback stores the latest disconnect reason separately
+from a retained ranked reason. Classifier `0x420e2948` assigns these ranks
+(lower wins); its Standard counterpart `0x420e2c2c` has matching instructions:
+
+| Rank | Numeric disconnect reasons |
+| --- | --- |
+| 1 | 15, 202, 203 |
+| 2 | 5, 13, 17–20, 201 |
+| 3 | 2, 16, 204–207 |
+| 4 | 3, 4, 6–8 |
+| 5 | Other values |
+
+The retained reason changes only for a **strictly lower** rank. Equal-ranked
+later events leave the earlier reason selected. First-tier connection setup
+initializes the rank to 10 and both reason words to sentinel 1. `GET /connect`
+uses the retained reason, falling back to the latest reason when the retained
+value is still 1. Its password/network message therefore need not describe the
+last disconnect, and remains a reason-code mapping rather than an independent
+credential check. These Wi-Fi diagnostics are distinct from cloud-account
+authentication and the captured TLS memory-allocation error.

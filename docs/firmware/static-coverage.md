@@ -16,7 +16,7 @@ the firmware has been exhaustively analyzed**.
 | GDMA interrupt dispatch and error-handler path | Complete for the stated boundaries | [EOF flags, callback masks and hardware start wait](microphone-dma.md#interrupt-flags-do-not-reach-the-saved-recording), [13 cases per build](microphone-interrupt-cases.json) |
 | Model-specific initialization and excluded allocators/drivers | In progress | [Helper and driver audit](initialization-helpers.md): ten initial roots, Large PMIC/expander/SPI and both LED initializers; [38 additional driver cases](driver-initialization-cases.json); continue dependencies found by the census |
 | Application function and callback coverage census | Main regions and eight outlying helpers reconciled per build; dependency review continues | [Function ledger](static-function-census.json): 481 Large / 455 Standard main-region entries, plus eight outliers each; all 64 entries per region lacking a direct caller have identified pointer-word uses |
-| Remaining reachable application gaps found by that census | In progress | [Wi-Fi selection/budget](wifi-recovery.md), [fuel-gauge acceptance and model-specific presentation/error policy](fuel-gauge.md), [52 battery-policy cases](battery-policy-cases.json), and [130 Large helper roles](application-helpers.md) now audited; continue model/callback reconciliation |
+| Remaining reachable application gaps found by that census | Final reconciliation in progress | [Wi-Fi selection and retry-worker ownership](wifi-recovery.md), [fuel-gauge policy](fuel-gauge.md), [52 battery-policy cases](battery-policy-cases.json), [130 Large helper roles](application-helpers.md), and the data/call audits below |
 
 ## What the census can establish
 
@@ -57,8 +57,8 @@ results, with per-function instruction counts and hashes of private CFG exports:
 | Instructions in those eight helpers | 206 | 206 |
 
 No recovered direct call targets an unclassified interior address in either
-main region. That statement covers direct `call8` instructions; it is not a
-solution for every computed `callx8` target. Exact pointer-word uses cover tasks,
+main region. The subsequent call audit below also resolves each main-region
+`callx8` through its adjacent literal load. Exact pointer-word uses cover tasks,
 callbacks and registration helpers that a direct-call-only index would miss.
 They establish references, not that every callback runs on every boot.
 
@@ -90,9 +90,67 @@ A follow-up compared 9,122 literal-load occurrences in the unique pairs. There
 are 37 changed scalar occurrences: seven panel-size values, one render-wait
 budget, five log capacities, seventeen error-check source-line numbers, four
 image-cache bounds and three voltage-policy thresholds. The sixteen changed
-string occurrences are model/version/build identifiers and the 90/180-second
-render-timeout message. These differences agree with the detailed model work;
-relocated data tables and external callee bodies still require their own evidence.
+short ASCII string occurrences are model/version/build identifiers and the
+90/180-second render-timeout message. The data follow-up below finds seven more
+changed string occurrences excluded by that initial text filter. Relocated
+tables and external callee bodies require their own evidence; matching shape
+alone does not establish their equivalence.
+
+### Embedded data follow-up
+
+The [data comparison](static-data-comparison.json) classifies all 443 unique
+address pairs / 478 occurrences initially labelled data pointers by the shape
+comparison. Of those, 371 pairs / 388 occurrences are NUL-terminated text,
+including long pages and Unicode logs. Six pairs / seven occurrences differ:
+upload-page size checks, the factory page, a model-size response string and
+three render-error log decorations. Together with the initial sixteen short
+ASCII occurrences, this makes **23 changed string occurrences in the selected
+shape pairs**, not in the entire firmware.
+
+The other 72 pairs / 90 occurrences are bounded tables, empty defaults or asset
+boundaries. Comparing their actual consumer-defined extents establishes:
+
+- All 42 URI descriptors retain the same path, method and user context. Handler
+  addresses remain references, with the separate
+  [handler comparison](local-handler-comparison.json) supplying its stated evidence.
+- Resolved SNTP names, account-response member names, instruction names and
+  descriptions, event-base names and seven sensor-probe records match.
+- The 88-byte HTTP defaults, 263-byte identity defaults, 24-byte factory GPIO
+  template, 984-byte LED table, 256-byte character-classification table,
+  diagnostic-redaction tables and 132-byte Wi-Fi summary defaults match within
+  those extents. The encoded authentication arrays also match; their values
+  and per-object hashes remain private.
+- The firmware-identification template and voltage thresholds differ as
+  expected. The nine voltage-table percentage values and padding match, while
+  the millivolt thresholds differ. No physical calibration follows from this.
+- Six pointers identify asset starts/ends. Bytes after an asset end are not
+  compared as if they belonged to that asset; the existing asset audits apply.
+
+This replaces exploratory 64-byte previews with bounded comparisons. It does
+not establish equivalence of all image data or all functions using these tables.
+
+### Direct and literal-indirect call boundaries
+
+The [call ledger](static-call-boundaries.json) examines every recovered call in
+the two main regions. Large has 3,206 `call8` and 5,310 `callx8` sites; Standard
+has 3,067 and 5,134. Every `callx8` immediately follows a matching `l32r` with a
+constant target, with no recovered branch/loop targeting the call to bypass
+that load. There are no other call instruction forms or `jx` register jumps in
+these selected CFGs. Thus **no main-region call target remains unresolved by
+this census**. This is a static instruction result, not a proof against runtime
+corruption or arbitrary entry into the middle of code.
+
+The literal calls reach 124 distinct targets on Large and 123 on Standard,
+including the eight outlying application helpers each. Direct calls reach
+163 / 164 distinct targets outside the corresponding main region. The ledger
+keeps these destinations explicit: identifying an SDK/ROM entry is not a
+recursive analysis of its body, its callbacks or hardware behavior.
+
+All 1,359 Large / 1,300 Standard references found by the selected vendor-tag and
+`./main/` source-path scan lie in the reconciled CFGs. This closes those anchor
+gaps, including the Large workers originally missing from Ghidra's function
+index. Tag matching is a heuristic and cannot prove that no untagged vendor
+function exists elsewhere.
 
 The voltage-policy thresholds add a useful qualification: the fallback
 percentage helper saturates at 100 from 8,400 mV on Large and 4,200 mV on
@@ -111,6 +169,9 @@ separate OTA preflight calculation.
 - [x] Recover and compare eight identified outlying application helpers per build.
 - [x] Audit changed scalar/string literals in the 354 unique shape candidates.
 - [x] Compare the model-specific battery summary and voltage-reader error policies.
+- [x] Classify the remaining shape-paired data references using actual object extents.
+- [x] Resolve all call targets in the selected main regions and reconcile vendor anchors.
+- [x] Check Wi-Fi retry stop/replacement ownership and disconnect-reason precedence.
 - [ ] Finish the remaining dependency/state-lifetime questions exposed by this pass.
 - [ ] Reconcile final static limits against the original research checklist.
 
