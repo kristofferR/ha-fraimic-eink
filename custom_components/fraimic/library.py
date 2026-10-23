@@ -52,7 +52,7 @@ from .const import (
 )
 from .delivery import async_use_cloud
 from .helpers import loaded_fraimic_entries, resolve_render_params
-from .image_convert import bin_to_png, convert_image
+from .image_convert import bin_to_png, convert_image, is_valid_bin
 from .library_model import (
     LibraryImage,
     all_albums,
@@ -522,7 +522,7 @@ class FraimicLibrary:
         render_dir = self.renders_dir / image_id
 
         cached = await self.hass.async_add_executor_job(
-            self._read_render_sync, render_dir, key
+            self._read_render_sync, render_dir, key, params["width"], params["height"]
         )
         if cached is not None:
             return cached
@@ -559,7 +559,7 @@ class FraimicLibrary:
         return bin_data, preview_png, used_mode
 
     def _read_render_sync(
-        self, render_dir: Path, key: str
+        self, render_dir: Path, key: str, width: int, height: int
     ) -> tuple[bytes, bytes | None, str] | None:
         bin_path = render_dir / f"{key}.bin"
         png_path = render_dir / f"{key}.png"
@@ -568,11 +568,11 @@ class FraimicLibrary:
             return None
         try:
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            return (
-                bin_path.read_bytes(),
-                png_path.read_bytes(),
-                str(meta.get("mode", "auto")),
-            )
+            bin_data = bin_path.read_bytes()
+            if not is_valid_bin(bin_data, width, height):
+                # Damaged cache file: a miss, so it is regenerated and rewritten.
+                return None
+            return bin_data, png_path.read_bytes(), str(meta.get("mode", "auto"))
         except (OSError, ValueError):
             return None
 

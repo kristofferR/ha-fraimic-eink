@@ -487,3 +487,13 @@ def test_prerendered_hybrid_uses_same_transport_selection(library_module, monkey
     assert services.async_deliver_cloud.await_count == int(not local)
     assert runtime.set_displayed_preview.call_count == int(local)
     runtime.send_queue.async_upload_or_queue.assert_not_called()
+
+
+def test_damaged_render_cache_file_is_a_miss(library_module, tmp_path):
+    manager = object.__new__(library_module.FraimicLibrary)
+    panel = b"\x11" * 8  # 4x4 all white
+    (tmp_path / "k.png").write_bytes(b"preview")
+    (tmp_path / "k.json").write_text('{"mode": "none"}')
+    for data, expected in ((panel, (panel, b"preview", "none")), (panel[:-1], None)):
+        (tmp_path / "k.bin").write_bytes(data)
+        assert manager._read_render_sync(tmp_path, "k", 4, 4) == expected

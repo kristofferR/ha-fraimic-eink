@@ -92,3 +92,16 @@ def test_firmware_supports_api_image(version, expected):
 def test_large_frame_upload_uses_extended_timeout():
     assert api.FraimicClient._upload_timeout(bytes(2_304_000)) == 600
     assert api.FraimicClient._upload_timeout(b"small frame") == 90
+
+
+def test_upload_rejects_a_buffer_that_is_not_the_panel_size():
+    import asyncio
+
+    client = api.FraimicClient("192.0.2.1", object(), bin_size=960_000)
+
+    async def unexpected(_data):
+        raise AssertionError("a wrong-size buffer reached the frame")
+
+    client._do_upload = client._do_upload_api_image = unexpected
+    with pytest.raises(api.FraimicError, match="exactly 960000 bytes"):
+        asyncio.run(client.upload_image(bytes(960_000 - 17)))

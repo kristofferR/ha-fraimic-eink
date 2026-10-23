@@ -901,6 +901,7 @@ async def async_convert_for_entry(
                 render_cache_key(cache_params),
                 entry,
                 _create,
+                resolution=(width, height),
             )
     if rendered is None:
         rendered = await _create()

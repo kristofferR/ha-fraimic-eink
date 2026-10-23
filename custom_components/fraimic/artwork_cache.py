@@ -39,6 +39,7 @@ from .const import (
     DOMAIN,
 )
 from .helpers import loaded_fraimic_entries
+from .image_convert import is_valid_bin
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -204,8 +205,14 @@ class ArtworkCache:
         variant: str,
         entry,
         creator: Callable[[], Awaitable[tuple[bytes, bytes | None, str]]],
+        *,
+        resolution: tuple[int, int],
     ) -> tuple[bytes, bytes | None, str]:
-        """Return a cached conversion or create it exactly once concurrently."""
+        """Return a cached conversion or create it exactly once concurrently.
+
+        A cached ``.bin`` that is not a complete buffer for ``resolution`` is
+        a miss, so a damaged file is regenerated instead of sent.
+        """
         policy = self.policy_for(entry)
         if not policy.enabled:
             return await creator()
@@ -213,7 +220,7 @@ class ArtworkCache:
         lock = self._locks.setdefault(f"render:{cache_id}:{key}", asyncio.Lock())
         async with lock:
             cached = await self.hass.async_add_executor_job(
-                self._read_render_sync, cache_id, key, policy.retention
+                self._read_render_sync, cache_id, key, policy.retention, resolution
             )
             if cached is not None:
                 return cached
@@ -234,7 +241,11 @@ class ArtworkCache:
             return rendered
 
     def _read_render_sync(
-        self, cache_id: str, key: str, retention: float | None
+        self,
+        cache_id: str,
+        key: str,
+        retention: float | None,
+        resolution: tuple[int, int],
     ) -> tuple[bytes, bytes | None, str] | None:
         render_dir = self._item_dir(cache_id) / "renders"
         bin_path = render_dir / f"{key}.bin"
@@ -248,7 +259,10 @@ class ArtworkCache:
                 return None
             meta = json.loads(meta_path.read_text(encoding="utf-8"))
             preview = png_path.read_bytes() if meta.get("preview", True) else None
-            result = bin_path.read_bytes(), preview, str(meta.get("mode", "auto"))
+            bin_data = bin_path.read_bytes()
+            if not is_valid_bin(bin_data, *resolution):
+                return None
+            result = bin_data, preview, str(meta.get("mode", "auto"))
             if time.time() - stat.st_mtime > MIN_CLEANUP_INTERVAL:
                 meta_path.touch(exist_ok=True)
             return result

@@ -108,8 +108,18 @@ def normalize_host(host: str) -> str:
 class FraimicClient:
     """Talks to a single Fraimic frame."""
 
-    def __init__(self, host: str, session: aiohttp.ClientSession) -> None:
+    def __init__(
+        self,
+        host: str,
+        session: aiohttp.ClientSession,
+        *,
+        bin_size: int | None = None,
+    ) -> None:
         self._host = normalize_host(host)
+        # The panel's exact packed size. The firmware only rejects oversized
+        # bodies: a short one is cached as last_image.bin and drawn with a
+        # stale tail, or not at all, while the reply still says "rendering".
+        self.bin_size = bin_size
         # Uploads go to POST /api/image (octet-stream) when the coordinator has
         # confirmed a firmware that supports it, else multipart /upload. False
         # until the first successful poll (e.g. frame asleep at startup).
@@ -312,6 +322,11 @@ class FraimicClient:
             raise FraimicError(
                 f"Image is {len(data)} bytes; the frame rejects uploads over "
                 f"{MAX_BIN_SIZE} bytes"
+            )
+        if self.bin_size is not None and len(data) != self.bin_size:
+            raise FraimicError(
+                f"Image is {len(data)} bytes; this frame's panel needs exactly "
+                f"{self.bin_size} bytes"
             )
 
         attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
