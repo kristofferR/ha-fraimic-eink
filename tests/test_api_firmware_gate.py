@@ -105,3 +105,61 @@ def test_upload_rejects_a_buffer_that_is_not_the_panel_size():
     client._do_upload = client._do_upload_api_image = unexpected
     with pytest.raises(api.FraimicError, match="exactly 960000 bytes"):
         asyncio.run(client.upload_image(bytes(960_000 - 17)))
+
+
+class _Reply:
+    """Just enough of an aiohttp response for ``FraimicClient._json``."""
+
+    def __init__(self, body):
+        self.status = 200
+        self._body = body
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *_exc):
+        return None
+
+    async def json(self, **_kwargs):
+        if isinstance(self._body, str):
+            import json
+
+            return json.loads(self._body)
+        return self._body
+
+
+@pytest.mark.parametrize(
+    "body",
+    [{"status": "ok"}, '{"albums": [{"id": "a"', "<html>502 Bad Gateway</html>"],
+    ids=["empty-upstream", "truncated", "html"],
+)
+def test_album_listing_must_be_an_album_list(body):
+    import asyncio
+
+    client = api.FraimicClient("192.0.2.1", object())
+
+    async def reply(*_args, **_kwargs):
+        return _Reply(body)
+
+    client._request = reply
+    with pytest.raises(api.FraimicError):
+        asyncio.run(client.get_albums())
+
+
+def test_album_edit_reply_must_be_that_album():
+    import asyncio
+
+    client = api.FraimicClient("192.0.2.1", object())
+    sent = []
+
+    async def reply(*args, **_kwargs):
+        sent.append(args)
+        return _Reply({"status": "ok"})
+
+    client._request = reply
+    with pytest.raises(api.FraimicError, match="did not return the album"):
+        asyncio.run(client.update_album("a", {"active": False}))
+    # The proxy cuts IDs at 127 bytes, which could edit a different album.
+    with pytest.raises(api.FraimicError, match="longer than 127"):
+        asyncio.run(client.update_album("a" * 128, {"active": False}))
+    assert len(sent) == 1

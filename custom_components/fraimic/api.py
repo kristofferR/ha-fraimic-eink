@@ -92,6 +92,9 @@ def command_error_message(err: FraimicError) -> str:
     return str(err)
 
 
+# The album proxy copies at most this many ID bytes and drops the rest.
+MAX_ALBUM_ID_BYTES = 127
+
 # First firmware verified (on real hardware) to accept POST /api/image with an
 # application/octet-stream body. Older firmware (0.2.21) answered 501 and hung.
 MIN_API_IMAGE_FIRMWARE = (0, 2, 28)
@@ -294,10 +297,18 @@ class FraimicClient:
         The frame proxies this to origin.fraimic.com using its own
         device_key, so it only works when the frame has real internet —
         LAN-only frames answer ``502 {"error": "server_unreachable"}``.
+
+        The proxy streams whatever upstream sends: an empty body becomes
+        ``{"status": "ok"}``, a read error can end it early, and HTML errors
+        are labelled JSON. Anything but an album list is an error.
         """
         data = await self._json("GET", "/api/albums", timeout=30)
-        albums = data.get("albums", data)
-        return albums if isinstance(albums, list) else []
+        albums = data.get("albums")
+        if not isinstance(albums, list) or not all(
+            isinstance(album, dict) for album in albums
+        ):
+            raise FraimicError("GET /api/albums returned no album list")
+        return albums
 
     async def update_album(self, album_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Partially edit one album (``PUT /api/albums/{id}``, cloud proxy).
@@ -305,10 +316,19 @@ class FraimicClient:
         The cloud does NOT merge the ``schedule`` object — a PUT with a
         partial schedule nulls the omitted fields, so callers must always
         read-modify-write the full schedule shape.
+
+        Raises ``FraimicError`` when the reply isn't that album: the change
+        may still have applied, so callers re-read to confirm it.
         """
-        return await self._json(
+        if len(album_id.encode()) > MAX_ALBUM_ID_BYTES:
+            # The firmware silently cuts longer IDs, which could edit another album.
+            raise FraimicError(f"Album ID is longer than {MAX_ALBUM_ID_BYTES} bytes")
+        album = await self._json(
             "PUT", f"/api/albums/{album_id}", json=payload, timeout=30
         )
+        if str(album.get("id")) != album_id:
+            raise FraimicError(f"PUT /api/albums/{album_id} did not return the album")
+        return album
 
     async def get_battery(self) -> dict[str, Any]:
         """Return the lightweight battery status from ``GET /api/battery``."""
