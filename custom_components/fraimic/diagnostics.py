@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import re
+from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
@@ -20,16 +21,11 @@ from .const import (
 from .coordinator import FraimicConfigEntry
 from .log_page import parse_logs_page
 
-if TYPE_CHECKING:
-    from .coordinator import FraimicDataUpdateCoordinator
-
-NETWORK_IDENTIFIERS = {
+# Values under these keys are redacted in the structured data and also
+# scrubbed wherever they appear verbatim in the free-text frame logs.
+TO_REDACT = {
     "ssid", "wifi_ssid", "ip", "ip_address",
     "mac", "mac_address", "bssid", "wifi_mac",
-}
-
-TO_REDACT = {
-    *NETWORK_IDENTIFIERS,
     CONF_CLOUD_PASSWORD,
     CONF_CLOUD_EMAIL,
     CONF_CLOUD_DEVICE_ID,
@@ -49,43 +45,51 @@ TO_REDACT = {
 LOG_TAIL = 80
 
 
-def _network_identifiers(data: Any) -> list[str]:
-    """Include raw-only firmware aliases when scrubbing free-text logs."""
+def _identifiers(data: Any) -> list[str]:
+    """Collect every string value diagnostics redact, including nested ones."""
     values: list[str] = []
     if isinstance(data, dict):
         for key, value in data.items():
-            if key in NETWORK_IDENTIFIERS and isinstance(value, str) and value:
+            if key in TO_REDACT and isinstance(value, str) and value:
                 values.append(value)
             else:
-                values.extend(_network_identifiers(value))
+                values.extend(_identifiers(value))
     elif isinstance(data, list):
         for item in data:
-            values.extend(_network_identifiers(item))
+            values.extend(_identifiers(item))
     return values
 
 
 def _scrub(lines: list[str], secrets: list[str]) -> list[str]:
-    """Blank the frame's own network identifiers in free-text log lines.
+    """Blank identifiers that appear verbatim in free-text log lines.
 
-    The structured diagnostics redact ssid/ip; the /logs text is free-form, so
-    scrub the same values (SSID, BSSID, IP, MAC) where they appear verbatim.
+    The structured diagnostics redact by key; the /logs text is free-form, so
+    scrub the same values there. The firmware's album proxy logs its upstream
+    path, ``/api/v1/albums/<device_key>``, and the device key alone is enough
+    to list the account's albums.
     """
-    result = []
-    for line in lines:
-        for secret in secrets:
-            if secret:
-                line = line.replace(secret, "**REDACTED**")
-        result.append(line)
-    return result
+    unique = sorted({s for s in secrets if s}, key=len, reverse=True)
+    if not unique:
+        return list(lines)
+    pattern = re.compile("|".join(map(re.escape, unique)), re.IGNORECASE)
+    return [pattern.sub("**REDACTED**", line) for line in lines]
 
 
-async def _async_logs(coordinator: FraimicDataUpdateCoordinator) -> dict[str, Any]:
+async def _async_logs(entry: FraimicConfigEntry) -> dict[str, Any]:
     """Best-effort recent frame logs; never raises."""
+    runtime = entry.runtime_data
+    coordinator = runtime.coordinator
     try:
         parsed = parse_logs_page(await coordinator.client.get_logs(verbose=True))
     except FraimicError as err:
         return {"error": str(err)}
-    secrets = _network_identifiers(coordinator.data or {})
+    secrets = [
+        *_identifiers(coordinator.data or {}),
+        *_identifiers(dict(entry.options)),
+        *(_identifiers(runtime.cloud.diagnostics()) if runtime.cloud else ()),
+        # The device-key unique_id, even when this poll's data is missing.
+        entry.unique_id or "",
+    ]
     return {
         boot: _scrub(lines[-LOG_TAIL:], secrets)
         for boot, lines in parsed.items()
@@ -120,5 +124,5 @@ async def async_get_config_entry_diagnostics(
         ),
         # Recent frame logs (/logs admin page) — the only source for the WiFi
         # drop / upload-wedge symptoms; fetched on demand, never fatal.
-        "logs": await _async_logs(coordinator),
+        "logs": await _async_logs(entry),
     }

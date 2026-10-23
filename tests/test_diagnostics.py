@@ -102,7 +102,7 @@ def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatc
         + " ".join(wifi.values()) + "</div>"
     )
     entry = types.SimpleNamespace(
-        data={}, options={},
+        data={}, options={}, unique_id=None,
         runtime_data=types.SimpleNamespace(
             coordinator=types.SimpleNamespace(
                 async_refresh_info_page=AsyncMock(), data=data, info_page={},
