@@ -14,6 +14,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from freezegun.api import FrozenDateTimeFactory
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -401,3 +402,29 @@ async def test_busy_refresh_explains_itself(
         await hass.services.async_call(
             "button", "press", {"entity_id": entity_id}, blocking=True
         )
+
+
+async def test_unsynced_clock_after_boot_raises_a_repair(
+    hass: HomeAssistant,
+    loaded_entry: MockConfigEntry,
+    frame_client: dict[str, AsyncMock],
+) -> None:
+    """Blocked 8.8.8.8:53 or NTP: AP failover, an open setup AP, 24 h wakes."""
+    coordinator = _coordinator(loaded_entry)
+    issues = ir.async_get(hass)
+    issue_id = f"time_unsynced_{loaded_entry.entry_id}"
+
+    async def poll(synced: bool, uptime: int, bssid: str) -> bool:
+        frame_client["get_info"].return_value = {
+            **FRAME_INFO, "time_synced": synced, "uptime_s": uptime, "bssid": bssid,
+            "wifi_channel": 6,
+        }
+        await coordinator.async_refresh()
+        return issues.async_get_issue(DOMAIN, issue_id) is not None
+
+    # Still starting up, then one unsynced poll is not yet a pattern.
+    assert not await poll(False, 60, "02:AA:BB:CC:DD:01")
+    assert not await poll(False, 400, "02:AA:BB:CC:DD:02")
+    assert await poll(False, 460, "02:AA:BB:CC:DD:01")
+    assert coordinator.ap_switches and len(coordinator.ap_switches) == 2
+    assert not await poll(True, 520, "02:AA:BB:CC:DD:01")

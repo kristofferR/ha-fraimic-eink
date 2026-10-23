@@ -27,6 +27,7 @@ def test_cloud_identifiers_pass_through_redaction(monkeypatch):
     sys.modules.pop("fraimic.diagnostics", None)
     diagnostics = load("diagnostics")
     monkeypatch.setattr(diagnostics, "_async_logs", AsyncMock(return_value={}))
+    monkeypatch.setattr(diagnostics, "_async_network", AsyncMock(return_value={}))
     cloud_data = {"album_id": "album", "upload_id": "upload", "album_device_id": "canvas"}
     entry = types.SimpleNamespace(
         data={}, options={"cloud_device_id": "canvas"},
@@ -113,6 +114,7 @@ def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatc
         ),
     )
 
+    monkeypatch.setattr(diagnostics, "_async_network", AsyncMock(return_value={}))
     result = asyncio.run(diagnostics.async_get_config_entry_diagnostics(None, entry))
 
     assert not re.search(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", json.dumps(result))

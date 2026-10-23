@@ -75,6 +75,13 @@ def frame_client() -> Generator[dict[str, AsyncMock]]:
             )
         ),
         "get_albums": AsyncMock(return_value=[]),
+        "get_wifi_stats": AsyncMock(
+            return_value=(
+                "<html><style>td{}</style><table><tr><td>Failover to</td>"
+                "<td>AA:BB:CC:11:22:33 via 10.0.30.1</td></tr></table></html>"
+            )
+        ),
+        "check_internet": AsyncMock(return_value={"reachable": False}),
     }
     with patch.multiple(FraimicClient, **mocks):
         yield mocks

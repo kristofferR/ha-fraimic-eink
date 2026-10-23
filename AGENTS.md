@@ -94,6 +94,11 @@ Hardware quirks the code accounts for:
   The coordinator derives `device.utc_offset_minutes` from synced polls and
   adds epoch `display.*_at` fields; read those, never the strings. A
   `frame_timezone` repair explains a mismatch (stock firmware can't fix it).
+- Stock firmware needs TCP `8.8.8.8:53` and NTP even for LAN-only use. A
+  `time_unsynced` repair fires after 2 polls unsynced past 5 min uptime;
+  AP switches (`wifi.bssid`/`channel` changes) are counted per 24 h.
+  `/wifi-stats` and `/check-internet` update the activity timer, so they are
+  read only for the diagnostics download.
 - A reported charging cable blocks `/api/sleep`. A `phantom_cable` repair
   fires when the cable stays reported while the battery falls 5+ points over
   6+ h (readings at 95 % and above are ignored: the gauge plateaus there).

@@ -59,6 +59,12 @@ CLOUD_CHECK_IN_RETRY = 1800
 CABLE_DRAIN_POINTS = 5
 CABLE_DRAIN_SECONDS = 6 * 3600
 CABLE_DRAIN_PLATEAU = 95
+# Without internet time the frame fails over between access points, opens an
+# unprotected setup AP and falls back to 24-hour timer wakes. Report it once
+# the clock is still unsynced this long after boot, on consecutive polls.
+UNSYNCED_UPTIME = 300
+UNSYNCED_POLLS = 2
+AP_SWITCH_WINDOW = 24 * 3600
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -170,6 +176,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # Start of a stretch with a reported cable and no charge gain:
         # {"since": epoch, "high": percent}; persisted with the cache.
         self._cable_drain: dict[str, float] | None = None
+        self._unsynced_polls = 0
+        # Epochs of access-point changes (wifi.bssid/channel) in the last day.
+        self.ap_switches: list[float] = []
+        self._last_ap: tuple[Any, Any] | None = None
         client.on_response = self._async_contact_seen
 
     async def async_restore(self) -> None:
@@ -198,6 +208,9 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         drain = cached.get("cable_drain")
         if isinstance(drain, dict):
             self._cable_drain = drain
+        switches = cached.get("ap_switches")
+        if isinstance(switches, list):
+            self.ap_switches = [t for t in switches if isinstance(t, (int, float))]
         self._async_schedule_expiry()
 
     def _cache_payload(self) -> dict[str, Any]:
@@ -208,6 +221,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "last_seen": self.last_seen,
             "expected_asleep": self._expected_asleep,
             "cable_drain": self._cable_drain,
+            "ap_switches": self.ap_switches,
         }
 
     async def _async_save_cache(self) -> None:
@@ -480,6 +494,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         annotate_frame_times(data, time.time(), dt_util.get_default_time_zone())
         self._async_update_timezone_issue(data["device"]["utc_offset_minutes"])
         self._async_watch_cable_drain(data["battery"], time.time())
+        self._async_watch_connectivity(data, time.time())
         self._async_backfill_unique_id(data)
         self.data = data
         await self._async_save_cache()
@@ -579,6 +594,47 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "frame_offset": format_utc_offset(offset),
                 "ha_offset": format_utc_offset(int(ha_offset.total_seconds() // 60)),
                 "maintenance": dt_util.as_local(maintenance).strftime("%H:%M"),
+            },
+        )
+
+    @callback
+    def _async_watch_connectivity(self, data: dict[str, Any], now: float) -> None:
+        """Count AP switches and explain a frame that can't get internet time."""
+        from homeassistant.helpers import issue_registry as ir
+
+        wifi = data["wifi"]
+        ap = (wifi.get("bssid"), wifi.get("channel"))
+        if None not in ap:
+            if self._last_ap is not None and ap != self._last_ap:
+                self.ap_switches.append(now)
+            self._last_ap = ap
+        self.ap_switches = [t for t in self.ap_switches if now - t < AP_SWITCH_WINDOW]
+
+        device = data["device"]
+        issue_id = f"time_unsynced_{self.config_entry.entry_id}"
+        synced = device.get("time_synced")
+        if synced is True:
+            self._unsynced_polls = 0
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        uptime = device.get("uptime_s")
+        if synced is not False or not isinstance(uptime, (int, float)):
+            return
+        if uptime < UNSYNCED_UPTIME:
+            return
+        self._unsynced_polls += 1
+        if self._unsynced_polls < UNSYNCED_POLLS:
+            return
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="time_unsynced",
+            translation_placeholders={
+                "frame": self.config_entry.title,
+                "switches": str(len(self.ap_switches)),
             },
         )
 
@@ -866,6 +922,7 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
             "ssid": pick(("wifi", "ssid"), "wifi_ssid", "ssid"),
             "rssi": pick(("wifi", "rssi"), "wifi_rssi", "rssi"),
             "channel": pick(("wifi", "channel"), "wifi_channel"),
+            "bssid": pick(("wifi", "bssid"), "bssid", "wifi_bssid"),
             "ip": pick(("wifi", "ip"), "ip_address", "ip"),
             "mac": pick(("wifi", "mac"), "mac", "mac_address"),
         },

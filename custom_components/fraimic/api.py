@@ -231,11 +231,29 @@ class FraimicClient:
         Carries panel size and battery-health data absent from the JSON API;
         parsed by ``info_page.parse_info_page()``.
         """
-        resp = await self._request("GET", "/info")
+        return await self._text("/info")
+
+    async def get_wifi_stats(self) -> str:
+        """Return the ``GET /wifi-stats`` HTML (association and failover history).
+
+        Diagnostics only: it updates the frame's activity timer, so polling it
+        would keep the frame awake.
+        """
+        return await self._text("/wifi-stats")
+
+    async def check_internet(self) -> dict[str, Any]:
+        """Run the frame's ``GET /check-internet`` TCP probe of ``8.8.8.8:53``.
+
+        Diagnostics only, like ``get_wifi_stats``. ``{"reachable": bool}``.
+        """
+        return await self._json("GET", "/check-internet", timeout=15)
+
+    async def _text(self, path: str) -> str:
+        resp = await self._request("GET", path)
         async with resp:
             if resp.status >= 400:
                 raise FraimicApiError(
-                    f"GET /info returned HTTP {resp.status}", status=resp.status
+                    f"GET {path} returned HTTP {resp.status}", status=resp.status
                 )
             return await resp.text()
 

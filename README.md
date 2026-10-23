@@ -468,6 +468,9 @@ An upstream outage does not erase the image already displayed on the frame.
   upload timeout because the first upload may already have started rendering.
 - **Old dashboard after updating:** reload the browser or Home Assistant frontend
   after restarting Home Assistant.
+- **Frame keeps switching access points, uploads break off, or a "can't reach
+  its internet time service" repair appears:** the frame is probably blocked
+  from the internet. See [isolated networks](#isolated-networks-and-iot-vlans).
 
 For hardware details, see the [local frame API](docs/frame-api/routes.md),
 [device HTTP overview](docs/device-http-api.md), and
@@ -477,6 +480,33 @@ The [firmware research reference](docs/firmware/README.md) maps Large firmware
 0.2.29: hardware, voice, cloud protocols, storage, OTA, and a roadmap for a local
 backend integrated with HA. Findings distinguish observed behavior, static
 analysis and proposed changes; custom firmware has not been boot-tested.
+
+### Isolated networks and IoT VLANs
+
+Stock firmware needs a little internet access even when Home Assistant delivers
+everything over the LAN. Allow the frame:
+
+- TCP to `8.8.8.8` port 53, about once a minute. A refused connection counts as
+  reachable; a silently dropped one does not.
+- DNS for its time servers, through the resolvers your DHCP server hands out
+  (it falls back to `8.8.8.8` when they don't answer).
+- UDP port 123 to `time.google.com`, `pool.ntp.org`, `time.cloudflare.com` and
+  `time.nist.gov`.
+
+When these are blocked, the frame fails over between access points (which can
+cut an upload short), falls back to 24-hour timer wakes without synced time, and
+opens an unprotected setup network named `Fraimic_<number>`. The local API has no
+authentication, so anyone who joins that network can likely reach it, including
+factory reset (inferred from the firmware, not tested).
+
+The only stock route to time without internet NTP is local DNS: point those four
+hostnames at an accurate NTP server on your LAN (untested on a frame). The frame
+ignores DHCP option 42 and doesn't use HTTP `Date` headers as a clock. A
+placeholder NTP reply with a zero timestamp sets its clock to 2036, so the server
+must answer with real time.
+
+Diagnostics downloads include the frame's `/wifi-stats` failover history and its
+`8.8.8.8:53` probe result, with network identifiers redacted.
 
 ## Credits
 
