@@ -42,7 +42,7 @@ def test_minimum_queue_is_passive_but_tracks_predicted_wake() -> None:
         const.POWER_MODE_MINIMUM,
         0,
         now=1000,
-        next_refresh="1970-01-01T00:18:20+00:00",
+        next_refresh=1100.0,
     ) == 130
 
 
@@ -115,7 +115,7 @@ def test_due_native_refresh_invalidates_duplicate_assumption() -> None:
         "same",
         power.TRIGGER_MANUAL,
         token,
-        {"display": {"next_refresh": "1970-01-01T00:16:40+00:00"}},
+        {"display": {"next_refresh_at": 1000.0}},
         now=1001,
     ) is None
 
@@ -205,7 +205,8 @@ def test_native_marker_only_invalidates_uploads_older_than_the_refresh(refresh_t
     from datetime import datetime, timezone
 
     marker = datetime.fromtimestamp(refresh_time, timezone.utc).isoformat()
-    asyncio.run(manager.async_observe_frame({"display": {"last_refresh": marker}}))
+    display = {"last_refresh": marker, "last_refresh_at": float(refresh_time)}
+    asyncio.run(manager.async_observe_frame({"display": display}))
     assert manager.last_display_marker == marker
     assert manager.last_hash == (None if invalidates else "new-upload")
     assert overlays.async_invalidate.await_count == int(invalidates)
@@ -358,10 +359,10 @@ def test_stale_native_schedule_does_not_repeat_an_already_confirmed_upload(trigg
     manager = _manager()
     asyncio.run(manager.async_record_upload("same", trigger, now=1005))
     token = manager.begin(trigger)
-    data = {"battery": {"percent": 80}, "display": {"next_refresh": "1970-01-01T00:16:40+00:00"}}
+    data = {"battery": {"percent": 80}, "display": {"next_refresh_at": 1000.0}}
     assert manager.skip_reason("same", trigger, token, data, now=1010) == power.SKIP_DUPLICATE
     # A newer native deadline can still replace that upload.
-    data["display"]["next_refresh"] = "1970-01-01T00:16:48+00:00"
+    data["display"]["next_refresh_at"] = 1008.0
     assert manager.skip_reason("same", trigger, token, data, now=1010) is None
 
 

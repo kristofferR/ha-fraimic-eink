@@ -274,6 +274,9 @@
       "next_refresh": {
         "name": "Next refresh"
       },
+      "utc_offset": {
+        "name": "Frame UTC offset"
+      },
       "battery_cycles": {
         "name": "Battery cycles"
       },
@@ -768,6 +771,10 @@
     }
   },
   "issues": {
+    "frame_timezone": {
+      "title": "{frame} keeps time in another timezone",
+      "description": "The frame's clock runs at {frame_offset}, but Home Assistant uses {ha_offset}. Its scheduled maintenance redraw at 03:00 frame time therefore happens at about {maintenance} your time. Stock firmware has no setting for the frame's timezone. Home Assistant converts the frame's timestamps, so its sensors still show the correct times."
+    },
     "cloud_cleanup": {
       "title": "Finish cloud cleanup for {frame}",
       "description": "Home Assistant could not finish releasing this removed frame. In your Fraimic account, deactivate album {album} and enable keep-awake for canvas {device} if you want LAN delivery. The album ownership record has been retained in Home Assistant storage for recovery. Dismiss this notice after completing cleanup."

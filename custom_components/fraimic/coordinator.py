@@ -7,7 +7,7 @@ import ipaddress
 import logging
 import time
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -462,6 +462,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.client.prefer_api_image = firmware_supports_api_image(
             data.get("firmware_version")
         )
+        from homeassistant.util import dt as dt_util
+
+        annotate_frame_times(data, time.time(), dt_util.get_default_time_zone())
+        self._async_update_timezone_issue(data["device"]["utc_offset_minutes"])
         self._async_backfill_unique_id(data)
         runtime = getattr(self.config_entry, "runtime_data", None)
         if runtime is not None and runtime.power is not None:
@@ -533,6 +537,39 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._async_save_cache()
             self.async_update_listeners()
         return self.info_page
+
+    @callback
+    def _async_update_timezone_issue(self, offset: int | None) -> None:
+        """Explain a frame clock in another timezone; it can't be changed."""
+        if offset is None:
+            return
+        from homeassistant.helpers import issue_registry as ir
+        from homeassistant.util import dt as dt_util
+
+        issue_id = f"frame_timezone_{self.config_entry.entry_id}"
+        now = dt_util.now()
+        ha_offset = now.utcoffset() or timedelta()
+        if timedelta(minutes=offset) == ha_offset:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        frame_tz = timezone(timedelta(minutes=offset))
+        maintenance = now.astimezone(frame_tz).replace(
+            hour=3, minute=0, second=0, microsecond=0
+        )
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="frame_timezone",
+            translation_placeholders={
+                "frame": self.config_entry.title,
+                "frame_offset": format_utc_offset(offset),
+                "ha_offset": format_utc_offset(int(ha_offset.total_seconds() // 60)),
+                "maintenance": dt_util.as_local(maintenance).strftime("%H:%M"),
+            },
+        )
 
     def _replaceable_unique_id(self, data: dict[str, Any]) -> bool:
         """Whether the unique_id predates device_key support (host or device_id)."""
@@ -653,6 +690,71 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
 
 
+# Frame timestamps (``device.local_time``, ``display.last_refresh`` and
+# ``next_refresh``) are local calendar strings without a UTC offset, in the
+# frame's stored POSIX timezone. That is often not Home Assistant's: signing in
+# through the setup portal stores none (``EST5EDT`` fallback), and an IANA name
+# such as ``Europe/Oslo`` parses as UTC.
+FRAME_OFFSET_STEP = 15  # minutes; real offsets are whole quarter hours
+MAX_FRAME_OFFSET = 14 * 60
+
+
+def frame_utc_offset(local_time: Any, now: float) -> int | None:
+    """The frame's current UTC offset in minutes, from its synced local clock."""
+    if not isinstance(local_time, str) or not local_time:
+        return None
+    try:
+        local = datetime.fromisoformat(local_time).replace(tzinfo=None)
+    except ValueError:
+        return None
+    utc = datetime.fromtimestamp(now, timezone.utc).replace(tzinfo=None)
+    steps = round((local - utc).total_seconds() / (FRAME_OFFSET_STEP * 60))
+    minutes = steps * FRAME_OFFSET_STEP
+    return minutes if abs(minutes) <= MAX_FRAME_OFFSET else None
+
+
+def frame_timestamp(value: Any, offset: int | None, fallback: tzinfo) -> float | None:
+    """Epoch of a frame-local timestamp; ``fallback`` when the offset is unknown.
+
+    Offsets change with DST, so a time across a transition can be an hour off.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        zone = timezone(timedelta(minutes=offset)) if offset is not None else fallback
+        parsed = parsed.replace(tzinfo=zone)
+    return parsed.timestamp()
+
+
+def annotate_frame_times(data: dict[str, Any], now: float, fallback: tzinfo) -> None:
+    """Add ``utc_offset_minutes`` and epoch ``*_at`` fields to a fresh poll.
+
+    The offset is only known while the frame reports a synced clock. Every
+    consumer reads the epoch fields; nothing parses the frame strings itself.
+    """
+    device = data["device"]
+    offset = (
+        frame_utc_offset(device.get("local_time"), now)
+        if device.get("time_synced") is True
+        else None
+    )
+    device["utc_offset_minutes"] = offset
+    display = data["display"]
+    for key in ("last_refresh", "next_refresh"):
+        display[f"{key}_at"] = frame_timestamp(display.get(key), offset, fallback)
+
+
+def format_utc_offset(minutes: int) -> str:
+    """``UTC+02:00`` style label for an offset in minutes."""
+    sign = "+" if minutes >= 0 else "-"
+    hours, rest = divmod(abs(minutes), 60)
+    return f"UTC{sign}{hours:02d}:{rest:02d}"
+
+
 def _cloud_last_seen(data: dict[str, Any]) -> float | None:
     """Epoch of the frame's last cloud check-in, from a cloud snapshot."""
     device = data.get("device")
@@ -719,6 +821,7 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
         "device": {
             "registered": pick(("device", "registered"), "registered"),
             "time_synced": pick(("device", "time_synced"), "time_synced"),
+            "local_time": pick(("device", "local_time"), "local_time"),
             "uptime_s": pick(("device", "uptime_s"), "uptime_s", "uptime"),
         },
         "settings": {

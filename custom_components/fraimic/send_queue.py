@@ -595,7 +595,7 @@ class FraimicSendQueue:
         delay = max(1, retry_at - time.time()) if retry_at is not None else queue_probe_delay(
             power_mode(dict(self._entry.options)),
             self._probe_attempt,
-            next_refresh=display.get("next_refresh"),
+            next_refresh=display.get("next_refresh_at"),
         )
         if delay is None:
             return

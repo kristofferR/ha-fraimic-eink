@@ -87,6 +87,11 @@ Hardware quirks the code accounts for:
 - Frame is battery-powered; deep sleep = unreachable (polls fail; entities keep
   last-known values, see availability below).
 - `display.last_refresh` tracks only the *scheduled* cycle, not uploads.
+- `device.local_time` and `display.last/next_refresh` are frame-local time with
+  no offset, in the frame's own POSIX timezone (often `EST5EDT`, not HA's).
+  The coordinator derives `device.utc_offset_minutes` from synced polls and
+  adds epoch `display.*_at` fields; read those, never the strings. A
+  `frame_timezone` repair explains a mismatch (stock firmware can't fix it).
 - Resolution is stored per config entry (`CONF_WIDTH/HEIGHT` in `entry.data`).
 
 ## Image pipeline (`image_convert.py`)

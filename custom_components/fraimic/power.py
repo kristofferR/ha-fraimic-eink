@@ -161,16 +161,9 @@ def effective_scan_interval(options: dict[str, Any]) -> int | None:
     return max(configured, profile.poll_floor)
 
 
-def _timestamp(value: Any) -> float | None:
-    if not isinstance(value, str) or not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return parsed.timestamp()
+def _epoch(value: Any) -> float | None:
+    """A frame time the coordinator already converted (``*_at`` fields)."""
+    return float(value) if isinstance(value, (int, float)) else None
 
 
 def queue_probe_delay(
@@ -184,10 +177,11 @@ def queue_probe_delay(
 
     Minimum mode is passive unless the frame advertised its own next wake.
     Other modes exponentially back off, but use an earlier known wake time.
+    ``next_refresh`` is the epoch ``display.next_refresh_at``.
     """
     now = time.time() if now is None else now
     profile = PROFILES.get(mode, PROFILES[DEFAULT_POWER_MODE])
-    predicted = _timestamp(next_refresh)
+    predicted = _epoch(next_refresh)
     wake_delay = None
     if predicted is not None and predicted > now:
         wake_delay = max(1.0, predicted - now + 30)
@@ -301,8 +295,8 @@ class FraimicPowerManager:
         now = time.time() if now is None else now
         data = data or {}
         display = data.get("display") if isinstance(data, dict) else {}
-        next_native_refresh = _timestamp(
-            display.get("next_refresh") if isinstance(display, dict) else None
+        next_native_refresh = _epoch(
+            display.get("next_refresh_at") if isinstance(display, dict) else None
         )
         # Firmware can retain a past deadline. A later confirmed upload is
         # newer than the native refresh that deadline describes.
@@ -368,13 +362,12 @@ class FraimicPowerManager:
     async def async_observe_frame(self, data: dict[str, Any]) -> None:
         """Invalidate the hash when a native/cloud refresh changed the glass."""
         display = data.get("display") if isinstance(data, dict) else None
-        marker = display.get("last_refresh") if isinstance(display, dict) else None
-        if not marker:
+        if not isinstance(display, dict) or not (marker := display.get("last_refresh")):
             return
         marker = str(marker)
         if marker == self.last_display_marker:
             return
-        refreshed_at = _timestamp(marker)
+        refreshed_at = _epoch(display.get("last_refresh_at"))
         if self.last_display_marker and (
             refreshed_at is None or refreshed_at > self.last_upload_at
         ):

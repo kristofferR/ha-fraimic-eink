@@ -276,6 +276,7 @@ def test_removal_preserves_ownership_and_reports_failed_cleanup(delivery_module,
 def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypatch):
     import asyncio
     import time
+    from datetime import timezone
     from unittest.mock import AsyncMock, Mock
 
     class GenericStub:
@@ -290,6 +291,9 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
         "homeassistant.helpers.event": {"async_call_later": Mock()},
         "homeassistant.helpers.update_coordinator": {
             "DataUpdateCoordinator": GenericStub, "UpdateFailed": RuntimeError,
+        },
+        "homeassistant.util": {
+            "dt": types.SimpleNamespace(get_default_time_zone=lambda: timezone.utc),
         },
     }
     for name, attributes in stubs.items():

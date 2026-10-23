@@ -299,6 +299,9 @@ async def _async_setup_cloud(
 
 async def async_remove_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
     """Deactivate the owned album when the frame is deleted, including unloaded entries."""
+    from homeassistant.helpers import issue_registry as ir
+
+    ir.async_delete_issue(hass, DOMAIN, f"frame_timezone_{entry.entry_id}")
     delivery = await _async_load_cloud(hass, entry)
     if delivery is not None:
         await delivery.async_remove()
