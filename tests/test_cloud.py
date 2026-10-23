@@ -295,6 +295,7 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
         "homeassistant.util": {
             "dt": types.SimpleNamespace(get_default_time_zone=lambda: timezone.utc),
         },
+        "homeassistant.helpers": {"issue_registry": Mock()},
     }
     for name, attributes in stubs.items():
         module = types.ModuleType(name)
@@ -318,6 +319,7 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
         ]),
     )
     coordinator._cloud_snapshot = (time.time(), {"battery": {"percent": 20}})
+    coordinator._cable_drain = None
     coordinator._async_backfill_unique_id = Mock()
     coordinator._async_save_cache = AsyncMock()
 

@@ -94,6 +94,9 @@ Hardware quirks the code accounts for:
   The coordinator derives `device.utc_offset_minutes` from synced polls and
   adds epoch `display.*_at` fields; read those, never the strings. A
   `frame_timezone` repair explains a mismatch (stock firmware can't fix it).
+- A reported charging cable blocks `/api/sleep`. A `phantom_cable` repair
+  fires when the cable stays reported while the battery falls 5+ points over
+  6+ h (readings at 95 % and above are ignored: the gauge plateaus there).
 - Resolution is stored per config entry (`CONF_WIDTH/HEIGHT` in `entry.data`).
 
 ## Image pipeline (`image_convert.py`)

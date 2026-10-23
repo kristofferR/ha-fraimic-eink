@@ -53,6 +53,12 @@ CACHE_VERSION = 1
 CONTACT_SAVE_DELAY = 60
 # How often a non-polling cloud frame past its window re-asks the account.
 CLOUD_CHECK_IN_RETRY = 1800
+# A reported charging cable while the battery keeps falling (seen once on a
+# Large: about 35-40 mA drain, sleep refused). Conservative thresholds; the
+# gauge plateaus at 95-100 % while plugged in, so only lower readings count.
+CABLE_DRAIN_POINTS = 5
+CABLE_DRAIN_SECONDS = 6 * 3600
+CABLE_DRAIN_PLATEAU = 95
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -161,6 +167,9 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._rediscovery_task: asyncio.Task | None = None
         self._unsub_expiry: Callable[[], None] | None = None
         self._availability_listeners: set[Callable[[], None]] = set()
+        # Start of a stretch with a reported cable and no charge gain:
+        # {"since": epoch, "high": percent}; persisted with the cache.
+        self._cable_drain: dict[str, float] | None = None
         client.on_response = self._async_contact_seen
 
     async def async_restore(self) -> None:
@@ -186,6 +195,9 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if isinstance(last_seen, (int, float)):
             self._last_seen = float(last_seen)
         self._expected_asleep = cached.get("expected_asleep") is True
+        drain = cached.get("cable_drain")
+        if isinstance(drain, dict):
+            self._cable_drain = drain
         self._async_schedule_expiry()
 
     def _cache_payload(self) -> dict[str, Any]:
@@ -195,6 +207,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "albums": self.albums,
             "last_seen": self.last_seen,
             "expected_asleep": self._expected_asleep,
+            "cable_drain": self._cable_drain,
         }
 
     async def _async_save_cache(self) -> None:
@@ -466,6 +479,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         annotate_frame_times(data, time.time(), dt_util.get_default_time_zone())
         self._async_update_timezone_issue(data["device"]["utc_offset_minutes"])
+        self._async_watch_cable_drain(data["battery"], time.time())
         self._async_backfill_unique_id(data)
         self.data = data
         await self._async_save_cache()
@@ -565,6 +579,55 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "frame_offset": format_utc_offset(offset),
                 "ha_offset": format_utc_offset(int(ha_offset.total_seconds() // 60)),
                 "maintenance": dt_util.as_local(maintenance).strftime("%H:%M"),
+            },
+        )
+
+    @property
+    def _phantom_cable_issue(self) -> str:
+        return f"phantom_cable_{self.config_entry.entry_id}"
+
+    @callback
+    def _async_watch_cable_drain(self, battery: dict[str, Any], now: float) -> None:
+        """Raise a repair when a reported cable doesn't stop the battery falling.
+
+        While the cable is reported the frame refuses to sleep, so a phantom
+        cable can drain the battery in days. Uses poll data only.
+        """
+        from homeassistant.helpers import issue_registry as ir
+
+        percent = battery.get("percent")
+        cable = battery.get("cable_connected") is True or battery.get("charging") is True
+        drain = self._cable_drain
+        if not cable or not isinstance(percent, (int, float)):
+            if drain is not None:
+                self._cable_drain = None
+                ir.async_delete_issue(self.hass, DOMAIN, self._phantom_cable_issue)
+            return
+        if percent >= CABLE_DRAIN_PLATEAU:
+            return
+        if drain is None or percent > drain["high"]:
+            # A new stretch, or the battery gained charge: really charging.
+            self._cable_drain = {"since": now, "high": float(percent)}
+            if drain is not None:
+                ir.async_delete_issue(self.hass, DOMAIN, self._phantom_cable_issue)
+            return
+        if (
+            drain["high"] - percent < CABLE_DRAIN_POINTS
+            or now - drain["since"] < CABLE_DRAIN_SECONDS
+        ):
+            return
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._phantom_cable_issue,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="phantom_cable",
+            translation_placeholders={
+                "frame": self.config_entry.title,
+                "hours": str(int((now - drain["since"]) // 3600)),
+                "start": str(int(drain["high"])),
+                "percent": str(int(percent)),
             },
         )
 
