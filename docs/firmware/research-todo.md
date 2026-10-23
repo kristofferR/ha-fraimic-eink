@@ -15,6 +15,9 @@ The owner reopened broad static coverage on 23 October. The
 [supplemental ledger](static-coverage.md) tracks microphone DMA/interrupts,
 model-specific initialization and unexamined application paths. Its pending
 work is separate from the status counts of the original 67 questions below.
+The ledger now includes an explicit supplemental checklist and a
+[function census](static-function-census.json); completed static passes do not
+tick the original items' remaining physical or implementation milestones.
 
 | Status | Items | Meaning |
 | --- | --- | --- |

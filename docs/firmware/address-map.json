@@ -802,6 +802,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x4201088c",
+      "kind": "function",
+      "role": "Consume storage deep-sleep marker on EXT1 wake and choose return-to-storage based on boot cable flag",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42010964",
       "kind": "function",
       "role": "Select missing-Wi-Fi or missing-time LED indication from readiness getters",
@@ -818,6 +824,18 @@
       "kind": "function",
       "role": "Poll-image download retries, render start, parallel cache save and termination wait",
       "evidence": "static; image-download fault follow-up"
+    },
+    {
+      "address": "0x42010f4c",
+      "kind": "function",
+      "role": "Idle-sleep admission: factory timeout, keep-awake/cable exclusion, maintenance/album lead and activity age",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
+      "address": "0x42011070",
+      "kind": "function",
+      "role": "Prepare touch-button GPIO 2 as input with pull-up",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x420110a4",
@@ -850,6 +868,12 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x4201163c",
+      "kind": "function",
+      "role": "Idle button wait with input release/debounce, cloud poll, pending image/sleep/reset/OTA and inactivity dispatch",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42011adc",
       "kind": "function",
       "role": "Voice orchestration: borrowed upload/download contexts; upload timeout has no join, download timeout aborts then can force-delete retained handle",
@@ -880,6 +904,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x420142ec",
+      "kind": "function",
+      "role": "Application entry: wake classification, early LED handoff, fast initialization and main lifecycle dispatch",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42014622",
       "kind": "call_site",
       "role": "Initialize display pointer from shared image accessor",
@@ -896,6 +926,12 @@
       "kind": "function",
       "role": "SNTP callback checks tm_year >= 120 before marking synchronized and signaling completion",
       "evidence": "static; GNU cross-check"
+    },
+    {
+      "address": "0x42014780",
+      "kind": "function",
+      "role": "Load voice, keep-awake, auto-update and charging-LED switches from NVS",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x42014968",
@@ -970,6 +1006,12 @@
       "evidence": "static; 22 October Large reset/cache GNU follow-up"
     },
     {
+      "address": "0x42015258",
+      "kind": "function",
+      "role": "Read configuration-mode flag",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42015264",
       "kind": "function",
       "role": "Reevaluate user type from Wi-Fi credential and cached-account predicates; configured branch ignores force_ftu erase result",
@@ -1000,6 +1042,12 @@
       "evidence": "static; 22 October HTTP/factory follow-up"
     },
     {
+      "address": "0x420158a8",
+      "kind": "function",
+      "role": "Read keep-awake setting",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x420158b4",
       "kind": "function",
       "role": "Auto-update setting getter",
@@ -1028,6 +1076,12 @@
       "kind": "function",
       "role": "Wake-up image state persistence helper",
       "evidence": "static"
+    },
+    {
+      "address": "0x42015a58",
+      "kind": "function",
+      "role": "AP/setup background initialization with configuration/display work and completion signaling",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x42015d10",
@@ -1213,6 +1267,12 @@
       "evidence": "static"
     },
     {
+      "address": "0x420176a8",
+      "kind": "function",
+      "role": "Load or migrate environment-specific device key, otherwise derive and persist identity; embedded secret omitted",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42017974",
       "kind": "function",
       "role": "Persist normalized production/development byte; return NVS open/write/commit result",
@@ -1241,6 +1301,18 @@
       "kind": "function",
       "role": "Select embedded environment-dependent authorization value; value intentionally omitted",
       "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42017aac",
+      "kind": "function",
+      "role": "Development reset: preserve available production identity/Wi-Fi fields, erase NVS, select development and restore preserved fields",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
+      "address": "0x4201800c",
+      "kind": "function",
+      "role": "Production reset: preserve available development identity/Wi-Fi fields across NVS erase and restore them",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x4201850c",
@@ -1309,6 +1381,12 @@
       ]
     },
     {
+      "address": "0x42019294",
+      "kind": "function",
+      "role": "Reload mode-selected user configuration and log a returned error",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x420192c8",
       "kind": "function",
       "role": "Sign-in handler; checks identity save, marks verified and clears timezone",
@@ -1316,6 +1394,12 @@
       "routes": [
         "POST /sign-in"
       ]
+    },
+    {
+      "address": "0x42019670",
+      "kind": "function",
+      "role": "Initialize NVS/configuration defaults, environment identity and timezone; tolerate later configuration/key failures",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x4201978c",
@@ -1376,6 +1460,12 @@
       "kind": "function",
       "role": "Assemble Wi-Fi event record with optional current AP metadata",
       "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4201a580",
+      "kind": "function",
+      "role": "Background Wi-Fi retry worker: notification wait, unlocked station reconnect, active/connected exit checks and handle clear",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x4201a650",
@@ -1612,6 +1702,18 @@
       "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
+      "address": "0x4201da04",
+      "kind": "function",
+      "role": "Reset failover count while retaining BSSID blacklist",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
+      "address": "0x4201da30",
+      "kind": "function",
+      "role": "Initialize portal NVS/network/event infrastructure and latch readiness after unchecked event-group allocation",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x4201daa0",
       "kind": "function",
       "role": "No-internet AP failover: bounded blacklist/reconnection and same-SSID scan",
@@ -1622,6 +1724,12 @@
       "kind": "function",
       "role": "Register Wi-Fi/IP events, initialize station network and select saved-connect or setup fallback",
       "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x4201e050",
+      "kind": "function",
+      "role": "Read Wi-Fi connected flag",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x4201e05c",
@@ -1652,6 +1760,12 @@
       "kind": "function",
       "role": "Read factory-test mode byte; LED setter applies its allowlist before urgency",
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x4201ea50",
+      "kind": "function",
+      "role": "Factory-test inactivity predicate: active flag and unsigned elapsed milliseconds greater than 599999",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x4201ea74",
@@ -1727,6 +1841,12 @@
       "kind": "function",
       "role": "Initialize microphone I2S0 PDM RX",
       "evidence": "static"
+    },
+    {
+      "address": "0x4201fe94",
+      "kind": "function",
+      "role": "Disable existing microphone I2S channel and propagate disable error; absent channel succeeds",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x4201fed0",
@@ -1873,16 +1993,34 @@
       "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
+      "address": "0x42020c34",
+      "kind": "function",
+      "role": "Initialize Large panel with reset/BUSY waits and fixed controller configuration commands",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42020dd4",
       "kind": "function",
       "role": "Check eight controller status results",
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42020ea0",
+      "kind": "function",
+      "role": "Read panel temperature/power/VCOM data, reject invalid values and update cached PMIC voltage records",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42021048",
       "kind": "function",
       "role": "Panel refresh sequence; returns zero after sequence",
       "evidence": "static; concurrency follow-up"
+    },
+    {
+      "address": "0x420210d4",
+      "kind": "function",
+      "role": "Read and log two-byte panel temperature/status result",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x42021120",
@@ -2077,6 +2215,12 @@
       "evidence": "static; SPI lifetime follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x42022460",
+      "kind": "function",
+      "role": "Panel communication I2C initialization: reuse shared manager or configure/install bus with separate ready latch",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42022648",
       "kind": "function",
       "role": "Linear lookup of 41 LED state records",
@@ -2107,10 +2251,28 @@
       "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
     },
     {
+      "address": "0x420227fc",
+      "kind": "function",
+      "role": "Set inverted eight-bit duty on three RGB LED channels",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
+      "address": "0x4202283c",
+      "kind": "function",
+      "role": "Stop the three LED PWM channels at off level",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42022860",
       "kind": "function",
       "role": "LED pattern/state worker",
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x42022ca0",
+      "kind": "function",
+      "role": "Temporary red LED worker: direct RGB write, 100-tick delay, RGB off and current-task deletion",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x42022ccc",
@@ -2123,6 +2285,12 @@
       "kind": "function",
       "role": "Request LED off through task notification; checks handle, does not await worker",
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x42022d6c",
+      "kind": "function",
+      "role": "Initialize LED timer/channels/fade/mutex and ordinary worker, with optional early white handoff",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x42022f48",
@@ -2479,6 +2647,12 @@
       "evidence": "static; shutdown lifecycle follow-up, bounded GNU cross-check"
     },
     {
+      "address": "0x42028224",
+      "kind": "function",
+      "role": "Initialize display state/configuration and mutex; latch ready before ignored initial-transition result",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x420282f8",
       "kind": "function",
       "role": "Initial FAT format permission from legacy NVS string-length query; contents and environment-specific keys not inspected",
@@ -2605,6 +2779,18 @@
       "evidence": "static; concurrency follow-up"
     },
     {
+      "address": "0x42028ea8",
+      "kind": "function",
+      "role": "Configure and install I2C master bus with supplied port, pins and frequency",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
+      "address": "0x42028f38",
+      "kind": "function",
+      "role": "Initialize shared sensor I2C bus, retain mutex after config/install failure and latch readiness on success",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
+    },
+    {
       "address": "0x42029024",
       "kind": "function",
       "role": "Read shared I2C-ready byte",
@@ -2729,6 +2915,12 @@
       "kind": "function",
       "role": "Classify voltage-trend and voltage inputs into battery state codes",
       "evidence": "static; 23 October helper role audit and byte-checked complete GNU CFG; see application-helper-roles.json"
+    },
+    {
+      "address": "0x42029af0",
+      "kind": "function",
+      "role": "Initialize battery mutex/gauge and history; unavailable gauge does not make overall initialization fail",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x42029be8",
@@ -2900,6 +3092,12 @@
       "kind": "function",
       "role": "Mode-switch wrapper that removes cached account/get-started instruction files",
       "evidence": "static; development-mode follow-up"
+    },
+    {
+      "address": "0x4202b068",
+      "kind": "function",
+      "role": "Initialize instruction manager: require filesystem readiness, ensure directory and embedded asset, retry after error state",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x4202b14c",
@@ -3512,6 +3710,12 @@
       "routes": [
         "POST /api/restart"
       ]
+    },
+    {
+      "address": "0x42030bf8",
+      "kind": "function",
+      "role": "Build battery JSON from summarized measurement, cable state and selected source label",
+      "evidence": "static; 23 October census reconciliation, decompilation and complete byte-checked GNU CFG"
     },
     {
       "address": "0x42030c6c",
@@ -5098,6 +5302,18 @@
       "evidence": "static; download timeout/cleanup follow-up and bounded GNU byte cross-check"
     },
     {
+      "address": "0x420e2940",
+      "kind": "function",
+      "role": "Label-taking power-transition hook compiled to entry/return with no effect",
+      "evidence": "static; complete paired GNU outlier helper comparison, 23 October"
+    },
+    {
+      "address": "0x420e2948",
+      "kind": "function",
+      "role": "Classify Wi-Fi disconnect reason into five application categories",
+      "evidence": "static; complete paired GNU outlier helper comparison, 23 October"
+    },
+    {
       "address": "0x420e2a04",
       "kind": "function",
       "role": "Bounded scan SSID escaping; selected JSON escapes, other controls unchanged",
@@ -5114,6 +5330,18 @@
       "kind": "function",
       "role": "LED urgent-state classifier: state 25 and states 31–39",
       "evidence": "static; LED arbitration comparison and GNU cross-check; reconstructed host transition fixture"
+    },
+    {
+      "address": "0x420e2b14",
+      "kind": "function",
+      "role": "Unsigned instruction-type predicate accepting values 0 through 2",
+      "evidence": "static; complete paired GNU outlier helper comparison, 23 October"
+    },
+    {
+      "address": "0x420e2b28",
+      "kind": "function",
+      "role": "Byte-range ASCII hexadecimal-character predicate used in OTA SHA text validation",
+      "evidence": "static; complete paired GNU outlier helper comparison, 23 October"
     },
     {
       "address": "0x420e2b70",

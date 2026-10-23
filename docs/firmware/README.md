@@ -49,7 +49,7 @@ No transcription or AI generation was invoked.
 | [Startup and readiness](startup-and-readiness.md) | Early errors, wake-dependent waits, normal/setup worker failures and completion-token limits |
 | [Initialization helpers](initialization-helpers.md) | Component retry/cleanup policies, null event-group success and model-specific memory/I2C/GPIO failures |
 | [Wi-Fi recovery](wifi-recovery.md) | AP ranking, saved-channel preference, shared five-attempt budget and connection-flag timeout |
-| [Fuel gauge](fuel-gauge.md) | Eight-byte profile acceptance, eighty-byte programming, readiness budget and sample consistency |
+| [Fuel gauge](fuel-gauge.md) | Profile acceptance/programming, sample consistency, model-specific charge presentation and ADC error handling |
 | [Application helpers](application-helpers.md) | 130 Large helper roles, repaired decompiler gaps, telemetry presentation and retry-worker limits |
 | [Storage and configuration](storage-and-configuration.md) | NVS keys, identity migration, developer mode, image files and persistence |
 | [OTA and recovery](ota-and-recovery.md) | Update paths, guards, verification, failure tracking and unresolved recovery questions |
@@ -62,7 +62,7 @@ No transcription or AI generation was invoked.
 | [Voice feature proposal](voice-feature-proposal.md) | Creation history, explicit image/target semantics and six playlist/scene API checks |
 | [Album/playlist mapping](album-playlist-mapping.md) | Proposed stock-album subset, wake-only records and nineteen isolated mutation checks |
 | [Evidence and open questions](evidence-and-open-questions.md) | Confidence, analysis method, address map and research backlog |
-| [Static coverage](static-coverage.md) | Supplemental research ledger, function-census method and explicit coverage limits |
+| [Static coverage](static-coverage.md) | Supplemental checklist, 936 main-region functions plus sixteen outliers, pointer references and explicit coverage limits |
 | [21 October validation](validation-2026-10-21.md) | Reproducible host checks, owner-account/HA observations and their limits |
 | [22 October validation](validation-2026-10-22.md) | Transport/parser, storage, task ownership, input/wake and complete poll-body comparisons |
 | [Backend emulation](backend-emulation.md) | Physical poll/album, microphone upload and confirmed one-shot panel delivery |
