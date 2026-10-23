@@ -106,6 +106,7 @@ def test_network_identifiers_are_redacted_in_structured_data_and_logs(monkeypatc
         runtime_data=types.SimpleNamespace(
             coordinator=types.SimpleNamespace(
                 async_refresh_info_page=AsyncMock(), data=data, info_page={},
+                frame_busy=False,
                 client=types.SimpleNamespace(get_logs=AsyncMock(return_value=logs)),
             ),
             power=types.SimpleNamespace(diagnostics=lambda: {}), cloud=None,

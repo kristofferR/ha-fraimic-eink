@@ -364,7 +364,21 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.hass, self._async_probe(), "fraimic-dashboard-probe"
         )
 
+    @property
+    def frame_busy(self) -> bool:
+        """Whether an upload (or awake-window step) holds the frame's HTTP task.
+
+        The firmware serves every client from one task with blocking handlers,
+        so any other request waits behind an upload body or a held render reply
+        and times out, which would look like the frame going offline.
+        """
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        lock = getattr(runtime, "upload_lock", None)
+        return lock is not None and lock.locked()
+
     async def _async_probe(self) -> None:
+        if self.frame_busy:
+            return
         try:
             await self.client.get_battery()
         except FraimicError:
@@ -389,6 +403,12 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.data = cloud_data
                 return cloud_data
             raise UpdateFailed("The frame rests between its awake windows")
+        if self.frame_busy:
+            # Skip the poll without counting a failure, keeping the previous
+            # poll's outcome; the next scheduled poll contacts the frame.
+            if self.data is not None and self.last_update_success:
+                return self.data
+            raise UpdateFailed("An upload to the frame is in progress")
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:
@@ -457,6 +477,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_refresh_albums(self) -> list[dict[str, Any]] | None:
         """Fetch cloud albums on demand; normal coordinator polls never do this."""
+        if self.frame_busy:
+            return self.albums
         try:
             self.albums = await self.client.get_albums()
         except FraimicError as err:
@@ -477,6 +499,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_refresh_info_page(self) -> dict[str, Any]:
         """Scrape slow battery-health diagnostics only when explicitly needed."""
+        if self.frame_busy:
+            return self.info_page
         try:
             parsed = parse_info_page(await self.client.get_info_page())
         except FraimicError as err:

@@ -299,6 +299,10 @@ class FraimicSendQueue:
         self._unsub_probe = None
         if self._pending is None:
             return
+        if self._entry.runtime_data.coordinator.frame_busy:
+            # An upload holds the frame; probing now would only time out.
+            self._schedule_probe()
+            return
         self._probe_attempt += 1
         try:
             battery = await self._entry.runtime_data.client.get_battery()

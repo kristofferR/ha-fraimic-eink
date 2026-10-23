@@ -190,6 +190,28 @@ async def test_connection_failures_count_until_frame_answers(
     assert coordinator.consecutive_failures == 0
 
 
+async def test_poll_during_upload_skips_the_frame(
+    loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
+) -> None:
+    """The frame's single HTTP task is busy; a poll would only time out."""
+    coordinator = _coordinator(loaded_entry)
+    frame_client["get_info"].side_effect = FraimicConnectionError("asleep")
+    await coordinator.async_refresh()
+    data = coordinator.data
+    frame_client["get_info"].reset_mock()
+
+    async with loaded_entry.runtime_data.upload_lock:
+        await coordinator.async_refresh()
+        assert await coordinator.async_refresh_info_page() == coordinator.info_page
+
+    frame_client["get_info"].assert_not_called()
+    frame_client["get_info_page"].assert_not_called()
+    assert coordinator.data is data
+    assert coordinator.consecutive_failures == 1
+    # A skipped poll doesn't turn the earlier failure into a success.
+    assert not coordinator.last_update_success
+
+
 async def test_api_error_fails_the_update(
     loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
 ) -> None:

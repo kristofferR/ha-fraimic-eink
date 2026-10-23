@@ -79,6 +79,8 @@ async def _async_logs(entry: FraimicConfigEntry) -> dict[str, Any]:
     """Best-effort recent frame logs; never raises."""
     runtime = entry.runtime_data
     coordinator = runtime.coordinator
+    if coordinator.frame_busy:
+        return {"error": "Skipped: an upload to the frame is in progress"}
     try:
         parsed = parse_logs_page(await coordinator.client.get_logs(verbose=True))
     except FraimicError as err:
