@@ -278,6 +278,20 @@ class FraimicSendQueue:
         if self._pending is None:
             self._dispatch("Idle — nothing is queued")
             return
+        runtime = self._entry.runtime_data
+        if runtime.coordinator.frame_busy:
+            # Probing behind an upload would time out and misreport sleep.
+            self._dispatch("An upload to the frame is in progress; try again when it finishes")
+            return
+        if runtime.client.wrong_device is not None:
+            # A successful identity poll flushes the queue by itself.
+            await runtime.coordinator.async_request_refresh()
+            if runtime.client.wrong_device is not None:
+                self._dispatch(
+                    "A different frame answers at this frame's address; "
+                    "Home Assistant is looking for it"
+                )
+            return
         try:
             battery = await self._entry.runtime_data.client.get_battery()
         except FraimicError:
@@ -299,7 +313,18 @@ class FraimicSendQueue:
         self._unsub_probe = None
         if self._pending is None:
             return
+        runtime = self._entry.runtime_data
+        if runtime.coordinator.frame_busy:
+            # An upload holds the frame; probing now would only time out.
+            self._schedule_probe()
+            return
         self._probe_attempt += 1
+        if runtime.client.wrong_device is not None:
+            # Only the identity poll can tell whether the right frame is back;
+            # a successful one flushes the queue.
+            await runtime.coordinator.async_request_refresh()
+            self._schedule_probe()
+            return
         try:
             battery = await self._entry.runtime_data.client.get_battery()
         except FraimicError:
@@ -591,7 +616,7 @@ class FraimicSendQueue:
         delay = max(1, retry_at - time.time()) if retry_at is not None else queue_probe_delay(
             power_mode(dict(self._entry.options)),
             self._probe_attempt,
-            next_refresh=display.get("next_refresh"),
+            next_refresh=display.get("next_refresh_at"),
         )
         if delay is None:
             return

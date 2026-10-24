@@ -2308,7 +2308,12 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _playerAction(action) {
-    try { this._player = await this._api("player/control", this._json({ entry_id: this._selectedFrameId, action })); this._menu = null; this._render(); }
+    try {
+      this._player = await this._api("player/control", this._json({ entry_id: this._selectedFrameId, action }));
+      this._menu = null;
+      // The frame only queues sleep: it can still decline (charging cable) or install an update first.
+      if (action === "sleep") this._notify("Sleep requested. The frame stays awake if it reports a charging cable."); else this._render();
+    }
     catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
 

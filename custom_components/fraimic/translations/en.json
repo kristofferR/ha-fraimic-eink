@@ -269,10 +269,13 @@
         "name": "Uptime"
       },
       "last_refresh": {
-        "name": "Last refresh"
+        "name": "Last maintenance refresh"
       },
       "next_refresh": {
-        "name": "Next refresh"
+        "name": "Next maintenance refresh"
+      },
+      "utc_offset": {
+        "name": "Frame UTC offset"
       },
       "battery_cycles": {
         "name": "Battery cycles"
@@ -313,13 +316,13 @@
         "name": "Time synced"
       },
       "voice_recording": {
-        "name": "Voice recording"
+        "name": "Voice recording enabled"
       },
       "keep_awake": {
         "name": "Keep awake"
       },
       "auto_update": {
-        "name": "Auto-update"
+        "name": "Auto-update preference"
       },
       "charging_led": {
         "name": "Charging LED"
@@ -768,6 +771,18 @@
     }
   },
   "issues": {
+    "time_unsynced": {
+      "title": "{frame} can't reach its internet time service",
+      "description": "The frame has been up for several minutes without synced time. Stock firmware needs a little internet access even when Home Assistant sends everything over the LAN: a TCP connection to 8.8.8.8 port 53 about once a minute, DNS for its time servers, and UDP port 123 to time.google.com, pool.ntp.org, time.cloudflare.com and time.nist.gov. When these are blocked (for example on an isolated IoT network), it switches access points ({switches} switches in the last day), can cut uploads short, falls back to 24-hour wakes and opens an unprotected setup network named Fraimic_ followed by a number. Anyone who joins that network can likely reach the frame's unauthenticated local API, including factory reset. Allow those connections for the frame. See the README for a local-time alternative."
+    },
+    "phantom_cable": {
+      "title": "{frame} reports a charging cable while its battery drains",
+      "description": "For {hours} hours the frame has reported a connected charging cable while its battery fell from {start}% to {percent}%. While it reports the cable it refuses to sleep, so the battery can run flat within days. Unplug the cable and plug it back in, or restart the frame. This notice clears once the frame stops reporting the cable or starts charging."
+    },
+    "frame_timezone": {
+      "title": "{frame} keeps time in another timezone",
+      "description": "The frame's clock runs at {frame_offset}, but Home Assistant uses {ha_offset}. Its scheduled maintenance redraw at 03:00 frame time therefore happens at about {maintenance} your time. Stock firmware has no setting for the frame's timezone. Home Assistant converts the frame's timestamps, so its sensors still show the correct times."
+    },
     "cloud_cleanup": {
       "title": "Finish cloud cleanup for {frame}",
       "description": "Home Assistant could not finish releasing this removed frame. In your Fraimic account, deactivate album {album} and enable keep-awake for canvas {device} if you want LAN delivery. The album ownership record has been retained in Home Assistant storage for recovery. Dismiss this notice after completing cleanup."

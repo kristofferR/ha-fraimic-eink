@@ -7,7 +7,7 @@ import ipaddress
 import logging
 import time
 from collections.abc import Callable
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone, tzinfo
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -53,6 +53,18 @@ CACHE_VERSION = 1
 CONTACT_SAVE_DELAY = 60
 # How often a non-polling cloud frame past its window re-asks the account.
 CLOUD_CHECK_IN_RETRY = 1800
+# A reported charging cable while the battery keeps falling (seen once on a
+# Large: about 35-40 mA drain, sleep refused). Conservative thresholds; the
+# gauge plateaus at 95-100 % while plugged in, so only lower readings count.
+CABLE_DRAIN_POINTS = 5
+CABLE_DRAIN_SECONDS = 6 * 3600
+CABLE_DRAIN_PLATEAU = 95
+# Without internet time the frame fails over between access points, opens an
+# unprotected setup AP and falls back to 24-hour timer wakes. Report it once
+# the clock is still unsynced this long after boot, on consecutive polls.
+UNSYNCED_UPTIME = 300
+UNSYNCED_POLLS = 2
+AP_SWITCH_WINDOW = 24 * 3600
 
 type FraimicConfigEntry = ConfigEntry[FraimicRuntimeData]
 
@@ -161,6 +173,13 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._rediscovery_task: asyncio.Task | None = None
         self._unsub_expiry: Callable[[], None] | None = None
         self._availability_listeners: set[Callable[[], None]] = set()
+        # Start of a stretch with a reported cable and no charge gain:
+        # {"since": epoch, "high": percent}; persisted with the cache.
+        self._cable_drain: dict[str, float] | None = None
+        self._unsynced_polls = 0
+        # Epochs of access-point changes (wifi.bssid/channel) in the last day.
+        self.ap_switches: list[float] = []
+        self._last_ap: tuple[Any, Any] | None = None
         client.on_response = self._async_contact_seen
 
     async def async_restore(self) -> None:
@@ -168,6 +187,11 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         cached = await self._store.async_load() or {}
         data = cached.get("data")
         if isinstance(data, dict):
+            from homeassistant.util import dt as dt_util
+
+            # Snapshots cached before the epoch fields existed; Minimum mode
+            # may not poll for a long time, and the send queue needs them.
+            restore_frame_times(data, dt_util.get_default_time_zone())
             self.data = data
             self.last_update_success = True
             # Power-saving modes can intentionally skip the startup poll. Keep
@@ -186,6 +210,12 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if isinstance(last_seen, (int, float)):
             self._last_seen = float(last_seen)
         self._expected_asleep = cached.get("expected_asleep") is True
+        drain = cached.get("cable_drain")
+        if isinstance(drain, dict):
+            self._cable_drain = drain
+        switches = cached.get("ap_switches")
+        if isinstance(switches, list):
+            self.ap_switches = [t for t in switches if isinstance(t, (int, float))]
         self._async_schedule_expiry()
 
     def _cache_payload(self) -> dict[str, Any]:
@@ -195,6 +225,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "albums": self.albums,
             "last_seen": self.last_seen,
             "expected_asleep": self._expected_asleep,
+            "cable_drain": self._cable_drain,
+            "ap_switches": self.ap_switches,
         }
 
     async def _async_save_cache(self) -> None:
@@ -364,7 +396,25 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.hass, self._async_probe(), "fraimic-dashboard-probe"
         )
 
+    @property
+    def frame_busy(self) -> bool:
+        """Whether an upload (or awake-window step) holds the frame's HTTP task.
+
+        The firmware serves every client from one task with blocking handlers,
+        so any other request waits behind an upload body or a held render reply
+        and times out, which would look like the frame going offline.
+        """
+        runtime = getattr(self.config_entry, "runtime_data", None)
+        lock = getattr(runtime, "upload_lock", None)
+        return lock is not None and lock.locked()
+
     async def _async_probe(self) -> None:
+        if self.frame_busy:
+            return
+        if self.client.wrong_device is not None:
+            # Only the identity poll can tell whether the right frame is back.
+            await self.async_request_refresh()
+            return
         try:
             await self.client.get_battery()
         except FraimicError:
@@ -389,6 +439,13 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self.data = cloud_data
                 return cloud_data
             raise UpdateFailed("The frame rests between its awake windows")
+        if self.frame_busy:
+            # Skip the poll without counting a failure, keeping the previous
+            # poll's outcome; the next scheduled poll contacts the frame.
+            if self.data is not None and self.last_update_success:
+                return self.data
+            raise UpdateFailed("An upload to the frame is in progress")
+        contact_before = self.client.last_response
         try:
             data = normalize_info(await self.client.get_info())
         except FraimicConnectionError as err:
@@ -410,6 +467,31 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # An error response is still contact; keep it across restarts.
             await self._async_save_cache()
             raise UpdateFailed(str(err)) from err
+        if (foreign := self._foreign_device_key(data)) is not None:
+            # Not this entry's frame: keep its data out, and don't count the
+            # reply as contact with the frame this entry represents.
+            self.client.last_response = contact_before
+            # The reply already armed expiry and told entities the frame was
+            # reachable; recompute both from the restored contact time.
+            self._async_schedule_expiry()
+            self._async_notify_availability()
+            self.frame_online = False
+            if self.client.wrong_device != foreign:
+                _LOGGER.warning(
+                    "A different frame answers at %s for %s; holding its sends "
+                    "and searching the network for the right one",
+                    self.client.host,
+                    self.config_entry.title,
+                )
+            self.client.wrong_device = foreign
+            self._async_maybe_rediscover(force=True, near=data["wifi"].get("ip"))
+            raise UpdateFailed(f"A different frame answers at {self.client.host}")
+        if self.client.wrong_device is not None:
+            _LOGGER.info("%s answers at %s again", self.config_entry.title, self.client.host)
+            self.client.wrong_device = None
+            # The identity poll itself wasn't counted while the flag was set.
+            self.client.last_response = time.time()
+            self._async_contact_seen()
         self._consecutive_failures = 0
         self.frame_online = True
         self._cloud_snapshot = None
@@ -420,10 +502,13 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.client.prefer_api_image = firmware_supports_api_image(
             data.get("firmware_version")
         )
+        from homeassistant.util import dt as dt_util
+
+        annotate_frame_times(data, time.time(), dt_util.get_default_time_zone())
+        self._async_update_timezone_issue(data["device"]["utc_offset_minutes"])
+        self._async_watch_cable_drain(data["battery"], time.time())
+        self._async_watch_connectivity(data, time.time())
         self._async_backfill_unique_id(data)
-        runtime = getattr(self.config_entry, "runtime_data", None)
-        if runtime is not None and runtime.power is not None:
-            await runtime.power.async_observe_frame(data)
         self.data = data
         await self._async_save_cache()
         return data
@@ -457,6 +542,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_refresh_albums(self) -> list[dict[str, Any]] | None:
         """Fetch cloud albums on demand; normal coordinator polls never do this."""
+        if self.frame_busy:
+            return self.albums
         try:
             self.albums = await self.client.get_albums()
         except FraimicError as err:
@@ -477,6 +564,8 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_refresh_info_page(self) -> dict[str, Any]:
         """Scrape slow battery-health diagnostics only when explicitly needed."""
+        if self.frame_busy:
+            return self.info_page
         try:
             parsed = parse_info_page(await self.client.get_info_page())
         except FraimicError as err:
@@ -488,16 +577,165 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.async_update_listeners()
         return self.info_page
 
+    @callback
+    def _async_update_timezone_issue(self, offset: int | None) -> None:
+        """Explain a frame clock in another timezone; it can't be changed."""
+        if offset is None:
+            return
+        from homeassistant.helpers import issue_registry as ir
+        from homeassistant.util import dt as dt_util
+
+        issue_id = f"frame_timezone_{self.config_entry.entry_id}"
+        now = dt_util.now()
+        ha_offset = now.utcoffset() or timedelta()
+        if timedelta(minutes=offset) == ha_offset:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        frame_tz = timezone(timedelta(minutes=offset))
+        maintenance = now.astimezone(frame_tz).replace(
+            hour=3, minute=0, second=0, microsecond=0
+        )
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="frame_timezone",
+            translation_placeholders={
+                "frame": self.config_entry.title,
+                "frame_offset": format_utc_offset(offset),
+                "ha_offset": format_utc_offset(int(ha_offset.total_seconds() // 60)),
+                "maintenance": dt_util.as_local(maintenance).strftime("%H:%M"),
+            },
+        )
+
+    @callback
+    def _async_watch_connectivity(self, data: dict[str, Any], now: float) -> None:
+        """Count AP switches and explain a frame that can't get internet time."""
+        from homeassistant.helpers import issue_registry as ir
+
+        wifi = data["wifi"]
+        ap = (wifi.get("bssid"), wifi.get("channel"))
+        if None not in ap:
+            if self._last_ap is not None and ap != self._last_ap:
+                self.ap_switches.append(now)
+            self._last_ap = ap
+        self.ap_switches = [t for t in self.ap_switches if now - t < AP_SWITCH_WINDOW]
+
+        device = data["device"]
+        issue_id = f"time_unsynced_{self.config_entry.entry_id}"
+        synced = device.get("time_synced")
+        if synced is True:
+            self._unsynced_polls = 0
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        uptime = device.get("uptime_s")
+        if synced is not False or not isinstance(uptime, (int, float)):
+            return
+        if uptime < UNSYNCED_UPTIME:
+            return
+        self._unsynced_polls += 1
+        if self._unsynced_polls < UNSYNCED_POLLS:
+            return
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="time_unsynced",
+            translation_placeholders={
+                "frame": self.config_entry.title,
+                "switches": str(len(self.ap_switches)),
+            },
+        )
+
+    @property
+    def _phantom_cable_issue(self) -> str:
+        return f"phantom_cable_{self.config_entry.entry_id}"
+
+    @callback
+    def _async_watch_cable_drain(self, battery: dict[str, Any], now: float) -> None:
+        """Raise a repair when a reported cable doesn't stop the battery falling.
+
+        While the cable is reported the frame refuses to sleep, so a phantom
+        cable can drain the battery in days. Uses poll data only.
+        """
+        from homeassistant.helpers import issue_registry as ir
+
+        percent = battery.get("percent")
+        cable = battery.get("cable_connected") is True or battery.get("charging") is True
+        drain = self._cable_drain
+        if not cable or not isinstance(percent, (int, float)):
+            if drain is not None:
+                self._cable_drain = None
+                ir.async_delete_issue(self.hass, DOMAIN, self._phantom_cable_issue)
+            return
+        if percent >= CABLE_DRAIN_PLATEAU:
+            return
+        if drain is None or percent > drain["high"]:
+            # A new stretch, or the battery gained charge: really charging.
+            self._cable_drain = {"since": now, "high": float(percent)}
+            if drain is not None:
+                ir.async_delete_issue(self.hass, DOMAIN, self._phantom_cable_issue)
+            return
+        if (
+            drain["high"] - percent < CABLE_DRAIN_POINTS
+            or now - drain["since"] < CABLE_DRAIN_SECONDS
+        ):
+            return
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            self._phantom_cable_issue,
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="phantom_cable",
+            translation_placeholders={
+                "frame": self.config_entry.title,
+                "hours": str(int((now - drain["since"]) // 3600)),
+                "start": str(int(drain["high"])),
+                "percent": str(int(percent)),
+            },
+        )
+
+    def _replaceable_unique_id(self, data: dict[str, Any]) -> bool:
+        """Whether the unique_id predates device_key support (host or device_id)."""
+        unique_id = self.config_entry.unique_id
+        if not unique_id or unique_id == data.get("device_id"):
+            return True
+        hosts = (self.client.host, str(self.config_entry.data.get(CONF_HOST, "")))
+        return unique_id.lower() in {host.lower() for host in hosts}
+
+    def _foreign_device_key(self, data: dict[str, Any]) -> str | None:
+        """The answering frame's key when it isn't this entry's frame."""
+        identity = data.get("device_key") or data.get("device_id")
+        if not identity or self.config_entry.unique_id in (
+            data.get("device_key"),
+            data.get("device_id"),
+        ):
+            return None
+        if self._replaceable_unique_id(data):
+            return None
+        return str(identity)
+
     def _async_backfill_unique_id(self, data: dict[str, Any]) -> None:
         """Adopt the frame's stable ``device_key`` as the entry's unique_id.
 
         Entries created before device_key support (or while the frame was
         asleep) carry a host-based unique_id; upgrade it on the first
         successful poll so an IP change can never look like a new device.
+        A device-key unique_id is never replaced: a different key at this
+        host is another frame (see ``_foreign_device_key``).
         """
         device_key = data.get("device_key")
         entry = self.config_entry
-        if not device_key or entry.unique_id == device_key:
+        if (
+            not device_key
+            or entry.unique_id == device_key
+            or not self._replaceable_unique_id(data)
+        ):
             return
         for other in self.hass.config_entries.async_entries(DOMAIN):
             if other.entry_id != entry.entry_id and other.unique_id == device_key:
@@ -512,19 +750,34 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         _LOGGER.debug("Backfilling unique_id %s for entry %s", device_key, entry.title)
         self.hass.config_entries.async_update_entry(entry, unique_id=device_key)
 
-    def _async_maybe_rediscover(self) -> None:
-        """Kick off a subnet scan for the frame's new IP, heavily rate-limited."""
-        if self._consecutive_failures < REDISCOVERY_FAIL_THRESHOLD:
+    def _async_maybe_rediscover(
+        self, *, force: bool = False, near: str | None = None
+    ) -> None:
+        """Kick off a subnet scan for the frame's new IP, heavily rate-limited.
+
+        ``force`` skips the failure threshold (another frame answers at the
+        host, so the address is certainly stale); ``near`` is an address on
+        the frame's LAN to scan around when the host is a hostname.
+        """
+        if not force and self._consecutive_failures < REDISCOVERY_FAIL_THRESHOLD:
             return
         device_key = self.config_entry.unique_id
         if not device_key:
             return
+        last_ip = self.client.host
         try:
-            ipaddress.IPv4Address(self.client.host)
+            ipaddress.IPv4Address(last_ip)
         except ValueError:
-            # Hostname-configured entries (fraimic.local) re-resolve on their
-            # own; scanning is only useful when a raw IP went stale.
-            return
+            # A hostname that simply fails to answer re-resolves on its own;
+            # scanning is only useful when a raw IP went stale, or when the
+            # name now resolves to another frame.
+            if near is None:
+                return
+            try:
+                ipaddress.IPv4Address(near)
+            except ValueError:
+                return
+            last_ip = near
         if self._rediscovery_task is not None and not self._rediscovery_task.done():
             return
         now = time.monotonic()
@@ -536,7 +789,7 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_rediscovery = now
         self._rediscovery_task = self.config_entry.async_create_background_task(
             self.hass,
-            self._async_rediscover(self.client.host, device_key),
+            self._async_rediscover(last_ip, device_key),
             name=f"fraimic-rediscover-{self.config_entry.entry_id}",
         )
 
@@ -564,6 +817,89 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.config_entry,
             data={**self.config_entry.data, CONF_HOST: found},
         )
+
+
+# Frame timestamps (``device.local_time``, ``display.last_refresh`` and
+# ``next_refresh``) are local calendar strings without a UTC offset, in the
+# frame's stored POSIX timezone. That is often not Home Assistant's: signing in
+# through the setup portal stores none (``EST5EDT`` fallback), and an IANA name
+# such as ``Europe/Oslo`` parses as UTC.
+FRAME_OFFSET_STEP = 15  # minutes; real offsets are whole quarter hours
+MAX_FRAME_OFFSET = 14 * 60
+
+
+def frame_utc_offset(local_time: Any, now: float) -> int | None:
+    """The frame's current UTC offset in minutes, from its synced local clock."""
+    if not isinstance(local_time, str) or not local_time:
+        return None
+    try:
+        local = datetime.fromisoformat(local_time).replace(tzinfo=None)
+    except ValueError:
+        return None
+    utc = datetime.fromtimestamp(now, timezone.utc).replace(tzinfo=None)
+    steps = round((local - utc).total_seconds() / (FRAME_OFFSET_STEP * 60))
+    minutes = steps * FRAME_OFFSET_STEP
+    return minutes if abs(minutes) <= MAX_FRAME_OFFSET else None
+
+
+def frame_timestamp(value: Any, offset: int | None, fallback: tzinfo) -> float | None:
+    """Epoch of a frame-local timestamp; ``fallback`` when the offset is unknown.
+
+    Offsets change with DST, so a time across a transition can be an hour off.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        zone = timezone(timedelta(minutes=offset)) if offset is not None else fallback
+        parsed = parsed.replace(tzinfo=zone)
+    return parsed.timestamp()
+
+
+def annotate_frame_times(data: dict[str, Any], now: float, fallback: tzinfo) -> None:
+    """Add ``utc_offset_minutes`` and epoch ``*_at`` fields to a fresh poll.
+
+    The offset is only known while the frame reports a synced clock. Every
+    consumer reads the epoch fields; nothing parses the frame strings itself.
+    """
+    device = data["device"]
+    offset = (
+        frame_utc_offset(device.get("local_time"), now)
+        if device.get("time_synced") is True
+        else None
+    )
+    device["utc_offset_minutes"] = offset
+    display = data["display"]
+    for key in ("last_refresh", "next_refresh"):
+        display[f"{key}_at"] = frame_timestamp(display.get(key), offset, fallback)
+
+
+def restore_frame_times(data: dict[str, Any], fallback: tzinfo) -> None:
+    """Fill missing epoch ``*_at`` fields of a cached snapshot.
+
+    Uses the cached offset when there is one; the snapshot's ``local_time``
+    is stale, so no new offset is derived here.
+    """
+    device = data.get("device")
+    display = data.get("display")
+    if not isinstance(display, dict):
+        return
+    offset = device.get("utc_offset_minutes") if isinstance(device, dict) else None
+    for key in ("last_refresh", "next_refresh"):
+        if f"{key}_at" not in display:
+            display[f"{key}_at"] = frame_timestamp(
+                display.get(key), offset if isinstance(offset, int) else None, fallback
+            )
+
+
+def format_utc_offset(minutes: int) -> str:
+    """``UTC+02:00`` style label for an offset in minutes."""
+    sign = "+" if minutes >= 0 else "-"
+    hours, rest = divmod(abs(minutes), 60)
+    return f"UTC{sign}{hours:02d}:{rest:02d}"
 
 
 def _cloud_last_seen(data: dict[str, Any]) -> float | None:
@@ -617,6 +953,7 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
             "ssid": pick(("wifi", "ssid"), "wifi_ssid", "ssid"),
             "rssi": pick(("wifi", "rssi"), "wifi_rssi", "rssi"),
             "channel": pick(("wifi", "channel"), "wifi_channel"),
+            "bssid": pick(("wifi", "bssid"), "bssid", "wifi_bssid"),
             "ip": pick(("wifi", "ip"), "ip_address", "ip"),
             "mac": pick(("wifi", "mac"), "mac", "mac_address"),
         },
@@ -632,6 +969,7 @@ def normalize_info(info: dict[str, Any]) -> dict[str, Any]:
         "device": {
             "registered": pick(("device", "registered"), "registered"),
             "time_synced": pick(("device", "time_synced"), "time_synced"),
+            "local_time": pick(("device", "local_time"), "local_time"),
             "uptime_s": pick(("device", "uptime_s"), "uptime_s", "uptime"),
         },
         "settings": {

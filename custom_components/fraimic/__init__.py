@@ -28,13 +28,16 @@ from .const import (
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
+    DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
+    DEFAULT_WIDTH,
     DELIVERY_CLOUD,
     DELIVERY_HYBRID,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
     ROTATION_OPTIONS,
     canonical_frame_settings,
+    frame_bin_size,
 )
 from .coordinator import (
     FraimicConfigEntry,
@@ -117,7 +120,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     async_register_views(hass)
     await async_register_panel(hass)
 
-    client = FraimicClient(entry.data[CONF_HOST], async_get_clientsession(hass))
+    client = FraimicClient(
+        entry.data[CONF_HOST],
+        async_get_clientsession(hass),
+        bin_size=frame_bin_size(
+            entry.data.get(CONF_WIDTH, DEFAULT_WIDTH),
+            entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT),
+        ),
+    )
     scan_interval = effective_scan_interval(dict(entry.options))
 
     coordinator = FraimicDataUpdateCoordinator(hass, entry, client, scan_interval)
@@ -289,6 +299,10 @@ async def _async_setup_cloud(
 
 async def async_remove_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
     """Deactivate the owned album when the frame is deleted, including unloaded entries."""
+    from homeassistant.helpers import issue_registry as ir
+
+    for issue in ("frame_timezone", "phantom_cable", "time_unsynced"):
+        ir.async_delete_issue(hass, DOMAIN, f"{issue}_{entry.entry_id}")
     delivery = await _async_load_cloud(hass, entry)
     if delivery is not None:
         await delivery.async_remove()

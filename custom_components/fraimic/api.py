@@ -48,6 +48,15 @@ class FraimicTimeoutError(FraimicConnectionError):
     """
 
 
+class FraimicWrongDeviceError(FraimicConnectionError):
+    """Raised while a different frame answers at this entry's host.
+
+    Stock frames all claim ``fraimic.local`` and DHCP can hand a sleeping
+    frame's address to another one. The entry's own frame is then not
+    reachable here, so its sends wait (or queue) as for a sleeping frame.
+    """
+
+
 class FraimicApiError(FraimicError):
     """Raised when the frame returns an error response.
 
@@ -61,6 +70,30 @@ class FraimicApiError(FraimicError):
         self.status = status
         self.error = error
 
+
+# Firmware command refusals with a clearer meaning than the raw error code.
+COMMAND_ERROR_MESSAGES = {
+    # Large firmware only (Standard 0.2.28 has no such guard): a voice
+    # recording or an LED workflow, such as a maintenance redraw, is running.
+    "device_busy": (
+        "The frame is busy with a voice recording or its own redraw. "
+        "Try again in a minute."
+    ),
+    "charging_cable_connected": (
+        "The frame won't sleep while it reports a charging cable plugged in."
+    ),
+}
+
+
+def command_error_message(err: FraimicError) -> str:
+    """User-facing text for a failed restart, sleep or refresh command."""
+    if isinstance(err, FraimicApiError) and err.error in COMMAND_ERROR_MESSAGES:
+        return COMMAND_ERROR_MESSAGES[err.error]
+    return str(err)
+
+
+# The album proxy copies at most this many ID bytes and drops the rest.
+MAX_ALBUM_ID_BYTES = 127
 
 # First firmware verified (on real hardware) to accept POST /api/image with an
 # application/octet-stream body. Older firmware (0.2.21) answered 501 and hung.
@@ -108,8 +141,18 @@ def normalize_host(host: str) -> str:
 class FraimicClient:
     """Talks to a single Fraimic frame."""
 
-    def __init__(self, host: str, session: aiohttp.ClientSession) -> None:
+    def __init__(
+        self,
+        host: str,
+        session: aiohttp.ClientSession,
+        *,
+        bin_size: int | None = None,
+    ) -> None:
         self._host = normalize_host(host)
+        # The panel's exact packed size. The firmware only rejects oversized
+        # bodies: a short one is cached as last_image.bin and drawn with a
+        # stale tail, or not at all, while the reply still says "rendering".
+        self.bin_size = bin_size
         # Uploads go to POST /api/image (octet-stream) when the coordinator has
         # confirmed a firmware that supports it, else multipart /upload. False
         # until the first successful poll (e.g. frame asleep at startup).
@@ -119,6 +162,10 @@ class FraimicClient:
         self.last_response: float | None = None
         # Called after every response; the coordinator persists the contact.
         self.on_response: Callable[[], None] | None = None
+        # Set by the coordinator while another frame's device_key answers at
+        # this host: every request except the identity poll is refused, and
+        # responses don't count as contact with this entry's frame.
+        self.wrong_device: str | None = None
         self._session = session
         # Bracket bare IPv6 literals (2+ colons, not already bracketed) so the URL
         # is valid; a normal "host" or "host:port" is left untouched.
@@ -133,6 +180,10 @@ class FraimicClient:
         return self._host
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> aiohttp.ClientResponse:
+        if self.wrong_device is not None and path != "/api/info":
+            raise FraimicWrongDeviceError(
+                f"A different frame answers at {self._host}"
+            )
         url = f"{self._base}{path}"
         timeout = aiohttp.ClientTimeout(total=kwargs.pop("timeout", DEFAULT_TIMEOUT))
         try:
@@ -145,9 +196,10 @@ class FraimicClient:
             raise FraimicConnectionError(f"Cannot reach Fraimic at {self._host}: {err}") from err
         except aiohttp.ClientError as err:
             raise FraimicError(f"Unexpected error talking to {self._host}: {err}") from err
-        self.last_response = time.time()
-        if self.on_response is not None:
-            self.on_response()
+        if self.wrong_device is None:
+            self.last_response = time.time()
+            if self.on_response is not None:
+                self.on_response()
         return resp
 
     async def _json(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
@@ -179,11 +231,29 @@ class FraimicClient:
         Carries panel size and battery-health data absent from the JSON API;
         parsed by ``info_page.parse_info_page()``.
         """
-        resp = await self._request("GET", "/info")
+        return await self._text("/info")
+
+    async def get_wifi_stats(self) -> str:
+        """Return the ``GET /wifi-stats`` HTML (association and failover history).
+
+        Diagnostics only: it updates the frame's activity timer, so polling it
+        would keep the frame awake.
+        """
+        return await self._text("/wifi-stats")
+
+    async def check_internet(self) -> dict[str, Any]:
+        """Run the frame's ``GET /check-internet`` TCP probe of ``8.8.8.8:53``.
+
+        Diagnostics only, like ``get_wifi_stats``. ``{"reachable": bool}``.
+        """
+        return await self._json("GET", "/check-internet", timeout=15)
+
+    async def _text(self, path: str) -> str:
+        resp = await self._request("GET", path)
         async with resp:
             if resp.status >= 400:
                 raise FraimicApiError(
-                    f"GET /info returned HTTP {resp.status}", status=resp.status
+                    f"GET {path} returned HTTP {resp.status}", status=resp.status
                 )
             return await resp.text()
 
@@ -245,10 +315,18 @@ class FraimicClient:
         The frame proxies this to origin.fraimic.com using its own
         device_key, so it only works when the frame has real internet —
         LAN-only frames answer ``502 {"error": "server_unreachable"}``.
+
+        The proxy streams whatever upstream sends: an empty body becomes
+        ``{"status": "ok"}``, a read error can end it early, and HTML errors
+        are labelled JSON. Anything but an album list is an error.
         """
         data = await self._json("GET", "/api/albums", timeout=30)
-        albums = data.get("albums", data)
-        return albums if isinstance(albums, list) else []
+        albums = data.get("albums")
+        if not isinstance(albums, list) or not all(
+            isinstance(album, dict) for album in albums
+        ):
+            raise FraimicError("GET /api/albums returned no album list")
+        return albums
 
     async def update_album(self, album_id: str, payload: dict[str, Any]) -> dict[str, Any]:
         """Partially edit one album (``PUT /api/albums/{id}``, cloud proxy).
@@ -256,10 +334,19 @@ class FraimicClient:
         The cloud does NOT merge the ``schedule`` object — a PUT with a
         partial schedule nulls the omitted fields, so callers must always
         read-modify-write the full schedule shape.
+
+        Raises ``FraimicError`` when the reply isn't that album: the change
+        may still have applied, so callers re-read to confirm it.
         """
-        return await self._json(
+        if len(album_id.encode()) > MAX_ALBUM_ID_BYTES:
+            # The firmware silently cuts longer IDs, which could edit another album.
+            raise FraimicError(f"Album ID is longer than {MAX_ALBUM_ID_BYTES} bytes")
+        album = await self._json(
             "PUT", f"/api/albums/{album_id}", json=payload, timeout=30
         )
+        if str(album.get("id")) != album_id:
+            raise FraimicError(f"PUT /api/albums/{album_id} did not return the album")
+        return album
 
     async def get_battery(self) -> dict[str, Any]:
         """Return the lightweight battery status from ``GET /api/battery``."""
@@ -270,15 +357,21 @@ class FraimicClient:
         return await self._json("POST", "/api/restart")
 
     async def sleep(self) -> dict[str, Any]:
-        """Put the frame into deep sleep (``POST /api/sleep``).
+        """Request deep sleep (``POST /api/sleep``).
 
         Blocked while a charging cable is connected; the frame then responds
-        with ``{"error": "charging_cable_connected"}``.
+        with ``{"error": "charging_cable_connected"}``. A ``sleeping`` reply
+        only queues the request: the main loop re-checks the cable and can
+        decline, and a pending OTA may install first.
         """
         return await self._json("POST", "/api/sleep")
 
     async def refresh(self) -> dict[str, Any]:
-        """Trigger a full E-Ink refresh cycle (``POST /api/refresh``)."""
+        """Trigger a full E-Ink refresh cycle (``POST /api/refresh``).
+
+        Large firmware answers 409 ``device_busy`` during a voice recording
+        or an LED workflow; Standard 0.2.28 has no such guard.
+        """
         return await self._json("POST", "/api/refresh")
 
     async def upload_image(
@@ -313,14 +406,20 @@ class FraimicClient:
                 f"Image is {len(data)} bytes; the frame rejects uploads over "
                 f"{MAX_BIN_SIZE} bytes"
             )
+        if self.bin_size is not None and len(data) != self.bin_size:
+            raise FraimicError(
+                f"Image is {len(data)} bytes; this frame's panel needs exactly "
+                f"{self.bin_size} bytes"
+            )
 
         attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
         try:
             await attempt(data)
-        except FraimicTimeoutError:
+        except (FraimicTimeoutError, FraimicWrongDeviceError):
             # The frame may have accepted the image and be mid-redraw with the
             # response blocked — a restart+retry here could double-redraw the
             # panel. Surface the timeout instead; callers decide what it means.
+            # Never restart a frame that isn't this entry's.
             raise
         except FraimicConnectionError:
             if not recover:

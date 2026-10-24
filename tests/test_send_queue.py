@@ -428,3 +428,53 @@ def test_hybrid_migration_defers_retained_overlay_to_fresh_composition(send_queu
     assert events == ["dirty persisted", "queue discarded"]
     assert queue.pending is None
     cloud.async_deliver.assert_not_awaited()
+
+
+def test_probe_waits_while_an_upload_holds_the_frame(send_queue_module, monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+
+    client = types.SimpleNamespace(get_battery=AsyncMock())
+    runtime = types.SimpleNamespace(
+        client=client,
+        coordinator=types.SimpleNamespace(data={}, frame_busy=True),
+    )
+    entry = types.SimpleNamespace(
+        entry_id="frame", title="Frame", data={}, options={}, runtime_data=runtime
+    )
+    hass = types.SimpleNamespace(config=types.SimpleNamespace(path=lambda *parts: "/unused"))
+    queue = send_queue_module.FraimicSendQueue(hass, entry)
+    queue._pending = {"title": "Art", "token": 1, "queued_at": 1000}
+    schedule = Mock()
+    monkeypatch.setattr(queue, "_schedule_probe", schedule)
+
+    asyncio.run(queue._async_probe())
+
+    client.get_battery.assert_not_awaited()
+    schedule.assert_called_once_with()
+    assert queue._probe_attempt == 0
+
+
+def test_try_send_waits_while_an_upload_holds_the_frame(send_queue_module):
+    from unittest.mock import AsyncMock
+
+    client = types.SimpleNamespace(get_battery=AsyncMock(), wrong_device=None)
+    online = []
+    runtime = types.SimpleNamespace(
+        client=client,
+        coordinator=types.SimpleNamespace(
+            data={}, frame_busy=True, async_set_frame_online=online.append
+        ),
+    )
+    entry = types.SimpleNamespace(
+        entry_id="frame", title="Frame", data={}, options={}, runtime_data=runtime
+    )
+    hass = types.SimpleNamespace(config=types.SimpleNamespace(path=lambda *parts: "/unused"))
+    queue = send_queue_module.FraimicSendQueue(hass, entry)
+    queue._pending = {"title": "Art", "token": 1, "queued_at": 1000}
+    statuses = []
+    queue._dispatch = statuses.append
+
+    asyncio.run(queue.async_try_send())
+
+    client.get_battery.assert_not_awaited()
+    assert online == [] and "in progress" in statuses[0]

@@ -81,9 +81,27 @@ Hardware quirks the code accounts for:
   which is why older firmware stays on `/upload`).
 - `upload_image(recover=True)` restarts + retries once on connection-level
   failure (firmware upload-handler wedge).
+- One HTTP task with blocking handlers serves every client, so polls, probes
+  and on-demand `/info`/`/logs`/album fetches skip the frame while
+  `upload_lock` is held (`coordinator.frame_busy`).
 - Frame is battery-powered; deep sleep = unreachable (polls fail; entities keep
   last-known values, see availability below).
-- `display.last_refresh` tracks only the *scheduled* cycle, not uploads.
+- `display.last_refresh` tracks only the *scheduled* maintenance cycle, not
+  uploads. Maintenance redraws `last_image.bin` (HA's last upload), so it
+  keeps the duplicate guard and overlay state.
+- `device.local_time` and `display.last/next_refresh` are frame-local time with
+  no offset, in the frame's own POSIX timezone (often `EST5EDT`, not HA's).
+  The coordinator derives `device.utc_offset_minutes` from synced polls and
+  adds epoch `display.*_at` fields; read those, never the strings. A
+  `frame_timezone` repair explains a mismatch (stock firmware can't fix it).
+- Stock firmware needs TCP `8.8.8.8:53` and NTP even for LAN-only use. A
+  `time_unsynced` repair fires after 2 polls unsynced past 5 min uptime;
+  AP switches (`wifi.bssid`/`channel` changes) are counted per 24 h.
+  `/wifi-stats` and `/check-internet` update the activity timer, so they are
+  read only for the diagnostics download.
+- A reported charging cable blocks `/api/sleep`. A `phantom_cable` repair
+  fires when the cable stays reported while the battery falls 5+ points over
+  6+ h (readings at 95 % and above are ignored: the gauge plateaus there).
 - Resolution is stored per config entry (`CONF_WIDTH/HEIGHT` in `entry.data`).
 
 ## Image pipeline (`image_convert.py`)
@@ -132,6 +150,10 @@ blocks for an exact 2,304,000-byte payload. Palette position → E Ink nibble
 via `SPECTRA6_PANEL_INDEX = (0x0, 0x1, 0x2, 0x3, 0x5, 0x6)` (0x4 unused).
 
 **height must be divisible by 4.** Buffer capped at `MAX_BIN_SIZE` (4 MB).
+Uploads must be exactly `frame_bin_size()`: the firmware draws a short body
+with a stale tail and caches it. The client refuses other sizes, and the
+render caches treat a wrong-size or invalid-nibble `.bin` as a miss
+(`image_convert.is_valid_bin`).
 
 Palette is only 6 colours (`SPECTRA6_RGB`): black, white, yellow `#f0e050`,
 red `#a02020`, blue `#5080b8`, green `#608050` — *calibrated muted* values,
@@ -143,9 +165,16 @@ not primaries.
   OUIs `1CDBD4*`/`3CDC75*`); resolution auto-detect (`FRAME_MODELS`: standard
   1600×1200, large 1440×2560) else user picks; resolution saved to `entry.data`.
 - Entry unique_id is the frame's stable `device.device_key` (host as fallback);
-  the coordinator backfills it on the first successful poll of older entries.
-  A `reconfigure` step changes the host in place (aborts on device_key
-  mismatch), and discovery of a known device_key rewrites the stored host.
+  the coordinator backfills it on the first successful poll of older entries,
+  but never replaces a device-key unique_id. A `reconfigure` step changes the
+  host in place (aborts on device_key mismatch), and discovery of a known
+  device_key rewrites the stored host. Setup and reconfigure store the
+  frame's reported IP for an mDNS name: every stock frame claims
+  `fraimic.local`, and stock firmware advertises no mDNS service.
+- Wrong frame at the host: a poll answered with another device_key fails
+  without storing data, sets `client.wrong_device` (the client then refuses
+  everything but `/api/info`, as `FraimicWrongDeviceError`, a connection
+  error so sends queue) and starts rediscovery at once.
 - IP-change self-healing: after 3 consecutive failed polls the coordinator
   scans the local /24 (rate-limited to 1/hour, only when the host is an IP
   literal) for the entry's device_key and rewrites `CONF_HOST` on a match.

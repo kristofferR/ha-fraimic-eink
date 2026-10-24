@@ -27,21 +27,20 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
-from .coordinator import FraimicConfigEntry
+from .coordinator import FraimicConfigEntry, format_utc_offset
 from .entity import FraimicEntity
 from .send_queue import signal_send_status
 
 
-def _parse_timestamp(value: Any) -> datetime | None:
-    """Parse a naive ISO timestamp from the frame into a local-aware datetime."""
-    if not isinstance(value, str) or not value:
+def _frame_time(value: Any) -> datetime | None:
+    """A frame time the coordinator converted to an epoch (``*_at`` fields)."""
+    if not isinstance(value, (int, float)):
         return None
-    parsed = dt_util.parse_datetime(value)
-    if parsed is None:
-        return None
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=dt_util.DEFAULT_TIME_ZONE)
-    return parsed
+    return dt_util.utc_from_timestamp(value)
+
+
+def _offset_label(minutes: Any) -> str | None:
+    return format_utc_offset(minutes) if isinstance(minutes, int) else None
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -139,13 +138,20 @@ SENSORS: tuple[FraimicSensorDescription, ...] = (
         key="last_refresh",
         translation_key="last_refresh",
         device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda d: _parse_timestamp(_g(d, "display", "last_refresh")),
+        value_fn=lambda d: _frame_time(_g(d, "display", "last_refresh_at")),
     ),
     FraimicSensorDescription(
         key="next_refresh",
         translation_key="next_refresh",
         device_class=SensorDeviceClass.TIMESTAMP,
-        value_fn=lambda d: _parse_timestamp(_g(d, "display", "next_refresh")),
+        value_fn=lambda d: _frame_time(_g(d, "display", "next_refresh_at")),
+    ),
+    FraimicSensorDescription(
+        # The frame's clock offset, measured while its time is synced.
+        key="utc_offset",
+        translation_key="utc_offset",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda d: _offset_label(_g(d, "device", "utc_offset_minutes")),
     ),
 )
 

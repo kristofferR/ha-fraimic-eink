@@ -520,3 +520,17 @@ def test_bin_to_png_is_full_resolution_and_rotates() -> None:
 def test_bin_to_indices_rejects_wrong_buffer_size() -> None:
     with pytest.raises(ValueError, match="Buffer size"):
         ic.bin_to_indices(b"\x00" * 16, 1600, 1200)
+
+
+@pytest.mark.parametrize(("width", "height"), [(1600, 1200), (1440, 2560)])
+def test_is_valid_bin_accepts_only_complete_panel_buffers(width: int, height: int) -> None:
+    import numpy as np
+
+    rng = np.random.default_rng(3)
+    indices = rng.integers(0, 6, size=height * width, dtype=np.uint8)
+    packed = ic._pack_nibbles(indices, width, height)
+
+    assert ic.is_valid_bin(packed, width, height)
+    # The 17-byte truncation and the unused nibble reproduced on the host.
+    assert not ic.is_valid_bin(packed[:-17], width, height)
+    assert not ic.is_valid_bin(b"\x14" + packed[1:], width, height)

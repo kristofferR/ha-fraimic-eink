@@ -42,7 +42,7 @@ def test_minimum_queue_is_passive_but_tracks_predicted_wake() -> None:
         const.POWER_MODE_MINIMUM,
         0,
         now=1000,
-        next_refresh="1970-01-01T00:18:20+00:00",
+        next_refresh=1100.0,
     ) == 130
 
 
@@ -107,7 +107,8 @@ def test_global_duplicate_suppression_applies_to_manual_sends() -> None:
     assert manager.skip_reason("same", power.TRIGGER_MANUAL, token, {}) == power.SKIP_DUPLICATE
 
 
-def test_due_native_refresh_invalidates_duplicate_assumption() -> None:
+def test_maintenance_refresh_keeps_the_duplicate_guard() -> None:
+    """The scheduled refresh redraws the last upload; it adds no new content."""
     manager = _manager()
     manager.last_hash = "same"
     token = manager.begin(power.TRIGGER_MANUAL)
@@ -115,9 +116,9 @@ def test_due_native_refresh_invalidates_duplicate_assumption() -> None:
         "same",
         power.TRIGGER_MANUAL,
         token,
-        {"display": {"next_refresh": "1970-01-01T00:16:40+00:00"}},
+        {"display": {"next_refresh_at": 1000.0}},
         now=1001,
-    ) is None
+    ) == power.SKIP_DUPLICATE
 
 
 def test_automatic_send_is_gated_on_low_battery() -> None:
@@ -165,50 +166,6 @@ def test_higher_priority_automatic_send_coalesces_older_work() -> None:
     assert manager.skip_reason(
         "scheduled", power.TRIGGER_SCHEDULED, scheduled, {}, now=10_000
     ) is None
-
-
-def test_native_display_change_invalidates_persisted_hash() -> None:
-    manager = _manager()
-    manager.last_hash = "integration-image"
-    manager.last_display_marker = "old"
-    asyncio.run(
-        manager.async_observe_frame({"display": {"last_refresh": "new"}})
-    )
-    assert manager.last_hash is None
-
-
-def test_native_display_change_preserves_base_for_matching_queued_overlay() -> None:
-    manager = _manager()
-    manager.last_display_marker = "old"
-    overlays = SimpleNamespace(
-        submitted_hash="queued-composite", async_invalidate=AsyncMock()
-    )
-    manager.entry.runtime_data = SimpleNamespace(
-        temporary_overlays=overlays,
-        cloud=None,
-        send_queue=SimpleNamespace(pending={"content_hash": "queued-composite"}),
-    )
-
-    asyncio.run(manager.async_observe_frame({"display": {"last_refresh": "new"}}))
-
-    overlays.async_invalidate.assert_not_awaited()
-
-
-@pytest.mark.parametrize("refresh_time,invalidates", [(999, False), (1000, False), (1001, True)])
-def test_native_marker_only_invalidates_uploads_older_than_the_refresh(refresh_time, invalidates):
-    manager = _manager()
-    manager.last_display_marker = "1970-01-01T00:10:00Z"
-    manager.last_upload_at = 1000
-    manager.last_hash = "new-upload"
-    overlays = SimpleNamespace(async_invalidate=AsyncMock())
-    manager.entry.runtime_data = SimpleNamespace(temporary_overlays=overlays)
-    from datetime import datetime, timezone
-
-    marker = datetime.fromtimestamp(refresh_time, timezone.utc).isoformat()
-    asyncio.run(manager.async_observe_frame({"display": {"last_refresh": marker}}))
-    assert manager.last_display_marker == marker
-    assert manager.last_hash == (None if invalidates else "new-upload")
-    assert overlays.async_invalidate.await_count == int(invalidates)
 
 
 def test_minimum_daily_budget_blocks_second_automatic_redraw() -> None:
@@ -352,18 +309,6 @@ def test_overlay_interval_keeps_low_battery_protection_without_background_cooldo
         "new", power.TRIGGER_OVERLAY, token,
         {"battery": {"percent": 20, "charging": False}}, now=10_000,
     ) == power.SKIP_LOW_BATTERY
-
-@pytest.mark.parametrize("trigger", [power.TRIGGER_MANUAL, power.TRIGGER_OVERLAY])
-def test_stale_native_schedule_does_not_repeat_an_already_confirmed_upload(trigger):
-    manager = _manager()
-    asyncio.run(manager.async_record_upload("same", trigger, now=1005))
-    token = manager.begin(trigger)
-    data = {"battery": {"percent": 80}, "display": {"next_refresh": "1970-01-01T00:16:40+00:00"}}
-    assert manager.skip_reason("same", trigger, token, data, now=1010) == power.SKIP_DUPLICATE
-    # A newer native deadline can still replace that upload.
-    data["display"]["next_refresh"] = "1970-01-01T00:16:48+00:00"
-    assert manager.skip_reason("same", trigger, token, data, now=1010) is None
-
 
 def test_expired_overlay_restores_once_below_low_battery_threshold():
     manager = _manager()

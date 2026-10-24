@@ -12,7 +12,9 @@ import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from freezegun.api import FrozenDateTimeFactory
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -23,6 +25,7 @@ from custom_components.fraimic.api import (
     FraimicApiError,
     FraimicClient,
     FraimicConnectionError,
+    FraimicWrongDeviceError,
 )
 from custom_components.fraimic.const import (
     CONF_HEIGHT,
@@ -190,6 +193,28 @@ async def test_connection_failures_count_until_frame_answers(
     assert coordinator.consecutive_failures == 0
 
 
+async def test_poll_during_upload_skips_the_frame(
+    loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
+) -> None:
+    """The frame's single HTTP task is busy; a poll would only time out."""
+    coordinator = _coordinator(loaded_entry)
+    frame_client["get_info"].side_effect = FraimicConnectionError("asleep")
+    await coordinator.async_refresh()
+    data = coordinator.data
+    frame_client["get_info"].reset_mock()
+
+    async with loaded_entry.runtime_data.upload_lock:
+        await coordinator.async_refresh()
+        assert await coordinator.async_refresh_info_page() == coordinator.info_page
+
+    frame_client["get_info"].assert_not_called()
+    frame_client["get_info_page"].assert_not_called()
+    assert coordinator.data is data
+    assert coordinator.consecutive_failures == 1
+    # A skipped poll doesn't turn the earlier failure into a success.
+    assert not coordinator.last_update_success
+
+
 async def test_api_error_fails_the_update(
     loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
 ) -> None:
@@ -271,6 +296,45 @@ async def test_first_poll_backfills_device_key_unique_id(
     assert entry.unique_id == DEVICE_KEY
 
 
+async def test_other_frame_at_the_host_is_rejected(
+    loaded_entry: MockConfigEntry, frame_client: dict[str, AsyncMock]
+) -> None:
+    """DHCP or a shared mDNS name put another frame at the stored host."""
+    coordinator = _coordinator(loaded_entry)
+    client = loaded_entry.runtime_data.client
+    data = coordinator.data
+    frame_client["get_info"].return_value = {**FRAME_INFO, "device_key": "fk_other"}
+
+    with patch.object(
+        FraimicDataUpdateCoordinator, "_async_rediscover", AsyncMock()
+    ) as rediscover:
+        await coordinator.async_refresh()
+
+    assert not coordinator.last_update_success
+    assert not coordinator.frame_online
+    assert coordinator.data is data
+    assert loaded_entry.unique_id == DEVICE_KEY
+    # Immediately, without waiting for the failure threshold.
+    rediscover.assert_awaited_once_with(HOST, DEVICE_KEY)
+    # Uploads (direct or queued flushes) and commands never reach that frame.
+    with patch.object(client, "_session") as session:
+        with pytest.raises(FraimicWrongDeviceError):
+            await client.upload_image(bytes(960_000))
+        with pytest.raises(FraimicWrongDeviceError):
+            await client.sleep()
+    session.request.assert_not_called()
+
+    # A dashboard probe (Minimum mode never polls) uses the identity poll.
+    frame_client["get_info"].return_value = dict(FRAME_INFO)
+    frame_client["get_battery"].reset_mock()
+    with patch.object(coordinator, "async_request_refresh", coordinator.async_refresh):
+        await coordinator._async_probe()
+
+    frame_client["get_battery"].assert_not_called()
+    assert coordinator.last_update_success
+    assert client.wrong_device is None
+
+
 async def test_error_response_still_counts_as_contact() -> None:
     """A 503 proves the frame is awake; a refused connection does not."""
 
@@ -298,3 +362,73 @@ async def test_error_response_still_counts_as_contact() -> None:
     with pytest.raises(FraimicConnectionError):
         await client.get_info()
     assert client.last_response == seen
+
+
+async def test_maintenance_refresh_keeps_upload_state(
+    loaded_entry: MockConfigEntry,
+    frame_client: dict[str, AsyncMock],
+    freezer: FrozenDateTimeFactory,
+) -> None:
+    """last_refresh only moves for maintenance, which redraws the last upload."""
+    runtime = loaded_entry.runtime_data
+    freezer.move_to("2026-10-22T12:00:00+00:00")
+    frame_client["get_info"].return_value = {
+        **FRAME_INFO, "last_refresh": "2026-10-19T03:00:00",
+    }
+    await runtime.coordinator.async_refresh()
+    await runtime.power.async_record_upload("uploaded", "manual")
+    freezer.move_to("2026-10-23T12:00:00+00:00")
+    frame_client["get_info"].return_value = {
+        **FRAME_INFO, "last_refresh": "2026-10-23T03:00:00",
+    }
+
+    with patch.object(
+        runtime.temporary_overlays, "async_invalidate", AsyncMock()
+    ) as invalidate:
+        await runtime.coordinator.async_refresh()
+
+    assert runtime.power.last_hash == "uploaded"
+    invalidate.assert_not_awaited()
+
+
+async def test_busy_refresh_explains_itself(
+    hass: HomeAssistant, loaded_entry: MockConfigEntry
+) -> None:
+    """Large firmware refuses /api/refresh during a recording or LED workflow."""
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "button", DOMAIN, f"{loaded_entry.entry_id}_refresh"
+    )
+    busy = FraimicApiError("busy", status=409, error="device_busy")
+    with (
+        patch.object(FraimicClient, "refresh", AsyncMock(side_effect=busy)),
+        pytest.raises(HomeAssistantError, match="voice recording or its own redraw"),
+    ):
+        await hass.services.async_call(
+            "button", "press", {"entity_id": entity_id}, blocking=True
+        )
+
+
+async def test_unsynced_clock_after_boot_raises_a_repair(
+    hass: HomeAssistant,
+    loaded_entry: MockConfigEntry,
+    frame_client: dict[str, AsyncMock],
+) -> None:
+    """Blocked 8.8.8.8:53 or NTP: AP failover, an open setup AP, 24 h wakes."""
+    coordinator = _coordinator(loaded_entry)
+    issues = ir.async_get(hass)
+    issue_id = f"time_unsynced_{loaded_entry.entry_id}"
+
+    async def poll(synced: bool, uptime: int, bssid: str) -> bool:
+        frame_client["get_info"].return_value = {
+            **FRAME_INFO, "time_synced": synced, "uptime_s": uptime, "bssid": bssid,
+            "wifi_channel": 6,
+        }
+        await coordinator.async_refresh()
+        return issues.async_get_issue(DOMAIN, issue_id) is not None
+
+    # Still starting up, then one unsynced poll is not yet a pattern.
+    assert not await poll(False, 60, "02:AA:BB:CC:DD:01")
+    assert not await poll(False, 400, "02:AA:BB:CC:DD:02")
+    assert await poll(False, 460, "02:AA:BB:CC:DD:01")
+    assert coordinator.ap_switches and len(coordinator.ap_switches) == 2
+    assert not await poll(True, 520, "02:AA:BB:CC:DD:01")

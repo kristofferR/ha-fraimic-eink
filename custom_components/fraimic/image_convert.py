@@ -859,6 +859,25 @@ def _expected_bin_size(width: int, height: int) -> int:
     return size
 
 
+def is_valid_bin(data: bytes, width: int, height: int) -> bool:
+    """Whether ``data`` is a complete panel buffer of valid Spectra 6 nibbles.
+
+    Used to reject damaged render-cache files: the firmware draws a short
+    buffer with a stale tail and caches it for the next maintenance redraw.
+    """
+    import numpy as np
+
+    try:
+        if len(data) != _expected_bin_size(width, height):
+            return False
+    except ValueError:
+        return False
+    valid = np.zeros(16, dtype=bool)
+    valid[list(SPECTRA6_PANEL_INDEX)] = True
+    raw = np.frombuffer(data, dtype=np.uint8)
+    return bool(valid[raw >> 4].all() and valid[raw & 0x0F].all())
+
+
 def _indices_to_png(indices, width: int, height: int, preview_rotate: int = 0) -> bytes:
     """Render palette indices to a downscaled colour PNG using the calibrated RGB.
 

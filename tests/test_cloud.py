@@ -276,6 +276,7 @@ def test_removal_preserves_ownership_and_reports_failed_cleanup(delivery_module,
 def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypatch):
     import asyncio
     import time
+    from datetime import timezone
     from unittest.mock import AsyncMock, Mock
 
     class GenericStub:
@@ -291,6 +292,10 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
         "homeassistant.helpers.update_coordinator": {
             "DataUpdateCoordinator": GenericStub, "UpdateFailed": RuntimeError,
         },
+        "homeassistant.util": {
+            "dt": types.SimpleNamespace(get_default_time_zone=lambda: timezone.utc),
+        },
+        "homeassistant.helpers": {"issue_registry": Mock()},
     }
     for name, attributes in stubs.items():
         module = types.ModuleType(name)
@@ -303,14 +308,20 @@ def test_lan_refresh_invalidates_cached_cloud_fallback(delivery_module, monkeypa
         "battery_pct": 80, "settings": {"keepAwakeEnabled": True},
     })
     coordinator.config_entry = types.SimpleNamespace(
+        entry_id="frame",
         runtime_data=types.SimpleNamespace(
             power=None, cloud=types.SimpleNamespace(async_device=cloud_device),
         ),
     )
-    coordinator.client = types.SimpleNamespace(get_info=AsyncMock(side_effect=[
-        {"battery_pct": 80}, coordinator_module.FraimicConnectionError("asleep"),
-    ]))
+    coordinator.client = types.SimpleNamespace(
+        last_response=None, wrong_device=None,
+        get_info=AsyncMock(side_effect=[
+            {"battery_pct": 80}, coordinator_module.FraimicConnectionError("asleep"),
+        ]),
+    )
     coordinator._cloud_snapshot = (time.time(), {"battery": {"percent": 20}})
+    coordinator._cable_drain = None
+    coordinator._unsynced_polls, coordinator.ap_switches, coordinator._last_ap = 0, [], None
     coordinator._async_backfill_unique_id = Mock()
     coordinator._async_save_cache = AsyncMock()
 

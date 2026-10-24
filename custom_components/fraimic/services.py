@@ -11,6 +11,7 @@ import hashlib
 import logging
 import time
 from contextlib import nullcontext
+from typing import Any
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntryState
@@ -23,7 +24,13 @@ from homeassistant.core import (
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 
-from .api import FraimicConnectionError, FraimicError, FraimicTimeoutError
+from .api import (
+    FraimicApiError,
+    FraimicClient,
+    FraimicConnectionError,
+    FraimicError,
+    FraimicTimeoutError,
+)
 from .cloud import FraimicCloudError
 from .const import (
     ATTR_CAPTION,
@@ -361,6 +368,31 @@ UPDATE_ALBUM_SCHEMA = vol.Schema(
 )
 
 
+async def _async_confirm_album_update(
+    client: FraimicClient, album_id: str, payload: dict, reply_error: FraimicError
+) -> dict:
+    """Re-read an album after an unclear PUT reply; raise unless it changed."""
+    try:
+        albums = await client.get_albums()
+    except FraimicError as err:
+        raise HomeAssistantError(
+            f"Album update is unconfirmed ({reply_error}) and re-reading failed: {err}"
+        ) from err
+    album = next((a for a in albums if str(a.get("id")) == album_id), None)
+
+    def applied(key: str, value: Any) -> bool:
+        current = album.get(key) if album is not None else None
+        if isinstance(value, dict) and isinstance(current, dict):
+            return all(current.get(k) == v for k, v in value.items())
+        return current == value
+
+    if album is None or not all(applied(k, v) for k, v in payload.items()):
+        raise HomeAssistantError(
+            f"Album update failed ({reply_error}); the album is unchanged"
+        )
+    return album
+
+
 async def _async_handle_update_album(call: ServiceCall) -> ServiceResponse:
     """Handle ``fraimic.update_album`` (partial edit, cloud proxied).
 
@@ -406,8 +438,13 @@ async def _async_handle_update_album(call: ServiceCall) -> ServiceResponse:
 
     try:
         result = await client.update_album(album_id, payload)
-    except FraimicError as err:
+    except FraimicApiError as err:
         raise HomeAssistantError(f"Album update failed: {err}") from err
+    except FraimicError as err:
+        # A lost or garbled reply: the proxy has no transaction ID, so check
+        # whether the edit landed instead of retrying it.
+        entry.runtime_data.coordinator.expire_albums_cache()
+        result = await _async_confirm_album_update(client, album_id, payload, err)
     entry.runtime_data.coordinator.expire_albums_cache()
     if call.return_response:
         return {
@@ -901,6 +938,7 @@ async def async_convert_for_entry(
                 render_cache_key(cache_params),
                 entry,
                 _create,
+                resolution=(width, height),
             )
     if rendered is None:
         rendered = await _create()

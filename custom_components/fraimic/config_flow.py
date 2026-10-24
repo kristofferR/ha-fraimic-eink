@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 import logging
 from typing import Any
 
@@ -95,6 +96,23 @@ from .providers import PROVIDERS
 _LOGGER = logging.getLogger(__name__)
 
 
+def _stable_host(host: str, info: dict[str, Any]) -> str:
+    """Store the frame's own IP instead of an mDNS name.
+
+    Every stock frame claims ``fraimic.local`` (later ones become
+    ``fraimic-2.local`` and so on, by boot order), so these names don't
+    identify a frame, and IP-change rediscovery only runs for IP hosts.
+    """
+    name = host.lower().rstrip(".")
+    if name != "fraimic" and not name.endswith(".local"):
+        # An IP, an explicit port, or a DNS name the user chose to keep.
+        return host
+    try:
+        return str(ipaddress.IPv4Address((info.get("wifi") or {}).get("ip")))
+    except ValueError:
+        return host
+
+
 async def _async_probe(hass, host: str) -> dict[str, Any] | None:
     """Return the frame's normalized info, or ``None`` if unreachable."""
     client = FraimicClient(host, async_get_clientsession(hass))
@@ -125,6 +143,7 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
             if info is None:
                 errors["base"] = "cannot_connect"
             else:
+                host = _stable_host(host, info)
                 await self._async_set_unique_id(host, info)
                 self._host = host
                 self._info = info
@@ -141,7 +160,13 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_zeroconf(
         self, discovery_info: ZeroconfServiceInfo
     ) -> ConfigFlowResult:
-        """Handle a frame discovered via mDNS/zeroconf."""
+        """Handle a frame discovered via mDNS/zeroconf.
+
+        Stock firmware (0.2.28/0.2.29) registers only a hostname and no
+        service, so the manifest matcher never fires today. Kept for
+        firmware that advertises ``_http._tcp``; DHCP and the subnet sweep
+        find stock frames.
+        """
         host = normalize_host(discovery_info.host or str(discovery_info.ip_address))
         info = await _async_probe(self.hass, host)
         if info is None:
@@ -221,6 +246,7 @@ class FraimicConfigFlow(ConfigFlow, domain=DOMAIN):
             if info is None:
                 errors["base"] = "cannot_connect"
             else:
+                host = _stable_host(host, info)
                 probed = info.get("device_key") or info.get("device_id")
                 old_host = str(entry.data.get(CONF_HOST, "")).lower()
                 if probed and entry.unique_id not in (None, "", old_host, str(probed)):

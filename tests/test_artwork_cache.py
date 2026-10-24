@@ -13,6 +13,10 @@ from types import SimpleNamespace
 
 from conftest import load
 
+# A tiny all-white panel buffer: 4x4 pixels, two per byte.
+SIZE = (4, 4)
+PANEL = b"\x11" * 8
+
 
 class _ConfigEntryState:
     LOADED = object()
@@ -112,11 +116,11 @@ def test_source_and_render_survive_manager_restart(tmp_path, monkeypatch) -> Non
         async def render():
             nonlocal renders
             renders += 1
-            return b"panel", b"preview", "floyd_steinberg"
+            return PANEL, b"preview", "floyd_steinberg"
 
-        expected = b"panel", b"preview", "floyd_steinberg"
+        expected = PANEL, b"preview", "floyd_steinberg"
         assert await first.async_get_or_create_render(
-            "provider:x:1", "raw-hash", "variant", entry, render
+            "provider:x:1", "raw-hash", "variant", entry, render, resolution=SIZE
         ) == expected
 
         second = cache_mod.ArtworkCache(hass)
@@ -127,7 +131,7 @@ def test_source_and_render_survive_manager_restart(tmp_path, monkeypatch) -> Non
             == b"downloaded-once"
         )
         assert await second.async_get_or_create_render(
-            "provider:x:1", "raw-hash", "variant", entry, render
+            "provider:x:1", "raw-hash", "variant", entry, render, resolution=SIZE
         ) == expected
         assert renders == 1
 
@@ -212,11 +216,11 @@ def test_per_artwork_locks_are_released_when_idle(tmp_path, monkeypatch) -> None
             return b"source"
 
         async def render():
-            return b"panel", None, "auto"
+            return PANEL, None, "auto"
 
         await manager.async_get_or_fetch_source("provider:one", entry, fetch)
         await manager.async_get_or_create_render(
-            "provider:one", "digest", "variant", entry, render
+            "provider:one", "digest", "variant", entry, render, resolution=SIZE
         )
         gc.collect()
         assert not manager._locks
@@ -277,3 +281,33 @@ def test_cleanup_removes_expired_items_and_evicts_lru(tmp_path, monkeypatch) -> 
 
     assert not manager._item_dir("older").exists()
     assert manager._item_dir("fresh").exists()
+
+
+def test_damaged_cached_render_is_regenerated(tmp_path, monkeypatch) -> None:
+    cache_mod = _load_cache(monkeypatch)
+    entry = SimpleNamespace(
+        options={cache_mod.CONF_ARTWORK_CACHE: cache_mod.ARTWORK_CACHE_FOREVER}
+    )
+    manager = cache_mod.ArtworkCache(_Hass(tmp_path, [entry]))
+    renders = 0
+
+    async def render():
+        nonlocal renders
+        renders += 1
+        return PANEL, None, "auto"
+
+    async def run() -> None:
+        await manager.async_setup()
+        manager._last_cleanup = time.monotonic()
+        args = ("provider:x:1", "digest", "variant", entry, render)
+        await manager.async_get_or_create_render(*args, resolution=SIZE)
+        cached = manager._item_dir("provider:x:1") / "renders" / "digest_variant.bin"
+        for damaged in (PANEL[:-1], b"\x14" + PANEL[1:]):
+            cached.write_bytes(damaged)
+            assert await manager.async_get_or_create_render(
+                *args, resolution=SIZE
+            ) == (PANEL, None, "auto")
+            assert cached.read_bytes() == PANEL
+
+    asyncio.run(run())
+    assert renders == 3

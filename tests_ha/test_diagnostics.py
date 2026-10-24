@@ -38,6 +38,12 @@ async def test_diagnostics_redact_network_identifiers(
     assert result["logs"]["current"] == [
         "wifi: connected to **REDACTED**, ip **REDACTED**, mac **REDACTED**"
     ]
+    # Failover history names other access points and addresses.
+    assert result["network"] == {
+        "ap_switches_24h": 0,
+        "wifi_stats": ["Failover to", "**REDACTED** via **REDACTED**"],
+        "check_internet": {"reachable": False},
+    }
 
 
 async def test_diagnostics_scrub_credentials_from_frame_logs(

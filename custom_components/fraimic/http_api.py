@@ -23,7 +23,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 
-from .api import FraimicError
+from .api import FraimicError, command_error_message
 from .art_packs import ArtPackManager, ArtPackNotFoundError, get_pack_manager
 from .const import (
     CONF_HEIGHT,
@@ -1069,7 +1069,9 @@ class PlayerControlView(_FraimicView):
                 return self.json_message(
                     "Unknown player action", HTTPStatus.BAD_REQUEST
                 )
-        except (HomeAssistantError, FraimicError) as err:
+        except FraimicError as err:
+            return self.json_message(command_error_message(err), HTTPStatus.BAD_GATEWAY)
+        except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.BAD_GATEWAY)
         return self.json(_player_payload(request.app[KEY_HASS], entry))
 
