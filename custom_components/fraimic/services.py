@@ -1236,7 +1236,9 @@ async def async_render_and_upload(
                 # still being drawn. Wait it out; a newer send that arrived
                 # meanwhile replaces this one.
                 await runtime.client.wait_for_render()
-                if runtime.send_seq != send_seq:
+                if runtime.send_seq != send_seq or runtime.power.superseded(
+                    power_token, trigger
+                ):
                     return deferred_result(SKIP_COALESCED)
                 # The wait can outlast a temporary composition.
                 if (

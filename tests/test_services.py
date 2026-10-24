@@ -260,6 +260,9 @@ def test_accepted_delivery_updates_only_confirmed_display(
             raise services.FraimicTimeoutError("redraw response timed out")
 
     class Power:
+        def superseded(self, *_args: object) -> bool:
+            return False
+
         def __init__(self) -> None:
             self.recorded: list[tuple[str, str]] = []
 
@@ -337,6 +340,9 @@ def test_deferred_render_does_not_replace_displayed_preview(
         return b"packed", b"deferred-preview", "none"
 
     class Power:
+        def superseded(self, *_args: object) -> bool:
+            return False
+
         def begin(self, _trigger: str) -> object:
             return object()
 
@@ -387,6 +393,9 @@ def test_duplicate_render_refreshes_versioned_displayed_preview(
         return b"packed", b"fresh-preview", "none"
 
     class Power:
+        def superseded(self, *_args: object) -> bool:
+            return False
+
         def begin(self, _trigger: str) -> object:
             return object()
 
@@ -479,6 +488,7 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
         assert runtime.sending_preview == (b'preview', 'Artwork')
 
     power = SimpleNamespace(
+        superseded=Mock(return_value=False),
         begin=Mock(return_value=1), finish=Mock(),
         skip_reason=Mock(return_value='low_battery' if outcome == 'deferred' else None),
         async_record_upload=AsyncMock(), async_invalidate_display=AsyncMock(),
@@ -566,7 +576,9 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
         has_image=state == "pending", delivery_deadline=1_500, wake_interval=300,
         async_deliver=AsyncMock(),
     )
-    power = SimpleNamespace(begin=Mock(return_value=1), finish=Mock())
+    power = SimpleNamespace(
+        begin=Mock(return_value=1), finish=Mock(), superseded=Mock(return_value=False)
+    )
     runtime = SimpleNamespace(
         temporary_overlays=controller, scheduler=None, cloud=cloud, power=power,
         upload_lock=asyncio.Lock(), send_seq=0, sending_preview=None,
@@ -612,6 +624,7 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
         async_accept=AsyncMock(),
     )
     power = SimpleNamespace(
+        superseded=Mock(return_value=False),
         begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
         async_record_upload=AsyncMock(), schedule_sleep=Mock(),
     )
@@ -657,6 +670,7 @@ def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monke
     services = _load_services(monkeypatch)
     progress = {"completed": 1}
     power = SimpleNamespace(
+        superseded=Mock(return_value=False),
         last_hash=None, begin=Mock(return_value=1), finish=Mock(), schedule_sleep=Mock(),
     )
     power.skip_reason = lambda content_hash, *_: services.SKIP_DUPLICATE if power.last_hash == content_hash else None
@@ -717,6 +731,7 @@ def test_regular_send_recomposes_when_overlay_changes(monkeypatch, change_during
         signature=lambda *_: signature["value"],
     )
     power = SimpleNamespace(
+        superseded=Mock(return_value=False),
         begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
         async_record_upload=AsyncMock(), schedule_sleep=Mock(),
     )
@@ -838,6 +853,7 @@ def test_sends_behind_a_render_collapse_to_the_newest(monkeypatch, newer_manual)
 
     client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=wait_for_render)
     power = SimpleNamespace(
+        superseded=Mock(return_value=False),
         begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
         async_record_upload=AsyncMock(), schedule_sleep=Mock(),
     )

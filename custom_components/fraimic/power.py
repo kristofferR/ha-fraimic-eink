@@ -270,6 +270,10 @@ class FraimicPowerManager:
                 self._latest_automatic_priority = priority
         return token
 
+    def superseded(self, token: int, trigger: str) -> bool:
+        """Whether a newer automatic send has replaced this one since ``begin``."""
+        return trigger in AUTOMATIC_TRIGGERS and token != self._latest_automatic_token
+
     def finish(self, token: int) -> None:
         if token == self._latest_automatic_token:
             self._latest_automatic_token = None
@@ -299,7 +303,7 @@ class FraimicPowerManager:
         automatic = trigger in AUTOMATIC_TRIGGERS
         if not automatic:
             return None
-        if token != self._latest_automatic_token:
+        if self.superseded(token, trigger):
             return self._count_skip(SKIP_COALESCED)
 
         # Finish an accepted temporary display even after the battery drops.
