@@ -79,7 +79,7 @@ class FakeLibrary:
             filename=filename,
             content_type="image/png",
             uploaded_at=0.0,
-            albums=albums,
+            albums=albums or [library_model.LIBRARY_ALBUM_DEFAULT],
             creation=creation,
         )
         self.images[image_id] = image
@@ -106,7 +106,6 @@ def test_imports_voice_items_across_pages_and_skips_them_next_time():
     assert _run(library, fake).as_dict() == {"imported": 2, "skipped": 0, "failed": 0}
 
     first, second = library.images.values()
-    assert first.albums == ["Creations"]
     assert first.filename == "a lighthouse at dusk v1.png"
     assert first.creation.to_dict() == {
         "account_id": "user-1",

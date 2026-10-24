@@ -30,7 +30,6 @@ from .library_model import Creation, LibraryImage
 _LOGGER = logging.getLogger(__name__)
 
 VOICE_UPLOAD_TYPE = "audio"
-CREATIONS_ALBUM = "Creations"
 # Stops a gallery that keeps reporting ``has_next`` from looping forever.
 MAX_GALLERY_PAGES = 200
 _TITLE_CHARS = 60
@@ -112,7 +111,7 @@ def _suffix(content_type: str | None, url: str) -> str:
 async def async_import_creations(
     library: CreationLibrary, cloud: FraimicCloudClient
 ) -> ImportResult:
-    """Add every voice creation not yet in the library to the Creations album.
+    """Add every voice creation not yet in the library (the Creations folder).
 
     One item failing (expired URL that won't re-sign, not an image, ...) is
     counted and skipped. Each import is saved as it lands, so an interrupted
@@ -149,7 +148,6 @@ async def async_import_creations(
                     await library.async_add_image(
                         body,
                         creation_filename(creation, content_type, url),
-                        albums=[CREATIONS_ALBUM],
                         creation=creation,
                     )
                 except FraimicCloudAuthError:

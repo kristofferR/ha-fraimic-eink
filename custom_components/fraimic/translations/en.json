@@ -771,7 +771,7 @@
     },
     "import_creations": {
       "name": "Import voice creations",
-      "description": "Copy the artwork you created by voice from your Fraimic account into the library's Creations album, with its transcript and style. Repeat runs only add new creations.",
+      "description": "Copy the artwork you created by voice from your Fraimic account into the library's Creations folder, with its transcript and style. Repeat runs only add new creations.",
       "fields": {
         "config_entry_id": {
           "name": "Frame",

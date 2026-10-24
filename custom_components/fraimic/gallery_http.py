@@ -360,6 +360,8 @@ def library_folder_images(
     if browse_id == "uploads":
         upload_ids = _upload_ids(hass, library)
         return "Uploads", [image for image in images if image.image_id in upload_ids]
+    if browse_id == "creations":
+        return "Creations", [image for image in images if image.creation]
     if browse_id.startswith("album:"):
         album = browse_id.removeprefix("album:").strip()
         return album or "All pictures", [
@@ -386,6 +388,11 @@ def _library_folders(
         {"id": "", "title": "All pictures", "count": len(images)},
         {"id": "favorites", "title": "Favorites", "count": favorite_count},
         {"id": "uploads", "title": "Uploads", "count": len(upload_ids)},
+        {
+            "id": "creations",
+            "title": "Creations",
+            "count": sum(image.creation is not None for image in images),
+        },
         *[
             {"id": f"album:{name}", "title": name, "count": count}
             for name, count in sorted(

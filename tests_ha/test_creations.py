@@ -19,6 +19,7 @@ from custom_components.fraimic.const import (
     CONF_CLOUD_EMAIL,
     CONF_CLOUD_PASSWORD,
     DOMAIN,
+    LIBRARY_ALBUM_DEFAULT,
     LIBRARY_DIR,
 )
 from custom_components.fraimic.library import get_library
@@ -89,7 +90,7 @@ async def test_import_adds_creations_once_without_showing_them(
     library = get_library(hass)
     assert library is not None
     (image,) = library.images.values()
-    assert image.albums == ["Creations"]
+    assert image.normalized_albums() == [LIBRARY_ALBUM_DEFAULT]
     assert (image.width, image.height) == (12, 16)
     assert image.creation is not None and image.creation.style == "Watercolor"
     data, _ = await library.async_get_original(image.image_id)

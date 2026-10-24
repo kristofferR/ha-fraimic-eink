@@ -93,7 +93,7 @@ Heart an image to keep it in **Favorites**.
 
 Pictures you made by voice with the Fraimic app can be copied into the library
 with the `fraimic.import_creations` action. It signs in with the Fraimic account
-saved in a frame's options and adds each voice creation to a **Creations** album,
+saved in a frame's options and adds each voice creation to the **Creations** folder,
 keeping its transcript, style and creation date (shown in **Picture details**).
 The originals are stored locally, so they keep working after the Fraimic links
 expire or the frame stops using the Fraimic cloud. Run the import while the

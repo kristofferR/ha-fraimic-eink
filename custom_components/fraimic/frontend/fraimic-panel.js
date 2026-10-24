@@ -1073,7 +1073,7 @@ class FraimicPanel extends HTMLElement {
     if (!children) return this._sourceTreeLoading.has(parentKey)
       ? `<div class="source-option" aria-live="polite"><span>Loading…</span></div>` : "";
     return children.map((child) => {
-      if (source.key === "saved" && ["favorites", "uploads"].includes(child.id)) return "";
+      if (source.key === "saved" && ["favorites", "uploads", "creations"].includes(child.id)) return "";
       const childId = child.id || "";
       const childKey = this._sourceNodeKey(source.key, childId);
       const childMeta = this._sourceNodeMeta.get(childKey);
@@ -1093,6 +1093,8 @@ class FraimicPanel extends HTMLElement {
     const favoritesCount = this._sourceChildren.get(this._sourceNodeKey("saved"))?.find((child) => child.id === "favorites")?.count;
     const uploadsCount = this._sourceChildren.get(this._sourceNodeKey("saved"))?.find((child) => child.id === "uploads")?.count;
     const viewingUploads = this._selectedSource === "saved" && this._selectedBrowseId === "uploads";
+    const creationsCount = this._sourceChildren.get(this._sourceNodeKey("saved"))?.find((child) => child.id === "creations")?.count;
+    const viewingCreations = this._selectedSource === "saved" && this._selectedBrowseId === "creations";
     const trees = this._orderedSources().map((source) => {
       const status = this._sourceStatus.get(source.key)?.status;
       const warning = status === "error" ? `<ha-icon icon="mdi:alert-circle-outline" title="Source unavailable"></ha-icon>` : "";
@@ -1114,6 +1116,7 @@ class FraimicPanel extends HTMLElement {
       <div class="source-group"><div class="source-group-label">Sources</div>
         <div class="source-tree-row"><span class="source-grip"></span><span class="source-expand-placeholder"></span><button class="source-option favorites${this._viewingFavorites ? " selected" : ""}" data-source-node="saved" data-browse-id="favorites" data-source-title="Favorites" aria-current="${this._viewingFavorites ? "true" : "false"}"><ha-icon icon="mdi:heart"></ha-icon><span>Favorites</span>${favoritesCount == null ? "" : `<span class="source-meta">${favoritesCount}</span>`}</button></div>
         <div class="source-tree-row"><span class="source-grip"></span><span class="source-expand-placeholder"></span><button class="source-option${viewingUploads ? " selected" : ""}" data-source-node="saved" data-browse-id="uploads" data-source-title="Uploads" aria-current="${viewingUploads ? "true" : "false"}"><ha-icon icon="mdi:folder-upload-outline"></ha-icon><span>Uploads</span>${uploadsCount == null ? "" : `<span class="source-meta">${uploadsCount}</span>`}</button></div>
+        ${creationsCount ? `<div class="source-tree-row"><span class="source-grip"></span><span class="source-expand-placeholder"></span><button class="source-option${viewingCreations ? " selected" : ""}" data-source-node="saved" data-browse-id="creations" data-source-title="Creations" aria-current="${viewingCreations ? "true" : "false"}"><ha-icon icon="mdi:creation"></ha-icon><span>Creations</span><span class="source-meta">${creationsCount}</span></button></div>` : ""}
         <div class="source-tree-row"><span class="source-grip"></span><span class="source-expand-placeholder"></span><button class="source-option${this._selectedSource === "all" ? " selected" : ""}" data-source="all" aria-current="${this._selectedSource === "all" ? "true" : "false"}"><ha-icon icon="mdi:view-grid-outline"></ha-icon><span>All sources</span><span class="source-meta">${available}</span></button></div>
         ${trees}
       </div>

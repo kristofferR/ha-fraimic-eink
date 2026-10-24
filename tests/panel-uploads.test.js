@@ -79,3 +79,14 @@ test("Uploads is a top-level folder even with My library collapsed", () => {
   expect(html).toContain('data-browse-id="uploads" data-source-title="Uploads" aria-current="true"');
   expect(html).toContain('<span>Uploads</span><span class="source-meta">2</span>');
 });
+
+test("Creations sits below Uploads once there are any", () => {
+  const { panel } = harness();
+  const key = panel._sourceNodeKey("saved");
+  panel._sourceChildren.set(key, [{ id: "uploads", title: "Uploads", count: 2 }, { id: "creations", title: "Creations", count: 0 }]);
+  expect(panel._sourceRailTemplate()).not.toContain('data-browse-id="creations"');
+  panel._sourceChildren.set(key, [{ id: "uploads", title: "Uploads", count: 2 }, { id: "creations", title: "Creations", count: 3 }]);
+  const html = panel._sourceRailTemplate();
+  expect(html.indexOf('data-browse-id="creations"')).toBeGreaterThan(html.indexOf('data-browse-id="uploads"'));
+  expect(html).toContain('<span>Creations</span><span class="source-meta">3</span>');
+});

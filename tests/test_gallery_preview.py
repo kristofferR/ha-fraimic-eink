@@ -263,13 +263,19 @@ def test_uploads_folder_count_search_and_pagination(gallery, monkeypatch):
             source_url="https://museum.example/art",
         ),
         "pack": model.LibraryImage("pack", "photo-pack.jpg", "image/jpeg", 4),
+        "voice": model.LibraryImage(
+            "voice", "photo-voice.png", "image/png", 5,
+            creation=model.Creation(account_id="a", upload_id="u"),
+        ),
     }
     library = SimpleNamespace(images=images)
     manager = SimpleNamespace(installed={"art": {"images": {"https://art.example/image": "pack"}}})
     monkeypatch.setattr(gallery, "get_pack_manager", lambda _: manager)
     upload_ids = gallery._upload_ids(None, library)
-    uploads = next(folder for folder in gallery._library_folders(library, upload_ids) if folder["id"] == "uploads")
-    assert uploads == {"id": "uploads", "title": "Uploads", "count": 2}
+    folders = {folder["id"]: folder for folder in gallery._library_folders(library, upload_ids)}
+    assert folders["uploads"] == {"id": "uploads", "title": "Uploads", "count": 2}
+    assert folders["creations"] == {"id": "creations", "title": "Creations", "count": 1}
+    assert gallery.library_folder_images(None, library, "creations") == ("Creations", [images["voice"]])
     monkeypatch.setattr(gallery, "_library", lambda _: library)
     entry = SimpleNamespace(runtime_data=SimpleNamespace(scheduler=SimpleNamespace(
         queued_slides=[], screens=[], playlist_up_next=lambda **_: [], current_screen=None,
