@@ -446,7 +446,7 @@ preview outside the Fraimic sidebar.
 ## Artwork sources
 
 Keyless sources include The Met, Art Institute of Chicago, Cleveland Museum of
-Art, SMK, Nasjonalmuseet/DigitaltMuseum, Smithsonian, Wellcome, Reframed, Wallhaven,
+Art, SMK, Smithsonian, Wellcome, Reframed, Wallhaven,
 Wikimedia picture of the day, Bing, NASA APOD, NASA Image Library, and Lorem Picsum.
 `shuffle` selects a random museum source.
 

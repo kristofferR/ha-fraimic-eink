@@ -59,7 +59,6 @@ SOURCE_GROUPS = {
     "aic": "collections",
     "cleveland": "collections",
     "smk": "collections",
-    "dimu": "collections",
     "reframed": "collections",
     "smithsonian": "collections",
     "wellcome": "collections",

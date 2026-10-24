@@ -29,7 +29,6 @@ apod = load("providers.apod")
 smk = load("providers.smk")
 nasa = load("providers.nasa")
 smithsonian = load("providers.smithsonian")
-dimu = load("providers.dimu")
 wellcome = load("providers.wellcome")
 reframed = load("providers.reframed")
 wallhaven = load("providers.wallhaven")
@@ -86,10 +85,6 @@ def test_cleveland_searches_all_open_access_paintings() -> None:
     search_url = cleveland.ClevelandProvider._list_url("Georgia O'Keeffe")
     assert "highlight=1" not in search_url
     assert "q=Georgia+O%27Keeffe" in search_url
-
-
-def test_dimu_quotes_user_queries_as_literal_solr_text() -> None:
-    assert dimu._solr_query('Munch: title OR "x"') == ('"Munch: title OR \\"x\\""')
 
 
 def test_parse_wikimedia_potd_prefers_sized_thumb() -> None:
@@ -194,60 +189,6 @@ def test_parse_smithsonian_row_without_cc0_media_is_rejected() -> None:
         entry["usage"] = {"access": "Usage conditions apply"}
     assert smithsonian.parse_smithsonian_row(row) is None
 
-
-def test_parse_dimu_doc() -> None:
-    doc = _fixture("dimu_search.json")["response"]["docs"][0]
-    candidate = dimu.parse_dimu_doc(doc)
-    assert candidate is not None
-    assert candidate.item_id == doc["artifact.uuid"]
-    # High-bitrate 1200x1200 tier (dimension=max serves the same pixels at a
-    # fraction of the quality — verified live).
-    assert candidate.image_url.startswith("https://dms01.dimu.org/image/")
-    assert "dimension=1200x1200" in candidate.image_url
-    assert candidate.title == "Gran"  # " [Maleri]" suffix stripped
-    assert candidate.artist == "Erling Enger"  # surname-first flipped
-    assert "Nasjonalmuseet" in candidate.attribution
-
-
-def test_parse_dimu_doc_without_media_is_rejected() -> None:
-    doc = dict(_fixture("dimu_search.json")["response"]["docs"][0])
-    doc.pop("artifact.defaultMediaIdentifier")
-    assert dimu.parse_dimu_doc(doc) is None
-
-
-def test_dimu_candidates_use_server_side_random_sort(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    session = FakeSession()
-    session.add(dimu.SEARCH_URL, FakeResponse(payload=_fixture("dimu_search.json")))
-    monkeypatch.setattr(dimu.random, "randrange", lambda stop: 4711)
-    provider = dimu.DimuProvider()
-    provider.min_interval = 0
-
-    candidates = _run(
-        provider.async_candidates(session, cache_mod.ProviderCache(), REQUEST, 2)
-    )
-
-    assert len(candidates) == 2
-    params = session.calls[0]["params"]
-    assert params["sort"] == "random_4711 asc"
-    assert params["api.key"] == dimu.DEMO_KEY
-    assert "identifier.owner:NMK-B" in params["fq"]  # zero-query default pool
-
-
-def test_dimu_query_searches_all_fine_art() -> None:
-    session = FakeSession()
-    session.add(dimu.SEARCH_URL, FakeResponse(payload=_fixture("dimu_search.json")))
-    provider = dimu.DimuProvider()
-    provider.min_interval = 0
-    request = base.FetchRequest(target_width=1600, target_height=1200, query="Munch")
-
-    _run(provider.async_candidates(session, cache_mod.ProviderCache(), request, 2))
-
-    params = session.calls[0]["params"]
-    assert params["q"] == '"Munch"'
-    assert "artifact.type:Fineart" in params["fq"]
-    assert not any("NMK" in f for f in params["fq"])
 
 
 def test_parse_wellcome_image() -> None:

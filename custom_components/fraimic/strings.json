@@ -467,7 +467,7 @@
         },
         "query": {
           "name": "Search query",
-          "description": "Keyword for searchable sources such as Wallhaven, NASA, Smithsonian, Wellcome, DigitaltMuseum, Unsplash, and Pexels."
+          "description": "Keyword for searchable sources such as Wallhaven, NASA, Smithsonian, Wellcome, Unsplash, and Pexels."
         },
         "caption": {
           "name": "Caption",

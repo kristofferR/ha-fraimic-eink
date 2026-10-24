@@ -165,12 +165,14 @@ class FraimicNewArtworkButton(FraimicEntity, ButtonEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_new_artwork"
 
     async def async_press(self) -> None:
-        from .const import CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE
+        from .const import CONF_DEFAULT_PROVIDER, PROVIDER_KEYS, PROVIDER_SHUFFLE
         from .render.display import async_show_screen
         from .render.schema import SCREEN_SCHEMA, screen_from_dict
 
         entry = self.coordinator.config_entry
         provider = entry.options.get(CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE)
+        if provider not in PROVIDER_KEYS:  # a since-retired source
+            provider = PROVIDER_SHUFFLE
         stopper = entry.runtime_data.stop_camera_loop
         if stopper is not None:
             stopper()

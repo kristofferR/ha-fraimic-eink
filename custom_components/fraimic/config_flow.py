@@ -505,7 +505,11 @@ class FraimicOptionsFlow(OptionsFlow):
                     # (leave a key empty to disable that provider).
                     vol.Required(
                         CONF_DEFAULT_PROVIDER,
-                        default=o.get(CONF_DEFAULT_PROVIDER, PROVIDER_SHUFFLE),
+                        default=(
+                            o.get(CONF_DEFAULT_PROVIDER)
+                            if o.get(CONF_DEFAULT_PROVIDER) in PROVIDER_KEYS
+                            else PROVIDER_SHUFFLE  # unset or a retired source
+                        ),
                     ): vol.In((PROVIDER_SHUFFLE, *PROVIDER_KEYS)),
                     vol.Optional(
                         CONF_NASA_API_KEY,
