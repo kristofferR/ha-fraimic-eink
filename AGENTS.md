@@ -87,7 +87,8 @@ Hardware quirks the code accounts for:
   sleep/restart. After an accepted upload or refresh the client waits
   `RENDER_SETTLE_STANDARD`/`_LARGE` (60/90 s) before the next upload, sleep,
   restart or refresh (buttons included). LAN sends that queue behind it
-  collapse to the newest (`runtime.send_seq`, `SKIP_COALESCED`).
+  collapse to the newest user-initiated one (`runtime.send_seq`,
+  `SKIP_COALESCED`); automatic sends never replace a waiting one.
 - One HTTP task with blocking handlers serves every client, so polls, probes
   and on-demand `/info`/`/logs`/album fetches skip the frame while
   `upload_lock` is held (`coordinator.frame_busy`).

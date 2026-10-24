@@ -825,7 +825,8 @@ def test_only_accepted_expired_overlay_bypasses_low_battery(
         assert result["skip_reason"] == power_module.SKIP_LOW_BATTERY
 
 
-def test_sends_behind_a_render_collapse_to_the_newest(monkeypatch):
+@pytest.mark.parametrize("newer_manual", [True, False])
+def test_sends_behind_a_render_collapse_to_the_newest(monkeypatch, newer_manual):
     """A second upload mid-render would overwrite the bytes still being drawn."""
     from unittest.mock import AsyncMock, Mock
 
@@ -848,22 +849,32 @@ def test_sends_behind_a_render_collapse_to_the_newest(monkeypatch):
     monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
     entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
 
-    def send(art: bytes):
+    def send(art: bytes, trigger: str = services.TRIGGER_MANUAL):
         return services.async_render_and_upload(
             SimpleNamespace(), entry, b"", hold_playlist=False,
-            rendered=(art, b"png", "none"),
+            rendered=(art, b"png", "none"), trigger=trigger,
         )
 
     async def run():
         first = asyncio.create_task(send(b"first"))
         await asyncio.sleep(0)
-        second = asyncio.create_task(send(b"second"))
+        # An automatic send could still be refused by the power policy, so it
+        # never replaces a waiting manual one.
+        camera = asyncio.create_task(send(b"camera", "camera"))
+        await asyncio.sleep(0)
+        second = asyncio.create_task(send(b"second")) if newer_manual else None
         await asyncio.sleep(0)
         rendered.set()
-        return await first, await second
+        return await first, await camera, (await second) if second else None
 
-    first, second = asyncio.run(run())
+    first, camera, second = asyncio.run(run())
 
-    assert first["skip_reason"] == services.SKIP_COALESCED
-    assert second["uploaded"] is True
-    client.upload_image.assert_awaited_once_with(b"second")
+    if newer_manual:
+        assert first["skip_reason"] == camera["skip_reason"] == services.SKIP_COALESCED
+        assert second["uploaded"] is True
+        client.upload_image.assert_awaited_once_with(b"second")
+    else:
+        assert first["uploaded"] is camera["uploaded"] is True
+        assert [c.args[0] for c in client.upload_image.await_args_list] == [
+            b"first", b"camera",
+        ]
