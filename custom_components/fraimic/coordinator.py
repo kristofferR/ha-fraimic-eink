@@ -105,6 +105,9 @@ class FraimicRuntimeData:
         self.cloud: Any = None
         # Serialize uploads; the frame can only process one long refresh.
         self.upload_lock = asyncio.Lock()
+        # Incremented per send; a send that waited for a render and sees a
+        # newer number drops out so the newest content wins.
+        self.send_seq = 0
         # Set by the media player so enabling playlists can stop camera loops.
         self.stop_camera_loop: Any = None
         # Attribution info for online artwork currently on the frame

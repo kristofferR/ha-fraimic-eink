@@ -227,7 +227,7 @@ def test_experimental_auto_sleep_obeys_safe_guards(
         ),
         upload_lock=asyncio.Lock(),
         send_queue=SimpleNamespace(pending=None),
-        client=SimpleNamespace(sleep=sleep_frame),
+        client=SimpleNamespace(sleep=sleep_frame, wait_for_render=AsyncMock()),
     )
     manager = power.FraimicPowerManager(SimpleNamespace(), entry)
     monkeypatch.setattr(power.asyncio, "sleep", no_delay)
@@ -324,3 +324,14 @@ def test_expired_overlay_restores_once_below_low_battery_threshold():
     assert manager.skip_reason("new brief", power.TRIGGER_OVERLAY, token, data) == power.SKIP_LOW_BATTERY
     manager.begin(power.TRIGGER_OVERLAY)
     assert manager.skip_reason("other", trigger, token, data) == power.SKIP_COALESCED
+
+
+def test_newer_automatic_send_supersedes_a_waiting_one() -> None:
+    """Checked again after a render wait, since skip_reason ran before it."""
+    manager = _manager()
+    camera = manager.begin(power.TRIGGER_CAMERA)
+    assert not manager.superseded(camera, power.TRIGGER_CAMERA)
+    manager.begin(power.TRIGGER_SCHEDULED)
+    assert manager.superseded(camera, power.TRIGGER_CAMERA)
+    # User sends are never coalesced by the power policy.
+    assert not manager.superseded(camera, power.TRIGGER_MANUAL)

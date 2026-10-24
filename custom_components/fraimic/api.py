@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import aiohttp
@@ -19,6 +19,9 @@ from .const import (
     LARGE_FRAME_BIN_SIZE,
     LARGE_FRAME_UPLOAD_TIMEOUT,
     MAX_BIN_SIZE,
+    RENDER_SETTLE_LARGE,
+    RENDER_SETTLE_STANDARD,
+    SLOW_UPLOAD_REPLY,
     UPLOAD_TIMEOUT,
 )
 
@@ -153,6 +156,14 @@ class FraimicClient:
         # bodies: a short one is cached as last_image.bin and drawn with a
         # stale tail, or not at all, while the reply still says "rendering".
         self.bin_size = bin_size
+        # Until when an accepted upload or refresh may still be drawing.
+        # Uploads, sleep, restart and refresh wait for it: the firmware
+        # neither protects the buffer being drawn nor joins the render.
+        self.render_busy_until = 0.0
+        self._command_lock = asyncio.Lock()
+        self._render_settle = (
+            RENDER_SETTLE_LARGE if bin_size == LARGE_FRAME_BIN_SIZE else RENDER_SETTLE_STANDARD
+        )
         # Uploads go to POST /api/image (octet-stream) when the coordinator has
         # confirmed a firmware that supports it, else multipart /upload. False
         # until the first successful poll (e.g. frame asleep at startup).
@@ -178,6 +189,17 @@ class FraimicClient:
     def host(self) -> str:
         """Return the normalized host."""
         return self._host
+
+    def mark_rendering(self) -> None:
+        """Note that the panel may be drawing from now on."""
+        self.render_busy_until = time.time() + self._render_settle
+
+    async def wait_for_render(self) -> None:
+        """Sleep until a previous upload's render has had time to finish."""
+        delay = self.render_busy_until - time.time()
+        if delay > 0:
+            _LOGGER.debug("Waiting %.0f s for %s to finish drawing", delay, self._host)
+            await asyncio.sleep(delay)
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> aiohttp.ClientResponse:
         if self.wrong_device is not None and path != "/api/info":
@@ -353,8 +375,10 @@ class FraimicClient:
         return await self._json("GET", "/api/battery")
 
     async def restart(self) -> dict[str, Any]:
-        """Reboot the frame (``POST /api/restart``)."""
-        return await self._json("POST", "/api/restart")
+        """Reboot the frame (``POST /api/restart``), after any render ends."""
+        async with self._command_lock:
+            await self.wait_for_render()
+            return await self._json("POST", "/api/restart")
 
     async def sleep(self) -> dict[str, Any]:
         """Request deep sleep (``POST /api/sleep``).
@@ -362,17 +386,25 @@ class FraimicClient:
         Blocked while a charging cable is connected; the frame then responds
         with ``{"error": "charging_cable_connected"}``. A ``sleeping`` reply
         only queues the request: the main loop re-checks the cable and can
-        decline, and a pending OTA may install first.
+        decline, and a pending OTA may install first. Waits for any render to
+        end first: the pre-sleep routine powers the panel off mid-draw.
         """
-        return await self._json("POST", "/api/sleep")
+        async with self._command_lock:
+            await self.wait_for_render()
+            return await self._json("POST", "/api/sleep")
 
     async def refresh(self) -> dict[str, Any]:
         """Trigger a full E-Ink refresh cycle (``POST /api/refresh``).
 
         Large firmware answers 409 ``device_busy`` during a voice recording
-        or an LED workflow; Standard 0.2.28 has no such guard.
+        or an LED workflow; Standard 0.2.28 has no such guard, so this waits
+        for any render HA started to end first.
         """
-        return await self._json("POST", "/api/refresh")
+        async with self._command_lock:
+            await self.wait_for_render()
+            result = await self._json("POST", "/api/refresh")
+            self.mark_rendering()
+            return result
 
     async def upload_image(
         self, data: bytes, *, refresh: bool = False, recover: bool = True
@@ -414,12 +446,12 @@ class FraimicClient:
 
         attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
         try:
-            await attempt(data)
-        except (FraimicTimeoutError, FraimicWrongDeviceError):
-            # The frame may have accepted the image and be mid-redraw with the
-            # response blocked — a restart+retry here could double-redraw the
-            # panel. Surface the timeout instead; callers decide what it means.
+            await self._timed_attempt(attempt, data)
+        except FraimicWrongDeviceError:
             # Never restart a frame that isn't this entry's.
+            raise
+        except FraimicTimeoutError:
+            # The image may already be drawing; never retry an upload timeout.
             raise
         except FraimicConnectionError:
             if not recover:
@@ -434,7 +466,7 @@ class FraimicClient:
             )
             await self.restart()
             await self._wait_reachable()
-            await attempt(data)
+            await self._timed_attempt(attempt, data)
 
         if refresh:
             # A refresh failure is non-fatal (the image is already buffered), but
@@ -443,6 +475,39 @@ class FraimicClient:
                 await self.refresh()
             except FraimicError as err:
                 _LOGGER.warning("Image uploaded but display refresh failed: %s", err)
+
+    async def _timed_attempt(
+        self, attempt: Callable[[bytes], Awaitable[None]], data: bytes
+    ) -> None:
+        # Keep the request and render-state update atomic with other commands.
+        # Recheck the deadline under the lock: another waiter may start a draw.
+        async with self._command_lock:
+            await self.wait_for_render()
+            started = time.monotonic()
+            try:
+                await attempt(data)
+            except (asyncio.CancelledError, FraimicTimeoutError):
+                # The frame may have accepted the image before the reply was
+                # interrupted. Do not interrupt that draw or retry a timeout.
+                self.mark_rendering()
+                raise
+            except FraimicConnectionError as err:
+                # A disconnect after connecting may hide an accepted upload,
+                # including on the recovery attempt or with recovery disabled.
+                if not isinstance(err, FraimicWrongDeviceError) and not isinstance(
+                    err.__cause__, aiohttp.ClientConnectorError
+                ):
+                    self.mark_rendering()
+                raise
+            self.mark_rendering()
+        elapsed = time.monotonic() - started
+        if elapsed > SLOW_UPLOAD_REPLY:
+            _LOGGER.warning(
+                "%s took %.0f s to accept an upload; a previous render was "
+                "probably still running",
+                self._host,
+                elapsed,
+            )
 
     async def _do_upload_api_image(self, data: bytes) -> None:
         """One ``POST /api/image`` attempt (firmware >= 0.2.28).

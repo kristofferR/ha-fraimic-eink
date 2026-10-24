@@ -92,7 +92,7 @@ from .delivery import async_use_cloud
 from .image_convert import convert_image
 from .library import get_library
 from .power import (
-    DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL,
+    AUTOMATIC_TRIGGERS, DEFER_REASONS, SKIP_COALESCED, SKIP_DUPLICATE, TRIGGER_MANUAL,
     TRIGGER_OVERLAY, TRIGGER_OVERLAY_RESTORE,
 )
 from .render.display import async_show_screen
@@ -1003,6 +1003,13 @@ async def async_render_and_upload(
         )
     scheduler = begin_external_upload(entry) if hold_playlist else None
     power_token = runtime.power.begin(trigger)
+    # Sends that queue behind a render collapse to the newest requested one.
+    # Only user-initiated sends replace others: an automatic send can still
+    # be refused by the power policy, and the power manager already coalesces
+    # those among themselves. An overlay refresh redraws the accepted base.
+    if not overlay_refresh and trigger not in AUTOMATIC_TRIGGERS:
+        runtime.send_seq += 1
+    send_seq = runtime.send_seq
     uploaded = False
     sending_preview = None
     overlay_controller = getattr(runtime, "temporary_overlays", None)
@@ -1224,6 +1231,23 @@ async def async_render_and_upload(
                     "displayed": reason == SKIP_DUPLICATE,
                 }
 
+            if not use_cloud:
+                # A LAN upload during the previous render overwrites the bytes
+                # still being drawn. Wait it out; a newer send that arrived
+                # meanwhile replaces this one.
+                await runtime.client.wait_for_render()
+                if runtime.send_seq != send_seq or runtime.power.superseded(
+                    power_token, trigger
+                ):
+                    return deferred_result(SKIP_COALESCED)
+                # The wait can outlast a temporary composition.
+                if (
+                    snapshot_deadline is not None
+                    and time.time() + LOCAL_REDRAW_SECONDS >= snapshot_deadline
+                ):
+                    if overlay_refresh:
+                        return deferred_result("briefing_expired")
+                    use_clean_artwork()
             if preview_png:
                 sending_preview = (preview_png, title or "Artwork")
                 runtime.sending_preview = sending_preview
