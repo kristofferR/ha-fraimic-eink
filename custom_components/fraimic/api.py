@@ -453,20 +453,17 @@ class FraimicClient:
         except FraimicTimeoutError:
             # The image may already be drawing; never retry an upload timeout.
             raise
-        except FraimicConnectionError as err:
+        except FraimicConnectionError:
             if not recover:
                 raise
             # The wedge only affects uploads; if the whole frame is down (deep
             # sleep), the restart below fails the same way and we re-raise.
-            # Only a failure after connecting may have started a render.
             _LOGGER.warning(
                 "Upload to %s failed at the connection level — the frame's "
                 "upload handler may be wedged; restarting the frame and "
                 "retrying once",
                 self._host,
             )
-            if not isinstance(err.__cause__, aiohttp.ClientConnectorError):
-                self.mark_rendering()
             await self.restart()
             await self._wait_reachable()
             await self._timed_attempt(attempt, data)
@@ -493,6 +490,14 @@ class FraimicClient:
                 # The frame may have accepted the image before the reply was
                 # interrupted. Do not interrupt that draw or retry a timeout.
                 self.mark_rendering()
+                raise
+            except FraimicConnectionError as err:
+                # A disconnect after connecting may hide an accepted upload,
+                # including on the recovery attempt or with recovery disabled.
+                if not isinstance(err, FraimicWrongDeviceError) and not isinstance(
+                    err.__cause__, aiohttp.ClientConnectorError
+                ):
+                    self.mark_rendering()
                 raise
             self.mark_rendering()
         elapsed = time.monotonic() - started

@@ -302,6 +302,54 @@ def test_upload_recovery_waits_only_if_the_body_may_have_been_sent(monkeypatch, 
 
 
 @pytest.mark.parametrize("recovery", [False, True])
+@pytest.mark.parametrize("connected", [False, True])
+def test_disconnected_upload_protects_the_possible_render(monkeypatch, recovery, connected):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    clock = {"now": 1000.0}
+    waits = []
+    monkeypatch.setattr(api.time, "time", lambda: clock["now"])
+
+    async def fake_sleep(seconds):
+        waits.append(seconds)
+        clock["now"] += seconds
+
+    monkeypatch.setattr(api.asyncio, "sleep", fake_sleep)
+    reset = api.aiohttp.ClientConnectionError("connection reset")
+    if connected:
+        error = reset
+    else:
+        key = types.SimpleNamespace(host="192.0.2.1", port=80, ssl=False)
+        error = api.aiohttp.ClientConnectorError(key, OSError("connection refused"))
+    # In recovery mode the first reset waits out its render before restarting;
+    # a second disconnect must establish a fresh deadline after that wait.
+    responses = ([reset, _Reply({"status": "ok"})] if recovery else []) + [
+        error, _Reply({"status": "ok"})
+    ]
+    request = AsyncMock(side_effect=responses)
+    client = api.FraimicClient("192.0.2.1", types.SimpleNamespace(request=request), bin_size=4)
+    client.prefer_api_image = True
+    client._wait_reachable = AsyncMock()
+
+    async def run():
+        with pytest.raises(api.FraimicConnectionError):
+            await client.upload_image(b"1234", recover=recovery)
+        assert waits == ([60] if recovery else [])
+        assert client.render_busy_until == (
+            clock["now"] + 60 if connected else (1060 if recovery else 0)
+        )
+        assert not client._command_lock.locked()
+        await client.sleep()
+
+    asyncio.run(run())
+    assert waits == ([60] if recovery else []) + ([60] if connected else [])
+    assert [call.args[1] for call in request.call_args_list] == (
+        ["http://192.0.2.1/api/image", "http://192.0.2.1/api/restart"] if recovery else []
+    ) + ["http://192.0.2.1/api/image", "http://192.0.2.1/api/sleep"]
+
+
+@pytest.mark.parametrize("recovery", [False, True])
 @pytest.mark.parametrize("interruption", ["cancel", "timeout"])
 def test_interrupted_upload_protects_the_possible_render(
     monkeypatch, recovery, interruption
