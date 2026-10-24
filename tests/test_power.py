@@ -227,7 +227,7 @@ def test_experimental_auto_sleep_obeys_safe_guards(
         ),
         upload_lock=asyncio.Lock(),
         send_queue=SimpleNamespace(pending=None),
-        client=SimpleNamespace(sleep=sleep_frame),
+        client=SimpleNamespace(sleep=sleep_frame, wait_for_render=AsyncMock()),
     )
     manager = power.FraimicPowerManager(SimpleNamespace(), entry)
     monkeypatch.setattr(power.asyncio, "sleep", no_delay)

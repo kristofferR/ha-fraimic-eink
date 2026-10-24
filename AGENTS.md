@@ -80,7 +80,14 @@ Hardware quirks the code accounts for:
   rejected body briefly wedges the HTTP server (firmware 0.2.21 wedged hard,
   which is why older firmware stays on `/upload`).
 - `upload_image(recover=True)` restarts + retries once on connection-level
-  failure (firmware upload-handler wedge).
+  failure (firmware upload-handler wedge), after the failed attempt's
+  render window.
+- Render-busy window: the reply comes when the render task starts, and the
+  firmware neither guards the buffer being drawn nor joins the render on
+  sleep/restart. After an accepted upload or refresh the client waits
+  `RENDER_SETTLE_STANDARD`/`_LARGE` (60/90 s) before the next upload, sleep,
+  restart or refresh (buttons included). LAN sends that queue behind it
+  collapse to the newest (`runtime.send_seq`, `SKIP_COALESCED`).
 - One HTTP task with blocking handlers serves every client, so polls, probes
   and on-demand `/info`/`/logs`/album fetches skip the frame while
   `upload_lock` is held (`coordinator.frame_busy`).

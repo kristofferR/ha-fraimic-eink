@@ -92,7 +92,7 @@ from .delivery import async_use_cloud
 from .image_convert import convert_image
 from .library import get_library
 from .power import (
-    DEFER_REASONS, SKIP_DUPLICATE, TRIGGER_MANUAL,
+    DEFER_REASONS, SKIP_COALESCED, SKIP_DUPLICATE, TRIGGER_MANUAL,
     TRIGGER_OVERLAY, TRIGGER_OVERLAY_RESTORE,
 )
 from .render.display import async_show_screen
@@ -1003,6 +1003,12 @@ async def async_render_and_upload(
         )
     scheduler = begin_external_upload(entry) if hold_playlist else None
     power_token = runtime.power.begin(trigger)
+    # Sends that queue behind a render collapse to the newest (latest wins).
+    # An overlay refresh redraws the accepted base, so it never replaces
+    # newer artwork; it can itself be replaced.
+    if not overlay_refresh:
+        runtime.send_seq += 1
+    send_seq = runtime.send_seq
     uploaded = False
     sending_preview = None
     overlay_controller = getattr(runtime, "temporary_overlays", None)
@@ -1224,6 +1230,13 @@ async def async_render_and_upload(
                     "displayed": reason == SKIP_DUPLICATE,
                 }
 
+            if not use_cloud:
+                # A LAN upload during the previous render overwrites the bytes
+                # still being drawn. Wait it out; a newer send that arrived
+                # meanwhile replaces this one.
+                await runtime.client.wait_for_render()
+                if runtime.send_seq != send_seq:
+                    return deferred_result(SKIP_COALESCED)
             if preview_png:
                 sending_preview = (preview_png, title or "Artwork")
                 runtime.sending_preview = sending_preview

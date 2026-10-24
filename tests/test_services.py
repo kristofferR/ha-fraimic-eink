@@ -72,6 +72,10 @@ def _install_ha_stubs(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
+async def _no_render() -> None:
+    """Stand-in for ``FraimicClient.wait_for_render`` with no render running."""
+
+
 def _load_services(monkeypatch: pytest.MonkeyPatch):
     _install_ha_stubs(monkeypatch)
     coordinator = types.ModuleType("fraimic.coordinator")
@@ -250,6 +254,8 @@ def test_accepted_delivery_updates_only_confirmed_display(
         return b"packed", b"preview", "none"
 
     class Client:
+        wait_for_render = staticmethod(_no_render)
+
         async def upload_image(self, _data: bytes) -> None:
             raise services.FraimicTimeoutError("redraw response timed out")
 
@@ -282,7 +288,7 @@ def test_accepted_delivery_updates_only_confirmed_display(
     runtime = SimpleNamespace(
         scheduler=None,
         power=power,
-        upload_lock=asyncio.Lock(),
+        upload_lock=asyncio.Lock(), send_seq=0,
         client=Client(),
         coordinator=SimpleNamespace(data={}),
         send_queue=None,
@@ -346,8 +352,8 @@ def test_deferred_render_does_not_replace_displayed_preview(
         runtime_data=SimpleNamespace(
             scheduler=None,
             power=Power(),
-            upload_lock=asyncio.Lock(),
-            client=SimpleNamespace(),
+            upload_lock=asyncio.Lock(), send_seq=0,
+            client=SimpleNamespace(wait_for_render=_no_render),
             coordinator=SimpleNamespace(data={}),
             send_queue=None,
             last_preview=b"current-preview",
@@ -394,8 +400,8 @@ def test_duplicate_render_refreshes_versioned_displayed_preview(
     runtime = SimpleNamespace(
         scheduler=None,
         power=Power(),
-        upload_lock=asyncio.Lock(),
-        client=SimpleNamespace(),
+        upload_lock=asyncio.Lock(), send_seq=0,
+        client=SimpleNamespace(wait_for_render=_no_render),
         coordinator=SimpleNamespace(data={}),
         send_queue=None,
         last_preview=b"old-preview",
@@ -480,11 +486,13 @@ def test_hybrid_selects_once_before_upload(monkeypatch, outcome, one_shot):
     )
     runtime = SimpleNamespace(
         power=power, cloud=SimpleNamespace(has_image=outcome == 'cloud_pending', async_deliver=deliver, async_cancel_delivery=cancel),
-        client=SimpleNamespace(get_battery=probe, upload_image=upload),
+        client=SimpleNamespace(
+            get_battery=probe, upload_image=upload, wait_for_render=_no_render
+        ),
         scheduler=None, coordinator=SimpleNamespace(
             data={'battery': {'percent': 1, 'cycles': 50}, 'device': {'name': 'Frame'}},
             async_set_frame_online=Mock(),
-        ), upload_lock=asyncio.Lock(),
+        ), upload_lock=asyncio.Lock(), send_seq=0,
         send_queue=Mock(), set_displayed_preview=Mock(), last_preview=None, preview_image=None,
     )
     entry.runtime_data = runtime
@@ -561,7 +569,7 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
     power = SimpleNamespace(begin=Mock(return_value=1), finish=Mock())
     runtime = SimpleNamespace(
         temporary_overlays=controller, scheduler=None, cloud=cloud, power=power,
-        upload_lock=asyncio.Lock(), sending_preview=None,
+        upload_lock=asyncio.Lock(), send_seq=0, sending_preview=None,
     )
     monkeypatch.setattr(services.time, "time", lambda: 1_000)
     choose_transport = AsyncMock(return_value=True)
@@ -607,14 +615,14 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
         begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
         async_record_upload=AsyncMock(), schedule_sleep=Mock(),
     )
-    client = SimpleNamespace(upload_image=AsyncMock())
+    client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=_no_render)
     runtime = SimpleNamespace(
         temporary_overlays=controller,
         scheduler=None,
         cloud=None,
         power=power,
         client=client,
-        upload_lock=asyncio.Lock(),
+        upload_lock=asyncio.Lock(), send_seq=0,
         sending_preview=None,
         coordinator=SimpleNamespace(data={}),
         set_displayed_preview=Mock(),
@@ -665,10 +673,10 @@ def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monke
         base=(b"same art", b"preview", "none"), art=None, source=None, inherit=True, title="Art",
         async_compose=compose, async_accept=AsyncMock(), signature=lambda *_: "config",
     )
-    client = SimpleNamespace(upload_image=AsyncMock())
+    client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=_no_render)
     runtime = SimpleNamespace(
         temporary_overlays=controller, scheduler=None, cloud=None, power=power,
-        client=client, upload_lock=asyncio.Lock(), coordinator=SimpleNamespace(data={}),
+        client=client, upload_lock=asyncio.Lock(), send_seq=0, coordinator=SimpleNamespace(data={}),
         send_queue=None, set_displayed_preview=Mock(),
     )
     monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
@@ -712,14 +720,14 @@ def test_regular_send_recomposes_when_overlay_changes(monkeypatch, change_during
         begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
         async_record_upload=AsyncMock(), schedule_sleep=Mock(),
     )
-    client = SimpleNamespace(upload_image=AsyncMock())
+    client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=_no_render)
     runtime = SimpleNamespace(
         temporary_overlays=controller,
         scheduler=None,
         cloud=None,
         power=power,
         client=client,
-        upload_lock=asyncio.Lock(),
+        upload_lock=asyncio.Lock(), send_seq=0,
         coordinator=SimpleNamespace(data={}),
         sending_preview=None,
         set_displayed_preview=Mock(),
@@ -781,13 +789,13 @@ def test_only_accepted_expired_overlay_bypasses_low_battery(
         async_compose=AsyncMock(return_value=((b"clean", b"png", "none"), "[]", 0)),
         async_accept=AsyncMock(),
     )
-    client = SimpleNamespace(upload_image=AsyncMock())
+    client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=_no_render)
     runtime = SimpleNamespace(
         temporary_overlays=controller,
         scheduler=None,
         cloud=None,
         client=client,
-        upload_lock=asyncio.Lock(),
+        upload_lock=asyncio.Lock(), send_seq=0,
         coordinator=SimpleNamespace(data={"battery": {"percent": 18}}),
         send_queue=None,
         set_displayed_preview=Mock(),
@@ -815,3 +823,47 @@ def test_only_accepted_expired_overlay_bypasses_low_battery(
     assert controller.async_accept.await_count == int(restores)
     if not restores:
         assert result["skip_reason"] == power_module.SKIP_LOW_BATTERY
+
+
+def test_sends_behind_a_render_collapse_to_the_newest(monkeypatch):
+    """A second upload mid-render would overwrite the bytes still being drawn."""
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    rendered = asyncio.Event()
+
+    async def wait_for_render() -> None:
+        await rendered.wait()
+
+    client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=wait_for_render)
+    power = SimpleNamespace(
+        begin=Mock(return_value=1), finish=Mock(), skip_reason=Mock(return_value=None),
+        async_record_upload=AsyncMock(), schedule_sleep=Mock(),
+    )
+    runtime = SimpleNamespace(
+        scheduler=None, cloud=None, power=power, client=client,
+        upload_lock=asyncio.Lock(), send_seq=0, sending_preview=None,
+        coordinator=SimpleNamespace(data={}), set_displayed_preview=Mock(),
+    )
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
+
+    def send(art: bytes):
+        return services.async_render_and_upload(
+            SimpleNamespace(), entry, b"", hold_playlist=False,
+            rendered=(art, b"png", "none"),
+        )
+
+    async def run():
+        first = asyncio.create_task(send(b"first"))
+        await asyncio.sleep(0)
+        second = asyncio.create_task(send(b"second"))
+        await asyncio.sleep(0)
+        rendered.set()
+        return await first, await second
+
+    first, second = asyncio.run(run())
+
+    assert first["skip_reason"] == services.SKIP_COALESCED
+    assert second["uploaded"] is True
+    client.upload_image.assert_awaited_once_with(b"second")

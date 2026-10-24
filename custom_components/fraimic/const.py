@@ -184,6 +184,18 @@ DEFAULT_HEIGHT: Final = 1200
 MAX_BIN_SIZE: Final = 4 * 1024 * 1024
 LARGE_FRAME_BIN_SIZE: Final = 2_304_000
 LARGE_FRAME_UPLOAD_TIMEOUT: Final = 600
+# How long the panel keeps drawing after a LAN upload or refresh is accepted.
+# The reply comes once the render task starts; the redraw, ~13 s of panel
+# discharge and a ~10 s worker tail follow, plus clear cycles after a long
+# sleep. A second upload in that window overwrites the buffer still being
+# drawn. Conservative until measured: Standard logged "Render OK" ~35 s after
+# download (docs/firmware/standard-model-comparison.md, rendering-and-
+# concurrency.md); Large moves 2.4x the data. A faulty render has no firm end.
+RENDER_SETTLE_STANDARD: Final = 60
+RENDER_SETTLE_LARGE: Final = 90
+# /api/image normally replies in ~10 s; much longer means the firmware held
+# the reply waiting on a previous render (likely overlap).
+SLOW_UPLOAD_REPLY: Final = 25
 
 
 def frame_bin_size(width: int, height: int) -> int:

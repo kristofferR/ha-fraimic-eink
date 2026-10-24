@@ -363,6 +363,9 @@ class FraimicPowerManager:
         try:
             await asyncio.sleep(AUTO_SLEEP_DELAY)
             runtime = self.entry.runtime_data
+            # Check the conditions only once the render is over; sleep()
+            # would otherwise wait inside the checks below.
+            await runtime.client.wait_for_render()
             data = runtime.coordinator.data or {}
             battery = data.get("battery") if isinstance(data, dict) else {}
             settings = data.get("settings") if isinstance(data, dict) else {}

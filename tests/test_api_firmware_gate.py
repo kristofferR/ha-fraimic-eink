@@ -163,3 +163,41 @@ def test_album_edit_reply_must_be_that_album():
     with pytest.raises(api.FraimicError, match="longer than 127"):
         asyncio.run(client.update_album("a" * 128, {"active": False}))
     assert len(sent) == 1
+
+
+@pytest.mark.parametrize(("bin_size", "settle"), [(960_000, 60), (2_304_000, 90)])
+def test_commands_wait_for_the_render_after_an_upload(monkeypatch, bin_size, settle):
+    """The firmware neither joins the render on sleep/restart nor guards it."""
+    import asyncio
+
+    clock = {"now": 1_000.0}
+    waits = []
+
+    async def fake_sleep(seconds):
+        waits.append(seconds)
+        clock["now"] += seconds
+
+    monkeypatch.setattr(api.time, "time", lambda: clock["now"])
+    monkeypatch.setattr(api.asyncio, "sleep", fake_sleep)
+    client = api.FraimicClient("192.0.2.1", object(), bin_size=bin_size)
+    sent = []
+
+    async def upload(_data):
+        sent.append(("upload", clock["now"]))
+
+    async def reply(method, path, **_kwargs):
+        sent.append((path, clock["now"]))
+        return _Reply({"status": "ok"})
+
+    client._do_upload = upload
+    client._request = reply
+
+    async def run():
+        await client.upload_image(bytes(bin_size))
+        clock["now"] += 10
+        await client.sleep()
+
+    asyncio.run(run())
+
+    assert waits == [settle - 10]
+    assert sent == [("upload", 1_000.0), ("/api/sleep", 1_000.0 + settle)]
