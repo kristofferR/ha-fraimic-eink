@@ -415,10 +415,15 @@ class FraimicSendQueue:
                 )
                 return
 
+            send_seq = runtime.send_seq
             async with runtime.upload_lock:
                 # Wait out a previous render before checking and composing, so
                 # a temporary overlay can't expire during the client's wait.
                 await runtime.client.wait_for_render()
+                if runtime.send_seq != send_seq:
+                    # Let the newer user send replace this payload first.
+                    self._schedule_probe()
+                    return
                 # A newer send may have replaced (or cleared) the queue while
                 # we waited.
                 if self._pending is None or self._pending["token"] != token:

@@ -160,6 +160,7 @@ class FraimicClient:
         # Uploads, sleep, restart and refresh wait for it: the firmware
         # neither protects the buffer being drawn nor joins the render.
         self.render_busy_until = 0.0
+        self._command_lock = asyncio.Lock()
         self._render_settle = (
             RENDER_SETTLE_LARGE if bin_size == LARGE_FRAME_BIN_SIZE else RENDER_SETTLE_STANDARD
         )
@@ -375,8 +376,9 @@ class FraimicClient:
 
     async def restart(self) -> dict[str, Any]:
         """Reboot the frame (``POST /api/restart``), after any render ends."""
-        await self.wait_for_render()
-        return await self._json("POST", "/api/restart")
+        async with self._command_lock:
+            await self.wait_for_render()
+            return await self._json("POST", "/api/restart")
 
     async def sleep(self) -> dict[str, Any]:
         """Request deep sleep (``POST /api/sleep``).
@@ -387,8 +389,9 @@ class FraimicClient:
         decline, and a pending OTA may install first. Waits for any render to
         end first: the pre-sleep routine powers the panel off mid-draw.
         """
-        await self.wait_for_render()
-        return await self._json("POST", "/api/sleep")
+        async with self._command_lock:
+            await self.wait_for_render()
+            return await self._json("POST", "/api/sleep")
 
     async def refresh(self) -> dict[str, Any]:
         """Trigger a full E-Ink refresh cycle (``POST /api/refresh``).
@@ -397,10 +400,11 @@ class FraimicClient:
         or an LED workflow; Standard 0.2.28 has no such guard, so this waits
         for any render HA started to end first.
         """
-        await self.wait_for_render()
-        result = await self._json("POST", "/api/refresh")
-        self.mark_rendering()
-        return result
+        async with self._command_lock:
+            await self.wait_for_render()
+            result = await self._json("POST", "/api/refresh")
+            self.mark_rendering()
+            return result
 
     async def upload_image(
         self, data: bytes, *, refresh: bool = False, recover: bool = True
@@ -441,17 +445,13 @@ class FraimicClient:
             )
 
         attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
-        await self.wait_for_render()
         try:
             await self._timed_attempt(attempt, data)
         except FraimicWrongDeviceError:
             # Never restart a frame that isn't this entry's.
             raise
         except FraimicTimeoutError:
-            # The frame may have accepted the image and be mid-redraw with the
-            # response blocked — a restart+retry here could double-redraw the
-            # panel. Surface the timeout instead; callers decide what it means.
-            self.mark_rendering()
+            # The image may already be drawing; never retry an upload timeout.
             raise
         except FraimicConnectionError:
             if not recover:
@@ -470,7 +470,6 @@ class FraimicClient:
             await self.restart()
             await self._wait_reachable()
             await self._timed_attempt(attempt, data)
-        self.mark_rendering()
 
         if refresh:
             # A refresh failure is non-fatal (the image is already buffered), but
@@ -483,8 +482,19 @@ class FraimicClient:
     async def _timed_attempt(
         self, attempt: Callable[[bytes], Awaitable[None]], data: bytes
     ) -> None:
-        started = time.monotonic()
-        await attempt(data)
+        # Keep the request and render-state update atomic with other commands.
+        # Recheck the deadline under the lock: another waiter may start a draw.
+        async with self._command_lock:
+            await self.wait_for_render()
+            started = time.monotonic()
+            try:
+                await attempt(data)
+            except (asyncio.CancelledError, FraimicTimeoutError):
+                # The frame may have accepted the image before the reply was
+                # interrupted. Do not interrupt that draw or retry a timeout.
+                self.mark_rendering()
+                raise
+            self.mark_rendering()
         elapsed = time.monotonic() - started
         if elapsed > SLOW_UPLOAD_REPLY:
             _LOGGER.warning(

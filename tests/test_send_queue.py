@@ -296,7 +296,7 @@ def test_flush_reserves_redraw_time_for_recomposed_briefing(
 
     client = types.SimpleNamespace(upload_image=AsyncMock(), wait_for_render=wait_for_render)
     runtime = types.SimpleNamespace(
-        upload_lock=asyncio.Lock(), temporary_overlays=controller, client=client,
+        upload_lock=asyncio.Lock(), send_seq=0, temporary_overlays=controller, client=client,
         coordinator=types.SimpleNamespace(data={"display": {"next_refresh": next_refresh}}),
     )
     entry = types.SimpleNamespace(
@@ -345,6 +345,60 @@ def test_cloud_setup_discards_lan_queue_without_starting_probes(send_queue_modul
     queue._start_waiting.assert_not_called()
     queue._store.async_save.assert_awaited_once_with({"pending": None})
     assert queue.pending is None
+
+
+def test_flush_defers_when_a_user_send_starts_during_render_wait(
+    send_queue_module, tmp_path
+):
+    from unittest.mock import Mock
+
+    payload = tmp_path / "queue.bin"
+    payload.write_bytes(b"old!")
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *_parts: str(payload))
+
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    runtime = types.SimpleNamespace(upload_lock=asyncio.Lock(), send_seq=0)
+
+    async def run():
+        waiting = asyncio.Event()
+        release = asyncio.Event()
+
+        async def wait_for_render():
+            waiting.set()
+            await release.wait()
+
+        client = types.SimpleNamespace(
+            upload_image=AsyncMock(), wait_for_render=wait_for_render
+        )
+        runtime.client = client
+        entry = types.SimpleNamespace(
+            entry_id="frame", data={"width": 2, "height": 4}, runtime_data=runtime
+        )
+        queue = send_queue_module.FraimicSendQueue(Hass(), entry)
+        pending = {
+            "title": "Old art", "token": 1,
+            "queued_at": send_queue_module.time.time(), "has_preview": False,
+        }
+        queue._pending = pending
+        queue._schedule_probe = Mock()
+        flush = asyncio.create_task(queue._async_flush())
+        await waiting.wait()
+        assert runtime.upload_lock.locked()
+        runtime.send_seq += 1
+        release.set()
+        await flush
+
+        client.upload_image.assert_not_awaited()
+        queue._schedule_probe.assert_called_once_with()
+        assert queue.pending is pending
+        assert not runtime.upload_lock.locked()
+        assert not queue._flushing
+
+    asyncio.run(run())
 
 
 @pytest.mark.parametrize("fails", [False, True])

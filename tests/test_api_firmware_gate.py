@@ -201,3 +201,114 @@ def test_commands_wait_for_the_render_after_an_upload(monkeypatch, bin_size, set
 
     assert waits == [settle - 10]
     assert sent == [("upload", 1_000.0), ("/api/sleep", 1_000.0 + settle)]
+
+
+@pytest.mark.parametrize("first_command", ["refresh", "upload"])
+@pytest.mark.parametrize("next_command", ["upload", "refresh", "sleep", "restart"])
+def test_commands_serialize_requests_and_recheck_the_render(
+    monkeypatch, first_command, next_command
+):
+    import asyncio
+
+    clock = {"now": 1000.0}
+    sent = []
+    yield_once = asyncio.sleep
+    client = api.FraimicClient("192.0.2.1", object(), bin_size=4)
+    monkeypatch.setattr(api.time, "time", lambda: clock["now"])
+
+    async def run():
+        waiting = asyncio.Event()
+        release_wait = asyncio.Event()
+        requesting = asyncio.Event()
+        release_reply = asyncio.Event()
+
+        async def fake_sleep(seconds):
+            if not waiting.is_set():
+                waiting.set()
+                await release_wait.wait()
+            clock["now"] += seconds
+
+        async def request(name):
+            sent.append((name, clock["now"]))
+            if len(sent) == 1:
+                requesting.set()
+                await release_reply.wait()
+
+        async def upload(_data):
+            await request("upload")
+
+        async def reply(_method, path, **_kwargs):
+            await request(path.removeprefix("/api/"))
+            return _Reply({"status": "ok"})
+
+        def command(name):
+            return client.upload_image(b"1234") if name == "upload" else getattr(client, name)()
+
+        monkeypatch.setattr(api.asyncio, "sleep", fake_sleep)
+        client._do_upload = upload
+        client._request = reply
+        client.mark_rendering()
+        first = asyncio.create_task(command(first_command))
+        await waiting.wait()
+        second = asyncio.create_task(command(next_command))
+        await yield_once(0)
+        release_wait.set()
+        await requesting.wait()
+        await yield_once(0)
+        assert sent == [(first_command, 1060)]
+        release_reply.set()
+        await asyncio.gather(first, second)
+
+    asyncio.run(run())
+    assert sent == [(first_command, 1060), (next_command, 1120)]
+
+
+@pytest.mark.parametrize("recovery", [False, True])
+@pytest.mark.parametrize("interruption", ["cancel", "timeout"])
+def test_interrupted_upload_protects_the_possible_render(
+    monkeypatch, recovery, interruption
+):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    clock = {"now": 1000.0}
+    client = api.FraimicClient("192.0.2.1", object(), bin_size=4)
+    monkeypatch.setattr(api.time, "time", lambda: clock["now"])
+
+    async def fake_sleep(seconds):
+        clock["now"] += seconds
+
+    monkeypatch.setattr(api.asyncio, "sleep", fake_sleep)
+
+    async def run():
+        uploading = asyncio.Event()
+        attempts = 0
+
+        async def upload(_data):
+            nonlocal attempts
+            attempts += 1
+            if recovery and attempts == 1:
+                raise api.FraimicConnectionError("connection reset")
+            uploading.set()
+            if interruption == "timeout":
+                raise api.FraimicTimeoutError("reply timed out")
+            await asyncio.Event().wait()
+
+        client._do_upload = upload
+        client.restart = AsyncMock()
+        client._wait_reachable = AsyncMock()
+        task = asyncio.create_task(client.upload_image(b"1234"))
+        await uploading.wait()
+        if interruption == "cancel":
+            task.cancel()
+        error = asyncio.CancelledError if interruption == "cancel" else api.FraimicTimeoutError
+        with pytest.raises(error):
+            await task
+        assert attempts == (2 if recovery else 1)
+        assert client.restart.await_count == (1 if recovery else 0)
+        assert client.render_busy_until == clock["now"] + 60
+        assert not client._command_lock.locked()
+        await client.wait_for_render()
+        assert clock["now"] == client.render_busy_until
+
+    asyncio.run(run())
