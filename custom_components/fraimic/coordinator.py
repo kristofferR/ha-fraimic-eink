@@ -187,6 +187,11 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         cached = await self._store.async_load() or {}
         data = cached.get("data")
         if isinstance(data, dict):
+            from homeassistant.util import dt as dt_util
+
+            # Snapshots cached before the epoch fields existed; Minimum mode
+            # may not poll for a long time, and the send queue needs them.
+            restore_frame_times(data, dt_util.get_default_time_zone())
             self.data = data
             self.last_update_success = True
             # Power-saving modes can intentionally skip the startup poll. Keep
@@ -866,6 +871,24 @@ def annotate_frame_times(data: dict[str, Any], now: float, fallback: tzinfo) -> 
     display = data["display"]
     for key in ("last_refresh", "next_refresh"):
         display[f"{key}_at"] = frame_timestamp(display.get(key), offset, fallback)
+
+
+def restore_frame_times(data: dict[str, Any], fallback: tzinfo) -> None:
+    """Fill missing epoch ``*_at`` fields of a cached snapshot.
+
+    Uses the cached offset when there is one; the snapshot's ``local_time``
+    is stale, so no new offset is derived here.
+    """
+    device = data.get("device")
+    display = data.get("display")
+    if not isinstance(display, dict):
+        return
+    offset = device.get("utc_offset_minutes") if isinstance(device, dict) else None
+    for key in ("last_refresh", "next_refresh"):
+        if f"{key}_at" not in display:
+            display[f"{key}_at"] = frame_timestamp(
+                display.get(key), offset if isinstance(offset, int) else None, fallback
+            )
 
 
 def format_utc_offset(minutes: int) -> str:

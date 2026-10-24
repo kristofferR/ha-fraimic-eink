@@ -13,6 +13,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fraimic.api import FraimicConnectionError
 from custom_components.fraimic.const import DOMAIN, POWER_MODE_MINIMUM
+from custom_components.fraimic.coordinator import normalize_info
 from custom_components.fraimic.power import queue_probe_delay
 
 from .conftest import FRAME_INFO, setup_entry
@@ -91,3 +92,26 @@ async def test_est_frame_times_in_an_oslo_home(
     await config_entry.runtime_data.coordinator.async_refresh()
     await hass.async_block_till_done()
     assert _state(hass, config_entry, "utc_offset") == "unknown"
+
+
+async def test_snapshot_cached_before_epoch_fields_is_migrated(
+    hass: HomeAssistant,
+    hass_storage: dict,
+    frame_client: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+) -> None:
+    """Minimum mode may not poll for days; the queued-send probe needs these."""
+    await hass.config.async_set_time_zone("Europe/Oslo")
+    hass_storage[f"{DOMAIN}_coordinator_{config_entry.entry_id}"] = {
+        "version": 1,
+        "key": f"{DOMAIN}_coordinator_{config_entry.entry_id}",
+        "data": {"data": normalize_info(EDT_FRAME)},
+    }
+    frame_client["get_info"].side_effect = FraimicConnectionError("asleep")
+    await setup_entry(hass, config_entry)
+
+    display = config_entry.runtime_data.coordinator.data["display"]
+    # No cached offset: HA's timezone is the documented fallback.
+    assert display["next_refresh_at"] == datetime.fromisoformat(
+        "2026-10-23T03:00:00+02:00"
+    ).timestamp()
