@@ -452,3 +452,29 @@ def test_probe_waits_while_an_upload_holds_the_frame(send_queue_module, monkeypa
     client.get_battery.assert_not_awaited()
     schedule.assert_called_once_with()
     assert queue._probe_attempt == 0
+
+
+def test_try_send_waits_while_an_upload_holds_the_frame(send_queue_module):
+    from unittest.mock import AsyncMock
+
+    client = types.SimpleNamespace(get_battery=AsyncMock(), wrong_device=None)
+    online = []
+    runtime = types.SimpleNamespace(
+        client=client,
+        coordinator=types.SimpleNamespace(
+            data={}, frame_busy=True, async_set_frame_online=online.append
+        ),
+    )
+    entry = types.SimpleNamespace(
+        entry_id="frame", title="Frame", data={}, options={}, runtime_data=runtime
+    )
+    hass = types.SimpleNamespace(config=types.SimpleNamespace(path=lambda *parts: "/unused"))
+    queue = send_queue_module.FraimicSendQueue(hass, entry)
+    queue._pending = {"title": "Art", "token": 1, "queued_at": 1000}
+    statuses = []
+    queue._dispatch = statuses.append
+
+    asyncio.run(queue.async_try_send())
+
+    client.get_battery.assert_not_awaited()
+    assert online == [] and "in progress" in statuses[0]

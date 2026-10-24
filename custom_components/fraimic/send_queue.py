@@ -279,6 +279,10 @@ class FraimicSendQueue:
             self._dispatch("Idle — nothing is queued")
             return
         runtime = self._entry.runtime_data
+        if runtime.coordinator.frame_busy:
+            # Probing behind an upload would time out and misreport sleep.
+            self._dispatch("An upload to the frame is in progress; try again when it finishes")
+            return
         if runtime.client.wrong_device is not None:
             # A successful identity poll flushes the queue by itself.
             await runtime.coordinator.async_request_refresh()

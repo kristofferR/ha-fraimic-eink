@@ -471,6 +471,10 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             # Not this entry's frame: keep its data out, and don't count the
             # reply as contact with the frame this entry represents.
             self.client.last_response = contact_before
+            # The reply already armed expiry and told entities the frame was
+            # reachable; recompute both from the restored contact time.
+            self._async_schedule_expiry()
+            self._async_notify_availability()
             self.frame_online = False
             if self.client.wrong_device != foreign:
                 _LOGGER.warning(
