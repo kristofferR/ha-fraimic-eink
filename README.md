@@ -91,6 +91,17 @@ Use **Upload** for your own images, or open **Manage library** from the app menu
 JPEG, PNG, WebP, HEIC/HEIF, AVIF, and other Pillow-supported image formats work.
 Heart an image to keep it in **Favorites**.
 
+Pictures you made by voice with the Fraimic app can be copied into the library
+with the `fraimic.import_creations` action. It signs in with the Fraimic account
+saved in a frame's options and adds each voice creation to a **Creations** album,
+keeping its transcript, style and creation date (shown in **Picture details**).
+The originals are stored locally, so they keep working after the Fraimic links
+expire or the frame stops using the Fraimic cloud. Run the import while the
+account is still reachable, before moving a frame off the Fraimic cloud. Running
+it again adds only creations that aren't in the library, so one you deleted from
+the library comes back. Nothing is shown on a frame or changed in your Fraimic
+account.
+
 Open **Picture details** to adjust the crop, fit, tone, and dithering. Choose
 **Show now**, **Play next**, **Add to queue**, or **Add to playlist**. In cloud
 mode, “Show now” submits the image for a scheduled wake; it cannot wake a sleeping
@@ -417,6 +428,7 @@ data:
 | `fraimic.schedule_send` | Schedule a one-shot or recurring image/scene send. |
 | `fraimic.cancel_scheduled_send` / `fraimic.list_scheduled_sends` | Manage scheduled sends. |
 | `fraimic.update_album` | Update a frame's cloud album settings. |
+| `fraimic.import_creations` | Copy voice creations from the Fraimic account into the library. |
 
 Each frame also exposes battery and device diagnostics, send status, artwork and
 screen-preview image entities, buttons for frame controls, and a **media player**.

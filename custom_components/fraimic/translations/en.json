@@ -768,6 +768,16 @@
           "description": "Replace the upcoming auto picks with new ones."
         }
       }
+    },
+    "import_creations": {
+      "name": "Import voice creations",
+      "description": "Copy the artwork you created by voice from your Fraimic account into the library's Creations album, with its transcript and style. Repeat runs only add new creations.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Whose Fraimic account to import from. Only required with multiple frames."
+        }
+      }
     }
   },
   "issues": {

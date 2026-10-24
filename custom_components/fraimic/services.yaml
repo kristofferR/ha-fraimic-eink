@@ -841,3 +841,18 @@ set_auto_mode:
       default: false
       selector:
         boolean:
+
+import_creations:
+  name: Import voice creations
+  description: >-
+    Copy the artwork you created by voice from your Fraimic account into the
+    library's Creations album, with its transcript and style. Repeat runs only
+    add new creations. Uses the account signed in on this frame's options.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: Whose Fraimic account to import from. Only required with multiple frames.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
