@@ -288,7 +288,13 @@ def test_flush_reserves_redraw_time_for_recomposed_briefing(
             return_value=((b"new!", None, "none"), "active", 1)
         ),
     )
-    client = types.SimpleNamespace(upload_image=AsyncMock())
+    clock = {"now": 980}
+
+    async def wait_for_render():
+        # The previous render ends at 1000: too late to redraw before 1029.
+        clock["now"] = 1000
+
+    client = types.SimpleNamespace(upload_image=AsyncMock(), wait_for_render=wait_for_render)
     runtime = types.SimpleNamespace(
         upload_lock=asyncio.Lock(), temporary_overlays=controller, client=client,
         coordinator=types.SimpleNamespace(data={"display": {"next_refresh": next_refresh}}),
@@ -312,7 +318,7 @@ def test_flush_reserves_redraw_time_for_recomposed_briefing(
     queue._unsub_probe = previous_probe
     schedule = Mock()
     monkeypatch.setattr(send_queue_module, "async_call_later", schedule)
-    monkeypatch.setattr(send_queue_module.time, "time", lambda: 1000)
+    monkeypatch.setattr(send_queue_module.time, "time", lambda: clock["now"])
 
     asyncio.run(queue._async_flush())
 
