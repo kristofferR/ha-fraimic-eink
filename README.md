@@ -98,8 +98,9 @@ keeping its transcript, style and creation date (shown in **Picture details**).
 The originals are stored locally, so they keep working after the Fraimic links
 expire or the frame stops using the Fraimic cloud. Run the import while the
 account is still reachable, before moving a frame off the Fraimic cloud. Running
-it again only adds new creations, and nothing is shown on a frame or changed in
-your Fraimic account.
+it again adds only creations that aren't in the library, so one you deleted from
+the library comes back. Nothing is shown on a frame or changed in your Fraimic
+account.
 
 Open **Picture details** to adjust the crop, fit, tone, and dithering. Choose
 **Show now**, **Play next**, **Add to queue**, or **Add to playlist**. In cloud
