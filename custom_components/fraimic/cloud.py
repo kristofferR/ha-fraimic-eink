@@ -341,8 +341,13 @@ class FraimicCloudClient:
         data = await self._request(
             "GET", "/api/v1/gallery", params={"page": page, "page_size": GALLERY_PAGE_SIZE}
         )
-        if not isinstance(data, dict) or not isinstance(data.get("items"), list):
-            raise FraimicCloudError("Gallery response had no items list")
+        if (
+            not isinstance(data, dict)
+            or not isinstance(data.get("items"), list)
+            or not isinstance(data.get("has_next"), bool)
+        ):
+            # A missing marker must not read as the last page.
+            raise FraimicCloudError("Gallery response had no items list or has_next flag")
         return data
 
     async def async_gallery_item(self, upload_id: str) -> dict[str, Any]:

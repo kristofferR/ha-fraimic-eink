@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import sys
 import types
@@ -613,3 +614,19 @@ def test_awake_window_keep_awake_survives_a_cloud_fallback(delivery_module):
     asyncio.run(delivery.async_set_keep_awake(True))
     # The one-time release after a cloud delivery would now turn it off.
     assert delivery.keep_awake_released is True
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [{"items": []}, {"items": [], "has_next": "false"}, {"has_next": False}],
+    ids=["no-marker", "string-marker", "no-items"],
+)
+def test_gallery_page_needs_items_and_a_has_next_flag(cloud, reply):
+    client = cloud.FraimicCloudClient(None, "owner@example.com", "pw")
+
+    async def request(*_args, **_kwargs):
+        return reply
+
+    client._request = request
+    with pytest.raises(cloud.FraimicCloudError):
+        asyncio.run(client.async_gallery_page(1))
