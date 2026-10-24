@@ -24,6 +24,9 @@ def _load_api():
         stub.ClientConnectionError = type(
             "ClientConnectionError", (stub.ClientError,), {}
         )
+        stub.ClientConnectorError = type(
+            "ClientConnectorError", (stub.ClientConnectionError,), {}
+        )
         stub.ClientResponse = object
         stub.ClientSession = object
         stub.ClientTimeout = lambda **kw: None
@@ -261,6 +264,41 @@ def test_commands_serialize_requests_and_recheck_the_render(
 
     asyncio.run(run())
     assert sent == [(first_command, 1060), (next_command, 1120)]
+
+
+@pytest.mark.parametrize("connected", [False, True])
+def test_upload_recovery_waits_only_if_the_body_may_have_been_sent(monkeypatch, connected):
+    import asyncio
+    from unittest.mock import AsyncMock
+
+    clock = {"now": 1000.0}
+    waits = []
+    monkeypatch.setattr(api.time, "time", lambda: clock["now"])
+
+    async def fake_sleep(seconds):
+        waits.append(seconds)
+        clock["now"] += seconds
+
+    monkeypatch.setattr(api.asyncio, "sleep", fake_sleep)
+    if connected:
+        error = api.aiohttp.ClientConnectionError("connection reset")
+    else:
+        key = types.SimpleNamespace(host="192.0.2.1", port=80, ssl=False)
+        error = api.aiohttp.ClientConnectorError(key, OSError("connection refused"))
+    request = AsyncMock(side_effect=[error, error])
+    client = api.FraimicClient("192.0.2.1", types.SimpleNamespace(request=request), bin_size=4)
+    client.prefer_api_image = True
+
+    with pytest.raises(api.FraimicConnectionError):
+        asyncio.run(client.upload_image(b"1234"))
+
+    assert [call.args[1] for call in request.call_args_list] == [
+        "http://192.0.2.1/api/image",
+        "http://192.0.2.1/api/restart",
+    ]
+    assert waits == ([60] if connected else [])
+    assert client.render_busy_until == (1060 if connected else 0)
+    assert not client._command_lock.locked()
 
 
 @pytest.mark.parametrize("recovery", [False, True])
