@@ -181,6 +181,35 @@ def test_gallery_failure_on_page_one_raises_the_cloud_error():
         _run(FakeLibrary(), fake)
 
 
+def test_auth_failure_while_resigning_an_item_stops_the_import():
+    fake = FakeCloud([[_item("old"), _item("next")]])
+    fake.bodies["https://s3.example/old.png?sig=1"] = cloud.FraimicCloudError(
+        "Download failed: HTTP 403", status=403
+    )
+
+    async def rejected(_upload_id):
+        raise cloud.FraimicCloudAuthError("invalid_credentials")
+
+    fake.async_gallery_item = rejected
+    library = FakeLibrary()
+
+    with pytest.raises(cloud.FraimicCloudAuthError):
+        _run(library, fake)
+
+    assert library.images == {}
+
+
+def test_hitting_the_page_cap_is_reported_not_treated_as_done(monkeypatch):
+    monkeypatch.setattr(creations, "MAX_GALLERY_PAGES", 2)
+    fake = FakeCloud([[_item("v1")], [_item("v2")], [_item("v3")]])
+    library = FakeLibrary()
+
+    with pytest.raises(creations.CreationImportError, match="after 2 pages"):
+        _run(library, fake)
+
+    assert len(library.images) == 2
+
+
 def test_long_transcripts_are_cut_at_a_word():
     creation = library_model.Creation(
         account_id="a", upload_id="u", transcript="word " * 30

@@ -18,7 +18,12 @@ from pathlib import PurePosixPath
 from typing import Any, Protocol
 from urllib.parse import urlsplit
 
-from .cloud import FraimicCloudClient, FraimicCloudError, cloud_timestamp
+from .cloud import (
+    FraimicCloudAuthError,
+    FraimicCloudClient,
+    FraimicCloudError,
+    cloud_timestamp,
+)
 from .const import MAX_SOURCE_BYTES
 from .library_model import Creation, LibraryImage
 
@@ -44,7 +49,7 @@ class CreationLibrary(Protocol):
 
 
 class CreationImportError(Exception):
-    """The gallery stopped answering after some items were imported."""
+    """The import stopped partway; the items already imported are kept."""
 
 
 @dataclass
@@ -147,6 +152,8 @@ async def async_import_creations(
                         albums=[CREATIONS_ALBUM],
                         creation=creation,
                     )
+                except FraimicCloudAuthError:
+                    raise
                 except Exception as err:  # noqa: BLE001 - one item must not stop the import
                     _LOGGER.warning(
                         "Could not import Fraimic creation %s: %s", creation.upload_id, err
@@ -155,8 +162,13 @@ async def async_import_creations(
                     continue
                 known.add(creation.key)
                 result.imported += 1
-            if not data.get("has_next") or page >= MAX_GALLERY_PAGES:
+            if not data.get("has_next"):
                 return result
+            if page >= MAX_GALLERY_PAGES:
+                raise CreationImportError(
+                    f"The gallery still had more after {page} pages "
+                    f"({result.imported} imported so far)"
+                )
             page += 1
 
 

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import shutil
+from collections.abc import Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -17,6 +19,7 @@ from custom_components.fraimic.const import (
     CONF_CLOUD_EMAIL,
     CONF_CLOUD_PASSWORD,
     DOMAIN,
+    LIBRARY_DIR,
 )
 from custom_components.fraimic.library import get_library
 
@@ -40,6 +43,15 @@ ITEM = {
     "orientation": None,
     "crop_params": None,
 }
+
+
+@pytest.fixture(autouse=True)
+def empty_library(hass: HomeAssistant) -> Generator[None]:
+    """The harness config dir is shared across runs; start and end with no library."""
+    path = hass.config.path(LIBRARY_DIR)
+    shutil.rmtree(path, ignore_errors=True)
+    yield
+    shutil.rmtree(path, ignore_errors=True)
 
 
 @pytest.mark.usefixtures("frame_client")
