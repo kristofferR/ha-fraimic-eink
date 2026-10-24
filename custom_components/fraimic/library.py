@@ -54,6 +54,7 @@ from .delivery import async_use_cloud
 from .helpers import loaded_fraimic_entries, resolve_render_params
 from .image_convert import bin_to_png, convert_image, is_valid_bin
 from .library_model import (
+    Creation,
     LibraryImage,
     all_albums,
     manifest_from_dict,
@@ -157,6 +158,8 @@ class FraimicLibrary:
         self._backfill_queue: asyncio.Queue[str] = asyncio.Queue()
         self._backfill_pending: set[str] = set()
         self._backfill_task: asyncio.Task | None = None
+        # Serializes account-gallery imports so two runs can't both add an item.
+        self.import_lock = asyncio.Lock()
 
     # ------------------------------------------------------------- lifecycle
 
@@ -222,6 +225,7 @@ class FraimicLibrary:
         source_url: str | None = None,
         license_text: str | None = None,
         attribution: str | None = None,
+        creation: Creation | None = None,
     ) -> LibraryImage:
         """Store an uploaded original and register it in the manifest."""
         if len(data) > MAX_SOURCE_BYTES:
@@ -238,6 +242,7 @@ class FraimicLibrary:
             source_url=source_url,
             license=license_text,
             attribution=attribution,
+            creation=creation,
         )
 
         def _store() -> tuple[int, int]:

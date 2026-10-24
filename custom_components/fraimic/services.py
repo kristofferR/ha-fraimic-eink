@@ -31,7 +31,7 @@ from .api import (
     FraimicError,
     FraimicTimeoutError,
 )
-from .cloud import FraimicCloudError
+from .cloud import FraimicCloudAuthError, FraimicCloudClient, FraimicCloudError
 from .const import (
     ATTR_CAPTION,
     ATTR_CONFIG_ENTRY,
@@ -54,6 +54,8 @@ from .const import (
     ATTR_TONE,
     ATTR_URL,
     CLOUD_WAKE_WINDOW,
+    CONF_CLOUD_EMAIL,
+    CONF_CLOUD_PASSWORD,
     CONF_DELIVERY_MODE,
     CONF_HEIGHT,
     CONF_ROTATION,
@@ -82,6 +84,7 @@ from .const import (
     SERVICE_RENDER_SCREEN,
     SERVICE_SCHEDULE_SEND,
     SERVICE_SEND_SCENE,
+    SERVICE_IMPORT_CREATIONS,
     SERVICE_SET_AUTO_MODE,
     SERVICE_SHOW_ONLINE_IMAGE,
     SERVICE_UPDATE_ALBUM,
@@ -559,6 +562,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         _async_handle_set_auto_mode,
         schema=SET_AUTO_MODE_SCHEMA,
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_IMPORT_CREATIONS,
+        _async_handle_import_creations,
+        schema=vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY): cv.string}),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
 
 SET_AUTO_MODE_SCHEMA = vol.Schema(
@@ -610,6 +620,35 @@ async def _async_handle_set_auto_mode(call: ServiceCall) -> None:
         await scheduler.async_set_auto(patch, new_picks=call.data["new_picks"])
     if end_action := call.data.get("end_of_queue"):
         await scheduler.async_set_playback(end_action=end_action)
+
+
+async def _async_handle_import_creations(call: ServiceCall) -> ServiceResponse:
+    """Handle ``fraimic.import_creations``: copy voice creations into the library."""
+    from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+    from .creations import CreationImportError, async_import_creations
+
+    entry = _resolve_entry(call.hass, call)
+    library = get_library(call.hass)
+    if library is None:
+        raise HomeAssistantError("The Fraimic library is not loaded")
+    if entry.runtime_data.cloud is not None:
+        client = entry.runtime_data.cloud.client
+    else:
+        email = entry.options.get(CONF_CLOUD_EMAIL)
+        password = entry.options.get(CONF_CLOUD_PASSWORD)
+        if not (email and password):
+            raise ServiceValidationError(
+                "Sign in to the Fraimic account in this frame's options first"
+            )
+        client = FraimicCloudClient(async_get_clientsession(call.hass), email, password)
+    try:
+        result = await async_import_creations(library, client)
+    except FraimicCloudAuthError as err:
+        raise HomeAssistantError(f"The Fraimic account sign-in failed: {err}") from err
+    except (CreationImportError, FraimicCloudError) as err:
+        raise HomeAssistantError(f"Could not read the Fraimic gallery: {err}") from err
+    return result.as_dict()
 
 
 async def _async_handle_temporary_overlay(call: ServiceCall) -> ServiceResponse:

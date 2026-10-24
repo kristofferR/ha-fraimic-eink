@@ -31,6 +31,8 @@ _LOGGER = logging.getLogger(__name__)
 # module never touches aiohttp (tests stub it).
 TIMEOUT = 30
 UPLOAD_TIMEOUT = 120
+# The API's maximum page size.
+GALLERY_PAGE_SIZE = 50
 # Refresh the access token this many seconds before Supabase expires it.
 TOKEN_REFRESH_MARGIN = 120
 
@@ -129,6 +131,8 @@ class FraimicCloudClient:
         self._refresh_token: str | None = None
         self._expires_at = 0.0
         self._lock = asyncio.Lock()
+        # Supabase user id of the signed-in account; set by every token grant.
+        self.account_id: str | None = None
 
     # ------------------------------------------------------------ auth
 
@@ -182,6 +186,9 @@ class FraimicCloudClient:
     def _store_session(self, data: dict[str, Any]) -> None:
         self._access_token = data["access_token"]
         self._refresh_token = data.get("refresh_token")
+        user = data.get("user")
+        if isinstance(user, dict) and isinstance(user.get("id"), str) and user["id"]:
+            self.account_id = user["id"]
         expires_in = data.get("expires_in")
         self._expires_at = time.time() + (
             float(expires_in) if isinstance(expires_in, (int, float)) else 3600
@@ -319,6 +326,57 @@ class FraimicCloudClient:
         await self._request(
             "DELETE", "/api/v1/upload/images", json={"upload_public_ids": upload_ids}
         )
+
+    # ------------------------------------------------------------ gallery
+
+    async def async_account_id(self) -> str:
+        """The signed-in account's durable id, logging in if needed."""
+        await self._async_token()
+        if not self.account_id:
+            raise FraimicCloudError("Login response had no account id")
+        return self.account_id
+
+    async def async_gallery_page(self, page: int) -> dict[str, Any]:
+        """One page (``GALLERY_PAGE_SIZE`` items) of the account's uploads."""
+        data = await self._request(
+            "GET", "/api/v1/gallery", params={"page": page, "page_size": GALLERY_PAGE_SIZE}
+        )
+        if not isinstance(data, dict) or not isinstance(data.get("items"), list):
+            raise FraimicCloudError("Gallery response had no items list")
+        return data
+
+    async def async_gallery_item(self, upload_id: str) -> dict[str, Any]:
+        """One gallery item; its ``original_url`` is freshly signed."""
+        data = await self._request("GET", f"/api/v1/gallery/{upload_id}")
+        if not isinstance(data, dict):
+            raise FraimicCloudError("Gallery item response was not an object")
+        return data
+
+    async def async_download(self, url: str, max_bytes: int) -> tuple[bytes, str | None]:
+        """Fetch a signed asset URL; returns the body and its content type.
+
+        Signed URLs expire after about an hour and then answer 403, which
+        surfaces as ``FraimicCloudError(status=403)``.
+        """
+        try:
+            async with self._session.get(
+                url, timeout=aiohttp.ClientTimeout(total=UPLOAD_TIMEOUT)
+            ) as resp:
+                if resp.status >= 400:
+                    raise FraimicCloudError(
+                        f"Download failed: HTTP {resp.status}", status=resp.status
+                    )
+                # One read(n) returns only what is buffered; loop until EOF.
+                data = bytearray()
+                while chunk := await resp.content.read(65536):
+                    data.extend(chunk)
+                    if len(data) > max_bytes:
+                        raise FraimicCloudError("Download is too large")
+                return bytes(data), resp.headers.get("Content-Type")
+        except aiohttp.ClientError as err:
+            raise FraimicCloudError(f"Download failed: {err}") from err
+        except asyncio.TimeoutError as err:
+            raise FraimicCloudError("Download timed out") from err
 
     # ------------------------------------------------------------ albums
 

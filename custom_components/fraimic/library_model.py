@@ -91,6 +91,67 @@ def render_cache_key(params: dict[str, Any]) -> str:
 
 
 @dataclass
+class Creation:
+    """Provenance of an artwork imported from a Fraimic account gallery.
+
+    ``account_id`` + ``upload_id`` is the durable identity used to skip
+    repeat imports; signed asset URLs expire and are never stored. Fields the
+    vendor left out stay None.
+    """
+
+    account_id: str
+    upload_id: str
+    created_at: float | None = None
+    transcript: str | None = None
+    style: str | None = None
+    orientation: str | None = None
+    # Vendor crop as returned (x/y/width/height with its ``unit``), not a
+    # library crop box.
+    crop: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None
+
+    @property
+    def key(self) -> tuple[str, str]:
+        return (self.account_id, self.upload_id)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "account_id": self.account_id,
+            "upload_id": self.upload_id,
+            "created_at": self.created_at,
+            "transcript": self.transcript,
+            "style": self.style,
+            "orientation": self.orientation,
+            "crop": self.crop,
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Any) -> Creation | None:
+        if not isinstance(data, dict):
+            return None
+        account_id = _optional_string(data.get("account_id"))
+        upload_id = _optional_string(data.get("upload_id"))
+        if account_id is None or upload_id is None:
+            return None
+        created_at = data.get("created_at")
+        return cls(
+            account_id=account_id,
+            upload_id=upload_id,
+            created_at=(
+                float(created_at)
+                if isinstance(created_at, (int, float)) and not isinstance(created_at, bool)
+                else None
+            ),
+            transcript=_optional_string(data.get("transcript")),
+            style=_optional_string(data.get("style")),
+            orientation=_optional_string(data.get("orientation")),
+            crop=data.get("crop") if isinstance(data.get("crop"), dict) else None,
+            metadata=data.get("metadata") if isinstance(data.get("metadata"), dict) else None,
+        )
+
+
+@dataclass
 class LibraryImage:
     """One image in the shared library."""
 
@@ -110,6 +171,7 @@ class LibraryImage:
     # The crop box is stored in original-image space; the pipeline crops first
     # and then rotates, so the pair always stays consistent.
     rotations: dict[str, int] = field(default_factory=dict)
+    creation: Creation | None = None
 
     def normalized_albums(self) -> list[str]:
         """Albums with duplicates removed and the default as fallback."""
@@ -153,6 +215,7 @@ class LibraryImage:
             "attribution": self.attribution,
             "crops": self.crops,
             "rotations": self.rotations,
+            "creation": self.creation.to_dict() if self.creation else None,
         }
 
     @classmethod
@@ -189,6 +252,7 @@ class LibraryImage:
             attribution=_optional_string(data.get("attribution")),
             crops=parsed_crops,
             rotations=parsed_rotations,
+            creation=Creation.from_dict(data.get("creation")),
         )
 
 

@@ -6,6 +6,7 @@ import asyncio
 import io
 import json
 import re
+import time
 import uuid
 from collections import Counter
 from http import HTTPStatus
@@ -263,6 +264,7 @@ def _candidate_payload(
 def _library_payload(image, entry) -> dict[str, Any]:
     _, queued_ids = _queued_refs(entry)
     title = Path(image.filename).stem or "Untitled"
+    creation = image.creation
     return {
         "id": image.image_id,
         "source": LIBRARY_SOURCE,
@@ -282,8 +284,13 @@ def _library_payload(image, entry) -> dict[str, Any]:
         "favorite": FAVORITES_ALBUM in image.normalized_albums(),
         "favorite_image_id": image.image_id,
         "queued": image.image_id in queued_ids,
-        "year": None,
-        "description": None,
+        "year": (
+            time.gmtime(creation.created_at).tm_year
+            if creation and creation.created_at is not None
+            else None
+        ),
+        "description": creation.transcript if creation else None,
+        "style": creation.style if creation else None,
         "source_page_url": image.source_url,
         "albums": image.normalized_albums(),
     }
@@ -323,7 +330,7 @@ def _source_payload(provider, available: set[str]) -> dict[str, Any]:
 
 
 def _upload_ids(hass, library: FraimicLibrary) -> set[str]:
-    """Separate local uploads from saved online art and installed art packs."""
+    """Separate local uploads from saved online art, art packs and creations."""
     manager = get_pack_manager(hass)
     pack_ids = {
         image_id
@@ -333,7 +340,9 @@ def _upload_ids(hass, library: FraimicLibrary) -> set[str]:
     return {
         image.image_id
         for image in library.images.values()
-        if not image.source_url and image.image_id not in pack_ids
+        if not image.source_url
+        and image.creation is None
+        and image.image_id not in pack_ids
     }
 
 

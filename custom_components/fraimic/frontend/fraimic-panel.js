@@ -1884,6 +1884,7 @@ class FraimicPanel extends HTMLElement {
           <div class="detail-meta-row"><dt>Source</dt><dd>${sourceLink}</dd></div>
           <div class="detail-meta-row"><dt>Original</dt><dd>${detail.dimensions_known ? `${h(detail.width)} × ${h(detail.height)}` : "Dimensions unavailable"}</dd></div>
           ${detail.year ? `<div class="detail-meta-row"><dt>Year</dt><dd>${h(detail.year)}</dd></div>` : ""}
+          ${detail.style ? `<div class="detail-meta-row"><dt>Style</dt><dd>${h(detail.style)}</dd></div>` : ""}
           ${detail.license ? `<div class="detail-meta-row"><dt>License</dt><dd>${h(detail.license)}</dd></div>` : ""}
         </dl>${detail.description ? `<p class="detail-description">${h(detail.description)}</p>` : ""}
         <div class="detail-links">${relatedFrame && this._fitDifference(detail, relatedFrame) < this._fitDifference(detail, this._frame) ? `<button class="btn quiet small" data-related-frame="${h(relatedFrame.id)}">Better on ${h(relatedFrame.name)}</button>` : ""}${sourceHref ? `<a class="btn quiet small" href="${h(sourceHref)}" target="_blank" rel="noopener"><ha-icon icon="mdi:open-in-new"></ha-icon> Open original artwork</a>` : ""}${detail.source === "saved" ? `<button class="btn quiet small danger" data-detail-action="delete">Remove from library</button>` : ""}</div></section>
