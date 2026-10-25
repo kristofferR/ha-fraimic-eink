@@ -713,13 +713,19 @@ def test_busy_backend_rejects_user_send_and_defers_automatic_send(monkeypatch, u
 
 @pytest.mark.parametrize("battery", [5, 80])
 @pytest.mark.parametrize("superseded", [False, True])
-def test_backend_preserves_coalescing_and_low_battery_gates(monkeypatch, battery, superseded):
+@pytest.mark.parametrize("matching_lan_hash", [False, True])
+def test_backend_preserves_coalescing_and_low_battery_gates(
+    monkeypatch, battery, superseded, matching_lan_hash
+):
+    import hashlib
     from unittest.mock import AsyncMock
 
     services = _load_services(monkeypatch)
     power = load("power")
     entry = SimpleNamespace(data={}, options={})
     manager = power.FraimicPowerManager(SimpleNamespace(), entry)
+    if matching_lan_hash:
+        manager.last_hash = hashlib.sha256(b"pixels").hexdigest()
     runtime = SimpleNamespace(
         backend=SimpleNamespace(async_deliver=AsyncMock()), power=manager,
         coordinator=SimpleNamespace(data={"battery": {"percent": battery}}),

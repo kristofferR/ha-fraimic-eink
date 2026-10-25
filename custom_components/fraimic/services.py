@@ -1214,9 +1214,11 @@ async def async_render_and_upload(
 
                 # Local pull delivery owns sleep and wake timing. Preserve the
                 # coalescing and low-battery gates, without LAN cooldowns.
+                # A prior LAN hash cannot suppress these gates for a new pull.
                 content_hash = hashlib.sha256(bin_data).hexdigest()
                 reason = runtime.power.skip_reason(
                     content_hash, trigger, power_token, runtime.coordinator.data,
+                    deduplicate=False,
                 )
                 queued = False
                 if runtime.send_seq != send_seq:

@@ -291,6 +291,7 @@ class FraimicPowerManager:
         data: dict[str, Any] | None,
         *,
         now: float | None = None,
+        deduplicate: bool = True,
     ) -> str | None:
         """Return why a rendered send should not touch the frame."""
         now = time.time() if now is None else now
@@ -298,7 +299,7 @@ class FraimicPowerManager:
         # The frame's scheduled maintenance refresh redraws last_image.bin,
         # which is this integration's last upload, so it never makes a
         # duplicate worth sending again.
-        if content_hash == self.last_hash:
+        if deduplicate and content_hash == self.last_hash:
             return self._count_skip(SKIP_DUPLICATE)
         automatic = trigger in AUTOMATIC_TRIGGERS
         if not automatic:
