@@ -233,9 +233,18 @@ class AiArtManager:
         prompt: str | None = None,
         model: str | None = None,
         ai_task_entity: str | None = None,
+        provider: str | None = None,
     ) -> tuple[GeneratedImage, dict[str, Any]]:
-        """Make one picture; ``prompt`` skips the rewrite and the template."""
+        """Make one picture; ``prompt`` skips the rewrite and the template.
+
+        ``provider`` picks another set-up service than the default for this
+        picture only.
+        """
         settings = self.settings
+        if provider and provider != settings.provider:
+            if not settings.ready(provider):
+                raise HomeAssistantError("That image service is not set up yet")
+            settings = settings.updated({"provider": provider})
         if ai_task_entity and settings.provider == PROVIDER_AI_TASK:
             settings = settings.updated({"ai_task_entity": ai_task_entity})
         if not settings.configured:
@@ -371,6 +380,7 @@ class AiArtManager:
         style: str | None = None,
         prompt: str | None = None,
         model: str | None = None,
+        provider: str | None = None,
     ) -> tuple[LibraryImage, dict[str, Any]]:
         """Make a picture shaped for ``entry`` and save it under Creations."""
         library = get_library(self.hass)
@@ -385,6 +395,7 @@ class AiArtManager:
             style=style,
             prompt=prompt,
             model=model,
+            provider=provider,
         )
         creation = Creation(
             account_id=AI_ACCOUNT,

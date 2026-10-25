@@ -20,7 +20,26 @@ const AVOID_REPEATS = [[0, "Off"], [7, "7 days"], [30, "30 days"], [90, "90 days
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MAX_AUTO_SOURCES = 12;
 const AI_SAMPLE = "a fox reading under a lamp";
-const AI_PROVIDERS = [["", "None"], ["openrouter", "OpenRouter"], ["local", "Local server"], ["ai_task", "Home Assistant AI Task"]];
+const AI_SERVICES = [["openrouter", "OpenRouter"], ["local", "Local server"], ["ai_task", "Home Assistant AI Task"]];
+const AI_PROVIDERS = [["", "None"], ...AI_SERVICES];
+const AI_SHORT_NAMES = { openrouter: "OpenRouter", local: "Local server", ai_task: "AI Task" };
+// This browser's service and model picks in Create.
+const AI_CHOICE_KEY = "fraimic-ai-create";
+// Turns mic audio into 16-bit PCM for Assist, like Home Assistant's own recorder.
+const RECORDER_WORKLET = `registerProcessor("fraimic-recorder", class extends AudioWorkletProcessor {
+  process([input]) {
+    const samples = input?.[0];
+    if (samples?.length) {
+      const pcm = new Int16Array(samples.length);
+      for (let i = 0; i < samples.length; i++) {
+        const sample = Math.max(-1, Math.min(1, samples[i]));
+        pcm[i] = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+      }
+      this.port.postMessage(pcm, [pcm.buffer]);
+    }
+    return true;
+  }
+});`;
 const VOICE_MODES = [["art", "Create artwork"], ["assist", "Ask Assist"], ["fixed", "Show a fixed picture"]];
 // Mirrors ai_art.apply_template so the dialogs can show the exact prompt.
 const applyTemplate = (template, request) => {
@@ -62,6 +81,13 @@ const storedArray = (key, fallback = []) => {
     const value = JSON.parse(localStorage.getItem(key) || "null");
     return Array.isArray(value) ? value.filter((item) => typeof item === "string") : fallback;
   } catch (_error) { return fallback; }
+};
+
+const storedObject = (key) => {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "null");
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  } catch (_error) { return {}; }
 };
 
 const storeValue = (key, value) => {
@@ -117,6 +143,7 @@ const css = String.raw`
     background: var(--accent); color: var(--accent-text); border-color: var(--accent);
   }
   .btn.quiet { border-color: transparent; background: transparent; }
+  .btn:disabled, .create-mic:disabled { opacity: .45; cursor: default; }
   .btn.small { height: 28px; min-height: 28px; font-size: 12px; }
   .icon-btn { width: 44px; height: 44px; display: inline-grid; place-items: center; border-color: transparent; background: transparent; }
   ha-icon { --mdc-icon-size: 20px; }
@@ -374,6 +401,37 @@ const css = String.raw`
   .ai-voice > b { display: block; margin-bottom: 6px; font-size: 13px; }
   .ai-sent { margin: 10px 0; }
   .ai-sent label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+  .ai-subhead { margin: 14px 0 6px; font-size: 13px; }
+  .ready-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: var(--success-color); }
+  .create-compose { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+  .create-compose:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .create-compose.listening { border-color: var(--error-color); box-shadow: 0 0 0 1px var(--error-color); }
+  .create-dialog .create-compose textarea { display: block; min-height: 108px; border: 0; background: transparent; padding: 10px 12px 4px; font-size: 15px; resize: none; }
+  .create-compose textarea:focus-visible { outline: none; }
+  .create-compose-bar { display: flex; align-items: center; gap: 8px; padding: 0 6px 6px 12px; }
+  .create-hint { color: var(--muted); font-size: 12px; }
+  .create-mic { width: 40px; height: 40px; min-height: 40px; flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 50%; background: var(--surface); }
+  .create-mic.recording { border-color: var(--error-color); background: var(--error-color); color: var(--text-primary-color, #fff); }
+  .create-mic.unavailable { color: var(--muted); }
+  .create-label { margin: 14px 0 6px; color: var(--muted); font-size: 12px; }
+  .create-note { display: grid; gap: 2px; margin-top: 14px; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px; font-size: 13px; }
+  .create-note span { color: var(--muted); }
+  .create-service-wrap { position: relative; min-width: 0; }
+  .btn.create-service { max-width: min(340px, 62vw); margin-left: -6px; padding: 0 4px 0 6px; color: var(--muted); font-size: 12.5px; }
+  .btn.create-service > span { overflow: hidden; text-overflow: ellipsis; }
+  .btn.create-service[aria-expanded="true"] { border-color: var(--line); color: var(--text); }
+  .menu.create-menu { position: absolute; left: -6px; bottom: calc(100% + 6px); z-index: 2; max-height: min(360px, 60vh); overflow: auto; }
+  .create-menu button { min-height: 40px; }
+  .menu.create-menu button > span:last-child:not(.menu-end) { margin-left: 0; color: inherit; font-size: inherit; }
+  .create-menu .menu-check { width: 18px; flex: none; display: grid; place-items: center; --mdc-icon-size: 18px; }
+  .create-menu .menu-text { min-width: 0; flex: 1; }
+  .create-menu .menu-text b { display: block; font-weight: 500; }
+  .create-menu .menu-text small { display: block; overflow: hidden; color: var(--muted); font-size: 12px; white-space: nowrap; text-overflow: ellipsis; }
+  .create-menu .menu-end { flex: none; }
+  .create-menu .menu-muted { color: var(--muted); }
+  .create-menu hr { margin: 4px 0; border: 0; border-top: 1px solid var(--line); }
+  .create-menu .menu-note { margin: 8px 10px; color: var(--muted); font-size: 12.5px; }
+  .create-menu .menu-note.error { color: var(--error-color); }
   .create-working { display: grid; justify-items: center; gap: 4px; padding: 32px 8px; text-align: center; }
   .create-working ha-icon { --mdc-icon-size: 32px; color: var(--accent); }
   .create-working p { margin: 0; }
@@ -514,6 +572,7 @@ const css = String.raw`
     .inspector { border-left: 0; border-top: 1px solid var(--line); }
   }
   @media (max-width: 599px) {
+    .create-keys { display: none; }
     .top, .filter, .content, .player, .queue-row, .queue-head, .queue-now { padding-left: 12px; padding-right: 12px; }
     .top .nav-label, .player .previous, .player .next, .player .frame-more { display: none; }
     .top .brand { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -665,6 +724,7 @@ class FraimicPanel extends HTMLElement {
     this._imageObserver?.disconnect();
     this._boundsObserver?.disconnect();
     this._disposeDetailPreview();
+    this._cancelDictation();
   }
 
   set hass(value) {
@@ -1664,7 +1724,10 @@ class FraimicPanel extends HTMLElement {
 
   _handleKeyDown(event) {
     if (event.key === "Escape") {
-      if (this._modal) this._closeModal();
+      if (this._modal?.className?.includes("create-dialog") && this._createState?.menu) {
+        this._createState.menu = null;
+        this._refreshCreate();
+      } else if (this._modal) this._closeModal();
       else if (this._overlaysOpen) this._requestCloseOverlays();
       else if (this._queueOpen) this._toggleQueue();
     }
@@ -2537,8 +2600,10 @@ class FraimicPanel extends HTMLElement {
 
   // ---------------------------------------------------------------- AI art
 
-  async _openAiSettings() {
+  // `tab` opens on one service; from Create, closing returns there with the text kept.
+  async _openAiSettings({ tab = "", returnToCreate = false } = {}) {
     this._menu = null;
+    this._cancelDictation();
     try { this._ai = await this._api("ai/settings"); } catch (error) { return this._notify(error.message, { error: true }); }
     const ai = this._ai;
     this._aiDraft = {
@@ -2553,23 +2618,39 @@ class FraimicPanel extends HTMLElement {
       style: ai.style,
       styles: ai.styles.map(({ id, name, template }) => ({ id, name, template })),
       rewrite_entity: ai.rewrite_entity,
+      dictation_pipeline: ai.dictation_pipeline || "",
       voice: Object.fromEntries(ai.voice.map(({ entry_id: entryId, mode, image, stt, language, agent, ai_task_entity }) => [entryId, { mode, image, stt, language, agent, ai_task_entity }])),
     };
+    this._aiTab = tab || ai.provider || AI_SERVICES[0][0];
     this._aiVoiceLoaded = JSON.stringify(this._aiDraft.voice);
     this._aiEditStyle = null;
     this._aiCheck = null;
-    this._openModal("AI art", this._aiSettingsBody(), this._aiSettingsActions(), { className: "auto-dialog ai-dialog", subtitle: "Shared by all frames" });
+    this._openModal("AI art settings", this._aiSettingsBody(), this._aiSettingsActions(), {
+      className: "auto-dialog ai-dialog",
+      subtitle: "Shared by all frames",
+      onClose: returnToCreate ? () => this._openCreate() : null,
+    });
     this._aiServiceChanged();
+    this._loadPipelines();
   }
 
-  // Load what the selected service needs: models and credit, or the server.
+  // Load what the service being edited needs: models and credit, or the server.
   _aiServiceChanged() {
     const draft = this._aiDraft;
-    if (draft.provider === "openrouter") {
+    if (this._aiTab === "openrouter") {
       if (!this._aiModels?.list || this._aiModels.entryId !== this._selectedFrameId) this._loadAiModels();
       if (this._ai.openrouter.has_key || draft.openrouter_key) this._checkAi();
     }
-    if (draft.provider === "local" && draft.local_url) this._checkAi();
+    if (this._aiTab === "local" && draft.local_url) this._checkAi();
+  }
+
+  // Whether a service in the settings draft can make pictures.
+  _aiDraftReady(service) {
+    const draft = this._aiDraft;
+    if (service === "openrouter") return Boolean(draft.openrouter_key || this._ai.openrouter.has_key);
+    if (service === "local") return Boolean(draft.local_url && draft.local_api);
+    if (service === "ai_task") return this._ai.choices.image_entities.some((entity) => entity.id === draft.ai_task_entity);
+    return false;
   }
 
   _refreshAiSettings() {
@@ -2596,29 +2677,30 @@ class FraimicPanel extends HTMLElement {
   _aiSettingsBody() {
     const ai = this._ai;
     const draft = this._aiDraft;
-    const check = this._aiCheck;
+    const tab = this._aiTab;
+    const check = this._aiCheck?.service === tab ? this._aiCheck : null;
     const options = (choices, value) => choices.map(([choice, label]) => `<option value="${h(choice)}" ${choice === value ? "selected" : ""}>${h(label)}</option>`).join("");
     const status = check?.pending ? `<p class="auto-hint" role="status">Checking…</p>`
       : check?.error ? `<p class="ai-status error" role="status">${h(check.error)}</p>`
       : check?.ok ? `<p class="ai-status ok" role="status">${h(this._aiCheckText(check))}</p>` : "";
     let service = "";
-    if (draft.provider === "openrouter") {
+    if (tab === "openrouter") {
       const placeholder = ai.openrouter.has_key ? `Saved key${ai.openrouter.key_hint ? ` ending in ${ai.openrouter.key_hint}` : ""}` : "sk-or-v1-…";
       service = `<div class="field"><label for="ai-key">OpenRouter API key</label><div class="ai-row"><input id="ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="${h(placeholder)}" value="${h(draft.openrouter_key)}"><button class="btn" data-ai-check>Check</button></div></div>
         ${status}<p class="auto-hint">Create a key at <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">openrouter.ai/keys</a>. OpenRouter bills per picture, and each picture keeps its cost.</p>`;
-    } else if (draft.provider === "local") {
+    } else if (tab === "local") {
       const models = check?.ok ? check.models || [] : draft.local_model ? [draft.local_model] : [];
       service = `<div class="field"><label for="ai-url">Server address</label><div class="ai-row"><input id="ai-url" type="url" spellcheck="false" placeholder="http://192.168.1.20:7860" value="${h(draft.local_url)}"><button class="btn" data-ai-check>Connect</button></div></div>
         ${status}
         ${draft.local_api ? `<div class="ai-grid"><div class="field"><label for="ai-local-model">Model</label><select id="ai-local-model">${options([["", "Server default"], ...models.map((model) => [model, model])], draft.local_model)}</select></div>${draft.local_api === "sdwebui" ? `<div class="field"><label for="ai-steps">Steps</label><input id="ai-steps" type="number" min="1" max="150" placeholder="Server default" value="${h(draft.local_steps ?? "")}"></div>` : ""}</div>` : ""}
         <p class="auto-hint">Works with servers that speak the OpenAI images API, such as LocalAI and stable-diffusion.cpp, or the Stable Diffusion WebUI API, such as AUTOMATIC1111, Forge, SD.Next and Draw Things. Pictures are made in the frame's shape.</p>`;
-    } else if (draft.provider === "ai_task") {
+    } else {
       service = ai.choices.image_entities.length
         ? `<div class="field"><label for="ai-entity">AI Task entity</label><select id="ai-entity">${options(ai.choices.image_entities.map((entity) => [entity.id, entity.name]), draft.ai_task_entity)}</select></div><p class="auto-hint">These make square pictures, so the frame crops them, and their cost is not recorded.</p>`
         : `<p class="auto-hint">No AI Task entity here can make pictures yet. Add one with an integration such as OpenAI, or use OpenRouter or a local server.</p>`;
-    } else service = `<p class="auto-hint">Choose a service when you want to create artwork. Fixed pictures and Assist work without one.</p>`;
+    }
     const models = this._aiModels;
-    const modelSection = draft.provider !== "openrouter" ? "" : `<section class="auto-section"><h3>Model</h3>${models?.error ? `<p class="ai-status error">${h(models.error)}</p>` : models?.list ? this._aiModelList(models.list, draft.openrouter_model) : `<p class="auto-hint">Loading models…</p>`}</section>`;
+    const modelList = tab !== "openrouter" ? "" : `<h4 class="ai-subhead">Default model</h4>${models?.error ? `<p class="ai-status error">${h(models.error)}</p>` : models?.list ? this._aiModelList(models.list, draft.openrouter_model) : `<p class="auto-hint">Loading models…</p>`}`;
     const current = draft.styles.find((style) => style.id === draft.style) || draft.styles[0];
     const editing = draft.styles.find((style) => style.id === this._aiEditStyle);
     const builtin = editing && ai.builtin_styles[editing.id];
@@ -2629,19 +2711,40 @@ class FraimicPanel extends HTMLElement {
         <div class="ai-row">${builtin ? `<button class="btn" data-ai-reset-style ${builtin.name === editing.name && builtin.template === editing.template ? "disabled" : ""}>Reset to default</button>` : `<button class="btn" data-ai-delete-style>Delete style</button>`}<span class="spacer"></span><button class="btn" data-ai-done-style>Done</button></div>
       </div>`;
     const frames = ai.voice.filter((frame) => frame.available);
-    return `<section class="auto-section"><h3>Image service</h3>
-        <div class="seg" role="radiogroup" aria-label="Image service">${AI_PROVIDERS.map(([id, label]) => `<button role="radio" aria-checked="${draft.provider === id}" class="${draft.provider === id ? "selected" : ""}" data-ai-provider="${id}">${h(label)}</button>`).join("")}</div>
+    return `<section class="auto-section"><h3>Image services</h3>
+        <div class="seg" role="radiogroup" aria-label="Service to set up">${AI_SERVICES.map(([id, label]) => `<button role="radio" aria-checked="${tab === id}" class="${tab === id ? "selected" : ""}" data-ai-tab="${id}">${this._aiDraftReady(id) ? `<span class="ready-dot" title="Ready"></span>` : ""}${h(label)}</button>`).join("")}</div>
         <div style="margin-top:10px">${service}</div>
+        ${modelList}
+        <div class="auto-line"><label class="label" for="ai-default">Default service</label><select id="ai-default">${options(AI_PROVIDERS, draft.provider)}</select></div>
+        <p class="auto-hint">Set up as many as you like; a green dot means ready. The default is used by the voice button and automations, and is chosen first in Create.</p>
       </section>
-      ${modelSection}
-      <section class="auto-section"><h3>Prompt</h3>
+      <section class="auto-section"><h3>Styles</h3>
         <div class="chips" role="radiogroup" aria-label="Default style">${draft.styles.map((style) => `<button class="chip${style.id === draft.style ? " selected" : ""}" role="radio" aria-checked="${style.id === draft.style}" data-ai-style="${h(style.id)}">${h(style.name)}</button>`).join("")}<button class="chip ai-new" data-ai-new-style><ha-icon icon="mdi:plus"></ha-icon>New style</button></div>
-        <p class="auto-hint">Each style is a template around your request. The selected one is the default. ${editing ? "" : `<button class="link-btn" data-ai-edit-style>Edit ${h(current?.name || "style")}</button>`}</p>
+        <p class="auto-hint">Each style wraps your words in a template. The selected one is chosen first in Create. ${editing ? "" : `<button class="link-btn" data-ai-edit-style>Edit ${h(current?.name || "style")}</button>`}</p>
         ${editor}
-        <div class="auto-line"><label class="label" for="ai-rewrite">Rewrite first</label><select id="ai-rewrite">${options([["", "Off"], ...ai.choices.data_entities.map((entity) => [entity.id, entity.name])], draft.rewrite_entity)}</select></div>
+      </section>
+      <section class="auto-section"><h3>Rewrite</h3>
+        <div class="auto-line"><label class="label" for="ai-rewrite">Rewrite requests first</label><select id="ai-rewrite">${options([["", "Off"], ...ai.choices.data_entities.map((entity) => [entity.id, entity.name])], draft.rewrite_entity)}</select></div>
         <p class="auto-hint">Optional. An AI Task entity turns short or non-English requests into a detailed English prompt before the style is applied.</p>
       </section>
-      <section class="auto-section"><h3>Voice button</h3>${frames.length ? frames.map((frame) => this._aiVoiceRow(frame)).join("") : `<p class="auto-hint">The voice button works on frames that use local backend delivery, set in the frame's Configure dialog.</p>`}</section>`;
+      <section class="auto-section"><h3>Speech</h3>
+        ${this._aiDictationSettings()}
+        <h4 class="ai-subhead">Voice button</h4>
+        ${frames.length ? frames.map((frame) => this._aiVoiceRow(frame)).join("") : `<p class="auto-hint">The voice button works on frames that use local backend delivery, set in the frame's Configure dialog.</p>`}
+      </section>`;
+  }
+
+  _aiDictationSettings() {
+    const pipelines = this._pipelines?.list;
+    if (!pipelines) return `<p class="auto-hint">Loading Assist pipelines…</p>`;
+    if (!pipelines.length) return `<p class="auto-hint">To dictate in Create, add speech to text to an Assist pipeline under Settings › Voice assistants.</p>`;
+    const wanted = this._aiDraft.dictation_pipeline;
+    const fallback = this._dictationPipeline("");
+    const chosen = this._dictationPipeline(wanted);
+    const engine = this._hass?.states?.[chosen.stt_engine]?.attributes?.friendly_name || chosen.stt_engine;
+    const language = chosen.stt_language ? `, ${languageName(chosen.stt_language)}` : "";
+    const select = pipelines.length < 2 ? "" : `<div class="auto-line"><label class="label" for="ai-dictation">Dictation</label><select id="ai-dictation"><option value="">Default (${h(fallback.name)})</option>${pipelines.map((pipeline) => `<option value="${h(pipeline.id)}" ${pipeline.id === wanted ? "selected" : ""}>${h(pipeline.name)}</option>`).join("")}</select></div>`;
+    return `${select}<p class="auto-hint">The mic in Create uses ${h(engine)}${h(language)} from the ${h(chosen.name)} pipeline. Browsers allow the mic on HTTPS and in the Home Assistant app.</p>`;
   }
 
   _aiModelList(list, selected) {
@@ -2698,16 +2801,17 @@ class FraimicPanel extends HTMLElement {
 
   async _checkAi() {
     const draft = this._aiDraft;
-    const patch = { provider: draft.provider };
-    if (draft.provider === "openrouter" && draft.openrouter_key) patch.openrouter_key = draft.openrouter_key;
-    if (draft.provider === "local") patch.local_url = draft.local_url;
-    this._aiCheck = { pending: true };
+    const service = this._aiTab;
+    const patch = { provider: service };
+    if (service === "openrouter" && draft.openrouter_key) patch.openrouter_key = draft.openrouter_key;
+    if (service === "local") patch.local_url = draft.local_url;
+    this._aiCheck = { pending: true, service };
     this._refreshAiSettings();
     let result;
     try { result = await this._api("ai/check", this._json(patch)); } catch (error) { result = { ok: false, error: error.message }; }
-    if (this._aiDraft !== draft || draft.provider !== patch.provider || (patch.provider === "local" && draft.local_url !== patch.local_url)) return;
-    this._aiCheck = result;
-    if (draft.provider === "local") {
+    if (this._aiDraft !== draft || (service === "local" && draft.local_url !== patch.local_url)) return;
+    if (this._aiCheck?.service === service) this._aiCheck = { ...result, service };
+    if (service === "local") {
       draft.local_api = result.ok ? result.api : draft.local_url === this._ai.local.url ? this._ai.local.api : "";
       const models = result.models || [];
       if (result.ok && !models.includes(draft.local_model)) draft.local_model = models.length === 1 ? models[0] : "";
@@ -2721,7 +2825,9 @@ class FraimicPanel extends HTMLElement {
     const draft = this._aiDraft;
     const on = (selector, event, handler) => root.querySelectorAll(selector).forEach((node) => node.addEventListener(event, (domEvent) => handler(node, domEvent)));
     const editing = () => draft.styles.find((style) => style.id === this._aiEditStyle);
-    on("[data-ai-provider]", "click", (node) => { draft.provider = node.dataset.aiProvider; this._aiCheck = null; this._refreshAiSettings(); this._aiServiceChanged(); });
+    on("[data-ai-tab]", "click", (node) => { this._aiTab = node.dataset.aiTab; this._aiCheck = null; this._refreshAiSettings(); this._aiServiceChanged(); });
+    on("#ai-default", "change", (node) => { draft.provider = node.value; });
+    on("#ai-dictation", "change", (node) => { draft.dictation_pipeline = node.value; this._refreshAiSettings(); });
     on("#ai-key", "input", (node) => { draft.openrouter_key = node.value.trim(); });
     on("#ai-url", "input", (node) => { draft.local_url = node.value.trim(); });
     on("#ai-key, #ai-url", "keydown", (_node, event) => { if (event.key === "Enter") { event.preventDefault(); this._checkAi(); } });
@@ -2768,9 +2874,9 @@ class FraimicPanel extends HTMLElement {
   async _saveAiSettings() {
     const ai = this._ai;
     const { openrouter_key: key, ...patch } = structuredClone(this._aiDraft);
-    if (patch.provider === "openrouter" && !key && !ai.openrouter.has_key) return this._notify("Paste an OpenRouter API key first.", { error: true });
-    if (patch.provider === "local" && !patch.local_api) return this._notify("Connect to the local server first.", { error: true });
-    if (patch.provider === "ai_task" && !patch.ai_task_entity) return this._notify("Choose an AI Task entity first.", { error: true });
+    if (patch.provider === "openrouter" && !key && !ai.openrouter.has_key) return this._notify("Paste an OpenRouter API key before making it the default.", { error: true });
+    if (patch.provider === "local" && !patch.local_api) return this._notify("Connect to the local server before making it the default.", { error: true });
+    if (patch.provider === "ai_task" && !patch.ai_task_entity) return this._notify("Choose an AI Task entity before making it the default.", { error: true });
     if (patch.styles.some((style) => !style.name.trim() || !style.template.trim())) return this._notify("Every style needs a name and a template.", { error: true });
     if (JSON.stringify(patch.voice) !== this._aiVoiceLoaded) {
       const loaded = JSON.parse(this._aiVoiceLoaded);
@@ -2794,28 +2900,34 @@ class FraimicPanel extends HTMLElement {
   async _openCreate() {
     this._menu = null;
     try { this._ai = await this._api("ai/settings"); } catch (error) { return this._notify(error.message, { error: true }); }
-    if (!this._ai.configured) {
-      this._notify("Choose an image service to start creating.");
-      return this._openAiSettings();
-    }
     const ai = this._ai;
     const previous = this._createState;
     if (previous?.previewUrl) URL.revokeObjectURL(previous.previewUrl);
+    const keep = previous?.phase === "compose";
+    const service = this._createDefaultService();
     this._createState = {
-      request: previous?.phase === "compose" ? previous.request : "",
-      style: ai.style,
+      request: keep ? previous.request : "",
+      style: keep && ai.styles.some((style) => style.id === previous.style) ? previous.style : ai.style,
       prompt: null,
       editing: false,
-      model: ai.provider === "openrouter" ? ai.openrouter.model : "",
+      service,
+      model: this._createSavedModel(service),
       entryId: this._selectedFrameId,
       phase: "compose",
       result: null,
       error: null,
       previewUrl: null,
+      menu: null,
+      dictation: null,
     };
-    this._openModal("Create", this._createBody(), this._createActions(), { className: "auto-dialog create-dialog", subtitle: "Saved to Creations" });
+    this._openModal("Create", this._createBody(), this._createActions(), {
+      className: "auto-dialog create-dialog",
+      subtitle: "Saved to Creations",
+      headerActions: `<button class="icon-btn" data-create-settings aria-label="AI art settings" title="AI art settings"><ha-icon icon="mdi:cog-outline"></ha-icon></button>`,
+    });
     queueMicrotask(() => this.shadowRoot.getElementById("create-request")?.focus());
-    if (ai.provider === "openrouter" && (!this._aiModels?.list || this._aiModels.entryId !== this._selectedFrameId)) this._loadAiModels();
+    if (service === "openrouter" && (!this._aiModels?.list || this._aiModels.entryId !== this._selectedFrameId)) this._loadAiModels();
+    if (!this._pipelines) this._loadPipelines();
   }
 
   _refreshCreate() {
@@ -2830,32 +2942,105 @@ class FraimicPanel extends HTMLElement {
     return styles.find((style) => style.id === this._createState.style) || styles[0];
   }
 
-  _createModel() {
-    return this._aiModels?.list?.find((model) => model.id === this._createState.model);
+  // The service this browser used last, else the default, else any that is ready.
+  _createDefaultService() {
+    const ai = this._ai;
+    const saved = storedObject(AI_CHOICE_KEY).service;
+    return [saved, ai.provider, ...AI_SERVICES.map(([id]) => id)].find((id) => id && ai.ready[id]) || "";
+  }
+
+  _createSavedModel(service) {
+    const ai = this._ai;
+    const saved = storedObject(AI_CHOICE_KEY).models?.[service];
+    if (service === "openrouter") return typeof saved === "string" && saved ? saved : ai.openrouter.model;
+    if (service === "local") return typeof saved === "string" ? saved : ai.local.model;
+    return "";
+  }
+
+  // Remembered per browser; the default in settings stays for the voice button and automations.
+  _rememberCreateService() {
+    const { service, model } = this._createState;
+    const saved = storedObject(AI_CHOICE_KEY);
+    const models = saved.models && typeof saved.models === "object" ? saved.models : {};
+    storeValue(AI_CHOICE_KEY, JSON.stringify({ service, models: { ...models, [service]: model } }));
+  }
+
+  _pickCreateService(service) {
+    const state = this._createState;
+    state.service = service;
+    state.model = this._createSavedModel(service);
+    state.menu = null;
+    this._rememberCreateService();
+    if (service === "openrouter" && (!this._aiModels?.list || this._aiModels.entryId !== this._selectedFrameId)) this._loadAiModels();
+    this._refreshCreate();
+  }
+
+  _createModelName(service, model) {
+    const ai = this._ai;
+    if (service === "openrouter") return this._aiModels?.list?.find((candidate) => candidate.id === model)?.name || model;
+    if (service === "local") return model || "Server default";
+    return ai.choices.image_entities.find((entity) => entity.id === ai.ai_task_entity)?.name || ai.ai_task_entity;
+  }
+
+  _createPrice(service, model) {
+    if (service === "local") return "Free";
+    const price = service === "openrouter" ? this._aiModels?.list?.find((candidate) => candidate.id === model)?.price : null;
+    return price != null ? usd(price) : "";
+  }
+
+  _createModelChoices() {
+    const state = this._createState;
+    if (state.service === "openrouter") return { list: this._aiModels?.list, error: this._aiModels?.error };
+    const local = this._aiLocalModels;
+    if (local?.url !== this._ai.local.url) return {};
+    return { list: local.list?.map((id) => ({ id, name: id })), error: local.error };
+  }
+
+  async _loadLocalModels() {
+    const url = this._ai.local.url;
+    const loaded = this._aiLocalModels;
+    if (loaded?.url === url && (loaded.list || loaded.pending)) return;
+    this._aiLocalModels = { url, pending: true };
+    let result;
+    try { result = await this._api("ai/check", this._json({ provider: "local" })); } catch (error) { result = { ok: false, error: error.message }; }
+    if (this._aiLocalModels?.url !== url) return;
+    this._aiLocalModels = result.ok ? { url, list: result.models || [] } : { url, error: result.error };
+    this._refreshCreate();
   }
 
   _createBody() {
     const state = this._createState;
     const ai = this._ai;
     if (state.phase === "working") {
-      const where = ai.provider === "local" ? "Local servers can take a few minutes." : "This usually takes 10 to 30 seconds.";
+      const where = state.service === "local" ? "Local servers can take a few minutes." : "This usually takes 10 to 30 seconds.";
       return `<div class="create-working" role="status"><ha-icon icon="mdi:creation"></ha-icon><p><b>Creating your picture</b></p><p class="auto-hint">${where} You can close this. The picture still lands in Creations.</p></div>`;
     }
     if (state.phase === "result") return this._createResultBody();
+    const listening = state.dictation === "listening";
+    const problem = this._dictationProblem();
+    const mic = listening
+      ? `<button class="create-mic recording" data-create-mic aria-label="Stop dictating"><ha-icon icon="mdi:stop"></ha-icon></button>`
+      : state.dictation
+        ? `<button class="create-mic" disabled aria-label="Writing down what you said"><ha-icon icon="mdi:dots-horizontal"></ha-icon></button>`
+        : `<button class="create-mic${problem ? " unavailable" : ""}" data-create-mic aria-label="Dictate" title="${h(problem || "Dictate with this device's microphone")}"><ha-icon icon="mdi:microphone"></ha-icon></button>`;
+    const keys = /Mac|iPhone|iPad/.test(globalThis.navigator?.platform || "") ? "⌘+Enter" : "Ctrl+Enter";
+    const hint = listening ? "Listening. Tap stop when you're done." : state.dictation ? "Writing it down…" : "";
+    const compose = `<div class="create-compose${listening ? " listening" : ""}">
+        <textarea id="create-request" maxlength="2000" aria-label="Describe the picture" placeholder="Describe the picture, like a fox reading under a lamp on an autumn evening">${h(state.request)}</textarea>
+        <div class="create-compose-bar"><span class="create-hint" role="status">${hint ? h(hint) : `<span class="create-keys">${keys} to create</span>`}</span><span class="spacer"></span>${mic}</div>
+      </div>
+      <p class="create-label" id="create-style-label">Style</p>
+      <div class="chips" role="radiogroup" aria-labelledby="create-style-label">${ai.styles.map((style) => `<button class="chip${style.id === state.style ? " selected" : ""}" role="radio" aria-checked="${style.id === state.style}" data-create-style="${h(style.id)}">${h(style.name)}</button>`).join("")}</div>`;
+    const error = state.error ? `<p class="ai-status error" role="alert">${h(state.error)}</p>` : "";
+    if (!state.service) return `${compose}<div class="create-note"><b>No image service yet</b><span>Choose OpenRouter, a local server or a Home Assistant AI Task. Your text stays here.</span></div>${error}`;
     const sent = state.prompt ?? applyTemplate(this._createStyle().template, state.request.trim() || "…");
     const rewrite = ai.choices.data_entities.find((entity) => entity.id === ai.rewrite_entity);
-    const models = this._aiModels?.list || [];
-    const modelChoices = models.some((model) => model.id === state.model) ? models : [{ id: state.model, name: state.model }, ...models];
-    const fields = [];
-    if (ai.provider === "openrouter") fields.push(`<div class="field"><label for="create-model">Model</label><select id="create-model">${modelChoices.map((model) => `<option value="${h(model.id)}" ${model.id === state.model ? "selected" : ""}>${h(model.name)}${model.price != null ? ` · ${usd(model.price)}` : ""}</option>`).join("")}</select></div>`);
-    if (this._frames.length > 1) fields.push(`<div class="field"><label for="create-frame">Shaped for</label><select id="create-frame">${this._frames.map((frame) => `<option value="${h(frame.id)}" ${frame.id === state.entryId ? "selected" : ""}>${h(frame.name)}, ${h(this._frameShape(frame))}</option>`).join("")}</select></div>`);
-    return `<div class="field"><label for="create-request">Describe the picture</label><textarea id="create-request" maxlength="2000" placeholder="A fox reading under a lamp on an autumn evening">${h(state.request)}</textarea></div>
-      <div class="chips" role="radiogroup" aria-label="Style">${ai.styles.map((style) => `<button class="chip${style.id === state.style ? " selected" : ""}" role="radio" aria-checked="${style.id === state.style}" data-create-style="${h(style.id)}">${h(style.name)}</button>`).join("")}</div>
+    const frames = this._frames.length < 2 ? "" : `<div class="field"><label for="create-frame">Shaped for</label><select id="create-frame">${this._frames.map((frame) => `<option value="${h(frame.id)}" ${frame.id === state.entryId ? "selected" : ""}>${h(frame.name)}, ${h(this._frameShape(frame))}</option>`).join("")}</select></div>`;
+    return `${compose}
       <div class="ai-sent">${state.editing
         ? `<label for="create-prompt">Prompt sent to the model</label><textarea id="create-prompt" maxlength="4000">${h(sent)}</textarea><p class="auto-hint">Sent exactly as written${rewrite ? ", without the rewrite" : ""}. <button class="link-btn" data-create-unedit>Use the style instead</button></p>`
         : `<div class="ai-row"><p class="ai-preview"><b>Sent:</b> <span id="create-preview">${h(sent)}</span></p><button class="btn small" data-create-edit>Edit</button></div>${rewrite ? `<p class="auto-hint">${h(rewrite.name)} rewrites your words into a detailed prompt first.</p>` : ""}`}</div>
-      ${fields.length ? `<div class="ai-grid">${fields.join("")}</div>` : ""}
-      ${state.error ? `<p class="ai-status error" role="alert">${h(state.error)}</p>` : ""}`;
+      ${frames}${error}`;
   }
 
   _createResultBody() {
@@ -2879,25 +3064,51 @@ class FraimicPanel extends HTMLElement {
       const disabled = state.discarding ? "disabled" : "";
       return `<button class="btn" data-create-discard ${disabled}>Discard</button><button class="btn" data-create-again ${disabled}>Try again</button><span class="spacer"></span><button class="btn primary" data-create-show ${disabled}>Show on ${h(frame?.name || "frame")}</button>`;
     }
-    const cost = this._ai.provider === "openrouter" ? this._createModel()?.price : null;
-    const price = this._ai.provider === "local" ? "Free, on your server" : cost != null ? `About ${usd(cost)}` : "";
-    const ready = state.request.trim() || (state.editing && state.prompt?.trim());
-    return `<span class="counter">${h(price)}</span><span class="spacer"></span><button class="btn primary" data-create-run ${ready ? "" : "disabled"}><ha-icon icon="mdi:creation"></ha-icon>Create</button>`;
+    if (!state.service) return `<span class="spacer"></span><button class="btn primary" data-create-setup=""><ha-icon icon="mdi:cog-outline"></ha-icon>Set up AI art</button>`;
+    const label = `${AI_SHORT_NAMES[state.service]} · ${this._createModelName(state.service, state.model)}`;
+    const ready = !state.dictation && (state.request.trim() || (state.editing && state.prompt?.trim()));
+    return `<div class="create-service-wrap"><button class="btn quiet create-service" data-create-menu="${state.menu ? "" : "service"}" aria-haspopup="menu" aria-expanded="${Boolean(state.menu)}" title="Image service and model"><span>${h(label)}</span><ha-icon icon="mdi:chevron-down"></ha-icon></button>${state.menu ? this._createMenuTemplate() : ""}</div>
+      <span class="counter">${h(this._createPrice(state.service, state.model))}</span><span class="spacer"></span><button class="btn primary" data-create-run ${ready ? "" : "disabled"}><ha-icon icon="mdi:creation"></ha-icon>Create</button>`;
+  }
+
+  // Service and model for this picture, tucked behind the button next to Create.
+  _createMenuTemplate() {
+    const state = this._createState;
+    const ai = this._ai;
+    const check = (on) => `<span class="menu-check">${on ? `<ha-icon icon="mdi:check"></ha-icon>` : ""}</span>`;
+    if (state.menu === "model") {
+      const { list, error } = this._createModelChoices();
+      const rows = error ? `<p class="menu-note error">${h(error)}</p>`
+        : !list ? `<p class="menu-note">Loading models…</p>`
+        : !list.length ? `<p class="menu-note">The server lists no models.</p>`
+        : list.map((model) => `<button role="menuitemradio" aria-checked="${model.id === state.model}" data-create-model="${h(model.id)}">${check(model.id === state.model)}<span class="menu-text">${h(model.name)}</span><span class="menu-end">${h(model.price != null ? usd(model.price) : "")}</span></button>`).join("");
+      return `<div class="menu create-menu" role="menu" aria-label="Model"><button role="menuitem" data-create-menu="service"><span class="menu-check"><ha-icon icon="mdi:chevron-left"></ha-icon></span><span class="menu-text">Image service</span></button><hr>${rows}</div>`;
+    }
+    const services = AI_SERVICES.map(([id, name]) => {
+      if (!ai.ready[id]) return `<button role="menuitem" class="menu-muted" data-create-setup="${id}">${check(false)}<span class="menu-text">${h(name)}</span><span class="menu-end">Set up ›</span></button>`;
+      const model = id === state.service ? state.model : this._createSavedModel(id);
+      return `<button role="menuitemradio" aria-checked="${id === state.service}" data-create-service="${id}">${check(id === state.service)}<span class="menu-text"><b>${h(name)}</b><small>${h(this._createModelName(id, model))}</small></span><span class="menu-end">${h(this._createPrice(id, model))}</span></button>`;
+    }).join("");
+    const model = state.service === "ai_task" ? "" : `<button role="menuitem" data-create-menu="model">${check(false)}<span class="menu-text">Model</span><span class="menu-end">${h(this._createModelName(state.service, state.model))} ›</span></button>`;
+    return `<div class="menu create-menu" role="menu" aria-label="Image service"><h3>Image service</h3>${services}<hr>${model}<button role="menuitem" data-create-settings><span class="menu-check"><ha-icon icon="mdi:cog-outline"></ha-icon></span><span class="menu-text">AI art settings…</span></button></div>`;
   }
 
   async _runCreate() {
     const state = this._createState;
-    if (state.phase !== "compose") return;
+    if (state.phase !== "compose" || state.dictation) return;
+    if (!state.service) return this._openAiSettings({ returnToCreate: true });
     if (!state.request.trim() && !(state.editing && state.prompt?.trim())) return;
     state.phase = "working";
     state.error = null;
+    state.menu = null;
     this._refreshCreate();
     try {
       state.result = await this._api("ai/create", this._json({
         entry_id: state.entryId,
         request: state.request,
         style: state.style,
-        model: state.model || null,
+        provider: state.service,
+        model: state.service === "ai_task" ? null : state.model || null,
         prompt: state.editing ? state.prompt : null,
       }));
       state.phase = "result";
@@ -2958,7 +3169,7 @@ class FraimicPanel extends HTMLElement {
     const on = (selector, event, handler) => root.querySelectorAll(selector).forEach((node) => node.addEventListener(event, (domEvent) => handler(node, domEvent)));
     const syncReady = () => {
       const button = root.querySelector("[data-create-run]");
-      if (button) button.disabled = !(state.request.trim() || (state.editing && state.prompt?.trim()));
+      if (button) button.disabled = Boolean(state.dictation) || !(state.request.trim() || (state.editing && state.prompt?.trim()));
     };
     on("#create-request", "input", (node) => {
       state.request = node.value;
@@ -2968,6 +3179,7 @@ class FraimicPanel extends HTMLElement {
     });
     on("#create-request, #create-prompt", "keydown", (_node, event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); this._runCreate(); } });
     on("#create-prompt", "input", (node) => { state.prompt = node.value; syncReady(); });
+    on("[data-create-mic]", "click", () => state.dictation === "listening" ? this._stopDictation() : this._startDictation());
     on("[data-create-style]", "click", (node) => { state.style = node.dataset.createStyle; this._refreshCreate(); });
     on("[data-create-edit]", "click", () => {
       state.editing = true;
@@ -2976,7 +3188,21 @@ class FraimicPanel extends HTMLElement {
       queueMicrotask(() => root.getElementById("create-prompt")?.focus());
     });
     on("[data-create-unedit]", "click", () => { state.editing = false; state.prompt = null; this._refreshCreate(); });
-    on("#create-model", "change", (node) => { state.model = node.value; this._refreshCreate(); });
+    on("[data-create-menu]", "click", (node, event) => {
+      event.stopPropagation();
+      state.menu = node.dataset.createMenu || null;
+      if (state.menu === "model" && state.service === "local") this._loadLocalModels();
+      this._refreshCreate();
+    });
+    on("[data-create-service]", "click", (node) => this._pickCreateService(node.dataset.createService));
+    on("[data-create-model]", "click", (node) => { state.model = node.dataset.createModel; state.menu = null; this._rememberCreateService(); this._refreshCreate(); });
+    on("[data-create-setup]", "click", (node) => this._openAiSettings({ tab: node.dataset.createSetup, returnToCreate: true }));
+    on("[data-create-settings]", "click", () => this._openAiSettings({ returnToCreate: true }));
+    on(".create-dialog", "click", (_node, event) => {
+      if (!state.menu || event.composedPath().some((node) => node?.classList?.contains("create-menu"))) return;
+      state.menu = null;
+      this._refreshCreate();
+    });
     on("#create-frame", "change", (node) => { state.entryId = node.value; this._refreshCreate(); });
     on("[data-create-run]", "click", () => this._runCreate());
     on("[data-create-discard]", "click", () => this._discardCreation(false));
@@ -2986,6 +3212,161 @@ class FraimicPanel extends HTMLElement {
       this._closeModal();
       this._artAction("show_now", "saved", result.image_id, null, {}, entryId);
     });
+  }
+
+  // ---------------------------------------------------------------- dictation
+  // The Create mic streams this device's audio through an Assist pipeline's
+  // speech to text, the same way Home Assistant's own voice dialog does.
+
+  async _loadPipelines() {
+    try {
+      const data = await this._hass.callWS({ type: "assist_pipeline/pipeline/list" });
+      this._pipelines = { list: (data.pipelines || []).filter((pipeline) => pipeline.stt_engine), preferred: data.preferred_pipeline };
+    } catch (_error) {
+      this._pipelines = { list: [], preferred: null };
+    }
+    this._refreshCreate();
+    this._refreshAiSettings();
+  }
+
+  // The chosen pipeline, else the preferred one, else any with speech to text.
+  _dictationPipeline(wanted = this._ai?.dictation_pipeline) {
+    const { list = [], preferred = null } = this._pipelines || {};
+    return list.find((pipeline) => pipeline.id === wanted) || list.find((pipeline) => pipeline.id === preferred) || list[0] || null;
+  }
+
+  _dictationProblem() {
+    if (!globalThis.isSecureContext || !globalThis.navigator?.mediaDevices?.getUserMedia || !globalThis.AudioWorkletNode) return "Dictation needs HTTPS or the Home Assistant app. Your keyboard's microphone still works.";
+    if (this._pipelines && !this._dictationPipeline()) return "To dictate here, add speech to text to an Assist pipeline under Settings › Voice assistants.";
+    return "";
+  }
+
+  async _startDictation() {
+    const state = this._createState;
+    if (this._dictationRun || state?.phase !== "compose") return;
+    if (!this._pipelines) await this._loadPipelines();
+    const problem = this._dictationProblem();
+    if (problem) return this._notify(problem, { error: true });
+    const field = this.shadowRoot.getElementById("create-request");
+    const run = { state, start: field?.selectionStart ?? state.request.length, end: field?.selectionEnd ?? state.request.length, buffer: [], handler: null, stopped: false };
+    this._dictationRun = run;
+    state.dictation = "listening";
+    state.menu = null;
+    this._refreshCreate();
+    try {
+      run.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (this._dictationRun !== run) return this._releaseDictation(run);
+      run.context = new AudioContext();
+      const url = URL.createObjectURL(new Blob([RECORDER_WORKLET], { type: "text/javascript" }));
+      try { await run.context.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
+      if (this._dictationRun !== run) return this._releaseDictation(run);
+      const recorder = new AudioWorkletNode(run.context, "fraimic-recorder");
+      recorder.port.onmessage = (event) => this._dictationAudio(run, event.data);
+      run.context.createMediaStreamSource(run.stream).connect(recorder);
+      const unsubscribe = await this._hass.connection.subscribeMessage((event) => this._dictationEvent(run, event), {
+        type: "assist_pipeline/run",
+        start_stage: "stt",
+        end_stage: "stt",
+        pipeline: this._dictationPipeline().id,
+        input: { sample_rate: run.context.sampleRate },
+      });
+      if (this._dictationRun === run) run.unsubscribe = unsubscribe;
+      else Promise.resolve(unsubscribe()).catch(() => {});
+    } catch (error) {
+      this._endDictation(run, error?.name === "NotAllowedError" ? "Allow the microphone for Home Assistant to dictate." : error?.message || "Dictation failed.");
+    }
+  }
+
+  _dictationAudio(run, chunk) {
+    if (run.stopped || this._dictationRun !== run) return;
+    if (run.handler === null) run.buffer.push(chunk);
+    else this._sendDictation(run, chunk);
+  }
+
+  // Binary frames start with the pipeline's handler id; an empty one ends the audio.
+  _sendDictation(run, chunk = null) {
+    const socket = this._hass.connection.socket;
+    if (socket?.readyState !== 1) return; // WebSocket.OPEN
+    socket.binaryType = "arraybuffer";
+    const data = new Uint8Array(1 + (chunk?.byteLength || 0));
+    data[0] = run.handler;
+    if (chunk) data.set(new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength), 1);
+    socket.send(data);
+  }
+
+  _dictationEvent(run, event) {
+    if (this._dictationRun !== run) return;
+    if (event.type === "run-start") {
+      run.handler = event.data?.runner_data?.stt_binary_handler_id ?? null;
+      if (run.handler === null) return this._endDictation(run, "This Assist pipeline does not take audio.");
+      for (const chunk of run.buffer.splice(0)) this._sendDictation(run, chunk);
+      if (run.stopped) this._sendDictation(run);
+    } else if (event.type === "stt-vad-end") {
+      this._stopDictation();
+    } else if (event.type === "stt-end") {
+      const caret = this._insertDictation(run, event.data?.stt_output?.text || "");
+      this._endDictation(run);
+      if (caret !== null) queueMicrotask(() => {
+        const field = this.shadowRoot.getElementById("create-request");
+        field?.focus();
+        field?.setSelectionRange(caret, caret);
+      });
+    } else if (event.type === "error") {
+      this._endDictation(run, event.data?.message || "Dictation failed.");
+    } else if (event.type === "run-end") {
+      this._endDictation(run);
+    }
+  }
+
+  // Adds the words where the cursor was; returns the new cursor position.
+  _insertDictation(run, text) {
+    const state = run.state;
+    const words = text.trim();
+    if (!words) {
+      this._notify("Didn't catch that. Try again.");
+      return null;
+    }
+    const start = Math.min(run.start, state.request.length);
+    const before = state.request.slice(0, start);
+    const after = state.request.slice(Math.min(Math.max(run.end, start), state.request.length));
+    const head = `${before}${before && !/\s$/.test(before) ? " " : ""}${words}`;
+    state.request = `${head}${after && !/^\s/.test(after) ? " " : ""}${after}`.slice(0, 2000);
+    return Math.min(head.length, state.request.length);
+  }
+
+  // Tap stop, or Assist heard a pause: close the mic and wait for the text.
+  _stopDictation() {
+    const run = this._dictationRun;
+    if (!run || run.stopped) return;
+    run.stopped = true;
+    this._releaseDictation(run);
+    if (!run.unsubscribe) return this._endDictation(run);
+    if (run.handler !== null) this._sendDictation(run);
+    run.state.dictation = "writing";
+    run.timer = setTimeout(() => this._endDictation(run, "Speech to text took too long. Try again."), 30000);
+    this._refreshCreate();
+  }
+
+  _releaseDictation(run) {
+    run.stream?.getTracks().forEach((track) => track.stop());
+    run.context?.close().catch(() => {});
+    run.stream = null;
+    run.context = null;
+  }
+
+  _endDictation(run, error = "") {
+    if (this._dictationRun !== run) return;
+    this._dictationRun = null;
+    clearTimeout(run.timer);
+    this._releaseDictation(run);
+    if (run.unsubscribe) Promise.resolve(run.unsubscribe()).catch(() => {});
+    run.state.dictation = null;
+    if (error) this._notify(error, { error: true });
+    if (this._createState === run.state) this._refreshCreate();
+  }
+
+  _cancelDictation() {
+    if (this._dictationRun) this._endDictation(this._dictationRun);
   }
 
   _openAutoSettings() {
@@ -3188,8 +3569,9 @@ class FraimicPanel extends HTMLElement {
   _requestCloseOverlays() { if (this._overlaysDirty() && !confirm("Discard unsaved overlay changes?")) return; this._discardOverlays(); }
   async _copyOverlays() { const target = this._frames.find((frame) => frame.id !== this._selectedFrameId); if (!target) return; if (!confirm(`Replace overlays on ${target.name}?`)) return; try { await this._api("overlays", this._json({ action: "copy", entry_id: this._selectedFrameId, target_entry_id: target.id })); this._notify(`Copied overlays to ${target.name}.`); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
 
-  _openModal(title, body, actions = "", options = {}) { if (options.className !== "detail-dialog") this._disposeDetailPreview(); this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
-  _closeModal() { this._disposeDetailPreview(); this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; }
+  _openModal(title, body, actions = "", options = {}) { if (options.className !== "detail-dialog") this._disposeDetailPreview(); if (!options.className?.includes("create-dialog")) this._cancelDictation(); this._modal = { title, body, actions, ...options }; this._render(); queueMicrotask(() => this.shadowRoot.querySelector(".dialog button, .dialog input, .dialog select")?.focus()); }
+  // `onClose` runs after any close (button, Escape, Save), e.g. to reopen Create.
+  _closeModal() { const onClose = this._modal?.onClose; this._cancelDictation(); this._disposeDetailPreview(); this._detailGeneration += 1; this._modal = null; this._detail = null; this._render(); this._modalTrigger?.focus?.(); this._modalTrigger = null; onClose?.(); }
 
   _trapModalFocus(event) {
     const focusable = [...this.shadowRoot.querySelectorAll(".dialog button:not([disabled]), .dialog input:not([disabled]), .dialog select:not([disabled]), .dialog textarea:not([disabled]), .dialog a[href]")];

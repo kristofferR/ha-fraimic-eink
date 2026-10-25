@@ -110,11 +110,11 @@ supported for a trusted private bridge network, not public exposure.
 In the integration's options select **Backend**, then enter the companion URL and the
 same private bridge token. Saving checks the token against the companion's bridge
 and refuses an unknown token or an unreachable URL. Choose what the voice button does in the Fraimic panel
-under **⋮ > AI art > Voice button**. Changing it there does not reload the frame:
+under **⋮ > AI art > Speech > Voice button**. Changing it there does not reload the frame:
 
 - **Show a fixed picture:** a library picture; no STT, AI or intent call.
 - **Create artwork:** a configured STT entity and its supported language. The
-  picture comes from the image service set up in the same dialog (OpenRouter, a
+  picture comes from the default image service set up in the same dialog (OpenRouter, a
   local server or an `ai_task` entity), using the default style. Selecting this
   opts into calls to those providers. Configure provider/account cost limits
   before enabling it.
