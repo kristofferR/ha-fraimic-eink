@@ -215,6 +215,51 @@ async def test_voice_supersedes_unoffered_art_only_after_success(service, succee
     assert (await (await client.get(poll_path)).json())["has_new_upload"] is not superseded
 
 
+@pytest.mark.parametrize("restart", [False, True])
+async def test_voice_result_survives_art_cancellation_journal_failure(service, monkeypatch, restart):
+    backend, client, now, calls = service
+    ident = "a" * 32
+    assert (await client.post(
+        "/bridge/delivery", headers={**AUTH, "X-Fraimic-Job": ident}, data=PANEL,
+    )).status == 200
+    now[0] += 181
+    signed = await presign(client)
+    assert (await upload(client, signed)).status == 200
+    save = backend.store.save
+
+    def fail_cancellation(job):
+        if job.id == ident and job.state == "cancelled":
+            raise OSError("journal unavailable")
+        save(job)
+
+    monkeypatch.setattr(backend.store, "save", fail_cancellation)
+    first = await finalize(client, signed)
+    assert first.status == 200
+    persisted, _, _ = await asyncio.to_thread(backend.store.load)
+    assert persisted[signed["key"]].state == "ready"
+    assert persisted[signed["key"]].asset == PANEL
+    assert backend.jobs[ident].state == "cancelled"
+    assert persisted[ident].state == "ready"
+    if restart:
+        # Simulate losing in-memory cancellation state before the next retry.
+        backend.jobs = persisted
+        backend._pending_art_cancellations.clear()
+    second = await finalize(client, signed)
+    assert second.status == 200
+    assert await first.read() == await second.read()
+    path = "/panel/" + (await second.json())["presigned_url"].rsplit("/", 1)[-1]
+    assert await (await client.get(path)).read() == PANEL
+    assert calls == [signed["key"]]
+    now[0] += DEVICE.settle + 1
+    poll_path = f"/api/v1/upload/check/{DEVICE.device_key}"
+    assert not (await (await client.get(poll_path)).json())["has_new_upload"]
+    monkeypatch.setattr(backend.store, "save", save)
+    assert not (await (await client.get(poll_path)).json())["has_new_upload"]
+    persisted, _, _ = await asyncio.to_thread(backend.store.load)
+    assert persisted[ident].state == "cancelled"
+    assert persisted[ident].asset == b""
+
+
 async def test_private_bridge_and_unsupported_routes_fail_closed(service):
     _, client, _, _ = service
     for token in ("", DEVICE.device_key, "owner-ha-token"):

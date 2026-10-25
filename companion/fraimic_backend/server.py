@@ -88,6 +88,7 @@ class Backend:
         self.store = Store(database)
         self.clock = clock
         self.jobs: dict[str, Job] = {}
+        self._pending_art_cancellations: set[str] = set()
         self.wakes: dict[str, int | None] = {}
         self.telemetry: dict[str, dict[str, object]] = {}
         self.lock = asyncio.Lock()
@@ -125,7 +126,15 @@ class Backend:
 
     async def _expire(self) -> None:
         now = self.clock()
+        completed_voices = [j for j in self.jobs.values()
+                            if j.kind == "voice" and j.content_hash and j.state != "uncertain"]
         for job in list(self.jobs.values()):
+            # Reconstruct supersession after a restart if an art save failed.
+            if (job.kind == "art" and job.state == "ready" and job.offered_at is None
+                and any(v.device == job.device and v.created >= job.created for v in completed_voices)):
+                await self._cancel_art(job)
+            elif job.id in self._pending_art_cancellations:
+                await self._cancel_art(job)
             if job.expires <= now and job.state not in TERMINAL:
                 job.state = "expired"
                 job.audio = job.asset = b""
@@ -133,6 +142,18 @@ class Backend:
             if job.state in TERMINAL and job.expires + 86400 <= now:
                 await asyncio.to_thread(self.store.delete, job.id)
                 del self.jobs[job.id]
+                self._pending_art_cancellations.discard(job.id)
+
+    async def _cancel_art(self, art: Job) -> None:
+        art.state, art.asset = "cancelled", b""
+        self._pending_art_cancellations.add(art.id)
+        try:
+            await self._save(art)
+        except Exception:
+            # Preserve completed voice output and suppress art until a retry saves it.
+            _LOGGER.error("Artwork cancellation could not be saved; retrying on the next tick")
+        else:
+            self._pending_art_cancellations.discard(art.id)
 
     def _capacity(self, extra: int = 0) -> None:
         active = [j for j in self.jobs.values() if j.state not in TERMINAL]
@@ -326,8 +347,7 @@ class Backend:
                 for art in self.jobs.values():
                     if (art.device == device.id and art.kind == "art" and art.state == "ready"
                         and art.offered_at is None and art.created <= job.created):
-                        art.state, art.asset = "cancelled", b""
-                        await self._save(art)
+                        await self._cancel_art(art)
         except asyncio.CancelledError:
             # Retain the same identity for reconciliation after listener restart.
             raise

@@ -746,6 +746,53 @@ def test_backend_preserves_coalescing_and_low_battery_gates(monkeypatch, battery
         runtime.backend.async_deliver.assert_not_awaited()
 
 
+def test_backend_manual_send_supersedes_automatic_render(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    services = _load_services(monkeypatch)
+    power = load("power")
+    entry = SimpleNamespace(data={}, options={})
+    runtime = SimpleNamespace(
+        backend=SimpleNamespace(async_deliver=AsyncMock()),
+        power=power.FraimicPowerManager(SimpleNamespace(), entry),
+        coordinator=SimpleNamespace(data={}), upload_lock=asyncio.Lock(), send_seq=0,
+    )
+    entry.runtime_data = runtime
+    rendering = asyncio.Event()
+    manual_started = asyncio.Event()
+
+    async def render(_hass, _entry, raw, *_args, **_kwargs):
+        if raw == b"automatic":
+            rendering.set()
+            await manual_started.wait()
+        return raw, None, "none"
+
+    monkeypatch.setattr(services, "async_convert_for_entry", render)
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+
+    async def send_manual():
+        manual_started.set()
+        return await services.async_render_and_upload(
+            SimpleNamespace(), entry, b"manual", hold_playlist=False,
+            trigger=power.TRIGGER_MANUAL, queue_if_asleep=True,
+        )
+
+    async def run():
+        automatic = asyncio.create_task(services.async_render_and_upload(
+            SimpleNamespace(), entry, b"automatic", hold_playlist=False,
+            trigger=power.TRIGGER_PLAYLIST,
+        ))
+        await rendering.wait()
+        manual = asyncio.create_task(send_manual())
+        return await asyncio.gather(automatic, manual)
+
+    automatic, manual = asyncio.run(run())
+    assert automatic["skip_reason"] == power.SKIP_COALESCED
+    assert automatic["deferred"] is True
+    assert manual["backend_queued"] is True
+    runtime.backend.async_deliver.assert_awaited_once_with(b"manual", expires_at=None)
+
+
 def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monkeypatch):
     from unittest.mock import AsyncMock, Mock
 

@@ -1219,6 +1219,8 @@ async def async_render_and_upload(
                     content_hash, trigger, power_token, runtime.coordinator.data,
                 )
                 queued = False
+                if runtime.send_seq != send_seq:
+                    return deferred_result(SKIP_COALESCED)
                 if reason not in {SKIP_LOW_BATTERY, SKIP_COALESCED}:
                     try:
                         await backend.async_deliver(bin_data, expires_at=snapshot_deadline)
