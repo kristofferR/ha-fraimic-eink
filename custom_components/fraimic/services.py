@@ -1280,7 +1280,10 @@ async def async_render_and_upload(
                     return deferred_result(SKIP_COALESCED)
                 if reason not in {SKIP_LOW_BATTERY, SKIP_COALESCED}:
                     try:
-                        await backend.async_deliver(bin_data, expires_at=snapshot_deadline)
+                        await backend.async_deliver(
+                            bin_data, expires_at=snapshot_deadline, title=title,
+                            preview_png=preview_png, source=art_source,
+                        )
                     except BackendBusy as err:
                         if queue_if_asleep:
                             raise ServiceValidationError(

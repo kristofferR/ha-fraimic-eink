@@ -13,3 +13,7 @@ class BackendBusy(BackendUnavailable):
 
 class BackendExpired(BackendUnavailable):
     """A previously accepted delivery has definitively expired."""
+
+
+class BackendUnauthorized(BackendUnavailable):
+    """The companion does not know this bridge token."""

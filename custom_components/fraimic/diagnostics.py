@@ -171,6 +171,11 @@ async def async_get_config_entry_diagnostics(
             if entry.runtime_data.cloud is not None
             else None
         ),
+        "backend": (
+            async_redact_data(backend.diagnostics(), TO_REDACT)
+            if (backend := getattr(entry.runtime_data, "backend", None)) is not None
+            else None
+        ),
         "awake_window": (
             window.diagnostics()
             if (window := getattr(entry.runtime_data, "awake_window", None))

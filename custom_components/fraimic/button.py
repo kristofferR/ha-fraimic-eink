@@ -63,8 +63,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up Fraimic buttons from a config entry."""
     coordinator = entry.runtime_data.coordinator
+    # The local backend owns redraws and sleep; the client refuses these.
+    lan_commands = entry.runtime_data.backend is None
     entities: list[ButtonEntity] = [
-        FraimicButton(coordinator, desc) for desc in BUTTONS
+        FraimicButton(coordinator, desc) for desc in BUTTONS if lan_commands
     ]
     entities += [
         FraimicNewArtworkButton(coordinator),

@@ -177,6 +177,7 @@ class VoiceJobs:
                     job["outcome"] = "uncertain"
                     image_id = await self._save_card(ident, "The previous request may have completed. It will not be repeated automatically. Check Home Assistant before trying again.")
                 elif self._voice().mode == "fixed":
+                    job["mode"] = "fixed"
                     image_id = self._voice().image
                     library.get(image_id)
                 else:
@@ -184,7 +185,7 @@ class VoiceJobs:
                     await self._save()
                     text = await self._transcribe(pcm)
                     job["transcript"] = text
-                    mode = self._voice().mode
+                    mode = job["mode"] = self._voice().mode
                     if mode == "art":
                         job["state"] = "generating"
                         await self._save()
@@ -200,10 +201,15 @@ class VoiceJobs:
                 job["library_image"] = image_id
                 job["state"] = "rendering"
                 await self._save()
-                packed, _, _ = await library.async_render_for_entry(image_id, self.entry)
+                packed, preview, _ = await library.async_render_for_entry(image_id, self.entry)
                 await self.hass.async_add_executor_job(self._write_panel, panel, packed)
                 job["state"] = "ready"
                 await self._save()
+                backend = self.entry.runtime_data.backend
+                if backend is not None:
+                    transcript = " ".join(str(job.get("transcript") or "").split())
+                    title = f"“{transcript[:77]}…”" if len(transcript) > 80 else f"“{transcript}”" if transcript else "Voice request"
+                    backend.set_preview(ident, preview, title=title, source={"library_image": image_id})
                 # The companion owns the handoff, not a confirmed display.
                 # Retained older artwork must never refresh over this result.
                 controller = self.entry.runtime_data.temporary_overlays

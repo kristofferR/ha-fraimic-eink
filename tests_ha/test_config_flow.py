@@ -21,7 +21,9 @@ from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fraimic.api import FraimicConnectionError
+from custom_components.fraimic.backend_errors import BackendUnauthorized
 from custom_components.fraimic.cloud import FraimicCloudAuthError, FraimicCloudClient
+from custom_components.fraimic.local_backend import CONF_BACKEND_TOKEN, CONF_BACKEND_URL
 from custom_components.fraimic.const import (
     CONF_CAMERA_INTERVAL,
     CONF_CLOUD_EMAIL,
@@ -32,6 +34,7 @@ from custom_components.fraimic.const import (
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
+    DELIVERY_BACKEND,
     DELIVERY_CLOUD,
     DELIVERY_LOCAL,
     DOMAIN,
@@ -361,3 +364,39 @@ async def test_options_cloud_step_reports_bad_login(
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "invalid_auth"}
     assert CONF_CLOUD_EMAIL not in config_entry.options
+
+
+async def test_options_backend_step_checks_the_bridge_token(
+    hass: HomeAssistant, config_entry: MockConfigEntry
+) -> None:
+    config_entry.add_to_hass(hass)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_ROTATION: "0", CONF_DELIVERY_MODE: DELIVERY_BACKEND}
+    )
+    assert result["step_id"] == "backend"
+    schema, placeholders = result["data_schema"], result["description_placeholders"]
+    assert schema is not None and placeholders is not None
+    # A fresh token is offered and shown in the companion device block.
+    token = next(key.default() for key in schema.schema if key == CONF_BACKEND_TOKEN)
+    assert len(token) >= 32
+    assert f'"bridge_token": "{token}"' in placeholders["companion"]
+
+    form = {CONF_BACKEND_URL: "http://companion.example:8080", CONF_BACKEND_TOKEN: token}
+    with patch(
+        "custom_components.fraimic.config_flow.async_bridge_request",
+        AsyncMock(side_effect=BackendUnauthorized("unknown token")),
+    ):
+        result = await hass.config_entries.options.async_configure(result["flow_id"], form)
+    assert result["errors"] == {"base": "backend_auth"}
+    assert CONF_BACKEND_TOKEN not in config_entry.options
+
+    with patch(
+        "custom_components.fraimic.config_flow.async_bridge_request",
+        AsyncMock(return_value={"busy": False, "jobs": []}),
+    ) as check:
+        result = await hass.config_entries.options.async_configure(result["flow_id"], form)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert check.await_args is not None
+    assert check.await_args.args[1:] == ("http://companion.example:8080", token, "GET", "/bridge/state")
+    assert config_entry.options[CONF_BACKEND_TOKEN] == token

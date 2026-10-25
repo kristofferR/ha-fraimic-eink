@@ -228,7 +228,7 @@
       },
       "backend": {
         "title": "Local backend",
-        "description": "Connect the companion service after preparing frame routing and TLS. Set up what the voice button does in the Fraimic panel under ⋮ > AI art. Recordings are deleted after processing or expiry. Stock voice always finishes with an image; transfers do not confirm display completion.",
+        "description": "Connect the companion service after preparing frame routing and TLS. Add this frame to the companion's `devices` list, with the frame's full device key and paired user ID in place of the placeholders:\n\n{companion}\n\nWhen no token is saved, a new one is filled in; keep it private. Saving checks the token with the companion. Set up what the voice button does in the Fraimic panel under ⋮ > AI art. Recordings are deleted after processing or expiry. Stock voice always finishes with an image; transfers do not confirm display completion.",
         "data": {
           "backend_url": "Companion URL",
           "backend_token": "Private bridge token"
@@ -241,7 +241,9 @@
       "invalid_auth": "Fraimic rejected that email or password.",
       "cannot_connect": "Could not reach the Fraimic cloud.",
       "no_devices": "That account has no canvases yet.",
-      "invalid_backend": "Enter a valid companion URL and a separate bridge token of at least 32 characters."
+      "invalid_backend": "Enter a valid companion URL and a separate bridge token of at least 32 characters.",
+      "backend_auth": "The companion does not know this bridge token. Use the same token as in its devices list, then restart it.",
+      "backend_unreachable": "Could not reach the companion's bridge at that URL."
     }
   },
   "entity": {
@@ -308,7 +310,21 @@
         "name": "Albums"
       },
       "backend_status": {
-        "name": "Local backend status"
+        "name": "Local backend status",
+        "state": {
+          "idle": "Idle",
+          "waiting": "Waiting for the frame",
+          "transferring": "Transferring",
+          "served": "Served",
+          "listening": "Receiving recording",
+          "working": "Working",
+          "expired": "Expired",
+          "failed": "Failed",
+          "offline": "Companion offline"
+        }
+      },
+      "next_wake": {
+        "name": "Next wake"
       }
     },
     "binary_sensor": {

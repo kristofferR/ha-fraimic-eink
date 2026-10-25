@@ -61,6 +61,9 @@ insufficient. Copy `companion/config.example.json` to a private directory outsid
 the checkout. Replace all placeholders. Generate a separate random bridge token
 (at least 32 characters), and give each frame its own token. Do not use an HA
 owner token, Supervisor token, vendor password or device key as the bridge token.
+The integration's Backend options step generates one and shows a ready-to-paste
+`devices` entry for the frame; only the full device key and paired user ID are
+left as placeholders.
 
 Run on the server or HA host that can receive frame traffic:
 
@@ -105,7 +108,8 @@ disable certificate verification or use the frame-specific trust chain. HTTP is
 supported for a trusted private bridge network, not public exposure.
 
 In the integration's options select **Backend**, then enter the companion URL and the
-same private bridge token. Choose what the voice button does in the Fraimic panel
+same private bridge token. Saving checks the token against the companion's bridge
+and refuses an unknown token or an unreachable URL. Choose what the voice button does in the Fraimic panel
 under **⋮ > AI art > Voice button**. Changing it there does not reload the frame:
 
 - **Show a fixed picture:** a library picture; no STT, AI or intent call.
@@ -235,10 +239,16 @@ must preserve this directory.
   Library originals/provenance are permanent until deleted through normal library
   actions. Transcripts are private library metadata, never application log text.
 
-The **Local backend status** sensor exposes generation/transport state, job IDs,
-deadlines and server-transfer evidence. It never marks a frame physically updated.
-HA uses authenticated companion poll timestamps for last-contact and battery
-evidence without pretending that the LAN API is awake.
+The **Local backend status** sensor summarizes the latest job (idle, waiting for
+the frame, transferring, served, receiving a recording, working, expired, failed,
+or companion offline), and **Next wake** shows the published wake. Job IDs,
+deadlines and server-transfer evidence are in the diagnostics download. Neither
+marks a frame physically updated: the panel shows a handed-off picture as waiting
+for its wake, then served, and keeps "display unconfirmed" on it. HA uses
+authenticated companion poll timestamps for last-contact and battery evidence
+without pretending that the LAN API is awake. Between polls the frame counts as
+asleep; it is reported unreachable only after it misses a published wake by
+15 minutes. LAN refresh, sleep and restart controls are hidden in this mode.
 
 ## TLS lifecycle and rollback
 

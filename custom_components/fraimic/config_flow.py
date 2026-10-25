@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import logging
+import secrets
 from typing import Any
 
 import voluptuous as vol
@@ -17,10 +19,12 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.network import NoURLAvailableError, get_url
 from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.helpers.typing import DiscoveryInfoType
+from homeassistant.util import slugify
 
 from .api import FraimicClient, FraimicError, normalize_host
 from .cloud import FraimicCloudAuthError, FraimicCloudClient, FraimicCloudError
@@ -93,8 +97,11 @@ from .const import (
     rotation_choices,
 )
 from .coordinator import normalize_info
+from .backend_errors import BackendUnauthorized, BackendUnavailable
+from .frame_name import frame_display_name
 from .local_backend import (
-    BACKEND_OPTIONS, CONF_BACKEND_TOKEN, CONF_BACKEND_URL, validate_backend_url,
+    BACKEND_OPTIONS, CONF_BACKEND_TOKEN, CONF_BACKEND_URL, async_bridge_request,
+    validate_backend_url,
 )
 from .providers import PROVIDERS
 
@@ -386,6 +393,8 @@ class FraimicOptionsFlow(OptionsFlow):
     def __init__(self) -> None:
         self._pending: dict[str, Any] = {}
         self._devices: list[dict[str, Any]] = []
+        # Generated once per flow so a re-shown form keeps the same token.
+        self._backend_token: str | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -554,17 +563,55 @@ class FraimicOptionsFlow(OptionsFlow):
             except ValueError:
                 errors["base"] = "invalid_backend"
             else:
-                self._pending.update(user_input)
-                return self.async_create_entry(title="", data=self._pending)
+                try:
+                    await async_bridge_request(
+                        self.hass, user_input[CONF_BACKEND_URL],
+                        user_input[CONF_BACKEND_TOKEN], "GET", "/bridge/state",
+                    )
+                except BackendUnauthorized:
+                    errors["base"] = "backend_auth"
+                except BackendUnavailable:
+                    errors["base"] = "backend_unreachable"
+                else:
+                    self._pending.update(user_input)
+                    return self.async_create_entry(title="", data=self._pending)
         options = {**self.config_entry.options, **(user_input or {})}
+        if self._backend_token is None and not options.get(CONF_BACKEND_TOKEN):
+            self._backend_token = secrets.token_urlsafe(32)
+        token = options.get(CONF_BACKEND_TOKEN) or self._backend_token
         return self.async_show_form(
             step_id="backend", errors=errors,
             data_schema=vol.Schema({
                 vol.Required(CONF_BACKEND_URL, default=options.get(CONF_BACKEND_URL, "")): str,
-                vol.Required(CONF_BACKEND_TOKEN, default=options.get(CONF_BACKEND_TOKEN, "")):
+                vol.Required(CONF_BACKEND_TOKEN, default=token):
                     TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
             }),
+            description_placeholders={
+                # Only a token generated here is shown; a saved one stays hidden.
+                "companion": self._companion_block(
+                    token if token == self._backend_token else "<the bridge token below>"
+                ),
+            },
         )
+
+    def _companion_block(self, token: str) -> str:
+        """This frame's entry for the companion's ``devices`` list."""
+        entry = self.config_entry
+        try:
+            ha_url = get_url(self.hass, allow_external=False, allow_cloud=False)
+        except NoURLAvailableError:
+            ha_url = "http://homeassistant.local:8123"
+        size = {entry.data.get(CONF_WIDTH), entry.data.get(CONF_HEIGHT)}
+        device = {
+            "id": slugify(frame_display_name(self.hass, entry))[:64] or "frame",
+            # Both stay masked on every API surface; see docs/local-backend.md.
+            "device_key": "REPLACE_WITH_FULL_DEVICE_KEY",
+            "user_id": "REPLACE_WITH_PAIRED_USER_ID",
+            "bridge_token": token,
+            "ha_url": ha_url,
+            "display_type": "315" if size == {1440, 2560} else "133",
+        }
+        return f"```json\n{json.dumps(device, indent=2)}\n```"
 
     async def async_step_cloud(
         self, user_input: dict[str, Any] | None = None

@@ -21,6 +21,7 @@ from custom_components.fraimic.backend_voice import VoiceJobs, pcm_from_wav
 from custom_components.fraimic.backend_errors import BackendUnavailable
 from custom_components.fraimic.const import CONF_DELIVERY_MODE, DELIVERY_BACKEND
 from custom_components.fraimic.diagnostics import async_get_config_entry_diagnostics
+from custom_components.fraimic.http_api import _frame_payload, _player_payload
 from custom_components.fraimic.library import get_library
 from custom_components.fraimic.local_backend import (
     CONF_BACKEND_TOKEN, CONF_BACKEND_URL, CONF_VOICE_MODE, LocalBackend,
@@ -368,3 +369,88 @@ async def test_backend_owns_lan_redraw_and_power_commands(backend_entry: Any, me
     entry, _ = backend_entry
     with pytest.raises(FraimicApiError, match="backend owns delivery"):
         await getattr(entry.runtime_data.client, method)()
+
+
+async def test_handoff_shows_waiting_then_served_without_confirming(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, request = backend_entry
+    backend = entry.runtime_data.backend
+    jobs: list[dict[str, Any]] = []
+
+    async def bridge(method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+        if path == "/bridge/delivery":
+            job = {"job_id": kwargs["job_id"], "state": "ready", "created_at": 1.0, "served_at": None}
+            jobs[:] = [job]
+            return dict(job)
+        if path == "/bridge/state":
+            return {"busy": False, "jobs": [dict(job) for job in jobs], "device": {}}
+        return {}
+
+    request.side_effect = bridge
+    await backend.async_deliver(b"\x11" * 960_000, title="Sunflowers", preview_png=b"png")
+    # The one-job delivery reply must not replace the cached state's shape.
+    assert backend.status["jobs"][0]["job_id"] == backend.preview["job"]
+    assert backend.summary() == "waiting"
+    player = _player_payload(hass, entry)
+    assert player["preview"]["title"] == "Sunflowers"
+    assert player["preview"]["status"] == "waiting"
+    assert player["preview"]["next_wake"] is not None
+    assert entry.runtime_data.displayed_preview is None
+
+    jobs[0].update(state="served", served_at=dt_util.utcnow().timestamp())
+    await backend.async_status()
+    assert backend.summary() == "served"
+    assert _player_payload(hass, entry)["preview"]["status"] == "served"
+    assert entry.runtime_data.displayed_preview is None
+
+    request.side_effect = BackendUnavailable("down")
+    with pytest.raises(BackendUnavailable):
+        await backend.async_status()
+    assert backend.summary() == "offline"
+
+
+async def test_only_a_missed_wake_makes_a_sleeping_frame_unreachable(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, _ = backend_entry
+    backend, coordinator = entry.runtime_data.backend, entry.runtime_data.coordinator
+    coordinator.frame_online = False
+    now = dt_util.utcnow().timestamp()
+    backend.last_due, backend.next_wake = None, int(now + 3600)
+    assert _frame_payload(hass, entry)["unreachable"] is False
+
+    backend.last_due = int(now - 3600)
+    coordinator._last_seen = now - 7200
+    frame = _frame_payload(hass, entry)
+    assert frame["unreachable"] is True
+    assert frame["missed_wake"] is not None
+    assert frame["delivery"] == DELIVERY_BACKEND
+
+    coordinator.async_backend_contact({"last_seen": now - 3500})
+    assert _frame_payload(hass, entry)["unreachable"] is False
+
+
+async def test_status_view_lists_voice_requests_without_tombstones(
+    hass: HomeAssistant, backend_entry: Any, hass_client: Any,
+) -> None:
+    entry, _ = backend_entry
+    jobs = entry.runtime_data.backend.voice
+    with (
+        patch.object(VoiceJobs, "_transcribe", new_callable=AsyncMock, return_value="A quiet forest"),
+        patch.object(VoiceJobs, "_generate", new_callable=AsyncMock,
+                     return_value=(image_fixture(), {"provider": "fake", "style": "Woodcut", "cost": 0.04})),
+    ):
+        await jobs.async_process("c" * 32, audio_fixture(), "portrait")
+    jobs.jobs["d" * 32] = {"created": 1.0, "state": "expired", "hash": "x", "orientation": "portrait"}
+    # A voice result becomes the player's handed-off picture.
+    assert entry.runtime_data.backend.preview["job"] == "c" * 32
+    assert entry.runtime_data.backend.preview["title"] == "“A quiet forest”"
+
+    client = await hass_client()
+    reply = await client.get(f"/api/fraimic/backend/status/{entry.entry_id}")
+    assert reply.status == 200
+    body = await reply.json()
+    assert body["summary"] == "idle"
+    assert [(r["id"], r["status"], r["mode"], r["transcript"], r["style"], r["cost"])
+            for r in body["requests"]] == [("c" * 32, "ready", "art", "A quiet forest", "Woodcut", 0.04)]
