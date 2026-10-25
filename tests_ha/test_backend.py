@@ -231,20 +231,53 @@ async def test_pull_delivery_never_pushes_or_confirms_display(
     assert any(call.args[:2] == ("PUT", "/bridge/schedule") for call in calls)
 
 
+@pytest.mark.parametrize("first_expiry,retry_expiry", [(None, None), (7200, 7200), (7200, 10800)])
 async def test_ambiguous_delivery_reuses_persisted_identity(
-    hass: HomeAssistant, backend_entry: Any,
+    hass: HomeAssistant, backend_entry: Any, first_expiry: int | None, retry_expiry: int | None,
 ) -> None:
     entry, request = backend_entry
     backend = entry.runtime_data.backend
     request.side_effect = [HomeAssistantError("connection lost"), {}, {}]
+    now = int(dt_util.utcnow().timestamp())
     with pytest.raises(HomeAssistantError):
-        await backend.async_deliver(b"\x11" * 960_000)
+        await backend.async_deliver(b"\x11" * 960_000,
+                                    expires_at=now + first_expiry if first_expiry is not None else None)
     ident = backend.pending["id"]
     restarted = LocalBackend(hass, entry)
     await restarted.async_setup()
-    await restarted.async_deliver(b"\x11" * 960_000)
+    await restarted.async_deliver(b"\x11" * 960_000,
+                                  expires_at=now + retry_expiry if retry_expiry is not None else None)
     assert restarted.pending is not None
     assert restarted.pending["id"] == ident
+    deliveries = [call for call in request.await_args_list if call.args[:2] == ("POST", "/bridge/delivery")]
+    assert deliveries[-1].kwargs["job_id"] == ident
+
+
+@pytest.mark.parametrize("accepted_expiry,requested_expiry,new_identity", [
+    (-60, None, True),
+    (7200, None, False),
+    (7200, 7200.9, False),
+    (7200, 10800, True),
+    (7200, 3600, True),
+])
+async def test_accepted_delivery_identity_tracks_expiry_after_restart(
+    hass: HomeAssistant, backend_entry: Any, accepted_expiry: int,
+    requested_expiry: float | None, new_identity: bool,
+) -> None:
+    entry, request = backend_entry
+    backend = entry.runtime_data.backend
+    now = int(dt_util.utcnow().timestamp())
+    request.return_value = {"expires_at": now + accepted_expiry}
+    await backend.async_deliver(b"\x11" * 960_000)
+    ident = backend.pending["id"]
+    restarted = LocalBackend(hass, entry)
+    await restarted.async_setup()
+    await restarted.async_deliver(b"\x11" * 960_000,
+                                  expires_at=now + requested_expiry if requested_expiry is not None else None)
+    assert restarted.pending is not None
+    assert (restarted.pending["id"] != ident) is new_identity
+    deliveries = [call for call in request.await_args_list if call.args[:2] == ("POST", "/bridge/delivery")]
+    assert deliveries[-1].kwargs["job_id"] == restarted.pending["id"]
 
 
 async def test_diagnostics_redact_backend_credential(hass: HomeAssistant, backend_entry: Any) -> None:

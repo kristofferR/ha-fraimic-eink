@@ -136,8 +136,12 @@ class LocalBackend:
     async def async_deliver(self, packed: bytes, *, expires_at: float | None = None) -> None:
         """Persist the request identity before an ambiguous HTTP exchange."""
         digest = hashlib.sha256(packed).hexdigest()
+        pending_expiry = self.pending.get("expires_at") if self.pending is not None else None
         if (self.pending is None or self.pending["hash"] != digest
-            or self.pending.get("expires_at", float("inf")) <= time.time()):
+            or pending_expiry is not None and (
+                pending_expiry <= time.time()
+                or (expires_at is not None and int(pending_expiry) != int(expires_at))
+            )):
             self.pending = {"id": uuid.uuid4().hex, "hash": digest}
             await self._save()
         try:
@@ -154,8 +158,8 @@ class LocalBackend:
             self.pending["expires_at"] = self.status["expires_at"]
         self.acceptance_pending = True
         await self._save()
-        # Keep the accepted identity through scheduler persistence. Repeated same
-        # content is intentionally deduplicated until a different image is sent.
+        # Keep the accepted identity through scheduler persistence. Deduplicate
+        # repeated content unless its accepted expiry changes or elapses.
         await self.async_resume_delivery()
 
     async def async_resume_delivery(self) -> None:
