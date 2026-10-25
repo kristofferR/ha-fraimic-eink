@@ -95,3 +95,59 @@ test("per-frame AI Task selections are shown and preserved when saving", async (
   await panel._saveAiSettings();
   expect(JSON.parse(requests.at(-1).options.body).voice.first.ai_task_entity).toBe("ai_task.frame");
 });
+
+test("retry disables result actions and submits only once across pending deletion and generation", async () => {
+  const { panel } = harness();
+  const deletion = Promise.withResolvers();
+  const generation = Promise.withResolvers();
+  const started = Promise.withResolvers();
+  const requests = [];
+  Object.assign(panel, {
+    _frames: [],
+    _modal: { className: "create-dialog" },
+    _createState: { phase: "result", request: "A fox", result: { image_id: "old" } },
+    _createBody: () => "",
+    _loadSources: async () => {},
+    _loadCreatePreview: () => {},
+    _api: (path) => {
+      requests.push(path);
+      if (path === "ai/create") { started.resolve(); return generation.promise; }
+      return deletion.promise;
+    },
+  });
+  const retry = panel._discardCreation(true);
+  expect(panel._modal.actions.match(/disabled/g)).toHaveLength(3);
+  await panel._discardCreation(true);
+  await panel._discardCreation(false);
+  await panel._runCreate();
+  expect(requests).toEqual(["library/image/old"]);
+  deletion.resolve();
+  await started.promise;
+  await panel._runCreate();
+  await panel._discardCreation(true);
+  expect(requests).toEqual(["library/image/old", "ai/create"]);
+  generation.resolve({ image_id: "new" });
+  await retry;
+  expect(panel._createState.result.image_id).toBe("new");
+  expect(panel._modal.actions).not.toContain("disabled");
+});
+
+test("a failed generation can be retried after duplicate submissions were rejected", async () => {
+  const { panel } = harness();
+  const generation = Promise.withResolvers();
+  let attempts = 0;
+  Object.assign(panel, {
+    _createState: { phase: "compose", request: "A fox" },
+    _refreshCreate: () => {},
+    _api: () => { attempts++; return generation.promise; },
+  });
+  const first = panel._runCreate();
+  await panel._runCreate();
+  expect(attempts).toBe(1);
+  generation.reject(new Error("offline"));
+  await first;
+  expect(panel._createState.phase).toBe("compose");
+  expect(panel._createState.error).toBe("offline");
+  await panel._runCreate();
+  expect(attempts).toBe(2);
+});

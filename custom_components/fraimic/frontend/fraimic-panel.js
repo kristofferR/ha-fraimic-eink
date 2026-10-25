@@ -2845,7 +2845,10 @@ class FraimicPanel extends HTMLElement {
     const state = this._createState;
     const frame = this._frames.find((candidate) => candidate.id === state.entryId) || this._frame;
     if (state.phase === "working") return `<span class="spacer"></span><button class="btn" disabled>Creating…</button>`;
-    if (state.phase === "result") return `<button class="btn" data-create-discard>Discard</button><button class="btn" data-create-again>Try again</button><span class="spacer"></span><button class="btn primary" data-create-show>Show on ${h(frame?.name || "frame")}</button>`;
+    if (state.phase === "result") {
+      const disabled = state.discarding ? "disabled" : "";
+      return `<button class="btn" data-create-discard ${disabled}>Discard</button><button class="btn" data-create-again ${disabled}>Try again</button><span class="spacer"></span><button class="btn primary" data-create-show ${disabled}>Show on ${h(frame?.name || "frame")}</button>`;
+    }
     const cost = this._ai.provider === "openrouter" ? this._createModel()?.price : null;
     const price = this._ai.provider === "local" ? "Free, on your server" : cost != null ? `About ${usd(cost)}` : "";
     const ready = state.request.trim() || (state.editing && state.prompt?.trim());
@@ -2854,6 +2857,7 @@ class FraimicPanel extends HTMLElement {
 
   async _runCreate() {
     const state = this._createState;
+    if (state.phase !== "compose") return;
     if (!state.request.trim() && !(state.editing && state.prompt?.trim())) return;
     state.phase = "working";
     state.error = null;
@@ -2898,17 +2902,22 @@ class FraimicPanel extends HTMLElement {
 
   async _discardCreation(again) {
     const state = this._createState;
+    if (state.phase !== "result" || state.discarding) return;
+    state.discarding = true;
+    this._refreshCreate();
     const imageId = state.result?.image_id;
-    if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
-    state.previewUrl = null;
-    state.result = null;
-    state.phase = "compose";
     try {
       if (imageId) await this._api(`library/image/${encodeURIComponent(imageId)}`, { method: "DELETE" });
       this._galleryLoadedAt = 0;
       this._loadSources().catch(() => {});
     } catch (error) { this._notify(error.message, { error: true }); }
-    if (again) this._runCreate();
+    if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+    state.previewUrl = null;
+    state.result = null;
+    state.discarding = false;
+    state.phase = "compose";
+    if (this._createState !== state) return;
+    if (again) return this._runCreate();
     else this._refreshCreate();
   }
 
