@@ -120,7 +120,8 @@ under **⋮ > AI art > Voice button**. Changing it there does not reload the fra
   before enabling it.
 - **Ask Assist:** a compatible STT entity/language and an explicit conversation
   agent (default `homeassistant`). Commands follow that agent's HA exposure
-  settings. The spoken answer becomes a library image and panel card.
+  settings. The answer becomes a library image: a card with the question, a rule
+  and the answer in large type, sized to the frame and the request's orientation.
 
 Voice settings saved in the integration options before AI art settings existed
 move there once, on the next start.
@@ -244,7 +245,10 @@ the frame, transferring, served, receiving a recording, working, expired, failed
 or companion offline), and **Next wake** shows the published wake. Job IDs,
 deadlines and server-transfer evidence are in the diagnostics download. Neither
 marks a frame physically updated: the panel shows a handed-off picture as waiting
-for its wake, then served, and keeps "display unconfirmed" on it. HA uses
+for its wake, then served, and keeps "display unconfirmed" on it. The panel's
+**⋮ > Local backend** dialog shows companion health, the last poll and battery,
+the next wake, the waiting picture and the last 24 hours of voice requests, with
+uncertain and failed ones marked. HA uses
 authenticated companion poll timestamps for last-contact and battery evidence
 without pretending that the LAN API is awake. Between polls the frame counts as
 asleep; it is reported unreachable only after it misses a published wake by

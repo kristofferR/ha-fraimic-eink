@@ -845,6 +845,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             # Served is the companion's last word; the panel is never confirmed.
             "status": "served" if served_at is not None else "waiting",
             "served_at": _iso(served_at),
+            "handed_off_at": _iso(handed.get("at")),
             "next_wake": _iso(backend.next_wake),
             "thumbnail_url": f"/api/fraimic/player/artwork/{entry.entry_id}?kind=backend&v={quote(str(handed.get('job') or ''), safe='')}",
             **_current_art(handed.get("source"), library, art),

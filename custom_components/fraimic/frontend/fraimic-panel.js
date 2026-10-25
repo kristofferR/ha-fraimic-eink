@@ -348,6 +348,27 @@ const css = String.raw`
   .ai-model.selected .ai-radio { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--surface); }
   .ai-style-editor { margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--secondary-background-color, var(--surface)); }
   .ai-preview { flex: 1 1 auto; min-width: 0; margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+  .backend-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .backend-tile { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
+  .backend-tile small { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; }
+  .backend-tile b { display: block; margin-top: 2px; font-size: 15px; }
+  .backend-tile span { color: var(--muted); font-size: 12px; }
+  .backend-tile.alert b { color: var(--error-color); }
+  .dot.offline { background: var(--error-color); }
+  .backend-pending { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
+  .backend-pending img { width: 40px; max-height: 56px; object-fit: contain; border-radius: 3px; flex: none; }
+  .backend-steps { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; color: var(--muted); font-size: 12px; }
+  .backend-steps .done { color: var(--text); }
+  .backend-steps .done::before { content: "✓ "; color: var(--success-color); }
+  .voice-request { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 52px; padding: 6px 0; border-top: 1px solid var(--line); text-align: left; }
+  .voice-request:first-child { border-top: 0; }
+  .voice-request time { color: var(--muted); font-size: 12px; }
+  .voice-request .row-copy b { white-space: normal; }
+  .status-pill { padding: 2px 8px; border: 1px solid var(--line); border-radius: 10px; font-size: 11.5px; white-space: nowrap; }
+  .status-pill.ok { color: var(--success-color); border-color: color-mix(in srgb, var(--success-color) 50%, transparent); }
+  .status-pill.warn { color: var(--warning-color); border-color: color-mix(in srgb, var(--warning-color) 50%, transparent); }
+  .status-pill.error { color: var(--error-color); border-color: color-mix(in srgb, var(--error-color) 50%, transparent); }
+  .status-pill.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
   .ai-voice { padding: 8px 0; border-top: 1px solid var(--line); }
   .ai-voice:first-of-type { border-top: 0; }
   .ai-voice > b { display: block; margin-bottom: 6px; font-size: 13px; }
@@ -844,7 +865,10 @@ class FraimicPanel extends HTMLElement {
 
   _startRefresh() {
     clearInterval(this._refreshTimer);
-    this._refreshTimer = setInterval(() => this._loadPlayer(), 5000);
+    this._refreshTimer = setInterval(() => {
+      this._loadPlayer();
+      if (this._modal?.className?.includes("backend-dialog")) this._loadBackendStatus();
+    }, 5000);
   }
 
   async _loadGallery(force = false) {
@@ -1382,7 +1406,7 @@ class FraimicPanel extends HTMLElement {
     const stateActions = state === "idle" && !player?.transport_available
       ? `<button class="btn primary" data-change-playlist>Choose a playlist</button>${player?.end_action === "auto" ? "" : `<button class="btn" data-end-action="auto">Start auto mode</button>`}`
       : state === "unreachable"
-        ? `${this._lanCommands() ? `<button class="btn" data-player-action="retry">Retry</button>` : ""}<button class="btn quiet" data-device>Device page</button>`
+        ? this._lanCommands() ? `<button class="btn" data-player-action="retry">Retry</button><button class="btn quiet" data-device>Device page</button>` : `<button class="btn" data-backend-status>Local backend</button>`
         : "";
     const previewMeta = this._previewMeta(player?.preview);
     const barArt = current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : "";
@@ -1455,7 +1479,7 @@ class FraimicPanel extends HTMLElement {
   _menuTemplate() {
     if (!this._menu) return "";
     if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-ai-settings>AI art <span>›</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
-    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button>${this._lanCommands() ? `<button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}` : ""}<button data-device>Device page</button></div>`;
+    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button>${this._lanCommands() ? "" : `<button data-backend-status>Local backend <span>›</span></button>`}${this._lanCommands() ? `<button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}` : ""}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
@@ -1602,6 +1626,8 @@ class FraimicPanel extends HTMLElement {
     this._bindAutoSettings();
     root.querySelectorAll("[data-create]").forEach((node) => node.onclick = () => this._openCreate());
     root.querySelectorAll("[data-ai-settings]").forEach((node) => node.onclick = () => this._openAiSettings());
+    root.querySelectorAll("[data-backend-status]").forEach((node) => node.onclick = () => this._openBackendStatus());
+    root.querySelectorAll("[data-backend-creations]").forEach((node) => node.onclick = () => { this._closeModal(); this._setSource("saved", "creations", "Creations"); });
     this._bindAiSettings();
     this._bindCreate();
     root.querySelectorAll("[data-custom-interval]").forEach((node) => node.onclick = () => this._customInterval());
@@ -3187,6 +3213,80 @@ class FraimicPanel extends HTMLElement {
   _formatInterval(seconds) {
     if (!seconds) return ""; if (seconds < 3600) return `${Math.round(seconds / 60)} min`; if (seconds === 86400) return "once a day"; const hours = seconds / 3600; return `${hours} ${hours === 1 ? "hour" : "hours"}`;
   }
+  async _openBackendStatus() {
+    this._menu = null;
+    await this._loadBackendStatus(true);
+  }
+
+  async _loadBackendStatus(open = false) {
+    const entryId = this._selectedFrameId;
+    let status;
+    try { status = await this._api(`backend/status/${encodeURIComponent(entryId)}`); } catch (error) {
+      if (open) this._notify(this._friendlyError(error), { error: true });
+      return;
+    }
+    if (entryId !== this._selectedFrameId) return;
+    this._backendStatus = status;
+    if (open) {
+      this._openModal("Local backend", this._backendBody(), this._backendActions(), { className: "auto-dialog backend-dialog", subtitle: h(`${this._frame?.name || ""} · companion delivery`) });
+    } else if (this._modal?.className?.includes("backend-dialog")) {
+      const body = this._backendBody();
+      if (body === this._modal.body) return;
+      const scroll = this.shadowRoot.querySelector(".dialog-body")?.scrollTop || 0;
+      this._modal.body = body;
+      this._renderPreservingFocus();
+      const node = this.shadowRoot.querySelector(".dialog-body");
+      if (node) node.scrollTop = scroll;
+    }
+  }
+
+  _backendActions() {
+    return `<button class="btn" data-options>Connection settings</button><span class="spacer"></span><button class="btn" data-backend-creations>Open Creations</button>`;
+  }
+
+  _backendBody() {
+    const status = this._backendStatus || {};
+    const clock = (iso) => this._clockTime(iso);
+    const tile = (label, value, detail, { dot = null, alert = false } = {}) => `<div class="backend-tile${alert ? " alert" : ""}"><small>${dot === null ? "" : `<span class="dot ${dot}"></span>`}${h(label)}</small><b>${h(value)}</b><span>${h(detail)}</span></div>`;
+    const companion = status.online === false
+      ? tile("Companion", "Offline", "Retrying every minute", { dot: "offline", alert: true })
+      : status.online
+        ? tile("Companion", "Connected", status.checked_at ? `Checked ${clock(status.checked_at)}` : "", { dot: "online" })
+        : tile("Companion", "Not checked yet", "Checks every minute", { dot: "" });
+    const seen = [status.last_seen ? `Last poll ${clock(status.last_seen)}` : "No poll yet", status.battery != null ? `${status.battery}%` : ""].filter(Boolean).join(" · ");
+    const frame = status.missed_wake
+      ? tile("Frame", "Missed its wake", `Expected ${clock(status.missed_wake)} · ${seen}`, { alert: true })
+      : tile("Frame", (this._player?.frame ?? this._frame)?.online ? "Awake" : "Asleep", seen);
+    const wake = status.next_wake
+      ? tile("Next wake", clock(status.next_wake), this._untilLabel(status.next_wake))
+      : tile("Next wake", "Not scheduled", "Set when a picture is queued");
+    const preview = this._player?.preview;
+    const handoff = preview && ["waiting", "served"].includes(preview.status)
+      ? `<section class="auto-section"><h3>${preview.status === "served" ? "Last handoff" : "Waiting on the frame"}</h3><div class="backend-pending">${preview.thumbnail_url ? `<img ${this._imageAttrs(preview.thumbnail_url, "")}>` : ""}<div class="row-copy"><b>${h(preview.title)}</b><div class="backend-steps">${preview.handed_off_at ? `<span class="done">Handed off ${h(clock(preview.handed_off_at))}</span>` : ""}${preview.status === "served" ? `<span class="done">Served ${h(clock(preview.served_at))}</span>` : `<span>${preview.next_wake ? `Offered at the ${h(clock(preview.next_wake))} wake` : "Offered at the next wake"}</span>`}<span>· display is never confirmed</span></div></div></div></section>`
+      : "";
+    const modes = Object.fromEntries(VOICE_MODES);
+    const pills = { served: ["Served", "ok"], ready: ["Ready", "active"], working: ["Working", "active"], failed: ["Failed", "error"], uncertain: ["Uncertain", "warn"] };
+    const requests = (status.requests || []).map((request) => {
+      const [label, tone] = pills[request.status] || [request.status, ""];
+      const meta = request.status === "uncertain" ? "May have finished. It will not run again by itself."
+        : request.status === "failed" ? "Nothing changed on the frame."
+        : [modes[request.mode], request.style, request.cost != null ? usd(request.cost) : ""].filter(Boolean).join(" · ");
+      const what = request.transcript ? `“${request.transcript}”` : request.mode === "fixed" ? "Fixed picture" : "No transcript";
+      const inner = `<time>${h(clock(request.created))}</time><div class="row-copy"><b>${h(what)}</b><span>${h(meta)}</span></div><span class="status-pill ${tone}">${h(label)}</span>`;
+      return request.image_id ? `<button class="voice-request" data-detail="saved:${h(request.image_id)}" aria-label="Open the picture for ${h(what)}">${inner}</button>` : `<div class="voice-request">${inner}</div>`;
+    }).join("");
+    const mode = status.voice_mode ? `<p class="auto-hint">Voice button: ${h(modes[status.voice_mode] || status.voice_mode)} · <button class="link-btn" data-ai-settings>Change in AI art</button></p>` : "";
+    return `<section class="auto-section"><div class="backend-tiles">${companion}${frame}${wake}</div></section>
+      ${handoff}
+      <section class="auto-section"><h3>Voice requests</h3>${mode}<div>${requests || `<p class="auto-hint">No voice requests in the last 24 hours.</p>`}</div></section>`;
+  }
+
+  _untilLabel(iso) {
+    const minutes = Math.round((new Date(iso) - Date.now()) / 60000);
+    if (minutes < 1) return "Due now";
+    return minutes < 90 ? `In ${minutes} min` : `In ${Math.round(minutes / 60)} h`;
+  }
+
   // The local backend owns redraws and sleep, so LAN commands are refused.
   _lanCommands() { return this._frame?.delivery !== "backend"; }
 
