@@ -84,6 +84,7 @@ from .const import (
     SERVICE_RENDER_SCREEN,
     SERVICE_SCHEDULE_SEND,
     SERVICE_SEND_SCENE,
+    SERVICE_CREATE_ART,
     SERVICE_IMPORT_CREATIONS,
     SERVICE_SET_AUTO_MODE,
     SERVICE_SHOW_ONLINE_IMAGE,
@@ -569,6 +570,13 @@ def async_setup_services(hass: HomeAssistant) -> None:
         schema=vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY): cv.string}),
         supports_response=SupportsResponse.OPTIONAL,
     )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CREATE_ART,
+        _async_handle_create_art,
+        schema=CREATE_ART_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
 
 
 SET_AUTO_MODE_SCHEMA = vol.Schema(
@@ -649,6 +657,53 @@ async def _async_handle_import_creations(call: ServiceCall) -> ServiceResponse:
     except (CreationImportError, FraimicCloudError) as err:
         raise HomeAssistantError(f"Could not read the Fraimic gallery: {err}") from err
     return result.as_dict()
+
+
+CREATE_ART_SCHEMA = vol.Schema(
+    {
+        vol.Optional(ATTR_CONFIG_ENTRY): cv.string,
+        vol.Required("prompt"): vol.All(cv.string, vol.Length(min=1, max=2000)),
+        vol.Optional("style"): cv.string,
+        vol.Optional("model"): cv.string,
+        vol.Optional("show", default=True): cv.boolean,
+    }
+)
+
+
+async def _async_handle_create_art(call: ServiceCall) -> ServiceResponse:
+    """Handle ``fraimic.create_art``: make a picture, save it, optionally show it."""
+    from .ai_manager import get_ai_manager
+
+    hass = call.hass
+    entry = _resolve_entry(hass, call)
+    manager = get_ai_manager(hass)
+    library = get_library(hass)
+    if manager is None or library is None:
+        raise HomeAssistantError("Fraimic is not loaded")
+    if not manager.settings.configured:
+        raise ServiceValidationError("Set up AI art in the Fraimic panel first (⋮ > AI art)")
+    scheduler = begin_external_upload(entry) if call.data["show"] else None
+    shown = False
+    try:
+        image, metadata = await manager.async_create(
+            entry,
+            call.data["prompt"],
+            source="automation",
+            style=call.data.get("style"),
+            model=call.data.get("model"),
+        )
+        if call.data["show"]:
+            shown = await library.async_send_to_entry(image.image_id, entry)
+    finally:
+        finish_external_upload(scheduler, uploaded=shown)
+    return {
+        "image_id": image.image_id,
+        "prompt": metadata["prompt"],
+        "model": metadata["model"],
+        "cost": metadata["cost"],
+        "seconds": metadata["seconds"],
+        "shown": shown,
+    }
 
 
 async def _async_handle_temporary_overlay(call: ServiceCall) -> ServiceResponse:

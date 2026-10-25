@@ -43,6 +43,7 @@ def player_api(monkeypatch):
         "homeassistant.core": "HomeAssistant",
         "homeassistant.exceptions": "HomeAssistantError",
         "homeassistant.util": "dt",
+        "fraimic.ai_http": "ai_views",
         "fraimic.api": "FraimicError command_error_message",
         "fraimic.art_packs": "ArtPackManager ArtPackNotFoundError get_pack_manager",
         "fraimic.coordinator": "REDISCOVERY_FAIL_THRESHOLD",

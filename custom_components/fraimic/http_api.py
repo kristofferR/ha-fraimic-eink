@@ -23,6 +23,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.util import dt as dt_util
 
+from .ai_http import ai_views
 from .api import FraimicError, command_error_message
 from .art_packs import ArtPackManager, ArtPackNotFoundError, get_pack_manager
 from .const import (
@@ -92,6 +93,7 @@ def async_register_views(hass: HomeAssistant) -> None:
         *playlist_views(),
         *gallery_views(),
         *overlay_views(),
+        *ai_views(),
         *screens_views(),
     ):
         hass.http.register_view(view)

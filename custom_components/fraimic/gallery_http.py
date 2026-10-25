@@ -30,6 +30,7 @@ from .const import (
     DOMAIN,
     LIBRARY_ALBUM_DEFAULT,
     MODE_AUTO,
+    viewed_size,
 )
 from .http_helpers import require_loaded_entry
 from .library import FraimicLibrary, get_library
@@ -175,7 +176,7 @@ def _render_score(width: int | None, height: int | None, entry) -> float:
     """Rank known artwork by frame-aspect match and available resolution."""
     if not width or not height or width <= 0 or height <= 0:
         return 0.0
-    frame_width, frame_height = _viewed_size(entry)
+    frame_width, frame_height = viewed_size(entry)
     aspect_error = abs((width / height) / (frame_width / frame_height) - 1)
     aspect_score = max(0.0, 1.0 - aspect_error)
     resolution_score = min(
@@ -264,6 +265,10 @@ def _library_payload(image, entry) -> dict[str, Any]:
     _, queued_ids = _queued_refs(entry)
     title = Path(image.filename).stem or "Untitled"
     creation = image.creation
+    # AI art creations record their service, model and cost.
+    generated = (creation.metadata or {}) if creation else {}
+    if "provider" not in generated:
+        generated = {}
     return {
         "id": image.image_id,
         "source": LIBRARY_SOURCE,
@@ -290,6 +295,8 @@ def _library_payload(image, entry) -> dict[str, Any]:
         ),
         "description": creation.transcript if creation else None,
         "style": creation.style if creation else None,
+        "made_with": generated.get("model"),
+        "cost": generated.get("cost"),
         "source_page_url": image.source_url,
         "albums": image.normalized_albums(),
     }
@@ -499,14 +506,6 @@ def _crop(value: Any) -> tuple[float, float, float, float] | None:
         return normalize_crop(raw)
     except (TypeError, ValueError, json.JSONDecodeError) as err:
         raise web.HTTPBadRequest(text=f"Invalid crop: {err}") from err
-
-
-def _viewed_size(entry) -> tuple[int, int]:
-    width = int(entry.data.get("width", 1600))
-    height = int(entry.data.get("height", 1200))
-    if entry.options.get("rotation", 0) in (90, 270):
-        return height, width
-    return width, height
 
 
 def _image_content_type(data: bytes) -> str:
@@ -764,12 +763,12 @@ class GalleryDetailView(HomeAssistantView):
         item.update(
             {
                 "saved_crop": (
-                    _library(hass).get(item_id).crop_for(*_viewed_size(entry))
+                    _library(hass).get(item_id).crop_for(*viewed_size(entry))
                     if source == LIBRARY_SOURCE
                     else None
                 ),
                 "saved_rotation": (
-                    _library(hass).get(item_id).rotation_for(*_viewed_size(entry))
+                    _library(hass).get(item_id).rotation_for(*viewed_size(entry))
                     if source == LIBRARY_SOURCE
                     else 0
                 ),
@@ -927,7 +926,7 @@ class GalleryActionView(HomeAssistantView):
             item = await _resolve_item(hass, entry, source, item_id)
             if source == LIBRARY_SOURCE and crop is not None:
                 await _library(hass).async_set_crop(
-                    item_id, *_viewed_size(entry), list(crop)
+                    item_id, *viewed_size(entry), list(crop)
                 )
             if action in {"favorite", "unfavorite"}:
                 library = _library(hass)
@@ -962,7 +961,7 @@ class GalleryActionView(HomeAssistantView):
                     )
                 if action == "favorite" and saved is not None and crop is not None:
                     await library.async_set_crop(
-                        saved.image_id, *_viewed_size(entry), list(crop)
+                        saved.image_id, *viewed_size(entry), list(crop)
                     )
                 updated = await _resolve_item(hass, entry, source, item_id)
                 return self.json(
@@ -1021,7 +1020,7 @@ class GalleryActionView(HomeAssistantView):
                 )
                 if crop is not None:
                     await _library(hass).async_set_crop(
-                        saved.image_id, *_viewed_size(entry), list(crop)
+                        saved.image_id, *viewed_size(entry), list(crop)
                     )
                 item["saved"] = True
                 return self.json({"item": item, "saved": saved.image_id})

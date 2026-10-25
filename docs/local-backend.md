@@ -104,24 +104,30 @@ origin, for example `http://127.0.0.1:8080` for HA on the same host. HA does not
 disable certificate verification or use the frame-specific trust chain. HTTP is
 supported for a trusted private bridge network, not public exposure.
 
-In the integration's options select **Backend**, enter the companion URL and the
-same private bridge token, then choose:
+In the integration's options select **Backend**, then enter the companion URL and the
+same private bridge token. Choose what the voice button does in the Fraimic panel
+under **⋮ > AI art > Voice button**. Changing it there does not reload the frame:
 
-- **Fixed library image:** an existing library image ID; no STT, AI or intent call.
-- **Create artwork:** a configured STT entity, its supported language, and an
-  `ai_task` entity supporting image generation. Selecting this opts into calls to
-  those providers. Configure provider/account cost limits before enabling it.
-- **Assist with a result card:** a compatible STT entity/language and an explicit
-  conversation agent (default `homeassistant`). Commands follow that agent's HA
-  exposure settings. The spoken answer becomes a library image and panel card.
+- **Show a fixed picture:** a library picture; no STT, AI or intent call.
+- **Create artwork:** a configured STT entity and its supported language. The
+  picture comes from the image service set up in the same dialog (OpenRouter, a
+  local server or an `ai_task` entity), using the default style. Selecting this
+  opts into calls to those providers. Configure provider/account cost limits
+  before enabling it.
+- **Ask Assist:** a compatible STT entity/language and an explicit conversation
+  agent (default `homeassistant`). Commands follow that agent's HA exposure
+  settings. The spoken answer becomes a library image and panel card.
+
+Voice settings saved in the integration options before AI art settings existed
+move there once, on the next start.
 
 The adapters follow the installed HA 2026.10 APIs, checked against
 [STT entity documentation](https://contributors.home-assistant.io/core/entities/stt/)
 and [AI Task](https://www.home-assistant.io/actions/ai_task.generate_image/).
 The WAV container is validated, then raw mono 16-bit 16 kHz PCM is streamed to
-the configured STT entity after checking its metadata support. AI Task's local
-media result is copied into the Fraimic library immediately; expiring result URLs
-are not the original's storage. Provider/model, transcript, effective prompt,
+the configured STT entity after checking its metadata support. The generated
+picture is copied into the Fraimic library immediately; expiring result URLs are
+not the original's storage. Provider/model, cost, transcript, effective prompt,
 orientation, job ID and frame provenance remain attached to that original.
 
 Switching from Hybrid/Cloud first retires the integration's vendor album/awake
