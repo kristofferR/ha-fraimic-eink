@@ -149,9 +149,10 @@ class Backend:
         self._pending_art_cancellations.add(art.id)
         try:
             await self._save(art)
-        except Exception:
+        except Exception as error:
             # Preserve completed voice output and suppress art until a retry saves it.
-            _LOGGER.error("Artwork cancellation could not be saved; retrying on the next tick")
+            _LOGGER.error("Artwork cancellation could not be saved (%s); retrying on the next tick",
+                          type(error).__name__)
         else:
             self._pending_art_cancellations.discard(art.id)
 
