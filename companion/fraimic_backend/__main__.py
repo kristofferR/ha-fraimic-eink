@@ -17,10 +17,19 @@ from .server import Backend, create_app, create_bridge_app
 
 
 def reload_certificate(context: ssl.SSLContext, cert: str, key: str) -> None:
-    """Validate the pair before touching the live context."""
+    """Atomically select a fresh context for subsequent TLS handshakes."""
     candidate = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    candidate.minimum_version = context.minimum_version
     candidate.load_cert_chain(cert, key)
-    context.load_cert_chain(cert, key)
+
+    def select_certificate(
+        connection: ssl.SSLObject | ssl.SSLSocket, _hostname: str | None, _initial: ssl.SSLContext,
+    ) -> None:
+        connection.context = candidate
+
+    # Loading into the old context retains certificates of other key types.
+    # A fresh context also makes EC-to-RSA rollback replace the selected leaf.
+    context.sni_callback = select_certificate
 
 
 async def run(config_path: Path) -> None:
@@ -46,7 +55,6 @@ async def run(config_path: Path) -> None:
 
     def reload_tls() -> None:
         try:
-            # OpenSSL replaces the context's chain for subsequent handshakes.
             reload_certificate(context, cert, key)
             logging.getLogger(__name__).info("TLS certificate reloaded")
         except (OSError, ssl.SSLError):

@@ -8,25 +8,44 @@ and playback. No firmware patch, update offer or enrollment replacement is inclu
 ## Current evidence
 
 The implementation has been exercised with local HTTP fixtures, synthetic silence,
-fake inference providers and real HA/library code. It has **not been deployed to
-HA or connected to a physical frame**. The older research experiments are useful
-protocol evidence, not acceptance tests for this implementation.
+fake inference providers and real HA/library code. On **25 October 2026**, the
+companion was deployed to TrueNAS with a pinned Python image and private persistent
+storage. LAN checks verified bridge authentication, separation of management and
+device routes, stock polling with no firmware offer, and wake persistence through
+a container restart. The fixture database was then archived and replaced with an
+empty database so synthetic polls cannot count as physical frame contact.
+
+The integration was also installed on HA 2026.10.2 from the tested autofix commit.
+All 120 payload hashes and HA's configuration check passed; after a Core restart,
+the entry loaded without Fraimic startup errors and the new voice endpoint
+rejected unauthenticated requests. The previous installation is retained for
+rollback. Backend mode has **not been activated**, and the frame still uses its
+existing vendor path. The older research experiments are useful protocol evidence,
+not acceptance tests for this implementation.
 
 The first hardware target is the **Large, native 1440 × 2560**, already paired.
 Read-only HA inspection on **25 October 2026, 01:18 UTC** found:
 
-- HA 2026.10.2; reported frame firmware 0.2.29. The saved firmware research
-  identifies build f1555ee5; a fresh device build read is still required.
+- HA 2026.10.2; a subsequent direct device read confirmed firmware 0.2.29,
+  build f1555ee5, and the existing paired identity.
 - Delivery: Hybrid; power: Minimum; polling option: 3,600 seconds; mount: 90°;
   playback enabled with Auto at queue end. Minimum disables periodic LAN polls.
-- Last confirmed contact: 23 October, 20:09:50 UTC. Battery: cached 99%;
-  charging/cable state: unknown. This is not a live charge measurement.
+- HA's cached last contact was 23 October, 20:09:50 UTC, with 99% battery and
+  unknown charging/cable state. The direct read at approximately 02:01 UTC on
+  25 October reported 100%, 8,294 mV, no charging/cable, keep-awake enabled and
+  auto-update disabled. The cached values were stale.
 - Existing network controls reported connectivity-probe and time-sync allowances
   enabled and the vendor/WAN blocking rule disabled. No rule was changed.
 
 Seven days of recorder history contain recharge jumps to 100%, unknown charging
 intervals and a long 95–100% plateau. They cannot establish comparable per-mode
 battery consumption. There is no measured battery improvement to report.
+
+A 72-hour observational baseline started on 25 October at 02:29 UTC, sampling
+read-only device and HA state every 15 minutes. Normal playback and morning
+automations continue. This is not yet a controlled comparison between modes;
+exclude charging periods and the 95–100% plateau, record mode changes and leave
+unreachable periods as missing observations.
 
 **Vendor-free** means the frame's API, audio and panel traffic stays on the local
 backend. Public NTP and the stock TCP probe may remain reachable. **WAN-free** is
@@ -223,6 +242,19 @@ use the same embedded roots and supply no CRL. CA revocation predates the succes
 research device tests. Fresh-key replacement passes host verification; physical
 fresh-key rotation, future firmware/trust changes and unattended lifecycle behavior
 remain unverified. Never infer support for an unseen firmware image.
+
+The deployed listener accepted an original RSA leaf to fresh EC leaf reload
+without a process restart. Testing exposed a rollback issue in the initial
+implementation: loading another key type into an existing OpenSSL context retains
+the earlier certificate type, so clients can still select it. Reload now validates
+a fresh context and selects it for subsequent handshakes; established sessions
+keep their existing context. Host tests cover both RSA/EC directions, rollback,
+invalid key pairs, and established connections.
+
+The saved replacement research leaf lacks an Authority Key Identifier. It passes
+ordinary OpenSSL chain, hostname and date checks but fails Python's stricter
+RFC 5280 verification. This is a fixture limitation, not evidence that verification
+should be relaxed for the HA bridge. Physical frame acceptance is still pending.
 
 Provision certificates privately; this repository contains no chain-signing keys,
 device credentials or certificate-issuance automation. To replace the leaf, put
