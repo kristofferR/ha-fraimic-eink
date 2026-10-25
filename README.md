@@ -131,7 +131,9 @@ Set it up once for every frame under **⋮ > AI art**, or with the gear in Creat
   pipeline, or another one you pick. Browsers allow the microphone only over HTTPS
   and in the Home Assistant app. Frames using local backend delivery can also make
   art from their voice button: Home Assistant transcribes it, then the default
-  service, style and Creations folder are used.
+  service, style and Creations folder are used. Or choose **Use Fraimic's AI** to
+  send just the recording to Fraimic's own voice art; the frame still never polls
+  Fraimic, so it is never offered firmware.
 
 The `fraimic.create_art` action does the same from automations, for example a new
 picture every morning.

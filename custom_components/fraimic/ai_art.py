@@ -33,7 +33,8 @@ LOCAL_OPENAI = "openai"
 LOCAL_SDWEBUI = "sdwebui"
 LOCAL_APIS = (LOCAL_OPENAI, LOCAL_SDWEBUI)
 
-VOICE_MODES = ("fixed", "art", "assist")
+# "fraimic" hands the recording to Fraimic's own voice art, via the companion.
+VOICE_MODES = ("fixed", "art", "assist", "fraimic")
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 OPENROUTER_HEADERS = {

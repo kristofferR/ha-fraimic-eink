@@ -40,7 +40,7 @@ const RECORDER_WORKLET = `registerProcessor("fraimic-recorder", class extends Au
     return true;
   }
 });`;
-const VOICE_MODES = [["art", "Create artwork"], ["assist", "Ask Assist"], ["fixed", "Show a fixed picture"]];
+const VOICE_MODES = [["art", "Create artwork"], ["fraimic", "Use Fraimic's AI"], ["assist", "Ask Assist"], ["fixed", "Show a fixed picture"]];
 // Mirrors ai_art.apply_template so the dialogs can show the exact prompt.
 const applyTemplate = (template, request) => {
   const text = String(request || "").split(/\s+/).filter(Boolean).join(" ");
@@ -2769,6 +2769,9 @@ class FraimicPanel extends HTMLElement {
     const voice = this._aiDraft.voice[frame.entry_id];
     const select = (key, value, choices, label) => `<div class="field"><label for="ai-voice-${h(frame.entry_id)}-${key}">${h(label)}</label><select id="ai-voice-${h(frame.entry_id)}-${key}" data-ai-voice="${h(frame.entry_id)}:${key}">${choices.map(([choice, text]) => `<option value="${h(choice)}" ${choice === value ? "selected" : ""}>${h(text)}</option>`).join("")}</select></div>`;
     const fields = [select("mode", voice.mode, VOICE_MODES, "When you speak")];
+    if (voice.mode === "fraimic") {
+      return `<div class="ai-voice"><b>${h(frame.name)}</b><div class="ai-grid">${fields.join("")}</div><p class="auto-hint">The companion sends only the recording to Fraimic's server and shows the picture it makes. The frame keeps polling the companion, so Fraimic never offers it firmware.</p></div>`;
+    }
     if (voice.mode === "fixed") {
       fields.push(select("image", voice.image, [["", "Choose a picture…"], ...ai.choices.images.map((image) => [image.id, image.title])], "Picture"));
     } else {
@@ -2884,9 +2887,10 @@ class FraimicPanel extends HTMLElement {
         const voice = patch.voice[frame.entry_id];
         const changed = JSON.stringify(voice) !== JSON.stringify(loaded[frame.entry_id]);
         if (changed && voice.mode === "fixed" && !voice.image) return this._notify(`Choose a picture for ${frame.name}'s voice button.`, { error: true });
-        if (changed && voice.mode !== "fixed" && !voice.stt) return this._notify(`Choose speech to text for ${frame.name}'s voice button.`, { error: true });
+        const transcribes = voice.mode === "art" || voice.mode === "assist";
+        if (changed && transcribes && !voice.stt) return this._notify(`Choose speech to text for ${frame.name}'s voice button.`, { error: true });
         // Save the language shown, so an STT entity without HA's language still works.
-        if (voice.mode !== "fixed") voice.language = this._aiVoiceLanguages(voice).language;
+        if (transcribes) voice.language = this._aiVoiceLanguages(voice).language;
       }
     }
     if (key) patch.openrouter_key = key;
@@ -3648,13 +3652,13 @@ class FraimicPanel extends HTMLElement {
       ? `<section class="auto-section"><h3>${preview.status === "waiting" ? "Waiting on the frame" : "Last handoff"}</h3><div class="backend-pending">${preview.thumbnail_url ? `<img ${this._imageAttrs(preview.thumbnail_url, "")}>` : ""}<div class="row-copy"><b>${h(preview.title)}</b><div class="backend-steps">${preview.handed_off_at ? `<span class="done">Handed off ${h(clock(preview.handed_off_at))}</span>` : ""}<span>${h(this._previewMeta(preview))}</span></div></div></div></section>`
       : "";
     const modes = Object.fromEntries(VOICE_MODES);
-    const pills = { served: ["Served", "ok"], ready: ["Ready", "active"], working: ["Working", "active"], failed: ["Failed", "error"], uncertain: ["Uncertain", "warn"] };
+    const pills = { served: ["Served", "ok"], ready: ["Ready", "active"], working: ["Working", "active"], forwarded: ["Sent to Fraimic", "active"], failed: ["Failed", "error"], uncertain: ["Uncertain", "warn"] };
     const requests = (status.requests || []).map((request) => {
       const [label, tone] = pills[request.status] || [request.status, ""];
       const meta = request.status === "uncertain" ? "May have finished. It will not run again by itself."
         : request.status === "failed" ? "Nothing changed on the frame."
         : [modes[request.mode], request.style, request.cost != null ? usd(request.cost) : ""].filter(Boolean).join(" · ");
-      const what = request.transcript ? `“${request.transcript}”` : request.mode === "fixed" ? "Fixed picture" : "No transcript";
+      const what = request.transcript ? `“${request.transcript}”` : request.mode === "fixed" ? "Fixed picture" : request.mode === "fraimic" ? "Recording sent to Fraimic" : "No transcript";
       const inner = `<time>${h(clock(request.created))}</time><div class="row-copy"><b>${h(what)}</b><span>${h(meta)}</span></div><span class="status-pill ${tone}">${h(label)}</span>`;
       return request.image_id ? `<button class="voice-request" data-detail="saved:${h(request.image_id)}" aria-label="Open the picture for ${h(what)}">${inner}</button>` : `<div class="voice-request">${inner}</div>`;
     }).join("");

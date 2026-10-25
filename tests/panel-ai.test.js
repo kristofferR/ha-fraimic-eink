@@ -222,3 +222,13 @@ test("dictation sends buffered audio after run-start and inserts the words at th
   expect(state.dictation).toBe(null);
   expect(panel._dictationRun).toBe(null);
 });
+
+test("Fraimic's AI voice mode saves without speech to text", async () => {
+  const { panel, requests, notices } = harness();
+  await panel._openAiSettings();
+  panel._aiDraft.voice.first.mode = "fraimic";
+  expect(panel._aiVoiceRow(panel._ai.voice[0])).not.toContain("Speech to text");
+  await panel._saveAiSettings();
+  expect(notices).toEqual(["AI art settings saved."]);
+  expect(JSON.parse(requests.at(-1).options.body).voice.first).toMatchObject({ mode: "fraimic", stt: "", language: "" });
+});

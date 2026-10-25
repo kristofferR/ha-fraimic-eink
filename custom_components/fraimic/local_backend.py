@@ -369,6 +369,9 @@ class BackendStatusView(HomeAssistantView):
                 status = "served"
             elif job["state"] == "ready":
                 status = "ready"
+            elif job["state"] == "forwarded":
+                # The companion's record says whether Fraimic's picture got through.
+                status = "uncertain" if companion.get("state") in ("failed", "uncertain", "expired") else "forwarded"
             else:
                 status = "working"
             requests.append({
@@ -402,6 +405,8 @@ class BackendVoiceView(HomeAssistantView):
     requires_auth = False
 
     async def post(self, request: web.Request) -> web.Response:
+        from .backend_voice import ForwardToFraimic
+
         hass: HomeAssistant = request.app[KEY_HASS]
         authorization = request.headers.get("Authorization", "").encode("utf-8", "surrogateescape")
         backend = next((entry.runtime_data.backend for entry in loaded_fraimic_entries(hass)
@@ -422,6 +427,8 @@ class BackendVoiceView(HomeAssistantView):
                     if len(audio) > 2_128_192:
                         raise web.HTTPRequestEntityTooLarge(max_size=2_128_192, actual_size=len(audio))
             packed = await backend.voice.async_process(ident, bytes(audio), orientation)
+        except ForwardToFraimic:
+            return web.Response(status=202, headers={"X-Fraimic-Forward": "fraimic", "Cache-Control": "no-store"})
         except (HomeAssistantError, ValueError, TimeoutError):
             # Exception messages can contain transcript/provider URLs.
             return web.Response(status=503, text="voice_job_failed")

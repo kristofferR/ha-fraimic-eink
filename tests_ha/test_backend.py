@@ -17,6 +17,7 @@ from homeassistant.util import dt as dt_util
 from PIL import Image
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.fraimic.ai_art import VoiceSettings
 from custom_components.fraimic.backend_voice import VoiceJobs, pcm_from_wav
 from custom_components.fraimic.backend_errors import BackendUnavailable
 from custom_components.fraimic.const import CONF_DELIVERY_MODE, DELIVERY_BACKEND
@@ -566,3 +567,27 @@ async def test_voice_card_preview_keeps_request_private(
     original = await hass.async_add_executor_job(library.original_path(image).read_bytes)
     assert original != backend.preview_png
     assert (await library.async_render_for_entry(image.image_id, entry))[0] == packed
+
+
+async def test_fraimic_voice_mode_forwards_once_and_never_repeats(
+    backend_entry: Any, hass_client_no_auth: Any, hass_client: Any,
+) -> None:
+    entry, _ = backend_entry
+    bridge = await hass_client_no_auth()
+    headers = {"Authorization": f"Bearer {entry.options[CONF_BACKEND_TOKEN]}",
+               "X-Fraimic-Job": "a" * 32, "X-Fraimic-Orientation": "portrait"}
+    with (
+        patch.object(VoiceJobs, "_voice", return_value=VoiceSettings(mode="fraimic")),
+        patch.object(VoiceJobs, "_transcribe", new_callable=AsyncMock) as transcribe,
+    ):
+        reply = await bridge.post("/api/fraimic/backend/voice", headers=headers, data=audio_fixture())
+        assert reply.status == 202
+        assert reply.headers["X-Fraimic-Forward"] == "fraimic"
+        status = await (await hass_client()).get(f"/api/fraimic/backend/status/{entry.entry_id}")
+        assert [(r["status"], r["mode"]) for r in (await status.json())["requests"]] == [("forwarded", "fraimic")]
+        # A repeat after a companion restart gets the "may have finished" card.
+        reply = await bridge.post("/api/fraimic/backend/voice", headers=headers, data=audio_fixture())
+        assert reply.status == 200
+        assert len(await reply.read()) == 960_000
+        transcribe.assert_not_awaited()
+    assert entry.runtime_data.backend.voice.jobs["a" * 32]["outcome"] == "uncertain"
