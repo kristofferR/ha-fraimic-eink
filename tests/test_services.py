@@ -605,7 +605,8 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
 
 
 @pytest.mark.parametrize("overlay_refresh", [True, False])
-def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refresh):
+@pytest.mark.parametrize(("backend_pull", "next_wake"), [(False, None), (True, 1_050), (True, 1_400), (True, None), (True, 900)])
+def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh, backend_pull, next_wake):
     from unittest.mock import AsyncMock, Mock
 
     services = _load_services(monkeypatch)
@@ -616,7 +617,7 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
         source=None,
         title="Art",
         submitted_via_cloud=False,
-        candidate_valid_until=1_029,
+        candidate_valid_until=1_250 if backend_pull else 1_029,
         signature=lambda *_: "active",
         async_compose=AsyncMock(
             return_value=((b"new pixels", b"png", "none"), "active", 1)
@@ -631,7 +632,10 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
     client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=_no_render)
     runtime = SimpleNamespace(
         temporary_overlays=controller,
-        scheduler=None,
+        backend=SimpleNamespace(next_wake=next_wake, async_deliver=AsyncMock()) if backend_pull else None,
+        scheduler=SimpleNamespace(
+            enabled=True, queue=SimpleNamespace(interval=600), finish_external_upload=Mock(),
+        ),
         cloud=None,
         power=power,
         client=client,
@@ -651,17 +655,148 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
         )
     )
 
-    if overlay_refresh:
+    runtime.scheduler.finish_external_upload.assert_not_called()
+    if backend_pull and next_wake == 1_050:
+        assert result["backend_queued"] is True
+        assert result["displayed"] is False
+        runtime.backend.async_deliver.assert_awaited_once_with(b"new pixels", expires_at=1_250)
+        assert controller.async_accept.await_args.args[4] == controller.signature()
+        client.upload_image.assert_not_awaited()
+    elif overlay_refresh:
         assert result["skip_reason"] == "briefing_expires_before_delivery"
         assert result["deferred"] is True
         client.upload_image.assert_not_awaited()
         controller.async_accept.assert_not_awaited()
     else:
-        assert result["uploaded"] is True
-        client.upload_image.assert_awaited_once_with(b"clean art")
+        if backend_pull:
+            assert result["backend_queued"] is True
+            runtime.backend.async_deliver.assert_awaited_once_with(b"clean art", expires_at=None)
+            client.upload_image.assert_not_awaited()
+        else:
+            assert result["uploaded"] is True
+            client.upload_image.assert_awaited_once_with(b"clean art")
         assert controller.candidate_valid_until is None
         assert controller.async_accept.await_args.args[0] == controller.base
         assert controller.async_accept.await_args.args[4] != controller.signature()
+
+
+@pytest.mark.parametrize("user_initiated", [True, False])
+def test_busy_backend_rejects_user_send_and_defers_automatic_send(monkeypatch, user_initiated):
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    busy = load("backend_errors").BackendBusy
+    runtime = SimpleNamespace(
+        backend=SimpleNamespace(async_deliver=AsyncMock(side_effect=busy("busy"))),
+        power=SimpleNamespace(begin=Mock(return_value=1), finish=Mock(),
+                              skip_reason=Mock(return_value=None)),
+        coordinator=SimpleNamespace(data={}), upload_lock=asyncio.Lock(), send_seq=0,
+    )
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
+
+    async def run():
+        return await services.async_render_and_upload(
+            SimpleNamespace(), entry, b"", hold_playlist=False,
+            rendered=(b"pixels", None, "none"), queue_if_asleep=user_initiated,
+        )
+
+    if user_initiated:
+        with pytest.raises(services.ServiceValidationError, match="backend is busy"):
+            asyncio.run(run())
+    else:
+        result = asyncio.run(run())
+        assert result["skip_reason"] == "backend_busy"
+        assert not result["queued"]
+    runtime.power.finish.assert_called_once_with(1)
+
+
+@pytest.mark.parametrize("battery", [5, 80])
+@pytest.mark.parametrize("superseded", [False, True])
+@pytest.mark.parametrize("matching_lan_hash", [False, True])
+def test_backend_preserves_coalescing_and_low_battery_gates(
+    monkeypatch, battery, superseded, matching_lan_hash
+):
+    import hashlib
+    from unittest.mock import AsyncMock
+
+    services = _load_services(monkeypatch)
+    power = load("power")
+    entry = SimpleNamespace(data={}, options={})
+    manager = power.FraimicPowerManager(SimpleNamespace(), entry)
+    if matching_lan_hash:
+        manager.last_hash = hashlib.sha256(b"pixels").hexdigest()
+    runtime = SimpleNamespace(
+        backend=SimpleNamespace(async_deliver=AsyncMock()), power=manager,
+        coordinator=SimpleNamespace(data={"battery": {"percent": battery}}),
+        upload_lock=asyncio.Lock(), send_seq=0,
+    )
+    entry.runtime_data = runtime
+
+    async def render(*_args, **_kwargs):
+        if superseded:
+            manager.begin(power.TRIGGER_SCHEDULED)
+        return b"pixels", None, "none"
+
+    monkeypatch.setattr(services, "async_convert_for_entry", render)
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+    result = asyncio.run(services.async_render_and_upload(
+        SimpleNamespace(), entry, b"", hold_playlist=False, trigger=power.TRIGGER_PLAYLIST,
+    ))
+    reason = power.SKIP_COALESCED if superseded else power.SKIP_LOW_BATTERY if battery < 25 else None
+    assert result["skip_reason"] == reason
+    assert result["backend_queued"] is (reason is None)
+    if reason is None:
+        runtime.backend.async_deliver.assert_awaited_once_with(b"pixels", expires_at=None)
+    else:
+        runtime.backend.async_deliver.assert_not_awaited()
+
+
+def test_backend_manual_send_supersedes_automatic_render(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    services = _load_services(monkeypatch)
+    power = load("power")
+    entry = SimpleNamespace(data={}, options={})
+    runtime = SimpleNamespace(
+        backend=SimpleNamespace(async_deliver=AsyncMock()),
+        power=power.FraimicPowerManager(SimpleNamespace(), entry),
+        coordinator=SimpleNamespace(data={}), upload_lock=asyncio.Lock(), send_seq=0,
+    )
+    entry.runtime_data = runtime
+    rendering = asyncio.Event()
+    manual_started = asyncio.Event()
+
+    async def render(_hass, _entry, raw, *_args, **_kwargs):
+        if raw == b"automatic":
+            rendering.set()
+            await manual_started.wait()
+        return raw, None, "none"
+
+    monkeypatch.setattr(services, "async_convert_for_entry", render)
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+
+    async def send_manual():
+        manual_started.set()
+        return await services.async_render_and_upload(
+            SimpleNamespace(), entry, b"manual", hold_playlist=False,
+            trigger=power.TRIGGER_MANUAL, queue_if_asleep=True,
+        )
+
+    async def run():
+        automatic = asyncio.create_task(services.async_render_and_upload(
+            SimpleNamespace(), entry, b"automatic", hold_playlist=False,
+            trigger=power.TRIGGER_PLAYLIST,
+        ))
+        await rendering.wait()
+        manual = asyncio.create_task(send_manual())
+        return await asyncio.gather(automatic, manual)
+
+    automatic, manual = asyncio.run(run())
+    assert automatic["skip_reason"] == power.SKIP_COALESCED
+    assert automatic["deferred"] is True
+    assert manual["backend_queued"] is True
+    runtime.backend.async_deliver.assert_awaited_once_with(b"manual", expires_at=None)
 
 
 def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monkeypatch):

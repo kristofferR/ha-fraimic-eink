@@ -1,0 +1,7 @@
+.venv
+.pytest_cache
+.mypy_cache
+tests
+*.sqlite3*
+*.pem
+config.json

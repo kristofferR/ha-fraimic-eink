@@ -271,6 +271,7 @@ stored-screen wizard, and YAML examples. `preview_only: true` renders to the
 | **Local** (default) | Home Assistant uploads directly; a sleeping frame can defer delivery until it wakes. | Network access from Home Assistant to the frame. No Fraimic account needed for delivery. |
 | **Cloud** | Home Assistant updates a dedicated album in your Fraimic account; the frame downloads the image on a scheduled wake. | Fraimic account and internet access. |
 | **Hybrid** | Checks the frame before each send: uploads locally when awake, otherwise uses cloud delivery for a scheduled wake. | Local network access, a Fraimic account, and internet access for cloud delivery. |
+| **Backend** (experimental) | A local companion serves rendered panel images, recorded voice requests and HA-selected wake times to stock firmware. | A separately deployed companion and prepared frame-specific TLS/routing. See the [setup and validation runbook](docs/local-backend.md). |
 
 ### Battery, privacy, and dithering tradeoffs
 

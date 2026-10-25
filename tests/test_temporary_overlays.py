@@ -698,6 +698,33 @@ def test_apply_now_retains_settings_when_the_frame_is_busy(controller):
     assert saved[obj._store.key]["permanent"] == [edited]
 
 
+def test_backend_overlay_acceptance_releases_playback_after_expiry(controller, monkeypatch):
+    module, obj, clock, _ = controller
+    services = types.ModuleType("fraimic.services")
+    obj.temporary = [module.normalize_overlay(overlay())]
+    obj.expires_at = clock.now + 60
+
+    async def accept(*_args, **_kwargs):
+        await obj.async_accept(obj.base, None, obj.title, True, obj.signature(), "composite")
+        return {"displayed": False, "backend_queued": True}
+
+    services.async_render_and_upload = AsyncMock(side_effect=accept)
+    monkeypatch.setitem(sys.modules, "fraimic.services", services)
+
+    async def run():
+        await obj.async_refresh()
+        assert not obj.dirty
+        assert obj.holds_playback
+        clock.now += 61
+        await obj.async_refresh()
+        assert not obj.dirty
+        assert not obj.holds_playback
+        await obj._async_tick()
+        assert services.async_render_and_upload.await_count == 2
+
+    asyncio.run(run())
+
+
 def test_expired_overlay_failure_respects_retry_interval(controller, monkeypatch):
     module, obj, clock, _ = controller
     services = types.ModuleType("fraimic.services")

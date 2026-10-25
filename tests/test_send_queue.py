@@ -120,6 +120,51 @@ def test_queue_rejects_invalid_payload_before_writing(send_queue_module) -> None
         )
 
 
+@pytest.mark.parametrize("fails", [False, True])
+@pytest.mark.parametrize("composition", [False, True])
+def test_backend_migration_preserves_one_shot_until_acceptance(send_queue_module, tmp_path, fails, composition):
+    module = send_queue_module
+
+    class Hass:
+        config = types.SimpleNamespace(path=lambda *parts: str(tmp_path.joinpath(*parts)))
+
+        async def async_add_executor_job(self, target, *args):
+            return target(*args)
+
+    backend = types.SimpleNamespace(async_deliver=AsyncMock())
+    if fails:
+        backend.async_deliver.side_effect = RuntimeError("backend offline")
+    entry = types.SimpleNamespace(
+        entry_id="small", data={"width": 2, "height": 4}, options={},
+        runtime_data=types.SimpleNamespace(backend=backend, cloud=None),
+    )
+    queue = module.FraimicSendQueue(Hass(), entry)
+    pending = {"title": "One-shot", "queued_at": module.time.time(), "content_hash": "pending"}
+    controller = types.SimpleNamespace(
+        base=(b"\x12" * 4, None, "none"), submitted_hash="pending", async_mark_dirty=AsyncMock(),
+    )
+    if composition:
+        entry.runtime_data.temporary_overlays = controller
+    queue._store = types.SimpleNamespace(
+        async_load=AsyncMock(return_value={"pending": pending}), async_save=AsyncMock(),
+    )
+    from pathlib import Path
+    Path(queue._bin_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(queue._bin_path).write_bytes(b"\x11" * 4)
+    if fails:
+        with pytest.raises(RuntimeError):
+            asyncio.run(queue.async_setup())
+        assert queue.pending is pending
+        queue._store.async_save.assert_not_awaited()
+    else:
+        asyncio.run(queue.async_setup())
+        assert queue.pending is None
+        queue._store.async_save.assert_awaited_once_with({"pending": None})
+    backend.async_deliver.assert_awaited_once_with((b"\x12" if composition else b"\x11") * 4)
+    if composition:
+        controller.async_mark_dirty.assert_awaited_once()
+
+
 def test_discard_clears_superseded_pending_send(send_queue_module) -> None:
     send_queue = send_queue_module
 

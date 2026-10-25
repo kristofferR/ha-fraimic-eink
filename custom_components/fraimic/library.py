@@ -804,6 +804,9 @@ async def async_upload_rendered(
 
     async def _upload() -> bool:
         runtime.sending_preview = sending_preview
+        if (backend := getattr(runtime, "backend", None)) is not None:
+            await backend.async_deliver(bin_data)
+            return False
         if await async_use_cloud(entry):
             from .services import async_deliver_cloud
 

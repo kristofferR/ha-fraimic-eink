@@ -33,8 +33,9 @@ from .auto_mode import (
     pick_source,
     picture_key,
 )
-from .const import CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH, DOMAIN
+from .const import CLOUD_WAKE_WINDOW, CONF_PLAYLIST_PREFETCH, DEFAULT_PLAYLIST_PREFETCH, DOMAIN
 from .coordinator import FraimicConfigEntry
+from .backend_errors import BackendUnavailable
 from .playback_queue import PlaybackQueue, QueueItem
 from .power import TRIGGER_MANUAL, TRIGGER_PLAYLIST
 from .providers.ha import ArtFetchError
@@ -447,7 +448,7 @@ class FraimicScheduler:
                     f"Interval must be at least {MIN_SCREEN_INTERVAL} seconds"
                 )
             self.queue.interval = interval
-            await self._async_sync_cloud_interval()
+            await self._async_sync_cloud_interval(reschedule=True)
         if shuffle is not None:
             if not isinstance(shuffle, bool):
                 raise HomeAssistantError("Shuffle must be a boolean")
@@ -631,6 +632,8 @@ class FraimicScheduler:
                 self._last_rotation += now - self._paused_at
             self._paused_at = None
         self.enabled = enabled
+        if changed and getattr(self.entry.runtime_data, "backend", None) is not None:
+            await self._async_sync_cloud_interval(reschedule=True)
         if clear_hold:
             self._hold_until = None
         if persist:
@@ -644,8 +647,22 @@ class FraimicScheduler:
                 return
             await self._async_rotate(force=False)
 
-    async def _async_sync_cloud_interval(self) -> None:
+    async def _async_sync_cloud_interval(self, *, reschedule: bool = False) -> None:
         """Cloud delivery: the album slot cadence must follow the playlist."""
+        backend = getattr(self.entry.runtime_data, "backend", None)
+        if backend is not None:
+            try:
+                if getattr(backend, "acceptance_pending", False):
+                    await backend.async_resume_delivery()
+                if not reschedule and backend.next_wake is not None and backend.next_wake > time.time() + 30:
+                    return
+                timestamp = int(time.time() + (self.playlist_interval if self.enabled else 86400))
+                await backend.async_schedule(timestamp)
+                if self._hold_until is not None:
+                    self._hold_until = dt_util.utc_from_timestamp(timestamp + CLOUD_WAKE_WINDOW)
+            except BackendUnavailable:
+                self._defer("backend_unavailable", 60)
+            return
         cloud = getattr(self.entry.runtime_data, "cloud", None)
         if cloud is None:
             return
@@ -730,8 +747,42 @@ class FraimicScheduler:
         await self._async_save()
         self._notify()
 
+    async def async_backend_delivery_accepted(self) -> None:
+        """Reserve the next pull slot without asserting a physical display."""
+        interval = self.queue.interval if self.enabled else 86400
+        next_wake = int(time.time() + max(60, interval))
+        await self.entry.runtime_data.backend.async_schedule(next_wake)
+        self._pending = None
+        self._pending_hold_on_success = False
+        self._hold_until = dt_util.utc_from_timestamp(next_wake + CLOUD_WAKE_WINDOW)
+        await self._async_save()
+        self._notify()
+
     async def _async_tick(self, _now: datetime | None = None) -> None:
         runtime = self.entry.runtime_data
+        backend = getattr(runtime, "backend", None)
+        if backend is not None:
+            try:
+                state = await backend.async_status()
+                wake = getattr(backend, "next_wake", None)
+                if wake is not None and wake <= time.time() + 30:
+                    # Publish the following wake during this wake's poll window,
+                    # even while the accepted image still holds playback.
+                    interval = self.queue.interval if self.enabled else 86400
+                    await backend.async_schedule(int(time.time() + max(60, interval)))
+            except BackendUnavailable:
+                self._defer("backend_unavailable", 60)
+                return
+            if state.get("busy"):
+                self._defer("backend_busy", 60)
+                return
+            if (
+                self.blocked_reason in ("backend_busy", "backend_unavailable")
+                and (self.retry_at is None or self.retry_at <= dt_util.utcnow())
+            ):
+                self.blocked_reason = None
+                self.retry_at = None
+                self._notify()
         cloud = getattr(runtime, "cloud", None)
         if cloud is not None and not self._busy and not self.external_upload_active:
             try:
@@ -782,7 +833,8 @@ class FraimicScheduler:
             return last + timedelta(seconds=self.queue.interval)
         settings = self.auto
         # Cloud wakes follow the album interval, which tracks the queue's.
-        if getattr(self.entry.runtime_data, "cloud", None) is not None:
+        if (getattr(self.entry.runtime_data, "cloud", None) is not None
+            or getattr(self.entry.runtime_data, "backend", None) is not None):
             settings = replace(settings, cadence=CADENCE_QUEUE)
         due = settings.next_change(
             last.astimezone(dt_util.now().tzinfo), self.queue.interval
@@ -825,7 +877,7 @@ class FraimicScheduler:
                     hold_playlist=False,
                     trigger=TRIGGER_MANUAL if manual else TRIGGER_PLAYLIST,
                 )
-            except (ArtFetchError, CloudDeliveryError) as err:
+            except (ArtFetchError, CloudDeliveryError, BackendUnavailable) as err:
                 self._pending = None
                 if isinstance(err, ArtFetchError) and not manual:
                     item = self.queue.get(screen.screen_id)
@@ -838,6 +890,7 @@ class FraimicScheduler:
                 self._defer(
                     "source_unavailable"
                     if isinstance(err, ArtFetchError)
+                    else "backend_unavailable" if isinstance(err, BackendUnavailable)
                     else "cloud_unavailable",
                     300,
                 )
@@ -881,7 +934,7 @@ class FraimicScheduler:
                 _LOGGER.warning("Queue skipped %r: %s", screen.name, err)
                 return False
             displayed = result.get("displayed", result.get("uploaded", True))
-            if not displayed and not result.get("cloud_queued"):
+            if not displayed and not result.get("cloud_queued") and not result.get("backend_queued"):
                 self._defer(result.get("skip_reason", "power_policy"))
                 return False
             self._pending = None

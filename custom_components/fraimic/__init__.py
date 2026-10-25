@@ -32,6 +32,7 @@ from .const import (
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
     DELIVERY_CLOUD,
+    DELIVERY_BACKEND,
     DELIVERY_HYBRID,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
@@ -48,6 +49,8 @@ from .discovery import DATA_DISCOVERY_SWEEP, async_start_sweep
 from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
+from .local_backend import LocalBackend
+from .backend_errors import BackendUnavailable
 from .overlays import DATA_OVERLAYS, OverlayManager
 from .panel import async_register_panel, async_unregister_panel
 from .playlists import DATA_PLAYLISTS, PlaylistManager
@@ -144,6 +147,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     # Cloud delivery (album schedule wakes the sleeping frame) when selected;
     # must exist before the scheduler starts so it can sync the album cadence.
     entry.runtime_data.cloud = await _async_setup_cloud(hass, entry)
+    if entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_BACKEND:
+        backend = LocalBackend(hass, entry)
+        await backend.async_setup()
+        entry.runtime_data.backend = backend
+        client.backend_managed = True
     if entry.options.get(CONF_DELIVERY_MODE) != DELIVERY_HYBRID:
         # Before the scheduler copies the album's deadline into its hold.
         if not await async_retire_awake_window(hass, entry, entry.runtime_data.cloud):
@@ -168,8 +176,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
     entry.runtime_data.send_queue = send_queue
     try:
         await send_queue.async_setup()
-    except FraimicCloudError as err:
-        raise ConfigEntryNotReady("Could not migrate queued artwork to Hybrid delivery") from err
+    except (FraimicCloudError, BackendUnavailable) as err:
+        raise ConfigEntryNotReady("Could not migrate queued artwork to the selected delivery service") from err
     entry.async_on_unload(send_queue.shutdown)
 
     # A failed first poll must not abort setup while the frame is asleep.

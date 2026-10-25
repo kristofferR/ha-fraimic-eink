@@ -698,6 +698,78 @@ def test_paused_scheduler_still_retires_cloud_delivery(playback):
     expire.assert_awaited_once()
 
 
+def test_backend_acceptance_advances_queue_without_claiming_display(playback):
+    p = playback
+    a, b = add(p, "a", "b")
+    run(p.scheduler.async_next())
+    backend = SimpleNamespace(async_schedule=AsyncMock(), next_wake=None)
+    p.entry.runtime_data.backend = backend
+
+    async def pull_send(*args, **kwargs):
+        await p.scheduler.async_backend_delivery_accepted()
+        return {"uploaded": False, "displayed": False, "backend_queued": True}
+
+    p.show.side_effect = pull_send
+    run(p.scheduler.async_next())
+    assert p.scheduler.current_screen == a
+    assert p.scheduler.queue.cursor == b.screen_id
+    backend.async_schedule.assert_awaited_once()
+    wake = backend.async_schedule.await_args.args[0]
+    assert p.scheduler.hold_until.timestamp() == wake + 180
+
+
+def test_backend_busy_window_defers_automatic_queue(playback):
+    p = playback
+    add(p, "a")
+    p.scheduler.enabled = True
+    p.entry.runtime_data.backend = SimpleNamespace(
+        async_status=AsyncMock(return_value={"busy": True}),
+    )
+    run(p.scheduler._async_tick())
+    p.show.assert_not_awaited()
+    assert p.scheduler.blocked_reason == "backend_busy"
+
+
+@pytest.mark.parametrize("busy", [False, True])
+def test_backend_publishes_following_wake_without_releasing_image_hold(playback, monkeypatch, busy):
+    p = playback
+    add(p, "a", "b")
+    p.scheduler.enabled = True
+    p.scheduler.queue.interval = 600
+    monkeypatch.setattr(p.module.time, "time", lambda: p.now[0].timestamp())
+    backend = SimpleNamespace(
+        async_schedule=AsyncMock(), next_wake=None,
+        async_status=AsyncMock(return_value={"busy": busy}),
+    )
+    p.entry.runtime_data.backend = backend
+
+    async def schedule(wake):
+        backend.next_wake = wake
+
+    backend.async_schedule.side_effect = schedule
+    run(p.scheduler.async_backend_delivery_accepted())
+    first_wake = backend.next_wake
+    hold = p.scheduler.hold_until
+    p.now[0] += timedelta(seconds=600)
+    run(p.scheduler._async_tick())
+    assert backend.next_wake == first_wake + 600
+    assert p.scheduler.hold_until == hold
+    p.show.assert_not_awaited()
+    run(p.scheduler._async_tick())
+    assert backend.async_schedule.await_count == 2
+
+
+@pytest.mark.parametrize("delay", [0, 60])
+def test_backend_recovery_clears_only_elapsed_retry(playback, delay):
+    p = playback
+    p.scheduler.blocked_reason = "backend_unavailable"
+    p.scheduler.retry_at = p.now[0] + timedelta(seconds=delay)
+    p.entry.runtime_data.backend = SimpleNamespace(async_status=AsyncMock(return_value={"busy": False}))
+    run(p.scheduler._async_tick())
+    assert p.scheduler.blocked_reason == ("backend_unavailable" if delay else None)
+    assert (p.scheduler.retry_at is None) == (delay == 0)
+
+
 def test_pause_preserves_remaining_interval(playback):
     p = playback
     add(p, "a", "b")

@@ -1174,12 +1174,21 @@ async def async_render_and_upload(
                     sending_preview = (preview_png, title or "Artwork")
                     runtime.sending_preview = sending_preview
 
+            backend = getattr(runtime, "backend", None)
             if snapshot_deadline is not None:
-                arrival = time.time() + (
-                    cloud.wake_interval + CLOUD_WAKE_WINDOW
-                    if use_cloud
-                    else LOCAL_REDRAW_SECONDS
-                )
+                now = time.time()
+                if backend is not None:
+                    wake = backend.next_wake
+                    if wake is None or wake <= now:
+                        playback = runtime.scheduler
+                        interval = playback.queue.interval if playback is not None and playback.enabled else 86400
+                        wake = now + max(60, interval)
+                    arrival = wake + CLOUD_WAKE_WINDOW
+                else:
+                    arrival = now + (
+                        cloud.wake_interval + CLOUD_WAKE_WINDOW
+                        if use_cloud else LOCAL_REDRAW_SECONDS
+                    )
                 if arrival >= snapshot_deadline:
                     if overlay_refresh:
                         return deferred_result("briefing_expires_before_delivery")
@@ -1199,6 +1208,39 @@ async def async_render_and_upload(
                 # Only restoration of an accepted temporary composition may
                 # bypass low-battery protection. Decide under the upload lock.
                 trigger = TRIGGER_OVERLAY_RESTORE
+            if backend is not None:
+                from .backend_errors import BackendBusy
+                from .power import SKIP_LOW_BATTERY
+
+                # Local pull delivery owns sleep and wake timing. Preserve the
+                # coalescing and low-battery gates, without LAN cooldowns.
+                # A prior LAN hash cannot suppress these gates for a new pull.
+                content_hash = hashlib.sha256(bin_data).hexdigest()
+                reason = runtime.power.skip_reason(
+                    content_hash, trigger, power_token, runtime.coordinator.data,
+                    deduplicate=False,
+                )
+                queued = False
+                if runtime.send_seq != send_seq:
+                    return deferred_result(SKIP_COALESCED)
+                if reason not in {SKIP_LOW_BATTERY, SKIP_COALESCED}:
+                    try:
+                        await backend.async_deliver(bin_data, expires_at=snapshot_deadline)
+                    except BackendBusy as err:
+                        if queue_if_asleep:
+                            raise ServiceValidationError(
+                                "The local backend is busy. Send the image again shortly."
+                            ) from err
+                        reason = "backend_busy"
+                    else:
+                        queued, reason = True, None
+                        await accept_overlay(content_hash)
+                return {
+                    "mode": used_mode, "content_hash": content_hash,
+                    "uploaded": False, "displayed": False,
+                    "queued": queued, "backend_queued": queued,
+                    "skip_reason": reason, "preview_png": preview_png,
+                }
             hybrid = (
                 entry.options.get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
                 and getattr(runtime, "cloud", None) is not None

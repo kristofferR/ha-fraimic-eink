@@ -103,6 +103,8 @@ class FraimicRuntimeData:
         # Cloud delivery (cloud_delivery.FraimicCloudDelivery) when the frame's
         # delivery mode is ``cloud`` or ``hybrid``; None for local-only delivery.
         self.cloud: Any = None
+        # Stock-protocol companion. It serves pull assets, never LAN uploads.
+        self.backend: Any = None
         # Serialize uploads; the frame can only process one long refresh.
         self.upload_lock = asyncio.Lock()
         # Incremented per send; a send that waited for a render and sees a
@@ -249,6 +251,28 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # this as fresh frame data and retry sends.
         for listener in list(self._availability_listeners):
             listener()
+
+    @callback
+    def async_backend_contact(self, telemetry: dict[str, Any]) -> None:
+        """Use an authenticated companion poll as contact, without marking LAN awake."""
+        seen = telemetry.get("last_seen")
+        if isinstance(seen, (float, int)) and (self.last_seen or 0) < seen <= time.time():
+            self._last_seen = float(seen)
+            data = dict(self.data or {})
+            percent = telemetry.get("battery_percent")
+            if isinstance(percent, int) and 0 <= percent <= 100:
+                battery = dict(data.get("battery") or {})
+                battery["percent"] = percent
+                # Poll telemetry does not report cable/charging. Don't let an
+                # old cable observation override a newer low battery reading.
+                battery.pop("charging", None)
+                battery.pop("cable_connected", None)
+                data["battery"] = battery
+            data["source"] = "backend"
+            self.data = data
+            self._store.async_delay_save(self._cache_payload, CONTACT_SAVE_DELAY)
+            self._async_schedule_expiry()
+        self._async_notify_availability()
 
     @property
     def consecutive_failures(self) -> int:

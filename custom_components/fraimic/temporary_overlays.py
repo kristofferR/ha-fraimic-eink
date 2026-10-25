@@ -428,6 +428,7 @@ class TemporaryOverlays:
             if (
                 not result.get("displayed")
                 and not result.get("cloud_queued")
+                and not result.get("backend_queued")
                 and not result.get("unchanged")
             ):
                 self.dirty = True
