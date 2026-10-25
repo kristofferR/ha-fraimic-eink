@@ -61,6 +61,7 @@ class LocalBackend:
         self.status: dict[str, Any] = {}
         self.next_wake: int | None = None
         self.schedule_pending = False
+        self.acceptance_pending = False
         self.voice: VoiceJobs | None = None
 
     async def async_setup(self) -> None:
@@ -70,6 +71,7 @@ class LocalBackend:
         self.pending = data.get("pending")
         self.next_wake = data.get("next_wake")
         self.schedule_pending = data.get("schedule_pending", False)
+        self.acceptance_pending = data.get("acceptance_pending", False)
         self.voice = VoiceJobs(self.hass, self.entry)
         await self.voice.async_setup()
         self.entry.async_on_unload(self.voice.shutdown)
@@ -108,6 +110,7 @@ class LocalBackend:
             raise BackendUnavailable("The local backend is unavailable") from err
 
     async def async_status(self) -> dict[str, Any]:
+        await self.async_resume_delivery()
         if self.schedule_pending:
             deadline = self.next_wake
             if deadline is not None and deadline <= time.time() + 30:
@@ -127,7 +130,8 @@ class LocalBackend:
 
     async def _save(self) -> None:
         await self.store.async_save({"pending": self.pending, "next_wake": self.next_wake,
-                                     "schedule_pending": self.schedule_pending})
+                                     "schedule_pending": self.schedule_pending,
+                                     "acceptance_pending": self.acceptance_pending})
 
     async def async_deliver(self, packed: bytes, *, expires_at: float | None = None) -> None:
         """Persist the request identity before an ambiguous HTTP exchange."""
@@ -148,12 +152,19 @@ class LocalBackend:
                                              job_id=self.pending["id"], expires_at=expires_at)
         if "expires_at" in self.status:
             self.pending["expires_at"] = self.status["expires_at"]
-            await self._save()
+        self.acceptance_pending = True
+        await self._save()
         # Keep the accepted identity through scheduler persistence. Repeated same
         # content is intentionally deduplicated until a different image is sent.
+        await self.async_resume_delivery()
+
+    async def async_resume_delivery(self) -> None:
+        """Protect accepted artwork once the startup scheduler is available."""
         scheduler = self.entry.runtime_data.scheduler
-        if scheduler is not None:
+        if self.acceptance_pending and scheduler is not None:
             await scheduler.async_backend_delivery_accepted()
+            self.acceptance_pending = False
+            await self._save()
 
 
 class BackendVoiceView(HomeAssistantView):

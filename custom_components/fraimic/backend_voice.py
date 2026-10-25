@@ -149,7 +149,11 @@ class VoiceJobs:
         try:
             async with asyncio.timeout(450):
                 if job["state"] == "ready":
-                    return await self.hass.async_add_executor_job(panel.read_bytes)
+                    packed = await self.hass.async_add_executor_job(panel.read_bytes)
+                    controller = self.entry.runtime_data.temporary_overlays
+                    if controller is not None:
+                        await controller.async_invalidate()
+                    return packed
                 library = get_library(self.hass)
                 if library is None:
                     raise HomeAssistantError("Library unavailable")
@@ -193,6 +197,11 @@ class VoiceJobs:
                 await self.hass.async_add_executor_job(self._write_panel, panel, packed)
                 job["state"] = "ready"
                 await self._save()
+                # The companion owns the handoff, not a confirmed display.
+                # Retained older artwork must never refresh over this result.
+                controller = self.entry.runtime_data.temporary_overlays
+                if controller is not None:
+                    await controller.async_invalidate()
                 return packed
         except asyncio.CancelledError:
             raise

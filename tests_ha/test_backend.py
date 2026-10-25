@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.util import dt as dt_util
 from PIL import Image
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -66,6 +67,9 @@ async def test_voice_creates_one_original_and_freezes_result_across_restart(
 ) -> None:
     entry, _ = backend_entry
     jobs = entry.runtime_data.backend.voice
+    overlays = entry.runtime_data.temporary_overlays
+    old_base = (b"\x11" * 960_000, None, "none")
+    overlays.base, overlays.dirty = old_base, True
     ident, audio = "a" * 32, audio_fixture()
     original = image_fixture()
     with (
@@ -76,6 +80,8 @@ async def test_voice_creates_one_original_and_freezes_result_across_restart(
         a, b = await asyncio.gather(jobs.async_process(ident, audio, "portrait"),
                                     jobs.async_process(ident, audio, "portrait"))
         assert a == b and len(a) == 960_000
+        assert overlays.base is None
+        await overlays._async_tick()
         stt.assert_awaited_once()
         generate.assert_awaited_once()
         push.assert_not_awaited()
@@ -90,7 +96,10 @@ async def test_voice_creates_one_original_and_freezes_result_across_restart(
         assert await hass.async_add_executor_job(library.original_path(created[0]).read_bytes) == original
         restarted = VoiceJobs(hass, entry)
         await restarted.async_setup()
+        overlays.base, overlays.dirty = old_base, True
         assert await restarted.async_process(ident, audio, "portrait") == a
+        assert overlays.base is None
+        await overlays._async_tick()
         generate.assert_awaited_once()
         assert entry.runtime_data.displayed_preview is None
         assert not entry.runtime_data.scheduler.external_upload_active
@@ -124,6 +133,9 @@ async def test_voice_hold_prevents_queue_send_and_releases_on_failure(
     entry, _ = backend_entry
     jobs = entry.runtime_data.backend.voice
     started, release = asyncio.Event(), asyncio.Event()
+    overlays = entry.runtime_data.temporary_overlays
+    old_base = (b"\x11" * 960_000, None, "none")
+    overlays.base = old_base
 
     async def stt(pcm: bytes) -> str:
         started.set()
@@ -141,6 +153,66 @@ async def test_voice_hold_prevents_queue_send_and_releases_on_failure(
         with pytest.raises(HomeAssistantError):
             await task
     assert not entry.runtime_data.scheduler.external_upload_active
+    assert overlays.base == old_base
+
+
+async def test_migrated_backend_delivery_holds_overdue_playback_after_startup(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    from custom_components.fraimic.render.schema import SCREEN_SCHEMA, screen_from_dict
+
+    entry, request = backend_entry
+    scheduler = entry.runtime_data.scheduler
+    screen = screen_from_dict(SCREEN_SCHEMA({
+        "name": "Next picture", "kind": "picture", "library_image": "next",
+    }), "next")
+    await scheduler.async_add_to_queue(screen)
+    await scheduler.async_set_enabled(True, rotate=False)
+    queue = entry.runtime_data.send_queue
+    await queue._async_queue(b"\x11" * 960_000, None, "none", "Manual picture", "manual", "manual")
+    request.reset_mock()
+    with (
+        patch("custom_components.fraimic.async_register_panel"),
+        patch("custom_components.fraimic._async_warm_catalogs"),
+        patch("custom_components.fraimic.async_start_sweep", return_value=lambda: None),
+        patch("custom_components.fraimic.scheduler.async_show_screen", new_callable=AsyncMock) as show,
+    ):
+        assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+        runtime = entry.runtime_data
+        assert runtime.send_queue.pending is None
+        assert runtime.scheduler._hold_until > dt_util.utcnow()
+        assert not runtime.backend.acceptance_pending
+        await runtime.scheduler._async_tick()
+        show.assert_not_awaited()
+    deliveries = [call for call in request.await_args_list if call.args[:2] == ("POST", "/bridge/delivery")]
+    assert len(deliveries) == 1
+    assert entry.runtime_data.displayed_preview is None
+    assert entry.runtime_data.power.last_hash is None
+
+
+async def test_backend_acceptance_survives_restart_before_scheduler_is_ready(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, request = backend_entry
+    scheduler = entry.runtime_data.scheduler
+    entry.runtime_data.scheduler = None
+    try:
+        await entry.runtime_data.backend.async_deliver(b"\x11" * 960_000)
+        restarted = LocalBackend(hass, entry)
+        await restarted.async_setup()
+        assert restarted.acceptance_pending
+        entry.runtime_data.backend = restarted
+    finally:
+        entry.runtime_data.scheduler = scheduler
+    request.reset_mock()
+    await restarted.async_status()
+    assert scheduler._hold_until > dt_util.utcnow()
+    assert not restarted.acceptance_pending
+    assert not any(call.args[:2] == ("POST", "/bridge/delivery") for call in request.await_args_list)
+    restored = LocalBackend(hass, entry)
+    await restored.async_setup()
+    assert not restored.acceptance_pending
 
 
 async def test_pull_delivery_never_pushes_or_confirms_display(

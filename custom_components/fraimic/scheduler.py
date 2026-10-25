@@ -652,6 +652,8 @@ class FraimicScheduler:
         backend = getattr(self.entry.runtime_data, "backend", None)
         if backend is not None:
             try:
+                if getattr(backend, "acceptance_pending", False):
+                    await backend.async_resume_delivery()
                 if not reschedule and backend.next_wake is not None and backend.next_wake > time.time() + 30:
                     return
                 timestamp = int(time.time() + (self.playlist_interval if self.enabled else 86400))
