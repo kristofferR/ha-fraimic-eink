@@ -15,6 +15,7 @@ JOB_TTL = 600
 ASSET_TTL = 3600
 ART_TTL = 7 * 86400
 MAX_JOBS = 8
+MAX_PANEL_ATTEMPTS = 4
 MAX_STORAGE = 64 * 1024 * 1024
 TERMINAL = {"failed", "uncertain", "cancelled", "expired"}
 SETTINGS = {

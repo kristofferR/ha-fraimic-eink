@@ -605,7 +605,7 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
 
 
 @pytest.mark.parametrize("overlay_refresh", [True, False])
-@pytest.mark.parametrize("backend_pull,next_wake", [(False, None), (True, 1_400), (True, None), (True, 900)])
+@pytest.mark.parametrize(("backend_pull", "next_wake"), [(False, None), (True, 1_050), (True, 1_400), (True, None), (True, 900)])
 def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh, backend_pull, next_wake):
     from unittest.mock import AsyncMock, Mock
 
@@ -633,7 +633,9 @@ def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh,
     runtime = SimpleNamespace(
         temporary_overlays=controller,
         backend=SimpleNamespace(next_wake=next_wake, async_deliver=AsyncMock()) if backend_pull else None,
-        scheduler=None,
+        scheduler=SimpleNamespace(
+            enabled=True, queue=SimpleNamespace(interval=600), finish_external_upload=Mock(),
+        ),
         cloud=None,
         power=power,
         client=client,
@@ -653,7 +655,14 @@ def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh,
         )
     )
 
-    if overlay_refresh:
+    runtime.scheduler.finish_external_upload.assert_not_called()
+    if backend_pull and next_wake == 1_050:
+        assert result["backend_queued"] is True
+        assert result["displayed"] is False
+        runtime.backend.async_deliver.assert_awaited_once_with(b"new pixels", expires_at=1_250)
+        assert controller.async_accept.await_args.args[4] == controller.signature()
+        client.upload_image.assert_not_awaited()
+    elif overlay_refresh:
         assert result["skip_reason"] == "briefing_expires_before_delivery"
         assert result["deferred"] is True
         client.upload_image.assert_not_awaited()
@@ -669,6 +678,37 @@ def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh,
         assert controller.candidate_valid_until is None
         assert controller.async_accept.await_args.args[0] == controller.base
         assert controller.async_accept.await_args.args[4] != controller.signature()
+
+
+@pytest.mark.parametrize("user_initiated", [True, False])
+def test_busy_backend_rejects_user_send_and_defers_automatic_send(monkeypatch, user_initiated):
+    from unittest.mock import AsyncMock, Mock
+
+    services = _load_services(monkeypatch)
+    busy = load("backend_errors").BackendBusy
+    runtime = SimpleNamespace(
+        backend=SimpleNamespace(async_deliver=AsyncMock(side_effect=busy("busy"))),
+        power=SimpleNamespace(begin=Mock(return_value=1), finish=Mock(),
+                              skip_reason=Mock(return_value=None)),
+        coordinator=SimpleNamespace(data={}), upload_lock=asyncio.Lock(), send_seq=0,
+    )
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+    entry = SimpleNamespace(data={}, options={}, runtime_data=runtime)
+
+    async def run():
+        return await services.async_render_and_upload(
+            SimpleNamespace(), entry, b"", hold_playlist=False,
+            rendered=(b"pixels", None, "none"), queue_if_asleep=user_initiated,
+        )
+
+    if user_initiated:
+        with pytest.raises(services.ServiceValidationError, match="backend is busy"):
+            asyncio.run(run())
+    else:
+        result = asyncio.run(run())
+        assert result["skip_reason"] == "backend_busy"
+        assert not result["queued"]
+    runtime.power.finish.assert_called_once_with(1)
 
 
 def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monkeypatch):

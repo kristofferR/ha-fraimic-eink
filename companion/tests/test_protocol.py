@@ -264,7 +264,8 @@ async def test_disconnected_finalize_waiter_does_not_cancel_work(service):
     assert reply.status == 200
 
 
-async def test_interrupted_transfer_is_retryable_without_display_claim(service, monkeypatch):
+@pytest.mark.parametrize("failures", [1, 4])
+async def test_interrupted_transfer_is_retryable_without_display_claim(service, monkeypatch, failures):
     from aiohttp import web
 
     backend, client, now, _ = service
@@ -282,12 +283,21 @@ async def test_interrupted_transfer_is_retryable_without_display_claim(service, 
 
     with monkeypatch.context() as patch:
         patch.setattr(web.StreamResponse, "write", interrupted)
-        reply = await client.get(f"/panel/{job.asset_ticket}")
-        await failed.wait()
-        reply.close()
+        for _ in range(failures):
+            failed.clear()
+            reply = await client.get(f"/panel/{job.asset_ticket}")
+            await failed.wait()
+            reply.close()
     assert job.state == "ready" and job.served_at is None
     assert job.status()["confirmed_on_panel"] is False
     reply = await client.get(f"/panel/{job.asset_ticket}")
+    if failures == 4:
+        assert reply.status == 410
+        now[0] += DEVICE.settle + 1
+        body = await (await client.get(f"/api/v1/upload/check/{DEVICE.device_key}")).json()
+        assert not body["has_new_upload"]
+        await presign(client)
+        return
     assert await reply.read() == PANEL
     assert job.state == "served"
 

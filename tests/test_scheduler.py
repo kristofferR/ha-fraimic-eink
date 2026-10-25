@@ -730,6 +730,35 @@ def test_backend_busy_window_defers_automatic_queue(playback):
     assert p.scheduler.blocked_reason == "backend_busy"
 
 
+@pytest.mark.parametrize("busy", [False, True])
+def test_backend_publishes_following_wake_without_releasing_image_hold(playback, monkeypatch, busy):
+    p = playback
+    add(p, "a", "b")
+    p.scheduler.enabled = True
+    p.scheduler.queue.interval = 600
+    monkeypatch.setattr(p.module.time, "time", lambda: p.now[0].timestamp())
+    backend = SimpleNamespace(
+        async_schedule=AsyncMock(), next_wake=None,
+        async_status=AsyncMock(return_value={"busy": busy}),
+    )
+    p.entry.runtime_data.backend = backend
+
+    async def schedule(wake):
+        backend.next_wake = wake
+
+    backend.async_schedule.side_effect = schedule
+    run(p.scheduler.async_backend_delivery_accepted())
+    first_wake = backend.next_wake
+    hold = p.scheduler.hold_until
+    p.now[0] += timedelta(seconds=600)
+    run(p.scheduler._async_tick())
+    assert backend.next_wake == first_wake + 600
+    assert p.scheduler.hold_until == hold
+    p.show.assert_not_awaited()
+    run(p.scheduler._async_tick())
+    assert backend.async_schedule.await_count == 2
+
+
 @pytest.mark.parametrize("delay", [0, 60])
 def test_backend_recovery_clears_only_elapsed_retry(playback, delay):
     p = playback

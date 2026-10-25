@@ -762,6 +762,12 @@ class FraimicScheduler:
         if backend is not None:
             try:
                 state = await backend.async_status()
+                wake = getattr(backend, "next_wake", None)
+                if wake is not None and wake <= time.time() + 30:
+                    # Publish the following wake during this wake's poll window,
+                    # even while the accepted image still holds playback.
+                    interval = self.queue.interval if self.enabled else 86400
+                    await backend.async_schedule(int(time.time() + max(60, interval)))
             except BackendUnavailable:
                 self._defer("backend_unavailable", 60)
                 return

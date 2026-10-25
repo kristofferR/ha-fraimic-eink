@@ -165,7 +165,7 @@ class BackendVoiceView(HomeAssistantView):
 
     async def post(self, request: web.Request) -> web.Response:
         hass: HomeAssistant = request.app[KEY_HASS]
-        authorization = request.headers.get("Authorization", "").encode()
+        authorization = request.headers.get("Authorization", "").encode("utf-8", "surrogateescape")
         backend = next((entry.runtime_data.backend for entry in loaded_fraimic_entries(hass)
                         if entry.runtime_data.backend is not None and hmac.compare_digest(
                             authorization, f"Bearer {entry.runtime_data.backend.token}".encode())), None)

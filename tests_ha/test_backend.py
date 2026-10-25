@@ -231,6 +231,21 @@ async def test_bridge_auth_is_narrow_and_management_remains_authenticated(
         voice.assert_awaited_once()
 
 
+async def test_bridge_rejects_non_utf8_authorization(backend_entry: Any, hass: HomeAssistant) -> None:
+    from unittest.mock import Mock
+
+    from aiohttp import web
+    from homeassistant.components.http import KEY_HASS
+    from custom_components.fraimic.local_backend import BackendVoiceView
+
+    request = Mock(
+        spec=web.Request,
+        headers={"Authorization": "Bearer \udcff"}, app={KEY_HASS: hass},
+    )
+    with pytest.raises(web.HTTPUnauthorized):
+        await BackendVoiceView().post(request)
+
+
 async def test_backend_contact_updates_battery_without_claiming_lan_awake(backend_entry: Any) -> None:
     import time
     entry, _ = backend_entry

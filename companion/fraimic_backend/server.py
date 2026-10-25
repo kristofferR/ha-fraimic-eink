@@ -16,7 +16,7 @@ import aiohttp
 from aiohttp import web
 
 from .model import (
-    ART_TTL, ASSET_TTL, JOB_TTL, MAX_AUDIO, MAX_JOBS, MAX_JSON, MAX_PANEL,
+    ART_TTL, ASSET_TTL, JOB_TTL, MAX_AUDIO, MAX_JOBS, MAX_JSON, MAX_PANEL, MAX_PANEL_ATTEMPTS,
     MAX_STORAGE, TERMINAL, Device, Job, origin, validate_panel, validate_wav,
 )
 from .store import Store
@@ -202,7 +202,8 @@ class Backend:
                 body["account"] = {"email_verified": device.email_verified}
             if not self._busy(device):
                 for job in reversed(list(self.jobs.values())):
-                    if job.device == device.id and job.kind == "art" and job.state == "ready":
+                    if (job.device == device.id and job.kind == "art" and job.state == "ready"
+                        and job.attempts < MAX_PANEL_ATTEMPTS):
                         job.offered_at = self.clock()
                         # Polling can otherwise preempt recording before presign.
                         job.busy_until = self.clock() + 180
@@ -348,7 +349,7 @@ class Backend:
             job = self._ticket(request.match_info["ticket"], "asset")
             if job.state not in {"ready", "served"} or not job.asset:
                 raise web.HTTPConflict(reason="asset_not_ready")
-            if job.attempts >= 4:
+            if job.attempts >= MAX_PANEL_ATTEMPTS:
                 raise web.HTTPGone(reason="retry_limit")
             device = self.devices[job.device]
             if self._busy(device, except_job=job.id):

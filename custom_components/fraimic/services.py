@@ -1180,8 +1180,8 @@ async def async_render_and_upload(
                 if backend is not None:
                     wake = backend.next_wake
                     if wake is None or wake <= now:
-                        scheduler = runtime.scheduler
-                        interval = scheduler.queue.interval if scheduler is not None and scheduler.enabled else 86400
+                        playback = runtime.scheduler
+                        interval = playback.queue.interval if playback is not None and playback.enabled else 86400
                         wake = now + max(60, interval)
                     arrival = wake + CLOUD_WAKE_WINDOW
                 else:
@@ -1222,7 +1222,11 @@ async def async_render_and_upload(
                 if reason != SKIP_LOW_BATTERY:
                     try:
                         await backend.async_deliver(bin_data, expires_at=snapshot_deadline)
-                    except BackendBusy:
+                    except BackendBusy as err:
+                        if queue_if_asleep:
+                            raise ServiceValidationError(
+                                "The local backend is busy. Send the image again shortly."
+                            ) from err
                         reason = "backend_busy"
                     else:
                         queued, reason = True, None
