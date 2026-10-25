@@ -11,6 +11,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .ai_manager import DATA_AI_ART, AiArtManager
 from .api import FraimicClient
 from .art_packs import DATA_PACKS, ArtPackManager
 from .artwork_cache import DATA_ARTWORK_CACHE, ArtworkCache
@@ -120,6 +121,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
             overlays = OverlayManager(hass)
             await overlays.async_setup()
             domain_data[DATA_OVERLAYS] = overlays
+        if DATA_AI_ART not in domain_data:
+            ai_art = AiArtManager(hass)
+            await ai_art.async_setup()
+            domain_data[DATA_AI_ART] = ai_art
+        await domain_data[DATA_AI_ART].async_migrate_entry(entry)
         await playlists.async_migrate_entry(entry)
         # The scene entity platform was removed (the panel replaced it); drop
         # the leftover virtual "Fraimic Scenes" device from older installs.
@@ -246,6 +252,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
         domain_data.pop(DATA_SCENES, None)
         domain_data.pop(DATA_PLAYLISTS, None)
         domain_data.pop(DATA_OVERLAYS, None)
+        domain_data.pop(DATA_AI_ART, None)
         artwork_cache = domain_data.pop(DATA_ARTWORK_CACHE, None)
         if artwork_cache is not None:
             artwork_cache.shutdown()

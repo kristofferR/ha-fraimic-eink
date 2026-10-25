@@ -19,6 +19,19 @@ const AUTO_INTERVALS = [[1800, "30 minutes"], [3600, "1 hour"], [7200, "2 hours"
 const AVOID_REPEATS = [[0, "Off"], [7, "7 days"], [30, "30 days"], [90, "90 days"], [-1, "Until all shown"]];
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MAX_AUTO_SOURCES = 12;
+const AI_SAMPLE = "a fox reading under a lamp";
+const AI_PROVIDERS = [["openrouter", "OpenRouter"], ["local", "Local server"], ["ai_task", "Home Assistant AI Task"]];
+const VOICE_MODES = [["art", "Create artwork"], ["assist", "Ask Assist"], ["fixed", "Show a fixed picture"]];
+// Mirrors ai_art.apply_template so the dialogs can show the exact prompt.
+const applyTemplate = (template, request) => {
+  const text = String(request || "").split(/\s+/).filter(Boolean).join(" ");
+  if (!template.includes("{prompt}")) return `${template.trim()} ${text}`.trim();
+  return template.replaceAll("{prompt}", text.replace(/\.+$/, "")).trim();
+};
+const usd = (value) => value == null ? "" : value === 0 ? "Free" : `$${value < 0.1 ? value.toFixed(3) : value.toFixed(2)}`;
+const languageName = (code) => {
+  try { return new Intl.DisplayNames([navigator.language], { type: "language" }).of(code) || code; } catch (_error) { return code; }
+};
 const PALETTE = ["black", "white", "yellow", "red", "blue", "green", "neutral"];
 const PLATE_THEME = {
   black: ["var(--primary-text-color)", "var(--primary-background-color)"],
@@ -313,6 +326,41 @@ const css = String.raw`
   .auto-dialog .seg button { height: 30px; min-height: 30px; font-size: 12px; }
   .auto-dialog .weight button { width: 34px; padding: 0; }
   .auto-hint { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+  .ai-dialog .field, .create-dialog .field { margin-bottom: 10px; }
+  .ai-dialog .field input, .ai-dialog .field select, .create-dialog .field select { width: 100%; }
+  .ai-dialog textarea, .create-dialog textarea { width: 100%; min-height: 82px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 8px 10px; font-size: 13px; line-height: 1.45; resize: vertical; }
+  .ai-row { display: flex; align-items: center; gap: 8px; }
+  .ai-row > input { flex: 1 1 auto; min-width: 0; }
+  .ai-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0 10px; }
+  .ai-status { margin: 6px 0 10px; font-size: 12px; }
+  .ai-status.ok { color: var(--success-color); }
+  .ai-status.error { color: var(--error-color); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips .chip { height: 30px; min-height: 30px; font-size: 12px; }
+  .chip.ai-new { border-style: dashed; }
+  .link-btn { min-height: 0; padding: 0; color: var(--accent); font-size: 12px; text-decoration: underline; }
+  .ai-dialog .auto-hint a { color: var(--accent); }
+  .ai-models { display: grid; margin-bottom: 8px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .ai-model { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 48px; padding: 6px 10px; border-top: 1px solid var(--line); text-align: left; }
+  .ai-model:first-child { border-top: 0; }
+  .ai-model.selected { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .ai-radio { width: 16px; height: 16px; border: 2px solid var(--muted); border-radius: 50%; }
+  .ai-model.selected .ai-radio { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--surface); }
+  .ai-style-editor { margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--secondary-background-color, var(--surface)); }
+  .ai-preview { flex: 1 1 auto; min-width: 0; margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+  .ai-voice { padding: 8px 0; border-top: 1px solid var(--line); }
+  .ai-voice:first-of-type { border-top: 0; }
+  .ai-voice > b { display: block; margin-bottom: 6px; font-size: 13px; }
+  .ai-sent { margin: 10px 0; }
+  .ai-sent label { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+  .create-working { display: grid; justify-items: center; gap: 4px; padding: 32px 8px; text-align: center; }
+  .create-working ha-icon { --mdc-icon-size: 32px; color: var(--accent); }
+  .create-working p { margin: 0; }
+  .create-result { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; justify-items: center; }
+  .create-result figure { margin: 0; max-width: 100%; }
+  .create-result img { display: block; height: min(48vh, 420px); max-width: 100%; aspect-ratio: var(--create-aspect, 3 / 4); object-fit: cover; border-radius: 6px; background: var(--secondary-background-color, var(--line)); }
+  .create-result figcaption { margin-top: 4px; color: var(--muted); font-size: 12px; }
+  .create-meta { margin-top: 10px; }
   .row-copy b, .row-copy span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .row-copy b { font-size: 13px; } .row-copy span { color: var(--muted); font-size: 12px; }
   .row-actions { display: flex; }
@@ -1036,6 +1084,7 @@ class FraimicPanel extends HTMLElement {
       ${this._mergeRouteTitle()}
       <div class="frames" ${this._frames.length > 1 ? `role="radiogroup" aria-label="Frames"` : ""}>${frames}</div>
       <span class="spacer"></span>
+      <button class="btn quiet" data-create aria-label="Create"><ha-icon icon="mdi:creation"></ha-icon><span class="nav-label">Create</span></button>
       <button class="btn quiet" data-nav="/playlists" aria-label="Playlists"><ha-icon icon="mdi:playlist-music"></ha-icon><span class="nav-label">Playlists</span></button>
       <button class="btn quiet" data-upload aria-label="Upload"><ha-icon icon="mdi:upload"></ha-icon><span class="nav-label">Upload</span></button>
       <button class="icon-btn" data-menu="app" aria-label="App menu"><ha-icon icon="mdi:dots-vertical"></ha-icon></button>
@@ -1402,7 +1451,7 @@ class FraimicPanel extends HTMLElement {
 
   _menuTemplate() {
     if (!this._menu) return "";
-    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
+    if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-ai-settings>AI art <span>›</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
     if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
@@ -1548,6 +1597,10 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-auto-settings]").forEach((node) => node.onclick = () => this._openAutoSettings());
     root.querySelectorAll("[data-add-auto]").forEach((node) => node.onclick = () => this._addGalleryToAuto());
     this._bindAutoSettings();
+    root.querySelectorAll("[data-create]").forEach((node) => node.onclick = () => this._openCreate());
+    root.querySelectorAll("[data-ai-settings]").forEach((node) => node.onclick = () => this._openAiSettings());
+    this._bindAiSettings();
+    this._bindCreate();
     root.querySelectorAll("[data-custom-interval]").forEach((node) => node.onclick = () => this._customInterval());
     root.querySelectorAll("[data-interval]").forEach((node) => node.onclick = () => this._setInterval(Number(node.dataset.interval)));
     root.querySelectorAll("[data-options]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/integration/fraimic"));
@@ -1888,6 +1941,7 @@ class FraimicPanel extends HTMLElement {
           <div class="detail-meta-row"><dt>Original</dt><dd>${detail.dimensions_known ? `${h(detail.width)} × ${h(detail.height)}` : "Dimensions unavailable"}</dd></div>
           ${detail.year ? `<div class="detail-meta-row"><dt>Year</dt><dd>${h(detail.year)}</dd></div>` : ""}
           ${detail.style ? `<div class="detail-meta-row"><dt>Style</dt><dd>${h(detail.style)}</dd></div>` : ""}
+          ${detail.made_with ? `<div class="detail-meta-row"><dt>Made with</dt><dd>${h(String(detail.made_with).split("/").pop())}${detail.cost != null ? `, ${h(usd(detail.cost))}` : ""}</dd></div>` : ""}
           ${detail.license ? `<div class="detail-meta-row"><dt>License</dt><dd>${h(detail.license)}</dd></div>` : ""}
         </dl>${detail.description ? `<p class="detail-description">${h(detail.description)}</p>` : ""}
         <div class="detail-links">${relatedFrame && this._fitDifference(detail, relatedFrame) < this._fitDifference(detail, this._frame) ? `<button class="btn quiet small" data-related-frame="${h(relatedFrame.id)}">Better on ${h(relatedFrame.name)}</button>` : ""}${sourceHref ? `<a class="btn quiet small" href="${h(sourceHref)}" target="_blank" rel="noopener"><ha-icon icon="mdi:open-in-new"></ha-icon> Open original artwork</a>` : ""}${detail.source === "saved" ? `<button class="btn quiet small danger" data-detail-action="delete">Remove from library</button>` : ""}</div></section>
@@ -2449,6 +2503,443 @@ class FraimicPanel extends HTMLElement {
     if (source.query) return ["mdi:magnify", `Search on ${name}`];
     if (source.browse_id) return ["mdi:folder-outline", `Folder on ${name}`];
     return ["mdi:web", `Random picks from ${name}`];
+  }
+
+  // ---------------------------------------------------------------- AI art
+
+  async _openAiSettings() {
+    this._menu = null;
+    try { this._ai = await this._api("ai/settings"); } catch (error) { return this._notify(error.message, { error: true }); }
+    const ai = this._ai;
+    this._aiDraft = {
+      provider: ai.provider || "openrouter",
+      openrouter_key: "",
+      openrouter_model: ai.openrouter.model,
+      local_url: ai.local.url,
+      local_api: ai.local.api,
+      local_model: ai.local.model,
+      local_steps: ai.local.steps,
+      ai_task_entity: ai.ai_task_entity || ai.choices.image_entities[0]?.id || "",
+      style: ai.style,
+      styles: ai.styles.map(({ id, name, template }) => ({ id, name, template })),
+      rewrite_entity: ai.rewrite_entity,
+      voice: Object.fromEntries(ai.voice.map(({ entry_id: entryId, mode, image, stt, language, agent }) => [entryId, { mode, image, stt, language, agent }])),
+    };
+    this._aiVoiceLoaded = JSON.stringify(this._aiDraft.voice);
+    this._aiEditStyle = null;
+    this._aiCheck = null;
+    this._openModal("AI art", this._aiSettingsBody(), this._aiSettingsActions(), { className: "auto-dialog ai-dialog", subtitle: "Shared by all frames" });
+    this._aiServiceChanged();
+  }
+
+  // Load what the selected service needs: models and credit, or the server.
+  _aiServiceChanged() {
+    const draft = this._aiDraft;
+    if (draft.provider === "openrouter") {
+      if (this._aiModels?.entryId !== this._selectedFrameId) this._loadAiModels();
+      if (this._ai.openrouter.has_key || draft.openrouter_key) this._checkAi();
+    }
+    if (draft.provider === "local" && draft.local_url) this._checkAi();
+  }
+
+  _refreshAiSettings() {
+    if (!this._modal?.className?.includes("ai-dialog")) return;
+    this._modal.body = this._aiSettingsBody();
+    this._modal.actions = this._aiSettingsActions();
+    this._renderPreservingFocus();
+  }
+
+  _aiSettingsActions() {
+    const usage = this._ai?.usage;
+    const spent = usage?.count ? `This month: ${usage.count} picture${usage.count === 1 ? "" : "s"}${usage.cost ? `, ${usd(usage.cost)}` : ""}` : "";
+    return `<span class="counter">${h(spent)}</span><span class="spacer"></span><button class="btn" data-close-modal>Cancel</button><button class="btn primary" data-ai-save>Save</button>`;
+  }
+
+  _aiCheckText(check) {
+    if (check.api) {
+      const kind = check.api === "sdwebui" ? "a Stable Diffusion WebUI server" : "an OpenAI-style image server";
+      return `Connected to ${kind}${check.models?.length ? ` with ${check.models.length} model${check.models.length === 1 ? "" : "s"}` : ""}.`;
+    }
+    return check.credits == null ? "Connected." : `Connected. $${check.credits.toFixed(2)} credit left.`;
+  }
+
+  _aiSettingsBody() {
+    const ai = this._ai;
+    const draft = this._aiDraft;
+    const check = this._aiCheck;
+    const options = (choices, value) => choices.map(([choice, label]) => `<option value="${h(choice)}" ${choice === value ? "selected" : ""}>${h(label)}</option>`).join("");
+    const status = check?.pending ? `<p class="auto-hint" role="status">Checking…</p>`
+      : check?.error ? `<p class="ai-status error" role="status">${h(check.error)}</p>`
+      : check?.ok ? `<p class="ai-status ok" role="status">${h(this._aiCheckText(check))}</p>` : "";
+    let service = "";
+    if (draft.provider === "openrouter") {
+      const placeholder = ai.openrouter.has_key ? `Saved key${ai.openrouter.key_hint ? ` ending in ${ai.openrouter.key_hint}` : ""}` : "sk-or-v1-…";
+      service = `<div class="field"><label for="ai-key">OpenRouter API key</label><div class="ai-row"><input id="ai-key" type="password" autocomplete="off" spellcheck="false" placeholder="${h(placeholder)}" value="${h(draft.openrouter_key)}"><button class="btn" data-ai-check>Check</button></div></div>
+        ${status}<p class="auto-hint">Create a key at <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer">openrouter.ai/keys</a>. OpenRouter bills per picture, and each picture keeps its cost.</p>`;
+    } else if (draft.provider === "local") {
+      const models = check?.ok ? check.models || [] : draft.local_model ? [draft.local_model] : [];
+      service = `<div class="field"><label for="ai-url">Server address</label><div class="ai-row"><input id="ai-url" type="url" spellcheck="false" placeholder="http://192.168.1.20:7860" value="${h(draft.local_url)}"><button class="btn" data-ai-check>Connect</button></div></div>
+        ${status}
+        ${draft.local_api ? `<div class="ai-grid"><div class="field"><label for="ai-local-model">Model</label><select id="ai-local-model">${options([["", "Server default"], ...models.map((model) => [model, model])], draft.local_model)}</select></div>${draft.local_api === "sdwebui" ? `<div class="field"><label for="ai-steps">Steps</label><input id="ai-steps" type="number" min="1" max="150" placeholder="Server default" value="${h(draft.local_steps ?? "")}"></div>` : ""}</div>` : ""}
+        <p class="auto-hint">Works with servers that speak the OpenAI images API, such as LocalAI and stable-diffusion.cpp, or the Stable Diffusion WebUI API, such as AUTOMATIC1111, Forge, SD.Next and Draw Things. Pictures are made in the frame's shape.</p>`;
+    } else {
+      service = ai.choices.image_entities.length
+        ? `<div class="field"><label for="ai-entity">AI Task entity</label><select id="ai-entity">${options(ai.choices.image_entities.map((entity) => [entity.id, entity.name]), draft.ai_task_entity)}</select></div><p class="auto-hint">These make square pictures, so the frame crops them, and their cost is not recorded.</p>`
+        : `<p class="auto-hint">No AI Task entity here can make pictures yet. Add one with an integration such as OpenAI, or use OpenRouter or a local server.</p>`;
+    }
+    const models = this._aiModels;
+    const modelSection = draft.provider !== "openrouter" ? "" : `<section class="auto-section"><h3>Model</h3>${models?.error ? `<p class="ai-status error">${h(models.error)}</p>` : models?.list ? this._aiModelList(models.list, draft.openrouter_model) : `<p class="auto-hint">Loading models…</p>`}</section>`;
+    const current = draft.styles.find((style) => style.id === draft.style) || draft.styles[0];
+    const editing = draft.styles.find((style) => style.id === this._aiEditStyle);
+    const builtin = editing && ai.builtin_styles[editing.id];
+    const editor = !editing ? "" : `<div class="ai-style-editor">
+        <div class="field"><label for="ai-style-name">Name</label><input id="ai-style-name" maxlength="40" value="${h(editing.name)}"></div>
+        <div class="field"><label for="ai-style-template">Template</label><textarea id="ai-style-template" maxlength="2000">${h(editing.template)}</textarea><p class="auto-hint">Put {prompt} where the request goes. Leave it out to add the request at the end.</p></div>
+        <div class="field"><label>Preview with “${h(AI_SAMPLE)}”</label><p class="ai-preview" id="ai-style-preview">${h(applyTemplate(editing.template, AI_SAMPLE))}</p></div>
+        <div class="ai-row">${builtin ? `<button class="btn" data-ai-reset-style ${builtin.name === editing.name && builtin.template === editing.template ? "disabled" : ""}>Reset to default</button>` : `<button class="btn" data-ai-delete-style>Delete style</button>`}<span class="spacer"></span><button class="btn" data-ai-done-style>Done</button></div>
+      </div>`;
+    const frames = ai.voice.filter((frame) => frame.available);
+    return `<section class="auto-section"><h3>Image service</h3>
+        <div class="seg" role="radiogroup" aria-label="Image service">${AI_PROVIDERS.map(([id, label]) => `<button role="radio" aria-checked="${draft.provider === id}" class="${draft.provider === id ? "selected" : ""}" data-ai-provider="${id}">${h(label)}</button>`).join("")}</div>
+        <div style="margin-top:10px">${service}</div>
+      </section>
+      ${modelSection}
+      <section class="auto-section"><h3>Prompt</h3>
+        <div class="chips" role="radiogroup" aria-label="Default style">${draft.styles.map((style) => `<button class="chip${style.id === draft.style ? " selected" : ""}" role="radio" aria-checked="${style.id === draft.style}" data-ai-style="${h(style.id)}">${h(style.name)}</button>`).join("")}<button class="chip ai-new" data-ai-new-style><ha-icon icon="mdi:plus"></ha-icon>New style</button></div>
+        <p class="auto-hint">Each style is a template around your request. The selected one is the default. ${editing ? "" : `<button class="link-btn" data-ai-edit-style>Edit ${h(current?.name || "style")}</button>`}</p>
+        ${editor}
+        <div class="auto-line"><label class="label" for="ai-rewrite">Rewrite first</label><select id="ai-rewrite">${options([["", "Off"], ...ai.choices.data_entities.map((entity) => [entity.id, entity.name])], draft.rewrite_entity)}</select></div>
+        <p class="auto-hint">Optional. An AI Task entity turns short or non-English requests into a detailed English prompt before the style is applied.</p>
+      </section>
+      <section class="auto-section"><h3>Voice button</h3>${frames.length ? frames.map((frame) => this._aiVoiceRow(frame)).join("") : `<p class="auto-hint">The voice button works on frames that use local backend delivery, set in the frame's Configure dialog.</p>`}</section>`;
+  }
+
+  _aiModelList(list, selected) {
+    const shown = list.filter((model) => model.recommended || model.id === selected);
+    const others = list.filter((model) => !shown.includes(model));
+    const price = (model) => model.price != null ? usd(model.price) : "Per token";
+    return `<div class="ai-models" role="radiogroup" aria-label="Model">${shown.map((model) => `<button class="ai-model${model.id === selected ? " selected" : ""}" role="radio" aria-checked="${model.id === selected}" data-ai-model="${h(model.id)}"><span class="ai-radio"></span><span class="row-copy"><b>${h(model.name)}</b><span>${h(model.note || model.id)}${model.fits_frame ? "" : ". Square only"}</span></span><span class="counter">${h(price(model))}</span></button>`).join("")}</div>
+      ${others.length ? `<div class="auto-line"><label class="label" for="ai-other-model">Other models</label><select id="ai-other-model"><option value="">${others.length} more…</option>${others.map((model) => `<option value="${h(model.id)}">${h(model.name)}</option>`).join("")}</select></div>` : ""}
+      <p class="auto-hint">Prices are per picture at this frame's size. Models billed per token show their real cost after each picture.</p>`;
+  }
+
+  _aiVoiceLanguages(voice) {
+    const ai = this._ai;
+    const stt = ai.choices.stt.find((entity) => entity.id === voice.stt);
+    const languages = stt?.languages?.length ? stt.languages : [ai.choices.language];
+    const fallback = languages.find((code) => code === ai.choices.language) || languages.find((code) => code.split("-")[0] === ai.choices.language.split("-")[0]) || languages[0];
+    return { languages, language: languages.includes(voice.language) ? voice.language : fallback };
+  }
+
+  _aiVoiceRow(frame) {
+    const ai = this._ai;
+    const voice = this._aiDraft.voice[frame.entry_id];
+    const select = (key, value, choices, label) => `<div class="field"><label for="ai-voice-${h(frame.entry_id)}-${key}">${h(label)}</label><select id="ai-voice-${h(frame.entry_id)}-${key}" data-ai-voice="${h(frame.entry_id)}:${key}">${choices.map(([choice, text]) => `<option value="${h(choice)}" ${choice === value ? "selected" : ""}>${h(text)}</option>`).join("")}</select></div>`;
+    const fields = [select("mode", voice.mode, VOICE_MODES, "When you speak")];
+    if (voice.mode === "fixed") {
+      fields.push(select("image", voice.image, [["", "Choose a picture…"], ...ai.choices.images.map((image) => [image.id, image.title])], "Picture"));
+    } else {
+      const { languages, language } = this._aiVoiceLanguages(voice);
+      fields.push(select("stt", voice.stt, [["", "Choose…"], ...ai.choices.stt.map((entity) => [entity.id, entity.name])], "Speech to text"));
+      fields.push(select("language", language, languages.map((code) => [code, languageName(code)]), "Language"));
+      if (voice.mode === "assist") fields.push(select("agent", voice.agent || "homeassistant", ai.choices.agents.map((agent) => [agent.id, agent.name]), "Assist agent"));
+    }
+    return `<div class="ai-voice"><b>${h(frame.name)}</b><div class="ai-grid">${fields.join("")}</div></div>`;
+  }
+
+  async _loadAiModels(extra = "") {
+    const entryId = this._selectedFrameId;
+    const params = new URLSearchParams({ entry_id: entryId });
+    if (extra) params.set("model", extra);
+    try {
+      const data = await this._api(`ai/models?${params}`);
+      this._aiModels = { entryId, list: data.models };
+    } catch (error) {
+      this._aiModels = { entryId, list: null, error: error.message };
+    }
+    this._refreshAiSettings();
+    this._refreshCreate();
+  }
+
+  async _checkAi() {
+    const draft = this._aiDraft;
+    const patch = { provider: draft.provider };
+    if (draft.provider === "openrouter" && draft.openrouter_key) patch.openrouter_key = draft.openrouter_key;
+    if (draft.provider === "local") patch.local_url = draft.local_url;
+    this._aiCheck = { pending: true };
+    this._refreshAiSettings();
+    let result;
+    try { result = await this._api("ai/check", this._json(patch)); } catch (error) { result = { ok: false, error: error.message }; }
+    if (this._aiDraft !== draft || draft.provider !== patch.provider) return;
+    this._aiCheck = result;
+    if (draft.provider === "local") {
+      draft.local_api = result.ok ? result.api : "";
+      const models = result.models || [];
+      if (result.ok && !models.includes(draft.local_model)) draft.local_model = models.length === 1 ? models[0] : "";
+    }
+    this._refreshAiSettings();
+  }
+
+  _bindAiSettings() {
+    if (!this._modal?.className?.includes("ai-dialog")) return;
+    const root = this.shadowRoot;
+    const draft = this._aiDraft;
+    const on = (selector, event, handler) => root.querySelectorAll(selector).forEach((node) => node.addEventListener(event, (domEvent) => handler(node, domEvent)));
+    const editing = () => draft.styles.find((style) => style.id === this._aiEditStyle);
+    on("[data-ai-provider]", "click", (node) => { draft.provider = node.dataset.aiProvider; this._aiCheck = null; this._refreshAiSettings(); this._aiServiceChanged(); });
+    on("#ai-key", "input", (node) => { draft.openrouter_key = node.value.trim(); });
+    on("#ai-url", "input", (node) => { draft.local_url = node.value.trim(); });
+    on("#ai-key, #ai-url", "keydown", (_node, event) => { if (event.key === "Enter") { event.preventDefault(); this._checkAi(); } });
+    on("[data-ai-check]", "click", () => this._checkAi());
+    on("#ai-local-model", "change", (node) => { draft.local_model = node.value; });
+    on("#ai-steps", "change", (node) => { draft.local_steps = node.value ? Number(node.value) : null; });
+    on("#ai-entity", "change", (node) => { draft.ai_task_entity = node.value; });
+    on("[data-ai-model]", "click", (node) => { draft.openrouter_model = node.dataset.aiModel; this._refreshAiSettings(); });
+    on("#ai-other-model", "change", (node) => { if (!node.value) return; draft.openrouter_model = node.value; this._refreshAiSettings(); this._loadAiModels(node.value); });
+    on("[data-ai-style]", "click", (node) => { draft.style = node.dataset.aiStyle; if (this._aiEditStyle) this._aiEditStyle = draft.style; this._refreshAiSettings(); });
+    on("[data-ai-edit-style]", "click", () => { this._aiEditStyle = draft.style; this._refreshAiSettings(); });
+    on("[data-ai-new-style]", "click", () => {
+      const id = `custom_${Date.now().toString(36)}`;
+      draft.styles.push({ id, name: "New style", template: "{prompt}" });
+      draft.style = id;
+      this._aiEditStyle = id;
+      this._refreshAiSettings();
+      queueMicrotask(() => root.getElementById("ai-style-name")?.select());
+    });
+    on("#ai-style-name", "input", (node) => { editing().name = node.value; });
+    on("#ai-style-name", "change", () => this._refreshAiSettings());
+    on("#ai-style-template", "input", (node) => {
+      editing().template = node.value;
+      const preview = root.getElementById("ai-style-preview");
+      if (preview) preview.textContent = applyTemplate(node.value, AI_SAMPLE);
+    });
+    on("[data-ai-reset-style]", "click", () => { Object.assign(editing(), this._ai.builtin_styles[this._aiEditStyle]); this._refreshAiSettings(); });
+    on("[data-ai-delete-style]", "click", () => {
+      draft.styles = draft.styles.filter((style) => style.id !== this._aiEditStyle);
+      draft.style = this._ai.style !== this._aiEditStyle && draft.styles.some((style) => style.id === this._ai.style) ? this._ai.style : "eink_poster";
+      this._aiEditStyle = null;
+      this._refreshAiSettings();
+    });
+    on("[data-ai-done-style]", "click", () => { this._aiEditStyle = null; this._refreshAiSettings(); });
+    on("#ai-rewrite", "change", (node) => { draft.rewrite_entity = node.value; });
+    on("[data-ai-voice]", "change", (node) => {
+      const [entryId, key] = node.dataset.aiVoice.split(":");
+      draft.voice[entryId][key] = node.value;
+      if (key === "mode" || key === "stt") this._refreshAiSettings();
+    });
+    on("[data-ai-save]", "click", () => this._saveAiSettings());
+  }
+
+  async _saveAiSettings() {
+    const ai = this._ai;
+    const { openrouter_key: key, ...patch } = structuredClone(this._aiDraft);
+    if (patch.provider === "openrouter" && !key && !ai.openrouter.has_key) return this._notify("Paste an OpenRouter API key first.", { error: true });
+    if (patch.provider === "local" && !patch.local_api) return this._notify("Connect to the local server first.", { error: true });
+    if (patch.provider === "ai_task" && !patch.ai_task_entity) return this._notify("Choose an AI Task entity first.", { error: true });
+    if (patch.styles.some((style) => !style.name.trim() || !style.template.trim())) return this._notify("Every style needs a name and a template.", { error: true });
+    if (JSON.stringify(patch.voice) !== this._aiVoiceLoaded) {
+      for (const frame of ai.voice.filter((candidate) => candidate.available)) {
+        const voice = patch.voice[frame.entry_id];
+        if (voice.mode === "fixed" && !voice.image) return this._notify(`Choose a picture for ${frame.name}'s voice button.`, { error: true });
+        if (voice.mode !== "fixed" && !voice.stt) return this._notify(`Choose speech to text for ${frame.name}'s voice button.`, { error: true });
+        // Save the language shown, so an STT entity without HA's language still works.
+        if (voice.mode !== "fixed") voice.language = this._aiVoiceLanguages(voice).language;
+      }
+    }
+    if (key) patch.openrouter_key = key;
+    try {
+      this._ai = await this._api("ai/settings", this._json(patch));
+      this._closeModal();
+      this._notify("AI art settings saved.");
+    } catch (error) { this._notify(error.message, { error: true }); }
+  }
+
+  async _openCreate() {
+    this._menu = null;
+    try { this._ai = await this._api("ai/settings"); } catch (error) { return this._notify(error.message, { error: true }); }
+    if (!this._ai.configured) {
+      this._notify("Choose an image service to start creating.");
+      return this._openAiSettings();
+    }
+    const ai = this._ai;
+    const previous = this._createState;
+    if (previous?.previewUrl) URL.revokeObjectURL(previous.previewUrl);
+    this._createState = {
+      request: previous?.phase === "compose" ? previous.request : "",
+      style: ai.style,
+      prompt: null,
+      editing: false,
+      model: ai.provider === "openrouter" ? ai.openrouter.model : "",
+      entryId: this._selectedFrameId,
+      phase: "compose",
+      result: null,
+      error: null,
+      previewUrl: null,
+    };
+    this._openModal("Create", this._createBody(), this._createActions(), { className: "auto-dialog create-dialog", subtitle: "Saved to Creations" });
+    queueMicrotask(() => this.shadowRoot.getElementById("create-request")?.focus());
+    if (ai.provider === "openrouter" && this._aiModels?.entryId !== this._selectedFrameId) this._loadAiModels();
+  }
+
+  _refreshCreate() {
+    if (!this._modal?.className?.includes("create-dialog")) return;
+    this._modal.body = this._createBody();
+    this._modal.actions = this._createActions();
+    this._renderPreservingFocus();
+  }
+
+  _createStyle() {
+    const styles = this._ai.styles;
+    return styles.find((style) => style.id === this._createState.style) || styles[0];
+  }
+
+  _createModel() {
+    return this._aiModels?.list?.find((model) => model.id === this._createState.model);
+  }
+
+  _createBody() {
+    const state = this._createState;
+    const ai = this._ai;
+    if (state.phase === "working") {
+      const where = ai.provider === "local" ? "Local servers can take a few minutes." : "This usually takes 10 to 30 seconds.";
+      return `<div class="create-working" role="status"><ha-icon icon="mdi:creation"></ha-icon><p><b>Creating your picture</b></p><p class="auto-hint">${where} You can close this. The picture still lands in Creations.</p></div>`;
+    }
+    if (state.phase === "result") return this._createResultBody();
+    const sent = state.prompt ?? applyTemplate(this._createStyle().template, state.request.trim() || "…");
+    const rewrite = ai.choices.data_entities.find((entity) => entity.id === ai.rewrite_entity);
+    const models = this._aiModels?.list || [];
+    const modelChoices = models.some((model) => model.id === state.model) ? models : [{ id: state.model, name: state.model }, ...models];
+    const fields = [];
+    if (ai.provider === "openrouter") fields.push(`<div class="field"><label for="create-model">Model</label><select id="create-model">${modelChoices.map((model) => `<option value="${h(model.id)}" ${model.id === state.model ? "selected" : ""}>${h(model.name)}${model.price != null ? ` · ${usd(model.price)}` : ""}</option>`).join("")}</select></div>`);
+    if (this._frames.length > 1) fields.push(`<div class="field"><label for="create-frame">Shaped for</label><select id="create-frame">${this._frames.map((frame) => `<option value="${h(frame.id)}" ${frame.id === state.entryId ? "selected" : ""}>${h(frame.name)}, ${h(this._frameShape(frame))}</option>`).join("")}</select></div>`);
+    return `<div class="field"><label for="create-request">Describe the picture</label><textarea id="create-request" maxlength="2000" placeholder="A fox reading under a lamp on an autumn evening">${h(state.request)}</textarea></div>
+      <div class="chips" role="radiogroup" aria-label="Style">${ai.styles.map((style) => `<button class="chip${style.id === state.style ? " selected" : ""}" role="radio" aria-checked="${style.id === state.style}" data-create-style="${h(style.id)}">${h(style.name)}</button>`).join("")}</div>
+      <div class="ai-sent">${state.editing
+        ? `<label for="create-prompt">Prompt sent to the model</label><textarea id="create-prompt" maxlength="4000">${h(sent)}</textarea><p class="auto-hint">Sent exactly as written${rewrite ? ", without the rewrite" : ""}. <button class="link-btn" data-create-unedit>Use the style instead</button></p>`
+        : `<div class="ai-row"><p class="ai-preview"><b>Sent:</b> <span id="create-preview">${h(sent)}</span></p><button class="btn small" data-create-edit>Edit</button></div>${rewrite ? `<p class="auto-hint">${h(rewrite.name)} rewrites your words into a detailed prompt first.</p>` : ""}`}</div>
+      ${fields.length ? `<div class="ai-grid">${fields.join("")}</div>` : ""}
+      ${state.error ? `<p class="ai-status error" role="alert">${h(state.error)}</p>` : ""}`;
+  }
+
+  _createResultBody() {
+    const { result, entryId, previewUrl } = this._createState;
+    const frame = this._frames.find((candidate) => candidate.id === entryId) || this._frame;
+    const ratio = this._frameRatio(frame);
+    const model = this._aiModels?.list?.find((candidate) => candidate.id === result.model)?.name || result.model;
+    const meta = [model, result.style, result.cost != null ? usd(result.cost) : "", `${Math.round(result.seconds)} s`].filter(Boolean).join(" · ");
+    return `<div class="create-result" style="--create-aspect:${ratio}">
+        <figure><img data-path="/api/fraimic/library/image/${encodeURIComponent(result.image_id)}" alt="The new picture"><figcaption>Original</figcaption></figure>
+        <figure><img id="create-frame-preview" ${previewUrl ? `src="${h(previewUrl)}"` : ""} alt="The picture on ${h(frame?.name || "the frame")}"><figcaption>On ${h(frame?.name || "the frame")}</figcaption></figure>
+      </div>
+      <div class="create-meta"><p class="ai-preview">“${h(result.request || result.prompt)}”</p><p class="auto-hint">${h(meta)}</p></div>`;
+  }
+
+  _createActions() {
+    const state = this._createState;
+    const frame = this._frames.find((candidate) => candidate.id === state.entryId) || this._frame;
+    if (state.phase === "working") return `<span class="spacer"></span><button class="btn" disabled>Creating…</button>`;
+    if (state.phase === "result") return `<button class="btn" data-create-discard>Discard</button><button class="btn" data-create-again>Try again</button><span class="spacer"></span><button class="btn primary" data-create-show>Show on ${h(frame?.name || "frame")}</button>`;
+    const cost = this._ai.provider === "openrouter" ? this._createModel()?.price : null;
+    const price = this._ai.provider === "local" ? "Free, on your server" : cost != null ? `About ${usd(cost)}` : "";
+    const ready = state.request.trim() || (state.editing && state.prompt?.trim());
+    return `<span class="counter">${h(price)}</span><span class="spacer"></span><button class="btn primary" data-create-run ${ready ? "" : "disabled"}><ha-icon icon="mdi:creation"></ha-icon>Create</button>`;
+  }
+
+  async _runCreate() {
+    const state = this._createState;
+    if (!state.request.trim() && !(state.editing && state.prompt?.trim())) return;
+    state.phase = "working";
+    state.error = null;
+    this._refreshCreate();
+    try {
+      state.result = await this._api("ai/create", this._json({
+        entry_id: state.entryId,
+        request: state.request,
+        style: state.style,
+        model: state.model || null,
+        prompt: state.editing ? state.prompt : null,
+      }));
+      state.phase = "result";
+      this._galleryLoadedAt = 0;
+      this._loadSources().then(() => { if (this._selectedSource === "saved") return this._loadGallery(); }).catch(() => {});
+      if (this._createState !== state || !this._modal?.className?.includes("create-dialog")) {
+        this._notify("Your picture is ready in Creations.", { action: "Open", callback: () => this._setSource("saved", "creations", "Creations") });
+        return;
+      }
+      this._refreshCreate();
+      this._loadCreatePreview(state);
+    } catch (error) {
+      state.phase = "compose";
+      state.error = error.message;
+      if (this._createState === state) this._refreshCreate();
+      else this._notify(error.message, { error: true });
+    }
+  }
+
+  async _loadCreatePreview(state) {
+    const params = new URLSearchParams({ entry_id: state.entryId, source: "saved", item_id: state.result.image_id, fit: "cover", mode: "auto", tone: "balanced", resolution: "thumbnail" });
+    try {
+      const response = await this._hass.fetchWithAuth(`${API}/gallery/preview?${params}`);
+      if (!response.ok) return;
+      const url = URL.createObjectURL(await response.blob());
+      if (this._createState !== state || state.phase !== "result") { URL.revokeObjectURL(url); return; }
+      state.previewUrl = url;
+      const img = this.shadowRoot.getElementById("create-frame-preview");
+      if (img) img.src = url;
+    } catch (_error) { /* the original still shows */ }
+  }
+
+  async _discardCreation(again) {
+    const state = this._createState;
+    const imageId = state.result?.image_id;
+    if (state.previewUrl) URL.revokeObjectURL(state.previewUrl);
+    state.previewUrl = null;
+    state.result = null;
+    state.phase = "compose";
+    try {
+      if (imageId) await this._api(`library/image/${encodeURIComponent(imageId)}`, { method: "DELETE" });
+      this._galleryLoadedAt = 0;
+      this._loadSources().catch(() => {});
+    } catch (error) { this._notify(error.message, { error: true }); }
+    if (again) this._runCreate();
+    else this._refreshCreate();
+  }
+
+  _bindCreate() {
+    if (!this._modal?.className?.includes("create-dialog")) return;
+    const root = this.shadowRoot;
+    const state = this._createState;
+    const on = (selector, event, handler) => root.querySelectorAll(selector).forEach((node) => node.addEventListener(event, (domEvent) => handler(node, domEvent)));
+    const syncReady = () => {
+      const button = root.querySelector("[data-create-run]");
+      if (button) button.disabled = !(state.request.trim() || (state.editing && state.prompt?.trim()));
+    };
+    on("#create-request", "input", (node) => {
+      state.request = node.value;
+      const preview = root.getElementById("create-preview");
+      if (preview) preview.textContent = applyTemplate(this._createStyle().template, state.request.trim() || "…");
+      syncReady();
+    });
+    on("#create-request, #create-prompt", "keydown", (_node, event) => { if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); this._runCreate(); } });
+    on("#create-prompt", "input", (node) => { state.prompt = node.value; syncReady(); });
+    on("[data-create-style]", "click", (node) => { state.style = node.dataset.createStyle; this._refreshCreate(); });
+    on("[data-create-edit]", "click", () => {
+      state.editing = true;
+      state.prompt = applyTemplate(this._createStyle().template, state.request);
+      this._refreshCreate();
+      queueMicrotask(() => root.getElementById("create-prompt")?.focus());
+    });
+    on("[data-create-unedit]", "click", () => { state.editing = false; state.prompt = null; this._refreshCreate(); });
+    on("#create-model", "change", (node) => { state.model = node.value; this._refreshCreate(); });
+    on("#create-frame", "change", (node) => { state.entryId = node.value; this._refreshCreate(); });
+    on("[data-create-run]", "click", () => this._runCreate());
+    on("[data-create-discard]", "click", () => this._discardCreation(false));
+    on("[data-create-again]", "click", () => this._discardCreation(true));
+    on("[data-create-show]", "click", () => {
+      const { result, entryId } = state;
+      this._closeModal();
+      this._artAction("show_now", "saved", result.image_id, null, {}, entryId);
+    });
   }
 
   _openAutoSettings() {

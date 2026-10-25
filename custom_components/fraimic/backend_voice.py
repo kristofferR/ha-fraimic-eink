@@ -19,14 +19,12 @@ from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN, MAX_SOURCE_BYTES
+from .ai_art import VoiceSettings
+from .ai_manager import AiArtManager, get_ai_manager
+from .const import DOMAIN, viewed_size
 from .coordinator import FraimicConfigEntry
 from .library import get_library
 from .library_model import Creation
-from .local_backend import (
-    CONF_VOICE_AGENT, CONF_VOICE_AI, CONF_VOICE_IMAGE, CONF_VOICE_LANGUAGE,
-    CONF_VOICE_MODE, CONF_VOICE_STT,
-)
 
 
 def pcm_from_wav(raw: bytes) -> bytes:
@@ -93,6 +91,15 @@ class VoiceJobs:
         # Processing records stay uncertain. Only an already-saved library
         # creation/frozen result can complete them without invoking providers.
         await self._cleanup()
+
+    def _manager(self) -> AiArtManager:
+        manager = get_ai_manager(self.hass)
+        if manager is None:
+            raise HomeAssistantError("AI art settings are not loaded")
+        return manager
+
+    def _voice(self) -> VoiceSettings:
+        return self._manager().voice(self.entry.entry_id)
 
     def shutdown(self) -> None:
         for task in self.tasks.values():
@@ -169,19 +176,19 @@ class VoiceJobs:
                     # cannot prove whether the provider/action completed.
                     job["outcome"] = "uncertain"
                     image_id = await self._save_card(ident, "The previous request may have completed. It will not be repeated automatically. Check Home Assistant before trying again.")
-                elif self.entry.options.get(CONF_VOICE_MODE, "fixed") == "fixed":
-                    image_id = self.entry.options.get(CONF_VOICE_IMAGE, "")
+                elif self._voice().mode == "fixed":
+                    image_id = self._voice().image
                     library.get(image_id)
                 else:
                     job["state"] = "transcribing"
                     await self._save()
                     text = await self._transcribe(pcm)
                     job["transcript"] = text
-                    mode = self.entry.options.get(CONF_VOICE_MODE)
+                    mode = self._voice().mode
                     if mode == "art":
                         job["state"] = "generating"
                         await self._save()
-                        original, metadata = await self._generate(ident, text)
+                        original, metadata = await self._generate(ident, text, job["orientation"])
                         image_id = await self._add_original(ident, original, metadata)
                     elif mode == "assist":
                         job["state"] = "command"
@@ -227,9 +234,10 @@ class VoiceJobs:
     async def _transcribe(self, pcm: bytes) -> str:
         from homeassistant.components import stt
 
-        entity = stt.async_get_speech_to_text_entity(self.hass, self.entry.options.get(CONF_VOICE_STT, ""))
+        voice = self._voice()
+        entity = stt.async_get_speech_to_text_entity(self.hass, voice.stt)
         metadata = stt.SpeechMetadata(
-            language=self.entry.options.get(CONF_VOICE_LANGUAGE, self.hass.config.language),
+            language=voice.language or self.hass.config.language,
             format=stt.AudioFormats.WAV, codec=stt.AudioCodecs.PCM,
             bit_rate=stt.AudioBitRates.BITRATE_16, sample_rate=stt.AudioSampleRates.SAMPLERATE_16000,
             channel=stt.AudioChannels.CHANNEL_MONO,
@@ -248,43 +256,22 @@ class VoiceJobs:
             raise HomeAssistantError("Transcript too long")
         return result.text.strip()
 
-    async def _generate(self, ident: str, text: str) -> tuple[bytes, dict[str, Any]]:
-        from homeassistant.components import ai_task, media_source
-
-        entity_id = self.entry.options.get(CONF_VOICE_AI)
-        if not entity_id:
-            raise HomeAssistantError("Select an image generation entity")
-        result = await ai_task.async_generate_image(
-            self.hass, task_name=f"fraimic_{ident}", entity_id=entity_id, instructions=text,
+    async def _generate(self, ident: str, text: str, orientation: str) -> tuple[bytes, dict[str, Any]]:
+        width, height = viewed_size(self.entry)
+        if (orientation == "portrait") != (height > width):
+            width, height = height, width
+        image, metadata = await self._manager().async_generate(
+            text, width=width, height=height, task_name=f"fraimic_{ident}",
         )
-        if not isinstance(result, dict) or not isinstance(result.get("media_source_id"), str):
-            raise HomeAssistantError("Image provider did not return local media")
-        media_id = result["media_source_id"]
-        assert isinstance(media_id, str)
-        media = await media_source.async_resolve_media(self.hass, media_id, None)
-        media_path = media.path
-        if media_path is None:
-            raise HomeAssistantError("Image provider did not retain a local original")
-
-        def read() -> bytes:
-            with media_path.open("rb") as file:
-                data = file.read(MAX_SOURCE_BYTES + 1)
-            if len(data) > MAX_SOURCE_BYTES:
-                raise HomeAssistantError("Generated image is too large")
-            return data
-
-        data = await self.hass.async_add_executor_job(read)
-        return data, {"provider": entity_id, "model": result.get("model"),
-                      "prompt": result.get("revised_prompt") or text,
-                      "mime_type": result.get("mime_type")}
+        return image.data, metadata
 
     async def _command(self, text: str) -> str:
         from homeassistant.components import conversation
 
         result = await conversation.async_converse(
             self.hass, text, None, Context(),
-            language=self.entry.options.get(CONF_VOICE_LANGUAGE, self.hass.config.language),
-            agent_id=self.entry.options.get(CONF_VOICE_AGENT) or "homeassistant",
+            language=self._voice().language or self.hass.config.language,
+            agent_id=self._voice().agent or "homeassistant",
         )
         speech = result.response.as_dict().get("speech", {}).get("plain", {}).get("speech")
         return str(speech or "The request completed without a text response. Check Home Assistant for the result.")

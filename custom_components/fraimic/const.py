@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Final
+from typing import Any, Final
 
 DOMAIN: Final = "fraimic"
 
@@ -104,6 +104,15 @@ def rotation_choices(width: int, height: int) -> dict[str, str]:
         + ("portrait" if (height > width) != (degrees in (90, 270)) else "landscape")
         for degrees in ROTATION_OPTIONS
     }
+
+
+def viewed_size(entry: Any) -> tuple[int, int]:
+    """A config entry's panel width and height as mounted on the wall."""
+    width = int(entry.data.get(CONF_WIDTH, DEFAULT_WIDTH))
+    height = int(entry.data.get(CONF_HEIGHT, DEFAULT_HEIGHT))
+    if entry.options.get(CONF_ROTATION, DEFAULT_ROTATION) in (90, 270):
+        return height, width
+    return width, height
 
 
 DEFAULT_HOST: Final = "fraimic.local"
@@ -371,6 +380,7 @@ SERVICE_LIST_SCHEDULED_SENDS: Final = "list_scheduled_sends"
 SERVICE_UPDATE_ALBUM: Final = "update_album"
 SERVICE_SET_AUTO_MODE: Final = "set_auto_mode"
 SERVICE_IMPORT_CREATIONS: Final = "import_creations"
+SERVICE_CREATE_ART: Final = "create_art"
 SERVICE_SEND_SCENE: Final = "send_scene"
 ATTR_SCENE_NAME: Final = "name"
 SERVICE_RENDER_SCREEN: Final = "render_screen"

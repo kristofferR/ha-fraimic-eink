@@ -102,6 +102,33 @@ it again adds only creations that aren't in the library, so one you deleted from
 the library comes back. Nothing is shown on a frame or changed in your Fraimic
 account.
 
+### AI art
+
+**Create** in the top bar turns a description into a picture shaped for the
+selected frame, saves it in the **Creations** folder, and can show it right away.
+Set it up once for every frame under **⋮ > AI art**:
+
+- **Image service.** Pick one:
+  - **OpenRouter:** paste an [API key](https://openrouter.ai/keys) and pick a
+    model. Prices are shown per picture, from under $0.01. Each picture keeps
+    its real cost, and the dialog shows this month's total.
+  - **Local server:** enter its address. Fraimic detects the OpenAI images API
+    (LocalAI, stable-diffusion.cpp) or the Stable Diffusion WebUI API
+    (AUTOMATIC1111, Forge, SD.Next, Draw Things) and lists its models.
+  - **Home Assistant AI Task:** any entity that can generate images, such as
+    OpenAI. These make square pictures and don't report cost.
+- **Prompt.** Styles are prompt templates around your words, with `{prompt}`
+  marking where they go. Edit the built-in ones (E-ink poster is the default),
+  reset them, or add your own. An optional **Rewrite first** step lets an AI Task
+  text entity turn short or non-English requests into a detailed English prompt.
+  In **Create**, choose **Edit** to send a prompt exactly as written.
+- **Voice button.** Frames using local backend delivery can make art from speech:
+  Home Assistant transcribes it, then the same service, style and Creations
+  folder are used.
+
+The `fraimic.create_art` action does the same from automations, for example a new
+picture every morning.
+
 Open **Picture details** to adjust the crop, fit, tone, and dithering. Choose
 **Show now**, **Play next**, **Add to queue**, or **Add to playlist**. In cloud
 mode, “Show now” submits the image for a scheduled wake; it cannot wake a sleeping
@@ -430,6 +457,7 @@ data:
 | `fraimic.cancel_scheduled_send` / `fraimic.list_scheduled_sends` | Manage scheduled sends. |
 | `fraimic.update_album` | Update a frame's cloud album settings. |
 | `fraimic.import_creations` | Copy voice creations from the Fraimic account into the library. |
+| `fraimic.create_art` | Make a picture from a description with the AI art service, save it to Creations, and show it. |
 
 Each frame also exposes battery and device diagnostics, send status, artwork and
 screen-preview image entities, buttons for frame controls, and a **media player**.

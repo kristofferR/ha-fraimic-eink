@@ -228,16 +228,10 @@
       },
       "backend": {
         "title": "Local backend",
-        "description": "Connect the companion service after preparing frame routing and TLS. Start with a fixed library image. Artwork and Assist modes call the providers you select, which may incur costs. Recordings are deleted after processing or expiry. Stock voice always finishes with an image; transfers do not confirm display completion.",
+        "description": "Connect the companion service after preparing frame routing and TLS. Set up what the voice button does in the Fraimic panel under ⋮ > AI art. Recordings are deleted after processing or expiry. Stock voice always finishes with an image; transfers do not confirm display completion.",
         "data": {
           "backend_url": "Companion URL",
-          "backend_token": "Private bridge token",
-          "backend_voice_mode": "Recorded voice action",
-          "backend_voice_image": "Fixed library image ID",
-          "backend_voice_stt": "Speech-to-text entity",
-          "backend_voice_language": "Speech language",
-          "backend_voice_ai": "Image generation entity",
-          "backend_voice_agent": "Conversation agent"
+          "backend_token": "Private bridge token"
         }
       }
     },
@@ -247,8 +241,7 @@
       "invalid_auth": "Fraimic rejected that email or password.",
       "cannot_connect": "Could not reach the Fraimic cloud.",
       "no_devices": "That account has no canvases yet.",
-      "invalid_backend": "Enter a valid companion URL and a separate bridge token of at least 32 characters.",
-      "required": "Required for the selected voice action."
+      "invalid_backend": "Enter a valid companion URL and a separate bridge token of at least 32 characters."
     }
   },
   "entity": {
@@ -795,6 +788,32 @@
         "config_entry_id": {
           "name": "Frame",
           "description": "Whose Fraimic account to import from. Only required with multiple frames."
+        }
+      }
+    },
+    "create_art": {
+      "name": "Create AI art",
+      "description": "Make a picture from a description with the image service set up in the Fraimic panel (⋮ > AI art), save it to the library's Creations folder and show it on the frame. The picture is shaped for the frame, and its prompt, model and cost are saved with it.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Frame",
+          "description": "Which frame the picture is for. Only required with multiple frames."
+        },
+        "prompt": {
+          "name": "Description",
+          "description": "What to draw, in your own words. The style template wraps it."
+        },
+        "style": {
+          "name": "Style",
+          "description": "A style name or id from the AI art settings, such as E-ink poster or Woodcut. Leave empty for the default style."
+        },
+        "model": {
+          "name": "Model",
+          "description": "Use another model for this picture, such as recraft/recraft-v4.1-flash on OpenRouter. Leave empty for the saved one."
+        },
+        "show": {
+          "name": "Show on the frame",
+          "description": "Send the picture to the frame once it is ready."
         }
       }
     }

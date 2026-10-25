@@ -94,9 +94,7 @@ from .const import (
 )
 from .coordinator import normalize_info
 from .local_backend import (
-    BACKEND_OPTIONS, CONF_BACKEND_TOKEN, CONF_BACKEND_URL, CONF_VOICE_MODE,
-    CONF_VOICE_IMAGE, CONF_VOICE_STT, CONF_VOICE_LANGUAGE, CONF_VOICE_AI,
-    CONF_VOICE_AGENT, validate_backend_url,
+    BACKEND_OPTIONS, CONF_BACKEND_TOKEN, CONF_BACKEND_URL, validate_backend_url,
 )
 from .providers import PROVIDERS
 
@@ -546,23 +544,16 @@ class FraimicOptionsFlow(OptionsFlow):
     async def async_step_backend(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Explicit provider selection; fixed artwork makes no inference calls."""
+        """Companion connection; the voice button is set up in the panel."""
         errors: dict[str, str] = {}
         if user_input is not None:
             try:
                 user_input[CONF_BACKEND_URL] = validate_backend_url(user_input[CONF_BACKEND_URL])
                 if len(user_input[CONF_BACKEND_TOKEN]) < 32:
                     raise ValueError("Short bridge token")
-                mode = user_input[CONF_VOICE_MODE]
-                if mode == "fixed" and not user_input.get(CONF_VOICE_IMAGE):
-                    errors[CONF_VOICE_IMAGE] = "required"
-                if mode in ("art", "assist") and not user_input.get(CONF_VOICE_STT):
-                    errors[CONF_VOICE_STT] = "required"
-                if mode == "art" and not user_input.get(CONF_VOICE_AI):
-                    errors[CONF_VOICE_AI] = "required"
             except ValueError:
                 errors["base"] = "invalid_backend"
-            if not errors:
+            else:
                 self._pending.update(user_input)
                 return self.async_create_entry(title="", data=self._pending)
         options = {**self.config_entry.options, **(user_input or {})}
@@ -572,13 +563,6 @@ class FraimicOptionsFlow(OptionsFlow):
                 vol.Required(CONF_BACKEND_URL, default=options.get(CONF_BACKEND_URL, "")): str,
                 vol.Required(CONF_BACKEND_TOKEN, default=options.get(CONF_BACKEND_TOKEN, "")):
                     TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
-                vol.Required(CONF_VOICE_MODE, default=options.get(CONF_VOICE_MODE, "fixed")):
-                    vol.In({"fixed": "Fixed library image (no AI calls)", "art": "Create artwork", "assist": "Assist with a result card"}),
-                vol.Optional(CONF_VOICE_IMAGE, default=options.get(CONF_VOICE_IMAGE, "")): str,
-                vol.Optional(CONF_VOICE_STT, default=options.get(CONF_VOICE_STT, "")): str,
-                vol.Required(CONF_VOICE_LANGUAGE, default=options.get(CONF_VOICE_LANGUAGE, self.hass.config.language)): str,
-                vol.Optional(CONF_VOICE_AI, default=options.get(CONF_VOICE_AI, "")): str,
-                vol.Optional(CONF_VOICE_AGENT, default=options.get(CONF_VOICE_AGENT, "homeassistant")): str,
             }),
         )
 

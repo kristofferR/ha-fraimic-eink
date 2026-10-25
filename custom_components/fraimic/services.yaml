@@ -854,3 +854,50 @@ import_creations:
       selector:
         config_entry:
           integration: fraimic
+
+create_art:
+  name: Create AI art
+  description: >-
+    Make a picture from a description with the image service set up in the
+    Fraimic panel (⋮ > AI art), save it to the library's Creations folder and
+    show it on the frame. The picture is shaped for the frame, and its prompt,
+    model and cost are saved with it.
+  fields:
+    config_entry_id:
+      name: Frame
+      description: Which frame the picture is for. Only required with multiple frames.
+      required: false
+      selector:
+        config_entry:
+          integration: fraimic
+    prompt:
+      name: Description
+      description: What to draw, in your own words. The style template wraps it.
+      required: true
+      example: A fox reading under a lamp on an autumn evening
+      selector:
+        text:
+          multiline: true
+    style:
+      name: Style
+      description: >-
+        A style name or id from the AI art settings, such as E-ink poster or
+        Woodcut. Leave empty for the default style.
+      required: false
+      selector:
+        text:
+    model:
+      name: Model
+      description: >-
+        Use another model for this picture, such as
+        recraft/recraft-v4.1-flash on OpenRouter. Leave empty for the saved one.
+      required: false
+      selector:
+        text:
+    show:
+      name: Show on the frame
+      description: Send the picture to the frame once it is ready.
+      required: false
+      default: true
+      selector:
+        boolean:

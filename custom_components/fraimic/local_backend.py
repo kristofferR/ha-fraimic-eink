@@ -29,15 +29,15 @@ if TYPE_CHECKING:
 
 CONF_BACKEND_URL = "backend_url"
 CONF_BACKEND_TOKEN = "backend_token"
+# Former voice options, read once to move them into the AI art settings
+# (``ai_manager``), which the panel edits without reloading the frame.
 CONF_VOICE_MODE = "backend_voice_mode"
 CONF_VOICE_IMAGE = "backend_voice_image"
 CONF_VOICE_STT = "backend_voice_stt"
 CONF_VOICE_LANGUAGE = "backend_voice_language"
 CONF_VOICE_AI = "backend_voice_ai"
 CONF_VOICE_AGENT = "backend_voice_agent"
-BACKEND_OPTIONS = (CONF_BACKEND_URL, CONF_BACKEND_TOKEN, CONF_VOICE_MODE,
-                   CONF_VOICE_IMAGE, CONF_VOICE_STT, CONF_VOICE_LANGUAGE,
-                   CONF_VOICE_AI, CONF_VOICE_AGENT)
+BACKEND_OPTIONS = (CONF_BACKEND_URL, CONF_BACKEND_TOKEN)
 
 
 def validate_backend_url(value: str) -> str:
