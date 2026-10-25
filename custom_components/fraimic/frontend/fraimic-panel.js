@@ -20,7 +20,7 @@ const AVOID_REPEATS = [[0, "Off"], [7, "7 days"], [30, "30 days"], [90, "90 days
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const MAX_AUTO_SOURCES = 12;
 const AI_SAMPLE = "a fox reading under a lamp";
-const AI_PROVIDERS = [["openrouter", "OpenRouter"], ["local", "Local server"], ["ai_task", "Home Assistant AI Task"]];
+const AI_PROVIDERS = [["", "None"], ["openrouter", "OpenRouter"], ["local", "Local server"], ["ai_task", "Home Assistant AI Task"]];
 const VOICE_MODES = [["art", "Create artwork"], ["assist", "Ask Assist"], ["fixed", "Show a fixed picture"]];
 // Mirrors ai_art.apply_template so the dialogs can show the exact prompt.
 const applyTemplate = (template, request) => {
@@ -2512,7 +2512,7 @@ class FraimicPanel extends HTMLElement {
     try { this._ai = await this._api("ai/settings"); } catch (error) { return this._notify(error.message, { error: true }); }
     const ai = this._ai;
     this._aiDraft = {
-      provider: ai.provider || "openrouter",
+      provider: ai.provider,
       openrouter_key: "",
       openrouter_model: ai.openrouter.model,
       local_url: ai.local.url,
@@ -2523,7 +2523,7 @@ class FraimicPanel extends HTMLElement {
       style: ai.style,
       styles: ai.styles.map(({ id, name, template }) => ({ id, name, template })),
       rewrite_entity: ai.rewrite_entity,
-      voice: Object.fromEntries(ai.voice.map(({ entry_id: entryId, mode, image, stt, language, agent }) => [entryId, { mode, image, stt, language, agent }])),
+      voice: Object.fromEntries(ai.voice.map(({ entry_id: entryId, mode, image, stt, language, agent, ai_task_entity }) => [entryId, { mode, image, stt, language, agent, ai_task_entity }])),
     };
     this._aiVoiceLoaded = JSON.stringify(this._aiDraft.voice);
     this._aiEditStyle = null;
@@ -2536,7 +2536,7 @@ class FraimicPanel extends HTMLElement {
   _aiServiceChanged() {
     const draft = this._aiDraft;
     if (draft.provider === "openrouter") {
-      if (this._aiModels?.entryId !== this._selectedFrameId) this._loadAiModels();
+      if (!this._aiModels?.list || this._aiModels.entryId !== this._selectedFrameId) this._loadAiModels();
       if (this._ai.openrouter.has_key || draft.openrouter_key) this._checkAi();
     }
     if (draft.provider === "local" && draft.local_url) this._checkAi();
@@ -2582,11 +2582,11 @@ class FraimicPanel extends HTMLElement {
         ${status}
         ${draft.local_api ? `<div class="ai-grid"><div class="field"><label for="ai-local-model">Model</label><select id="ai-local-model">${options([["", "Server default"], ...models.map((model) => [model, model])], draft.local_model)}</select></div>${draft.local_api === "sdwebui" ? `<div class="field"><label for="ai-steps">Steps</label><input id="ai-steps" type="number" min="1" max="150" placeholder="Server default" value="${h(draft.local_steps ?? "")}"></div>` : ""}</div>` : ""}
         <p class="auto-hint">Works with servers that speak the OpenAI images API, such as LocalAI and stable-diffusion.cpp, or the Stable Diffusion WebUI API, such as AUTOMATIC1111, Forge, SD.Next and Draw Things. Pictures are made in the frame's shape.</p>`;
-    } else {
+    } else if (draft.provider === "ai_task") {
       service = ai.choices.image_entities.length
         ? `<div class="field"><label for="ai-entity">AI Task entity</label><select id="ai-entity">${options(ai.choices.image_entities.map((entity) => [entity.id, entity.name]), draft.ai_task_entity)}</select></div><p class="auto-hint">These make square pictures, so the frame crops them, and their cost is not recorded.</p>`
         : `<p class="auto-hint">No AI Task entity here can make pictures yet. Add one with an integration such as OpenAI, or use OpenRouter or a local server.</p>`;
-    }
+    } else service = `<p class="auto-hint">Choose a service when you want to create artwork. Fixed pictures and Assist work without one.</p>`;
     const models = this._aiModels;
     const modelSection = draft.provider !== "openrouter" ? "" : `<section class="auto-section"><h3>Model</h3>${models?.error ? `<p class="ai-status error">${h(models.error)}</p>` : models?.list ? this._aiModelList(models.list, draft.openrouter_model) : `<p class="auto-hint">Loading models…</p>`}</section>`;
     const current = draft.styles.find((style) => style.id === draft.style) || draft.styles[0];
@@ -2643,6 +2643,11 @@ class FraimicPanel extends HTMLElement {
       fields.push(select("stt", voice.stt, [["", "Choose…"], ...ai.choices.stt.map((entity) => [entity.id, entity.name])], "Speech to text"));
       fields.push(select("language", language, languages.map((code) => [code, languageName(code)]), "Language"));
       if (voice.mode === "assist") fields.push(select("agent", voice.agent || "homeassistant", ai.choices.agents.map((agent) => [agent.id, agent.name]), "Assist agent"));
+      if (voice.mode === "art" && this._aiDraft.provider === "ai_task") {
+        const entities = ai.choices.image_entities.map((entity) => [entity.id, entity.name]);
+        if (voice.ai_task_entity && !entities.some(([id]) => id === voice.ai_task_entity)) entities.push([voice.ai_task_entity, `${voice.ai_task_entity} (unavailable)`]);
+        fields.push(select("ai_task_entity", voice.ai_task_entity || "", [["", "Shared image service"], ...entities], "AI Task entity"));
+      }
     }
     return `<div class="ai-voice"><b>${h(frame.name)}</b><div class="ai-grid">${fields.join("")}</div></div>`;
   }
@@ -2670,10 +2675,10 @@ class FraimicPanel extends HTMLElement {
     this._refreshAiSettings();
     let result;
     try { result = await this._api("ai/check", this._json(patch)); } catch (error) { result = { ok: false, error: error.message }; }
-    if (this._aiDraft !== draft || draft.provider !== patch.provider) return;
+    if (this._aiDraft !== draft || draft.provider !== patch.provider || (patch.provider === "local" && draft.local_url !== patch.local_url)) return;
     this._aiCheck = result;
     if (draft.provider === "local") {
-      draft.local_api = result.ok ? result.api : "";
+      draft.local_api = result.ok ? result.api : draft.local_url === this._ai.local.url ? this._ai.local.api : "";
       const models = result.models || [];
       if (result.ok && !models.includes(draft.local_model)) draft.local_model = models.length === 1 ? models[0] : "";
     }
@@ -2738,10 +2743,12 @@ class FraimicPanel extends HTMLElement {
     if (patch.provider === "ai_task" && !patch.ai_task_entity) return this._notify("Choose an AI Task entity first.", { error: true });
     if (patch.styles.some((style) => !style.name.trim() || !style.template.trim())) return this._notify("Every style needs a name and a template.", { error: true });
     if (JSON.stringify(patch.voice) !== this._aiVoiceLoaded) {
+      const loaded = JSON.parse(this._aiVoiceLoaded);
       for (const frame of ai.voice.filter((candidate) => candidate.available)) {
         const voice = patch.voice[frame.entry_id];
-        if (voice.mode === "fixed" && !voice.image) return this._notify(`Choose a picture for ${frame.name}'s voice button.`, { error: true });
-        if (voice.mode !== "fixed" && !voice.stt) return this._notify(`Choose speech to text for ${frame.name}'s voice button.`, { error: true });
+        const changed = JSON.stringify(voice) !== JSON.stringify(loaded[frame.entry_id]);
+        if (changed && voice.mode === "fixed" && !voice.image) return this._notify(`Choose a picture for ${frame.name}'s voice button.`, { error: true });
+        if (changed && voice.mode !== "fixed" && !voice.stt) return this._notify(`Choose speech to text for ${frame.name}'s voice button.`, { error: true });
         // Save the language shown, so an STT entity without HA's language still works.
         if (voice.mode !== "fixed") voice.language = this._aiVoiceLanguages(voice).language;
       }
@@ -2778,7 +2785,7 @@ class FraimicPanel extends HTMLElement {
     };
     this._openModal("Create", this._createBody(), this._createActions(), { className: "auto-dialog create-dialog", subtitle: "Saved to Creations" });
     queueMicrotask(() => this.shadowRoot.getElementById("create-request")?.focus());
-    if (ai.provider === "openrouter" && this._aiModels?.entryId !== this._selectedFrameId) this._loadAiModels();
+    if (ai.provider === "openrouter" && (!this._aiModels?.list || this._aiModels.entryId !== this._selectedFrameId)) this._loadAiModels();
   }
 
   _refreshCreate() {

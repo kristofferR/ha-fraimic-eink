@@ -168,6 +168,7 @@ VOICE_SCHEMA = vol.Schema(
         vol.Optional("stt", default=""): str,
         vol.Optional("language", default=""): str,
         vol.Optional("agent", default="homeassistant"): str,
+        vol.Optional("ai_task_entity", default=""): str,
     }
 )
 SETTINGS_SCHEMA = vol.Schema(
@@ -201,6 +202,7 @@ class VoiceSettings:
     stt: str = ""
     language: str = ""  # "" means Home Assistant's language
     agent: str = "homeassistant"
+    ai_task_entity: str = ""
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -209,6 +211,7 @@ class VoiceSettings:
             "stt": self.stt,
             "language": self.language,
             "agent": self.agent,
+            "ai_task_entity": self.ai_task_entity,
         }
 
 
@@ -374,11 +377,20 @@ def price_for(pricing: list[dict[str, Any]], resolution: str | None) -> float | 
     Token-priced models return None; their real cost is recorded after each
     picture instead.
     """
-    rows = [
-        row
-        for row in pricing
-        if row.get("billable") == "output_image" and row.get("unit") == "image"
-    ]
+    rows = []
+    for row in pricing:
+        if (
+            not isinstance(row, dict)
+            or row.get("billable") != "output_image"
+            or row.get("unit") != "image"
+        ):
+            continue
+        try:
+            cost = float(row["cost_usd"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if math.isfinite(cost) and cost >= 0:
+            rows.append({**row, "cost_usd": cost})
     if not rows:
         return None
     wanted = (resolution or "").lower()
@@ -521,10 +533,12 @@ async def openrouter_models(session: Any) -> list[dict[str, Any]]:
     for row in rows if isinstance(rows, list) else ():
         if not isinstance(row, dict) or not isinstance(row.get("id"), str):
             continue
-        params = row.get("supported_parameters") or {}
+        params = row.get("supported_parameters")
+        params = params if isinstance(params, dict) else {}
 
         def values(name: str, params: dict[str, Any] = params) -> list[str]:
-            found = (params.get(name) or {}).get("values")
+            spec = params.get(name)
+            found = spec.get("values") if isinstance(spec, dict) else None
             return [str(value) for value in found] if isinstance(found, list) else []
 
         models.append(

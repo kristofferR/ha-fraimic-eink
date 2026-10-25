@@ -85,18 +85,29 @@ class AiArtManager:
         self.hass = hass
         self._store: Store[dict[str, Any]] = Store(hass, 1, f"{DOMAIN}.ai_art")
         self.settings = AiSettings()
+        self._usage: dict[str, Any] = {}
         self._catalog: tuple[float, list[dict[str, Any]]] | None = None
         self._pricing: dict[str, tuple[float, list[dict[str, Any]]]] = {}
         # One picture at a time: a local GPU should not get parallel jobs.
         self._lock = asyncio.Lock()
 
     async def async_setup(self) -> None:
-        self.settings = AiSettings.from_dict(await self._store.async_load())
+        data = await self._store.async_load() or {}
+        self.settings = AiSettings.from_dict(data)
+        if isinstance(data.get("usage"), dict):
+            self._usage = data["usage"]
+        else:
+            # Seed usage once from pictures created before usage had its own record.
+            self._usage = {"month": month_start(), **self._library_usage()}
+            await self._async_save()
+
+    async def _async_save(self) -> None:
+        await self._store.async_save({**self.settings.to_dict(), "usage": self._usage})
 
     async def async_update(self, patch: dict[str, Any]) -> AiSettings:
         """Validate and save a partial update; raises ``vol.Invalid``."""
         self.settings = self.settings.updated(patch)
-        await self._store.async_save(self.settings.to_dict())
+        await self._async_save()
         return self.settings
 
     def voice(self, entry_id: str) -> VoiceSettings:
@@ -115,6 +126,7 @@ class AiArtManager:
                     "stt": options.get(CONF_VOICE_STT) or "",
                     "language": options.get(CONF_VOICE_LANGUAGE) or "",
                     "agent": options.get(CONF_VOICE_AGENT) or "homeassistant",
+                    "ai_task_entity": options.get(CONF_VOICE_AI) or "",
                 }
             }
         }
@@ -220,9 +232,12 @@ class AiArtManager:
         style: str | None = None,
         prompt: str | None = None,
         model: str | None = None,
+        ai_task_entity: str | None = None,
     ) -> tuple[GeneratedImage, dict[str, Any]]:
         """Make one picture; ``prompt`` skips the rewrite and the template."""
         settings = self.settings
+        if ai_task_entity and settings.provider == PROVIDER_AI_TASK:
+            settings = settings.updated({"ai_task_entity": ai_task_entity})
         if not settings.configured:
             raise HomeAssistantError("Set up AI art in the Fraimic panel first")
         request = " ".join(request.split())
@@ -246,6 +261,17 @@ class AiArtManager:
                 image = await self._generate(settings, prompt, width, height, model, task_name)
             except AiArtError as err:
                 raise HomeAssistantError(str(err)) from err
+            start = month_start()
+            usage = (
+                self._usage if self._usage.get("month") == start
+                else {"count": 0, "cost": 0.0}
+            )
+            self._usage = {
+                "month": start,
+                "count": usage["count"] + 1,
+                "cost": usage["cost"] + (image.cost or 0.0),
+            }
+            await self._async_save()
         if len(image.data) > MAX_SOURCE_BYTES:
             raise HomeAssistantError("The generated picture is too large")
         return image, {
@@ -378,6 +404,12 @@ class AiArtManager:
 
     def month_usage(self) -> dict[str, Any]:
         """Generated pictures and their recorded cost this month."""
+        if self._usage.get("month") != month_start():
+            return {"count": 0, "cost": 0.0}
+        return {"count": self._usage["count"], "cost": round(self._usage["cost"], 4)}
+
+    def _library_usage(self) -> dict[str, Any]:
+        """Usage migration for pictures already in the library."""
         library = get_library(self.hass)
         start = month_start()
         count, cost = 0, 0.0

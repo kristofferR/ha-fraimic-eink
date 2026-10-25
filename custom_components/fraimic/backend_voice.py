@@ -262,6 +262,7 @@ class VoiceJobs:
             width, height = height, width
         image, metadata = await self._manager().async_generate(
             text, width=width, height=height, task_name=f"fraimic_{ident}",
+            ai_task_entity=self._voice().ai_task_entity,
         )
         return image.data, metadata
 

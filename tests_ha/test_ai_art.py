@@ -6,14 +6,15 @@ import io
 import shutil
 from collections.abc import Generator
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, PropertyMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from PIL import Image
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.fraimic.ai_art import GeneratedImage
+from custom_components.fraimic.ai_art import GeneratedImage, month_start
 from custom_components.fraimic.ai_manager import AI_ACCOUNT, AiArtManager, get_ai_manager
 from custom_components.fraimic.const import (
     CONF_DELIVERY_MODE,
@@ -216,3 +217,72 @@ async def test_voice_options_move_into_ai_settings(
         "ai_task",
         "ai_task.images",
     )
+    second = MockConfigEntry(domain=DOMAIN, options={
+        CONF_VOICE_MODE: "art", CONF_VOICE_AI: "ai_task.other_images",
+    })
+    await manager.async_migrate_entry(second)
+    reloaded = AiArtManager(hass)
+    await reloaded.async_setup()
+    with patch.object(reloaded, "_generate_ai_task", AsyncMock(
+        return_value=GeneratedImage(_jpeg(), "image/jpeg", "test")
+    )) as generate:
+        for candidate in (entry, second):
+            voice = reloaded.voice(candidate.entry_id)
+            await reloaded.async_generate(
+                "a fox", width=1600, height=1200, task_name="voice",
+                ai_task_entity=voice.ai_task_entity,
+            )
+    assert [call.args[0] for call in generate.await_args_list] == [
+        "ai_task.images", "ai_task.other_images",
+    ]
+
+
+async def test_usage_survives_discard_restart_and_month_rollover(
+    hass: HomeAssistant, loaded_entry: MockConfigEntry, openrouter: AsyncMock
+) -> None:
+    manager = _manager(hass)
+    await manager.async_update({"provider": "openrouter", "openrouter_key": KEY})
+    image, _ = await manager.async_create(loaded_entry, "a fox", source="panel")
+    legacy = AiArtManager(hass)
+    with patch.object(legacy._store, "async_load", AsyncMock(return_value=manager.settings.to_dict())):
+        await legacy.async_setup()
+    assert legacy.month_usage() == {"count": 1, "cost": 0.011}
+    await _library(hass).async_delete_image(image.image_id)
+    reloaded = AiArtManager(hass)
+    await reloaded.async_setup()
+    assert reloaded.month_usage() == {"count": 1, "cost": 0.011}
+    await reloaded.async_update({"style": "woodcut"})
+    await reloaded.async_create(loaded_entry, "a second fox", source="panel")
+    assert reloaded.month_usage() == {"count": 2, "cost": 0.022}
+    with patch("custom_components.fraimic.ai_manager.month_start", return_value=month_start() + 32 * 86400):
+        assert reloaded.month_usage() == {"count": 0, "cost": 0.0}
+        await reloaded.async_create(loaded_entry, "a new fox", source="panel")
+        assert reloaded.month_usage() == {"count": 1, "cost": 0.011}
+
+
+async def test_create_art_busy_rejects_before_generation(
+    hass: HomeAssistant, loaded_entry: MockConfigEntry, openrouter: AsyncMock
+) -> None:
+    await _manager(hass).async_update({"provider": "openrouter", "openrouter_key": KEY})
+    scheduler = loaded_entry.runtime_data.scheduler
+    with patch.object(type(scheduler), "busy", new_callable=PropertyMock, return_value=True):
+        with pytest.raises(HomeAssistantError, match="playlist upload"):
+            await hass.services.async_call(DOMAIN, "create_art", {"prompt": "a fox"}, blocking=True)
+        openrouter.assert_not_awaited()
+        # Saving without displaying does not need the upload guard.
+        await hass.services.async_call(DOMAIN, "create_art", {"prompt": "a fox", "show": False}, blocking=True)
+        openrouter.assert_awaited_once()
+
+
+@pytest.mark.parametrize("failure", ["generation", "display"])
+async def test_create_art_releases_upload_guard_on_failure(
+    hass: HomeAssistant, loaded_entry: MockConfigEntry, openrouter: AsyncMock, failure: str
+) -> None:
+    manager = _manager(hass)
+    await manager.async_update({"provider": "openrouter", "openrouter_key": KEY})
+    target, method = (manager, "async_create") if failure == "generation" else (_library(hass), "async_send_to_entry")
+    scheduler = loaded_entry.runtime_data.scheduler
+    with patch.object(target, method, AsyncMock(side_effect=HomeAssistantError("failed"))):
+        with pytest.raises(HomeAssistantError, match="failed"):
+            await hass.services.async_call(DOMAIN, "create_art", {"prompt": "a fox"}, blocking=True)
+    assert scheduler._external_upload_count == 0

@@ -682,20 +682,20 @@ async def _async_handle_create_art(call: ServiceCall) -> ServiceResponse:
         raise HomeAssistantError("Fraimic is not loaded")
     if not manager.settings.configured:
         raise ServiceValidationError("Set up AI art in the Fraimic panel first (⋮ > AI art)")
-    image, metadata = await manager.async_create(
-        entry,
-        call.data["prompt"],
-        source="automation",
-        style=call.data.get("style"),
-        model=call.data.get("model"),
-    )
+    scheduler = begin_external_upload(entry) if call.data["show"] else None
     shown = False
-    if call.data["show"]:
-        scheduler = begin_external_upload(entry)
-        try:
+    try:
+        image, metadata = await manager.async_create(
+            entry,
+            call.data["prompt"],
+            source="automation",
+            style=call.data.get("style"),
+            model=call.data.get("model"),
+        )
+        if call.data["show"]:
             shown = await library.async_send_to_entry(image.image_id, entry)
-        finally:
-            finish_external_upload(scheduler, uploaded=shown)
+    finally:
+        finish_external_upload(scheduler, uploaded=shown)
     return {
         "image_id": image.image_id,
         "prompt": metadata["prompt"],

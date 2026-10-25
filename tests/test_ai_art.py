@@ -160,6 +160,22 @@ def test_openrouter_request_uses_only_supported_parameters() -> None:
     assert ai_art.openrouter_request({"id": "m"}, "p", 1440, 2560) == {"model": "m", "prompt": "p"}
 
 
+def test_malformed_model_parameters_and_prices_do_not_break_the_catalog() -> None:
+    session = FakeSession({"/images/models": (200, {"data": [
+        {"id": "one", "supported_parameters": ["resolution"]},
+        {"id": "two", "supported_parameters": {"resolution": "2K"}},
+    ]})})
+    models = run(ai_art.openrouter_models(session))
+    assert [model["resolutions"] for model in models] == [[], []]
+    rows = [None, "bad", *[
+        {"billable": "output_image", "unit": "image", "cost_usd": value}
+        for value in (None, "bad", float("nan"), float("inf"))
+    ], {"billable": "output_image", "unit": "image"}]
+    assert ai_art.price_for(rows, "2K") is None
+    rows.append({"billable": "output_image", "unit": "image", "cost_usd": "0.007"})
+    assert ai_art.price_for(rows, "2K") == 0.007
+
+
 def test_openrouter_generate_decodes_picture_and_cost() -> None:
     session = FakeSession(
         {
