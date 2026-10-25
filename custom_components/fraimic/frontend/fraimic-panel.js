@@ -1383,20 +1383,21 @@ class FraimicPanel extends HTMLElement {
   _playerTemplate() {
     const player = this._player;
     if (!this._frame) return `<footer class="player"><div class="player-copy"><b>Nothing playing</b><span>Pick a playlist, or show a picture from the gallery</span></div></footer>`;
+    const frame = player?.frame ?? this._frame;
     const current = player?.preview || player?.current || {};
     const state = player?.preview?.status === "sending" ? "sending" : player?.state || "idle";
     let title = current.title || player?.playlist_name || "Nothing playing";
     let meta = player?.playlist_id ? "Displayed artwork not confirmed" : "Pick a playlist, or show a picture from the gallery";
     if (state === "sending") meta = this._lanCommands() ? `Sending to ${this._frame.name}. The panel takes about 30 seconds.` : "Handing off to the local backend";
-    else if (player?.preview) meta = this._previewMeta(player.preview);
-    else if (state === "asleep") meta = `${this._frame.name} is asleep · ${current.title ? "still showing this" : "displayed artwork not confirmed"}`;
-    else if (state === "unreachable" && this._frame.missed_wake) {
-      title = `${this._frame.name} missed its ${this._clockTime(this._frame.missed_wake)} wake`;
-      meta = `Last seen ${this._lastSeenMinutes(this._frame.last_seen)} minutes ago, check power and wifi.`;
+    else if (state === "unreachable" && frame.missed_wake) {
+      title = `${frame.name} missed its ${this._clockTime(frame.missed_wake)} wake`;
+      meta = `Last seen ${this._lastSeenMinutes(frame.last_seen)} minutes ago, check power and wifi.`;
     } else if (state === "unreachable") {
       title = `Could not reach ${this._frame.name}`;
-      meta = `Last seen ${this._lastSeenMinutes(this._frame.last_seen)} minutes ago, check power and wifi.`;
-    } else if (current.title) meta = [current.artist, player.playlist_name, this._playbackStatus(player)].filter(Boolean).join(" · ");
+      meta = `Last seen ${this._lastSeenMinutes(frame.last_seen)} minutes ago, check power and wifi.`;
+    } else if (player?.preview) meta = this._previewMeta(player.preview);
+    else if (state === "asleep") meta = `${this._frame.name} is asleep · ${current.title ? "still showing this" : "displayed artwork not confirmed"}`;
+    else if (current.title) meta = [current.artist, player.playlist_name, this._playbackStatus(player)].filter(Boolean).join(" · ");
     const progress = state === "sending"
       ? Number(player.sending_progress || 0)
       : this._cycle(player) ? Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / this._cycle(player) * 100)) : 0;
@@ -3261,8 +3262,8 @@ class FraimicPanel extends HTMLElement {
       ? tile("Next wake", clock(status.next_wake), this._untilLabel(status.next_wake))
       : tile("Next wake", "Not scheduled", "Set when a picture is queued");
     const preview = this._player?.preview;
-    const handoff = preview && ["waiting", "served"].includes(preview.status)
-      ? `<section class="auto-section"><h3>${preview.status === "served" ? "Last handoff" : "Waiting on the frame"}</h3><div class="backend-pending">${preview.thumbnail_url ? `<img ${this._imageAttrs(preview.thumbnail_url, "")}>` : ""}<div class="row-copy"><b>${h(preview.title)}</b><div class="backend-steps">${preview.handed_off_at ? `<span class="done">Handed off ${h(clock(preview.handed_off_at))}</span>` : ""}${preview.status === "served" ? `<span class="done">Served ${h(clock(preview.served_at))}</span>` : `<span>${preview.next_wake ? `Offered at the ${h(clock(preview.next_wake))} wake` : "Offered at the next wake"}</span>`}<span>· display is never confirmed</span></div></div></div></section>`
+    const handoff = preview && ["waiting", "served", "expired", "unavailable"].includes(preview.status)
+      ? `<section class="auto-section"><h3>${preview.status === "waiting" ? "Waiting on the frame" : "Last handoff"}</h3><div class="backend-pending">${preview.thumbnail_url ? `<img ${this._imageAttrs(preview.thumbnail_url, "")}>` : ""}<div class="row-copy"><b>${h(preview.title)}</b><div class="backend-steps">${preview.handed_off_at ? `<span class="done">Handed off ${h(clock(preview.handed_off_at))}</span>` : ""}<span>${h(this._previewMeta(preview))}</span></div></div></div></section>`
       : "";
     const modes = Object.fromEntries(VOICE_MODES);
     const pills = { served: ["Served", "ok"], ready: ["Ready", "active"], working: ["Working", "active"], failed: ["Failed", "error"], uncertain: ["Uncertain", "warn"] };
@@ -3288,7 +3289,7 @@ class FraimicPanel extends HTMLElement {
   }
 
   // The local backend owns redraws and sleep, so LAN commands are refused.
-  _lanCommands() { return this._frame?.delivery !== "backend"; }
+  _lanCommands() { return (this._player?.frame ?? this._frame)?.delivery !== "backend"; }
 
   _clockTime(iso) {
     const date = new Date(iso);
@@ -3301,6 +3302,8 @@ class FraimicPanel extends HTMLElement {
     if (!preview) return "Now showing";
     if (preview.status === "sending") return `Sending to ${this._frame?.name || "frame"}`;
     if (preview.status === "served") return `Served ${this._clockTime(preview.served_at)} · display unconfirmed`;
+    if (preview.status === "expired") return "Delivery expired · no longer available to the frame";
+    if (preview.status === "unavailable") return "Delivery unavailable · no longer offered to the frame";
     if (preview.status === "waiting") return preview.next_wake ? `Waiting for next wake at ${this._clockTime(preview.next_wake)}` : "Waiting for the frame to wake";
     return "Sent via cloud · display unconfirmed";
   }

@@ -840,13 +840,18 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         handed = backend.preview or {}
         job = backend.job_status(handed.get("job")) or {}
         served_at = job.get("served_at")
+        status = "served" if served_at is not None else (
+            "expired" if job.get("state") == "expired" else
+            "unavailable" if job.get("state") in {"cancelled", "failed", "uncertain"} else
+            "waiting"
+        )
         preview = {
             "title": handed.get("title") or "Artwork",
             # Served is the companion's last word; the panel is never confirmed.
-            "status": "served" if served_at is not None else "waiting",
+            "status": status,
             "served_at": _iso(served_at),
             "handed_off_at": _iso(handed.get("at")),
-            "next_wake": _iso(backend.next_wake),
+            "next_wake": _iso(backend.next_wake) if status == "waiting" else None,
             "thumbnail_url": f"/api/fraimic/player/artwork/{entry.entry_id}?kind=backend&v={quote(str(handed.get('job') or ''), safe='')}",
             **_current_art(handed.get("source"), library, art),
         }

@@ -124,7 +124,7 @@ class LocalBackend:
         self.schedule_pending = False
         self.acceptance_pending = False
         self.voice: VoiceJobs | None = None
-        # The last wake that came due, kept to notice a frame that missed it.
+        # The earliest unacknowledged wake, kept across rescheduling.
         self.last_due: int | None = None
         # Whether the last bridge status call worked; None until tried.
         self.online: bool | None = None
@@ -163,14 +163,14 @@ class LocalBackend:
         )
 
     async def async_status(self) -> dict[str, Any]:
-        await self.async_resume_delivery()
-        if self.schedule_pending:
-            deadline = self.next_wake
-            if deadline is not None and deadline <= time.time() + 30:
-                deadline = int(time.time() + 60)
-            await self.async_schedule(deadline)
         before = (self.online, self.status)
         try:
+            await self.async_resume_delivery()
+            if self.schedule_pending:
+                deadline = self.next_wake
+                if deadline is not None and deadline <= time.time() + 30:
+                    deadline = int(time.time() + 60)
+                await self.async_schedule(deadline)
             self.status = await self.request("GET", "/bridge/state")
             self.online = True
         except BackendUnavailable:
@@ -207,14 +207,13 @@ class LocalBackend:
                      if ident is not None and job.get("job_id") == ident), None)
 
     def missed_wake(self, last_seen: float | None) -> int | None:
-        """The last due wake if the frame has not polled since it passed."""
+        """The earliest due wake the frame has not acknowledged."""
         now = time.time()
         # A wake that came due without being replaced yet counts too.
-        due = max((wake for wake in (self.last_due, self.next_wake)
-                   if wake is not None and wake <= now), default=None)
+        due = min((wake for wake in (self.last_due, self.next_wake)
+                   if wake is not None and wake <= now
+                   and (last_seen is None or last_seen < wake - EARLY_WAKE_SLACK)), default=None)
         if due is None or now < due + MISSED_WAKE_GRACE:
-            return None
-        if last_seen is not None and last_seen >= due - EARLY_WAKE_SLACK:
             return None
         return due
 
@@ -241,8 +240,11 @@ class LocalBackend:
         self._changed()
 
     async def async_schedule(self, timestamp: int | None) -> None:
-        if self.next_wake is not None and self.next_wake <= time.time() + 30:
-            self.last_due = self.next_wake
+        last_seen = self.entry.runtime_data.coordinator.last_seen
+        self.last_due = min((wake for wake in (self.last_due, self.next_wake)
+                             if wake is not None and wake <= time.time() + 30
+                             and (last_seen is None or last_seen < wake - EARLY_WAKE_SLACK)),
+                            default=None)
         self.next_wake = timestamp
         self._changed()
         self.schedule_pending = True

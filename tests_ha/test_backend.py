@@ -445,7 +445,7 @@ async def test_status_view_lists_voice_requests_without_tombstones(
     jobs.jobs["d" * 32] = {"created": 1.0, "state": "expired", "hash": "x", "orientation": "portrait"}
     # A voice result becomes the player's handed-off picture.
     assert entry.runtime_data.backend.preview["job"] == "c" * 32
-    assert entry.runtime_data.backend.preview["title"] == "“A quiet forest”"
+    assert entry.runtime_data.backend.preview["title"] == "Voice request"
 
     client = await hass_client()
     reply = await client.get(f"/api/fraimic/backend/status/{entry.entry_id}")
@@ -454,3 +454,105 @@ async def test_status_view_lists_voice_requests_without_tombstones(
     assert body["summary"] == "idle"
     assert [(r["id"], r["status"], r["mode"], r["transcript"], r["style"], r["cost"])
             for r in body["requests"]] == [("c" * 32, "ready", "art", "A quiet forest", "Woodcut", 0.04)]
+
+
+@pytest.mark.parametrize("state,expected", [
+    ("expired", "expired"), ("cancelled", "unavailable"),
+    ("failed", "unavailable"), ("uncertain", "unavailable"),
+])
+async def test_terminal_handoff_does_not_promise_another_delivery(
+    hass: HomeAssistant, backend_entry: Any, state: str, expected: str,
+) -> None:
+    entry, _ = backend_entry
+    backend = entry.runtime_data.backend
+    backend.set_preview("job", b"png", title="Snapshot")
+    backend.next_wake = int(dt_util.utcnow().timestamp() + 3600)
+    backend.status = {"jobs": [{"job_id": "job", "state": state, "served_at": None}]}
+    preview = _player_payload(hass, entry)["preview"]
+    assert preview["status"] == expected
+    assert preview["next_wake"] is None
+    # An expired asset does not erase the history of a completed transfer.
+    backend.status["jobs"][0]["served_at"] = dt_util.utcnow().timestamp()
+    assert _player_payload(hass, entry)["preview"]["status"] == "served"
+
+
+@pytest.mark.parametrize("pending", ["acceptance_pending", "schedule_pending"])
+@pytest.mark.parametrize("online", [None, True])
+async def test_retry_failure_updates_companion_health(
+    backend_entry: Any, pending: str, online: bool | None,
+) -> None:
+    entry, request = backend_entry
+    backend = entry.runtime_data.backend
+    setattr(backend, pending, True)
+    backend.online, backend.checked_at = online, 1.0
+    request.side_effect = BackendUnavailable("down")
+    with pytest.raises(BackendUnavailable):
+        await backend.async_status()
+    assert backend.online is False
+    assert backend.checked_at > 1.0
+    assert backend.summary() == "offline"
+    assert getattr(backend, pending) is True
+    request.side_effect = None
+    request.return_value = {"jobs": [], "device": {}}
+    await backend.async_status()
+    assert backend.online is True
+    assert getattr(backend, pending) is False
+
+
+async def test_short_intervals_preserve_missed_wake_until_frame_contact(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, _ = backend_entry
+    backend, coordinator = entry.runtime_data.backend, entry.runtime_data.coordinator
+    due = int(dt_util.utcnow().timestamp() - 3600)
+    coordinator._last_seen = due - 3600
+    backend.next_wake = due
+    for minutes in (0, 5, 10, 15, 20):
+        now = due + minutes * 60
+        with patch("custom_components.fraimic.local_backend.time.time", return_value=now):
+            await backend.async_schedule(now + 300)
+            assert backend.last_due == due
+            assert backend.missed_wake(coordinator.last_seen) == (due if minutes >= 15 else None)
+    restarted = LocalBackend(hass, entry)
+    await restarted.async_setup()
+    assert restarted.last_due == due
+    coordinator.async_backend_contact({"last_seen": due + 1200})
+    with patch("custom_components.fraimic.local_backend.time.time", return_value=due + 1200):
+        assert restarted.missed_wake(coordinator.last_seen) is None
+        await restarted.async_schedule(due + 1800)
+        assert restarted.last_due is None
+    # Contact for the old wake must not acknowledge a later wake.
+    with patch("custom_components.fraimic.local_backend.time.time", return_value=due + 2700):
+        assert restarted.missed_wake(coordinator.last_seen) == due + 1800
+
+
+async def test_voice_card_preview_keeps_request_private(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    from custom_components.fraimic.ai_art import VoiceSettings
+    from custom_components.fraimic.render.card import result_card
+
+    entry, _ = backend_entry
+    backend = entry.runtime_data.backend
+    with (
+        patch.object(VoiceJobs, "_voice", return_value=VoiceSettings(mode="assist")),
+        patch.object(VoiceJobs, "_transcribe", new_callable=AsyncMock, return_value="My private question"),
+        patch.object(VoiceJobs, "_command", new_callable=AsyncMock, return_value="My private answer"),
+        patch("custom_components.fraimic.backend_voice.result_card", wraps=result_card) as card,
+    ):
+        packed = await backend.voice.async_process("e" * 32, audio_fixture(), "portrait")
+    private, shared = card.call_args_list
+    assert private.args == ("My private answer",)
+    assert private.kwargs["question"] == "My private question"
+    assert shared.args == ("Open this voice result in the private library.",)
+    assert shared.kwargs.get("question") is None
+    assert backend.preview_png == await hass.async_add_executor_job(
+        lambda: result_card(*shared.args, **shared.kwargs)
+    )
+    assert _player_payload(hass, entry)["preview"]["title"] == "Voice request"
+    library = get_library(hass)
+    assert library is not None
+    image = library.get(backend.voice.jobs["e" * 32]["library_image"])
+    original = await hass.async_add_executor_job(library.original_path(image).read_bytes)
+    assert original != backend.preview_png
+    assert (await library.async_render_for_entry(image.image_id, entry))[0] == packed

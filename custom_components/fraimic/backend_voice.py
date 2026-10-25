@@ -196,9 +196,15 @@ class VoiceJobs:
                 await self._save()
                 backend = self.entry.runtime_data.backend
                 if backend is not None:
-                    transcript = " ".join(str(job.get("transcript") or "").split())
-                    title = f"“{transcript[:77]}…”" if len(transcript) > 80 else f"“{transcript}”" if transcript else "Voice request"
-                    backend.set_preview(ident, preview, title=title, source={"library_image": image_id})
+                    image = library.get(image_id)
+                    if image.creation and (image.creation.metadata or {}).get("kind") == "result_card":
+                        # Player artwork is shared with non-admin HA users.
+                        width, height = self._size(job["orientation"])
+                        preview = await self.hass.async_add_executor_job(partial(
+                            result_card, "Open this voice result in the private library.",
+                            width=width, height=height, label="VOICE REQUEST",
+                        ))
+                    backend.set_preview(ident, preview, title="Voice request", source={"library_image": image_id})
                 # The companion owns the handoff, not a confirmed display.
                 # Retained older artwork must never refresh over this result.
                 controller = self.entry.runtime_data.temporary_overlays
