@@ -321,6 +321,13 @@ class Backend:
                 job.busy_until = self.clock() + 180
                 job.audio = b""
                 await self._save(job)
+                # A successful voice result replaces art still waiting for its
+                # first offer. Failed voice work leaves that artwork available.
+                for art in self.jobs.values():
+                    if (art.device == device.id and art.kind == "art" and art.state == "ready"
+                        and art.offered_at is None and art.created <= job.created):
+                        art.state, art.asset = "cancelled", b""
+                        await self._save(art)
         except asyncio.CancelledError:
             # Retain the same identity for reconciliation after listener restart.
             raise

@@ -181,6 +181,40 @@ async def test_voice_holds_scheduler_and_scheduled_offer_holds_voice(service):
     assert not (await (await client.get(f"/api/v1/upload/check/{DEVICE.device_key}")).json())["has_new_upload"]
 
 
+@pytest.mark.parametrize(("succeeds", "offered"), [(True, False), (False, False), (True, True)])
+async def test_voice_supersedes_unoffered_art_only_after_success(service, succeeds, offered):
+    backend, client, now, _ = service
+    ident = "a" * 32
+    assert (await client.post(
+        "/bridge/delivery", headers={**AUTH, "X-Fraimic-Job": ident}, data=PANEL,
+    )).status == 200
+    poll_path = f"/api/v1/upload/check/{DEVICE.device_key}"
+    if offered:
+        assert (await (await client.get(poll_path)).json())["has_new_upload"]
+    now[0] += 181
+    if not succeeds:
+        async def fail(device, job):
+            raise TimeoutError("possibly billed")
+
+        backend.process_voice = fail
+    signed = await presign(client)
+    await upload(client, signed)
+    assert backend.jobs[ident].state == "ready"
+    final = await finalize(client, signed)
+    if succeeds:
+        assert final.status == 200
+        path = "/panel/" + (await final.json())["presigned_url"].rsplit("/", 1)[-1]
+        assert await (await client.get(path)).read() == PANEL
+        now[0] += DEVICE.settle + 1
+    else:
+        assert final.status == 503
+    superseded = succeeds and not offered
+    persisted, _, _ = await asyncio.to_thread(backend.store.load)
+    assert persisted[ident].state == ("cancelled" if superseded else "ready")
+    assert persisted[ident].asset == (b"" if superseded else PANEL)
+    assert (await (await client.get(poll_path)).json())["has_new_upload"] is not superseded
+
+
 async def test_private_bridge_and_unsupported_routes_fail_closed(service):
     _, client, _, _ = service
     for token in ("", DEVICE.device_key, "owner-ha-token"):

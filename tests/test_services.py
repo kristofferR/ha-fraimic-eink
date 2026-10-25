@@ -711,6 +711,41 @@ def test_busy_backend_rejects_user_send_and_defers_automatic_send(monkeypatch, u
     runtime.power.finish.assert_called_once_with(1)
 
 
+@pytest.mark.parametrize("battery", [5, 80])
+@pytest.mark.parametrize("superseded", [False, True])
+def test_backend_preserves_coalescing_and_low_battery_gates(monkeypatch, battery, superseded):
+    from unittest.mock import AsyncMock
+
+    services = _load_services(monkeypatch)
+    power = load("power")
+    entry = SimpleNamespace(data={}, options={})
+    manager = power.FraimicPowerManager(SimpleNamespace(), entry)
+    runtime = SimpleNamespace(
+        backend=SimpleNamespace(async_deliver=AsyncMock()), power=manager,
+        coordinator=SimpleNamespace(data={"battery": {"percent": battery}}),
+        upload_lock=asyncio.Lock(), send_seq=0,
+    )
+    entry.runtime_data = runtime
+
+    async def render(*_args, **_kwargs):
+        if superseded:
+            manager.begin(power.TRIGGER_SCHEDULED)
+        return b"pixels", None, "none"
+
+    monkeypatch.setattr(services, "async_convert_for_entry", render)
+    monkeypatch.setattr(services, "async_use_cloud", AsyncMock(return_value=False))
+    result = asyncio.run(services.async_render_and_upload(
+        SimpleNamespace(), entry, b"", hold_playlist=False, trigger=power.TRIGGER_PLAYLIST,
+    ))
+    reason = power.SKIP_COALESCED if superseded else power.SKIP_LOW_BATTERY if battery < 25 else None
+    assert result["skip_reason"] == reason
+    assert result["backend_queued"] is (reason is None)
+    if reason is None:
+        runtime.backend.async_deliver.assert_awaited_once_with(b"pixels", expires_at=None)
+    else:
+        runtime.backend.async_deliver.assert_not_awaited()
+
+
 def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monkeypatch):
     from unittest.mock import AsyncMock, Mock
 

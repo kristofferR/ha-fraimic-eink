@@ -1213,13 +1213,13 @@ async def async_render_and_upload(
                 from .power import SKIP_LOW_BATTERY
 
                 # Local pull delivery owns sleep and wake timing. Preserve the
-                # automatic low-battery gate, without applying LAN cooldowns.
+                # coalescing and low-battery gates, without LAN cooldowns.
                 content_hash = hashlib.sha256(bin_data).hexdigest()
                 reason = runtime.power.skip_reason(
                     content_hash, trigger, power_token, runtime.coordinator.data,
                 )
                 queued = False
-                if reason != SKIP_LOW_BATTERY:
+                if reason not in {SKIP_LOW_BATTERY, SKIP_COALESCED}:
                     try:
                         await backend.async_deliver(bin_data, expires_at=snapshot_deadline)
                     except BackendBusy as err:
