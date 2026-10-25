@@ -36,6 +36,8 @@ TO_REDACT = {
     "upload_id",
     "device_key",
     "device_id",
+    "backend_token",
+    "backend_url",
     CONF_NASA_API_KEY,
     CONF_SMITHSONIAN_KEY,
     CONF_UNSPLASH_KEY,

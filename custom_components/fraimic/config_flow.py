@@ -17,6 +17,7 @@ from homeassistant.config_entries import (
 from homeassistant.const import CONF_HOST
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import TextSelector, TextSelectorConfig, TextSelectorType
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 from homeassistant.helpers.service_info.zeroconf import ZeroconfServiceInfo
 from homeassistant.helpers.typing import DiscoveryInfoType
@@ -39,6 +40,7 @@ from .const import (
     CONF_DELIVERY_MODE,
     DEFAULT_DELIVERY_MODE,
     DELIVERY_CLOUD,
+    DELIVERY_BACKEND,
     DELIVERY_HYBRID,
     DELIVERY_MODES,
     CONF_ARTWORK_CACHE,
@@ -91,6 +93,11 @@ from .const import (
     rotation_choices,
 )
 from .coordinator import normalize_info
+from .local_backend import (
+    BACKEND_OPTIONS, CONF_BACKEND_TOKEN, CONF_BACKEND_URL, CONF_VOICE_MODE,
+    CONF_VOICE_IMAGE, CONF_VOICE_STT, CONF_VOICE_LANGUAGE, CONF_VOICE_AI,
+    CONF_VOICE_AGENT, validate_backend_url,
+)
 from .providers import PROVIDERS
 
 _LOGGER = logging.getLogger(__name__)
@@ -402,7 +409,7 @@ class FraimicOptionsFlow(OptionsFlow):
                 # Carry the account over unless the user is about to re-enter it.
                 merged = {
                     key: self.config_entry.options[key]
-                    for key in (CONF_CLOUD_EMAIL, CONF_CLOUD_PASSWORD, CONF_CLOUD_DEVICE_ID)
+                    for key in (CONF_CLOUD_EMAIL, CONF_CLOUD_PASSWORD, CONF_CLOUD_DEVICE_ID, *BACKEND_OPTIONS)
                     if key in self.config_entry.options
                 }
                 merged.update(user_input)
@@ -410,6 +417,9 @@ class FraimicOptionsFlow(OptionsFlow):
                 if user_input.get(CONF_DELIVERY_MODE) in (DELIVERY_CLOUD, DELIVERY_HYBRID):
                     self._pending = merged
                     return await self.async_step_cloud()
+                if user_input.get(CONF_DELIVERY_MODE) == DELIVERY_BACKEND:
+                    self._pending = merged
+                    return await self.async_step_backend()
                 return self.async_create_entry(title="", data=merged)
 
         o = self.config_entry.options
@@ -532,6 +542,45 @@ class FraimicOptionsFlow(OptionsFlow):
             errors=errors,
         )
 
+
+    async def async_step_backend(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Explicit provider selection; fixed artwork makes no inference calls."""
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            try:
+                user_input[CONF_BACKEND_URL] = validate_backend_url(user_input[CONF_BACKEND_URL])
+                if len(user_input[CONF_BACKEND_TOKEN]) < 32:
+                    raise ValueError("Short bridge token")
+                mode = user_input[CONF_VOICE_MODE]
+                if mode == "fixed" and not user_input.get(CONF_VOICE_IMAGE):
+                    errors[CONF_VOICE_IMAGE] = "required"
+                if mode in ("art", "assist") and not user_input.get(CONF_VOICE_STT):
+                    errors[CONF_VOICE_STT] = "required"
+                if mode == "art" and not user_input.get(CONF_VOICE_AI):
+                    errors[CONF_VOICE_AI] = "required"
+            except ValueError:
+                errors["base"] = "invalid_backend"
+            if not errors:
+                self._pending.update(user_input)
+                return self.async_create_entry(title="", data=self._pending)
+        options = {**self.config_entry.options, **(user_input or {})}
+        return self.async_show_form(
+            step_id="backend", errors=errors,
+            data_schema=vol.Schema({
+                vol.Required(CONF_BACKEND_URL, default=options.get(CONF_BACKEND_URL, "")): str,
+                vol.Required(CONF_BACKEND_TOKEN, default=options.get(CONF_BACKEND_TOKEN, "")):
+                    TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
+                vol.Required(CONF_VOICE_MODE, default=options.get(CONF_VOICE_MODE, "fixed")):
+                    vol.In({"fixed": "Fixed library image (no AI calls)", "art": "Create artwork", "assist": "Assist with a result card"}),
+                vol.Optional(CONF_VOICE_IMAGE, default=options.get(CONF_VOICE_IMAGE, "")): str,
+                vol.Optional(CONF_VOICE_STT, default=options.get(CONF_VOICE_STT, "")): str,
+                vol.Required(CONF_VOICE_LANGUAGE, default=options.get(CONF_VOICE_LANGUAGE, self.hass.config.language)): str,
+                vol.Optional(CONF_VOICE_AI, default=options.get(CONF_VOICE_AI, "")): str,
+                vol.Optional(CONF_VOICE_AGENT, default=options.get(CONF_VOICE_AGENT, "homeassistant")): str,
+            }),
+        )
 
     async def async_step_cloud(
         self, user_input: dict[str, Any] | None = None

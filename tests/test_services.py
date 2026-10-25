@@ -605,7 +605,8 @@ def test_temporary_overlay_cloud_refresh_does_not_postpone_wake_or_send_stale_co
 
 
 @pytest.mark.parametrize("overlay_refresh", [True, False])
-def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refresh):
+@pytest.mark.parametrize("backend_pull,next_wake", [(False, None), (True, 1_400), (True, None), (True, 900)])
+def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh, backend_pull, next_wake):
     from unittest.mock import AsyncMock, Mock
 
     services = _load_services(monkeypatch)
@@ -616,7 +617,7 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
         source=None,
         title="Art",
         submitted_via_cloud=False,
-        candidate_valid_until=1_029,
+        candidate_valid_until=1_250 if backend_pull else 1_029,
         signature=lambda *_: "active",
         async_compose=AsyncMock(
             return_value=((b"new pixels", b"png", "none"), "active", 1)
@@ -631,6 +632,7 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
     client = SimpleNamespace(upload_image=AsyncMock(), wait_for_render=_no_render)
     runtime = SimpleNamespace(
         temporary_overlays=controller,
+        backend=SimpleNamespace(next_wake=next_wake, async_deliver=AsyncMock()) if backend_pull else None,
         scheduler=None,
         cloud=None,
         power=power,
@@ -657,8 +659,13 @@ def test_temporary_briefing_reserves_local_redraw_time(monkeypatch, overlay_refr
         client.upload_image.assert_not_awaited()
         controller.async_accept.assert_not_awaited()
     else:
-        assert result["uploaded"] is True
-        client.upload_image.assert_awaited_once_with(b"clean art")
+        if backend_pull:
+            assert result["backend_queued"] is True
+            runtime.backend.async_deliver.assert_awaited_once_with(b"clean art", expires_at=None)
+            client.upload_image.assert_not_awaited()
+        else:
+            assert result["uploaded"] is True
+            client.upload_image.assert_awaited_once_with(b"clean art")
         assert controller.candidate_valid_until is None
         assert controller.async_accept.await_args.args[0] == controller.base
         assert controller.async_accept.await_args.args[4] != controller.signature()

@@ -1,0 +1,250 @@
+"""Real HA wiring around the companion, with fake inference providers."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import io
+import wave
+from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock, patch
+
+import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
+from PIL import Image
+from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.fraimic.backend_voice import VoiceJobs, pcm_from_wav
+from custom_components.fraimic.backend_errors import BackendUnavailable
+from custom_components.fraimic.const import CONF_DELIVERY_MODE, DELIVERY_BACKEND
+from custom_components.fraimic.diagnostics import async_get_config_entry_diagnostics
+from custom_components.fraimic.library import get_library
+from custom_components.fraimic.local_backend import (
+    CONF_BACKEND_TOKEN, CONF_BACKEND_URL, CONF_VOICE_MODE, LocalBackend,
+)
+from custom_components.fraimic.services import async_render_and_upload
+
+from .conftest import setup_entry
+
+
+def audio_fixture() -> bytes:
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav:
+        wav.setnchannels(1)
+        wav.setsampwidth(2)
+        wav.setframerate(16000)
+        wav.writeframes(b"\0\0" * 16000)
+    return output.getvalue()
+
+
+def image_fixture() -> bytes:
+    output = io.BytesIO()
+    Image.new("RGB", (160, 120), "white").save(output, "PNG")
+    return output.getvalue()
+
+
+@pytest.fixture
+async def backend_entry(hass: HomeAssistant, frame_client: dict[str, AsyncMock],
+                        config_entry: MockConfigEntry, tmp_path: Path):
+    hass.config.config_dir = str(tmp_path)
+    entry = MockConfigEntry(domain=config_entry.domain, version=config_entry.version,
+                            unique_id=config_entry.unique_id, data=dict(config_entry.data),
+                            options={**config_entry.options, CONF_DELIVERY_MODE: DELIVERY_BACKEND,
+                                     CONF_BACKEND_URL: "http://companion.example:8443",
+                                     CONF_BACKEND_TOKEN: "private-fixture-bridge-token" * 2,
+                                     CONF_VOICE_MODE: "art", "mode": "none"})
+    with patch.object(LocalBackend, "request", new_callable=AsyncMock) as request:
+        request.return_value = {"busy": False, "jobs": []}
+        await setup_entry(hass, entry)
+        yield entry, request
+
+
+async def test_voice_creates_one_original_and_freezes_result_across_restart(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, _ = backend_entry
+    jobs = entry.runtime_data.backend.voice
+    ident, audio = "a" * 32, audio_fixture()
+    original = image_fixture()
+    with (
+        patch.object(VoiceJobs, "_transcribe", new_callable=AsyncMock, return_value="A quiet forest") as stt,
+        patch.object(VoiceJobs, "_generate", new_callable=AsyncMock, return_value=(original, {"provider": "fake", "model": "fixture", "prompt": "A quiet forest"})) as generate,
+        patch.object(entry.runtime_data.client, "upload_image", new_callable=AsyncMock) as push,
+    ):
+        a, b = await asyncio.gather(jobs.async_process(ident, audio, "portrait"),
+                                    jobs.async_process(ident, audio, "portrait"))
+        assert a == b and len(a) == 960_000
+        stt.assert_awaited_once()
+        generate.assert_awaited_once()
+        push.assert_not_awaited()
+        library = get_library(hass)
+        assert library is not None
+        created = [image for image in library.images.values() if image.creation]
+        assert len(created) == 1
+        assert created[0].creation is not None
+        assert created[0].creation.transcript == "A quiet forest"
+        assert created[0].creation.metadata is not None
+        assert created[0].creation.metadata["model"] == "fixture"
+        assert await hass.async_add_executor_job(library.original_path(created[0]).read_bytes) == original
+        restarted = VoiceJobs(hass, entry)
+        await restarted.async_setup()
+        assert await restarted.async_process(ident, audio, "portrait") == a
+        generate.assert_awaited_once()
+        assert entry.runtime_data.displayed_preview is None
+        assert not entry.runtime_data.scheduler.external_upload_active
+
+
+async def test_uncertain_generation_is_not_repeated_after_ha_restart(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, _ = backend_entry
+    jobs = entry.runtime_data.backend.voice
+    ident, audio = "b" * 32, audio_fixture()
+    with (
+        patch.object(VoiceJobs, "_transcribe", new_callable=AsyncMock, return_value="A forest"),
+        patch.object(VoiceJobs, "_generate", new_callable=AsyncMock, side_effect=TimeoutError) as generate,
+    ):
+        with pytest.raises(HomeAssistantError):
+            await jobs.async_process(ident, audio, "portrait")
+        assert jobs.jobs[ident]["outcome"] == "uncertain"
+        assert not entry.runtime_data.scheduler.external_upload_active
+        restarted = VoiceJobs(hass, entry)
+        await restarted.async_setup()
+        # A same-ID reconciliation gives a result card, never a second charge.
+        packed = await restarted.async_process(ident, audio, "portrait")
+        assert len(packed) == 960_000
+        generate.assert_awaited_once()
+
+
+async def test_voice_hold_prevents_queue_send_and_releases_on_failure(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, _ = backend_entry
+    jobs = entry.runtime_data.backend.voice
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def stt(pcm: bytes) -> str:
+        started.set()
+        await release.wait()
+        raise HomeAssistantError("No transcript")
+
+    with patch.object(VoiceJobs, "_transcribe", side_effect=stt):
+        task = asyncio.create_task(jobs.async_process("c" * 32, audio_fixture(), "portrait"))
+        await started.wait()
+        assert entry.runtime_data.scheduler.external_upload_active
+        with patch("custom_components.fraimic.scheduler.async_show_screen", new_callable=AsyncMock) as show:
+            await entry.runtime_data.scheduler._async_rotate(force=True)
+            show.assert_not_awaited()
+        release.set()
+        with pytest.raises(HomeAssistantError):
+            await task
+    assert not entry.runtime_data.scheduler.external_upload_active
+
+
+async def test_pull_delivery_never_pushes_or_confirms_display(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, request = backend_entry
+    with patch.object(entry.runtime_data.client, "upload_image", new_callable=AsyncMock) as push:
+        result = await async_render_and_upload(hass, entry, image_fixture())
+        assert result["backend_queued"] is True
+        assert result["uploaded"] is result["displayed"] is False
+        push.assert_not_awaited()
+        assert entry.runtime_data.displayed_preview is None
+        assert entry.runtime_data.power.last_hash is None
+    calls = request.await_args_list
+    assert any(call.args[:2] == ("POST", "/bridge/delivery") for call in calls)
+    assert any(call.args[:2] == ("PUT", "/bridge/schedule") for call in calls)
+
+
+async def test_ambiguous_delivery_reuses_persisted_identity(
+    hass: HomeAssistant, backend_entry: Any,
+) -> None:
+    entry, request = backend_entry
+    backend = entry.runtime_data.backend
+    request.side_effect = [HomeAssistantError("connection lost"), {}, {}]
+    with pytest.raises(HomeAssistantError):
+        await backend.async_deliver(b"\x11" * 960_000)
+    ident = backend.pending["id"]
+    restarted = LocalBackend(hass, entry)
+    await restarted.async_setup()
+    await restarted.async_deliver(b"\x11" * 960_000)
+    assert restarted.pending is not None
+    assert restarted.pending["id"] == ident
+
+
+async def test_diagnostics_redact_backend_credential(hass: HomeAssistant, backend_entry: Any) -> None:
+    import json
+    entry, _ = backend_entry
+    dumped = json.dumps(await async_get_config_entry_diagnostics(hass, entry))
+    assert entry.options[CONF_BACKEND_TOKEN] not in dumped
+    assert entry.options[CONF_BACKEND_URL] not in dumped
+
+
+async def test_voice_rejects_changed_content_and_invalid_wav(backend_entry: Any) -> None:
+    entry, _ = backend_entry
+    jobs = entry.runtime_data.backend.voice
+    audio = audio_fixture()
+    with pytest.raises(ValueError):
+        await jobs.async_process("d" * 32, audio[:-2], "portrait")
+    assert not jobs.jobs
+    jobs.jobs["d" * 32] = {"hash": hashlib.sha256(audio).hexdigest(), "orientation": "portrait",
+                           "state": "accepted", "created": 9_999_999_999}
+    with pytest.raises(HomeAssistantError):
+        await jobs.async_process("d" * 32, audio, "landscape")
+    assert len(pcm_from_wav(audio)) == 32000
+
+
+async def test_failed_schedule_survives_restart_and_retries(hass: HomeAssistant, backend_entry: Any) -> None:
+    import time
+    entry, request = backend_entry
+    backend = entry.runtime_data.backend
+    request.side_effect = BackendUnavailable("offline")
+    deadline = int(time.time() + 7200)
+    with pytest.raises(BackendUnavailable):
+        await backend.async_schedule(deadline)
+    restarted = LocalBackend(hass, entry)
+    await restarted.async_setup()
+    assert restarted.schedule_pending and restarted.next_wake == deadline
+    request.side_effect = None
+    request.return_value = {"busy": False, "jobs": []}
+    await restarted.async_status()
+    assert not restarted.schedule_pending
+    assert request.await_args_list[-2].kwargs["payload"] == {"next_image_utc": deadline}
+
+
+async def test_bridge_auth_is_narrow_and_management_remains_authenticated(
+    backend_entry: Any, hass_client_no_auth: Any,
+) -> None:
+    entry, _ = backend_entry
+    client = await hass_client_no_auth()
+    headers = {"X-Fraimic-Job": "f" * 32, "X-Fraimic-Orientation": "portrait"}
+    assert (await client.post("/api/fraimic/backend/voice", headers=headers, data=audio_fixture())).status == 401
+    headers["Authorization"] = f"Bearer {entry.options[CONF_BACKEND_TOKEN]}"
+    assert (await client.get("/api/fraimic/library", headers=headers)).status == 401
+    with patch.object(VoiceJobs, "async_process", new_callable=AsyncMock, return_value=b"\x11" * 960_000) as voice:
+        reply = await client.post("/api/fraimic/backend/voice", headers=headers, data=audio_fixture())
+        assert reply.status == 200
+        assert len(await reply.read()) == 960_000
+        voice.assert_awaited_once()
+
+
+async def test_backend_contact_updates_battery_without_claiming_lan_awake(backend_entry: Any) -> None:
+    import time
+    entry, _ = backend_entry
+    coordinator = entry.runtime_data.coordinator
+    coordinator.last_update_success = False
+    coordinator.async_backend_contact({"last_seen": time.time(), "battery_percent": 24})
+    assert coordinator.data["battery"]["percent"] == 24
+    assert coordinator.device_reachable
+    assert not coordinator.last_update_success
+
+
+@pytest.mark.parametrize("method", ["refresh", "sleep", "restart"])
+async def test_backend_owns_lan_redraw_and_power_commands(backend_entry: Any, method: str) -> None:
+    from custom_components.fraimic.api import FraimicApiError
+    entry, _ = backend_entry
+    with pytest.raises(FraimicApiError, match="backend owns delivery"):
+        await getattr(entry.runtime_data.client, method)()

@@ -1,0 +1,20 @@
+{
+  "public_url": "https://origin.fraimic.com",
+  "bind": "0.0.0.0",
+  "port": 8443,
+  "bridge_bind": "127.0.0.1",
+  "bridge_port": 8080,
+  "certificate": "/data/tls/fullchain.pem",
+  "private_key": "/data/tls/key.pem",
+  "database": "/data/backend.sqlite3",
+  "devices": [
+    {
+      "id": "large",
+      "device_key": "REPLACE_WITH_EXISTING_DEVICE_KEY",
+      "user_id": "REPLACE_WITH_EXISTING_USER_ID",
+      "bridge_token": "REPLACE_WITH_A_SEPARATE_RANDOM_SECRET_OF_AT_LEAST_32_CHARACTERS",
+      "ha_url": "http://homeassistant.local:8123",
+      "display_type": "315"
+    }
+  ]
+}

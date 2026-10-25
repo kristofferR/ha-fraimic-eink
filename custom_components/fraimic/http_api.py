@@ -58,11 +58,14 @@ def async_register_views(hass: HomeAssistant) -> None:
     handlers look the library up lazily — a 503 answers any call that races an
     unloaded integration.
     """
+    from .local_backend import BackendVoiceView
+
     domain_data = hass.data.setdefault(DOMAIN, {})
     if domain_data.get(DATA_VIEWS_REGISTERED):
         return
     domain_data[DATA_VIEWS_REGISTERED] = True
     for view in (
+        BackendVoiceView(),
         LibraryListView(),
         LibraryUploadView(),
         LibraryImageView(),
@@ -825,6 +828,8 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "low_battery": "Playback is waiting for sufficient battery or charging.",
         "source_unavailable": "Artwork source unavailable. Retrying shortly.",
         "cloud_unavailable": "Cloud delivery unavailable. Retrying shortly.",
+        "backend_unavailable": "Local backend unavailable. Retrying shortly.",
+        "backend_busy": "Waiting for the frame's voice request or image transfer to finish.",
         "invalid_item": "An unavailable queue item was skipped.",
         "asleep": "Waiting for the frame to wake.",
         "auto_unavailable": "Auto mode could not find new art. Retrying shortly.",

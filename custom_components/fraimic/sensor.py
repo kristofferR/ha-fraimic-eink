@@ -218,6 +218,34 @@ async def async_setup_entry(
             FraimicAlbumsSensor(coordinator),
         ]
     )
+    if getattr(entry.runtime_data, "backend", None) is not None:
+        async_add_entities([FraimicBackendSensor(coordinator)])
+
+
+class FraimicBackendSensor(FraimicEntity, SensorEntity):
+    """Transport evidence from the companion, without claiming a redraw."""
+
+    _attr_translation_key = "backend_status"
+    _fraimic_always_available = True
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_backend_status"
+
+    @property
+    def native_value(self) -> str:
+        backend = self.coordinator.config_entry.runtime_data.backend
+        if backend.voice is not None and backend.voice.tasks:
+            ident = next(iter(backend.voice.tasks))
+            return str(backend.voice.jobs[ident]["state"])
+        jobs = backend.status.get("jobs", [])
+        return str(jobs[-1]["state"]) if jobs else "idle"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        backend = self.coordinator.config_entry.runtime_data.backend
+        return {"confirmed_on_panel": False, "next_image_utc": backend.status.get("next_image_utc"),
+                "jobs": backend.status.get("jobs", [])}
 
 
 class FraimicSensor(FraimicEntity, SensorEntity):

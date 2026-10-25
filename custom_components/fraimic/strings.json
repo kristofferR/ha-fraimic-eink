@@ -189,7 +189,7 @@
           "pexels_api_key": "Pexels API key (optional)"
         },
         "data_description": {
-          "delivery_mode": "local: push images to the frame over your network (the frame must be awake). cloud: upload to your Fraimic account and let its album schedule wake the frame for each image, so keep-awake can stay off and the battery lasts. hybrid: check whether the frame is awake before each send; use local delivery when reachable and your Fraimic account otherwise. Local sends leave keep-awake unchanged; the first successful cloud submission turns it off.",
+          "delivery_mode": "local: push images to the frame over your network (the frame must be awake). cloud: upload to your Fraimic account and let its album schedule wake the frame for each image, so keep-awake can stay off and the battery lasts. hybrid: check whether the frame is awake before each send; use local delivery when reachable and your Fraimic account otherwise. Local sends leave keep-awake unchanged; the first successful cloud submission turns it off. backend: let a local companion serve rendered images and HA wake times to stock firmware. Requires a separately prepared TLS and routing cutover.",
           "power_mode": "minimum: no periodic polling and one background redraw/day; balanced: hourly polling and eight background redraws/day; responsive: frequent polling and 48 background redraws/day. Queue playback follows its own interval in every mode.",
           "auto_sleep_after_upload": "After a successful redraw, wait 45 seconds and ask an unplugged frame to sleep. Disabled when charging, keep-awake is set, work is queued, or power state is unknown.",
           "scan_interval": "Requested polling interval. Power mode may raise it; Minimum disables periodic polling entirely.",
@@ -225,6 +225,20 @@
         "data": {
           "cloud_device_id": "Canvas"
         }
+      },
+      "backend": {
+        "title": "Local backend",
+        "description": "Connect the companion service after preparing frame routing and TLS. Start with a fixed library image. Artwork and Assist modes call the providers you select, which may incur costs. Recordings are deleted after processing or expiry. Stock voice always finishes with an image; transfers do not confirm display completion.",
+        "data": {
+          "backend_url": "Companion URL",
+          "backend_token": "Private bridge token",
+          "backend_voice_mode": "Recorded voice action",
+          "backend_voice_image": "Fixed library image ID",
+          "backend_voice_stt": "Speech-to-text entity",
+          "backend_voice_language": "Speech language",
+          "backend_voice_ai": "Image generation entity",
+          "backend_voice_agent": "Conversation agent"
+        }
       }
     },
     "error": {
@@ -232,7 +246,9 @@
       "camera_interval_too_low": "Use 0 to disable, or at least 60 seconds.",
       "invalid_auth": "Fraimic rejected that email or password.",
       "cannot_connect": "Could not reach the Fraimic cloud.",
-      "no_devices": "That account has no canvases yet."
+      "no_devices": "That account has no canvases yet.",
+      "invalid_backend": "Enter a valid companion URL and a separate bridge token of at least 32 characters.",
+      "required": "Required for the selected voice action."
     }
   },
   "entity": {
@@ -297,6 +313,9 @@
       },
       "albums": {
         "name": "Albums"
+      },
+      "backend_status": {
+        "name": "Local backend status"
       }
     },
     "binary_sensor": {

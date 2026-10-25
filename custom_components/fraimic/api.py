@@ -177,6 +177,7 @@ class FraimicClient:
         # this host: every request except the identity poll is refused, and
         # responses don't count as contact with this entry's frame.
         self.wrong_device: str | None = None
+        self.backend_managed = False
         self._session = session
         # Bracket bare IPv6 literals (2+ colons, not already bracketed) so the URL
         # is valid; a normal "host" or "host:port" is left untouched.
@@ -202,6 +203,12 @@ class FraimicClient:
             await asyncio.sleep(delay)
 
     async def _request(self, method: str, path: str, **kwargs: Any) -> aiohttp.ClientResponse:
+        if self.backend_managed and method == "POST" and path in {
+            "/api/image", "/upload", "/api/refresh", "/api/sleep", "/api/restart",
+        }:
+            raise FraimicApiError(
+                "The local backend owns delivery; LAN redraw and power commands are disabled"
+            )
         if self.wrong_device is not None and path != "/api/info":
             raise FraimicWrongDeviceError(
                 f"A different frame answers at {self._host}"

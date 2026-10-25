@@ -109,6 +109,7 @@ class FraimicSendQueue:
         data = await self._store.async_load()
         if data and data.get("pending"):
             self._pending = data["pending"]
+            backend = getattr(self._entry.runtime_data, "backend", None)
             cloud = getattr(self._entry.runtime_data, "cloud", None)
             hybrid = getattr(self._entry, "options", {}).get(CONF_DELIVERY_MODE) == DELIVERY_HYBRID
             if cloud is not None and not hybrid:
@@ -127,6 +128,23 @@ class FraimicSendQueue:
                 await self._async_clear(
                     f"Gave up: frame never woke up for '{self._pending.get('title')}'"
                 )
+            elif backend is not None:
+                def read_pending() -> bytes:
+                    with open(self._bin_path, "rb") as file:
+                        return file.read(MAX_BIN_SIZE + 1)
+
+                controller = getattr(self._entry.runtime_data, "temporary_overlays", None)
+                if controller is not None and controller.base is not None and self._pending.get("content_hash") == controller.submitted_hash:
+                    # A restored composition may have expired while asleep.
+                    # Preserve its artwork and let the lifecycle refresh overlays.
+                    packed = controller.base[0]
+                    await controller.async_mark_dirty()
+                else:
+                    packed = await self._hass.async_add_executor_job(read_pending)
+                await backend.async_deliver(packed)
+                # Keep the local payload until the durable pull acceptance.
+                # A failed setup retains it for the next setup retry.
+                await self._async_clear("Queued for local backend delivery", delivered=True)
             elif cloud is not None:
                 controller = getattr(self._entry.runtime_data, "temporary_overlays", None)
                 if controller is not None and controller.base is not None and self._pending.get("content_hash") == controller.submitted_hash:
