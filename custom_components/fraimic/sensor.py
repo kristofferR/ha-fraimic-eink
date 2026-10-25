@@ -29,6 +29,7 @@ from homeassistant.util import dt as dt_util
 
 from .coordinator import FraimicConfigEntry, format_utc_offset
 from .entity import FraimicEntity
+from .local_backend import SUMMARY_OPTIONS
 from .send_queue import signal_send_status
 
 
@@ -219,13 +220,17 @@ async def async_setup_entry(
         ]
     )
     if getattr(entry.runtime_data, "backend", None) is not None:
-        async_add_entities([FraimicBackendSensor(coordinator)])
+        async_add_entities(
+            [FraimicBackendSensor(coordinator), FraimicNextWakeSensor(coordinator)]
+        )
 
 
 class FraimicBackendSensor(FraimicEntity, SensorEntity):
     """Transport evidence from the companion, without claiming a redraw."""
 
     _attr_translation_key = "backend_status"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = SUMMARY_OPTIONS
     _fraimic_always_available = True
 
     def __init__(self, coordinator) -> None:
@@ -234,18 +239,25 @@ class FraimicBackendSensor(FraimicEntity, SensorEntity):
 
     @property
     def native_value(self) -> str:
-        backend = self.coordinator.config_entry.runtime_data.backend
-        if backend.voice is not None and backend.voice.tasks:
-            ident = next(iter(backend.voice.tasks))
-            return str(backend.voice.jobs[ident]["state"])
-        jobs = backend.status.get("jobs", [])
-        return str(jobs[-1]["state"]) if jobs else "idle"
+        return self.coordinator.config_entry.runtime_data.backend.summary()
+
+
+class FraimicNextWakeSensor(FraimicEntity, SensorEntity):
+    """When the companion next asks the sleeping frame to wake."""
+
+    _attr_translation_key = "next_wake"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+    _attr_icon = "mdi:alarm"
+    _fraimic_always_available = True
+
+    def __init__(self, coordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_next_wake"
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        backend = self.coordinator.config_entry.runtime_data.backend
-        return {"confirmed_on_panel": False, "next_image_utc": backend.status.get("next_image_utc"),
-                "jobs": backend.status.get("jobs", [])}
+    def native_value(self) -> datetime | None:
+        wake = self.coordinator.config_entry.runtime_data.backend.next_wake
+        return dt_util.utc_from_timestamp(wake) if wake is not None else None
 
 
 class FraimicSensor(FraimicEntity, SensorEntity):

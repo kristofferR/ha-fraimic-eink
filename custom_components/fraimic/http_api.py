@@ -27,9 +27,11 @@ from .ai_http import ai_views
 from .api import FraimicError, command_error_message
 from .art_packs import ArtPackManager, ArtPackNotFoundError, get_pack_manager
 from .const import (
+    CONF_DELIVERY_MODE,
     CONF_HEIGHT,
     CONF_ROTATION,
     CONF_WIDTH,
+    DEFAULT_DELIVERY_MODE,
     DEFAULT_ROTATION,
     DOMAIN,
     MAX_SOURCE_BYTES,
@@ -59,7 +61,7 @@ def async_register_views(hass: HomeAssistant) -> None:
     handlers look the library up lazily — a 503 answers any call that races an
     unloaded integration.
     """
-    from .local_backend import BackendVoiceView
+    from .local_backend import BackendStatusView, BackendVoiceView
 
     domain_data = hass.data.setdefault(DOMAIN, {})
     if domain_data.get(DATA_VIEWS_REGISTERED):
@@ -67,6 +69,7 @@ def async_register_views(hass: HomeAssistant) -> None:
     domain_data[DATA_VIEWS_REGISTERED] = True
     for view in (
         BackendVoiceView(),
+        BackendStatusView(),
         LibraryListView(),
         LibraryUploadView(),
         LibraryImageView(),
@@ -606,11 +609,19 @@ def _frame_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     info = coordinator.data or {}
     failures = coordinator.consecutive_failures
     online = coordinator.frame_online
-    unreachable = (
-        not online
-        and not getattr(coordinator, "expected_asleep", False)
-        and failures >= REDISCOVERY_FAIL_THRESHOLD
+    backend = getattr(runtime, "backend", None)
+    missed_wake = (
+        backend.missed_wake(coordinator.last_seen) if backend is not None else None
     )
+    if backend is not None:
+        # The frame sleeps between companion polls; only a missed wake is alarming.
+        unreachable = not online and missed_wake is not None
+    else:
+        unreachable = (
+            not online
+            and not getattr(coordinator, "expected_asleep", False)
+            and failures >= REDISCOVERY_FAIL_THRESHOLD
+        )
     battery = info.get("battery") or {}
     name = frame_display_name(hass, entry)
     return {
@@ -630,7 +641,14 @@ def _frame_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "battery": battery.get("percent"),
         "charging": bool(battery.get("charging")),
         "firmware": info.get("firmware_version"),
+        "delivery": entry.options.get(CONF_DELIVERY_MODE, DEFAULT_DELIVERY_MODE),
+        "next_wake": _iso(backend.next_wake) if backend is not None else None,
+        "missed_wake": _iso(missed_wake),
     }
+
+
+def _iso(epoch: float | None) -> str | None:
+    return dt_util.utc_from_timestamp(epoch).isoformat() if epoch is not None else None
 
 
 def _slide_meta(slide: ScreenConfig) -> str:
@@ -806,6 +824,7 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     sending_preview = getattr(runtime, "sending_preview", None)
     sending_screen = getattr(scheduler, "sending_screen", None)
     cloud = getattr(runtime, "cloud", None)
+    backend = getattr(runtime, "backend", None)
     if sending_preview is not None:
         png, preview_title = sending_preview
         preview = {
@@ -817,6 +836,25 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         preview = _slide_payload(sending_screen)
         preview["thumbnail_url"] = preview["thumbnail_url"] or queue_thumbnail(sending_screen)
         preview["status"] = "sending"
+    elif not sending and backend is not None and backend.preview_png is not None:
+        handed = backend.preview or {}
+        job = backend.job_status(handed.get("job")) or {}
+        served_at = job.get("served_at")
+        status = "served" if served_at is not None else (
+            "expired" if job.get("state") == "expired" else
+            "unavailable" if job.get("state") in {"cancelled", "failed", "uncertain"} else
+            "waiting"
+        )
+        preview = {
+            "title": handed.get("title") or "Artwork",
+            # Served is the companion's last word; the panel is never confirmed.
+            "status": status,
+            "served_at": _iso(served_at),
+            "handed_off_at": _iso(handed.get("at")),
+            "next_wake": _iso(backend.next_wake) if status == "waiting" else None,
+            "thumbnail_url": f"/api/fraimic/player/artwork/{entry.entry_id}?kind=backend&v={quote(str(handed.get('job') or ''), safe='')}",
+            **_current_art(handed.get("source"), library, art),
+        }
     elif not sending and cloud is not None and getattr(cloud, "preview_png", None):
         preview = {
             "title": cloud.preview_title or "Artwork",
@@ -870,8 +908,8 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
         "auto": {
             **scheduler.auto.to_dict(),
             "error": scheduler.auto_error,
-            # Cloud wakes follow the queue interval, so auto mode does too.
-            "cloud": cloud is not None,
+            # Cloud and companion wakes follow the queue interval; so does auto mode.
+            "follows_queue": cloud is not None or backend is not None,
         },
         "transport_available": transport_available,
         "sending": sending,
@@ -938,6 +976,14 @@ class PlayerArtworkView(_FraimicView):
             )
             preview = next((png for png in candidates if png is not None
                             and hashlib.sha256(png).hexdigest() == request.query.get("v")), None)
+        elif kind == "backend":
+            backend = runtime.backend
+            preview = (
+                backend.preview_png
+                if backend is not None and backend.preview is not None
+                and request.query.get("v") == backend.preview.get("job")
+                else None
+            )
         elif kind == "cloud":
             cloud = runtime.cloud
             preview = (

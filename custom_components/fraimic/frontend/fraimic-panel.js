@@ -348,6 +348,27 @@ const css = String.raw`
   .ai-model.selected .ai-radio { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--surface); }
   .ai-style-editor { margin: 10px 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--secondary-background-color, var(--surface)); }
   .ai-preview { flex: 1 1 auto; min-width: 0; margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; overflow-wrap: anywhere; }
+  .backend-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .backend-tile { min-width: 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
+  .backend-tile small { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11.5px; }
+  .backend-tile b { display: block; margin-top: 2px; font-size: 15px; }
+  .backend-tile span { color: var(--muted); font-size: 12px; }
+  .backend-tile.alert b { color: var(--error-color); }
+  .dot.offline { background: var(--error-color); }
+  .backend-pending { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px; }
+  .backend-pending img { width: 40px; max-height: 56px; object-fit: contain; border-radius: 3px; flex: none; }
+  .backend-steps { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 3px; color: var(--muted); font-size: 12px; }
+  .backend-steps .done { color: var(--text); }
+  .backend-steps .done::before { content: "✓ "; color: var(--success-color); }
+  .voice-request { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 52px; padding: 6px 0; border-top: 1px solid var(--line); text-align: left; }
+  .voice-request:first-child { border-top: 0; }
+  .voice-request time { color: var(--muted); font-size: 12px; }
+  .voice-request .row-copy b { white-space: normal; }
+  .status-pill { padding: 2px 8px; border: 1px solid var(--line); border-radius: 10px; font-size: 11.5px; white-space: nowrap; }
+  .status-pill.ok { color: var(--success-color); border-color: color-mix(in srgb, var(--success-color) 50%, transparent); }
+  .status-pill.warn { color: var(--warning-color); border-color: color-mix(in srgb, var(--warning-color) 50%, transparent); }
+  .status-pill.error { color: var(--error-color); border-color: color-mix(in srgb, var(--error-color) 50%, transparent); }
+  .status-pill.active { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
   .ai-voice { padding: 8px 0; border-top: 1px solid var(--line); }
   .ai-voice:first-of-type { border-top: 0; }
   .ai-voice > b { display: block; margin-bottom: 6px; font-size: 13px; }
@@ -844,7 +865,10 @@ class FraimicPanel extends HTMLElement {
 
   _startRefresh() {
     clearInterval(this._refreshTimer);
-    this._refreshTimer = setInterval(() => this._loadPlayer(), 5000);
+    this._refreshTimer = setInterval(() => {
+      this._loadPlayer();
+      if (this._modal?.className?.includes("backend-dialog")) this._loadBackendStatus();
+    }, 5000);
   }
 
   async _loadGallery(force = false) {
@@ -1359,17 +1383,21 @@ class FraimicPanel extends HTMLElement {
   _playerTemplate() {
     const player = this._player;
     if (!this._frame) return `<footer class="player"><div class="player-copy"><b>Nothing playing</b><span>Pick a playlist, or show a picture from the gallery</span></div></footer>`;
+    const frame = player?.frame ?? this._frame;
     const current = player?.preview || player?.current || {};
     const state = player?.preview?.status === "sending" ? "sending" : player?.state || "idle";
     let title = current.title || player?.playlist_name || "Nothing playing";
     let meta = player?.playlist_id ? "Displayed artwork not confirmed" : "Pick a playlist, or show a picture from the gallery";
-    if (state === "sending") meta = `Sending to ${this._frame.name}. The panel takes about 30 seconds.`;
-    else if (player?.preview) meta = "Sent via cloud · display unconfirmed";
-    else if (state === "asleep") meta = `${this._frame.name} is asleep · ${current.title ? "still showing this" : "displayed artwork not confirmed"}`;
-    else if (state === "unreachable") {
+    if (state === "sending") meta = this._lanCommands() ? `Sending to ${this._frame.name}. The panel takes about 30 seconds.` : "Handing off to the local backend";
+    else if (state === "unreachable" && frame.missed_wake) {
+      title = `${frame.name} missed its ${this._clockTime(frame.missed_wake)} wake`;
+      meta = `Last seen ${this._lastSeenMinutes(frame.last_seen)} minutes ago, check power and wifi.`;
+    } else if (state === "unreachable") {
       title = `Could not reach ${this._frame.name}`;
-      meta = `Last seen ${this._lastSeenMinutes(this._frame.last_seen)} minutes ago, check power and wifi.`;
-    } else if (current.title) meta = [current.artist, player.playlist_name, this._playbackStatus(player)].filter(Boolean).join(" · ");
+      meta = `Last seen ${this._lastSeenMinutes(frame.last_seen)} minutes ago, check power and wifi.`;
+    } else if (player?.preview) meta = this._previewMeta(player.preview);
+    else if (state === "asleep") meta = `${this._frame.name} is asleep · ${current.title ? "still showing this" : "displayed artwork not confirmed"}`;
+    else if (current.title) meta = [current.artist, player.playlist_name, this._playbackStatus(player)].filter(Boolean).join(" · ");
     const progress = state === "sending"
       ? Number(player.sending_progress || 0)
       : this._cycle(player) ? Math.min(100, Math.max(0, (player.seconds_elapsed || 0) / this._cycle(player) * 100)) : 0;
@@ -1379,9 +1407,9 @@ class FraimicPanel extends HTMLElement {
     const stateActions = state === "idle" && !player?.transport_available
       ? `<button class="btn primary" data-change-playlist>Choose a playlist</button>${player?.end_action === "auto" ? "" : `<button class="btn" data-end-action="auto">Start auto mode</button>`}`
       : state === "unreachable"
-        ? `<button class="btn" data-player-action="retry">Retry</button><button class="btn quiet" data-device>Device page</button>`
+        ? this._lanCommands() ? `<button class="btn" data-player-action="retry">Retry</button><button class="btn quiet" data-device>Device page</button>` : `<button class="btn" data-backend-status>Local backend</button>`
         : "";
-    const previewMeta = player?.preview ? (state === "sending" ? "Sending" : "Sent via cloud · display unconfirmed") : "Now showing";
+    const previewMeta = this._previewMeta(player?.preview);
     const barArt = current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : "";
     const barArtCell = current.thumbnail_url
       ? `<button class="player-art glass" data-dither-preview="" data-preview-title="${h(current.title || "Now showing")}" data-preview-meta="${h(previewMeta)}" aria-label="Preview ${h(current.title || "artwork")}" title="Frame preview">${barArt}</button>`
@@ -1401,7 +1429,7 @@ class FraimicPanel extends HTMLElement {
     const items = player.hand_queue || [];
     const current = player.preview || player.current || {};
     const interval = this._formatInterval(player.interval).replace(/^every /, "");
-    const nowMeta = player.preview?.status === "sending" ? `Sending to ${h(this._frame?.name || "frame")}` : player.preview ? "Sent via cloud · display unconfirmed" : "Now showing";
+    const nowMeta = h(this._previewMeta(player.preview));
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       <div class="queue-now queue-toolbar"><div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>
         ${current.title ? `<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="${nowMeta}" aria-label="Preview ${h(current.title)}">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>` : `<h2>Queue</h2>`}
@@ -1452,7 +1480,7 @@ class FraimicPanel extends HTMLElement {
   _menuTemplate() {
     if (!this._menu) return "";
     if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-ai-settings>AI art <span>›</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
-    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button><button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}<button data-device>Device page</button></div>`;
+    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button>${this._lanCommands() ? "" : `<button data-backend-status>Local backend <span>›</span></button>`}${this._lanCommands() ? `<button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}` : ""}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
@@ -1599,6 +1627,8 @@ class FraimicPanel extends HTMLElement {
     this._bindAutoSettings();
     root.querySelectorAll("[data-create]").forEach((node) => node.onclick = () => this._openCreate());
     root.querySelectorAll("[data-ai-settings]").forEach((node) => node.onclick = () => this._openAiSettings());
+    root.querySelectorAll("[data-backend-status]").forEach((node) => node.onclick = () => this._openBackendStatus());
+    root.querySelectorAll("[data-backend-creations]").forEach((node) => node.onclick = () => { this._closeModal(); this._setSource("saved", "creations", "Creations"); });
     this._bindAiSettings();
     this._bindCreate();
     root.querySelectorAll("[data-custom-interval]").forEach((node) => node.onclick = () => this._customInterval());
@@ -2960,7 +2990,7 @@ class FraimicPanel extends HTMLElement {
 
   _openAutoSettings() {
     this._menu = null;
-    const { error: _error, cloud: _cloud, ...draft } = structuredClone(this._player?.auto || {});
+    const { error: _error, follows_queue: _followsQueue, ...draft } = structuredClone(this._player?.auto || {});
     this._autoDraft = draft;
     this._openModal("Auto mode", this._autoSettingsBody(), this._autoSettingsActions(), { className: "auto-dialog", subtitle: h(this._frame?.name || "") });
   }
@@ -2977,7 +3007,7 @@ class FraimicPanel extends HTMLElement {
 
   _autoSettingsBody() {
     const draft = this._autoDraft;
-    const cloud = Boolean(this._player?.auto?.cloud);
+    const followsQueue = Boolean(this._player?.auto?.follows_queue);
     const sources = draft.sources || [];
     const taken = new Set(sources.map((source) => this._autoSourceKey(source)));
     const options = this._autoSourceOptions().map((option, index) => ({ ...option, index })).filter((option) => !taken.has(this._autoSourceKey(option.source)));
@@ -2993,13 +3023,13 @@ class FraimicPanel extends HTMLElement {
         <p class="auto-hint">Weights set how often each source is picked. To use a gallery folder or search, open it and choose Add to auto mode.</p>
       </section>
       <section class="auto-section"><h3>When to change</h3>
-        ${seg("cadence", draft.cadence, [["queue", "Same as queue"], ["interval", "Every…", cloud], ["times", "At set times", cloud]], "When to change")}
+        ${seg("cadence", draft.cadence, [["queue", "Same as queue"], ["interval", "Every…", followsQueue], ["times", "At set times", followsQueue]], "When to change")}
         ${draft.cadence === "queue" ? `<p class="auto-hint">Follows the queue: every ${h(this._formatInterval(this._player?.interval))}.</p>` : ""}
         ${draft.cadence === "interval" ? `<div class="auto-line"><span class="label">Every</span>${select("auto-interval", draft.interval, intervals, "Change every")}</div>` : ""}
         ${draft.cadence === "times" ? `<div class="auto-line"><span class="label">Times</span>${times.map((value, index) => `<input type="time" data-auto-time="${index}" value="${h(value)}" aria-label="Change time ${index + 1}"><button class="icon-btn" data-auto-remove-time="${index}" aria-label="Remove ${h(value)}" ${times.length === 1 ? "disabled" : ""}><ha-icon icon="mdi:close"></ha-icon></button>`).join("")}<button class="btn small" data-auto-add-time>Add time</button></div>
           <div class="auto-line"><span class="label">Days</span><div class="seg">${WEEKDAYS.map((day) => `<button aria-pressed="${days.has(day)}" class="${days.has(day) ? "selected" : ""}" data-auto-day="${day}">${day[0].toUpperCase()}${day.slice(1)}</button>`).join("")}</div></div>
           <p class="auto-hint">No days selected means every day.</p>` : ""}
-        ${cloud ? `<p class="auto-hint">Cloud delivery wakes the frame on the queue interval, so auto mode follows it.</p>` : ""}
+        ${followsQueue ? `<p class="auto-hint">This frame wakes on the queue interval, so auto mode follows it.</p>` : ""}
         <div class="auto-line"><label class="label"><input type="checkbox" id="auto-active" ${draft.active_hours ? "checked" : ""}> Active hours</label>${draft.active_hours ? `<input type="time" id="auto-active-after" value="${h(draft.active_hours.after)}" aria-label="Changes start at"><span>to</span><input type="time" id="auto-active-before" value="${h(draft.active_hours.before)}" aria-label="Changes stop at">` : `<span class="auto-hint">Any time of day</span>`}</div>
       </section>
       <section class="auto-section"><h3>Variety</h3>
@@ -3184,6 +3214,100 @@ class FraimicPanel extends HTMLElement {
   _formatInterval(seconds) {
     if (!seconds) return ""; if (seconds < 3600) return `${Math.round(seconds / 60)} min`; if (seconds === 86400) return "once a day"; const hours = seconds / 3600; return `${hours} ${hours === 1 ? "hour" : "hours"}`;
   }
+  async _openBackendStatus() {
+    this._menu = null;
+    await this._loadBackendStatus(true);
+  }
+
+  async _loadBackendStatus(open = false) {
+    const entryId = this._selectedFrameId;
+    let status;
+    try { status = await this._api(`backend/status/${encodeURIComponent(entryId)}`); } catch (error) {
+      if (open) this._notify(this._friendlyError(error), { error: true });
+      return;
+    }
+    if (entryId !== this._selectedFrameId) return;
+    this._backendStatus = status;
+    if (open) {
+      this._openModal("Local backend", this._backendBody(), this._backendActions(), { className: "auto-dialog backend-dialog", subtitle: h(`${this._frame?.name || ""} · companion delivery`) });
+    } else if (this._modal?.className?.includes("backend-dialog")) {
+      const body = this._backendBody();
+      if (body === this._modal.body) return;
+      const scroll = this.shadowRoot.querySelector(".dialog-body")?.scrollTop || 0;
+      this._modal.body = body;
+      this._renderPreservingFocus();
+      const node = this.shadowRoot.querySelector(".dialog-body");
+      if (node) node.scrollTop = scroll;
+    }
+  }
+
+  _backendActions() {
+    return `<button class="btn" data-options>Connection settings</button><span class="spacer"></span><button class="btn" data-backend-creations>Open Creations</button>`;
+  }
+
+  _backendBody() {
+    const status = this._backendStatus || {};
+    const clock = (iso) => this._clockTime(iso);
+    const tile = (label, value, detail, { dot = null, alert = false } = {}) => `<div class="backend-tile${alert ? " alert" : ""}"><small>${dot === null ? "" : `<span class="dot ${dot}"></span>`}${h(label)}</small><b>${h(value)}</b><span>${h(detail)}</span></div>`;
+    const companion = status.online === false
+      ? tile("Companion", "Offline", "Retrying every minute", { dot: "offline", alert: true })
+      : status.online
+        ? tile("Companion", "Connected", status.checked_at ? `Checked ${clock(status.checked_at)}` : "", { dot: "online" })
+        : tile("Companion", "Not checked yet", "Checks every minute", { dot: "" });
+    const seen = [status.last_seen ? `Last poll ${clock(status.last_seen)}` : "No poll yet", status.battery != null ? `${status.battery}%` : ""].filter(Boolean).join(" · ");
+    const frame = status.missed_wake
+      ? tile("Frame", "Missed its wake", `Expected ${clock(status.missed_wake)} · ${seen}`, { alert: true })
+      : tile("Frame", (this._player?.frame ?? this._frame)?.online ? "Awake" : "Asleep", seen);
+    const wake = status.next_wake
+      ? tile("Next wake", clock(status.next_wake), this._untilLabel(status.next_wake))
+      : tile("Next wake", "Not scheduled", "Set when a picture is queued");
+    const preview = this._player?.preview;
+    const handoff = preview && ["waiting", "served", "expired", "unavailable"].includes(preview.status)
+      ? `<section class="auto-section"><h3>${preview.status === "waiting" ? "Waiting on the frame" : "Last handoff"}</h3><div class="backend-pending">${preview.thumbnail_url ? `<img ${this._imageAttrs(preview.thumbnail_url, "")}>` : ""}<div class="row-copy"><b>${h(preview.title)}</b><div class="backend-steps">${preview.handed_off_at ? `<span class="done">Handed off ${h(clock(preview.handed_off_at))}</span>` : ""}<span>${h(this._previewMeta(preview))}</span></div></div></div></section>`
+      : "";
+    const modes = Object.fromEntries(VOICE_MODES);
+    const pills = { served: ["Served", "ok"], ready: ["Ready", "active"], working: ["Working", "active"], failed: ["Failed", "error"], uncertain: ["Uncertain", "warn"] };
+    const requests = (status.requests || []).map((request) => {
+      const [label, tone] = pills[request.status] || [request.status, ""];
+      const meta = request.status === "uncertain" ? "May have finished. It will not run again by itself."
+        : request.status === "failed" ? "Nothing changed on the frame."
+        : [modes[request.mode], request.style, request.cost != null ? usd(request.cost) : ""].filter(Boolean).join(" · ");
+      const what = request.transcript ? `“${request.transcript}”` : request.mode === "fixed" ? "Fixed picture" : "No transcript";
+      const inner = `<time>${h(clock(request.created))}</time><div class="row-copy"><b>${h(what)}</b><span>${h(meta)}</span></div><span class="status-pill ${tone}">${h(label)}</span>`;
+      return request.image_id ? `<button class="voice-request" data-detail="saved:${h(request.image_id)}" aria-label="Open the picture for ${h(what)}">${inner}</button>` : `<div class="voice-request">${inner}</div>`;
+    }).join("");
+    const mode = status.voice_mode ? `<p class="auto-hint">Voice button: ${h(modes[status.voice_mode] || status.voice_mode)} · <button class="link-btn" data-ai-settings>Change in AI art</button></p>` : "";
+    return `<section class="auto-section"><div class="backend-tiles">${companion}${frame}${wake}</div></section>
+      ${handoff}
+      <section class="auto-section"><h3>Voice requests</h3>${mode}<div>${requests || `<p class="auto-hint">No voice requests in the last 24 hours.</p>`}</div></section>`;
+  }
+
+  _untilLabel(iso) {
+    const minutes = Math.round((new Date(iso) - Date.now()) / 60000);
+    if (minutes < 1) return "Due now";
+    return minutes < 90 ? `In ${minutes} min` : `In ${Math.round(minutes / 60)} h`;
+  }
+
+  // The local backend owns redraws and sleep, so LAN commands are refused.
+  _lanCommands() { return (this._player?.frame ?? this._frame)?.delivery !== "backend"; }
+
+  _clockTime(iso) {
+    const date = new Date(iso);
+    const today = date.toDateString() === new Date().toDateString();
+    return date.toLocaleString(undefined, today ? { hour: "2-digit", minute: "2-digit" } : { hour: "2-digit", minute: "2-digit", day: "numeric", month: "short" });
+  }
+
+  // How far a picture that the panel has not confirmed has got.
+  _previewMeta(preview) {
+    if (!preview) return "Now showing";
+    if (preview.status === "sending") return `Sending to ${this._frame?.name || "frame"}`;
+    if (preview.status === "served") return `Served ${this._clockTime(preview.served_at)} · display unconfirmed`;
+    if (preview.status === "expired") return "Delivery expired · no longer available to the frame";
+    if (preview.status === "unavailable") return "Delivery unavailable · no longer offered to the frame";
+    if (preview.status === "waiting") return preview.next_wake ? `Waiting for next wake at ${this._clockTime(preview.next_wake)}` : "Waiting for the frame to wake";
+    return "Sent via cloud · display unconfirmed";
+  }
+
   _lastSeenMinutes(timestamp) { return Math.max(0, Math.round((Date.now() / 1000 - Number(timestamp || Date.now() / 1000)) / 60)); }
   _timeLeft(seconds) { if (seconds == null) return ""; if (seconds < 60) return "less than a minute left"; if (seconds < 3600) return `${Math.ceil(seconds / 60)} min left`; const hours = Math.floor(seconds / 3600), minutes = Math.ceil((seconds % 3600) / 60); return `${hours} h${minutes ? ` ${minutes} min` : ""} left`; }
 

@@ -46,6 +46,42 @@ function harness({ bytes = 100, deferred = false } = {}) {
 
 const mode = (request) => new URL(request.key, "http://test").searchParams.get("mode");
 
+test("player uses polled frame data for missed wakes and LAN actions", () => {
+  const { panel } = harness();
+  panel._frames = [{ id: "frame", name: "Frame", delivery: "local", missed_wake: null, last_seen: 1 }];
+  const lastSeen = Date.now() / 1000 - 600;
+  panel._player = {
+    state: "unreachable", frame: { name: "Frame", delivery: "backend", missed_wake: "2026-10-25T14:05:00Z", last_seen: lastSeen },
+    preview: { title: "Art", status: "waiting" },
+  };
+  panel._clockTime = () => "14:05";
+  let html = panel._playerTemplate();
+  expect(html).toContain("Frame missed its 14:05 wake");
+  expect(html).toContain("Last seen 10 minutes ago");
+  expect(html).toContain("data-backend-status");
+  expect(html).not.toContain('data-player-action="retry"');
+  expect(panel._lanCommands()).toBe(false);
+  panel._player.frame = { ...panel._player.frame, missed_wake: null };
+  html = panel._playerTemplate();
+  expect(html).toContain("Could not reach Frame");
+  expect(html).toContain("Last seen 10 minutes ago");
+  panel._player = null;
+  expect(panel._lanCommands()).toBe(true);
+});
+
+test("terminal handoffs explain why delivery is no longer offered", () => {
+  const { panel } = harness();
+  panel._frames = [];
+  for (const status of ["expired", "unavailable"]) {
+    panel._player = { preview: { title: "Snapshot", status } };
+    expect(panel._previewMeta(panel._player.preview)).toContain(`Delivery ${status}`);
+    const html = panel._backendBody();
+    expect(html).toContain(`Delivery ${status}`);
+    expect(html).not.toContain("Offered at");
+    expect(html).not.toContain("Waiting on the frame");
+  }
+});
+
 test("opening warms all dither modes without decoding or displaying them", async () => {
   const h = harness();
   h.panel._queueDetailPreview();

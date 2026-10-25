@@ -12,12 +12,14 @@ import io
 import time
 import wave
 from collections.abc import AsyncIterator
+from functools import partial
 from pathlib import Path
 from typing import Any
 
 from homeassistant.core import Context, HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from .ai_art import VoiceSettings
 from .ai_manager import AiArtManager, get_ai_manager
@@ -25,6 +27,7 @@ from .const import DOMAIN, viewed_size
 from .coordinator import FraimicConfigEntry
 from .library import get_library
 from .library_model import Creation
+from .render.card import result_card
 
 
 def pcm_from_wav(raw: bytes) -> bytes:
@@ -56,24 +59,6 @@ def pcm_from_wav(raw: bytes) -> bytes:
             return pcm
     except (wave.Error, EOFError) as err:
         raise ValueError("Invalid WAV") from err
-
-
-def result_card(text: str) -> bytes:
-    """A plain, legible result that stock voice can finish by redrawing."""
-    import textwrap
-    from PIL import Image, ImageDraw, ImageFont
-
-    image = Image.new("RGB", (1200, 1600), "white")
-    draw = ImageDraw.Draw(image)
-    title_font = ImageFont.load_default(size=60)
-    font = ImageFont.load_default(size=42)
-    draw.text((90, 110), "Home Assistant", fill="black", font=title_font)
-    draw.line((90, 215, 1110, 215), fill="black", width=3)
-    lines = textwrap.wrap(" ".join(text.split())[:1400], width=38)[:22]
-    draw.multiline_text((90, 280), "\n".join(lines), fill="black", font=font, spacing=16)
-    output = io.BytesIO()
-    image.save(output, format="PNG")
-    return output.getvalue()
 
 
 class VoiceJobs:
@@ -175,8 +160,13 @@ class VoiceJobs:
                     # A crash while STT, generation or an intent was running
                     # cannot prove whether the provider/action completed.
                     job["outcome"] = "uncertain"
-                    image_id = await self._save_card(ident, "The previous request may have completed. It will not be repeated automatically. Check Home Assistant before trying again.")
+                    image_id = await self._save_card(
+                        ident, "This request may already have finished. It will not run "
+                        "again by itself. Check Home Assistant before asking again.",
+                        label="NOT REPEATED",
+                    )
                 elif self._voice().mode == "fixed":
+                    job["mode"] = "fixed"
                     image_id = self._voice().image
                     library.get(image_id)
                 else:
@@ -184,7 +174,7 @@ class VoiceJobs:
                     await self._save()
                     text = await self._transcribe(pcm)
                     job["transcript"] = text
-                    mode = self._voice().mode
+                    mode = job["mode"] = self._voice().mode
                     if mode == "art":
                         job["state"] = "generating"
                         await self._save()
@@ -200,10 +190,21 @@ class VoiceJobs:
                 job["library_image"] = image_id
                 job["state"] = "rendering"
                 await self._save()
-                packed, _, _ = await library.async_render_for_entry(image_id, self.entry)
+                packed, preview, _ = await library.async_render_for_entry(image_id, self.entry)
                 await self.hass.async_add_executor_job(self._write_panel, panel, packed)
                 job["state"] = "ready"
                 await self._save()
+                backend = self.entry.runtime_data.backend
+                if backend is not None:
+                    image = library.get(image_id)
+                    if image.creation and (image.creation.metadata or {}).get("kind") == "result_card":
+                        # Player artwork is shared with non-admin HA users.
+                        width, height = self._size(job["orientation"])
+                        preview = await self.hass.async_add_executor_job(partial(
+                            result_card, "Open this voice result in the private library.",
+                            width=width, height=height, label="VOICE REQUEST",
+                        ))
+                    backend.set_preview(ident, preview, title="Voice request", source={"library_image": image_id})
                 # The companion owns the handoff, not a confirmed display.
                 # Retained older artwork must never refresh over this result.
                 controller = self.entry.runtime_data.temporary_overlays
@@ -256,10 +257,15 @@ class VoiceJobs:
             raise HomeAssistantError("Transcript too long")
         return result.text.strip()
 
-    async def _generate(self, ident: str, text: str, orientation: str) -> tuple[bytes, dict[str, Any]]:
+    def _size(self, orientation: str) -> tuple[int, int]:
+        """The frame's wall size, turned to the request's orientation."""
         width, height = viewed_size(self.entry)
         if (orientation == "portrait") != (height > width):
             width, height = height, width
+        return width, height
+
+    async def _generate(self, ident: str, text: str, orientation: str) -> tuple[bytes, dict[str, Any]]:
+        width, height = self._size(orientation)
         image, metadata = await self._manager().async_generate(
             text, width=width, height=height, task_name=f"fraimic_{ident}",
             ai_task_entity=self._voice().ai_task_entity,
@@ -277,8 +283,14 @@ class VoiceJobs:
         speech = result.response.as_dict().get("speech", {}).get("plain", {}).get("speech")
         return str(speech or "The request completed without a text response. Check Home Assistant for the result.")
 
-    async def _save_card(self, ident: str, text: str) -> str:
-        original = await self.hass.async_add_executor_job(result_card, text)
+    async def _save_card(self, ident: str, text: str, *, label: str = "YOU ASKED") -> str:
+        job = self.jobs[ident]
+        width, height = self._size(job["orientation"])
+        now = dt_util.now()
+        original = await self.hass.async_add_executor_job(partial(
+            result_card, text, width=width, height=height, question=job.get("transcript"),
+            label=label, when=f"{now:%a} {now.day} {now:%b, %H:%M}",
+        ))
         return await self._add_original(ident, original, {"kind": "result_card"})
 
     async def _add_original(self, ident: str, original: bytes, metadata: dict[str, Any]) -> str:

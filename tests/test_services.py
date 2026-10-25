@@ -7,6 +7,7 @@ import hashlib
 import sys
 import types
 from types import SimpleNamespace
+from unittest.mock import ANY
 
 import pytest
 from conftest import load
@@ -659,7 +660,7 @@ def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh,
     if backend_pull and next_wake == 1_050:
         assert result["backend_queued"] is True
         assert result["displayed"] is False
-        runtime.backend.async_deliver.assert_awaited_once_with(b"new pixels", expires_at=1_250)
+        runtime.backend.async_deliver.assert_awaited_once_with(b"new pixels", expires_at=1_250, title=ANY, preview_png=ANY, source=ANY)
         assert controller.async_accept.await_args.args[4] == controller.signature()
         client.upload_image.assert_not_awaited()
     elif overlay_refresh:
@@ -670,7 +671,7 @@ def test_temporary_briefing_reserves_delivery_time(monkeypatch, overlay_refresh,
     else:
         if backend_pull:
             assert result["backend_queued"] is True
-            runtime.backend.async_deliver.assert_awaited_once_with(b"clean art", expires_at=None)
+            runtime.backend.async_deliver.assert_awaited_once_with(b"clean art", expires_at=None, title=ANY, preview_png=ANY, source=ANY)
             client.upload_image.assert_not_awaited()
         else:
             assert result["uploaded"] is True
@@ -747,7 +748,7 @@ def test_backend_preserves_coalescing_and_low_battery_gates(
     assert result["skip_reason"] == reason
     assert result["backend_queued"] is (reason is None)
     if reason is None:
-        runtime.backend.async_deliver.assert_awaited_once_with(b"pixels", expires_at=None)
+        runtime.backend.async_deliver.assert_awaited_once_with(b"pixels", expires_at=None, title=ANY, preview_png=ANY, source=ANY)
     else:
         runtime.backend.async_deliver.assert_not_awaited()
 
@@ -796,7 +797,7 @@ def test_backend_manual_send_supersedes_automatic_render(monkeypatch):
     assert automatic["skip_reason"] == power.SKIP_COALESCED
     assert automatic["deferred"] is True
     assert manual["backend_queued"] is True
-    runtime.backend.async_deliver.assert_awaited_once_with(b"manual", expires_at=None)
+    runtime.backend.async_deliver.assert_awaited_once_with(b"manual", expires_at=None, title=ANY, preview_png=ANY, source=ANY)
 
 
 def test_active_overlay_reads_updated_data_and_uploads_only_changed_pixels(monkeypatch):
