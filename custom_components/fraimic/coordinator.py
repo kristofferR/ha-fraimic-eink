@@ -508,7 +508,6 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         from homeassistant.util import dt as dt_util
 
         annotate_frame_times(data, time.time(), dt_util.get_default_time_zone())
-        self._async_update_timezone_issue(data["device"]["utc_offset_minutes"])
         self._async_watch_cable_drain(data["battery"], time.time())
         self._async_watch_connectivity(data, time.time())
         self._async_backfill_unique_id(data)
@@ -579,39 +578,6 @@ class FraimicDataUpdateCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             await self._async_save_cache()
             self.async_update_listeners()
         return self.info_page
-
-    @callback
-    def _async_update_timezone_issue(self, offset: int | None) -> None:
-        """Explain a frame clock in another timezone; it can't be changed."""
-        if offset is None:
-            return
-        from homeassistant.helpers import issue_registry as ir
-        from homeassistant.util import dt as dt_util
-
-        issue_id = f"frame_timezone_{self.config_entry.entry_id}"
-        now = dt_util.now()
-        ha_offset = now.utcoffset() or timedelta()
-        if timedelta(minutes=offset) == ha_offset:
-            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
-            return
-        frame_tz = timezone(timedelta(minutes=offset))
-        maintenance = now.astimezone(frame_tz).replace(
-            hour=3, minute=0, second=0, microsecond=0
-        )
-        ir.async_create_issue(
-            self.hass,
-            DOMAIN,
-            issue_id,
-            is_fixable=False,
-            severity=ir.IssueSeverity.WARNING,
-            translation_key="frame_timezone",
-            translation_placeholders={
-                "frame": self.config_entry.title,
-                "frame_offset": format_utc_offset(offset),
-                "ha_offset": format_utc_offset(int(ha_offset.total_seconds() // 60)),
-                "maintenance": dt_util.as_local(maintenance).strftime("%H:%M"),
-            },
-        )
 
     @callback
     def _async_watch_connectivity(self, data: dict[str, Any], now: float) -> None:

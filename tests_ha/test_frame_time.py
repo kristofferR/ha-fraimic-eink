@@ -8,7 +8,6 @@ from unittest.mock import AsyncMock, patch
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import issue_registry as ir
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.fraimic.api import FraimicConnectionError
@@ -62,16 +61,6 @@ async def test_est_frame_times_in_an_oslo_home(
     assert queue_probe_delay(
         POWER_MODE_MINIMUM, 0, now=now, next_refresh=next_at
     ) == next_at - now + 30
-    issue = ir.async_get(hass).async_get_issue(
-        DOMAIN, f"frame_timezone_{config_entry.entry_id}"
-    )
-    assert issue is not None
-    assert issue.translation_placeholders == {
-        "frame": config_entry.title,
-        "frame_offset": "UTC-04:00",
-        "ha_offset": "UTC+02:00",
-        "maintenance": "09:00",
-    }
 
     # The offset survives a restart without a poll...
     frame_client["get_info"].side_effect = FraimicConnectionError("asleep")

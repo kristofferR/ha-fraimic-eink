@@ -75,6 +75,10 @@ PLATFORMS: list[Platform] = [
 
 async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> bool:
     """Set up Fraimic from a config entry."""
+    from homeassistant.helpers import issue_registry as ir
+
+    # Clear the retired timezone warning from existing installations.
+    ir.async_delete_issue(hass, DOMAIN, f"frame_timezone_{entry.entry_id}")
     # Domain-wide singletons (shared by every frame): the media library and the
     # HTTP API. Created by whichever entry loads first.
     domain_data = hass.data.setdefault(DOMAIN, {})

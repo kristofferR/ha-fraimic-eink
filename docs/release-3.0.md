@@ -16,7 +16,7 @@
 
 ## Clearer status and warnings
 
-- Frame times are read in the frame's own time zone. A new **Frame UTC offset** sensor shows it, and a repair explains a mismatch with Home Assistant and when the 03:00 maintenance redraw really happens.
+- Frame times are read in the frame's own time zone. A new **Frame UTC offset** sensor shows it, and maintenance refresh timestamps are converted automatically.
 - A repair warns when the frame can't reach the internet time and DNS services it needs, even on a LAN-only network. The README has a new section on isolated networks and IoT VLANs.
 - A repair warns when the frame keeps reporting a charging cable while its battery drains, which also stops it from sleeping.
 - Several sensors are renamed to match what the frame reports: **Last/Next maintenance refresh**, **Voice recording enabled** and **Auto-update preference**.

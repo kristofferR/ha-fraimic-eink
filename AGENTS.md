@@ -101,8 +101,8 @@ Hardware quirks the code accounts for:
 - `device.local_time` and `display.last/next_refresh` are frame-local time with
   no offset, in the frame's own POSIX timezone (often `EST5EDT`, not HA's).
   The coordinator derives `device.utc_offset_minutes` from synced polls and
-  adds epoch `display.*_at` fields; read those, never the strings. A
-  `frame_timezone` repair explains a mismatch (stock firmware can't fix it).
+  adds epoch `display.*_at` fields; read those, never the strings. Timezone
+  differences do not raise repair issues.
 - Stock firmware needs TCP `8.8.8.8:53` and NTP even for LAN-only use. A
   `time_unsynced` repair fires after 2 polls unsynced past 5 min uptime;
   AP switches (`wifi.bssid`/`channel` changes) are counted per 24 h.
