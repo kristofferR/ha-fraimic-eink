@@ -350,7 +350,9 @@ class BackendStatusView(HomeAssistantView):
         manager = get_ai_manager(hass)
         voice = backend.voice
         requests = []
-        jobs = sorted((voice.jobs if voice is not None else {}).items(),
+        cutoff = time.time() - 86400
+        jobs = sorted(((ident, job) for ident, job in (voice.jobs if voice is not None else {}).items()
+                       if job["created"] >= cutoff),
                       key=lambda item: item[1]["created"], reverse=True)
         for ident, job in jobs:
             if "transcript" not in job and "mode" not in job and job["state"] == "expired":

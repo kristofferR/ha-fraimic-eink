@@ -455,6 +455,16 @@ async def test_status_view_lists_voice_requests_without_tombstones(
     assert [(r["id"], r["status"], r["mode"], r["transcript"], r["style"], r["cost"])
             for r in body["requests"]] == [("c" * 32, "ready", "art", "A quiet forest", "Woodcut", 0.04)]
 
+    # History ages out even when no new request triggers voice-job cleanup.
+    cutoff_time = jobs.jobs["c" * 32]["created"] + 86400
+    with patch("custom_components.fraimic.local_backend.time.time", return_value=cutoff_time):
+        reply = await client.get(f"/api/fraimic/backend/status/{entry.entry_id}")
+        assert [r["id"] for r in (await reply.json())["requests"]] == ["c" * 32]
+    with patch("custom_components.fraimic.local_backend.time.time", return_value=cutoff_time + 1):
+        reply = await client.get(f"/api/fraimic/backend/status/{entry.entry_id}")
+        assert (await reply.json())["requests"] == []
+    assert jobs.jobs["c" * 32]["transcript"] == "A quiet forest"
+
 
 @pytest.mark.parametrize("state,expected", [
     ("expired", "expired"), ("cancelled", "unavailable"),
