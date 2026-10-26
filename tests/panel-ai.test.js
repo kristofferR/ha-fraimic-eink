@@ -36,6 +36,144 @@ function harness(patch = {}, globals = {}) {
   return { panel, ai, requests, notices };
 }
 
+function bindFields(panel, fields) {
+  panel.shadowRoot = {
+    querySelectorAll: (selector) => selector.split(", ").flatMap((part) => fields[part] ? [fields[part]] : []),
+    querySelector: (selector) => fields[selector],
+    getElementById: (id) => fields[`#${id}`],
+  };
+  for (const field of Object.values(fields)) field.addEventListener = (event, handler) => { field[event] = handler; };
+}
+
+test("service readiness follows checks and discards results for an edited key", async () => {
+  const { panel } = harness({ ready: { local: true, openrouter: true } });
+  panel._aiServiceChanged = () => {};
+  await panel._openAiSettings();
+  expect(panel._aiDraftReady("local")).toBe(true);
+  const key = { value: "invalid" };
+  bindFields(panel, { "#ai-key": key });
+  panel._bindAiSettings();
+  panel._aiTab = "openrouter";
+  const checking = Promise.withResolvers();
+  panel._api = () => checking.promise;
+  key.input();
+  expect(panel._aiDraftReady("openrouter")).toBe(false);
+  const pending = panel._checkAi();
+  key.value = "replacement";
+  key.input();
+  expect(panel._aiCheck).toBe(null);
+  checking.resolve({ ok: true });
+  await pending;
+  expect(panel._aiCheck).toBe(null);
+  expect(panel._aiDraftReady("openrouter")).toBe(false);
+  panel._api = async () => ({ ok: false, error: "Invalid key" });
+  await panel._checkAi();
+  expect(panel._aiDraftReady("openrouter")).toBe(false);
+  panel._api = async () => ({ ok: true });
+  await panel._checkAi();
+  expect(panel._aiDraftReady("openrouter")).toBe(true);
+});
+
+test("editing the server address requires detecting its API before saving it as default", async () => {
+  const { panel, requests, notices } = harness({ provider: "local", ready: { local: true } });
+  panel._aiServiceChanged = () => {};
+  await panel._openAiSettings();
+  const url = { value: "http://another-gpu" };
+  bindFields(panel, { "#ai-url": url });
+  panel._bindAiSettings();
+  panel._aiCheck = { service: "local", ok: true };
+  url.input();
+  expect(panel._aiCheck).toBe(null);
+  expect(panel._aiDraft.local_api).toBe("");
+  expect(panel._aiDraftReady("local")).toBe(false);
+  await panel._saveAiSettings();
+  expect(requests.some(({ path, options }) => path === "ai/settings" && options)).toBe(false);
+  expect(notices.at(-1)).toContain("Connect to the local server");
+});
+
+test("an empty edited prompt disables Create and prevents submitting the original request", async () => {
+  const { panel, requests } = harness();
+  panel._modal = { className: "create-dialog" };
+  panel._createState = { phase: "compose", service: "local", request: "A fox", editing: true, prompt: "A fox" };
+  const prompt = { value: "   " }, button = {};
+  bindFields(panel, { "#create-prompt": prompt, "[data-create-run]": button });
+  panel._bindCreate();
+  prompt.input();
+  expect(button.disabled).toBe(true);
+  expect(panel._createActions()).toContain('data-create-run disabled');
+  await panel._runCreate();
+  expect(requests).toEqual([]);
+  prompt.value = "An owl";
+  prompt.input();
+  expect(button.disabled).toBe(false);
+});
+
+test("a failed pipeline load can be retried from the microphone", async () => {
+  const { panel, notices } = harness({}, {
+    isSecureContext: true, AudioWorkletNode: class {},
+    navigator: { mediaDevices: { getUserMedia: async () => { throw new Error("Microphone requested"); } } },
+  });
+  let attempts = 0;
+  panel._hass = { callWS: async () => {
+    if (++attempts === 1) throw new Error("offline");
+    return { pipelines: [{ id: "speech", stt_engine: "stt.whisper" }] };
+  } };
+  panel._modal = { className: "create-dialog" };
+  panel._createState = { phase: "compose", request: "" };
+  panel._refreshCreate = () => {};
+  await panel._startDictation();
+  expect(notices.at(-1)).toContain("Could not load Assist pipelines");
+  await panel._startDictation();
+  expect(attempts).toBe(2);
+  expect(notices.at(-1)).toBe("Microphone requested");
+});
+
+test("dictation resumes a suspended audio context before connecting the recorder", async () => {
+  const resumed = Promise.withResolvers(), resuming = Promise.withResolvers();
+  let connected = false;
+  const { panel } = harness({}, {
+    navigator: { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } },
+    AudioContext: class {
+      state = "suspended";
+      audioWorklet = { addModule: async () => {} };
+      resume() { resuming.resolve(); return resumed.promise; }
+      createMediaStreamSource() { return { connect: () => { connected = true; } }; }
+      close() { return Promise.resolve(); }
+    },
+    AudioWorkletNode: class { port = {}; }, Blob,
+  });
+  Object.assign(panel, {
+    _createState: { phase: "compose", request: "" }, _modal: { className: "create-dialog" },
+    _pipelines: { list: [{ id: "speech" }] }, _dictationProblem: () => "", _refreshCreate: () => {},
+    _hass: { connection: { subscribeMessage: async () => () => {} } },
+  });
+  const start = panel._startDictation();
+  await resuming.promise;
+  expect(connected).toBe(false);
+  resumed.resolve();
+  await start;
+  expect(connected).toBe(true);
+  panel._cancelDictation();
+});
+
+test.each([2, 3])("a disconnected socket ends dictation and releases the microphone: %s", (readyState) => {
+  const { panel, notices } = harness();
+  let stopped = false, unsubscribed = false;
+  const state = { dictation: "listening" };
+  const run = { state, handler: 7, stream: { getTracks: () => [{ stop: () => { stopped = true; } }] }, unsubscribe: () => { unsubscribed = true; } };
+  Object.assign(panel, {
+    _createState: state, _dictationRun: run, _refreshCreate: () => {},
+    _hass: { connection: { socket: { readyState } } },
+  });
+  panel._stopDictation();
+  expect(stopped).toBe(true);
+  expect(unsubscribed).toBe(true);
+  expect(panel._dictationRun).toBe(null);
+  expect(state.dictation).toBe(null);
+  expect(run.timer).toBeUndefined();
+  expect(notices.at(-1)).toContain("Connection to Home Assistant lost");
+});
+
 test("fixed-picture and Assist voice settings save without an image provider or other frames configured", async () => {
   for (const mode of ["fixed", "assist"]) {
     const { panel, requests, notices } = harness();

@@ -608,7 +608,7 @@ async def test_fraimic_voice_mode_forwards_once_and_never_repeats(
         assert reply.headers["X-Fraimic-Forward"] == "fraimic"
         assert overlays.base is None
         await overlays._async_tick()
-        push.assert_not_awaited()
+        push.assert_not_called()
         status = await (await hass_client()).get(f"/api/fraimic/backend/status/{entry.entry_id}")
         assert [(r["status"], r["mode"]) for r in (await status.json())["requests"]] == [("forwarded", "fraimic")]
         # A repeat after a companion restart gets the "may have finished" card.

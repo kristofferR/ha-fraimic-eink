@@ -2647,8 +2647,11 @@ class FraimicPanel extends HTMLElement {
   // Whether a service in the settings draft can make pictures.
   _aiDraftReady(service) {
     const draft = this._aiDraft;
-    if (service === "openrouter") return Boolean(draft.openrouter_key || this._ai.openrouter.has_key);
-    if (service === "local") return Boolean(draft.local_url && draft.local_api);
+    if (service === "openrouter" || service === "local") {
+      if (this._aiCheck?.service === service) return Boolean(this._aiCheck.ok);
+      const unchanged = service === "openrouter" ? !draft.openrouter_key : draft.local_url === this._ai.local.url && draft.local_api === this._ai.local.api;
+      return unchanged && Boolean(this._ai.ready[service]);
+    }
     if (service === "ai_task") return this._ai.choices.image_entities.some((entity) => entity.id === draft.ai_task_entity);
     return false;
   }
@@ -2736,6 +2739,7 @@ class FraimicPanel extends HTMLElement {
 
   _aiDictationSettings() {
     const pipelines = this._pipelines?.list;
+    if (this._pipelinesError) return `<p class="auto-hint">${h(this._pipelinesError)}</p>`;
     if (!pipelines) return `<p class="auto-hint">Loading Assist pipelines…</p>`;
     if (!pipelines.length) return `<p class="auto-hint">To dictate in Create, add speech to text to an Assist pipeline under Settings › Voice assistants.</p>`;
     const wanted = this._aiDraft.dictation_pipeline;
@@ -2808,12 +2812,14 @@ class FraimicPanel extends HTMLElement {
     const patch = { provider: service };
     if (service === "openrouter" && draft.openrouter_key) patch.openrouter_key = draft.openrouter_key;
     if (service === "local") patch.local_url = draft.local_url;
-    this._aiCheck = { pending: true, service };
+    const key = draft.openrouter_key;
+    const check = { pending: true, service };
+    this._aiCheck = check;
     this._refreshAiSettings();
     let result;
     try { result = await this._api("ai/check", this._json(patch)); } catch (error) { result = { ok: false, error: error.message }; }
-    if (this._aiDraft !== draft || (service === "local" && draft.local_url !== patch.local_url)) return;
-    if (this._aiCheck?.service === service) this._aiCheck = { ...result, service };
+    if (this._aiDraft !== draft || this._aiCheck !== check || (service === "local" && draft.local_url !== patch.local_url) || (service === "openrouter" && draft.openrouter_key !== key)) return;
+    this._aiCheck = { ...result, service };
     if (service === "local") {
       draft.local_api = result.ok ? result.api : draft.local_url === this._ai.local.url ? this._ai.local.api : "";
       const models = result.models || [];
@@ -2831,8 +2837,8 @@ class FraimicPanel extends HTMLElement {
     on("[data-ai-tab]", "click", (node) => { this._aiTab = node.dataset.aiTab; this._aiCheck = null; this._refreshAiSettings(); this._aiServiceChanged(); });
     on("#ai-default", "change", (node) => { draft.provider = node.value; });
     on("#ai-dictation", "change", (node) => { draft.dictation_pipeline = node.value; this._refreshAiSettings(); });
-    on("#ai-key", "input", (node) => { draft.openrouter_key = node.value.trim(); });
-    on("#ai-url", "input", (node) => { draft.local_url = node.value.trim(); });
+    on("#ai-key", "input", (node) => { draft.openrouter_key = node.value.trim(); this._aiCheck = null; this._refreshAiSettings(); });
+    on("#ai-url", "input", (node) => { draft.local_url = node.value.trim(); draft.local_api = ""; this._aiCheck = null; this._refreshAiSettings(); });
     on("#ai-key, #ai-url", "keydown", (_node, event) => { if (event.key === "Enter") { event.preventDefault(); this._checkAi(); } });
     on("[data-ai-check]", "click", () => this._checkAi());
     on("#ai-local-model", "change", (node) => { draft.local_model = node.value; });
@@ -3070,7 +3076,7 @@ class FraimicPanel extends HTMLElement {
     }
     if (!state.service) return `<span class="spacer"></span><button class="btn primary" data-create-setup=""><ha-icon icon="mdi:cog-outline"></ha-icon>Set up AI art</button>`;
     const label = `${AI_SHORT_NAMES[state.service]} · ${this._createModelName(state.service, state.model)}`;
-    const ready = !state.dictation && (state.request.trim() || (state.editing && state.prompt?.trim()));
+    const ready = !state.dictation && (state.editing ? state.prompt?.trim() : state.request.trim());
     return `<div class="create-service-wrap"><button class="btn quiet create-service" data-create-menu="${state.menu ? "" : "service"}" aria-haspopup="menu" aria-expanded="${Boolean(state.menu)}" title="Image service and model"><span>${h(label)}</span><ha-icon icon="mdi:chevron-down"></ha-icon></button>${state.menu ? this._createMenuTemplate() : ""}</div>
       <span class="counter">${h(this._createPrice(state.service, state.model))}</span><span class="spacer"></span><button class="btn primary" data-create-run ${ready ? "" : "disabled"}><ha-icon icon="mdi:creation"></ha-icon>Create</button>`;
   }
@@ -3101,7 +3107,7 @@ class FraimicPanel extends HTMLElement {
     const state = this._createState;
     if (state.phase !== "compose" || state.dictation) return;
     if (!state.service) return this._openAiSettings({ returnToCreate: true });
-    if (!state.request.trim() && !(state.editing && state.prompt?.trim())) return;
+    if (!(state.editing ? state.prompt?.trim() : state.request.trim())) return;
     state.phase = "working";
     state.error = null;
     state.menu = null;
@@ -3173,7 +3179,7 @@ class FraimicPanel extends HTMLElement {
     const on = (selector, event, handler) => root.querySelectorAll(selector).forEach((node) => node.addEventListener(event, (domEvent) => handler(node, domEvent)));
     const syncReady = () => {
       const button = root.querySelector("[data-create-run]");
-      if (button) button.disabled = Boolean(state.dictation) || !(state.request.trim() || (state.editing && state.prompt?.trim()));
+      if (button) button.disabled = Boolean(state.dictation) || !(state.editing ? state.prompt?.trim() : state.request.trim());
     };
     on("#create-request", "input", (node) => {
       state.request = node.value;
@@ -3226,8 +3232,10 @@ class FraimicPanel extends HTMLElement {
     try {
       const data = await this._hass.callWS({ type: "assist_pipeline/pipeline/list" });
       this._pipelines = { list: (data.pipelines || []).filter((pipeline) => pipeline.stt_engine), preferred: data.preferred_pipeline };
+      this._pipelinesError = "";
     } catch (_error) {
-      this._pipelines = { list: [], preferred: null };
+      this._pipelines = null;
+      this._pipelinesError = "Could not load Assist pipelines. Tap the microphone to try again.";
     }
     this._refreshCreate();
     this._refreshAiSettings();
@@ -3241,6 +3249,7 @@ class FraimicPanel extends HTMLElement {
 
   _dictationProblem() {
     if (!globalThis.isSecureContext || !globalThis.navigator?.mediaDevices?.getUserMedia || !globalThis.AudioWorkletNode) return "Dictation needs HTTPS or the Home Assistant app. Your keyboard's microphone still works.";
+    if (this._pipelinesError) return this._pipelinesError;
     if (this._pipelines && !this._dictationPipeline()) return "To dictate here, add speech to text to an Assist pipeline under Settings › Voice assistants.";
     return "";
   }
@@ -3262,6 +3271,8 @@ class FraimicPanel extends HTMLElement {
       run.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       if (this._dictationRun !== run) return this._releaseDictation(run);
       run.context = new AudioContext();
+      if (run.context.state === "suspended") await run.context.resume();
+      if (this._dictationRun !== run) return this._releaseDictation(run);
       const url = URL.createObjectURL(new Blob([RECORDER_WORKLET], { type: "text/javascript" }));
       try { await run.context.audioWorklet.addModule(url); } finally { URL.revokeObjectURL(url); }
       if (this._dictationRun !== run) return this._releaseDictation(run);
@@ -3291,7 +3302,7 @@ class FraimicPanel extends HTMLElement {
   // Binary frames start with the pipeline's handler id; an empty one ends the audio.
   _sendDictation(run, chunk = null) {
     const socket = this._hass.connection.socket;
-    if (socket?.readyState !== 1) return; // WebSocket.OPEN
+    if (socket?.readyState !== 1) return this._endDictation(run, "Connection to Home Assistant lost. Try dictating again."); // WebSocket.OPEN
     socket.binaryType = "arraybuffer";
     const data = new Uint8Array(1 + (chunk?.byteLength || 0));
     data[0] = run.handler;
@@ -3304,7 +3315,10 @@ class FraimicPanel extends HTMLElement {
     if (event.type === "run-start") {
       run.handler = event.data?.runner_data?.stt_binary_handler_id ?? null;
       if (run.handler === null) return this._endDictation(run, "This Assist pipeline does not take audio.");
-      for (const chunk of run.buffer.splice(0)) this._sendDictation(run, chunk);
+      for (const chunk of run.buffer.splice(0)) {
+        this._sendDictation(run, chunk);
+        if (this._dictationRun !== run) return;
+      }
       if (run.stopped) this._sendDictation(run);
     } else if (event.type === "stt-vad-end") {
       this._stopDictation();
@@ -3347,6 +3361,7 @@ class FraimicPanel extends HTMLElement {
     this._releaseDictation(run);
     if (!run.unsubscribe) return this._endDictation(run);
     if (run.handler !== null) this._sendDictation(run);
+    if (this._dictationRun !== run) return;
     run.state.dictation = "writing";
     run.timer = setTimeout(() => this._endDictation(run, "Speech to text took too long. Try again."), 30000);
     this._refreshCreate();
