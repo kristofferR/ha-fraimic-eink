@@ -2918,8 +2918,8 @@ class FraimicPanel extends HTMLElement {
     this._createState = {
       request: keep ? previous.request : "",
       style: keep && ai.styles.some((style) => style.id === previous.style) ? previous.style : ai.style,
-      prompt: null,
-      editing: false,
+      prompt: keep ? previous.prompt : null,
+      editing: keep ? previous.editing : false,
       service,
       model: this._createSavedModel(service),
       entryId: this._selectedFrameId,

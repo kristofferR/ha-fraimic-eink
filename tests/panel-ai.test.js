@@ -371,6 +371,28 @@ test("Create opens to the prompt before setup, and setup returns to it with the 
   expect(panel._createState.request).toBe("A fox");
 });
 
+test("returning from settings preserves and submits the edited prompt", async () => {
+  const { panel, requests } = harness({ provider: "local", configured: true, ready: { local: true } });
+  Object.assign(panel, { _loadSources: async () => {}, _loadCreatePreview: () => {} });
+  await panel._openCreate();
+  panel._createState.request = "A fox";
+  const edit = {}, prompt = { value: "An owl in moonlight", focus: () => {} };
+  bindFields(panel, { "[data-create-edit]": edit, "#create-prompt": prompt });
+  panel._bindCreate();
+  edit.click();
+  prompt.input();
+
+  await panel._openAiSettings({ returnToCreate: true });
+  await panel._modal.onClose();
+  expect(panel._createState.editing).toBe(true);
+  expect(panel._createState.prompt).toBe("An owl in moonlight");
+  expect(panel._modal.body).toContain('id="create-prompt"');
+  await panel._runCreate();
+  const body = JSON.parse(requests.find((request) => request.path === "ai/create").options.body);
+  expect(body.request).toBe("A fox");
+  expect(body.prompt).toBe("An owl in moonlight");
+});
+
 test("settings edit any service while the default stays separate", async () => {
   const { panel, requests } = harness({ provider: "local", configured: true, ready: { local: true } });
   await panel._openAiSettings();
