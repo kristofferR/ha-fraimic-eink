@@ -130,6 +130,9 @@ class VoiceJobs:
                 if job["state"] == "expired":
                     raise HomeAssistantError("Voice job expired")
                 if job["state"] == "accepted" and self._voice().mode == "fraimic":
+                    controller = self.entry.runtime_data.temporary_overlays
+                    if controller is not None:
+                        await controller.async_invalidate()
                     # Recorded first: a repeat of this job gets the "may have
                     # finished" card instead of a second Fraimic request.
                     job.update(state="forwarded", mode="fraimic")

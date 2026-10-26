@@ -5,13 +5,14 @@ import { runInNewContext } from "node:vm";
 const source = readFileSync(new URL("../custom_components/fraimic/frontend/fraimic-panel.js", import.meta.url), "utf8");
 const voice = (entryId, patch = {}) => ({ entry_id: entryId, name: entryId, available: true, mode: "fixed", image: "", stt: "", language: "", agent: "homeassistant", ai_task_entity: "", ...patch });
 
-function harness(patch = {}) {
+function harness(patch = {}, globals = {}) {
   let Panel;
   const stored = new Map();
   runInNewContext(source, {
     HTMLElement: class {}, customElements: { define: (_name, cls) => { Panel = cls; } },
     structuredClone, URLSearchParams, queueMicrotask, URL, setTimeout, clearTimeout,
     localStorage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, String(value)) },
+    ...globals,
   });
   const ai = {
     provider: "", configured: false, ready: {}, openrouter: { has_key: false, model: "model" },
@@ -199,6 +200,53 @@ test("Create remembers this browser's service and model, and falls back when it 
   ai.ready.local = false;
   await panel._openCreate();
   expect(panel._createState.service).toBe("openrouter");
+});
+
+test.each(["closed", "settings", "replaced", "generating"])("dictation skips a pending start when Create changes: %s", async (change) => {
+  const { panel, notices } = harness();
+  const loading = Promise.withResolvers();
+  Object.assign(panel, {
+    _createState: { phase: "compose", request: "A fox" },
+    _modal: { className: "create-dialog" },
+    _loadPipelines: () => loading.promise,
+    _dictationProblem: () => "Microphone requested",
+  });
+  const start = panel._startDictation();
+  if (change === "closed") panel._modal = null;
+  else if (change === "settings") panel._modal = { className: "ai-dialog" };
+  else if (change === "replaced") panel._createState = { phase: "compose", request: "" };
+  else panel._createState.phase = "generating";
+  loading.resolve();
+  await start;
+  expect(notices).toEqual([]);
+  expect(panel._dictationRun).toBeUndefined();
+});
+
+test("concurrent dictation starts during pipeline loading request the microphone once", async () => {
+  const microphone = Promise.withResolvers();
+  let requests = 0;
+  const { panel } = harness({}, {
+    navigator: { mediaDevices: { getUserMedia: () => { requests++; return microphone.promise; } } },
+  });
+  const loading = Promise.withResolvers();
+  Object.assign(panel, {
+    _createState: { phase: "compose", request: "A fox" },
+    _modal: { className: "create-dialog" },
+    _loadPipelines: () => loading.promise,
+    _dictationProblem: () => "",
+    _refreshCreate: () => {},
+  });
+  const first = panel._startDictation();
+  const second = panel._startDictation();
+  loading.resolve();
+  await second;
+  expect(requests).toBe(1);
+  let stops = 0;
+  panel._cancelDictation();
+  microphone.resolve({ getTracks: () => [{ stop: () => { stops++; } }] });
+  await first;
+  expect(stops).toBe(1);
+  expect(panel._dictationRun).toBe(null);
 });
 
 test("dictation sends buffered audio after run-start and inserts the words at the cursor", () => {

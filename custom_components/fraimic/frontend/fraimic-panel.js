@@ -3249,6 +3249,7 @@ class FraimicPanel extends HTMLElement {
     const state = this._createState;
     if (this._dictationRun || state?.phase !== "compose") return;
     if (!this._pipelines) await this._loadPipelines();
+    if (this._dictationRun || this._createState !== state || state.phase !== "compose" || !this._modal?.className?.includes("create-dialog")) return;
     const problem = this._dictationProblem();
     if (problem) return this._notify(problem, { error: true });
     const field = this.shadowRoot.getElementById("create-request");
