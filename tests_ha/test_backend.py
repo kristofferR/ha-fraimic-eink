@@ -17,7 +17,8 @@ from homeassistant.util import dt as dt_util
 from PIL import Image
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.fraimic.backend_voice import VoiceJobs, pcm_from_wav
+from custom_components.fraimic.ai_art import VoiceSettings
+from custom_components.fraimic.backend_voice import ForwardToFraimic, VoiceJobs, pcm_from_wav
 from custom_components.fraimic.backend_errors import BackendUnavailable
 from custom_components.fraimic.const import CONF_DELIVERY_MODE, DELIVERY_BACKEND
 from custom_components.fraimic.diagnostics import async_get_config_entry_diagnostics
@@ -566,3 +567,53 @@ async def test_voice_card_preview_keeps_request_private(
     original = await hass.async_add_executor_job(library.original_path(image).read_bytes)
     assert original != backend.preview_png
     assert (await library.async_render_for_entry(image.image_id, entry))[0] == packed
+
+
+async def test_fraimic_voice_mode_keeps_job_retryable_if_overlay_invalidation_fails(
+    backend_entry: Any,
+) -> None:
+    entry, _ = backend_entry
+    jobs = entry.runtime_data.backend.voice
+    ident, audio = "f" * 32, audio_fixture()
+    with (
+        patch.object(VoiceJobs, "_voice", return_value=VoiceSettings(mode="fraimic")),
+        patch.object(entry.runtime_data.temporary_overlays, "async_invalidate",
+                     side_effect=[HomeAssistantError("Storage unavailable"), None]) as invalidate,
+    ):
+        with pytest.raises(HomeAssistantError, match="Storage unavailable"):
+            await jobs.async_process(ident, audio, "portrait")
+        assert jobs.jobs[ident]["state"] == "accepted"
+        with pytest.raises(ForwardToFraimic):
+            await jobs.async_process(ident, audio, "portrait")
+        assert jobs.jobs[ident]["state"] == "forwarded"
+        assert invalidate.await_count == 2
+
+
+async def test_fraimic_voice_mode_forwards_once_and_never_repeats(
+    backend_entry: Any, hass_client_no_auth: Any, hass_client: Any,
+) -> None:
+    entry, _ = backend_entry
+    overlays = entry.runtime_data.temporary_overlays
+    overlays.base, overlays.dirty = (b"\x11" * 960_000, None, "none"), True
+    bridge = await hass_client_no_auth()
+    headers = {"Authorization": f"Bearer {entry.options[CONF_BACKEND_TOKEN]}",
+               "X-Fraimic-Job": "a" * 32, "X-Fraimic-Orientation": "portrait"}
+    with (
+        patch.object(VoiceJobs, "_voice", return_value=VoiceSettings(mode="fraimic")),
+        patch.object(VoiceJobs, "_transcribe", new_callable=AsyncMock) as transcribe,
+        patch.object(entry.runtime_data.client, "upload_image", new_callable=AsyncMock) as push,
+    ):
+        reply = await bridge.post("/api/fraimic/backend/voice", headers=headers, data=audio_fixture())
+        assert reply.status == 202
+        assert reply.headers["X-Fraimic-Forward"] == "fraimic"
+        assert overlays.base is None
+        await overlays._async_tick()
+        push.assert_not_called()
+        status = await (await hass_client()).get(f"/api/fraimic/backend/status/{entry.entry_id}")
+        assert [(r["status"], r["mode"]) for r in (await status.json())["requests"]] == [("forwarded", "fraimic")]
+        # A repeat after a companion restart gets the "may have finished" card.
+        reply = await bridge.post("/api/fraimic/backend/voice", headers=headers, data=audio_fixture())
+        assert reply.status == 200
+        assert len(await reply.read()) == 960_000
+        transcribe.assert_not_awaited()
+    assert entry.runtime_data.backend.voice.jobs["a" * 32]["outcome"] == "uncertain"

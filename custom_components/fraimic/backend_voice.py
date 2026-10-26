@@ -61,6 +61,10 @@ def pcm_from_wav(raw: bytes) -> bytes:
         raise ValueError("Invalid WAV") from err
 
 
+class ForwardToFraimic(Exception):
+    """The voice mode asks the companion to send this recording to Fraimic."""
+
+
 class VoiceJobs:
     def __init__(self, hass: HomeAssistant, entry: FraimicConfigEntry) -> None:
         self.hass, self.entry = hass, entry
@@ -125,6 +129,15 @@ class VoiceJobs:
                     await self._save()
                 if job["state"] == "expired":
                     raise HomeAssistantError("Voice job expired")
+                if job["state"] == "accepted" and self._voice().mode == "fraimic":
+                    controller = self.entry.runtime_data.temporary_overlays
+                    if controller is not None:
+                        await controller.async_invalidate()
+                    # Recorded first: a repeat of this job gets the "may have
+                    # finished" card instead of a second Fraimic request.
+                    job.update(state="forwarded", mode="fraimic")
+                    await self._save()
+                    raise ForwardToFraimic
                 task = self.entry.async_create_background_task(
                     self.hass, self._run(ident, pcm), f"fraimic-voice-{ident}"
                 )

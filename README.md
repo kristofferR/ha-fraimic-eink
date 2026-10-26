@@ -104,11 +104,15 @@ account.
 
 ### AI art
 
-**Create** in the top bar turns a description into a picture shaped for the
-selected frame, saves it in the **Creations** folder, and can show it right away.
-Set it up once for every frame under **⋮ > AI art**:
+**Create** in the top bar opens a box to describe a picture. Type, or tap the mic
+to dictate with your phone or computer. The picture is shaped for the selected
+frame, saved in the **Creations** folder, and can be shown right away. The menu
+next to the Create button switches image service and model; that choice is kept in
+this browser, and the default in settings stays as it is.
 
-- **Image service.** Pick one:
+Set it up once for every frame under **⋮ > AI art**, or with the gear in Create:
+
+- **Image services.** Set up any of them, then choose the default:
   - **OpenRouter:** paste an [API key](https://openrouter.ai/keys) and pick a
     model. Prices are shown per picture, from under $0.01. Each picture keeps
     its real cost, and the dialog shows this month's total.
@@ -117,14 +121,19 @@ Set it up once for every frame under **⋮ > AI art**:
     (AUTOMATIC1111, Forge, SD.Next, Draw Things) and lists its models.
   - **Home Assistant AI Task:** any entity that can generate images, such as
     OpenAI. These make square pictures and don't report cost.
-- **Prompt.** Styles are prompt templates around your words, with `{prompt}`
+- **Styles.** Styles are prompt templates around your words, with `{prompt}`
   marking where they go. Edit the built-in ones (E-ink poster is the default),
-  reset them, or add your own. An optional **Rewrite first** step lets an AI Task
-  text entity turn short or non-English requests into a detailed English prompt.
-  In **Create**, choose **Edit** to send a prompt exactly as written.
-- **Voice button.** Frames using local backend delivery can make art from speech:
-  Home Assistant transcribes it, then the same service, style and Creations
-  folder are used.
+  reset them, or add your own. In **Create**, choose **Edit** to send a prompt
+  exactly as written.
+- **Rewrite.** An optional AI Task text entity turns short or non-English requests
+  into a detailed English prompt.
+- **Speech.** The mic in Create uses the speech to text of your preferred Assist
+  pipeline, or another one you pick. Browsers allow the microphone only over HTTPS
+  and in the Home Assistant app. Frames using local backend delivery can also make
+  art from their voice button: Home Assistant transcribes it, then the default
+  service, style and Creations folder are used. Or choose **Use Fraimic's AI** to
+  send just the recording to Fraimic's own voice art; the frame still never polls
+  Fraimic, so it is never offered firmware.
 
 The `fraimic.create_art` action does the same from automations, for example a new
 picture every morning.

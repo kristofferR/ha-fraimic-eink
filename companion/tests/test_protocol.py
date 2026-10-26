@@ -470,3 +470,55 @@ async def test_abandoned_ready_voice_releases_window_but_late_fetch_waits(servic
     assert (await client.post("/bridge/delivery", headers={**AUTH, "X-Fraimic-Job": "e" * 32}, data=PANEL)).status == 200
     assert (await (await client.get("/api/v1/upload/check/" + DEVICE.device_key)).json())["has_new_upload"] is True
     assert (await client.get(path)).status == 409
+
+
+async def test_fraimic_voice_mode_forwards_only_the_recording(tmp_path):
+    vendor_calls = []
+
+    async def ha_voice(request):
+        await request.read()
+        return web.Response(status=202, headers={"X-Fraimic-Forward": "fraimic"})
+
+    async def vendor(request):
+        vendor_calls.append((request.method, request.path))
+        if request.path == "/api/v1/upload/audio/presign":
+            assert await request.json() == IDENTITY
+            return web.json_response({"success": True, "url": str(request.url.with_path("/s3")),
+                                      "fields": {"key": "audio/x.wav", "policy": "signed"}, "key": "audio/x.wav"})
+        if request.path == "/s3":
+            form = await request.post()
+            assert form["policy"] == "signed" and form["file"].file.read() == wav()
+            return web.Response(status=204)
+        if request.path == "/api/v1/upload/audio/finalize":
+            assert await request.json() == {**IDENTITY, "key": "audio/x.wav", "orientation": "landscape"}
+            # Nothing from a vendor reply, firmware included, may reach the frame.
+            return web.json_response({"success": True, "presigned_url": str(request.url.with_path("/panel.bin")),
+                                      "firmware": {"version": "9.9.9", "presigned_url": "https://fw.example/x.bin"}})
+        if request.path == "/panel.bin":
+            return web.Response(body=PANEL)
+        return web.Response(status=404)
+
+    ha = web.Application(client_max_size=MAX_AUDIO)
+    ha.router.add_post("/api/fraimic/backend/voice", ha_voice)
+    fraimic = web.Application()
+    fraimic.router.add_route("*", "/{tail:.*}", vendor)
+    async with TestServer(ha) as ha_server, TestServer(fraimic) as vendor_server:
+        device = replace(DEVICE, ha_url=str(ha_server.make_url("/")))
+        backend = Backend([device], "https://frame.example", tmp_path / "state.sqlite3",
+                          vendor_url=str(vendor_server.make_url("/")))
+        poll_path = f"/api/v1/upload/check/{DEVICE.device_key}?current_version=0.0.1"
+        async with TestClient(TestServer(create_app(backend))) as frame:
+            assert (await (await frame.get(poll_path)).json())["firmware"] is None
+            signed = await presign(frame)
+            assert (await upload(frame, signed)).status == 200
+            reply = await finalize(frame, signed)
+            assert reply.status == 200
+            body = await reply.json()
+            assert set(body) == {"status", "presigned_url"}
+            assert body["presigned_url"].startswith("https://frame.example/panel/")
+            assert await (await frame.get("/panel/" + body["presigned_url"].rsplit("/", 1)[-1])).read() == PANEL
+            assert (await (await frame.get(poll_path)).json())["firmware"] is None
+    assert vendor_calls == [
+        ("POST", "/api/v1/upload/audio/presign"), ("POST", "/s3"),
+        ("POST", "/api/v1/upload/audio/finalize"), ("GET", "/panel.bin"),
+    ]

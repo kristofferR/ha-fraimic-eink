@@ -161,6 +161,36 @@ async def test_create_saves_a_frame_shaped_creation_with_its_cost(
     assert (await reply.json())["prompt"] == "Exactly this."
 
 
+async def test_create_can_use_another_ready_service_once(
+    hass: HomeAssistant,
+    loaded_entry: MockConfigEntry,
+    hass_client: Any,
+    openrouter: AsyncMock,
+) -> None:
+    await _manager(hass).async_update({"provider": "openrouter", "openrouter_key": KEY})
+    client = await hass_client()
+    body = {"entry_id": loaded_entry.entry_id, "request": "a fox", "provider": "local"}
+    reply = await client.post("/api/fraimic/ai/create", json=body)
+    assert reply.status == 409
+    assert "not set up" in (await reply.json())["message"]
+
+    reply = await client.post(
+        "/api/fraimic/ai/settings",
+        json={"local_url": "http://gpu.local:7860", "local_api": "sdwebui"},
+    )
+    assert (await reply.json())["ready"] == {"openrouter": True, "local": True, "ai_task": False}
+    local = AsyncMock(return_value=GeneratedImage(_jpeg(), "image/jpeg", "sdxl"))
+    with patch("custom_components.fraimic.ai_manager.local_generate", local):
+        reply = await client.post("/api/fraimic/ai/create", json={**body, "model": "sdxl"})
+    assert reply.status == 200
+    assert (await reply.json())["provider"] == "local"
+    assert local.await_args is not None
+    _session, url, api, model, *_ = local.await_args.args
+    assert (url, api, model) == ("http://gpu.local:7860", "sdwebui", "sdxl")
+    openrouter.assert_not_awaited()
+    assert _manager(hass).settings.provider == "openrouter"
+
+
 async def test_create_art_service_saves_and_shows(
     hass: HomeAssistant, loaded_entry: MockConfigEntry, openrouter: AsyncMock
 ) -> None:
