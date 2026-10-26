@@ -128,6 +128,28 @@ test("a failed pipeline load can be retried from the microphone", async () => {
   expect(notices.at(-1)).toBe("Microphone requested");
 });
 
+test("opening Create and starting dictation share the pending pipeline load", async () => {
+  const loading = Promise.withResolvers();
+  let loads = 0;
+  const { panel, notices } = harness({}, {
+    isSecureContext: true, AudioWorkletNode: class {},
+    navigator: { mediaDevices: { getUserMedia: async () => { throw new Error("Microphone requested"); } } },
+  });
+  Object.assign(panel, {
+    _hass: { callWS: () => { loads++; return loading.promise; } },
+    _modal: { className: "create-dialog" }, _createState: { phase: "compose", request: "" },
+    _refreshCreate: () => {},
+  });
+  const background = panel._loadPipelines();
+  const start = panel._startDictation();
+  expect(loads).toBe(1);
+  loading.resolve({ pipelines: [{ id: "speech", stt_engine: "stt.whisper" }] });
+  await Promise.all([background, start]);
+  expect(panel._dictationPipeline().id).toBe("speech");
+  expect(panel._pipelinesError).toBe("");
+  expect(notices).toEqual(["Microphone requested"]);
+});
+
 test("dictation resumes a suspended audio context before connecting the recorder", async () => {
   const resumed = Promise.withResolvers(), resuming = Promise.withResolvers();
   let connected = false;
@@ -154,6 +176,48 @@ test("dictation resumes a suspended audio context before connecting the recorder
   await start;
   expect(connected).toBe(true);
   panel._cancelDictation();
+});
+
+test.each([true, false])("stopping with a pending subscription delivers captured audio (handler ready: %s)", async (handlerReady) => {
+  const subscribing = Promise.withResolvers(), subscription = Promise.withResolvers();
+  const sent = [];
+  let stopped = false, closed = false, unsubscribed = false;
+  const { panel } = harness({}, {
+    navigator: { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [{ stop: () => { stopped = true; } }] }) } },
+    AudioContext: class {
+      sampleRate = 48000;
+      audioWorklet = { addModule: async () => {} };
+      createMediaStreamSource() { return { connect: () => {} }; }
+      close() { closed = true; return Promise.resolve(); }
+    },
+    AudioWorkletNode: class { port = {}; }, Blob,
+  });
+  Object.assign(panel, {
+    _createState: { phase: "compose", request: "" }, _modal: { className: "create-dialog" },
+    _pipelines: { list: [{ id: "speech" }] }, _dictationProblem: () => "", _refreshCreate: () => {},
+    _hass: { connection: {
+      subscribeMessage: () => { subscribing.resolve(); return subscription.promise; },
+      socket: { readyState: 1, send: (data) => sent.push([...data]) },
+    } },
+  });
+  const start = panel._startDictation();
+  await subscribing.promise;
+  const run = panel._dictationRun;
+  panel._dictationAudio(run, new Int16Array([1, -2]));
+  const ready = () => panel._dictationEvent(run, { type: "run-start", data: { runner_data: { stt_binary_handler_id: 7 } } });
+  if (handlerReady) ready();
+  panel._stopDictation();
+  expect(stopped && closed).toBe(true);
+  expect(panel._dictationRun).toBe(run);
+  expect(run.state.dictation).toBe("writing");
+  subscription.resolve(() => { unsubscribed = true; });
+  await start;
+  if (!handlerReady) ready();
+  expect(sent).toEqual([[7, 1, 0, 254, 255], [7]]);
+  panel._dictationEvent(run, { type: "stt-end", data: { stt_output: { text: "A fox" } } });
+  expect(panel._createState.request).toBe("A fox");
+  expect(panel._dictationRun).toBe(null);
+  expect(unsubscribed).toBe(true);
 });
 
 test.each([2, 3])("a disconnected socket ends dictation and releases the microphone: %s", (readyState) => {
@@ -380,7 +444,9 @@ test("concurrent dictation starts during pipeline loading request the microphone
   await second;
   expect(requests).toBe(1);
   let stops = 0;
-  panel._cancelDictation();
+  panel._stopDictation();
+  expect(panel._dictationRun).toBe(null);
+  expect(panel._createState.dictation).toBe(null);
   microphone.resolve({ getTracks: () => [{ stop: () => { stops++; } }] });
   await first;
   expect(stops).toBe(1);

@@ -3229,13 +3229,21 @@ class FraimicPanel extends HTMLElement {
   // speech to text, the same way Home Assistant's own voice dialog does.
 
   async _loadPipelines() {
+    if (this._pipelinesLoading) return this._pipelinesLoading;
+    this._pipelinesLoading = (async () => {
+      try {
+        const data = await this._hass.callWS({ type: "assist_pipeline/pipeline/list" });
+        this._pipelines = { list: (data.pipelines || []).filter((pipeline) => pipeline.stt_engine), preferred: data.preferred_pipeline };
+        this._pipelinesError = "";
+      } catch (_error) {
+        this._pipelines = null;
+        this._pipelinesError = "Could not load Assist pipelines. Tap the microphone to try again.";
+      }
+    })();
     try {
-      const data = await this._hass.callWS({ type: "assist_pipeline/pipeline/list" });
-      this._pipelines = { list: (data.pipelines || []).filter((pipeline) => pipeline.stt_engine), preferred: data.preferred_pipeline };
-      this._pipelinesError = "";
-    } catch (_error) {
-      this._pipelines = null;
-      this._pipelinesError = "Could not load Assist pipelines. Tap the microphone to try again.";
+      await this._pipelinesLoading;
+    } finally {
+      this._pipelinesLoading = null;
     }
     this._refreshCreate();
     this._refreshAiSettings();
@@ -3279,6 +3287,7 @@ class FraimicPanel extends HTMLElement {
       const recorder = new AudioWorkletNode(run.context, "fraimic-recorder");
       recorder.port.onmessage = (event) => this._dictationAudio(run, event.data);
       run.context.createMediaStreamSource(run.stream).connect(recorder);
+      run.captureStarted = true;
       const unsubscribe = await this._hass.connection.subscribeMessage((event) => this._dictationEvent(run, event), {
         type: "assist_pipeline/run",
         start_stage: "stt",
@@ -3359,7 +3368,7 @@ class FraimicPanel extends HTMLElement {
     if (!run || run.stopped) return;
     run.stopped = true;
     this._releaseDictation(run);
-    if (!run.unsubscribe) return this._endDictation(run);
+    if (!run.captureStarted && !run.unsubscribe) return this._endDictation(run);
     if (run.handler !== null) this._sendDictation(run);
     if (this._dictationRun !== run) return;
     run.state.dictation = "writing";
