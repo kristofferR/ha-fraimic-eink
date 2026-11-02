@@ -4,6 +4,7 @@
   "after_dependencies": [
     "recorder"
   ],
+  "categories": ["productivity_information.documents_photos"],
   "codeowners": [
     "@kristofferR"
   ],
