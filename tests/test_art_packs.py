@@ -233,8 +233,8 @@ def test_wallhaven_pack_materializes_through_provider(
         artist=None,
         license=None,
         attribution="General Wallpaper mlg7qm, Wallhaven",
-        width=3840,
-        height=2160,
+        width=2560,
+        height=1600,
         extra={"source_url": "https://wallhaven.cc/w/mlg7qm"},
     )
 

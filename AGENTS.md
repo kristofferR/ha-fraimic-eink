@@ -238,7 +238,11 @@ hand-queued items, inside the serial prefetch worker. Hand items always insert
 above auto picks; `reorder(keep_ids=...)` turns a pick into a hand item.
 Settings changes and New picks drop unplayed picks and bump a generation so
 in-flight resolutions are discarded. Failing or empty sources back off for
-15 minutes. Active hours are applied as time windows on each pick. Auto
+15 minutes. Cover-fit picks may trim at most `MAX_COVER_CROP` (20%) of
+the art. Online draws, Surprise me included (any available provider), redraw
+misfits in either orientation mode; in prefer mode, library and folder sources
+fall back to the frame's orientation, then anything. Active hours are applied
+as time windows on each pick. Auto
 picks use their own cadence (`_due_at`), except in cloud mode, where album
 wakes follow the queue interval and so does auto mode. Leaving auto mode
 untags shown picks so Repeat treats them as ordinary history. Every displayed picture is recorded in the per-frame

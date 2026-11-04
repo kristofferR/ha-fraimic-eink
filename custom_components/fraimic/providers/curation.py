@@ -5,11 +5,10 @@ from __future__ import annotations
 import math
 
 from ..const import (
-    ART_ASPECT_MAX,
-    ART_ASPECT_MIN,
     FIT_CONTAIN,
     FIT_CONTAIN_BLACK,
     FIT_STRETCH,
+    MAX_COVER_CROP,
     MIN_ART_SHORT_EDGE,
 )
 
@@ -26,14 +25,14 @@ def acceptable(width: int, height: int, target_w: int, target_h: int) -> bool:
 
     - Short edge >= MIN_ART_SHORT_EDGE: anything smaller upscales visibly
       soft on a ~150 PPI panel.
-    - Aspect ratio within [ART_ASPECT_MIN, ART_ASPECT_MAX] x the frame's
-      viewed aspect: cover-cropping handles moderate mismatch, but extreme
-      panoramas / tall scrolls lose most of the artwork to the crop.
+    - Cover-cropping to the frame's viewed aspect trims at most
+      MAX_COVER_CROP of the width or height: a little crop is fine, but
+      off-shape art loses its composition.
     """
     if not large_enough(width, height):
         return False
     ratio = (width / height) / (target_w / target_h)
-    return ART_ASPECT_MIN <= ratio <= ART_ASPECT_MAX
+    return 1.0 - min(ratio, 1.0 / ratio) <= MAX_COVER_CROP
 
 
 def acceptable_for_fit(

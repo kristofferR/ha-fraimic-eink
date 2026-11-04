@@ -359,11 +359,10 @@ PROVIDER_SHUFFLE: Final = "shuffle"  # random pick across available providers
 MEDIA_SCHEME: Final = "fraimic-online"
 
 # Aggressive e-ink curation: anything with a short edge below this upscales
-# visibly soft on the ~150 PPI panel, and extreme aspect mismatches lose most
-# of the artwork to the cover-crop.
+# visibly soft on the ~150 PPI panel, and a cover fit may trim at most this
+# share of the art's width or height (a 4:3 painting on a 16:9 frame loses 25%).
 MIN_ART_SHORT_EDGE: Final = 1000
-ART_ASPECT_MIN: Final = 0.5  # x the frame's viewed aspect ratio
-ART_ASPECT_MAX: Final = 2.0
+MAX_COVER_CROP: Final = 0.2
 
 # Optional provider API keys (entry options).
 CONF_NASA_API_KEY: Final = "nasa_api_key"

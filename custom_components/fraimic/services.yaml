@@ -31,7 +31,7 @@ show_online_image:
     provider:
       name: Source
       description: >-
-        Where to get the image. "shuffle" picks a random museum. Museums
+        Where to get the image. "shuffle" picks any available source. Museums
         (met, aic, cleveland, smk, smithsonian) serve
         public-domain masterpieces; reframed is Reframed Gallery's curated
         catalogue; wallhaven is a searchable SFW wallpaper catalogue;
@@ -43,7 +43,7 @@ show_online_image:
       selector:
         select:
           options:
-            - label: Surprise me — random museum art
+            - label: Surprise me — any available source
               value: shuffle
             - label: The Met
               value: met

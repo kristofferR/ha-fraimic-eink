@@ -2526,7 +2526,7 @@ class FraimicPanel extends HTMLElement {
   }
 
   _autoSourceDetail(source) {
-    if (source.kind === "shuffle") return ["mdi:creation", "A random museum each time"];
+    if (source.kind === "shuffle") return ["mdi:creation", "A random source each time"];
     if (source.kind === "playlist") return ["mdi:playlist-music-outline", "A random slide from this playlist"];
     if (source.source === "saved") return [source.browse_id === "favorites" ? "mdi:heart-outline" : "mdi:image-multiple-outline", "Pictures in your library"];
     const name = this._sources.find((item) => item.key === source.source)?.name || source.source;

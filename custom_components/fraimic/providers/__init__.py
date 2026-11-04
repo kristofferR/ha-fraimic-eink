@@ -44,12 +44,6 @@ PROVIDERS: dict[str, ArtProvider] = {
     )
 }
 
-# The keyless museums: the zero-config "surprise me with art" pool.
-# (Smithsonian stays out — its DEMO_KEY tier is too rate-limited for shuffle;
-# Wellcome is illustration/archive material rather than wall masterpieces.)
-MUSEUM_KEYS: tuple[str, ...] = ("met", "aic", "cleveland", "smk")
-
-
 def get_provider(key: str) -> ArtProvider | None:
     return PROVIDERS.get(key)
 
