@@ -51,6 +51,12 @@ def _resolve(resolver, source, *, settings=None, history=None, exclude=(), playl
     )
 
 
+def _png(width, height):
+    data = io.BytesIO()
+    Image.new("RGB", (width, height)).save(data, format="PNG")
+    return data.getvalue()
+
+
 def _candidate(item_id, width=None, height=None):
     base = load("providers.base")
     return base.ArtCandidate(
@@ -126,8 +132,8 @@ def test_folder_of_folders_picks_a_subfolder_and_remembers_the_pick(resolver, mo
 
 def test_random_online_pick_retries_recent_art(resolver, monkeypatch):
     auto = load("auto_mode")
-    draws = iter([_candidate("old", 1600, 1200), _candidate("new", 1600, 1200)])
-    fetch = AsyncMock(side_effect=lambda *_a, **_k: SimpleNamespace(candidate=next(draws), data=b""))
+    draws = iter([_candidate("old"), _candidate("new")])
+    fetch = AsyncMock(side_effect=lambda *_a, **_k: SimpleNamespace(candidate=next(draws), data=_png(1600, 1200)))
     monkeypatch.setattr(resolver, "async_fetch_art", fetch)
     history = auto.AutoHistory()
     history.record("provider:reframed:old", NOW)
@@ -138,12 +144,11 @@ def test_random_online_pick_retries_recent_art(resolver, monkeypatch):
 
 @pytest.mark.parametrize("first", ["misfit", "error"])
 def test_random_online_redraws_misfits_and_failed_draws(resolver, monkeypatch, first):
-    data = io.BytesIO()
-    Image.new("RGB", (1200, 1600)).save(data, format="PNG")
     fetch = AsyncMock(side_effect=[
         resolver.HomeAssistantError("Met is unreachable") if first == "error"
-        else SimpleNamespace(candidate=_candidate("tall"), data=data.getvalue()),
-        SimpleNamespace(candidate=_candidate("wide", 1600, 1200), data=b""),
+        # Metadata claims a fit; the downloaded bytes are portrait.
+        else SimpleNamespace(candidate=_candidate("tall", 1600, 1200), data=_png(1200, 1600)),
+        SimpleNamespace(candidate=_candidate("wide"), data=_png(1600, 1200)),
     ])
     monkeypatch.setattr(resolver, "async_fetch_art", fetch)
     slide = _resolve(resolver, {"kind": "shuffle"})
@@ -190,11 +195,11 @@ def test_auto_pick_keeps_provider_callback_metadata_in_saved_queue(resolver, mon
     queue_model = load("playback_queue")
     candidate = base.ArtCandidate(
         provider="unsplash", item_id="photo-1", image_url="https://example.test/photo.jpg",
-        title="Photo", attribution="Photo by Artist on Unsplash", width=1600, height=1200,
+        title="Photo", attribution="Photo by Artist on Unsplash",
         extra={"download_location": "https://api.unsplash.com/photos/photo-1/download"},
     )
     monkeypatch.setattr(resolver, "async_fetch_art", AsyncMock(
-        return_value=base.ArtImage(data=b"photo", candidate=candidate),
+        return_value=base.ArtImage(data=_png(1600, 1200), candidate=candidate),
     ))
     slide = _resolve(resolver, {"kind": "shuffle"})
     queue = queue_model.PlaybackQueue()

@@ -184,14 +184,14 @@ class _Picker:
             key = f"provider:{candidate.provider}:{candidate.item_id}"
             if key in recent or key in self.exclude:
                 continue
-            width, height = candidate.width, candidate.height
-            if not width or not height:
-                try:
-                    width, height = await self.hass.async_add_executor_job(
-                        _decode_dims, art.data
-                    )
-                except (OSError, ValueError):
-                    continue
+            # The fetch engine may return an off-shape fallback whose metadata
+            # still fits, so judge the downloaded bytes.
+            try:
+                width, height = await self.hass.async_add_executor_job(
+                    _decode_dims, art.data
+                )
+            except (OSError, ValueError):
+                continue
             if self._fits(width, height):
                 return await self._candidate_slide(candidate)
         if error is not None:
