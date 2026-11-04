@@ -53,7 +53,7 @@ if TYPE_CHECKING:
     from .coordinator import FraimicConfigEntry
     from .playlists import PlaylistManager
 
-# Random online draws that land on something shown recently are retried.
+# Random online draws that fail, repeat recent art or misfit the frame are retried.
 RANDOM_ATTEMPTS = 3
 # Folders holding only subfolders (Reframed "Collections") pick one at random.
 MAX_FOLDER_DEPTH = 2
@@ -118,14 +118,24 @@ class _Picker:
     def _suitable[T](
         self, pool: list[T], dims: Callable[[T], tuple[int | None, int | None]]
     ) -> list[T]:
-        """Prefer art that suits the frame; strict mode requires known matches."""
-        verdicts = [self._fits(*dims(item)) for item in pool]
+        """Prefer art that suits the frame, then art in its orientation.
+
+        Strict mode requires known matches instead.
+        """
+        sizes = [dims(item) for item in pool]
+        verdicts = [self._fits(width, height) for width, height in sizes]
         if self.settings.strict_orientation:
             return [item for item, ok in zip(pool, verdicts, strict=True) if ok is True]
         good = [item for item, ok in zip(pool, verdicts, strict=True) if ok is not False]
         if good:
             return good
-        return pool
+        target_w, target_h = viewed_size(self.entry)
+        same = [
+            item
+            for item, (width, height) in zip(pool, sizes, strict=True)
+            if width and height and (width >= height) == (target_w >= target_h)
+        ]
+        return same or pool
 
     def _slide(self, item: dict[str, Any], *, caption: bool = False) -> ScreenConfig:
         data = picture_slide_data(item, fit=self.settings.fit, tone=self.settings.tone)
@@ -155,24 +165,37 @@ class _Picker:
     async def random_online(
         self, provider_key: str, query: str | None
     ) -> ScreenConfig | None:
+        """Draw until the art is new and suits the frame.
+
+        Online pools never run dry, so even prefer mode redraws a misfit
+        (the fetch engine falls back to its least-bad download).
+        """
         recent = self.history.recent(self.settings.avoid_repeats_days, self.now)
+        error: HomeAssistantError | None = None
         for _attempt in range(RANDOM_ATTEMPTS):
-            art = await async_fetch_art(
-                self.hass, self.entry, provider_key, query=query, fit=self.fit
-            )
+            try:
+                art = await async_fetch_art(
+                    self.hass, self.entry, provider_key, query=query, fit=self.fit
+                )
+            except HomeAssistantError as err:
+                error = err
+                continue
             candidate = art.candidate
             key = f"provider:{candidate.provider}:{candidate.item_id}"
             if key in recent or key in self.exclude:
                 continue
-            if self.settings.strict_orientation:
-                width, height = candidate.width, candidate.height
-                if not width or not height:
+            width, height = candidate.width, candidate.height
+            if not width or not height:
+                try:
                     width, height = await self.hass.async_add_executor_job(
                         _decode_dims, art.data
                     )
-                if not self._fits(width, height):
+                except (OSError, ValueError):
                     continue
-            return await self._candidate_slide(candidate)
+            if self._fits(width, height):
+                return await self._candidate_slide(candidate)
+        if error is not None:
+            raise error
         return None
 
     async def from_folder(

@@ -24,7 +24,7 @@ END_REPEAT = "repeat"
 END_AUTO = "auto"
 END_ACTIONS = (END_STOP, END_REPEAT, END_AUTO)
 
-SOURCE_SHUFFLE = "shuffle"  # a random museum each pick
+SOURCE_SHUFFLE = "shuffle"  # a random available provider each pick
 SOURCE_GALLERY = "gallery"  # any gallery location: source + folder + search
 SOURCE_PLAYLIST = "playlist"  # a random slide from a saved playlist
 SOURCE_KINDS = (SOURCE_SHUFFLE, SOURCE_GALLERY, SOURCE_PLAYLIST)

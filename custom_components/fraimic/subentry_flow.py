@@ -222,7 +222,7 @@ _BASICS_SCHEMA = vol.Schema(
 def _picture_schema(entry) -> vol.Schema:
     """Picture-source form; keyed providers appear only when configured."""
     provider_options = [
-        SelectOptionDict(value=PROVIDER_SHUFFLE, label="Surprise me — random museum art"),
+        SelectOptionDict(value=PROVIDER_SHUFFLE, label="Surprise me — any available source"),
         *(
             SelectOptionDict(value=key, label=PROVIDERS[key].name)
             for key in available_provider_keys(entry)

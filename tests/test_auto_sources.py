@@ -64,6 +64,7 @@ def _candidate(item_id, width=None, height=None):
     [
         ([(None, None), (300, 3000)], [(None, None)]),
         ([(1600, 1200), (None, None), (300, 3000)], [(1600, 1200), (None, None)]),
+        ([(1200, 1600), (2400, 1200)], [(2400, 1200)]),  # same orientation next
         ([(300, 3000)], [(300, 3000)]),
     ],
 )
@@ -125,7 +126,7 @@ def test_folder_of_folders_picks_a_subfolder_and_remembers_the_pick(resolver, mo
 
 def test_random_online_pick_retries_recent_art(resolver, monkeypatch):
     auto = load("auto_mode")
-    draws = iter([_candidate("old"), _candidate("new")])
+    draws = iter([_candidate("old", 1600, 1200), _candidate("new", 1600, 1200)])
     fetch = AsyncMock(side_effect=lambda *_a, **_k: SimpleNamespace(candidate=next(draws), data=b""))
     monkeypatch.setattr(resolver, "async_fetch_art", fetch)
     history = auto.AutoHistory()
@@ -133,6 +134,21 @@ def test_random_online_pick_retries_recent_art(resolver, monkeypatch):
     slide = _resolve(resolver, {"kind": "shuffle"}, history=history)
     assert slide.source["provider_item"] == "new"
     assert fetch.await_args.args[2] == "shuffle"
+
+
+@pytest.mark.parametrize("first", ["misfit", "error"])
+def test_random_online_redraws_misfits_and_failed_draws(resolver, monkeypatch, first):
+    data = io.BytesIO()
+    Image.new("RGB", (1200, 1600)).save(data, format="PNG")
+    fetch = AsyncMock(side_effect=[
+        resolver.HomeAssistantError("Met is unreachable") if first == "error"
+        else SimpleNamespace(candidate=_candidate("tall"), data=data.getvalue()),
+        SimpleNamespace(candidate=_candidate("wide", 1600, 1200), data=b""),
+    ])
+    monkeypatch.setattr(resolver, "async_fetch_art", fetch)
+    slide = _resolve(resolver, {"kind": "shuffle"})
+    assert slide.source["provider_item"] == "wide"
+    assert fetch.await_count == 2
 
 
 @pytest.mark.parametrize("state", ["fresh", "recent", "queued", "exhausted", "all_queued"])
@@ -174,7 +190,7 @@ def test_auto_pick_keeps_provider_callback_metadata_in_saved_queue(resolver, mon
     queue_model = load("playback_queue")
     candidate = base.ArtCandidate(
         provider="unsplash", item_id="photo-1", image_url="https://example.test/photo.jpg",
-        title="Photo", attribution="Photo by Artist on Unsplash",
+        title="Photo", attribution="Photo by Artist on Unsplash", width=1600, height=1200,
         extra={"download_location": "https://api.unsplash.com/photos/photo-1/download"},
     )
     monkeypatch.setattr(resolver, "async_fetch_art", AsyncMock(

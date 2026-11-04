@@ -380,6 +380,9 @@ def test_parse_wallhaven_detail_uses_tags_and_uploader() -> None:
         (6000, 1500, 1600, 1200, False),  # extreme panorama
         (800, 600, 1600, 1200, False),  # too small
         (2400, 1000, 1200, 1600, False),  # wide landscape art on portrait frame
+        (3000, 2000, 2560, 1440, True),  # 3:2 on 16:9 trims 16%
+        (1600, 1200, 2560, 1440, False),  # 4:3 on 16:9 would trim 25%
+        (2000, 2000, 2560, 1440, False),  # square on 16:9 would trim 44%
         (0, 100, 1600, 1200, False),
     ],
 )
@@ -1327,7 +1330,7 @@ def test_shuffle_and_availability() -> None:
 
     entry = SimpleNamespace(options={})
     keys = providers_pkg.available_provider_keys(entry)
-    assert set(providers_pkg.MUSEUM_KEYS) <= set(keys)
+    assert {"met", "aic", "cleveland", "smk"} <= set(keys)
     assert "reframed" in keys
     assert "wallhaven" in keys
     # Keyed providers hidden without keys, shown with them.

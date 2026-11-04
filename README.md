@@ -185,7 +185,7 @@ keep it. **New picks** replaces all three.
 
 Open **Settings** in the Auto divider, or **Frame menu → Auto mode settings**:
 
-- **Sources:** Surprise me (a random museum), any online source, your library,
+- **Sources:** Surprise me (any available source), any online source, your library,
   Favorites, an album or art pack, or a saved playlist. To use a gallery folder
   or search, such as a Reframed collection or a Wallhaven search, open it and
   choose **Add to auto mode**. Weights of 1×, 2×, or 3× set how often each
@@ -477,7 +477,7 @@ preview outside the Fraimic sidebar.
 Keyless sources include The Met, Art Institute of Chicago, Cleveland Museum of
 Art, SMK, Smithsonian, Wellcome, Reframed, Wallhaven,
 Wikimedia picture of the day, Bing, NASA APOD, NASA Image Library, and Lorem Picsum.
-`shuffle` selects a random museum source.
+`shuffle` selects any available source.
 
 Optional Unsplash and Pexels keys enable additional photography sources. NASA
 APOD and Smithsonian work with demo keys; personal keys raise their limits.

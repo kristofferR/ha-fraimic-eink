@@ -21,7 +21,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from ..artwork_cache import get_artwork_cache
 from ..const import DOMAIN, PROVIDER_SHUFFLE
-from . import MUSEUM_KEYS, available_provider_keys, get_provider
+from . import available_provider_keys, get_provider
 from .base import ArtFetchError as _BaseArtFetchError
 from .base import ArtCandidate, ArtImage, BrowsePage, FetchRequest
 from .cache import ProviderCache
@@ -114,10 +114,7 @@ def resolve_provider_key(entry, provider_key: str) -> str:
     available = available_provider_keys(entry)
     if not available:
         raise ArtFetchError("No image providers are available")
-    # Shuffle means "surprise me with art": prefer the museum pool; fall
-    # back to anything available.
-    museums = [key for key in available if key in MUSEUM_KEYS]
-    return random.choice(museums or available)
+    return random.choice(available)
 
 
 async def async_fetch_art(
