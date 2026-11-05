@@ -945,13 +945,16 @@ class FraimicScheduler:
             self.queue.trim_played(PLAYED_LIMIT)
             # Cloud deliveries count too: the frame shows them on its next wake.
             self._record_shown(screen)
+            # Accepted cloud/backend sends restart the cadence clock as well.
+            # Their hold only covers the album slot, which a planned wake can
+            # steer down to minutes.
+            self._last_rotation = dt_util.utcnow()
+            if not self.enabled:
+                self._paused_at = self._last_rotation
             if displayed:
                 self._displayed_item = self.queue.get(screen.screen_id)
                 self.current_id = screen.screen_id
                 self.displayed_hash = result.get("content_hash")
-                self._last_rotation = dt_util.utcnow()
-                if not self.enabled:
-                    self._paused_at = self._last_rotation
                 self._hold_until = (
                     dt_util.utcnow() + timedelta(seconds=self.queue.interval)
                     if hold_on_success

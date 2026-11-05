@@ -690,6 +690,35 @@ def test_cloud_acceptance_advances_delivery_without_claiming_display(playback):
     assert p.scheduler.hold_until == p.now[0] + timedelta(seconds=780)
 
 
+def test_short_cloud_slot_does_not_shorten_queue_interval(playback):
+    p = playback
+    add(p, "a", "b", "c")
+    run(p.scheduler.async_set_playback(interval=6 * 3600))
+    p.entry.runtime_data.cloud = SimpleNamespace(
+        wake_interval=360,
+        delivery_deadline=None,
+        async_expire_delivery=AsyncMock(),
+    )
+
+    async def cloud_send(*args, **kwargs):
+        # A planned wake steers the art slot to a few minutes.
+        p.entry.runtime_data.cloud.delivery_deadline = (
+            p.now[0] + timedelta(minutes=9)
+        ).timestamp()
+        await p.scheduler.async_cloud_delivery_accepted()
+        return {"uploaded": False, "displayed": False, "cloud_queued": True}
+
+    p.show.side_effect = cloud_send
+    run(p.scheduler.async_set_enabled(True))
+    assert p.show.await_count == 1
+    p.now[0] += timedelta(minutes=10)
+    run(p.scheduler._async_tick())
+    assert p.show.await_count == 1
+    p.now[0] += timedelta(hours=6)
+    run(p.scheduler._async_tick())
+    assert p.show.await_count == 2
+
+
 def test_paused_scheduler_still_retires_cloud_delivery(playback):
     p = playback
     expire = AsyncMock()
