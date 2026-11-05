@@ -11,6 +11,7 @@ import secrets
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import aiohttp
 from aiohttp import web
@@ -22,6 +23,9 @@ from .model import (
 from .store import Store
 
 VoiceProcessor = Callable[[Device, Job], Awaitable[bytes]]
+# Fraimic's own API, used only when HA's voice mode hands a recording to
+# Fraimic's voice art. The poll, its only firmware channel, is never forwarded.
+VENDOR_URL = "https://origin.fraimic.com"
 _NO_USER = object()
 _LOGGER = logging.getLogger(__name__)
 
@@ -78,13 +82,14 @@ async def json_body(request: web.Request) -> dict[str, object]:
 class Backend:
     def __init__(self, devices: list[Device], public_url: str, database: Path,
                  *, process_voice: VoiceProcessor | None = None,
-                 clock: Callable[[], float] = time.time) -> None:
+                 clock: Callable[[], float] = time.time, vendor_url: str = VENDOR_URL) -> None:
         self.devices = {device.id: device for device in devices}
         if (not devices or len(self.devices) != len(devices)
             or len({d.device_key for d in devices}) != len(devices)
             or len({d.bridge_token for d in devices}) != len(devices)):
             raise ValueError("Device IDs, keys and bridge tokens must be unique")
         self.public_url = origin(public_url)
+        self.vendor_url = origin(vendor_url)
         self.store = Store(database)
         self.clock = clock
         self.jobs: dict[str, Job] = {}
@@ -365,12 +370,63 @@ class Backend:
                    "Content-Type": "audio/wav"}
         async with self.session.post(f"{origin(device.ha_url)}/api/fraimic/backend/voice",
                                      data=job.audio, headers=headers, allow_redirects=False) as reply:
+            forward = reply.status == 202 and reply.headers.get("X-Fraimic-Forward") == "fraimic"
+            if not forward:
+                if reply.status != 200:
+                    raise ValueError("HA voice failed")
+                return await self._read_panel(reply, device)
+        return await self._vendor_voice(device, job)
+
+    @staticmethod
+    async def _read_panel(reply: aiohttp.ClientResponse, device: Device) -> bytes:
+        data = await reply.content.readexactly(device.panel_size)
+        if await reply.content.read(1):
+            raise ValueError("Oversized panel")
+        return data
+
+    async def _vendor_voice(self, device: Device, job: Job) -> bytes:
+        """Fraimic's voice art: the stock frame's three voice calls, nothing more.
+
+        Only presign, the signed audio upload and finalize go out, plus the
+        download of the finished panel. The frame still polls this listener,
+        so it never sees a firmware offer, and no vendor reply reaches it:
+        it gets the validated panel bytes through its own local ticket.
+        """
+        assert self.session is not None
+        identity = {"device_key": device.device_key, "user_id": device.user_id}
+        scheme = urlsplit(self.vendor_url).scheme
+
+        def signed(value: object) -> str:
+            parsed = urlsplit(value) if isinstance(value, str) else None
+            if parsed is None or parsed.scheme != scheme or not parsed.hostname or parsed.username:
+                raise ValueError("Unexpected vendor URL")
+            return str(value)
+
+        async with self.session.post(f"{self.vendor_url}/api/v1/upload/audio/presign",
+                                     json=identity, allow_redirects=False) as reply:
             if reply.status != 200:
-                raise ValueError("HA voice failed")
-            data = await reply.content.readexactly(device.panel_size)
-            if await reply.content.read(1):
-                raise ValueError("Oversized panel")
-            return data
+                raise ValueError("Vendor presign failed")
+            grant = await reply.json(content_type=None)
+        fields = grant.get("fields") or {}
+        if not isinstance(fields, dict) or not all(isinstance(v, str) for v in fields.values()):
+            raise ValueError("Unexpected vendor upload fields")
+        form = aiohttp.FormData()
+        for name, value in fields.items():
+            form.add_field(name, value)
+        form.add_field("file", job.audio, filename="recording.wav", content_type="audio/wav")
+        async with self.session.post(signed(grant["url"]), data=form, allow_redirects=False) as reply:
+            if reply.status not in (200, 201, 204):
+                raise ValueError("Vendor upload failed")
+        async with self.session.post(f"{self.vendor_url}/api/v1/upload/audio/finalize", json={
+            **identity, "key": str(grant["key"]), "orientation": job.orientation or "portrait",
+        }, allow_redirects=False) as reply:
+            if reply.status != 200:
+                raise ValueError("Vendor art failed")
+            result = await reply.json(content_type=None)
+        async with self.session.get(signed(result["presigned_url"]), allow_redirects=False) as reply:
+            if reply.status != 200:
+                raise ValueError("Vendor panel failed")
+            return await self._read_panel(reply, device)
 
     async def panel(self, request: web.Request) -> web.StreamResponse:
         async with self.lock:

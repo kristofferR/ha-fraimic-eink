@@ -91,8 +91,9 @@ example's loopback bind unless a private interface is explicitly required.
 The mounted directory must be writable by UID 10001. Use a dedicated directory,
 mode 0700, with configuration/key files mode 0600. The process needs no host
 network, Docker socket, broad host mounts or Supervisor/Core API token. It calls
-only the configured HA voice bridge. A future Supervisor app can package this
-same service; this change does not install one.
+only the configured HA voice bridge, plus Fraimic's voice routes for a frame whose
+voice button is set to **Use Fraimic's AI** (see below). A future Supervisor app
+can package this same service; this change does not install one.
 
 `public_url` is the frame-facing HTTPS origin for upload and panel tickets. On
 unchanged firmware the API origin is still `origin.fraimic.com`; DNS/routing and
@@ -110,14 +111,26 @@ supported for a trusted private bridge network, not public exposure.
 In the integration's options select **Backend**, then enter the companion URL and the
 same private bridge token. Saving checks the token against the companion's bridge
 and refuses an unknown token or an unreachable URL. Choose what the voice button does in the Fraimic panel
-under **⋮ > AI art > Voice button**. Changing it there does not reload the frame:
+under **⋮ > AI art > Speech > Voice button**. Changing it there does not reload the frame:
 
 - **Show a fixed picture:** a library picture; no STT, AI or intent call.
 - **Create artwork:** a configured STT entity and its supported language. The
-  picture comes from the image service set up in the same dialog (OpenRouter, a
+  picture comes from the default image service set up in the same dialog (OpenRouter, a
   local server or an `ai_task` entity), using the default style. Selecting this
   opts into calls to those providers. Configure provider/account cost limits
   before enabling it.
+- **Use Fraimic's AI:** Fraimic's own voice art, as on a stock frame. The companion
+  sends the recording to `origin.fraimic.com` with the frame's identity and shows
+  the picture Fraimic returns. It makes only the stock frame's voice calls (audio
+  presign, the signed audio upload and finalize) plus the download of the
+  finished panel. The poll, Fraimic's only firmware channel, is never forwarded,
+  and no Fraimic reply reaches the frame, so firmware is never offered. HA records
+  the request but has no original; the picture also lands in the Fraimic account
+  gallery, where **Import creations** can copy it into the library. The
+  companion's host must resolve `origin.fraimic.com` to Fraimic, not to the
+  companion: if the frame's DNS override covers that host too, give the container
+  a public resolver, for example `--dns 1.1.1.1`. TLS verification fails closed
+  rather than letting it reach itself. This mode is not vendor-free.
 - **Ask Assist:** a compatible STT entity/language and an explicit conversation
   agent (default `homeassistant`). Commands follow that agent's HA exposure
   settings. The answer becomes a library image: a card with the question, a rule
@@ -167,7 +180,8 @@ The album route is a per-frame, read-only projection of HA's current art transpo
 record and wake deadline. Its stable ID is `ha-{configured device id}`. The HA
 library/playlists/queue remain the editing interface. Stock album CRUD, enrollment,
 system images, arbitrary HTTP forwarding and vendor fallback are unsupported and
-fail closed. This intentionally does not implement the broader catalog-mutation
+fail closed. The one vendor path is the opt-in voice forwarding above, which
+repeats only the stock voice calls and never the poll. This intentionally does not implement the broader catalog-mutation
 proposal in `docs/firmware/album-playlist-mapping.md`.
 
 The companion's `/bridge/state`, `/bridge/delivery`, `/bridge/schedule` and
