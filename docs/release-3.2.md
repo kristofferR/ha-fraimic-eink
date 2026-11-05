@@ -1,3 +1,11 @@
+# Fraimic 3.2.1
+
+## Online art
+
+- Bing image of the day works on Standard frames with the Cover fit again. Since 3.1, its wide pictures needed more cropping than the 20% limit allows, so every pick failed with "produced no usable image". A source that offers nothing in the frame's shape now returns its closest-shaped picture instead. Auto mode still skips pictures that need more than a 20% crop.
+
+**Full changelog:** [v3.2.0…v3.2.1](https://github.com/kristofferR/ha-fraimic-eink/compare/v3.2.0...v3.2.1)
+
 # Fraimic 3.2
 
 ## Auto mode and queue timing
