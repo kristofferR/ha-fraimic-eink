@@ -27,9 +27,8 @@ display and delivers them over your local network or through your Fraimic accoun
 - **Native Home Assistant integration:** UI setup, discovery, entities, a media
   player, and actions for automations. No YAML required to get started.
 
-Fraimic **3.1** adds AI art, an experimental local backend for running a frame
-without the Fraimic cloud, and a crop limit for auto mode. See the
-[release notes](docs/release-3.1.md).
+Fraimic **3.2** keeps cloud and Hybrid frames on their queue interval before an
+awake window. See the [release notes](docs/release-3.2.md).
 
 ## Installation
 
