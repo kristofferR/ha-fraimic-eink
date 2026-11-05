@@ -114,20 +114,21 @@ async def async_pick_and_download(
 ) -> ArtImage:
     """Pick a curated random image from ``provider`` and download it.
 
-    Metadata dims (when the API reports them) reject candidates for free;
-    the rest are checked after download by decoding the header. After the
-    retry budget, the best-scoring downloaded image wins (better a slightly
-    off-aspect Van Gogh than an error screen); with nothing downloadable at
-    all, ArtFetchError.
+    Metadata dims (when the API reports them) defer unsuitable candidates
+    without downloading them; the rest are checked after download by decoding
+    the header. After the retry budget, the best-scoring downloaded image wins
+    (better a slightly off-aspect Van Gogh than an error screen). Deferred
+    candidates are only downloaded, best aspect first, when nothing else
+    produced an image, so a single-shape source (Bing is always 16:9) still
+    yields its least-bad pick. With nothing downloadable at all, ArtFetchError.
     """
     tw, th = request.target_width, request.target_height
     candidates = await provider.async_candidates(session, cache, request, max_candidates)
     if not candidates:
         raise ArtFetchError(f"{provider.name} returned no candidates")
 
-    best: tuple[float, ArtImage] | None = None
-    downloads = 0
-    last_error: Exception | None = None
+    eligible: list[ArtCandidate] = []
+    deferred: list[ArtCandidate] = []
     for candidate in candidates[:max_candidates]:
         if (
             candidate.width
@@ -137,13 +138,25 @@ async def async_pick_and_download(
             )
         ):
             _LOGGER.debug(
-                "%s: skipping %s (%sx%s metadata dims unsuitable)",
+                "%s: deferring %s (%sx%s metadata dims unsuitable)",
                 provider.key,
                 candidate.item_id,
                 candidate.width,
                 candidate.height,
             )
-            continue
+            deferred.append(candidate)
+        else:
+            eligible.append(candidate)
+    deferred.sort(
+        key=lambda c: aspect_score(c.width or 0, c.height or 0, tw, th), reverse=True
+    )
+
+    best: tuple[float, ArtImage] | None = None
+    downloads = 0
+    last_error: Exception | None = None
+    for index, candidate in enumerate(eligible + deferred):
+        if index >= len(eligible) and best is not None:
+            break
         if downloads >= max_downloads:
             break
         downloads += 1

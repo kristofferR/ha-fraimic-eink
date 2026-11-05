@@ -555,6 +555,29 @@ def test_engine_skips_bad_metadata_dims_without_downloading() -> None:
     assert all("pano" not in url for url in session.requests)
 
 
+def test_engine_falls_back_to_best_metadata_rejected_candidate() -> None:
+    # A single-shape source (Bing: always 16:9) on a 4:3 cover frame.
+    session = FakeSession()
+    session.add("https://x/wide.png", FakeResponse(body=_png(3840, 2160)))
+    provider = _Provider(
+        [
+            _candidate("pano", "https://x/pano.png", width=6000, height=1000),
+            _candidate("wide", "https://x/wide.png", width=3840, height=2160),
+        ]
+    )
+    image = _run(
+        engine.async_pick_and_download(
+            provider,
+            session,
+            cache_mod.ProviderCache(),
+            REQUEST,
+            dims_of=_dims_from_png,
+        )
+    )
+    assert image.candidate.item_id == "wide"
+    assert session.requests == ["https://x/wide.png"]
+
+
 def test_engine_accepts_wide_metadata_dims_for_contain_fit() -> None:
     session = FakeSession()
     session.add("https://x/wide.png", FakeResponse(body=_png(3840, 2160)))
