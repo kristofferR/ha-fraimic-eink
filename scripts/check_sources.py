@@ -29,7 +29,7 @@ if "fraimic" not in sys.modules:
     ]
     sys.modules["fraimic"] = package
 
-from fraimic.const import MAX_SOURCE_PIXELS
+from fraimic.const import FIT_CONTAIN, MAX_SOURCE_PIXELS
 from fraimic.providers import PROVIDERS
 from fraimic.providers.base import ArtProvider, FetchRequest
 from fraimic.providers.cache import ProviderCache
@@ -68,7 +68,10 @@ async def check_provider(provider: ArtProvider, api_key: str | None) -> str:
             provider,
             session,
             ProviderCache(),
-            FetchRequest(target_width=1600, target_height=1200, api_key=api_key),
+            # Contain fit: this checks source health, not frame-shape curation.
+            FetchRequest(
+                target_width=1600, target_height=1200, fit=FIT_CONTAIN, api_key=api_key
+            ),
             dims_of=dimensions,
         )
     return f"Metadata parsed and image decoded ({len(image.data)} bytes)"
