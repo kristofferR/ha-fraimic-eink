@@ -60,6 +60,14 @@ class FraimicWrongDeviceError(FraimicConnectionError):
     """
 
 
+class FraimicSleepingError(FraimicConnectionError):
+    """The frame refused an upload because it has started going to sleep.
+
+    Firmware 0.2.31 answers ``503 {"error": "sleeping"}`` near the end of a
+    wake. Nothing was accepted, so the image waits for the next wake.
+    """
+
+
 class FraimicApiError(FraimicError):
     """Raised when the frame returns an error response.
 
@@ -377,9 +385,27 @@ class FraimicClient:
             raise FraimicError(f"PUT /api/albums/{album_id} did not return the album")
         return album
 
-    async def get_battery(self) -> dict[str, Any]:
+    async def get_battery(self, *, timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any]:
         """Return the lightweight battery status from ``GET /api/battery``."""
-        return await self._json("GET", "/api/battery")
+        return await self._json("GET", "/api/battery", timeout=timeout)
+
+    async def get_wake_schedule(self) -> dict[str, Any]:
+        """Return the frame's own wake schedule (``GET /api/wake-schedule``).
+
+        Firmware 0.2.31+; older firmware answers 404. ``next_wakes`` lists the
+        next five wakes with the frame's UTC offset, and is empty while the
+        schedule is off or the clock is unsynced (``time_valid: false``).
+        """
+        return await self._json("GET", "/api/wake-schedule")
+
+    async def set_wake_schedule(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Update the wake schedule (``POST /api/wake-schedule``).
+
+        Omitted fields keep their value, and times and an interval replace
+        each other. A bad value answers 400 with an ``error`` code and changes
+        nothing. Returns the resulting schedule, as ``get_wake_schedule``.
+        """
+        return await self._json("POST", "/api/wake-schedule", json=payload)
 
     async def restart(self) -> dict[str, Any]:
         """Reboot the frame (``POST /api/restart``), after any render ends."""
@@ -454,8 +480,8 @@ class FraimicClient:
         attempt = self._do_upload_api_image if self.prefer_api_image else self._do_upload
         try:
             await self._timed_attempt(attempt, data)
-        except FraimicWrongDeviceError:
-            # Never restart a frame that isn't this entry's.
+        except (FraimicWrongDeviceError, FraimicSleepingError):
+            # Never restart a frame that isn't this entry's, or one going to sleep.
             raise
         except FraimicTimeoutError:
             # The image may already be drawing; never retry an upload timeout.
@@ -501,9 +527,9 @@ class FraimicClient:
             except FraimicConnectionError as err:
                 # A disconnect after connecting may hide an accepted upload,
                 # including on the recovery attempt or with recovery disabled.
-                if not isinstance(err, FraimicWrongDeviceError) and not isinstance(
-                    err.__cause__, aiohttp.ClientConnectorError
-                ):
+                if not isinstance(
+                    err, (FraimicWrongDeviceError, FraimicSleepingError)
+                ) and not isinstance(err.__cause__, aiohttp.ClientConnectorError):
                     self.mark_rendering()
                 raise
             self.mark_rendering()
@@ -538,6 +564,8 @@ class FraimicClient:
                 body = None
             if resp.status >= 400:
                 error = body.get("error") if isinstance(body, dict) else None
+                if resp.status == 503 and error == "sleeping":
+                    raise FraimicSleepingError(f"{self._host} is going to sleep")
                 raise FraimicApiError(
                     f"Upload failed with HTTP {resp.status}"
                     + (f" ({error})" if error else ""),

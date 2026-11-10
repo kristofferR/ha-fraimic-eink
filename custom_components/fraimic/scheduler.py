@@ -714,12 +714,19 @@ class FraimicScheduler:
         self._pending_hold_on_success = False
         self.displayed_hash = None
         if hold:
-            interval = self.queue.interval
-            self._hold_until = dt_util.utcnow() + timedelta(seconds=interval)
+            self._hold_until = self._next_change(dt_util.utcnow())
 
     async def async_notify_external_upload(self, *, hold: bool = True) -> None:
         """Durably record a deferred external delivery."""
         self._mark_external_upload(hold=hold)
+        await self._async_save()
+        self._notify()
+
+    async def async_wake_schedule_changed(self) -> None:
+        """Art timing moved between wake slots and the queue interval."""
+        if self._hold_until is not None:
+            # A hold lasts until the next change, which the new timing decides.
+            self._hold_until = self._next_change(self._last_rotation or dt_util.utcnow())
         await self._async_save()
         self._notify()
 
@@ -813,6 +820,12 @@ class FraimicScheduler:
                 return
             if self.retry_at and now < self.retry_at:
                 return
+            if (
+                self._wakes() is not None
+                and not self.entry.runtime_data.coordinator.frame_online
+            ):
+                # It sleeps until its next wake, whose poll calls back here.
+                return
         candidate = self.queue.candidate(dt_util.now())
         if candidate is None:
             return
@@ -825,12 +838,26 @@ class FraimicScheduler:
             return
         await self._async_show(candidate.screen)
 
+    def _wakes(self) -> Any:
+        """The frame's native wake schedule when art follows it, else None."""
+        wakes = getattr(self.entry.runtime_data, "wakes", None)
+        return wakes if wakes is not None and wakes.active else None
+
+    def _next_change(self, after: datetime) -> datetime:
+        """When art shown at ``after`` may change: its next wake, or an interval on."""
+        wakes = self._wakes()
+        if wakes is not None and (change := wakes.next_change(after)) is not None:
+            return change
+        return after + timedelta(seconds=self.queue.interval)
+
     def _due_at(self, item: QueueItem) -> datetime:
         """When ``item`` may replace the picture shown at the last rotation."""
         last = self._last_rotation
         assert last is not None
-        if item.auto_source is None:
-            return last + timedelta(seconds=self.queue.interval)
+        # A frame that sleeps between changes only takes art at its wakes,
+        # auto picks included.
+        if item.auto_source is None or self._wakes() is not None:
+            return self._next_change(last)
         settings = self.auto
         # Cloud wakes follow the album interval, which tracks the queue's.
         if (getattr(self.entry.runtime_data, "cloud", None) is not None
@@ -956,9 +983,7 @@ class FraimicScheduler:
                 self.current_id = screen.screen_id
                 self.displayed_hash = result.get("content_hash")
                 self._hold_until = (
-                    dt_util.utcnow() + timedelta(seconds=self.queue.interval)
-                    if hold_on_success
-                    else None
+                    self._next_change(dt_util.utcnow()) if hold_on_success else None
                 )
             await self._async_save()
             self._notify()
@@ -1234,6 +1259,14 @@ class FraimicScheduler:
                 self.hass,
                 self._async_retry_pending(self._pending),
                 "fraimic_queue_wake_push",
+            )
+        elif (
+            self._wakes() is not None
+            and self.entry.runtime_data.coordinator.frame_online
+        ):
+            # A scheduled wake: art that came due while the frame slept goes now.
+            self.entry.async_create_task(
+                self.hass, self._async_rotate(force=False), "fraimic_queue_wake_rotate"
             )
         # Charging or a changed power profile can release a previously blocked send.
         if self.blocked_reason in {"daily_budget", "cooldown", "low_battery"}:

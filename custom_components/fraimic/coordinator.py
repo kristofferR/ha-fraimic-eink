@@ -122,6 +122,8 @@ class FraimicRuntimeData:
         self.temporary_overlays: Any = None
         # Planned awake windows (awake_window.AwakeWindow) for Hybrid frames.
         self.awake_window: Any = None
+        # Native wake schedule (native_wakes.NativeWakes) for local delivery.
+        self.wakes: Any = None
 
     def set_displayed_preview(
         self, preview_png: bytes, mode: str, *, overlay_count: int = 0

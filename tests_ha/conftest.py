@@ -19,7 +19,7 @@ from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.fraimic.api import FraimicClient
+from custom_components.fraimic.api import FraimicApiError, FraimicClient
 from custom_components.fraimic.const import (
     CONF_HEIGHT,
     CONF_POWER_MODE,
@@ -82,6 +82,13 @@ def frame_client() -> Generator[dict[str, AsyncMock]]:
             )
         ),
         "check_internet": AsyncMock(return_value={"reachable": False}),
+        # 0.2.28 has no wake schedule.
+        "get_wake_schedule": AsyncMock(
+            side_effect=FraimicApiError("not found", status=404)
+        ),
+        "set_wake_schedule": AsyncMock(
+            side_effect=FraimicApiError("not found", status=404)
+        ),
     }
     with patch.multiple(FraimicClient, **mocks):
         yield mocks

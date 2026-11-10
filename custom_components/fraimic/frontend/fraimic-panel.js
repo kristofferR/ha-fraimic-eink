@@ -18,6 +18,9 @@ const END_ACTIONS = [
 const AUTO_INTERVALS = [[1800, "30 minutes"], [3600, "1 hour"], [7200, "2 hours"], [14400, "4 hours"], [21600, "6 hours"], [43200, "12 hours"], [86400, "Once a day"]];
 const AVOID_REPEATS = [[0, "Off"], [7, "7 days"], [30, "30 days"], [90, "90 days"], [-1, "Until all shown"]];
 const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
+// Intervals (minutes) a frame's own wake schedule accepts: they divide a day.
+const WAKE_INTERVALS = [[60, "1 h"], [90, "1.5 h"], [120, "2 h"], [180, "3 h"], [240, "4 h"], [360, "6 h"], [480, "8 h"], [720, "12 h"], [1440, "24 h"]];
+const MAX_WAKE_TIMES = 4;
 const MAX_AUTO_SOURCES = 12;
 const AI_SAMPLE = "a fox reading under a lamp";
 const AI_PROVIDERS = [["", "None"], ["openrouter", "OpenRouter"], ["local", "Local server"], ["ai_task", "Home Assistant AI Task"]];
@@ -285,6 +288,21 @@ const css = String.raw`
   .queue-interval-menu button { width: 100%; min-height: 40px; display: flex; align-items: center; padding: 0 10px; text-align: left; }
   .queue-interval-menu button:hover { background: var(--secondary-background-color); }
   .queue-interval-menu button span { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .wake-menu { width: 320px; padding: 12px; }
+  .wake-menu h3 { margin: 0 0 8px; }
+  .wake-menu .seg { flex-wrap: wrap; }
+  .wake-menu .seg button, .wake-menu .wake-actions button, .wake-menu .wake-line > button, .wake-menu .wake-time button { width: auto; min-height: 30px; height: 30px; padding: 0 9px; font-size: 12px; }
+  .wake-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+  .wake-line .label { width: 100%; color: var(--muted); font-size: 11px; }
+  .wake-time { display: inline-flex; align-items: center; }
+  .wake-time input { height: 30px; }
+  .wake-sum { display: grid; gap: 4px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; }
+  .wake-sum div { display: flex; justify-content: space-between; gap: 10px; }
+  .wake-sum span, .wake-hint { color: var(--muted); }
+  .wake-hint { margin: 10px 0 0; font-size: 11px; line-height: 1.45; }
+  .wake-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .row-time { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .row-time.next { color: var(--accent); font-weight: 600; }
   .queue-list { margin: 0; padding: 0; list-style: none; }
   .queue-row { min-height: 68px; display: flex; align-items: center; gap: 10px; padding: 7px 16px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .queue-row:hover { background: var(--secondary-background-color); }
@@ -1396,6 +1414,7 @@ class FraimicPanel extends HTMLElement {
       title = `Could not reach ${this._frame.name}`;
       meta = `Last seen ${this._lastSeenMinutes(frame.last_seen)} minutes ago, check power and wifi.`;
     } else if (player?.preview) meta = this._previewMeta(player.preview);
+    else if (state === "asleep" && player?.wakes?.active && !player.paused && player.wakes.slots?.length) meta = `${this._frame.name} is asleep · next change ${this._slotTime(player.wakes.slots[0])}`;
     else if (state === "asleep") meta = `${this._frame.name} is asleep · ${current.title ? "still showing this" : "displayed artwork not confirmed"}`;
     else if (current.title) meta = [current.artist, player.playlist_name, this._playbackStatus(player)].filter(Boolean).join(" · ");
     const progress = state === "sending"
@@ -1429,14 +1448,16 @@ class FraimicPanel extends HTMLElement {
     const items = player.hand_queue || [];
     const current = player.preview || player.current || {};
     const interval = this._formatInterval(player.interval).replace(/^every /, "");
+    const wakes = player.wakes?.active ? player.wakes : null;
     const nowMeta = h(this._previewMeta(player.preview));
     return `<section class="queue-sheet" style="--queue-height:${this._queueHeight}px" aria-label="Queue" tabindex="-1">
       <div class="queue-now queue-toolbar"><div class="queue-handle" data-queue-handle aria-label="Resize queue"></div>
         ${current.title ? `<button class="row-art glass" data-dither-preview="" data-preview-title="${h(current.title)}" data-preview-meta="${nowMeta}" aria-label="Preview ${h(current.title)}">${current.thumbnail_url ? `<img ${this._imageAttrs(current.thumbnail_url, "")}>` : ""}</button><div class="row-copy"><b>${h(current.title)}</b><span>${nowMeta}</span></div>` : `<h2>Queue</h2>`}
-        <span class="spacer"></span><button class="btn queue-interval" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>Changes every</small><b>${h(interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>
+        <span class="spacer"></span><button class="btn queue-interval" data-menu="interval" aria-expanded="${this._menu === "interval"}"><small>${wakes ? "Changes at" : "Changes every"}</small><b>${h(wakes ? this._wakeSummary(wakes.schedule) : interval)} <ha-icon icon="mdi:chevron-down"></ha-icon></b></button><button class="icon-btn" data-queue-toggle aria-label="Close queue"><ha-icon icon="mdi:close"></ha-icon></button>
       </div>
       ${this._menu === "interval" ? this._intervalMenuTemplate("queue-interval-menu") : ""}
       ${player.delay ? `<div class="failure" role="status"><span>${h(this._playbackStatus(player))}</span><button class="btn small" data-options>Power settings</button></div>` : ""}
+      ${wakes?.missed && wakes.last_wake?.outcome === "missed" ? `<div class="failure" role="status"><span>${h(this._frame?.name || "The frame")} missed its ${h(this._clockTime(wakes.last_wake.wake))} wake. To wake on schedule it needs its time servers and its 8.8.8.8 connection check.</span></div>` : ""}
       <div class="queue-head"><h2>Up next</h2><span class="sub">${items.length}</span><span class="spacer"></span>
         <button class="icon-btn" data-toggle-shuffle aria-label="Shuffle queue" aria-pressed="${Boolean(player.shuffle)}" title="Shuffle queue"><ha-icon icon="mdi:shuffle${player.shuffle ? "" : "-disabled"}"></ha-icon></button>
         <button class="btn small" data-menu="end" aria-expanded="${this._menu === "end"}" aria-label="End of queue: ${h(this._endLabel(player))}">Then: ${h(this._endLabel(player))} <ha-icon icon="mdi:chevron-down"></ha-icon></button>
@@ -1462,7 +1483,14 @@ class FraimicPanel extends HTMLElement {
 
   _queueRow(item, index, auto = false) {
     const remove = auto ? "Swap for another pick" : "Remove from queue";
-    return `<li class="queue-row" draggable="true" data-queue-section="queue" data-queue-index="${index}" data-queue-id="${h(item.id)}"${auto ? " data-queue-auto" : ""} data-play-row tabindex="0" aria-label="Show ${h(item.title)} now" aria-description="Alt+Up or Alt+Down to reorder" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${auto ? `<span class="auto-tag">AUTO</span>` : ""}${h(item.title)}</b><span>${h(item.meta)}</span></div><div class="row-actions"><button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="${remove}" title="${remove}"><ha-icon icon="mdi:close"></ha-icon></button></div></li>`;
+    return `<li class="queue-row" draggable="true" data-queue-section="queue" data-queue-index="${index}" data-queue-id="${h(item.id)}"${auto ? " data-queue-auto" : ""} data-play-row tabindex="0" aria-label="Show ${h(item.title)} now" aria-description="Alt+Up or Alt+Down to reorder" aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown"><span class="grip"><ha-icon icon="mdi:drag"></ha-icon></span>${this._artPreviewCell(item)}<div class="row-copy"><b>${auto ? `<span class="auto-tag">AUTO</span>` : ""}${h(item.title)}</b><span>${h(item.meta)}</span></div>${this._rowTime(index)}<div class="row-actions"><button class="icon-btn" data-remove-queue="${index}:${h(item.id)}" aria-label="${remove}" title="${remove}"><ha-icon icon="mdi:close"></ha-icon></button></div></li>`;
+  }
+
+  // When a queued picture reaches a frame that sleeps between changes.
+  _rowTime(index) {
+    const wakes = this._player?.wakes;
+    const slot = wakes?.active && !this._player?.paused ? wakes.slots?.[index] : null;
+    return slot ? `<span class="row-time${index === 0 ? " next" : ""}">${h(this._slotTime(slot))}</span>` : "";
   }
 
   _endLabel(player) { return (END_ACTIONS.find(([value]) => value === player?.end_action) || END_ACTIONS[0])[1]; }
@@ -1480,7 +1508,7 @@ class FraimicPanel extends HTMLElement {
   _menuTemplate() {
     if (!this._menu) return "";
     if (this._menu === "app") return `<div class="menu top-menu"><h3>App menu</h3><button data-source="saved">Manage library <span>${this._galleryBySource.get("saved")?.length || ""}</span></button><button data-ai-settings>AI art <span>›</span></button><button data-options>Sources, cache and performance</button><button data-reload>Reload sources</button><button data-add-frame>Add a frame</button><button data-docs>Documentation</button></div>`;
-    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">Changes every <span>${h(this._formatInterval(this._player?.interval))}</span></button><button data-options>Image, cache and performance <span>›</span></button>${this._lanCommands() ? "" : `<button data-backend-status>Local backend <span>›</span></button>`}${this._lanCommands() ? `<button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}` : ""}<button data-device>Device page</button></div>`;
+    if (this._menu === "frame") return `<div class="menu player-menu"><h3>${h(this._frame?.name)}</h3><button data-overlays>Overlays <span>${this._player?.overlay_count || 0} on</span></button><button data-change-playlist>Add a playlist <span>›</span></button><button data-toggle-shuffle>Shuffle <span>${this._player?.shuffle ? "on" : "off"}</span></button><button data-menu="end">When the queue ends <span>${h(this._endLabel(this._player))}</span></button><button data-auto-settings>Auto mode settings <span>›</span></button><button data-menu="interval">${this._player?.wakes?.active ? `Changes at <span>${h(this._wakeSummary(this._player.wakes.schedule))}</span>` : `Changes every <span>${h(this._formatInterval(this._player?.interval))}</span>`}</button><button data-options>Image, cache and performance <span>›</span></button>${this._lanCommands() ? "" : `<button data-backend-status>Local backend <span>›</span></button>`}${this._lanCommands() ? `<button data-player-action="refresh">Refresh panel now</button>${this._frame?.charging ? "" : `<button data-player-action="sleep">Put to sleep</button>`}` : ""}<button data-device>Device page</button></div>`;
     if (this._menu === "interval") {
       return this._queueOpen ? "" : this._intervalMenuTemplate("menu player-menu");
     }
@@ -1490,8 +1518,64 @@ class FraimicPanel extends HTMLElement {
   }
 
   _intervalMenuTemplate(className) {
+    const wakes = this._player?.wakes;
+    if (wakes && (wakes.active || this._wakeDraft)) return this._wakeMenuTemplate(className, wakes);
     const values = [[900,"15 minutes"],[1800,"30 minutes"],[2700,"45 minutes"],[3600,"1 hour"],[7200,"2 hours"],[14400,"4 hours"],[21600,"6 hours"],[43200,"12 hours"],[86400,"Once a day"]];
-    return `<div class="${className}"><h3>Changes every</h3>${values.map(([value,label]) => `<button data-interval="${value}">${label}<span>${value === this._player?.interval ? "current" : ""}</span></button>`).join("")}<button data-custom-interval>Custom interval…</button><div class="failure">Playback follows this interval in every power mode. Each change uses battery.</div></div>`;
+    return `<div class="${className}"><h3>Changes every</h3>${values.map(([value,label]) => `<button data-interval="${value}">${label}<span>${value === this._player?.interval ? "current" : ""}</span></button>`).join("")}<button data-custom-interval>Custom interval…</button>${wakes ? `<button data-wake-edit>Sleep between changes… <span>›</span></button>` : ""}<div class="failure">Playback follows this interval in every power mode. Each change uses battery.</div></div>`;
+  }
+
+  // The frame's own wake schedule (firmware 0.2.31+): when art changes on a frame that sleeps in between.
+  _wakeMenuTemplate(className, wakes) {
+    const draft = this._wakeDraft ??= structuredClone(wakes.schedule || { times: ["07:00", "19:00"], interval: null, days: [...WEEKDAYS] });
+    const days = new Set(draft.days);
+    const name = this._frame?.name || "The frame";
+    const saved = wakes.active && JSON.stringify(wakes.schedule) === JSON.stringify(draft);
+    const status = !saved ? "" : wakes.synced ? "Yes" : wakes.next_wake ? "At its next wake" : "When you tap the frame";
+    const intervalMode = draft.interval !== null;
+    return `<div class="${className} wake-menu" role="dialog" aria-label="When art changes"><h3>When art changes</h3>
+      <div class="seg" role="radiogroup" aria-label="Schedule type"><button role="radio" aria-checked="${intervalMode}" class="${intervalMode ? "selected" : ""}" data-wake-mode="interval">Every…</button><button role="radio" aria-checked="${!intervalMode}" class="${intervalMode ? "" : "selected"}" data-wake-mode="times">At set times</button></div>
+      ${intervalMode
+        ? `<div class="wake-line"><span class="label">Every</span><div class="seg" role="radiogroup" aria-label="Every">${WAKE_INTERVALS.map(([value, label]) => `<button role="radio" aria-checked="${value === draft.interval}" class="${value === draft.interval ? "selected" : ""}" data-wake-interval="${value}">${label}</button>`).join("")}</div></div>`
+        : `<div class="wake-line"><span class="label">Times (up to ${MAX_WAKE_TIMES})</span>${draft.times.map((value, index) => `<span class="wake-time"><input type="time" data-wake-time="${index}" value="${h(value)}" aria-label="Time ${index + 1}"><button class="icon-btn" data-wake-remove-time="${index}" aria-label="Remove ${h(value)}" ${draft.times.length === 1 ? "disabled" : ""}><ha-icon icon="mdi:close"></ha-icon></button></span>`).join("")}${draft.times.length < MAX_WAKE_TIMES ? `<button class="btn small" data-wake-add-time>Add time</button>` : ""}</div>`}
+      <div class="wake-line"><span class="label">Days</span><div class="seg">${WEEKDAYS.map((day) => `<button aria-pressed="${days.has(day)}" class="${days.has(day) ? "selected" : ""}" data-wake-day="${day}">${day[0].toUpperCase()}${day.slice(1)}</button>`).join("")}</div></div>
+      <div class="wake-sum"><div><span>${h(name)} sleeps between changes</span><b>${h(this._wakeCount(draft))}</b></div>
+        ${saved && wakes.next_wake ? `<div><span>Next wake</span><b>${h(this._slotTime(wakes.next_wake))}</b></div>` : ""}
+        ${status ? `<div><span>Saved on frame</span><b>${h(status)}</b></div>` : ""}</div>
+      <p class="wake-hint">The frame stores up to ${MAX_WAKE_TIMES} times, or an interval counted from midnight on its own clock. To change more often than hourly, turn wakes off and keep the frame awake.</p>
+      <div class="wake-actions">${wakes.active ? `<button class="btn" data-wake-off>Turn off wakes</button>` : `<button class="btn" data-wake-cancel>Cancel</button>`}<span class="spacer"></span><button class="btn primary" data-wake-save ${draft.days.length ? "" : "disabled"}>Save</button></div>
+    </div>`;
+  }
+
+  _wakeSummary(schedule) {
+    if (!schedule) return "";
+    const when = schedule.interval ? `Every ${(WAKE_INTERVALS.find(([value]) => value === schedule.interval) || [0, `${schedule.interval} min`])[1]}` : schedule.times.join(" · ");
+    const days = schedule.days || WEEKDAYS;
+    if (days.length === 7) return when;
+    const weekdays = days.length === 5 && !days.includes("sat") && !days.includes("sun");
+    return `${when} · ${weekdays ? "Weekdays" : days.map((day) => day[0].toUpperCase() + day.slice(1)).join(", ")}`;
+  }
+
+  _wakeCount(schedule) {
+    const perDay = schedule.interval ? 1440 / schedule.interval : schedule.times.length;
+    const days = schedule.days.length;
+    if (days === 7) return `${perDay} ${perDay === 1 ? "wake" : "wakes"} a day`;
+    const perWeek = perDay * days;
+    return `${perWeek} ${perWeek === 1 ? "wake" : "wakes"} a week`;
+  }
+
+  // "19:00" today, "Wed 07:00" this week, else a date.
+  _slotTime(iso) {
+    const date = new Date(iso);
+    const time = date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    const days = Math.round((new Date(date).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+    if (days === 0) return time;
+    if (days > 0 && days < 7) return `${date.toLocaleDateString(undefined, { weekday: "short" })} ${time}`;
+    return `${date.toLocaleDateString(undefined, { day: "numeric", month: "short" })} ${time}`;
+  }
+
+  async _saveWake(schedule) {
+    await this._setPlayback("wake_schedule", schedule);
+    this._wakeDraft = null;
   }
 
   _facetMenu() {
@@ -1574,7 +1658,7 @@ class FraimicPanel extends HTMLElement {
     root.querySelectorAll("[data-source-node]").forEach((node) => node.onclick = () => this._activateSourceNode(node.dataset.sourceNode, node.dataset.browseId || "", node.dataset.sourceTitle || ""));
     root.querySelectorAll("[data-source-expand]").forEach((node) => node.onclick = () => this._toggleSourceNode(node.dataset.sourceExpand, node.dataset.browseId || ""));
     root.querySelectorAll("[data-static-expand]").forEach((node) => node.onclick = () => this._toggleStaticSource(node.dataset.staticExpand));
-    root.querySelectorAll("[data-menu]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._menu = this._menu === node.dataset.menu ? null : node.dataset.menu; this._renderPreservingFocus(); });
+    root.querySelectorAll("[data-menu]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._menu = this._menu === node.dataset.menu ? null : node.dataset.menu; this._wakeDraft = null; this._renderPreservingFocus(); });
     root.querySelector("#gallery-search")?.addEventListener("input", (event) => this._search(event.target.value));
     root.querySelector("[data-toggle='fits']")?.addEventListener("click", () => { this._fits = !this._fits; this._render(); });
     root.querySelector("[data-toggle='renders']")?.addEventListener("click", () => { this._rendersWell = !this._rendersWell; this._render(); });
@@ -1632,6 +1716,18 @@ class FraimicPanel extends HTMLElement {
     this._bindAiSettings();
     this._bindCreate();
     root.querySelectorAll("[data-custom-interval]").forEach((node) => node.onclick = () => this._customInterval());
+    const wakeDraft = () => this._wakeDraft;
+    const wakeRender = () => this._renderPreservingFocus();
+    root.querySelectorAll("[data-wake-edit]").forEach((node) => node.onclick = (event) => { event.stopPropagation(); this._wakeDraft = structuredClone(this._player?.wakes?.schedule || { times: ["07:00", "19:00"], interval: null, days: [...WEEKDAYS] }); wakeRender(); });
+    root.querySelectorAll("[data-wake-mode]").forEach((node) => node.onclick = () => { const draft = wakeDraft(); if (node.dataset.wakeMode === "interval") { draft.interval ||= 360; draft.times = []; } else { draft.interval = null; if (!draft.times.length) draft.times = ["07:00"]; } wakeRender(); });
+    root.querySelectorAll("[data-wake-interval]").forEach((node) => node.onclick = () => { wakeDraft().interval = Number(node.dataset.wakeInterval); wakeRender(); });
+    root.querySelectorAll("[data-wake-time]").forEach((node) => node.onchange = () => { wakeDraft().times[Number(node.dataset.wakeTime)] = node.value; });
+    root.querySelectorAll("[data-wake-remove-time]").forEach((node) => node.onclick = () => { wakeDraft().times.splice(Number(node.dataset.wakeRemoveTime), 1); wakeRender(); });
+    root.querySelectorAll("[data-wake-add-time]").forEach((node) => node.onclick = () => { wakeDraft().times.push("12:00"); wakeRender(); });
+    root.querySelectorAll("[data-wake-day]").forEach((node) => node.onclick = () => { const draft = wakeDraft(); const days = new Set(draft.days); if (!days.delete(node.dataset.wakeDay)) days.add(node.dataset.wakeDay); draft.days = WEEKDAYS.filter((day) => days.has(day)); wakeRender(); });
+    root.querySelectorAll("[data-wake-save]").forEach((node) => node.onclick = () => { const draft = wakeDraft(); this._saveWake({ times: draft.interval ? [] : [...new Set(draft.times)].sort(), interval: draft.interval, days: draft.days }); });
+    root.querySelectorAll("[data-wake-off]").forEach((node) => node.onclick = () => this._saveWake(null));
+    root.querySelectorAll("[data-wake-cancel]").forEach((node) => node.onclick = () => { this._wakeDraft = null; this._menu = null; wakeRender(); });
     root.querySelectorAll("[data-interval]").forEach((node) => node.onclick = () => this._setInterval(Number(node.dataset.interval)));
     root.querySelectorAll("[data-options]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/integration/fraimic"));
     root.querySelectorAll("[data-add-frame]").forEach((node) => node.onclick = () => this._haNavigate("/config/integrations/dashboard/add?domain=fraimic"));
@@ -1649,7 +1745,7 @@ class FraimicPanel extends HTMLElement {
     this._bindSourceReorder();
     this._bindDetailModal();
     this._bindOverlayEditor();
-    root.host.onclick = (event) => { if (this._menu && !event.composedPath().some((node) => node?.classList?.contains("menu")) && !event.composedPath().some((node) => node?.dataset?.menu)) { this._menu = null; this._renderPreservingFocus(); } };
+    root.host.onclick = (event) => { if (this._menu && !event.composedPath().some((node) => node?.classList?.contains("menu") || node?.classList?.contains("wake-menu")) && !event.composedPath().some((node) => node?.dataset?.menu)) { this._menu = null; this._wakeDraft = null; this._renderPreservingFocus(); } };
   }
 
   _bindKeyboard() {
@@ -2990,7 +3086,7 @@ class FraimicPanel extends HTMLElement {
 
   _openAutoSettings() {
     this._menu = null;
-    const { error: _error, follows_queue: _followsQueue, ...draft } = structuredClone(this._player?.auto || {});
+    const { error: _error, follows_queue: _followsQueue, follows_wakes: _followsWakes, ...draft } = structuredClone(this._player?.auto || {});
     this._autoDraft = draft;
     this._openModal("Auto mode", this._autoSettingsBody(), this._autoSettingsActions(), { className: "auto-dialog", subtitle: h(this._frame?.name || "") });
   }
@@ -3007,7 +3103,8 @@ class FraimicPanel extends HTMLElement {
 
   _autoSettingsBody() {
     const draft = this._autoDraft;
-    const followsQueue = Boolean(this._player?.auto?.follows_queue);
+    const followsWakes = Boolean(this._player?.auto?.follows_wakes);
+    const followsQueue = followsWakes || Boolean(this._player?.auto?.follows_queue);
     const sources = draft.sources || [];
     const taken = new Set(sources.map((source) => this._autoSourceKey(source)));
     const options = this._autoSourceOptions().map((option, index) => ({ ...option, index })).filter((option) => !taken.has(this._autoSourceKey(option.source)));
@@ -3024,12 +3121,12 @@ class FraimicPanel extends HTMLElement {
       </section>
       <section class="auto-section"><h3>When to change</h3>
         ${seg("cadence", draft.cadence, [["queue", "Same as queue"], ["interval", "Every…", followsQueue], ["times", "At set times", followsQueue]], "When to change")}
-        ${draft.cadence === "queue" ? `<p class="auto-hint">Follows the queue: every ${h(this._formatInterval(this._player?.interval))}.</p>` : ""}
+        ${draft.cadence === "queue" && !followsWakes ? `<p class="auto-hint">Follows the queue: every ${h(this._formatInterval(this._player?.interval))}.</p>` : ""}
         ${draft.cadence === "interval" ? `<div class="auto-line"><span class="label">Every</span>${select("auto-interval", draft.interval, intervals, "Change every")}</div>` : ""}
         ${draft.cadence === "times" ? `<div class="auto-line"><span class="label">Times</span>${times.map((value, index) => `<input type="time" data-auto-time="${index}" value="${h(value)}" aria-label="Change time ${index + 1}"><button class="icon-btn" data-auto-remove-time="${index}" aria-label="Remove ${h(value)}" ${times.length === 1 ? "disabled" : ""}><ha-icon icon="mdi:close"></ha-icon></button>`).join("")}<button class="btn small" data-auto-add-time>Add time</button></div>
           <div class="auto-line"><span class="label">Days</span><div class="seg">${WEEKDAYS.map((day) => `<button aria-pressed="${days.has(day)}" class="${days.has(day) ? "selected" : ""}" data-auto-day="${day}">${day[0].toUpperCase()}${day.slice(1)}</button>`).join("")}</div></div>
           <p class="auto-hint">No days selected means every day.</p>` : ""}
-        ${followsQueue ? `<p class="auto-hint">This frame wakes on the queue interval, so auto mode follows it.</p>` : ""}
+        ${followsWakes ? `<p class="auto-hint">This frame sleeps between changes, so auto mode changes at its wakes: ${h(this._wakeSummary(this._player?.wakes?.schedule))}.</p>` : followsQueue ? `<p class="auto-hint">This frame wakes on the queue interval, so auto mode follows it.</p>` : ""}
         <div class="auto-line"><label class="label"><input type="checkbox" id="auto-active" ${draft.active_hours ? "checked" : ""}> Active hours</label>${draft.active_hours ? `<input type="time" id="auto-active-after" value="${h(draft.active_hours.after)}" aria-label="Changes start at"><span>to</span><input type="time" id="auto-active-before" value="${h(draft.active_hours.before)}" aria-label="Changes stop at">` : `<span class="auto-hint">Any time of day</span>`}</div>
       </section>
       <section class="auto-section"><h3>Variety</h3>

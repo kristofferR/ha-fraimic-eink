@@ -39,6 +39,8 @@ Home Assistant custom integration (domain `fraimic`, `local_polling`) for the Fr
 | `companion/` | Standalone aiohttp stock-protocol listener, SQLite transport journal, scoped tickets and TLS reload. Own project/test process: `cd companion && uv run pytest && uv run mypy`. Runbook: `docs/local-backend.md`. |
 | `ai_art.py` / `ai_manager.py` / `ai_http.py` | AI art. `ai_art` (HA-free): styles as `{prompt}` templates, frame-shaped sizes, OpenRouter `/api/v1/images` (aspect ratio, resolution, `usage.cost`) and local servers (OpenAI images API or SD WebUI, auto-detected). `ai_manager`: one domain-wide store with the service, styles, optional AI Task rewrite and per-frame voice settings (not entry options, which reload the frame); saves each picture as a Creation with prompt, model and cost. `ai_http`: panel settings/check/models/create; the key never leaves HA. `fraimic.create_art` reuses it. |
 | `creations.py` | `fraimic.import_creations`: copies the account gallery's voice items (`upload_type == "audio"`) into the library with a `LibraryImage.creation` record (the panel's Creations folder lists every image that has one) (transcript, style, vendor crop/metadata). Dedupes by account id + upload id; re-reads an item for a fresh URL when its signed one expired (403). HA-free. |
+| `wake_schedule.py` | HA-free native wake schedules (fw 0.2.31+): validation, frame payloads, shifting HA-zone times onto the frame's clock, art-change slots. |
+| `native_wakes.py` | Local frames that sleep between changes: writes the wake schedule when the frame answers, catches each wake (probe, poll, sleep), raises `wake_missed` after two misses. |
 | `awake_window.py` | Hybrid awake windows (`set_awake_window`): steer the wake album to just before `start` (5-min standby checks from `standby_from`), keep-awake on, retire pending art and restart the timer wake on the LAN into a normal boot, keep-awake off at `end` with the next wake (or a daily heartbeat) on the wake album. |
 | `send_queue.py` | Queued delivery to sleeping frames: persist `.bin`+preview, flush on next successful poll, latest-wins + at-most-once, `send_status` sensor signals. |
 | `scheduled_events.py` | One-shot/recurring scheduled sends (`schedule_send` etc.); at-most-once (fire recorded before send), missed one-shots fire on restart. |
@@ -66,6 +68,9 @@ Base `http://{host}`, **unauthenticated**, local HTTP.
 - `POST /api/restart` / `/api/sleep` (blocked while charging) / `/api/refresh`.
 - `POST /api/image` — raw `application/octet-stream` `.bin` body; used on firmware >= 0.2.28.
 - `POST /upload` — multipart `image` field; fallback for older/unknown firmware.
+- `GET/POST /api/wake-schedule` (fw 0.2.31+) — the frame's own wakes: up to
+  four daily times or an interval from its midnight, weekdays, `max_idle`.
+  Times are on the frame's zone; replies list `next_wakes` with its offset.
 - `GET /test` — HTML web page (open in a browser, not an API call) exposing a
   **factory reset** (wipes frame settings/pairing). Destructive; not wired into
   the integration.
@@ -253,6 +258,17 @@ budgets. Low battery still defers automatic playback and surfaces a reason and
 retry time through the player API. Accepted cloud sends advance delivery order
 without claiming a confirmed physical display. The media_player camera loop
 is separate (`CONF_CAMERA_INTERVAL`, 0 = once, STOP cancels).
+
+Native wakes (local delivery, fw 0.2.31+): once a wake schedule is picked in
+the panel ("Changes at"), it replaces the queue interval, auto cadence
+included. Art may change from `CATCH_LEAD` (30 s) before each slot, but
+automatic rotation waits until the frame answers. `NativeWakes` probes from
+that lead to `CATCH_END` (80 s) after the frame's own `next_wakes` entry, polls
+on the first answer (the scheduler and send queue deliver from that poll),
+re-syncs the schedule, then sends `/api/sleep` unless the frame is charging.
+Keep-awake can only change through the cloud, so this explicit sleep is what
+lets a frame with keep-awake on sleep between wakes. A frame schedule set
+outside Home Assistant is left alone until one is picked here.
 
 ## Testing
 
