@@ -1210,3 +1210,65 @@ def test_an_asleep_block_is_not_lifted_by_an_older_retry(playback):
     p.now[0] += timedelta(minutes=10)
     assert p.scheduler.blocked_reason == "asleep"
     assert not p.scheduler.producing
+
+
+class _Wakes:
+    """Native wakes at fixed slots; art may change from 30 s before each."""
+
+    active = True
+
+    def __init__(self, slots):
+        self.slots = slots
+
+    def next_change(self, after):
+        lead = timedelta(seconds=30)
+        return next((slot - lead for slot in self.slots if slot - lead > after), None)
+
+
+def test_sleeping_frame_takes_art_at_its_wakes_once_it_answers(playback):
+    p = playback
+    slots = [p.now[0] + timedelta(hours=hours) for hours in (1, 2, 3)]
+    p.entry.runtime_data.wakes = _Wakes(slots)
+    coordinator = p.entry.runtime_data.coordinator
+    coordinator.frame_online = True
+    first, second = add(p, "first", "second")
+    run(p.scheduler.async_set_enabled(True))
+    assert p.scheduler.current_id == first.screen_id
+
+    # Due at the first wake, but the frame sleeps until it answers.
+    coordinator.frame_online = False
+    p.now[0] = slots[0] - timedelta(seconds=30)
+    run(p.scheduler._async_tick())
+    assert p.show.await_count == 1
+
+    # The wake's poll delivers.
+    coordinator.frame_online = True
+    p.scheduler._coordinator_updated()
+    run(p.entry.async_create_task.call_args.args[1])
+    assert p.scheduler.current_id == second.screen_id
+
+    # A manual picture keeps the frame until the next wake.
+    run(p.scheduler.async_notify_external_upload())
+    assert p.scheduler.hold_until == slots[1] - timedelta(seconds=30)
+    # A new schedule keeps it until the next wake from now, not from the last rotation.
+    p.scheduler._last_rotation -= timedelta(days=1)
+    run(p.scheduler.async_wake_schedule_changed())
+    assert p.scheduler.hold_until == slots[1] - timedelta(seconds=30)
+
+
+def test_direct_send_blocks_wake_rotation_and_automatic_retry(playback):
+    p = playback
+    add(p, "first", "second")
+    run(p.scheduler.async_set_enabled(True))
+    p.now[0] += timedelta(hours=2)
+    p.entry.runtime_data.send_queue = SimpleNamespace(pending={"title": "manual"})
+    p.show.reset_mock()
+    run(p.scheduler._async_rotate(force=False))
+    p.show.assert_not_awaited()
+    candidate = p.scheduler.queue.candidate(p.now[0])
+    p.scheduler._pending = candidate.screen
+    run(p.scheduler._async_retry_pending(candidate.screen))
+    p.show.assert_not_awaited()
+    p.entry.runtime_data.send_queue.pending = None
+    run(p.scheduler._async_retry_pending(candidate.screen))
+    p.show.assert_awaited_once()

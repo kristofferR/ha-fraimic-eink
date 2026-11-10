@@ -48,6 +48,7 @@ from .render.schema import ScreenConfig
 from .scenes import SceneManager, SceneNotFoundError, get_scene_manager
 from .screens_http import screens_views
 from .services import begin_external_upload, finish_external_upload
+from .wake_schedule import WakeSchedule, WakeScheduleError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -825,6 +826,9 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
     sending_screen = getattr(scheduler, "sending_screen", None)
     cloud = getattr(runtime, "cloud", None)
     backend = getattr(runtime, "backend", None)
+    wakes = getattr(runtime, "wakes", None)
+    if wakes is not None and wakes.supported is not True:
+        wakes = None
     if sending_preview is not None:
         png, preview_title = sending_preview
         preview = {
@@ -910,7 +914,11 @@ def _player_payload(hass: HomeAssistant, entry: ConfigEntry) -> dict[str, Any]:
             "error": scheduler.auto_error,
             # Cloud and companion wakes follow the queue interval; so does auto mode.
             "follows_queue": cloud is not None or backend is not None,
+            # Native wakes set every change, auto picks included.
+            "follows_wakes": bool(wakes and wakes.active),
         },
+        # One slot time per upcoming row, hand-queued first.
+        "wakes": wakes.as_dict(count=len(hand) + len(auto_picks)) if wakes else None,
         "transport_available": transport_available,
         "sending": sending,
         "sending_progress": sending_progress,
@@ -1082,6 +1090,19 @@ class PlayerControlView(_FraimicView):
                     return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
             elif action == "new_picks":
                 await scheduler.async_new_auto_picks()
+            elif action == "wake_schedule":
+                wakes = getattr(runtime, "wakes", None)
+                value = body.get("wake_schedule")
+                try:
+                    schedule = None if value is None else WakeSchedule.from_dict(value)
+                except WakeScheduleError as err:
+                    return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+                if wakes is None or wakes.supported is not True:
+                    return self.json_message(
+                        "This frame can't keep a wake schedule", HTTPStatus.BAD_REQUEST
+                    )
+                await wakes.async_set_schedule(schedule)
+                await scheduler.async_wake_schedule_changed()
             elif action in {"shuffle", "repeat", "interval", "end_action"}:
                 if action not in body or body[action] is None:
                     return self.json_message(

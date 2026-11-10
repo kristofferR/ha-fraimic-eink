@@ -181,6 +181,12 @@ async def async_get_config_entry_diagnostics(
             if (window := getattr(entry.runtime_data, "awake_window", None))
             else None
         ),
+        # Native wake schedule and how the last wake went.
+        "wakes": (
+            wakes.as_dict(count=4)
+            if (wakes := getattr(entry.runtime_data, "wakes", None))
+            else None
+        ),
         # Recent frame logs (/logs admin page) — the only source for the WiFi
         # drop / upload-wedge symptoms; fetched on demand, never fatal.
         "logs": await _async_logs(entry),

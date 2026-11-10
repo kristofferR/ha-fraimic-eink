@@ -29,12 +29,14 @@ from .const import (
     CONF_ROTATION,
     CONF_SCAN_INTERVAL,
     CONF_WIDTH,
+    DEFAULT_DELIVERY_MODE,
     DEFAULT_HEIGHT,
     DEFAULT_ROTATION,
     DEFAULT_WIDTH,
     DELIVERY_CLOUD,
     DELIVERY_BACKEND,
     DELIVERY_HYBRID,
+    DELIVERY_LOCAL,
     DOMAIN,
     POWER_MODE_RESPONSIVE,
     ROTATION_OPTIONS,
@@ -50,6 +52,7 @@ from .discovery import DATA_DISCOVERY_SWEEP, async_start_sweep
 from .helpers import loaded_fraimic_entries
 from .http_api import async_register_views
 from .library import DATA_LIBRARY, FraimicLibrary
+from .native_wakes import NativeWakes
 from .local_backend import LocalBackend
 from .backend_errors import BackendUnavailable
 from .overlays import DATA_OVERLAYS, OverlayManager
@@ -202,6 +205,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
         entry.runtime_data.awake_window = awake_window
         entry.async_on_unload(awake_window.shutdown)
         await awake_window.async_setup()
+    # Keep a pending retirement alive until a sleeping frame next answers,
+    # even when its new transport no longer uses native wakes.
+    wakes = NativeWakes(hass, entry)
+    local_delivery = (
+        entry.options.get(CONF_DELIVERY_MODE, DEFAULT_DELIVERY_MODE) == DELIVERY_LOCAL
+    )
+    if local_delivery:
+        entry.runtime_data.wakes = wakes
+    await wakes.async_setup(retire=not local_delivery)
+    entry.async_on_unload(wakes.shutdown)
     scheduler = FraimicScheduler(hass, entry, playlists)
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()
@@ -320,7 +333,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> 
     """Deactivate the owned album when the frame is deleted, including unloaded entries."""
     from homeassistant.helpers import issue_registry as ir
 
-    for issue in ("frame_timezone", "phantom_cable", "time_unsynced"):
+    for issue in ("frame_timezone", "phantom_cable", "time_unsynced", "wake_missed"):
         ir.async_delete_issue(hass, DOMAIN, f"{issue}_{entry.entry_id}")
     delivery = await _async_load_cloud(hass, entry)
     if delivery is not None:

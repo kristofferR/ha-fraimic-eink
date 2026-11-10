@@ -4,7 +4,7 @@ The frame runs an **unauthenticated** HTTP server on the local network at
 `http://{host}` (default host `fraimic.local`, or the frame's LAN IP). This is
 the API the Home Assistant integration talks to via `custom_components/fraimic/api.py`.
 
-Verified on **firmware 0.2.21, 0.2.28, and 0.2.29** (physical frames). Firmware is
+Verified on **firmware 0.2.21, 0.2.28, 0.2.29 and 0.2.31** (physical frames). Firmware is
 battery-powered: in deep sleep the frame is completely unreachable until
 tapped awake.
 
@@ -22,6 +22,7 @@ Reverse-engineered / hardware-verified — Fraimic's own "REST API Guide"
 | POST | `/api/refresh` | Trigger a full E-Ink refresh cycle. |
 | POST | `/api/image`   | Upload + render an image (raw octet-stream). Works on fw >= 0.2.28. |
 | POST | `/upload`      | Upload + render an image (multipart). Works on every firmware seen. |
+| GET/POST | `/api/wake-schedule` | The frame's own wake times (fw >= 0.2.31). |
 | GET  | `/info`        | HTML admin page: panel size + battery health (scraped daily). |
 | GET  | `/api/albums`  | Cloud albums, proxied to origin.fraimic.com (needs frame internet). |
 | PUT  | `/api/albums/{id}` | Edit one album via the same cloud proxy. |
@@ -79,6 +80,40 @@ Verified on fw 0.2.28 (build 4654a1d8), physical 13.3" frame, and fw 0.2.29
   for octet-stream bodies — that's why the integration gates it on a verified
   firmware version (`firmware_supports_api_image()` in `api.py`, >= 0.2.28)
   and falls back to multipart `/upload` otherwise.
+
+### `GET/POST /api/wake-schedule` — scheduled wakes (firmware >= 0.2.31)
+The frame wakes by itself and stays reachable for `max_idle` seconds
+(30-600, default 120). Verified on fw 0.2.31 (build 0b367354), physical 31.5"
+frame:
+
+- Body fields: `enabled`, `times` (1-4 `"HH:MM"`, kept in the order sent) or
+  `interval_minutes` (60, 90, 120, 180, 240, 360, 480, 720 or 1440, counted
+  from the frame's midnight), `weekdays` (`"mon"`...`"sun"`), `max_idle`.
+  Omitted fields keep their value; times and an interval replace each other.
+- GET and POST reply with the whole schedule plus `time_valid` and
+  `next_wakes`, the next five wakes with the frame's UTC offset, for example
+  `"2026-11-11T01:15:00-05:00"`. `next_wakes` is empty while off.
+- Bad input answers 400 and changes nothing: `invalid_time_format` (also for
+  an empty `times` list), `too_many_times`, `invalid_interval`,
+  `invalid_weekday`, `invalid_max_idle`, `times_and_interval_conflict`,
+  `no_schedule_defined`, `invalid_json`. Once set, an interval can be
+  disabled but not cleared.
+- Times are on the frame's POSIX zone, usually the `EST5EDT` fallback, so
+  the integration shifts them from Home Assistant's zone (`wake_schedule.py`).
+- Per Fraimic's guide: each wake needs its time servers and the 8.8.8.8
+  connectivity check, or wakes pause and retry daily. Verified on Large with
+  its WAN blocked except NTP, and TCP/UDP `8.8.8.8:53` redirected to a LAN
+  resolver: it answered within 5 s of each wake, about 8 s after boot, with
+  its clock synced.
+- With keep-awake on, the frame stays up past `max_idle` after a scheduled
+  wake until it gets `/api/sleep` (verified on Large).
+- The clock can still be unsynced when the frame first answers: one wake
+  reported `time_valid: false`, empty `next_wakes` and no `local_time` 8 s
+  after boot, so the integration keeps the last known offset.
+- An upload during a wake was accepted in 21 s on a charged battery (585 s
+  at 9%). An upload arriving once
+  the frame has started going to sleep answers `503 {"error":"sleeping"}`
+  (`FraimicSleepingError`), and the window closes on time even mid-upload.
 
 ### `GET /info` — HTML admin page
 Carries data absent from every JSON endpoint: **physical panel size**
