@@ -27,8 +27,9 @@ display and delivers them over your local network or through your Fraimic accoun
 - **Native Home Assistant integration:** UI setup, discovery, entities, a media
   player, and actions for automations. No YAML required to get started.
 
-Fraimic **3.2** keeps cloud and Hybrid frames on their queue interval before an
-awake window. See the [release notes](docs/release-3.2.md).
+Fraimic **3.3** lets local frames sleep between pictures and wake on their own
+schedule (firmware 0.2.31), and adds dictation to Create. See the
+[release notes](docs/release-3.3.md).
 
 ## Installation
 
@@ -184,6 +185,16 @@ and turns repeat off. The queue, playback settings, and paused state survive
 Home Assistant restarts. Existing assigned playlists migrate once into a queue,
 retaining their interval and repeat behavior.
 
+On firmware 0.2.31 or newer with Local delivery, **Changes at** replaces the
+change interval with the frame's own wake schedule: up to four times a day, or
+an interval, on chosen weekdays. The frame sleeps between wakes and each picture
+changes at one of them, auto mode included. Home Assistant converts the times to
+the frame's clock, delivers at each wake, then puts the frame back to sleep
+unless it is charging. **Turn off wakes** returns to the change interval. Each
+wake needs the frame's time sync and `8.8.8.8` check (see
+[Isolated networks](#isolated-networks-and-iot-vlans)); a repair appears after
+two missed wakes.
+
 ### Auto mode
 
 Auto mode keeps three upcoming picks below an **Auto** divider in the queue.
@@ -201,7 +212,8 @@ Open **Settings** in the Auto divider, or **Frame menu → Auto mode settings**:
   source is picked.
 - **When to change:** follow the queue interval, use an interval of its own, or
   change at set times on chosen weekdays. With cloud delivery, the frame wakes
-  on the queue interval, so auto mode always follows it.
+  on the queue interval, so auto mode always follows it. With scheduled wakes
+  (**Changes at**), auto mode changes at those wakes.
 - **Active hours:** only change the picture inside a daily window.
 - **Avoid repeats:** skip pictures shown in the last 7, 30, or 90 days, or wait
   until every picture in a source has been shown. Small sources fall back to
@@ -326,11 +338,10 @@ uploading an image already rendered into the six panel colours, preserving its
 chosen dither pattern through the cloud conversion. It still depends on
 Fraimic's processing pipeline, unlike a direct local upload of the panel data.
 
-The missing piece is a firmware-supported scheduled wake-up for local delivery:
-let the frame sleep, then wake periodically to receive new artwork without
-sending photos through the cloud. **Fraimic has confirmed that it is working on
-scheduled wake-ups to fix this limitation.** See
-[Anthony's confirmation on Discord](https://discord.com/channels/1385597655576612884/1391637317428707418/1550148359619088405).
+Firmware 0.2.31 adds scheduled wake-ups for local delivery: the frame sleeps,
+then wakes at set times to receive new artwork without sending photos through
+the cloud. Pick those times with **Changes at** in the queue sheet (see
+[Playlists and the queue](#playlists-and-the-queue)).
 
 ### Configuring delivery
 
@@ -544,10 +555,11 @@ everything over the LAN. Allow the frame:
   `time.nist.gov`.
 
 When these are blocked, the frame fails over between access points (which can
-cut an upload short), falls back to 24-hour timer wakes without synced time, and
-opens an unprotected setup network named `Fraimic_<number>`. The local API has no
-authentication, so anyone who joins that network can likely reach it, including
-factory reset (inferred from the firmware, not tested).
+cut an upload short), falls back to 24-hour timer wakes without synced time,
+pauses its scheduled wakes for a day, and opens an unprotected setup network
+named `Fraimic_<number>`. The local API has no authentication, so anyone who
+joins that network can likely reach it, including factory reset (inferred from
+the firmware, not tested).
 
 The only stock route to time without internet NTP is local DNS: point those four
 hostnames at an accurate NTP server on your LAN (untested on a frame). The frame
