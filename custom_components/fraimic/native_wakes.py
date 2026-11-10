@@ -65,6 +65,10 @@ class NativeWakes:
         self.schedule: WakeSchedule | None = None
         # The frame's last reported schedule (GET/POST reply).
         self.frame: dict[str, Any] | None = None
+        # Its UTC offset in minutes, kept from the last reply that showed it:
+        # a few seconds after a wake its clock can still be unsynced, and the
+        # reply then lists no next_wakes.
+        self._offset: int | None = None
         # The frame may not have what ``schedule`` asks for yet.
         self.dirty = False
         self.misses = 0
@@ -97,6 +101,7 @@ class NativeWakes:
             except ValueError as err:
                 _LOGGER.warning("Ignoring an invalid stored wake schedule: %s", err)
         self.frame = data.get("frame")
+        self._offset = data.get("offset")
         self.dirty = bool(data.get("dirty"))
         self.misses = int(data.get("misses") or 0)
         self.last_wake = data.get("last_wake")
@@ -123,6 +128,7 @@ class NativeWakes:
                 "firmware": self._firmware,
                 "schedule": self.schedule.to_dict() if self.schedule else None,
                 "frame": self.frame,
+                "offset": self._offset,
                 "dirty": self.dirty,
                 "misses": self.misses,
                 "last_wake": self.last_wake,
@@ -143,9 +149,12 @@ class NativeWakes:
         self._schedule_catch()
 
     def _frame_offset(self) -> int | None:
-        offset = frame_offset(self.frame)
-        if offset is not None:
-            return offset
+        if self._offset is not None:
+            return self._offset
+        return self._polled_offset()
+
+    def _polled_offset(self) -> int | None:
+        """The offset from the last poll; None unless its clock was synced."""
         data = self.entry.runtime_data.coordinator.data or {}
         value = (data.get("device") or {}).get("utc_offset_minutes")
         return value if isinstance(value, int) else None
@@ -267,6 +276,11 @@ class NativeWakes:
                         )
                         payload = None
                 self.frame = state
+                offset = frame_offset(state)
+                if offset is None:
+                    offset = self._polled_offset()
+                if offset is not None:
+                    self._offset = offset
                 self.dirty = payload is None and (self.dirty or self.schedule is not None)
             await self._async_save()
         self._schedule_catch()

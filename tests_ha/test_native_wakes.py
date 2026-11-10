@@ -199,3 +199,24 @@ async def test_a_window_closed_before_sleep_still_counts_as_asleep(
 
     assert wakes.last_wake is not None and wakes.last_wake["outcome"] == "answered"
     assert config_entry.runtime_data.coordinator.frame_online is False
+
+
+async def test_an_unsynced_clock_at_the_wake_keeps_the_next_one(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(native_wakes, "IDLE_SECONDS", 0)
+    monkeypatch.setattr(native_wakes, "PROBE_EVERY", 0)
+    wakes = await _set_up(hass, freezer, config_entry)
+    # Seen on Large: 8 s after a wake its clock was not synced yet.
+    unsynced = {**(wakes.frame or {}), "time_valid": False, "next_wakes": []}
+    frame["get_wake_schedule"].side_effect = lambda: dict(unsynced)
+    frame["get_info"].return_value = {**EST_FRAME, "time_synced": False, "local_time": None}
+
+    await _reach(hass, freezer, wakes, FIRST_WAKE - timedelta(seconds=30))
+
+    assert wakes.last_wake is not None and wakes.last_wake["outcome"] == "answered"
+    assert wakes.next_wake == FIRST_WAKE + timedelta(days=1)

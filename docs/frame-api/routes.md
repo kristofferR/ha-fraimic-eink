@@ -106,7 +106,12 @@ frame:
   resolver: it answered within 5 s of each wake, about 8 s after boot, with
   its clock synced.
 - With keep-awake on, the frame stays up past `max_idle` after a scheduled
-  wake until it gets `/api/sleep` (verified on Large). An upload arriving once
+  wake until it gets `/api/sleep` (verified on Large).
+- The clock can still be unsynced when the frame first answers: one wake
+  reported `time_valid: false`, empty `next_wakes` and no `local_time` 8 s
+  after boot, so the integration keeps the last known offset.
+- An upload during a wake was accepted in 21 s on a charged battery (585 s
+  at 9%). An upload arriving once
   the frame has started going to sleep answers `503 {"error":"sleeping"}`
   (`FraimicSleepingError`), and the window closes on time even mid-upload.
 
