@@ -33,7 +33,8 @@ LOCAL_OPENAI = "openai"
 LOCAL_SDWEBUI = "sdwebui"
 LOCAL_APIS = (LOCAL_OPENAI, LOCAL_SDWEBUI)
 
-VOICE_MODES = ("fixed", "art", "assist")
+# "fraimic" hands the recording to Fraimic's own voice art, via the companion.
+VOICE_MODES = ("fixed", "art", "assist", "fraimic")
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
 OPENROUTER_HEADERS = {
@@ -188,6 +189,7 @@ SETTINGS_SCHEMA = vol.Schema(
             [STYLE_SCHEMA], vol.Length(max=MAX_STYLES + len(BUILTIN_STYLES))
         ),
         vol.Optional("rewrite_entity"): str,
+        vol.Optional("dictation_pipeline"): vol.All(str, vol.Length(max=100)),
         vol.Optional("voice"): {str: VOICE_SCHEMA},
     }
 )
@@ -230,6 +232,7 @@ class AiSettings:
     style: str = DEFAULT_STYLE
     styles: tuple[Style, ...] = BUILTIN_STYLES
     rewrite_entity: str = ""
+    dictation_pipeline: str = ""  # Assist pipeline for the panel mic; "" = preferred
     voice: dict[str, VoiceSettings] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
@@ -245,6 +248,7 @@ class AiSettings:
             "style": self.style,
             "styles": [style.to_dict() for style in self.styles],
             "rewrite_entity": self.rewrite_entity,
+            "dictation_pipeline": self.dictation_pipeline,
             "voice": {key: value.to_dict() for key, value in self.voice.items()},
         }
 
@@ -296,11 +300,16 @@ class AiSettings:
 
     @property
     def configured(self) -> bool:
-        if self.provider == PROVIDER_OPENROUTER:
+        """Whether the default service can make pictures."""
+        return self.ready(self.provider)
+
+    def ready(self, provider: str) -> bool:
+        """Whether ``provider`` has what it needs, default or not."""
+        if provider == PROVIDER_OPENROUTER:
             return bool(self.openrouter_key and self.openrouter_model)
-        if self.provider == PROVIDER_LOCAL:
+        if provider == PROVIDER_LOCAL:
             return bool(self.local_url and self.local_api)
-        if self.provider == PROVIDER_AI_TASK:
+        if provider == PROVIDER_AI_TASK:
             return bool(self.ai_task_entity)
         return False
 

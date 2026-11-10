@@ -11,7 +11,7 @@ from homeassistant.components.http import KEY_HASS, HomeAssistantView
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 
-from .ai_art import BUILTIN_BY_ID, AiArtError
+from .ai_art import BUILTIN_BY_ID, PROVIDERS, AiArtError
 from .ai_manager import AiArtManager, get_ai_manager
 from .const import CONF_DELIVERY_MODE, DELIVERY_BACKEND, viewed_size
 from .frame_name import frame_display_name
@@ -109,6 +109,7 @@ def settings_payload(hass: HomeAssistant, manager: AiArtManager) -> dict[str, An
     return {
         "provider": settings.provider,
         "configured": settings.configured,
+        "ready": {provider: settings.ready(provider) for provider in PROVIDERS},
         "openrouter": {
             "has_key": bool(key),
             "key_hint": key[-4:] if len(key) > 8 else "",
@@ -135,6 +136,7 @@ def settings_payload(hass: HomeAssistant, manager: AiArtManager) -> dict[str, An
             style_id: style.to_dict() for style_id, style in BUILTIN_BY_ID.items()
         },
         "rewrite_entity": settings.rewrite_entity,
+        "dictation_pipeline": settings.dictation_pipeline,
         "voice": voice,
         "choices": _choices(hass),
         "usage": manager.month_usage(),
@@ -216,6 +218,7 @@ class AiCreateView(HomeAssistantView):
                 style=text("style"),
                 prompt=text("prompt"),
                 model=text("model"),
+                provider=text("provider"),
             )
         except HomeAssistantError as err:
             return self.json_message(str(err), HTTPStatus.CONFLICT)
