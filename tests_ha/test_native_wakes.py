@@ -180,3 +180,22 @@ async def test_older_firmware_keeps_the_queue_interval(
     assert not wakes.active
     with pytest.raises(HomeAssistantError):
         await wakes.async_set_schedule(WakeSchedule.from_dict({"times": ["07:00"]}))
+
+
+async def test_a_window_closed_before_sleep_still_counts_as_asleep(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(native_wakes, "IDLE_SECONDS", 0)
+    monkeypatch.setattr(native_wakes, "PROBE_EVERY", 0)
+    wakes = await _set_up(hass, freezer, config_entry)
+    # Large's render outlasts the 120 s window, so the frame is gone by then.
+    frame["sleep"].side_effect = FraimicConnectionError("asleep")
+
+    await _reach(hass, freezer, wakes, FIRST_WAKE - timedelta(seconds=30))
+
+    assert wakes.last_wake is not None and wakes.last_wake["outcome"] == "answered"
+    assert config_entry.runtime_data.coordinator.frame_online is False

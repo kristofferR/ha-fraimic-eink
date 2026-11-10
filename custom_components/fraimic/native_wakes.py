@@ -28,7 +28,7 @@ from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from .api import FraimicApiError, FraimicError
+from .api import FraimicApiError, FraimicConnectionError, FraimicError
 from .const import DOMAIN
 from .wake_schedule import WakeSchedule, art_slots, frame_offset, frame_wakes, matches
 
@@ -352,6 +352,8 @@ class NativeWakes:
         try:
             # Waits for any render to end; the frame would finish it regardless.
             await runtime.client.sleep()
+        except FraimicConnectionError:
+            pass  # the window closed during that wait: it is asleep already
         except FraimicError as err:
             _LOGGER.debug("Could not put %s back to sleep: %s", self.entry.title, err)
             return

@@ -101,7 +101,12 @@ frame:
 - Times are on the frame's POSIX zone, usually the `EST5EDT` fallback, so
   the integration shifts them from Home Assistant's zone (`wake_schedule.py`).
 - Per Fraimic's guide: each wake needs its time servers and the 8.8.8.8
-  connectivity check, or wakes pause and retry daily. An upload arriving once
+  connectivity check, or wakes pause and retry daily. Verified on Large with
+  its WAN blocked except NTP, and TCP/UDP `8.8.8.8:53` redirected to a LAN
+  resolver: it answered within 5 s of each wake, about 8 s after boot, with
+  its clock synced.
+- With keep-awake on, the frame stays up past `max_idle` after a scheduled
+  wake until it gets `/api/sleep` (verified on Large). An upload arriving once
   the frame has started going to sleep answers `503 {"error":"sleeping"}`
   (`FraimicSleepingError`), and the window closes on time even mid-upload.
 

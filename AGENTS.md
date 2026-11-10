@@ -266,8 +266,9 @@ automatic rotation waits until the frame answers. `NativeWakes` probes from
 that lead to `CATCH_END` (80 s) after the frame's own `next_wakes` entry, polls
 on the first answer (the scheduler and send queue deliver from that poll),
 re-syncs the schedule, then sends `/api/sleep` unless the frame is charging.
-Keep-awake can only change through the cloud, so this explicit sleep is what
-lets a frame with keep-awake on sleep between wakes. A frame schedule set
+Keep-awake can only change through the cloud and keeps a frame up after a
+scheduled wake (verified), so this explicit sleep is what lets such a frame
+sleep between wakes. A frame schedule set
 outside Home Assistant is left alone until one is picked here.
 
 ## Testing
