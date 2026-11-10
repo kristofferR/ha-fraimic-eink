@@ -1250,3 +1250,7 @@ def test_sleeping_frame_takes_art_at_its_wakes_once_it_answers(playback):
     # A manual picture keeps the frame until the next wake.
     run(p.scheduler.async_notify_external_upload())
     assert p.scheduler.hold_until == slots[1] - timedelta(seconds=30)
+    # A new schedule keeps it until the next wake from now, not from the last rotation.
+    p.scheduler._last_rotation -= timedelta(days=1)
+    run(p.scheduler.async_wake_schedule_changed())
+    assert p.scheduler.hold_until == slots[1] - timedelta(seconds=30)

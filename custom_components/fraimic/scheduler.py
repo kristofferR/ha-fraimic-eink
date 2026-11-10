@@ -726,7 +726,7 @@ class FraimicScheduler:
         """Art timing moved between wake slots and the queue interval."""
         if self._hold_until is not None:
             # A hold lasts until the next change, which the new timing decides.
-            self._hold_until = self._next_change(self._last_rotation or dt_util.utcnow())
+            self._hold_until = self._next_change(dt_util.utcnow())
         await self._async_save()
         self._notify()
 

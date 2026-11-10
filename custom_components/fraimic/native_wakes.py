@@ -341,8 +341,8 @@ class NativeWakes:
         coordinator = runtime.coordinator
         self.misses = 0
         ir.async_delete_issue(self.hass, DOMAIN, self._issue_id)
-        coordinator.async_set_frame_online(True)
-        # This poll's listeners deliver: the scheduler's due art and any queued send.
+        # This poll marks the frame online, and its listeners deliver with
+        # fresh battery data: the scheduler's due art and any queued send.
         await coordinator.async_refresh()
         await self.async_sync()
         await self._async_wait_idle()
