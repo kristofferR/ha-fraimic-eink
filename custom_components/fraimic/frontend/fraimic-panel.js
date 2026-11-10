@@ -1574,8 +1574,7 @@ class FraimicPanel extends HTMLElement {
   }
 
   async _saveWake(schedule) {
-    await this._setPlayback("wake_schedule", schedule);
-    this._wakeDraft = null;
+    if (await this._setPlayback("wake_schedule", schedule)) this._wakeDraft = null;
   }
 
   _facetMenu() {
@@ -3198,7 +3197,7 @@ class FraimicPanel extends HTMLElement {
       this._notify(`Added ${source.label} to auto mode.`, running ? {} : { action: "Turn on", callback: () => this._setPlayback("end_action", "auto") });
     } catch (error) { this._notify(this._friendlyError(error), { error: true }); }
   }
-  async _setPlayback(action, value) { try { this._player = await this._api("player/control", this._json({ action, [action]: value, entry_id: this._selectedFrameId })); this._menu = null; this._render(); } catch (error) { this._notify(this._friendlyError(error), { error: true }); } }
+  async _setPlayback(action, value) { try { this._player = await this._api("player/control", this._json({ action, [action]: value, entry_id: this._selectedFrameId })); this._menu = null; this._render(); return true; } catch (error) { this._notify(this._friendlyError(error), { error: true }); return false; } }
   _toggleShuffle() { return this._setPlayback("shuffle", !this._player?.shuffle); }
   _setInterval(interval) { return this._setPlayback("interval", interval); }
   _customInterval() {

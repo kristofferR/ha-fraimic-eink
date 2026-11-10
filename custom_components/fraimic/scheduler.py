@@ -814,6 +814,8 @@ class FraimicScheduler:
             return
         now = dt_util.utcnow()
         if not force:
+            if self._direct_send_pending():
+                return
             if self._pending is not None or (
                 self._hold_until and now < self._hold_until
             ):
@@ -1286,7 +1288,12 @@ class FraimicScheduler:
             and self.entry.runtime_data.coordinator.last_update_success
             and not self._busy
             and not self.external_upload_active
+            and not self._direct_send_pending()
         )
+
+    def _direct_send_pending(self) -> bool:
+        queue = getattr(self.entry.runtime_data, "send_queue", None)
+        return queue is not None and queue.pending is not None
 
     async def _async_retry_pending(self, screen: ScreenConfig) -> None:
         if not self._can_retry_pending(screen):

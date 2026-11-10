@@ -91,7 +91,7 @@ class NativeWakes:
     def _issue_id(self) -> str:
         return f"wake_missed_{self.entry.entry_id}"
 
-    async def async_setup(self) -> None:
+    async def async_setup(self, *, retire: bool = False) -> None:
         data = await self._store.async_load() or {}
         self.supported = data.get("supported")
         self._firmware = data.get("firmware")
@@ -105,6 +105,12 @@ class NativeWakes:
         self.dirty = bool(data.get("dirty"))
         self.misses = int(data.get("misses") or 0)
         self.last_wake = data.get("last_wake")
+        if retire:
+            if self.schedule is None and not self.dirty:
+                return  # never managed here; preserve the frame's own schedule
+            self.schedule = None
+            self.dirty = True
+            await self._async_save()
         self._unsub_coordinator = self.entry.runtime_data.coordinator.async_add_listener(
             self._coordinator_updated
         )
@@ -228,7 +234,11 @@ class NativeWakes:
             # A firmware update can add (or drop) the endpoint.
             self._firmware = firmware
             self.supported = None
-        if self.supported is None or (self.supported and self.dirty):
+        payload = self._payload(self.frame or {})
+        needs_sync = self.dirty or (
+            payload is not None and not matches(self.frame, payload)
+        )
+        if self.supported is None or (self.supported and needs_sync):
             self.entry.async_create_background_task(
                 self.hass, self.async_sync(), f"fraimic-wake-sync-{self.entry.entry_id}"
             )
@@ -237,12 +247,22 @@ class NativeWakes:
         """What the frame should hold; None to leave it as it is."""
         if self.schedule is None:
             return {"enabled": False} if self.dirty else None
+        when = dt_util.utcnow() + CATCH_LEAD
+        if self.schedule.interval is None:
+            # Program the next art slot before sleeping, including a change
+            # of HA's UTC offset overnight. The reply supplies the frame's
+            # upcoming offset, rather than its offset at the last poll.
+            when = self.schedule.wakes(
+                when.astimezone(dt_util.get_default_time_zone()), 1
+            )[0]
         offset = frame_offset(state)
         if offset is None:
             offset = self._frame_offset()
         if offset is None:
             return None  # the frame's clock is unknown; try at its next wake
-        local = int((dt_util.now().utcoffset() or timedelta()).total_seconds() // 60)
+        local = int(
+            (dt_util.as_local(when).utcoffset() or timedelta()).total_seconds() // 60
+        )
         return self.schedule.shifted(offset - local).frame_payload()
 
     async def async_sync(self) -> bool:
@@ -326,7 +346,14 @@ class NativeWakes:
         runtime = self.entry.runtime_data
         try:
             answered = False
+            contact_since = (wake - CATCH_LEAD).timestamp()
+            if runtime.coordinator.frame_busy:
+                # A queue probe may have started an upload just before us.
+                contact_since -= SETTLE_LIMIT
             while dt_util.utcnow() < wake + CATCH_END:
+                if (runtime.client.last_response or 0) >= contact_since:
+                    answered = True
+                    break
                 if not runtime.coordinator.frame_busy:
                     try:
                         await runtime.client.get_battery(timeout=PROBE_TIMEOUT)
@@ -336,6 +363,12 @@ class NativeWakes:
                         answered = True
                         break
                 await asyncio.sleep(PROBE_EVERY)
+            # An upload can outlast the catch window and only report its
+            # contact on completion. Do not miss its cleanup or poll mid-upload.
+            async with runtime.upload_lock:
+                answered = answered or (
+                    (runtime.client.last_response or 0) >= contact_since
+                )
             if answered:
                 await self._async_answered()
             else:
@@ -360,6 +393,11 @@ class NativeWakes:
         await coordinator.async_refresh()
         await self.async_sync()
         await self._async_wait_idle()
+        # sleep() would wait inside the schedule check. A user can turn
+        # wakes off while this render settles, so check only after it ends.
+        await runtime.client.wait_for_render()
+        if self.schedule is None:
+            return  # keep LAN delivery reachable after turning wakes off
         battery = (coordinator.data or {}).get("battery") or {}
         if battery.get("charging") is not False:
             return  # charging keeps it awake anyway; unknown is not safe

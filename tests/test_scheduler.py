@@ -1254,3 +1254,21 @@ def test_sleeping_frame_takes_art_at_its_wakes_once_it_answers(playback):
     p.scheduler._last_rotation -= timedelta(days=1)
     run(p.scheduler.async_wake_schedule_changed())
     assert p.scheduler.hold_until == slots[1] - timedelta(seconds=30)
+
+
+def test_direct_send_blocks_wake_rotation_and_automatic_retry(playback):
+    p = playback
+    add(p, "first", "second")
+    run(p.scheduler.async_set_enabled(True))
+    p.now[0] += timedelta(hours=2)
+    p.entry.runtime_data.send_queue = SimpleNamespace(pending={"title": "manual"})
+    p.show.reset_mock()
+    run(p.scheduler._async_rotate(force=False))
+    p.show.assert_not_awaited()
+    candidate = p.scheduler.queue.candidate(p.now[0])
+    p.scheduler._pending = candidate.screen
+    run(p.scheduler._async_retry_pending(candidate.screen))
+    p.show.assert_not_awaited()
+    p.entry.runtime_data.send_queue.pending = None
+    run(p.scheduler._async_retry_pending(candidate.screen))
+    p.show.assert_awaited_once()

@@ -220,3 +220,158 @@ async def test_an_unsynced_clock_at_the_wake_keeps_the_next_one(
 
     assert wakes.last_wake is not None and wakes.last_wake["outcome"] == "answered"
     assert wakes.next_wake == FIRST_WAKE + timedelta(days=1)
+
+
+@pytest.mark.parametrize("already_uploading", [False, True])
+async def test_concurrent_upload_counts_as_contact_and_polls_afterward(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+    already_uploading: bool,
+) -> None:
+    monkeypatch.setattr(native_wakes, "IDLE_SECONDS", 0)
+    monkeypatch.setattr(native_wakes, "PROBE_EVERY", 0)
+    wakes = await _set_up(hass, freezer, config_entry)
+    runtime = config_entry.runtime_data
+    start = FIRST_WAKE - timedelta(seconds=30)
+    freezer.move_to(start)
+    await runtime.upload_lock.acquire()
+    runtime.client.last_response = (start - timedelta(seconds=5)).timestamp() if already_uploading else None
+    frame["get_info"].reset_mock()
+
+    async def finish_upload() -> None:
+        await asyncio.sleep(0)
+        frame["get_info"].assert_not_awaited()
+        freezer.move_to(FIRST_WAKE + timedelta(seconds=100))
+        runtime.client.last_response = dt_util.utcnow().timestamp()
+        runtime.upload_lock.release()
+
+    task = asyncio.create_task(finish_upload())
+    await _reach(hass, freezer, wakes, start)
+    await task
+    assert wakes.last_wake is not None and wakes.last_wake["outcome"] == "answered"
+    assert wakes.misses == 0
+    frame["get_info"].assert_awaited_once()
+    frame["sleep"].assert_awaited_once()
+
+
+async def test_clearing_a_sleeping_frames_schedule_does_not_put_it_back_to_sleep(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(native_wakes, "IDLE_SECONDS", 0)
+    wakes = await _set_up(hass, freezer, config_entry)
+    config_entry.runtime_data.coordinator.async_set_frame_online(False)
+    await wakes.async_set_schedule(None)
+    assert wakes.dirty
+    freezer.move_to(FIRST_WAKE - timedelta(seconds=30))
+    wakes._catching = True
+    await wakes._async_catch(FIRST_WAKE)
+    frame["set_wake_schedule"].assert_awaited_with({"enabled": False})
+    frame["sleep"].assert_not_awaited()
+    assert config_entry.runtime_data.coordinator.frame_online
+    assert not wakes.dirty
+
+
+@pytest.mark.parametrize("owned", [False, True])
+async def test_retirement_clears_only_a_previously_owned_schedule(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+    owned: bool,
+) -> None:
+    monkeypatch.setattr(native_wakes, "IDLE_SECONDS", 0)
+    wakes = await _set_up(hass, freezer, config_entry)
+    if not owned:
+        # A frame schedule discovered from the LAN is not HA-owned.
+        wakes.schedule = None
+        await wakes._async_save()
+    wakes.shutdown()
+    config_entry.runtime_data.coordinator.async_set_frame_online(False)
+    retired = native_wakes.NativeWakes(hass, config_entry)
+    await retired.async_setup(retire=True)
+    config_entry.async_on_unload(retired.shutdown)
+    assert retired.schedule is None
+    assert retired.dirty is owned
+    frame["set_wake_schedule"].reset_mock()
+    if owned:
+        freezer.move_to(FIRST_WAKE - timedelta(seconds=30))
+        retired._catching = True
+        await retired._async_catch(FIRST_WAKE)
+        frame["set_wake_schedule"].assert_awaited_once_with({"enabled": False})
+        frame["sleep"].assert_not_awaited()
+    else:
+        assert retired._unsub_catch is None
+        frame["set_wake_schedule"].assert_not_awaited()
+
+
+@pytest.mark.parametrize(
+    ("now", "reported", "expected"),
+    [
+        ("2027-03-27T17:00:00Z", ["2027-03-28T02:00:00-04:00"], "01:00"),
+        ("2027-10-30T17:00:00Z", ["2027-10-31T01:00:00-04:00"], "02:00"),
+    ],
+)
+async def test_programs_the_next_slots_offsets_before_sleeping(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    now: str,
+    reported: list[str],
+    expected: str,
+) -> None:
+    wakes = await _set_up(hass, freezer, config_entry)
+    freezer.move_to(now)
+    state = {**(wakes.frame or {}), "next_wakes": reported}
+    frame["get_wake_schedule"].side_effect = lambda: dict(state)
+    await wakes.async_sync()
+    call = frame["set_wake_schedule"].await_args
+    assert call is not None
+    assert call.args[0]["times"] == [expected]
+
+
+async def test_a_clean_schedule_resyncs_when_the_upcoming_offset_changes(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+) -> None:
+    wakes = await _set_up(hass, freezer, config_entry)
+    assert not wakes.dirty
+    freezer.move_to("2027-03-27T17:00:00Z")
+    wakes.frame = {**(wakes.frame or {}), "times": ["02:00"], "next_wakes": ["2027-03-28T02:00:00-04:00"]}
+    frame["get_wake_schedule"].side_effect = lambda: dict(wakes.frame or {})
+    frame["set_wake_schedule"].reset_mock()
+    wakes._coordinator_updated()
+    await _until(hass, lambda: frame["set_wake_schedule"].await_count == 1)
+    call = frame["set_wake_schedule"].await_args
+    assert call is not None
+    assert call.args[0]["times"] == ["01:00"]
+
+
+async def test_disabling_wakes_during_render_cancels_the_pending_sleep(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    frame: dict[str, AsyncMock],
+    config_entry: MockConfigEntry,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(native_wakes, "IDLE_SECONDS", 0)
+    wakes = await _set_up(hass, freezer, config_entry)
+
+    async def render_finishes() -> None:
+        await wakes.async_set_schedule(None)
+
+    with patch.object(config_entry.runtime_data.client, "wait_for_render", side_effect=render_finishes):
+        await wakes._async_answered()
+    frame["set_wake_schedule"].assert_awaited_with({"enabled": False})
+    frame["sleep"].assert_not_awaited()
+    assert config_entry.runtime_data.coordinator.frame_online

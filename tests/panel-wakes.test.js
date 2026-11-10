@@ -59,3 +59,21 @@ test("queued rows show their wake only while playing", () => {
   expect(playing._rowTime(2)).toBe("");
   expect(panel({ wakes: wakes(), paused: true })._rowTime(0)).toBe("");
 });
+
+test("a failed wake save preserves the draft for correction", async () => {
+  const p = panel({});
+  const draft = { times: [""], interval: null, days: EVERY_DAY };
+  p._wakeDraft = draft;
+  p._menu = "interval";
+  p._api = async () => { throw new Error("Invalid time"); };
+  p._notify = () => {};
+  p._friendlyError = (error) => error.message;
+  await p._saveWake(draft);
+  expect(p._wakeDraft).toBe(draft);
+  expect(p._menu).toBe("interval");
+  p._api = async () => ({ wakes: wakes() });
+  p._render = () => {};
+  await p._saveWake(draft);
+  expect(p._wakeDraft).toBeNull();
+  expect(p._menu).toBeNull();
+});

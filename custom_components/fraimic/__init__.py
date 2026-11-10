@@ -205,12 +205,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: FraimicConfigEntry) -> b
         entry.runtime_data.awake_window = awake_window
         entry.async_on_unload(awake_window.shutdown)
         await awake_window.async_setup()
-    if entry.options.get(CONF_DELIVERY_MODE, DEFAULT_DELIVERY_MODE) == DELIVERY_LOCAL:
-        # Before the scheduler, whose timing follows the frame's wakes.
-        wakes = NativeWakes(hass, entry)
+    # Keep a pending retirement alive until a sleeping frame next answers,
+    # even when its new transport no longer uses native wakes.
+    wakes = NativeWakes(hass, entry)
+    local_delivery = (
+        entry.options.get(CONF_DELIVERY_MODE, DEFAULT_DELIVERY_MODE) == DELIVERY_LOCAL
+    )
+    if local_delivery:
         entry.runtime_data.wakes = wakes
-        await wakes.async_setup()
-        entry.async_on_unload(wakes.shutdown)
+    await wakes.async_setup(retire=not local_delivery)
+    entry.async_on_unload(wakes.shutdown)
     scheduler = FraimicScheduler(hass, entry, playlists)
     entry.runtime_data.scheduler = scheduler
     await scheduler.async_start()

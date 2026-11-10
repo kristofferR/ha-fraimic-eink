@@ -64,7 +64,9 @@ class WakeSchedule:
         """Parse ``{"times": [...]}`` or ``{"interval": N}``, plus ``days``."""
         if not isinstance(data, dict):
             raise WakeScheduleError("schedule must be an object")
-        times = data.get("times") or ()
+        times = data.get("times", [])
+        if not isinstance(times, list):
+            raise WakeScheduleError("times must be a list")
         interval = data.get("interval")
         if isinstance(interval, bool) or (
             interval is not None and not isinstance(interval, int)
